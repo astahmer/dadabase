@@ -11,11 +11,15 @@
 		"prefix": ""
 	},
 	"aliases": {
-		"components": "@/components",
-		"utils": "@/lib/utils",
-		"ui": "@/components/ui",
-		"lib": "@/lib",
-		"hooks": "@/hooks"
+		"components": "#src/components",
+		"utils": "#src/lib/utils",
+		"ui": "#src/components/ui",
+		"lib": "#src/lib",
+		"hooks": "#src/hooks"
 	},
-	"iconLibrary": "lucide"
+	"iconLibrary": "lucide",
+	"registries": {
+		"@shipbase": "https://ui.shipbase.xyz/r/react/{name}.json",
+		"@tarkui": "https://tarkui.com/r/r/{name}.json"
+	}
 }
