@@ -1,16 +1,16 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "#src/lib/utils.ts";
 
-const stackVariants = cva("flex gap-4", {
+export const stack = cva("flex gap-4", {
 	variants: {
 		direction: {
 			row: "flex-row",
 			col: "flex-col",
 		},
 		align: {
-			itemsCenter: "items-center",
-			itemsStart: "items-start",
-			itemsEnd: "items-end",
+			center: "items-center",
+			start: "items-start",
+			end: "items-end",
 			selfStart: "self-start",
 			selfCenter: "self-center",
 			selfEnd: "self-end",
@@ -25,25 +25,33 @@ const stackVariants = cva("flex gap-4", {
 		wrap: {
 			true: "flex-wrap",
 		},
+		w: {
+			full: "w-full",
+		},
+		h: {
+			full: "h-full",
+		},
 	},
 	defaultVariants: {
-		align: "itemsCenter",
+		direction: "col",
+		align: "center",
 	},
 });
 
 export const Stack = (
-	props: React.ComponentProps<"div"> & VariantProps<typeof stackVariants>,
+	props: React.ComponentProps<"div"> & VariantProps<typeof stack>,
 ) => {
-	const { className, align, justify, wrap, ...rest } = props;
+	const { className, align, justify, wrap, w, ...rest } = props;
 	return (
 		<div
 			{...rest}
 			className={cn(
-				stackVariants({
+				stack({
 					direction: props.direction ?? "col",
 					align,
 					justify,
 					wrap,
+					w,
 				}),
 				className,
 			)}
@@ -51,18 +59,19 @@ export const Stack = (
 	);
 };
 export const HStack = (
-	props: React.ComponentProps<"div"> & VariantProps<typeof stackVariants>,
+	props: React.ComponentProps<"div"> & VariantProps<typeof stack>,
 ) => {
-	const { className, align, justify, wrap, ...rest } = props;
+	const { className, align, justify, wrap, w, ...rest } = props;
 	return (
 		<div
 			{...rest}
 			className={cn(
-				stackVariants({
+				stack({
 					direction: props.direction ?? "row",
 					align,
 					justify,
 					wrap,
+					w,
 				}),
 				className,
 			)}
