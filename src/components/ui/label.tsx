@@ -1,24 +1,29 @@
-"use client";
+import * as React from "react"
 
-import * as LabelPrimitive from "@radix-ui/react-label";
-import * as React from "react";
+import { createAnatomy } from "@ark-ui/react/anatomy"
+import { type HTMLArkProps, ark } from "@ark-ui/react/factory"
 
-import { cn } from "#src/lib/utils.ts";
+import { cn } from "#src/lib/utils"
 
-function Label({
-	className,
-	...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
-	return (
-		<LabelPrimitive.Root
-			data-slot="label"
-			className={cn(
-				"flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-				className,
-			)}
-			{...props}
-		/>
-	);
-}
+const anatomy = createAnatomy("label").parts("root")
+const parts = anatomy.build()
 
-export { Label };
+const Label = React.forwardRef<HTMLLabelElement, HTMLArkProps<"label">>(
+  ({ className, htmlFor, children, ...props }, ref) => (
+    <ark.label
+      ref={ref}
+      {...parts.root.attrs}
+      htmlFor={htmlFor}
+      className={cn(
+        "select-none font-medium text-foreground text-sm leading-4 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </ark.label>
+  )
+)
+Label.displayName = "Label"
+
+export { Label }
