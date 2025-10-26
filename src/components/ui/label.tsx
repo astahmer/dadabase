@@ -1,29 +1,22 @@
-import * as React from "react"
+import * as React from "react";
 
-import { createAnatomy } from "@ark-ui/react/anatomy"
-import { type HTMLArkProps, ark } from "@ark-ui/react/factory"
+import { cn } from "#src/lib/utils";
 
-import { cn } from "#src/lib/utils"
+const Label = React.forwardRef<HTMLLabelElement, React.ComponentProps<"label">>(
+	({ className, htmlFor, children, ...props }, ref) => (
+		<label
+			ref={ref}
+			htmlFor={htmlFor}
+			className={cn(
+				"select-none font-medium text-foreground text-sm leading-4 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50",
+				className,
+			)}
+			{...props}
+		>
+			{children}
+		</label>
+	),
+);
+Label.displayName = "Label";
 
-const anatomy = createAnatomy("label").parts("root")
-const parts = anatomy.build()
-
-const Label = React.forwardRef<HTMLLabelElement, HTMLArkProps<"label">>(
-  ({ className, htmlFor, children, ...props }, ref) => (
-    <ark.label
-      ref={ref}
-      {...parts.root.attrs}
-      htmlFor={htmlFor}
-      className={cn(
-        "select-none font-medium text-foreground text-sm leading-4 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </ark.label>
-  )
-)
-Label.displayName = "Label"
-
-export { Label }
+export { Label };

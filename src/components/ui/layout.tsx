@@ -1,5 +1,5 @@
-import { cn } from "#src/lib/utils.ts";
 import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "#src/lib/utils.ts";
 
 const stackVariants = cva("flex gap-4", {
 	variants: {

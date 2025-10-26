@@ -9,7 +9,9 @@
 		"dev": "vite dev --port 3000",
 		"build": "vite build",
 		"serve": "vite preview",
-		"test": "vitest run"
+		"test": "vitest run",
+		"fmt": "biome format --write src/",
+		"check": "biome check --write src/"
 	},
 	"dependencies": {
 		"@ai-sdk/anthropic": "^2.0.1",

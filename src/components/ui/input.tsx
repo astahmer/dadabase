@@ -1,21 +1,12 @@
-"use client";
-
 import * as React from "react";
-
-import { createAnatomy } from "@ark-ui/react/anatomy";
-import { type HTMLArkProps, ark } from "@ark-ui/react/factory";
 
 import { cn } from "#src/lib/utils";
 
-const anatomy = createAnatomy("input").parts("root");
-const parts = anatomy.build();
-
-const Input = React.forwardRef<HTMLInputElement, HTMLArkProps<"input">>(
+const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
 	({ className, type, ...props }, ref) => {
 		return (
 			<input
 				ref={ref}
-				{...parts.root.attrs}
 				type={type}
 				className={cn(
 					"flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none transition-[color,box-shadow] file:inline-flex file:h-7 file:border-0 file:bg-transparent file:font-medium file:text-foreground file:text-sm placeholder:text-muted-foreground/70 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
