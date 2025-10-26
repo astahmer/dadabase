@@ -12,7 +12,7 @@ You can use the following tools to help the user:
 - recommendGuitar: Recommend a guitar to the user
 `
 
-export const Route = createFileRoute('/api/demo-chat')({
+export const Route = createFileRoute('/demo/api/tanchat')({
   server: {
     handlers: {
       POST: async ({ request }) => {

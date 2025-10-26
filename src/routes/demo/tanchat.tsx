@@ -180,6 +180,6 @@ function ChatPage() {
   )
 }
 
-export const Route = createFileRoute('/example/chat')({
+export const Route = createFileRoute('/demo/tanchat')({
   component: ChatPage,
 })
