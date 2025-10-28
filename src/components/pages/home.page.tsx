@@ -4,6 +4,8 @@ import { useAppForm } from "../form/form.hook.ts";
 import { stack, Stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { Card } from "../ui/card.tsx";
+import { useServerFn } from "@tanstack/react-start";
+import { getAvailableDatabaseListServerFn } from "#src/fns/get-available-database-list.kysely.ts";
 
 const schema = z.object({
 	connectionType: z.enum(["postgres", "mysql", "sqlite"]),
@@ -17,6 +19,10 @@ const schema = z.object({
 	user: z.string(),
 	password: z.string(),
 });
+
+export const HomePage = () => {
+	return <SimpleForm />;
+};
 
 function SimpleForm() {
 	const form = useAppForm({
@@ -38,12 +44,17 @@ function SimpleForm() {
 		onSubmitInvalid(_props) {
 			toaster.create({ title: "Invalid form" });
 		},
-		onSubmit: (ctx) => {
+		onSubmit: async (ctx) => {
+			// TODO server fn connection?
 			console.log(ctx.value);
 			// Show success message
-			alert("Form submitted successfully!");
+			// alert("Form submitted successfully!");
+			const res = await fn({ data: { url: ctx.value.connectionUrl } });
+			console.log(res);
 		},
 	});
+
+	const fn = useServerFn(getAvailableDatabaseListServerFn);
 
 	return (
 		<Stack className="min-h-screen" justify="center">
@@ -152,10 +163,6 @@ function SimpleForm() {
 		</Stack>
 	);
 }
-
-export const HomePage = () => {
-	return <SimpleForm />;
-};
 
 function getConnectionUrl(props: {
 	connectionType: string;
