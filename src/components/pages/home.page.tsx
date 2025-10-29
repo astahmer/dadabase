@@ -5,7 +5,8 @@ import { stack, Stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { Card } from "../ui/card.tsx";
 import { useServerFn } from "@tanstack/react-start";
-import { getAvailableDatabaseListServerFn } from "#src/fns/get-available-database-list.kysely.ts";
+import { getAvailableDatabaseListServerFn } from "#src/server-fns/get-available-database-list.server.ts";
+import { useLoaderData } from "@tanstack/react-router";
 
 const schema = z.object({
 	connectionType: z.enum(["postgres", "mysql", "sqlite"]),
@@ -21,10 +22,20 @@ const schema = z.object({
 });
 
 export const HomePage = () => {
-	return <SimpleForm />;
+	const savedDatabaseList = useLoaderData({ from: "/" });
+	return (
+		<Stack>
+			{savedDatabaseList.map((savedDatabase) => (
+				<div key={savedDatabase.id}>{savedDatabase.url}</div>
+			))}
+			<SimpleForm />
+		</Stack>
+	);
 };
 
 function SimpleForm() {
+	const getDbList = useServerFn(getAvailableDatabaseListServerFn);
+
 	const form = useAppForm({
 		defaultValues: {
 			connectionType: "" as z.infer<typeof schema>["connectionType"],
@@ -49,12 +60,10 @@ function SimpleForm() {
 			console.log(ctx.value);
 			// Show success message
 			// alert("Form submitted successfully!");
-			const res = await fn({ data: { url: ctx.value.connectionUrl } });
+			const res = await getDbList({ data: { url: ctx.value.connectionUrl } });
 			console.log(res);
 		},
 	});
-
-	const fn = useServerFn(getAvailableDatabaseListServerFn);
 
 	return (
 		<Stack className="min-h-screen" justify="center">

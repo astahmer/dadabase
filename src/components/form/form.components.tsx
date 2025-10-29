@@ -2,12 +2,11 @@ import { useStore } from "@tanstack/react-form";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Label } from "../ui/label.tsx";
-import * as ArkSelect from "../ui/select.tsx";
-import { Slider as ShadcnSlider } from "../ui/slider.tsx";
-import { Switch as ShadcnSwitch } from "../ui/switch.tsx";
-import { Textarea as ShadcnTextarea } from "../ui/textarea.tsx";
-import { useFieldContext, useFormContext } from "./form.context.ts";
 import { Stack } from "../ui/layout.tsx";
+import * as ArkSelect from "../ui/select.tsx";
+import { Switch as ArkSwitch } from "../ui/switch.tsx";
+import { Textarea as ArkTextarea } from "../ui/textarea.tsx";
+import { useFieldContext, useFormContext } from "./form.context.ts";
 
 export function SubscribeButton({ label }: { label: string }) {
 	const form = useFormContext();
@@ -89,7 +88,7 @@ export function TextArea({
 			<Label htmlFor={label} className="mb-2 text-xl font-bold">
 				{label}
 			</Label>
-			<ShadcnTextarea
+			<ArkTextarea
 				id={label}
 				value={field.state.value}
 				onBlur={field.handleBlur}
@@ -147,26 +146,6 @@ export function Select(props: {
 	);
 }
 
-export function Slider({ label }: { label: string }) {
-	const field = useFieldContext<number>();
-	const errors = useStore(field.store, (state) => state.meta.errors);
-
-	return (
-		<div>
-			<Label htmlFor={label} className="mb-2 text-xl font-bold">
-				{label}
-			</Label>
-			<ShadcnSlider
-				id={label}
-				onBlur={field.handleBlur}
-				value={[field.state.value]}
-				onValueChange={(value) => field.handleChange(value[0])}
-			/>
-			{field.state.meta.isTouched && <ErrorMessages errors={errors} />}
-		</div>
-	);
-}
-
 export function Switch({ label }: { label: string }) {
 	const field = useFieldContext<boolean>();
 	const errors = useStore(field.store, (state) => state.meta.errors);
@@ -174,7 +153,7 @@ export function Switch({ label }: { label: string }) {
 	return (
 		<div>
 			<div className="flex items-center gap-2">
-				<ShadcnSwitch
+				<ArkSwitch
 					id={label}
 					onBlur={field.handleBlur}
 					checked={field.state.value}

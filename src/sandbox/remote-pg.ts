@@ -1,4 +1,4 @@
-import { makeKyselyDatabase } from "#src/db/kysely.database.live.ts";
+import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import {
 	getAvailableDatabaseList,
 	getAvailableTableList,
@@ -16,7 +16,7 @@ const program = Effect.gen(function* () {
 const DatabaseUrl = Config.string("DB_URL");
 const runWithDb = Effect.gen(function* () {
 	const url = yield* DatabaseUrl;
-	yield* program.pipe(Effect.provide(makeKyselyDatabase(url)));
+	yield* program.pipe(Effect.provide(makeKyselyPgDatabaseLayer(url)));
 });
 
 const res = await Effect.runPromise(

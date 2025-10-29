@@ -1,0 +1,25 @@
+diff --git a/bin.cjs b/bin.cjs
+index 27f1406f7e68279ade9e4c95ad023ac44ab6a714..eb478d807c9650d9532a393ca66e2e8ae3b8f176 100755
+--- a/bin.cjs
++++ b/bin.cjs
+@@ -81350,7 +81350,19 @@ To link your project, please refer https://docs.geldata.com/reference/cli/gel_in
+             await client.execute(query);
+           },
+           batchWithPragma: async (queries) => {
+-            await client.migrate(queries);
++            let transaction = null;
++            try {
++              transaction = await client.transaction();
++              for (const query of queries) {
++                await transaction.execute(query);
++              }
++              await transaction.commit();
++            } catch (error) {
++              await (transaction == null ? void 0 : transaction.rollback());
++              throw error;
++            } finally {
++              transaction == null ? void 0 : transaction.close();
++            }
+           }
+         };
+         const proxy = async (params) => {

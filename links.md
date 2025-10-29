@@ -15,3 +15,7 @@ https://github.com/beekeeper-studio/beekeeper-studio/blob/master/apps/studio/src
 https://github.com/wannabespace/conar/blob/main/apps/desktop/src/entities/database/sql/columns.ts
 
 https://github.com/wannabespace/conar/blob/4c120aab5a7b4dbb43f5a8d5af992453c395990c/apps/desktop/src/entities/database/utils/monaco.ts
+
+https://github.com/brianc/node-postgres/tree/master/packages/pg-query-stream
+
+https://www.npmjs.com/package/pg-connection-string

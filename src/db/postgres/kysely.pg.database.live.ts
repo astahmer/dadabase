@@ -1,15 +1,15 @@
 import { Effect, Layer } from "effect";
 import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
-import { makeFromKysely } from "./effect-kysely.ts";
-import { KyselyDatabase } from "./kysely.database.ts";
-import type { KyselyDbSchema } from "./kysely.schema.ts";
+import { makeFromKysely } from "../effect-kysely.ts";
+import { KyselyPgDatabase } from "./kysely.pg.database.ts";
+import type { KyselyPgSchema } from "./kysely.pg.schema.ts";
 
-export const makeKyselyDatabase = (url: string) =>
+export const makeKyselyPgDatabaseLayer = (url: string) =>
 	Layer.effect(
-		KyselyDatabase,
+		KyselyPgDatabase,
 		Effect.gen(function* () {
-			const qb = new Kysely<KyselyDbSchema>({
+			const qb = new Kysely<KyselyPgSchema>({
 				dialect: new PostgresDialect({
 					pool: new Pool({ connectionString: url }),
 				}),
