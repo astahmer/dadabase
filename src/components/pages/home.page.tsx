@@ -9,6 +9,8 @@ import { getAvailableDatabaseListServerFn } from "#src/server-fns/get-available-
 import { useLoaderData } from "@tanstack/react-router";
 import { AgGridReact } from "ag-grid-react";
 import { themeBalham } from "ag-grid-community";
+import { useDataTable } from "../use-data-table.ts";
+import { DataTable } from "../data-table.tsx";
 
 const schema = z.object({
 	connectionType: z.enum(["postgres", "mysql", "sqlite"]),
@@ -25,19 +27,45 @@ const schema = z.object({
 
 export const HomePage = () => {
 	const savedDatabaseList = useLoaderData({ from: "/" });
+	const table = useDataTable({
+		data: savedDatabaseList,
+		columns: [
+			{ accessorKey: "name", header: "Name" },
+			{ accessorKey: "dialect", header: "Dialect" },
+			// { accessorKey: "url", header: "URL" },
+			{
+				accessorKey: "created_at",
+				header: "Created At",
+				accessorFn: (params) =>
+					params.created_at
+						? new Date(params.created_at * 1000).toLocaleString()
+						: "--",
+			},
+			{
+				accessorKey: "updated_at",
+				header: "Updated At",
+				accessorFn: (params) =>
+					params.created_at
+						? new Date(params.created_at * 1000).toLocaleString()
+						: "--",
+			},
+		],
+	});
+
 	// console.log(savedDatabaseList.at(0)?.created_at);
 	return (
 		<Stack className="min-h-screen">
-			<Stack className="w-full h-[200px] max-w-3xl">
+			<DataTable table={table} />
+			{/* <Stack className="w-full h-[200px] max-w-3xl">
 				<AgGridReact
-					theme={themeBalham}
+					// theme={themeBalham}
 					className="w-full"
 					// domLayout="autoHeight"
 					rowData={savedDatabaseList}
 					columnDefs={[
 						{ field: "name", headerName: "Name" },
 						{ field: "dialect", headerName: "Dialect" },
-						{ field: "url", headerName: "URL" },
+						// { field: "url", headerName: "URL" },
 						{
 							field: "created_at",
 							headerName: "Created At",
@@ -56,7 +84,7 @@ export const HomePage = () => {
 						},
 					]}
 				/>
-			</Stack>
+			</Stack> */}
 			<SimpleForm />
 		</Stack>
 	);
