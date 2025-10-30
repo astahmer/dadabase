@@ -5,11 +5,23 @@ import { Fragment, memo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { PageLimitSelect } from "./page-limit.select.tsx";
 import { runIfFn } from "./run-if-fn.ts";
+import {
+	tableCellStyles,
+	tableEmptyStateStyles,
+	tableHeaderCellStyles,
+	tableHeaderStyles,
+	tableRowStyles,
+	tableSortButtonStyles,
+	tableStyles,
+} from "./data-table.styles.ts";
 
 const i18n = {
 	emptyText: "No results found.",
 	errorText: "An error occurred.",
 };
+
+export type DataTableSize = "sm" | "md" | "lg";
+export type DataTableVariant = "line" | "outline";
 
 export interface DataTableProps<TData> {
 	className?: string;
@@ -22,8 +34,12 @@ export interface DataTableProps<TData> {
 	isLoading?: boolean;
 	hasError?: boolean;
 	onRowClick?: (row: Row<TData>) => void;
-	stickyPagination?: boolean;
 	stickyHeader?: boolean;
+	interactive?: boolean;
+	striped?: boolean;
+	showColumnBorder?: boolean;
+	variant?: DataTableVariant;
+	size?: DataTableSize;
 	ExpandedRow?: (props: { row: Row<TData> }) => ReactNode;
 }
 
@@ -41,6 +57,11 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		isLoading,
 		onRowClick,
 		stickyHeader = true,
+		interactive = false,
+		striped = false,
+		showColumnBorder = false,
+		variant = "line",
+		size = "md",
 		ExpandedRow,
 	} = props;
 
@@ -57,14 +78,16 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 			<div
 				className={`overflow-x-auto overflow-y-hidden max-w-full ${className || ""}`}
 			>
-				<table className="w-full border-collapse">
-					<thead className={stickyHeader ? "sticky top-0 bg-white" : ""}>
+				<table className={tableStyles({ variant })}>
+					<thead className={tableHeaderStyles({ stickyHeader, variant })}>
 						{table.getHeaderGroups().map((headerGroup) => (
-							<tr key={headerGroup.id} className="border-b">
+							<tr key={headerGroup.id}>
 								{headerGroup.headers.map((header) => {
-									const size = header.column.getSize();
+									const size_val = header.column.getSize();
 									const style =
-										size && size !== 150 ? { minWidth: size } : undefined;
+										size_val && size_val !== 150
+											? { minWidth: size_val }
+											: undefined;
 									const hasBulkActions =
 										hasSelectedRows && headerGroup.headers.at(-1) === header;
 									const column = header.column;
@@ -72,9 +95,12 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 
 									return (
 										<th
-											className={`px-4 py-2 text-left font-semibold ${
-												hasBulkActions ? "text-right" : ""
-											}`}
+											className={
+												tableHeaderCellStyles({
+													size,
+													showColumnBorder,
+												}) + (hasBulkActions ? " text-right" : "")
+											}
 											key={header.id}
 											style={style}
 										>
@@ -83,7 +109,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 												<button
 													onClick={column.getToggleSortingHandler()}
 													data-test-id={`table-sort-${column.id}`}
-													className="inline-flex items-center gap-2 hover:opacity-100 opacity-55 transition-opacity"
+													className={tableSortButtonStyles()}
 												>
 													{flexRender(
 														header.column.columnDef.header,
@@ -116,7 +142,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 								.map((_, index) => (
 									<tr className="border-b" key={index} data-skeleton>
 										{columns.map((col) => (
-											<td key={col.id} className="px-4 py-2">
+											<td key={col.id} className={tableCellStyles({ size })}>
 												<div className="h-3 bg-gray-200 rounded animate-pulse" />
 											</td>
 										))}
@@ -134,17 +160,18 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											index={index}
 											getRow={() => row}
 											onRowClick={onRowClick}
+											size={size}
+											striped={striped}
+											interactive={interactive}
+											showColumnBorder={showColumnBorder}
 											ExpandedRow={ExpandedRow}
 										/>
 									))
 							) : (
 								<tr>
 									{emptyState ? (
-										<td
-											className="px-4 py-8 text-center"
-											colSpan={columns.length}
-										>
-											<div className="flex flex-col gap-4 justify-center items-center">
+										<td className="text-center" colSpan={columns.length}>
+											<div className={tableEmptyStateStyles()}>
 												<span>
 													{hasError ? i18n.errorText : i18n.emptyText}
 												</span>
@@ -170,13 +197,20 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 const TableCell = memo(function TableCell({
 	cell,
 	index,
+	size,
+	showColumnBorder,
 }: {
 	cell: Cell<any, any>;
 	index: number;
 	isExpanded: boolean;
+	size: DataTableSize;
+	showColumnBorder: boolean;
 }) {
 	return (
-		<td className="px-4 py-2" data-testid={`cell-${index}-${cell.column.id}`}>
+		<td
+			className={tableCellStyles({ size, showColumnBorder })}
+			data-testid={`cell-${index}-${cell.column.id}`}
+		>
 			<ErrorBoundary fallbackRender={fallbackRender}>
 				{flexRender(cell.column.columnDef.cell, cell.getContext())}
 			</ErrorBoundary>
@@ -188,24 +222,35 @@ const TableRow = memo(function TableRow({
 	index,
 	getRow,
 	onRowClick,
+	size,
+	striped,
+	interactive,
+	showColumnBorder,
 	ExpandedRow,
 }: {
 	index: number;
 	getRow: () => Row<any>;
 	onRowClick?: (row: Row<any>) => void;
+	size: DataTableSize;
+	striped: boolean;
+	interactive: boolean;
+	showColumnBorder: boolean;
 	ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
 }) {
 	const row = getRow();
 	const visibleCells = row.getVisibleCells();
+	const isSelected = row.getIsSelected();
 
 	return (
 		<Fragment>
 			<tr
-				className={`border-b ${
-					onRowClick ? "hover:bg-gray-50 cursor-pointer" : ""
-				} ${row.getIsSelected() ? "bg-blue-50" : "bg-white"}`}
+				className={tableRowStyles({
+					striped,
+					selected: isSelected,
+					interactive: interactive && !!onRowClick,
+				})}
 				data-testid={`row-${index}`}
-				data-state={row.getIsSelected() && "selected"}
+				data-state={isSelected && "selected"}
 				onClick={
 					onRowClick
 						? (e) => {
@@ -222,16 +267,21 @@ const TableRow = memo(function TableRow({
 						cell={cell}
 						index={cellIndex}
 						isExpanded={row.getIsExpanded()}
+						size={size}
+						showColumnBorder={showColumnBorder}
 					/>
 				))}
 			</tr>
 			{row.getIsExpanded() && ExpandedRow && (
 				<tr
-					className={`border-b ${row.getIsSelected() ? "bg-blue-50" : ""}`}
+					className={`border-b ${isSelected ? "bg-blue-50" : ""}`}
 					data-testid={`row-${index}-subrow`}
-					data-state={row.getIsSelected() && "selected"}
+					data-state={isSelected && "selected"}
 				>
-					<td className="px-4 py-2" colSpan={visibleCells.length}>
+					<td
+						className={tableCellStyles({ size, showColumnBorder })}
+						colSpan={visibleCells.length}
+					>
 						<ErrorBoundary fallbackRender={fallbackRender}>
 							<ExpandedRow row={row} />
 						</ErrorBoundary>
