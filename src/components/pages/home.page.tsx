@@ -7,6 +7,8 @@ import { Card } from "../ui/card.tsx";
 import { useServerFn } from "@tanstack/react-start";
 import { getAvailableDatabaseListServerFn } from "#src/server-fns/get-available-database-list.server.ts";
 import { useLoaderData } from "@tanstack/react-router";
+import { AgGridReact } from "ag-grid-react";
+import { themeBalham } from "ag-grid-community";
 
 const schema = z.object({
 	connectionType: z.enum(["postgres", "mysql", "sqlite"]),
@@ -23,11 +25,38 @@ const schema = z.object({
 
 export const HomePage = () => {
 	const savedDatabaseList = useLoaderData({ from: "/" });
+	// console.log(savedDatabaseList.at(0)?.created_at);
 	return (
-		<Stack>
-			{savedDatabaseList.map((savedDatabase) => (
-				<div key={savedDatabase.id}>{savedDatabase.url}</div>
-			))}
+		<Stack className="min-h-screen">
+			<Stack className="w-full h-[200px] max-w-3xl">
+				<AgGridReact
+					theme={themeBalham}
+					className="w-full"
+					// domLayout="autoHeight"
+					rowData={savedDatabaseList}
+					columnDefs={[
+						{ field: "name", headerName: "Name" },
+						{ field: "dialect", headerName: "Dialect" },
+						{ field: "url", headerName: "URL" },
+						{
+							field: "created_at",
+							headerName: "Created At",
+							valueFormatter: (params) =>
+								params.data?.created_at
+									? new Date(params.data.created_at * 1000).toLocaleString()
+									: "--",
+						},
+						{
+							field: "updated_at",
+							headerName: "Updated At",
+							valueFormatter: (params) =>
+								params.data?.created_at
+									? new Date(params.data.created_at * 1000).toLocaleString()
+									: "--",
+						},
+					]}
+				/>
+			</Stack>
 			<SimpleForm />
 		</Stack>
 	);
@@ -66,7 +95,7 @@ function SimpleForm() {
 	});
 
 	return (
-		<Stack className="min-h-screen" justify="center">
+		<Stack justify="center">
 			<div className="w-full max-w-2xl p-8">
 				<form
 					onSubmit={(e) => {

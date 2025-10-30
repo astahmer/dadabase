@@ -5,7 +5,10 @@ import * as sqlite from "drizzle-orm/sqlite-core";
 const primaryId = () => sqlite.text().primaryKey();
 const timestamp = () => sqlite.integer({ mode: "timestamp" });
 const timestampWithDefault = () =>
-	sqlite.integer({ mode: "timestamp" }).default(sql`(unixepoch())`);
+	sqlite
+		.integer({ mode: "timestamp" })
+		.default(sql`(unixepoch())`)
+		.$type<number>();
 const boolean = () => sqlite.integer({ mode: "boolean" });
 const json = () => sqlite.text({ mode: "json" });
 
