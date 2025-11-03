@@ -1,8 +1,6 @@
 import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
-import {
-	getAvailableDatabaseList,
-	getAvailableTableList,
-} from "#src/fns/get-available-database-list.kysely.ts";
+import { getAvailableDatabaseList } from "#src/fns/pg/get-available-database-list.kysely.ts";
+import { getAvailableTableList } from "#src/fns/pg/get-available-table-list.kysely.ts";
 import { PlatformConfigProvider } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
 import { Config, Effect } from "effect";

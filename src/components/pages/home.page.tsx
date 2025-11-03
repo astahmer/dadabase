@@ -1,19 +1,23 @@
-import { useStore } from "@tanstack/react-form";
+import { deleteDbConnectionServerFn } from "#src/server-fns/pg/delete-db-connection.server.ts";
+import { getSavedConnectionsQueryOptions } from "#src/server-fns/pg/get-saved-connections.server.ts";
+import { saveDbConnectionServerFn } from "#src/server-fns/pg/save-db-connection.server.ts";
+import { testPgConnectionServerFn } from "#src/server-fns/pg/test-pg-connection.server.ts";
+import { Clipboard } from "@ark-ui/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { DateTime } from "effect";
+import { CheckIcon, ClipboardCopyIcon, TrashIcon } from "lucide-react";
 import z from "zod";
+import { DataTable } from "../data-table.tsx";
 import { useAppForm } from "../form/form.hook.ts";
+import { Button } from "../ui/button.tsx";
 import { stack, Stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
-import { Card } from "../ui/card.tsx";
-import { useServerFn } from "@tanstack/react-start";
-import { getAvailableDatabaseListServerFn } from "#src/server-fns/get-available-database-list.server.ts";
-import { useLoaderData } from "@tanstack/react-router";
-import { AgGridReact } from "ag-grid-react";
-import { themeBalham } from "ag-grid-community";
 import { useDataTable } from "../use-data-table.ts";
-import { DataTable } from "../data-table.tsx";
 
+const connectionType = z.enum(["postgres", "mysql", "sqlite"]);
 const schema = z.object({
-	connectionType: z.enum(["postgres", "mysql", "sqlite"]),
+	connectionType,
 	// sqlite
 	filePath: z.string(),
 	// postgres / mysql
@@ -26,19 +30,49 @@ const schema = z.object({
 });
 
 export const HomePage = () => {
-	const savedDatabaseList = useLoaderData({ from: "/" });
+	const savedDatabaseList = useSuspenseQuery(getSavedConnectionsQueryOptions);
 	const table = useDataTable({
-		data: savedDatabaseList,
+		data: savedDatabaseList.data,
 		columns: [
+			{
+				accessorKey: "connect",
+				header: "Connect",
+				cell: (ctx) => {
+					const testPgConnectionUrl = useServerFn(testPgConnectionServerFn);
+					return (
+						<button
+							onClick={async () => {
+								const canConnect = await testPgConnectionUrl({
+									data: { url: ctx.row.original.url },
+								});
+								if (canConnect.success) {
+									toaster.create({
+										title: "Connection successful",
+										description: "You can now connect to this database",
+									});
+								} else {
+									toaster.create({
+										title: "Connection failed",
+										description: canConnect.message,
+									});
+								}
+							}}
+						>
+							⚡ Test
+						</button>
+					);
+				},
+			},
 			{ accessorKey: "name", header: "Name" },
 			{ accessorKey: "dialect", header: "Dialect" },
-			// { accessorKey: "url", header: "URL" },
 			{
 				accessorKey: "created_at",
 				header: "Created At",
 				accessorFn: (params) =>
 					params.created_at
-						? new Date(params.created_at * 1000).toLocaleString()
+						? DateTime.format(DateTime.unsafeMake(params.created_at), {
+								locale: "fr",
+							})
 						: "--",
 			},
 			{
@@ -46,56 +80,61 @@ export const HomePage = () => {
 				header: "Updated At",
 				accessorFn: (params) =>
 					params.created_at
-						? new Date(params.created_at * 1000).toLocaleString()
+						? DateTime.format(DateTime.unsafeMake(params.created_at), {
+								locale: "fr",
+							})
 						: "--",
+			},
+			{
+				accessorKey: "url",
+				header: "URL",
+				cell: (ctx) => (
+					<Clipboard.Root value={ctx.row.original.url}>
+						<Clipboard.Trigger asChild>
+							<Button variant="ghost" size="icon">
+								<Clipboard.Indicator copied={<CheckIcon />}>
+									<ClipboardCopyIcon />
+								</Clipboard.Indicator>
+							</Button>
+						</Clipboard.Trigger>
+					</Clipboard.Root>
+				),
+			},
+			{
+				accessorKey: "actions",
+				header: "Actions",
+				cell: (ctx) => {
+					return (
+						<Button
+							variant="secondary"
+							onClick={() =>
+								deleteDbConnectionServerFn({
+									data: { id: ctx.row.original.id },
+								})
+							}
+						>
+							<TrashIcon />
+						</Button>
+					);
+				},
 			},
 		],
 	});
 
-	// console.log(savedDatabaseList.at(0)?.created_at);
 	return (
-		<Stack className="min-h-screen">
+		<Stack>
 			<DataTable table={table} />
-			{/* <Stack className="w-full h-[200px] max-w-3xl">
-				<AgGridReact
-					// theme={themeBalham}
-					className="w-full"
-					// domLayout="autoHeight"
-					rowData={savedDatabaseList}
-					columnDefs={[
-						{ field: "name", headerName: "Name" },
-						{ field: "dialect", headerName: "Dialect" },
-						// { field: "url", headerName: "URL" },
-						{
-							field: "created_at",
-							headerName: "Created At",
-							valueFormatter: (params) =>
-								params.data?.created_at
-									? new Date(params.data.created_at * 1000).toLocaleString()
-									: "--",
-						},
-						{
-							field: "updated_at",
-							headerName: "Updated At",
-							valueFormatter: (params) =>
-								params.data?.created_at
-									? new Date(params.data.created_at * 1000).toLocaleString()
-									: "--",
-						},
-					]}
-				/>
-			</Stack> */}
 			<SimpleForm />
 		</Stack>
 	);
 };
 
 function SimpleForm() {
-	const getDbList = useServerFn(getAvailableDatabaseListServerFn);
+	// const saveDbConnection = useServerFn(saveDbConnectionServerFn);
 
 	const form = useAppForm({
 		defaultValues: {
-			connectionType: "" as z.infer<typeof schema>["connectionType"],
+			connectionType: "" as z.infer<typeof connectionType>,
 			// sqlite
 			filePath: "",
 			// postgres / mysql
@@ -113,14 +152,55 @@ function SimpleForm() {
 			toaster.create({ title: "Invalid form" });
 		},
 		onSubmit: async (ctx) => {
-			// TODO server fn connection?
-			console.log(ctx.value);
-			// Show success message
-			// alert("Form submitted successfully!");
-			const res = await getDbList({ data: { url: ctx.value.connectionUrl } });
-			console.log(res);
+			saveDbConnectionServerFn({
+				data: { name: "New connection", url: ctx.value.connectionUrl },
+			});
 		},
 	});
+
+	function updateConnectionUrl() {
+		const connectionType = form.getFieldValue("connectionType");
+		const host = form.getFieldValue("host");
+		const port = form.getFieldValue("port");
+		const databaseName = form.getFieldValue("databaseName");
+		const user = form.getFieldValue("user");
+		const password = form.getFieldValue("password");
+
+		const url = getConnectionUrl({
+			connectionType,
+			host,
+			port,
+			databaseName,
+			user,
+			password,
+		});
+
+		form.setFieldValue("connectionUrl", url);
+	}
+
+	function updateFieldsFromConnectionUrl(connectionUrl: string) {
+		try {
+			const url = new URL(connectionUrl);
+			const protocol = url.protocol.replace(":", ""); // "postgres:" -> "postgres"
+			const user = url.username;
+			const password = url.password;
+			const host = url.hostname;
+			const port = parseInt(url.port, 10);
+			const databaseName = url.pathname.replace("/", "");
+
+			form.setFieldValue(
+				"connectionType",
+				protocol as z.infer<typeof connectionType>,
+			);
+			form.setFieldValue("user", user);
+			form.setFieldValue("password", password);
+			form.setFieldValue("host", host);
+			form.setFieldValue("port", port);
+			form.setFieldValue("databaseName", databaseName);
+		} catch (e) {
+			console.error("Invalid connection URL:", e);
+		}
+	}
 
 	return (
 		<Stack justify="center">
@@ -167,7 +247,22 @@ function SimpleForm() {
 							return (
 								<div className="grid grid-cols-2 gap-4">
 									<div className="col-span-2">
-										<form.AppField name="connectionUrl">
+										<form.AppField
+											name="connectionUrl"
+											listeners={{
+												onChange: (props) => {
+													if (!props.value.startsWith("postgres://")) {
+														form.setFieldValue(
+															"connectionUrl",
+															`postgres://${props.value}`,
+														);
+													}
+												},
+												onBlur: (props) => {
+													updateFieldsFromConnectionUrl(props.value);
+												},
+											}}
+										>
 											{(field) => <field.TextField label="Connection URL" />}
 										</form.AppField>
 									</div>
@@ -175,43 +270,34 @@ function SimpleForm() {
 									<div className="col-span-2">Or</div>
 									<form.AppField
 										name="host"
-										listeners={{
-											onChange: (props) => {
-												const connectionType =
-													form.getFieldValue("connectionType");
-												const host = props.value;
-												const port = form.getFieldValue("port");
-												const databaseName = form.getFieldValue("databaseName");
-												const user = form.getFieldValue("user");
-												const password = form.getFieldValue("password");
-												const url = getConnectionUrl({
-													connectionType,
-													host,
-													port,
-													databaseName,
-													user,
-													password,
-												});
-												console.log(connectionType, url);
-
-												form.setFieldValue("connectionUrl", url);
-											},
-										}}
+										listeners={{ onChange: updateConnectionUrl }}
 									>
 										{(field) => <field.TextField label="Host" />}
 									</form.AppField>
-									<form.AppField name="port">
+									<form.AppField
+										name="port"
+										listeners={{ onChange: updateConnectionUrl }}
+									>
 										{(field) => <field.TextField type="number" label="Port" />}
 									</form.AppField>
 									<div className="col-span-2">
-										<form.AppField name="databaseName">
+										<form.AppField
+											name="databaseName"
+											listeners={{ onChange: updateConnectionUrl }}
+										>
 											{(field) => <field.TextField label="Database name" />}
 										</form.AppField>
 									</div>
-									<form.AppField name="user">
+									<form.AppField
+										name="user"
+										listeners={{ onChange: updateConnectionUrl }}
+									>
 										{(field) => <field.TextField label="User" />}
 									</form.AppField>
-									<form.AppField name="password">
+									<form.AppField
+										name="password"
+										listeners={{ onChange: updateConnectionUrl }}
+									>
 										{(field) => <field.TextField label="Password" />}
 									</form.AppField>
 								</div>

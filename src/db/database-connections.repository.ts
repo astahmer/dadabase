@@ -1,35 +1,40 @@
 import { Effect } from "effect";
 import { AppDatabase } from "./app.db.ts";
-import { NanoId } from "#src/services/nano-id.ts";
 import type { Insertable } from "kysely";
 import type { AppDatabaseSchema } from "./app.db.schema.ts";
 
 export class DatabaseConnectionsRepository extends Effect.Service<DatabaseConnectionsRepository>()(
 	"@dadabase/db/DatabaseConnectionsRepository",
 	{
-		dependencies: [NanoId.Default],
+		dependencies: [],
 		effect: Effect.gen(function* () {
-			const nanoId = yield* NanoId;
 			const db = yield* AppDatabase;
 			return {
-				findAll: () =>
-					db.execute(db.selectFrom("database_connections").selectAll()),
+				findAll: () => {
+					return db.execute(
+						db
+							.selectFrom("database_connections")
+							.selectAll()
+							.where("id", "is not", null),
+					);
+				},
 				insert: Effect.fn(function* (
-					insertable: Omit<
-						Insertable<AppDatabaseSchema["database_connections"]>,
-						"id"
-					>,
+					insertable: Insertable<AppDatabaseSchema["database_connections"]>,
 				) {
-					const id = yield* nanoId.generate("db_conn");
 					return yield* db.execute(
 						db.insertInto("database_connections").values({
-							id,
+							id: insertable.id,
 							dialect: insertable.dialect,
 							name: insertable.name,
 							url: insertable.url,
 							created_at: insertable.created_at,
 							updated_at: insertable.updated_at,
 						}),
+					);
+				}),
+				delete: Effect.fn(function* (input: { id: string }) {
+					return yield* db.execute(
+						db.deleteFrom("database_connections").where("id", "=", input.id),
 					);
 				}),
 			};

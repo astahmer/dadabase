@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./query-client.ts";
 
 export function getContext() {
-	const queryClient = new QueryClient();
 	return {
 		queryClient,
 	};

@@ -1,7 +1,7 @@
 import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
-import { getAvailableDatabaseList } from "../fns/get-available-database-list.kysely.ts";
+import { getAvailableDatabaseList } from "../../fns/pg/get-available-database-list.kysely.ts";
 
 export const getAvailableDatabaseListServerFn = createServerFn()
 	.inputValidator(
