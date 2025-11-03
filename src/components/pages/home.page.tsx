@@ -12,10 +12,9 @@ import { DataTable } from "../data-table.tsx";
 import { useAppForm } from "../form/form.hook.ts";
 import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button } from "../ui/button.tsx";
-import { stack, Stack } from "../ui/layout.tsx";
+import { stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { useDataTable } from "../use-data-table.ts";
-
 import {
 	Accordion,
 	AccordionItem,
@@ -51,6 +50,7 @@ export const HomePage = () => {
 					return (
 						<Button
 							variant="outline"
+							size="sm"
 							onClick={async () => {
 								const canConnect = await testPgConnectionUrl({
 									data: { url: ctx.row.original.url },
@@ -117,8 +117,8 @@ export const HomePage = () => {
 					return (
 						<AlertDialog
 							trigger={
-								<Button variant="secondary">
-									<TrashIcon />
+								<Button variant="destructive" size="sm">
+									<TrashIcon className="size-4" />
 								</Button>
 							}
 							title="Delete connection?"
@@ -137,10 +137,40 @@ export const HomePage = () => {
 	});
 
 	return (
-		<Stack>
-			<DataTable table={table} />
-			<SimpleForm />
-		</Stack>
+		<div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
+			<div className="max-w-7xl mx-auto space-y-12">
+				{/* Header Section */}
+				<div className="space-y-2">
+					<h1 className="text-4xl font-bold tracking-tight text-foreground">
+						Database Connections
+					</h1>
+					<p className="text-lg text-muted-foreground">
+						Manage and test your database connections in one place
+					</p>
+				</div>
+
+				{/* Saved Connections Section */}
+				<div className="space-y-4">
+					<div className="flex items-center justify-between">
+						<div>
+							<h2 className="text-2xl font-semibold text-foreground">
+								Saved Connections
+							</h2>
+							<p className="text-sm text-muted-foreground mt-1">
+								{savedDatabaseList.data.length} connection
+								{savedDatabaseList.data.length !== 1 ? "s" : ""} found
+							</p>
+						</div>
+					</div>
+					<div className="rounded-lg border bg-card shadow-sm overflow-hidden">
+						<DataTable table={table} />
+					</div>
+				</div>
+
+				{/* Add New Connection Section */}
+				<SimpleForm />
+			</div>
+		</div>
 	);
 };
 
@@ -219,15 +249,24 @@ function SimpleForm() {
 	}
 
 	return (
-		<Stack justify="center">
-			<div className="w-full max-w-2xl p-8">
+		<div className="space-y-4">
+			<div>
+				<h2 className="text-2xl font-semibold text-foreground">
+					Add New Connection
+				</h2>
+				<p className="text-sm text-muted-foreground mt-1">
+					Create a new database connection
+				</p>
+			</div>
+
+			<div className="rounded-lg border bg-card shadow-sm p-6">
 				<form
 					onSubmit={(e) => {
 						e.preventDefault();
 						e.stopPropagation();
 						form.handleSubmit();
 					}}
-					className={stack()}
+					className={`${stack()} space-y-6`}
 				>
 					<form.AppField name="connectionType">
 						{(field) => (
@@ -261,13 +300,17 @@ function SimpleForm() {
 							}
 
 							return (
-								<div className="grid grid-cols-2 gap-4">
-									<div className="col-span-2">
+								<div className="space-y-6">
+									<div>
 										<form.AppField name="connectionName">
 											{(field) => <field.TextField label="Connection Name" />}
 										</form.AppField>
 									</div>
-									<div className="col-span-2">
+
+									<div className="space-y-2">
+										<label className="text-sm font-medium text-foreground">
+											Connection URL
+										</label>
 										<form.AppField
 											name="connectionUrl"
 											listeners={{
@@ -284,53 +327,73 @@ function SimpleForm() {
 												},
 											}}
 										>
-											{(field) => <field.TextField label="Connection URL" />}
+											{(field) => (
+												<field.TextField
+													label=""
+													placeholder="postgres://user:password@host:5432/dbname"
+												/>
+											)}
 										</form.AppField>
+										<p className="text-xs text-muted-foreground">
+											Or fill in the fields below
+										</p>
 									</div>
-									<hr className="col-span-2" />
-									<Accordion collapsible className="col-span-2">
+
+									<Accordion collapsible className="border rounded-lg">
 										<AccordionItem value="or-fields" className="w-full">
-											<AccordionItemTrigger className="w-full">
-												<div className="col-span-2">Or each field</div>
+											<AccordionItemTrigger className="px-4 py-3 hover:bg-muted/50 transition-colors">
+												<span className="font-medium text-sm">
+													Connection Details
+												</span>
 											</AccordionItemTrigger>
-											<AccordionItemContent className="w-full">
-												<div className="grid grid-cols-2 gap-4 w-full">
-													<form.AppField
-														name="host"
-														listeners={{ onChange: updateConnectionUrl }}
-													>
-														{(field) => <field.TextField label="Host" />}
-													</form.AppField>
-													<form.AppField
-														name="port"
-														listeners={{ onChange: updateConnectionUrl }}
-													>
-														{(field) => (
-															<field.TextField type="number" label="Port" />
-														)}
-													</form.AppField>
+											<AccordionItemContent className="px-4 py-4 border-t">
+												<div className="grid grid-cols-2 gap-4 w-full space-y-4">
+													<div className="col-span-1">
+														<form.AppField
+															name="host"
+															listeners={{ onChange: updateConnectionUrl }}
+														>
+															{(field) => <field.TextField label="Host" />}
+														</form.AppField>
+													</div>
+													<div className="col-span-1">
+														<form.AppField
+															name="port"
+															listeners={{ onChange: updateConnectionUrl }}
+														>
+															{(field) => (
+																<field.TextField type="number" label="Port" />
+															)}
+														</form.AppField>
+													</div>
 													<div className="col-span-2">
 														<form.AppField
 															name="databaseName"
 															listeners={{ onChange: updateConnectionUrl }}
 														>
 															{(field) => (
-																<field.TextField label="Database name" />
+																<field.TextField label="Database Name" />
 															)}
 														</form.AppField>
 													</div>
-													<form.AppField
-														name="user"
-														listeners={{ onChange: updateConnectionUrl }}
-													>
-														{(field) => <field.TextField label="User" />}
-													</form.AppField>
-													<form.AppField
-														name="password"
-														listeners={{ onChange: updateConnectionUrl }}
-													>
-														{(field) => <field.TextField label="Password" />}
-													</form.AppField>
+													<div className="col-span-1">
+														<form.AppField
+															name="user"
+															listeners={{ onChange: updateConnectionUrl }}
+														>
+															{(field) => <field.TextField label="User" />}
+														</form.AppField>
+													</div>
+													<div className="col-span-1">
+														<form.AppField
+															name="password"
+															listeners={{ onChange: updateConnectionUrl }}
+														>
+															{(field) => (
+																<field.TextField type="text" label="Password" />
+															)}
+														</form.AppField>
+													</div>
 												</div>
 											</AccordionItemContent>
 										</AccordionItem>
@@ -340,14 +403,14 @@ function SimpleForm() {
 						}}
 					/>
 
-					<div className="flex justify-end">
+					<div className="flex justify-end gap-3 pt-4 border-t">
 						<form.AppForm>
-							<form.SubscribeButton label="Submit" />
+							<form.SubscribeButton label="Add Connection" />
 						</form.AppForm>
 					</div>
 				</form>
 			</div>
-		</Stack>
+		</div>
 	);
 }
 
