@@ -10,6 +10,7 @@ import {
 } from "#src/components/ui/accordion";
 import { Stack } from "../ui/layout.tsx";
 import z from "zod";
+import { queryClient } from "#src/integrations/tanstack-query/query-client.ts";
 
 const connectionType = z.enum(["postgres", "mysql", "sqlite"]);
 const connectionFormSchema = z.object({
@@ -60,8 +61,7 @@ export function ConnectionForm({
 			toaster.create({ title: "Invalid form" });
 		},
 		onSubmit: async (ctx) => {
-			const isCreate = mode === "create" || !initialValues?.id;
-			console.log(mode, isCreate, initialValues);
+			const isCreate = mode === "create";
 			try {
 				if (isCreate) {
 					await saveDbConnectionServerFn({
@@ -70,6 +70,7 @@ export function ConnectionForm({
 							url: ctx.value.connectionUrl,
 						},
 					});
+					queryClient.invalidateQueries();
 					toaster.create({
 						title: "Success",
 						description:
@@ -85,6 +86,7 @@ export function ConnectionForm({
 							url: ctx.value.connectionUrl,
 						},
 					});
+					queryClient.invalidateQueries();
 					toaster.create({
 						title: "Success",
 						description: "Connection updated successfully",

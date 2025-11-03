@@ -21,6 +21,7 @@ import {
 } from "../ui/sheet.tsx";
 import { ConnectionForm } from "./connection.form.tsx";
 import { AlertDialog } from "../ui/alert-dialog.tsx";
+import { queryClient } from "#src/integrations/tanstack-query/query-client.ts";
 
 export const HomePage = () => {
 	const [editingConnection, setEditingConnection] = useState<{
@@ -130,11 +131,12 @@ export const HomePage = () => {
 									trigger={<MenuItem value="delete">Delete</MenuItem>}
 									title="Delete connection?"
 									description="Are you sure you want to delete this connection?"
-									onConfirm={() =>
+									onConfirm={() => {
 										deleteDbConnectionServerFn({
 											data: { id: ctx.row.original.id },
-										})
-									}
+										});
+										queryClient.invalidateQueries();
+									}}
 								/>
 							</MenuContent>
 						</Menu>
@@ -217,6 +219,7 @@ export const HomePage = () => {
 							<ConnectionForm
 								mode="edit"
 								initialValues={{
+									id: editingConnection.id,
 									connectionName: editingConnection.name,
 									connectionType: "postgres",
 									filePath: "",
@@ -229,7 +232,7 @@ export const HomePage = () => {
 								}}
 								onSuccess={() => {
 									setEditingConnection(null);
-									savedDatabaseList.refetch();
+									queryClient.invalidateQueries();
 								}}
 							/>
 						</div>
