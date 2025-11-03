@@ -22,6 +22,7 @@ import {
 import { ConnectionForm } from "./connection.form.tsx";
 import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { queryClient } from "#src/integrations/tanstack-query/query-client.ts";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip.tsx";
 
 export const HomePage = () => {
 	const [editingConnection, setEditingConnection] = useState<{
@@ -67,7 +68,18 @@ export const HomePage = () => {
 					);
 				},
 			},
-			{ accessorKey: "name", header: "Name" },
+			{
+				accessorKey: "name",
+				header: "Name",
+				cell: (ctx) => (
+					<Tooltip>
+						<TooltipTrigger className="cursor-help">
+							{ctx.row.original.name}
+						</TooltipTrigger>
+						<TooltipContent>{ctx.row.original.url}</TooltipContent>
+					</Tooltip>
+				),
+			},
 			{ accessorKey: "dialect", header: "Dialect" },
 			{
 				accessorKey: "created_at",
@@ -93,15 +105,20 @@ export const HomePage = () => {
 				accessorKey: "url",
 				header: "URL",
 				cell: (ctx) => (
-					<Clipboard.Root value={ctx.row.original.url}>
-						<Clipboard.Trigger asChild>
-							<Button variant="ghost" size="icon">
-								<Clipboard.Indicator copied={<CheckIcon />}>
-									<ClipboardCopyIcon />
-								</Clipboard.Indicator>
-							</Button>
-						</Clipboard.Trigger>
-					</Clipboard.Root>
+					<Tooltip>
+						<Clipboard.Root value={ctx.row.original.url}>
+							<TooltipTrigger asChild>
+								<Clipboard.Trigger asChild>
+									<Button variant="ghost" size="icon">
+										<Clipboard.Indicator copied={<CheckIcon />}>
+											<ClipboardCopyIcon />
+										</Clipboard.Indicator>
+									</Button>
+								</Clipboard.Trigger>
+							</TooltipTrigger>
+						</Clipboard.Root>
+						<TooltipContent>{ctx.row.original.url}</TooltipContent>
+					</Tooltip>
 				),
 			},
 			{
