@@ -12,7 +12,6 @@ import { DataTable } from "../data-table.tsx";
 import { useAppForm } from "../form/form.hook.ts";
 import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button } from "../ui/button.tsx";
-import { stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { useDataTable } from "../use-data-table.ts";
 import {
@@ -21,6 +20,7 @@ import {
 	AccordionItemContent,
 	AccordionItemTrigger,
 } from "#src/components/ui/accordion";
+import { Stack } from "../ui/layout.tsx";
 
 const connectionType = z.enum(["postgres", "mysql", "sqlite"]);
 const schema = z.object({
@@ -137,10 +137,10 @@ export const HomePage = () => {
 	});
 
 	return (
-		<div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
-			<div className="max-w-7xl mx-auto space-y-12">
+		<div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
+			<div className="max-w-6xl mx-auto">
 				{/* Header Section */}
-				<div className="space-y-2">
+				<div className="space-y-2 mb-8">
 					<h1 className="text-4xl font-bold tracking-tight text-foreground">
 						Database Connections
 					</h1>
@@ -149,26 +149,31 @@ export const HomePage = () => {
 					</p>
 				</div>
 
-				{/* Saved Connections Section */}
-				<div className="space-y-4">
-					<div className="flex items-center justify-between">
-						<div>
-							<h2 className="text-2xl font-semibold text-foreground">
-								Saved Connections
-							</h2>
-							<p className="text-sm text-muted-foreground mt-1">
-								{savedDatabaseList.data.length} connection
-								{savedDatabaseList.data.length !== 1 ? "s" : ""} found
-							</p>
+				{/* Main Content Grid */}
+				<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+					{/* Saved Connections - Takes 2/3 on larger screens */}
+					<div className="lg:col-span-2 space-y-4">
+						<div className="flex items-center justify-between">
+							<div>
+								<h2 className="text-2xl font-semibold text-foreground">
+									Saved Connections
+								</h2>
+								<p className="text-sm text-muted-foreground mt-1">
+									{savedDatabaseList.data.length} connection
+									{savedDatabaseList.data.length !== 1 ? "s" : ""} found
+								</p>
+							</div>
+						</div>
+						<div className="rounded-lg border bg-card shadow-sm overflow-hidden">
+							<DataTable table={table} />
 						</div>
 					</div>
-					<div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-						<DataTable table={table} />
+
+					{/* Add New Connection - Takes 1/3 on larger screens */}
+					<div className="lg:col-span-1">
+						<SimpleForm />
 					</div>
 				</div>
-
-				{/* Add New Connection Section */}
-				<SimpleForm />
 			</div>
 		</div>
 	);
@@ -249,29 +254,31 @@ function SimpleForm() {
 	}
 
 	return (
-		<div className="space-y-4">
-			<div>
-				<h2 className="text-2xl font-semibold text-foreground">
-					Add New Connection
-				</h2>
-				<p className="text-sm text-muted-foreground mt-1">
-					Create a new database connection
-				</p>
-			</div>
+		<div className="sticky top-8">
+			<div className="rounded-lg border bg-card shadow-md overflow-hidden">
+				{/* Header */}
+				<div className="bg-linear-to-r from-primary/5 to-accent/5 px-4 py-4 border-b">
+					<h2 className="text-sm font-semibold text-foreground">
+						Add Connection
+					</h2>
+					<p className="text-xs text-muted-foreground mt-1">
+						Create a new connection
+					</p>
+				</div>
 
-			<div className="rounded-lg border bg-card shadow-sm p-6">
+				{/* Form Content */}
 				<form
 					onSubmit={(e) => {
 						e.preventDefault();
 						e.stopPropagation();
 						form.handleSubmit();
 					}}
-					className={`${stack()} space-y-6`}
+					className={`space-y-4 p-4`}
 				>
 					<form.AppField name="connectionType">
 						{(field) => (
 							<field.Select
-								label="Connection Type"
+								label="Type"
 								defaultValue={[field.state.value]}
 								options={[
 									{ label: "Postgres", value: "postgres" },
@@ -293,24 +300,19 @@ function SimpleForm() {
 								return (
 									<>
 										<form.AppField name="connectionUrl">
-											{(field) => <field.TextField label="Connection URL" />}
+											{(field) => <field.TextField label="URL" />}
 										</form.AppField>
 									</>
 								);
 							}
 
 							return (
-								<div className="space-y-6">
-									<div>
-										<form.AppField name="connectionName">
-											{(field) => <field.TextField label="Connection Name" />}
-										</form.AppField>
-									</div>
+								<Stack>
+									<form.AppField name="connectionName">
+										{(field) => <field.TextField label="Name" />}
+									</form.AppField>
 
-									<div className="space-y-2">
-										<label className="text-sm font-medium text-foreground">
-											Connection URL
-										</label>
+									<Stack gap="2">
 										<form.AppField
 											name="connectionUrl"
 											listeners={{
@@ -329,83 +331,76 @@ function SimpleForm() {
 										>
 											{(field) => (
 												<field.TextField
-													label=""
-													placeholder="postgres://user:password@host:5432/dbname"
+													label="URL"
+													placeholder="postgres://user:pass@host:5432/db"
 												/>
 											)}
 										</form.AppField>
-										<p className="text-xs text-muted-foreground">
+										<span className="text-xs text-muted-foreground">
 											Or fill in the fields below
-										</p>
-									</div>
+										</span>
+									</Stack>
 
-									<Accordion collapsible className="border rounded-lg">
+									<Accordion
+										collapsible
+										className="border rounded-md overflow-hidden"
+									>
 										<AccordionItem value="or-fields" className="w-full">
-											<AccordionItemTrigger className="px-4 py-3 hover:bg-muted/50 transition-colors">
-												<span className="font-medium text-sm">
-													Connection Details
+											<AccordionItemTrigger className="px-3 py-2 hover:bg-muted/50 transition-colors text-sm">
+												<span className="font-medium">
+													Host / Port / Database / User / Password
 												</span>
 											</AccordionItemTrigger>
-											<AccordionItemContent className="px-4 py-4 border-t">
-												<div className="grid grid-cols-2 gap-4 w-full space-y-4">
-													<div className="col-span-1">
-														<form.AppField
-															name="host"
-															listeners={{ onChange: updateConnectionUrl }}
-														>
-															{(field) => <field.TextField label="Host" />}
-														</form.AppField>
-													</div>
-													<div className="col-span-1">
-														<form.AppField
-															name="port"
-															listeners={{ onChange: updateConnectionUrl }}
-														>
-															{(field) => (
-																<field.TextField type="number" label="Port" />
-															)}
-														</form.AppField>
-													</div>
+											<AccordionItemContent className="px-3 py-3 border-t space-y-3 bg-muted/30">
+												<div className="grid grid-cols-2 gap-2 w-full">
+													<form.AppField
+														name="host"
+														listeners={{ onChange: updateConnectionUrl }}
+													>
+														{(field) => <field.TextField label="Host" />}
+													</form.AppField>
+													<form.AppField
+														name="port"
+														listeners={{ onChange: updateConnectionUrl }}
+													>
+														{(field) => (
+															<field.TextField type="number" label="Port" />
+														)}
+													</form.AppField>
 													<div className="col-span-2">
 														<form.AppField
 															name="databaseName"
 															listeners={{ onChange: updateConnectionUrl }}
 														>
-															{(field) => (
-																<field.TextField label="Database Name" />
-															)}
+															{(field) => <field.TextField label="Database" />}
 														</form.AppField>
 													</div>
-													<div className="col-span-1">
-														<form.AppField
-															name="user"
-															listeners={{ onChange: updateConnectionUrl }}
-														>
-															{(field) => <field.TextField label="User" />}
-														</form.AppField>
-													</div>
-													<div className="col-span-1">
-														<form.AppField
-															name="password"
-															listeners={{ onChange: updateConnectionUrl }}
-														>
-															{(field) => (
-																<field.TextField type="text" label="Password" />
-															)}
-														</form.AppField>
-													</div>
+													<form.AppField
+														name="user"
+														listeners={{ onChange: updateConnectionUrl }}
+													>
+														{(field) => <field.TextField label="User" />}
+													</form.AppField>
+													<form.AppField
+														name="password"
+														listeners={{ onChange: updateConnectionUrl }}
+													>
+														{(field) => (
+															<field.TextField type="text" label="Password" />
+														)}
+													</form.AppField>
 												</div>
 											</AccordionItemContent>
 										</AccordionItem>
 									</Accordion>
-								</div>
+								</Stack>
 							);
 						}}
 					/>
 
-					<div className="flex justify-end gap-3 pt-4 border-t">
+					<div className="flex justify-end gap-2 pt-4">
 						<form.AppForm>
-							<form.SubscribeButton label="Add Connection" />
+							<form.SubscribeButton label="Add" />
 						</form.AppForm>
 					</div>
 				</form>

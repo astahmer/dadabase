@@ -1,4 +1,5 @@
 import { useStore } from "@tanstack/react-form";
+import { cva, type VariantProps } from "class-variance-authority";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Label } from "../ui/label.tsx";
@@ -7,6 +8,20 @@ import * as ArkSelect from "../ui/select.tsx";
 import { Switch as ArkSwitch } from "../ui/switch.tsx";
 import { Textarea as ArkTextarea } from "../ui/textarea.tsx";
 import { useFieldContext, useFormContext } from "./form.context.ts";
+
+const labelVariants = cva("", {
+	variants: {
+		size: {
+			sm: "text-xs",
+			md: "text-sm",
+			lg: "text-base font-semibold",
+			xl: "text-lg",
+		},
+	},
+	defaultVariants: {
+		size: "lg",
+	},
+});
 
 export function SubscribeButton({ label }: { label: string }) {
 	const form = useFormContext();
@@ -44,19 +59,26 @@ export function TextField({
 	label,
 	placeholder,
 	type,
+	labelSize = "md",
 }: {
 	label: string;
 	placeholder?: string;
 	type?: "number" | "text";
+	labelSize?: VariantProps<typeof labelVariants>["size"];
 }) {
 	const field = useFieldContext<string | number>();
 	const errors = useStore(field.store, (state) => state.meta.errors);
 
 	return (
 		<div>
-			<Label htmlFor={label} className="mb-2 text-xl font-bold">
-				{label}
-			</Label>
+			{label && (
+				<Label
+					htmlFor={label}
+					className={`mb-2 ${labelVariants({ size: labelSize })}`}
+				>
+					{label}
+				</Label>
+			)}
 			<Input
 				type={type}
 				value={field.state.value}
@@ -115,7 +137,7 @@ export function Select(props: {
 	return (
 		<Stack>
 			<ArkSelect.Select
-				className="w-64"
+				className="w-full min-w-64"
 				defaultValue={props.defaultValue}
 				collection={collection}
 				positioning={{ sameWidth: true }}
