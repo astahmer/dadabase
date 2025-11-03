@@ -32,6 +32,22 @@ export class DatabaseConnectionsRepository extends Effect.Service<DatabaseConnec
 						}),
 					);
 				}),
+				update: Effect.fn(function* (input: {
+					id: string;
+					name: string;
+					url: string;
+				}) {
+					return yield* db.execute(
+						db
+							.updateTable("database_connections")
+							.set({
+								name: input.name,
+								url: input.url,
+								updated_at: new Date().getTime(),
+							})
+							.where("id", "=", input.id),
+					);
+				}),
 				delete: Effect.fn(function* (input: { id: string }) {
 					return yield* db.execute(
 						db.deleteFrom("database_connections").where("id", "=", input.id),
