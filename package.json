@@ -89,6 +89,7 @@
 		"@vitejs/plugin-react": "5.1.0",
 		"drizzle-kit": "^0.31.6",
 		"typescript": "5.9.3",
+		"unplugin-jsx-source": "^0.1.5",
 		"vite": "7.1.12",
 		"vitest": "4.0.4"
 	},
