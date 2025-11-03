@@ -1,8 +1,8 @@
-import { createAnatomy } from "@ark-ui/react/anatomy";
 import { cva, type VariantProps } from "class-variance-authority";
-import * as React from "react";
 
 import { cn } from "#src/lib/utils";
+import type { ExposedComponentProps } from "./component-props.ts";
+import type { ComponentProps } from "react";
 
 const buttonVariants = cva(
 	"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,box-shadow] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
@@ -34,21 +34,19 @@ const buttonVariants = cva(
 	},
 );
 
-export interface ButtonProps
-	extends React.ComponentProps<"button">,
+interface ButtonProps
+	extends ExposedComponentProps<"button">,
+		Pick<ComponentProps<"button">, "type" | "disabled">,
 		VariantProps<typeof buttonVariants> {}
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-	({ className, variant, size, ...props }, ref) => {
-		return (
-			<button
-				ref={ref}
-				className={cn(buttonVariants({ variant, size, className }))}
-				{...props}
-			/>
-		);
-	},
-);
+const Button = ({ className, variant, size, ...props }: ButtonProps) => {
+	return (
+		<button
+			{...props}
+			className={cn(buttonVariants({ variant, size, className }))}
+		/>
+	);
+};
 Button.displayName = "Button";
 
 export { Button, buttonVariants };

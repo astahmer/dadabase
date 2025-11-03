@@ -1,5 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "#src/lib/utils.ts";
+import type { ExposedComponentProps } from "./component-props.ts";
 
 export const stack = cva("flex gap-4", {
 	variants: {
@@ -39,7 +40,7 @@ export const stack = cva("flex gap-4", {
 });
 
 export const Stack = (
-	props: React.ComponentProps<"div"> & VariantProps<typeof stack>,
+	props: ExposedComponentProps<"div"> & VariantProps<typeof stack>,
 ) => {
 	const { className, align, justify, wrap, w, ...rest } = props;
 	return (
@@ -59,7 +60,7 @@ export const Stack = (
 	);
 };
 export const HStack = (
-	props: React.ComponentProps<"div"> & VariantProps<typeof stack>,
+	props: ExposedComponentProps<"div"> & VariantProps<typeof stack>,
 ) => {
 	const { className, align, justify, wrap, w, ...rest } = props;
 	return (

@@ -1,0 +1,31 @@
+import type { ComponentProps } from "react";
+
+type AllowedProps = "ref" | "children" | "className" | "id" | "onClick";
+
+export interface ExposedComponentProps<T extends "div" | "button" | "label">
+	extends Pick<ComponentProps<T>, AllowedProps> {}
+
+export interface ExposedInputProps
+	extends Pick<
+		ComponentProps<"input">,
+		| AllowedProps
+		| "type"
+		| "placeholder"
+		| "value"
+		| "defaultValue"
+		| "onChange"
+		| "onChangeCapture"
+		| "onBlur"
+	> {}
+
+export interface ExposedTextareaProps
+	extends Pick<
+		ComponentProps<"textarea">,
+		| AllowedProps
+		| "rows"
+		| "value"
+		| "defaultValue"
+		| "onChange"
+		| "onChangeCapture"
+		| "onBlur"
+	> {}
