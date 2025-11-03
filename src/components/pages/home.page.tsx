@@ -10,13 +10,22 @@ import { CheckIcon, ClipboardCopyIcon, TrashIcon } from "lucide-react";
 import z from "zod";
 import { DataTable } from "../data-table.tsx";
 import { useAppForm } from "../form/form.hook.ts";
+import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button } from "../ui/button.tsx";
 import { stack, Stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { useDataTable } from "../use-data-table.ts";
 
+import {
+	Accordion,
+	AccordionItem,
+	AccordionItemContent,
+	AccordionItemTrigger,
+} from "#src/components/ui/accordion";
+
 const connectionType = z.enum(["postgres", "mysql", "sqlite"]);
 const schema = z.object({
+	connectionName: z.string().min(1),
 	connectionType,
 	// sqlite
 	filePath: z.string(),
@@ -40,7 +49,8 @@ export const HomePage = () => {
 				cell: (ctx) => {
 					const testPgConnectionUrl = useServerFn(testPgConnectionServerFn);
 					return (
-						<button
+						<Button
+							variant="outline"
 							onClick={async () => {
 								const canConnect = await testPgConnectionUrl({
 									data: { url: ctx.row.original.url },
@@ -58,8 +68,8 @@ export const HomePage = () => {
 								}
 							}}
 						>
-							⚡ Test
-						</button>
+							⚡ Test connection
+						</Button>
 					);
 				},
 			},
@@ -105,16 +115,21 @@ export const HomePage = () => {
 				header: "Actions",
 				cell: (ctx) => {
 					return (
-						<Button
-							variant="secondary"
-							onClick={() =>
+						<AlertDialog
+							trigger={
+								<Button variant="secondary">
+									<TrashIcon />
+								</Button>
+							}
+							title="Delete connection?"
+							description="Are you sure you want to delete this connection?"
+							onConfirm={() =>
 								deleteDbConnectionServerFn({
 									data: { id: ctx.row.original.id },
 								})
 							}
-						>
-							<TrashIcon />
-						</Button>
+							onCancel={() => console.log("cancel")}
+						/>
 					);
 				},
 			},
@@ -134,7 +149,8 @@ function SimpleForm() {
 
 	const form = useAppForm({
 		defaultValues: {
-			connectionType: "" as z.infer<typeof connectionType>,
+			connectionName: "New connection",
+			connectionType: "postgres" as z.infer<typeof connectionType>,
 			// sqlite
 			filePath: "",
 			// postgres / mysql
@@ -153,7 +169,7 @@ function SimpleForm() {
 		},
 		onSubmit: async (ctx) => {
 			saveDbConnectionServerFn({
-				data: { name: "New connection", url: ctx.value.connectionUrl },
+				data: { name: ctx.value.connectionName, url: ctx.value.connectionUrl },
 			});
 		},
 	});
@@ -220,8 +236,8 @@ function SimpleForm() {
 								defaultValue={[field.state.value]}
 								options={[
 									{ label: "Postgres", value: "postgres" },
-									{ label: "MySQL", value: "mysql" },
-									{ label: "SQLite", value: "sqlite" },
+									// { label: "MySQL", value: "mysql" },
+									// { label: "SQLite", value: "sqlite" },
 								]}
 							/>
 						)}
@@ -247,6 +263,11 @@ function SimpleForm() {
 							return (
 								<div className="grid grid-cols-2 gap-4">
 									<div className="col-span-2">
+										<form.AppField name="connectionName">
+											{(field) => <field.TextField label="Connection Name" />}
+										</form.AppField>
+									</div>
+									<div className="col-span-2">
 										<form.AppField
 											name="connectionUrl"
 											listeners={{
@@ -267,39 +288,53 @@ function SimpleForm() {
 										</form.AppField>
 									</div>
 									<hr className="col-span-2" />
-									<div className="col-span-2">Or</div>
-									<form.AppField
-										name="host"
-										listeners={{ onChange: updateConnectionUrl }}
-									>
-										{(field) => <field.TextField label="Host" />}
-									</form.AppField>
-									<form.AppField
-										name="port"
-										listeners={{ onChange: updateConnectionUrl }}
-									>
-										{(field) => <field.TextField type="number" label="Port" />}
-									</form.AppField>
-									<div className="col-span-2">
-										<form.AppField
-											name="databaseName"
-											listeners={{ onChange: updateConnectionUrl }}
-										>
-											{(field) => <field.TextField label="Database name" />}
-										</form.AppField>
-									</div>
-									<form.AppField
-										name="user"
-										listeners={{ onChange: updateConnectionUrl }}
-									>
-										{(field) => <field.TextField label="User" />}
-									</form.AppField>
-									<form.AppField
-										name="password"
-										listeners={{ onChange: updateConnectionUrl }}
-									>
-										{(field) => <field.TextField label="Password" />}
-									</form.AppField>
+									<Accordion collapsible className="col-span-2">
+										<AccordionItem value="or-fields" className="w-full">
+											<AccordionItemTrigger className="w-full">
+												<div className="col-span-2">Or each field</div>
+											</AccordionItemTrigger>
+											<AccordionItemContent className="w-full">
+												<div className="grid grid-cols-2 gap-4 w-full">
+													<form.AppField
+														name="host"
+														listeners={{ onChange: updateConnectionUrl }}
+													>
+														{(field) => <field.TextField label="Host" />}
+													</form.AppField>
+													<form.AppField
+														name="port"
+														listeners={{ onChange: updateConnectionUrl }}
+													>
+														{(field) => (
+															<field.TextField type="number" label="Port" />
+														)}
+													</form.AppField>
+													<div className="col-span-2">
+														<form.AppField
+															name="databaseName"
+															listeners={{ onChange: updateConnectionUrl }}
+														>
+															{(field) => (
+																<field.TextField label="Database name" />
+															)}
+														</form.AppField>
+													</div>
+													<form.AppField
+														name="user"
+														listeners={{ onChange: updateConnectionUrl }}
+													>
+														{(field) => <field.TextField label="User" />}
+													</form.AppField>
+													<form.AppField
+														name="password"
+														listeners={{ onChange: updateConnectionUrl }}
+													>
+														{(field) => <field.TextField label="Password" />}
+													</form.AppField>
+												</div>
+											</AccordionItemContent>
+										</AccordionItem>
+									</Accordion>
 								</div>
 							);
 						}}
