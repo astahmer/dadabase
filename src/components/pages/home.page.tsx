@@ -10,6 +10,7 @@ import { useState } from "react";
 import { DataTable } from "../data-table.tsx";
 import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button } from "../ui/button.tsx";
+import { DarkModeToggle } from "../ui/dark-mode-toggle.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/menu.tsx";
 import {
@@ -23,6 +24,7 @@ import { toaster } from "../ui/toaster.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { useDataTable } from "../use-data-table.ts";
 import { ConnectionForm } from "./connection.form.tsx";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 interface EditableConnection {
 	id: string;
@@ -37,6 +39,7 @@ export const HomePage = () => {
 	const [editingConnection, setEditingConnection] =
 		useState<EditableConnection | null>(null);
 
+	const navigate = useNavigate({ from: "/" });
 	const savedDatabaseList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const table = useDataTable({
 		data: savedDatabaseList.data,
@@ -78,27 +81,12 @@ export const HomePage = () => {
 							>
 								? Test
 							</Button>
-							<Button
-								size="sm"
-								onClick={async () => {
-									const canConnect = await testPgConnectionUrl({
-										data: { url: ctx.row.original.url },
-									});
-									if (canConnect.success) {
-										toaster.create({
-											title: "Connection successful",
-											description: "You can now connect to this database",
-										});
-									} else {
-										toaster.create({
-											title: "Connection failed",
-											description: canConnect.message,
-										});
-									}
-								}}
+							<Link
+								to="/connections/$connectionName"
+								params={{ connectionName: ctx.row.original.name }}
 							>
-								⚡ Connect
-							</Button>
+								<Button size="sm">⚡ Connect</Button>
+							</Link>
 						</HStack>
 					);
 				},
@@ -187,13 +175,16 @@ export const HomePage = () => {
 		<div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
 			<div className="max-w-6xl mx-auto">
 				{/* Header Section */}
-				<div className="space-y-2 mb-8">
-					<h1 className="text-4xl font-bold tracking-tight text-foreground">
-						Database Connections
-					</h1>
-					<p className="text-lg text-muted-foreground">
-						Manage and test your database connections in one place
-					</p>
+				<div className="flex items-center justify-between mb-8">
+					<div className="space-y-2">
+						<h1 className="text-4xl font-bold tracking-tight text-foreground">
+							Database Connections
+						</h1>
+						<p className="text-lg text-muted-foreground">
+							Manage and test your database connections in one place
+						</p>
+					</div>
+					<DarkModeToggle />
 				</div>
 
 				{/* Main Content Grid */}

@@ -140,10 +140,14 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 							{Array(pagination.pageSize)
 								.fill(pagination.pageSize)
 								.map((_, index) => (
-									<tr className="border-b" key={index} data-skeleton>
+									<tr
+										className="border-b border-border"
+										key={index}
+										data-skeleton
+									>
 										{columns.map((col) => (
 											<td key={col.id} className={tableCellStyles({ size })}>
-												<div className="h-3 bg-gray-200 rounded animate-pulse" />
+												<div className="h-3 bg-muted rounded animate-pulse" />
 											</td>
 										))}
 									</tr>
@@ -329,17 +333,17 @@ function DataTablePagination<TData>(props: { table: TanstackTable<TData> }) {
 				<button
 					onClick={() => table.previousPage()}
 					disabled={!table.getCanPreviousPage()}
-					className="px-2 py-1 border rounded disabled:opacity-50"
+					className="px-2 py-1 border border-border rounded disabled:opacity-50 hover:bg-muted text-foreground"
 				>
 					Prev
 				</button>
-				<span className="text-sm">
+				<span className="text-sm text-foreground">
 					Page {pageIndex + 1} of {Math.ceil(rowCount / pageSize)}
 				</span>
 				<button
 					onClick={() => table.nextPage()}
 					disabled={!table.getCanNextPage()}
-					className="px-2 py-1 border rounded disabled:opacity-50"
+					className="px-2 py-1 border border-border rounded disabled:opacity-50 hover:bg-muted text-foreground"
 				>
 					Next
 				</button>

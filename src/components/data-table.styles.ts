@@ -4,7 +4,7 @@ export const tableStyles = cva("w-full border-collapse", {
 	variants: {
 		variant: {
 			line: "",
-			outline: "border border-gray-200 rounded",
+			outline: "border border-border rounded",
 		},
 	},
 	defaultVariants: {
@@ -15,12 +15,12 @@ export const tableStyles = cva("w-full border-collapse", {
 export const tableHeaderStyles = cva("", {
 	variants: {
 		stickyHeader: {
-			true: "sticky top-0 z-0 bg-white",
+			true: "sticky top-0 z-0 bg-card",
 			false: "",
 		},
 		variant: {
-			line: "border-b border-gray-200",
-			outline: "border-b border-gray-200 bg-gray-50",
+			line: "border-b border-border",
+			outline: "border-b border-border bg-muted/50",
 		},
 	},
 	defaultVariants: {
@@ -30,7 +30,7 @@ export const tableHeaderStyles = cva("", {
 });
 
 export const tableHeaderCellStyles = cva(
-	"text-left font-medium text-gray-900 align-top",
+	"text-left font-medium text-foreground align-top",
 	{
 		variants: {
 			size: {
@@ -39,7 +39,7 @@ export const tableHeaderCellStyles = cva(
 				lg: "px-4 py-3 text-base",
 			},
 			showColumnBorder: {
-				true: "border-r border-gray-200 last:border-r-0",
+				true: "border-r border-border last:border-r-0",
 				false: "",
 			},
 		},
@@ -52,24 +52,24 @@ export const tableHeaderCellStyles = cva(
 export const tableBodyStyles = cva("", {
 	variants: {
 		interactive: {
-			true: "[&_tr:hover]:bg-gray-50",
+			true: "[&_tr:hover]:bg-muted/50",
 			false: "",
 		},
 	},
 });
 
-export const tableRowStyles = cva("border-b border-gray-200", {
+export const tableRowStyles = cva("border-b border-border", {
 	variants: {
 		striped: {
-			true: "odd:bg-white even:bg-gray-50",
-			false: "bg-white",
+			true: "odd:bg-background even:bg-card/50",
+			false: "bg-background",
 		},
 		selected: {
-			true: "bg-blue-50",
+			true: "bg-primary/10",
 			false: "",
 		},
 		interactive: {
-			true: "hover:bg-gray-50 cursor-pointer",
+			true: "hover:bg-muted/50 cursor-pointer",
 			false: "",
 		},
 		variant: {
@@ -82,7 +82,7 @@ export const tableRowStyles = cva("border-b border-gray-200", {
 	},
 });
 
-export const tableCellStyles = cva("text-left align-middle", {
+export const tableCellStyles = cva("text-left align-middle text-foreground", {
 	variants: {
 		size: {
 			sm: "px-2 py-2 text-xs",
@@ -90,7 +90,7 @@ export const tableCellStyles = cva("text-left align-middle", {
 			lg: "px-4 py-3 text-base",
 		},
 		showColumnBorder: {
-			true: "border-r border-gray-200 last:border-r-0",
+			true: "border-r border-border last:border-r-0",
 			false: "",
 		},
 	},
