@@ -1,7 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ConnectionPage } from "#src/components/pages/connection.page";
+import { Schema } from "effect";
+
+const searchSchema = Schema.Struct({
+	dbName: Schema.String.pipe(Schema.optional),
+	schema: Schema.String.pipe(Schema.optional),
+	table: Schema.String.pipe(Schema.optional),
+});
 
 export const Route = createFileRoute("/connections/$connectionName")({
+	validateSearch: searchSchema.pipe(Schema.standardSchemaV1),
 	component: RouteComponent,
 });
 

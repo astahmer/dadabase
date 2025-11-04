@@ -61,7 +61,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		striped = false,
 		showColumnBorder = false,
 		variant = "line",
-		size = "md",
+		size = "sm",
 		ExpandedRow,
 	} = props;
 

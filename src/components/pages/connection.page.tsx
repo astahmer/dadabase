@@ -1,35 +1,70 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import {
+	useQuery,
+	useSuspenseQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
+import { useState } from "react";
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
+import { redactConnectionUrl } from "#src/lib/redact-connection-url";
 import { DataTable } from "../data-table";
 import { useDataTable } from "../use-data-table";
 import * as ArkSelect from "../ui/select";
+import { Button } from "../ui/button";
+import { RefreshCw } from "lucide-react";
+
+const formatRelativeTime = (timestamp: number): string => {
+	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+	const now = Date.now();
+	const seconds = Math.floor((now - timestamp) / 1000);
+
+	if (seconds < 60) return rtf.format(-seconds, "second");
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return rtf.format(-minutes, "minute");
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return rtf.format(-hours, "hour");
+	const days = Math.floor(hours / 24);
+	return rtf.format(-days, "day");
+};
 
 interface ConnectionPageProps {
 	connectionName: string;
 }
 
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
+	const queryClient = useQueryClient();
 	const connections = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connections.data.find((c) => c.name === connectionName);
 
 	const {
+		database: savedDatabase,
+		setDatabase,
 		schema: savedSchema,
 		setSchema,
 		table: savedTable,
 		setTable,
 	} = useConnectionStorage(connectionName);
 
+	const [selectedDatabase, setSelectedDatabase] = useState<string | undefined>(
+		savedDatabase,
+	);
 	const [selectedSchema, setSelectedSchema] = useState<string | undefined>(
 		savedSchema || "public",
 	);
 	const [selectedTable, setSelectedTable] = useState<string | undefined>(
 		savedTable,
 	);
+	const [showTableStructure, setShowTableStructure] = useState(false);
+
+	// Get databases
+	const databasesQuery = useQuery({
+		...listAvailableDatabase({ url: connection?.url || "" }),
+		enabled: !!connection?.url,
+	});
 
 	// Get schemas
 	const schemasQuery = useQuery({
@@ -59,33 +94,31 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const schemas = (schemasQuery.data || []) as string[];
 	const tables = (tablesQuery.data || []) as any[];
-	const tableData = (tableDataQuery.data || []) as Record<string, any>[];
-	console.log({ schemas, tables, tableData });
+	const queryResponse = (tableDataQuery.data || { rows: [], timeTaken: 0, ranAt: 0 }) as { rows: Record<string, any>[]; timeTaken: number; ranAt: number };
+	const tableData = queryResponse.rows;
 
 	const tableDisplayName = selectedTable
 		? `${selectedSchema}.${selectedTable}`
 		: "No table selected";
 
-	const columns = useMemo(() => {
-		if (!tableData || tableData.length === 0) {
-			return [];
-		}
-
-		const firstRow = tableData[0];
-		return Object.keys(firstRow).map((key) => ({
-			accessorKey: key,
-			header: key,
-		}));
-	}, [tableData]);
+	const columns = tableData && tableData.length > 0
+		? Object.keys(tableData[0]).map((key) => ({
+				accessorKey: key,
+				header: key,
+				size: 150,
+			}))
+		: [];
 
 	const dataTable = useDataTable({
 		data: tableData,
 		columns,
 	});
 
+	const redactedUrl = connection ? redactConnectionUrl(connection.url) : "";
+
 	if (!connection) {
 		return (
-			<div className="min-h-screen bg-background py-8 px-4">
+			<div className="h-screen bg-background py-8 px-4">
 				<div className="max-w-6xl mx-auto">
 					<h1 className="text-2xl font-bold text-foreground">
 						Connection not found
@@ -99,35 +132,106 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		items: schemas.map((s: string) => ({ label: s, value: s })),
 	});
 
-	const tableCollection = ArkSelect.createListCollection({
-		items: tables.map((t: any) => ({
-			label: t.name,
-			value: t.name,
-		})),
+	const databases = (databasesQuery.data || []) as { datname: string }[];
+	const databaseCollection = ArkSelect.createListCollection({
+		items: databases.map((d) => ({ label: d.datname, value: d.datname })),
 	});
 
 	return (
-		<div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
-			<div className="max-w-6xl mx-auto">
-				{/* Header */}
-				<div className="mb-8">
-					<h1 className="text-4xl font-bold tracking-tight text-foreground">
-						{connection.name}
-					</h1>
-					<p className="text-muted-foreground mt-2">{connection.url}</p>
+		<div className="h-screen bg-background flex flex-col">
+			{/* Header */}
+			<div className="border-b bg-card px-4 py-3 sm:px-6 space-y-2">
+				<div className="flex items-center justify-between gap-4">
+					<div className="flex-1 min-w-0">
+						<h1 className="text-2xl font-bold tracking-tight text-foreground truncate">
+							{connection.name}
+						</h1>
+						<p className="text-sm text-muted-foreground truncate mt-1">
+							{redactedUrl}
+						</p>
+					</div>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => {
+							queryClient.invalidateQueries({
+								queryKey: ["db", "list"],
+							});
+							queryClient.invalidateQueries({
+								queryKey: ["pg", "dbList"],
+							});
+							queryClient.invalidateQueries({
+								queryKey: ["pg", "schemaList"],
+							});
+							queryClient.invalidateQueries({
+								queryKey: ["pg", "tableList"],
+							});
+							queryClient.invalidateQueries({
+								queryKey: ["pg", "tableData"],
+							});
+						}}
+						className="shrink-0"
+					>
+						<RefreshCw className="h-4 w-4" />
+					</Button>
 				</div>
+				{/* Database Selector */}
+				<div className="flex items-center gap-2">
+					<label className="text-xs font-medium text-foreground uppercase tracking-wide whitespace-nowrap">
+						Database:
+					</label>
+					{databasesQuery.isLoading ? (
+						<div className="h-9 rounded-md border border-input bg-card px-3 py-2 min-w-32 flex items-center">
+							<span className="text-xs text-muted-foreground">
+								Loading...
+							</span>
+						</div>
+					) : (
+						<ArkSelect.Select
+							className="w-48"
+							value={selectedDatabase ? [selectedDatabase] : []}
+							collection={databaseCollection}
+							positioning={{ sameWidth: true }}
+							disabled={databasesQuery.isLoading}
+							onValueChange={(details: any) => {
+								const newDatabase = details.value?.[0];
+								if (newDatabase) {
+									setSelectedDatabase(newDatabase);
+									setDatabase(newDatabase);
+								}
+							}}
+						>
+							<ArkSelect.SelectControl>
+								<ArkSelect.SelectTrigger>
+									<ArkSelect.SelectValueText placeholder="Select database" />
+									<ArkSelect.SelectIndicator />
+								</ArkSelect.SelectTrigger>
+							</ArkSelect.SelectControl>
+							<ArkSelect.SelectContent>
+								{databaseCollection.items.map((item: any) => (
+									<ArkSelect.SelectItem key={item.value} item={item}>
+										{item.label}
+									</ArkSelect.SelectItem>
+								))}
+							</ArkSelect.SelectContent>
+						</ArkSelect.Select>
+					)}
+				</div>
+			</div>
 
-				{/* Selectors */}
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+			{/* Main Layout */}
+			<div className="flex-1 flex overflow-hidden">
+				{/* Sidebar */}
+				<div className="w-64 border-r bg-muted/30 flex flex-col">
 					{/* Schema Selector */}
-					<div className="space-y-2">
-						<label className="text-sm font-medium text-foreground">
+					<div className="p-4 border-b space-y-2">
+						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
 							Schema
 						</label>
 						{schemasQuery.isLoading ? (
-							<div className="flex items-center justify-between rounded-md border border-input bg-card px-3 py-2 min-h-[38px]">
-								<span className="text-sm text-muted-foreground">
-									Loading schemas...
+							<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9">
+								<span className="text-xs text-muted-foreground">
+									Loading...
 								</span>
 							</div>
 						) : (
@@ -143,13 +247,12 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										setSelectedSchema(newSchema);
 										setSchema(newSchema);
 										setSelectedTable(undefined);
-										// setTable is only for string values
 									}
 								}}
 							>
 								<ArkSelect.SelectControl>
 									<ArkSelect.SelectTrigger>
-										<ArkSelect.SelectValueText placeholder="Select a schema" />
+										<ArkSelect.SelectValueText placeholder="Select schema" />
 										<ArkSelect.SelectIndicator />
 									</ArkSelect.SelectTrigger>
 								</ArkSelect.SelectControl>
@@ -164,96 +267,153 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						)}
 					</div>
 
-					{/* Table Selector */}
-					<div className="space-y-2">
-						<label className="text-sm font-medium text-foreground">Table</label>
-						{tablesQuery.isLoading ? (
-							<div className="flex items-center justify-between rounded-md border border-input bg-card px-3 py-2 min-h-[38px]">
-								<span className="text-sm text-muted-foreground">
-									Loading tables...
-								</span>
-							</div>
-						) : (
-							<ArkSelect.Select
-								className="w-full"
-								value={selectedTable ? [selectedTable] : []}
-								collection={tableCollection}
-								positioning={{ sameWidth: true }}
-								disabled={!selectedSchema || tablesQuery.isLoading}
-								onValueChange={(details: any) => {
-									const newTable = details.value?.[0];
-									if (newTable) {
-										setSelectedTable(newTable);
-										setTable(newTable);
-									}
-								}}
-							>
-								<ArkSelect.SelectControl>
-									<ArkSelect.SelectTrigger>
-										<ArkSelect.SelectValueText placeholder="Select a table" />
-										<ArkSelect.SelectIndicator />
-									</ArkSelect.SelectTrigger>
-								</ArkSelect.SelectControl>
-								<ArkSelect.SelectContent>
-									{tableCollection.items.map((item: any) => (
-										<ArkSelect.SelectItem key={item.value} item={item}>
-											{item.label}
-										</ArkSelect.SelectItem>
+					{/* Tables List */}
+					<div className="flex-1 overflow-hidden flex flex-col">
+						<div className="p-4 border-b">
+							<label className="text-xs font-medium text-foreground uppercase tracking-wide">
+								Tables
+							</label>
+						</div>
+						<div className="flex-1 overflow-y-auto">
+							{tablesQuery.isLoading ? (
+								<div className="p-4 text-center">
+									<p className="text-xs text-muted-foreground">
+										Loading tables...
+									</p>
+								</div>
+							) : tables.length === 0 ? (
+								<div className="p-4 text-center">
+									<p className="text-xs text-muted-foreground">
+										No tables found
+									</p>
+								</div>
+							) : (
+								<div className="space-y-1 p-2">
+									{tables.map((table: any) => (
+										<button
+											key={table.name}
+											onClick={() => {
+												setSelectedTable(table.name);
+												setTable(table.name);
+												setShowTableStructure(false);
+											}}
+											className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+												selectedTable === table.name
+													? "bg-primary/10 text-primary font-medium"
+													: "text-muted-foreground hover:bg-muted hover:text-foreground"
+											}`}
+										>
+											{table.name}
+										</button>
 									))}
-								</ArkSelect.SelectContent>
-							</ArkSelect.Select>
-						)}
-					</div>
-
-					{/* Info */}
-					<div className="space-y-2">
-						<label className="text-sm font-medium text-foreground">
-							Current Table
-						</label>
-						<div className="flex items-center justify-between rounded-md border border-input bg-card px-3 py-2">
-							<span className="text-sm text-muted-foreground truncate">
-								{tableDisplayName}
-							</span>
+								</div>
+							)}
 						</div>
 					</div>
 				</div>
 
-				{/* Data Table */}
-				{selectedTable && selectedSchema ? (
-					<div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-						<div className="px-4 py-4 border-b bg-muted/50">
-							<h2 className="text-lg font-semibold text-foreground">
-								Table Data - First 50 rows
-							</h2>
-							<p className="text-sm text-muted-foreground mt-1">
-								{tableDataQuery.isLoading
-									? "Loading data..."
-									: `Showing ${tableData.length || 0} rows from ${tableDisplayName}`}
-							</p>
-						</div>
-						{tableDataQuery.isLoading ? (
-							<div className="px-4 py-8 text-center">
-								<p className="text-muted-foreground">Loading table data...</p>
+				{/* Content Area */}
+				<div className="flex-1 flex flex-col overflow-hidden">
+					{selectedTable && selectedSchema ? (
+						<>
+							{/* View Toggle */}
+							<div className="border-b bg-muted/50 px-4 py-2 flex gap-2">
+								<Button
+									variant={!showTableStructure ? "default" : "outline"}
+									size="sm"
+									onClick={() => setShowTableStructure(false)}
+									className="text-xs"
+								>
+									Rows
+								</Button>
+								<Button
+									variant={showTableStructure ? "default" : "outline"}
+									size="sm"
+									onClick={() => setShowTableStructure(true)}
+									className="text-xs"
+								>
+									Structure
+								</Button>
 							</div>
-						) : tableDataQuery.isError ? (
-							<div className="px-4 py-8 text-center">
-								<p className="text-destructive">
-									Error loading table data. Please try again.
+
+							{/* Content */}
+							<div className="flex-1 overflow-hidden flex flex-col">
+								{showTableStructure ? (
+									<div className="p-4">
+										<div className="space-y-2">
+											<h3 className="font-semibold text-sm">
+												{tableDisplayName} - Columns
+											</h3>
+											<div className="space-y-1 text-sm">
+												{columns.map((col: any) => (
+													<div
+														key={col.accessorKey}
+														className="text-muted-foreground"
+													>
+														• {col.accessorKey}
+													</div>
+												))}
+											</div>
+										</div>
+									</div>
+								) : (
+									<div className="flex-1 overflow-auto flex flex-col">
+										{tableDataQuery.isLoading ? (
+											<div className="flex-1 flex items-center justify-center">
+												<p className="text-muted-foreground">
+													Loading table data...
+												</p>
+											</div>
+										) : tableDataQuery.isError ? (
+											<div className="flex-1 flex items-center justify-center">
+												<p className="text-destructive">
+													Error loading table data
+												</p>
+											</div>
+										) : (
+											<div className="flex-1 overflow-auto">
+												<DataTable
+													table={dataTable}
+													isLoading={tableDataQuery.isLoading}
+												/>
+											</div>
+										)}
+										{/* Status Bar */}
+										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground space-y-1">
+											<div className="flex items-center justify-between">
+												<span>
+													{tableDisplayName} • {tableData.length} rows (0-
+													{tableData.length}) • {columns.length} columns
+												</span>
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => tableDataQuery.refetch()}
+													className="h-6 px-2"
+												>
+													<RefreshCw className="h-3 w-3" />
+												</Button>
+											</div>
+											<div className="text-xs text-muted-foreground flex items-center justify-between">
+												<span>
+													{queryResponse.timeTaken > 0 && `${queryResponse.timeTaken}ms • Loaded ${formatRelativeTime(queryResponse.ranAt)}`}
+												</span>
+											</div>
+										</div>
+									</div>
+								)}
+							</div>
+						</>
+					) : (
+						<div className="flex-1 flex items-center justify-center">
+							<div className="text-center">
+								<p className="text-muted-foreground">
+									Select a schema and table to view data
 								</p>
 							</div>
-						) : (
-							<div className="overflow-x-auto">
-								<DataTable table={dataTable} />
-							</div>
-						)}
-					</div>
-				) : (
-					<div className="rounded-lg border border-dashed bg-muted/50 p-12 text-center">
-						<p className="text-muted-foreground">
-							Select a schema and table to view the data
-						</p>
-					</div>
-				)}
+						</div>
+					)}
+				</div>
 			</div>
 		</div>
 	);

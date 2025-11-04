@@ -14,15 +14,31 @@ const queryTableDataServerFn = createServerFn()
 			limit: Schema.optional(Schema.Number),
 		}).pipe(Schema.standardSchemaV1),
 	)
-	.handler(async (ctx): Promise<Record<string, any>[]> => {
-		return (await Effect.runPromise(
-			queryTableData({
-				schema: ctx.data.schema,
-				table: ctx.data.table,
-				limit: ctx.data.limit ?? 50,
-			}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(ctx.data.url))),
-		)) as Record<string, any>[];
-	});
+	.handler(
+		async (
+			ctx,
+		): Promise<{
+			rows: Record<string, any>[];
+			timeTaken: number;
+			ranAt: number;
+		}> => {
+			const startTime = Date.now();
+			const rows = (await Effect.runPromise(
+				queryTableData({
+					schema: ctx.data.schema,
+					table: ctx.data.table,
+					limit: ctx.data.limit ?? 50,
+				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(ctx.data.url))),
+			)) as Record<string, any>[];
+			const endTime = Date.now();
+
+			return {
+				rows,
+				timeTaken: endTime - startTime,
+				ranAt: startTime,
+			};
+		},
+	);
 
 export const queryTableDataQueryOptions = (
 	input: InferServerFnSchema<typeof queryTableDataServerFn>,

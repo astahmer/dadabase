@@ -15,7 +15,7 @@ export const tableStyles = cva("w-full border-collapse", {
 export const tableHeaderStyles = cva("", {
 	variants: {
 		stickyHeader: {
-			true: "sticky top-0 z-0 bg-card",
+			true: "sticky top-0 z-10 bg-card",
 			false: "",
 		},
 		variant: {
@@ -30,13 +30,13 @@ export const tableHeaderStyles = cva("", {
 });
 
 export const tableHeaderCellStyles = cva(
-	"text-left font-medium text-foreground align-top",
+	"text-left font-medium text-foreground align-top truncate",
 	{
 		variants: {
 			size: {
-				sm: "px-2 py-2 text-xs",
-				md: "px-3 py-3 text-sm",
-				lg: "px-4 py-3 text-base",
+				sm: "px-2 py-1 text-xs",
+				md: "px-2 py-1.5 text-xs",
+				lg: "px-2 py-1.5 text-sm",
 			},
 			showColumnBorder: {
 				true: "border-r border-border last:border-r-0",
@@ -82,22 +82,25 @@ export const tableRowStyles = cva("border-b border-border", {
 	},
 });
 
-export const tableCellStyles = cva("text-left align-middle text-foreground", {
-	variants: {
-		size: {
-			sm: "px-2 py-2 text-xs",
-			md: "px-3 py-3 text-sm",
-			lg: "px-4 py-3 text-base",
+export const tableCellStyles = cva(
+	"text-left align-middle text-foreground truncate",
+	{
+		variants: {
+			size: {
+				sm: "px-2 py-1 text-xs",
+				md: "px-2 py-1.5 text-xs",
+				lg: "px-2 py-1.5 text-sm",
+			},
+			showColumnBorder: {
+				true: "border-r border-border last:border-r-0",
+				false: "",
+			},
 		},
-		showColumnBorder: {
-			true: "border-r border-border last:border-r-0",
-			false: "",
+		defaultVariants: {
+			size: "md",
 		},
 	},
-	defaultVariants: {
-		size: "md",
-	},
-});
+);
 
 export const tableSortButtonStyles = cva(
 	"inline-flex items-center gap-2 transition-opacity hover:opacity-100 opacity-60",
