@@ -5,8 +5,8 @@ import {
 	AccordionItemTrigger,
 } from "#src/components/ui/accordion";
 import { queryClient } from "#src/query-client.ts";
-import { createDbConnectionMutation } from "#src/server/start-fns/db-connection/create-db-connection.start.ts";
-import { updateDbConnectionMutation } from "#src/server/start-fns/db-connection/update-db-connection.start.ts";
+import { createDbConnectionMutation } from "#src/server/db-connection/start-fns/create-db-connection.start.ts";
+import { updateDbConnectionMutation } from "#src/server/db-connection/start-fns/update-db-connection.start.ts";
 import { useMutation } from "@tanstack/react-query";
 import z from "zod";
 import { useAppForm } from "../form/form.hook.ts";

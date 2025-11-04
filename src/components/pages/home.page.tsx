@@ -1,6 +1,6 @@
-import { deleteDbConnectionMutation } from "#src/server/start-fns/db-connection/delete-db-connection.start.ts";
-import { listDbConnectionQueryOptions } from "#src/server/start-fns/db-connection/list-db-connection.start.ts";
-import { testPgConnectionServerFn } from "#src/server/start-fns/pg/test-pg-connection.start.ts";
+import { deleteDbConnectionMutation } from "#src/server/db-connection/start-fns/delete-db-connection.start.ts";
+import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import { testPgConnectionServerFn } from "#src/server/pg/start-fns/test-pg-connection.start.ts";
 import { Clipboard } from "@ark-ui/react";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";

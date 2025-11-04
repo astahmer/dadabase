@@ -1,5 +1,5 @@
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { AppRuntime } from "#src/server/start-fns/runtime.ts";
+import { AppRuntime } from "#src/server/services/app.runtime.ts";
 import { NanoId } from "#src/server/services/nano-id.ts";
 import { Effect } from "effect";
 

@@ -1,7 +1,7 @@
-import { testPgConnectionUrl } from "#src/server/fns/pg/test-pg-connection.ts";
+import { testPgConnectionUrl } from "#src/server/pg/fns/test-pg-connection.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
-import { AppRuntime } from "../runtime.ts";
+import { AppRuntime } from "../../services/app.runtime.ts";
 
 export const testPgConnectionServerFn = createServerFn()
 	.inputValidator(
