@@ -1,9 +1,11 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
+import { ConnectionPage } from "#src/components/pages/connection.page";
 
-export const Route = createFileRoute('/connections/$connectionName')({
-  component: RouteComponent,
-})
+export const Route = createFileRoute("/connections/$connectionName")({
+	component: RouteComponent,
+});
 
 function RouteComponent() {
-  return <div>Hello "/connections/$connectionName"!</div>
+	const { connectionName } = Route.useParams();
+	return <ConnectionPage connectionName={connectionName} />;
 }
