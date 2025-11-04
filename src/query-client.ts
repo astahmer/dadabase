@@ -8,7 +8,7 @@ export const queryClient = new QueryClient({
 		},
 	},
 	mutationCache: new MutationCache({
-		onSuccess: async (_data, _variables, _context, mutation) => {
+		onSuccess: async (_data, _variables, _context, _mutation) => {
 			await queryClient.invalidateQueries(
 				{
 					predicate: (query) => {

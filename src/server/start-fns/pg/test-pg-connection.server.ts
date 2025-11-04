@@ -1,4 +1,4 @@
-import { testPgConnectionUrl } from "#src/fns/pg/test-pg-connection.ts";
+import { testPgConnectionUrl } from "#src/server/fns/pg/test-pg-connection.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 import { AppRuntime } from "../runtime.ts";

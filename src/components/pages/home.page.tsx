@@ -1,11 +1,16 @@
-import { deleteDbConnectionServerFn } from "#src/server-fns/pg/delete-db-connection.server.ts";
-import { getSavedConnectionsQueryOptions } from "#src/server-fns/pg/get-saved-connections.server.ts";
-import { testPgConnectionServerFn } from "#src/server-fns/pg/test-pg-connection.server.ts";
+import { deleteDbConnectionServerFn } from "#src/server/start-fns/pg/delete-db-connection.server.ts";
+import { getSavedConnectionsQueryOptions } from "#src/server/start-fns/pg/get-saved-connections.server.ts";
+import { testPgConnectionServerFn } from "#src/server/start-fns/pg/test-pg-connection.server.ts";
 import { Clipboard } from "@ark-ui/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { DateTime } from "effect";
-import { CheckIcon, ClipboardCopyIcon, EllipsisIcon } from "lucide-react";
+import {
+	CheckIcon,
+	ClipboardCopyIcon,
+	ClipboardIcon,
+	EllipsisIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { DataTable } from "../data-table.tsx";
 import { Button } from "../ui/button.tsx";
@@ -21,8 +26,9 @@ import {
 } from "../ui/sheet.tsx";
 import { ConnectionForm } from "./connection.form.tsx";
 import { AlertDialog } from "../ui/alert-dialog.tsx";
-import { queryClient } from "#src/integrations/tanstack-query/query-client.ts";
+import { queryClient } from "#src/query-client.ts";
 import { Tooltip } from "../ui/tooltip.tsx";
+import { HStack } from "../ui/layout.tsx";
 
 export const HomePage = () => {
 	const [editingConnection, setEditingConnection] = useState<{
@@ -38,37 +44,6 @@ export const HomePage = () => {
 		data: savedDatabaseList.data,
 		columns: [
 			{
-				accessorKey: "connect",
-				header: "Connect",
-				cell: (ctx) => {
-					const testPgConnectionUrl = useServerFn(testPgConnectionServerFn);
-					return (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={async () => {
-								const canConnect = await testPgConnectionUrl({
-									data: { url: ctx.row.original.url },
-								});
-								if (canConnect.success) {
-									toaster.create({
-										title: "Connection successful",
-										description: "You can now connect to this database",
-									});
-								} else {
-									toaster.create({
-										title: "Connection failed",
-										description: canConnect.message,
-									});
-								}
-							}}
-						>
-							⚡ Test connection
-						</Button>
-					);
-				},
-			},
-			{
 				accessorKey: "name",
 				header: "Name",
 				cell: (ctx) => (
@@ -76,6 +51,59 @@ export const HomePage = () => {
 						<span>{ctx.row.original.name}</span>
 					</Tooltip>
 				),
+			},
+			{
+				id: "_connect",
+				cell: (ctx) => {
+					const testPgConnectionUrl = useServerFn(testPgConnectionServerFn);
+					return (
+						<HStack>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={async () => {
+									const canConnect = await testPgConnectionUrl({
+										data: { url: ctx.row.original.url },
+									});
+									if (canConnect.success) {
+										toaster.create({
+											title: "Connection successful",
+											description: "You can now connect to this database",
+										});
+									} else {
+										toaster.create({
+											title: "Connection failed",
+											description: canConnect.message,
+										});
+									}
+								}}
+							>
+								? Test
+							</Button>
+							<Button
+								size="sm"
+								onClick={async () => {
+									const canConnect = await testPgConnectionUrl({
+										data: { url: ctx.row.original.url },
+									});
+									if (canConnect.success) {
+										toaster.create({
+											title: "Connection successful",
+											description: "You can now connect to this database",
+										});
+									} else {
+										toaster.create({
+											title: "Connection failed",
+											description: canConnect.message,
+										});
+									}
+								}}
+							>
+								⚡ Connect
+							</Button>
+						</HStack>
+					);
+				},
 			},
 			{ accessorKey: "dialect", header: "Dialect" },
 			{
@@ -107,7 +135,7 @@ export const HomePage = () => {
 							<Clipboard.Trigger asChild>
 								<Button variant="ghost" size="icon">
 									<Clipboard.Indicator copied={<CheckIcon />}>
-										<ClipboardCopyIcon />
+										<ClipboardIcon />
 									</Clipboard.Indicator>
 								</Button>
 							</Clipboard.Trigger>

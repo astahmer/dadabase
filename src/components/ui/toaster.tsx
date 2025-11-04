@@ -10,7 +10,8 @@ import {
 
 export const toaster = createToaster({
 	placement: "bottom-end",
-	overlap: true,
+	// overlap: true,
+	// max: 3,
 });
 
 export function ToasterProvider() {

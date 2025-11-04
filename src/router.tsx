@@ -1,14 +1,15 @@
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { ToasterProvider } from "./components/ui/toaster.tsx";
-import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
 import { routeTree } from "./routeTree.gen";
+import { queryClient } from "./query-client.ts";
+import { QueryClientProvider } from "@tanstack/react-query";
 // import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 // ModuleRegistry.registerModules([AllCommunityModule]);
 
 // Create a new router instance
 export const getRouter = () => {
-	const rqContext = TanstackQuery.getContext();
+	const rqContext = { queryClient };
 
 	const router = createRouter({
 		routeTree,
@@ -16,10 +17,10 @@ export const getRouter = () => {
 		defaultPreload: "intent",
 		Wrap: (props: { children: React.ReactNode }) => {
 			return (
-				<TanstackQuery.Provider {...rqContext}>
+				<QueryClientProvider client={queryClient}>
 					<ToasterProvider />
 					{props.children}
-				</TanstackQuery.Provider>
+				</QueryClientProvider>
 			);
 		},
 	});

@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 import { AppRuntime } from "../runtime.ts";
-import { saveDbConnection } from "#src/fns/pg/save-db-connection.ts";
+import { saveDbConnection } from "#src/server/fns/pg/save-db-connection.ts";
 
 export const saveDbConnectionServerFn = createServerFn()
 	.inputValidator(

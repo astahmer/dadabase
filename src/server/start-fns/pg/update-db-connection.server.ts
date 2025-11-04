@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 import { AppRuntime } from "../runtime.ts";
-import { updateDbConnection } from "#src/fns/pg/update-db-connection.ts";
+import { updateDbConnection } from "#src/server/fns/pg/update-db-connection.ts";
 
 export const updateDbConnectionServerFn = createServerFn()
 	.inputValidator(

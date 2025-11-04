@@ -1,5 +1,5 @@
-import { saveDbConnectionServerFn } from "#src/server-fns/pg/save-db-connection.server.ts";
-import { updateDbConnectionServerFn } from "#src/server-fns/pg/update-db-connection.server.ts";
+import { saveDbConnectionServerFn } from "#src/server/start-fns/pg/save-db-connection.server.ts";
+import { updateDbConnectionServerFn } from "#src/server/start-fns/pg/update-db-connection.server.ts";
 import { useAppForm } from "../form/form.hook.ts";
 import { toaster } from "../ui/toaster.tsx";
 import {
@@ -10,7 +10,7 @@ import {
 } from "#src/components/ui/accordion";
 import { Stack } from "../ui/layout.tsx";
 import z from "zod";
-import { queryClient } from "#src/integrations/tanstack-query/query-client.ts";
+import { queryClient } from "#src/query-client.ts";
 
 const connectionType = z.enum(["postgres", "mysql", "sqlite"]);
 const connectionFormSchema = z.object({
