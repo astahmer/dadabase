@@ -1,4 +1,4 @@
-import { deleteDbConnection } from "#src/server/fns/pg/delete-db-connection.ts";
+import { deleteDbConnection } from "#src/server/fns/db-connection/delete-db-connection.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 import { AppRuntime } from "../runtime.ts";

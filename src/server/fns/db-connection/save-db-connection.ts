@@ -1,5 +1,5 @@
 import { DatabaseConnectionsRepository } from "#src/db/database-connections.repository.ts";
-import { NanoId } from "#src/services/nano-id.ts";
+import { NanoId } from "#src/server/services/nano-id.ts";
 import { Effect } from "effect";
 
 export const saveDbConnection = Effect.fn(function* (input: {
