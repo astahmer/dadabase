@@ -2,7 +2,7 @@ import { DatabaseConnectionRepository } from "#src/db/database-connection.reposi
 import { NanoId } from "#src/server/services/nano-id.ts";
 import { Effect } from "effect";
 
-export const saveDbConnection = Effect.fn(function* (input: {
+export const createDbConnection = Effect.fn(function* (input: {
 	name: string;
 	url: string;
 }) {

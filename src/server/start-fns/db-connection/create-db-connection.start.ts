@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 import { AppRuntime } from "../runtime.ts";
-import { saveDbConnection } from "#src/server/fns/db-connection/save-db-connection.ts";
+import { createDbConnection } from "#src/server/fns/db-connection/create-db-connection.ts";
+import { mutationOptions } from "@tanstack/react-query";
 
-export const saveDbConnectionServerFn = createServerFn()
+const createDbConnectionServerFn = createServerFn()
 	.inputValidator(
 		Schema.Struct({
 			name: Schema.String,
@@ -12,9 +13,13 @@ export const saveDbConnectionServerFn = createServerFn()
 	)
 	.handler(async (ctx) => {
 		return await AppRuntime.runPromise(
-			saveDbConnection({
+			createDbConnection({
 				name: ctx.data.name,
 				url: ctx.data.url.toString(),
 			}),
 		);
 	});
+
+export const createDbConnectionMutation = mutationOptions({
+	mutationFn: createDbConnectionServerFn,
+});

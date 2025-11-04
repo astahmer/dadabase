@@ -2,8 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 import { AppRuntime } from "../runtime.ts";
 import { updateDbConnection } from "#src/server/fns/db-connection/update-db-connection.ts";
+import { mutationOptions } from "@tanstack/react-query";
 
-export const updateDbConnectionServerFn = createServerFn()
+const updateDbConnectionServerFn = createServerFn()
 	.inputValidator(
 		Schema.Struct({
 			id: Schema.String,
@@ -20,3 +21,7 @@ export const updateDbConnectionServerFn = createServerFn()
 			}),
 		);
 	});
+
+export const updateDbConnectionMutation = mutationOptions({
+	mutationFn: updateDbConnectionServerFn,
+});

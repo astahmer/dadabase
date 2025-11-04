@@ -1,16 +1,17 @@
-import { saveDbConnectionServerFn } from "#src/server/start-fns/pg/save-db-connection.server.ts";
-import { updateDbConnectionServerFn } from "#src/server/start-fns/pg/update-db-connection.server.ts";
-import { useAppForm } from "../form/form.hook.ts";
-import { toaster } from "../ui/toaster.tsx";
 import {
 	Accordion,
 	AccordionItem,
 	AccordionItemContent,
 	AccordionItemTrigger,
 } from "#src/components/ui/accordion";
-import { Stack } from "../ui/layout.tsx";
-import z from "zod";
 import { queryClient } from "#src/query-client.ts";
+import { createDbConnectionMutation } from "#src/server/start-fns/db-connection/create-db-connection.start.ts";
+import { updateDbConnectionMutation } from "#src/server/start-fns/db-connection/update-db-connection.start.ts";
+import { useMutation } from "@tanstack/react-query";
+import z from "zod";
+import { useAppForm } from "../form/form.hook.ts";
+import { Stack } from "../ui/layout.tsx";
+import { toaster } from "../ui/toaster.tsx";
 
 const connectionType = z.enum(["postgres", "mysql", "sqlite"]);
 const connectionFormSchema = z.object({
@@ -52,6 +53,9 @@ export function ConnectionForm({
 	initialValues,
 	onSuccess,
 }: ConnectionFormProps) {
+	const createMutation = useMutation(createDbConnectionMutation);
+	const updateMutation = useMutation(updateDbConnectionMutation);
+
 	const form = useAppForm({
 		defaultValues: getInitialValues(),
 		validators: {
@@ -64,13 +68,12 @@ export function ConnectionForm({
 			const isCreate = mode === "create";
 			try {
 				if (isCreate) {
-					await saveDbConnectionServerFn({
+					await createMutation.mutateAsync({
 						data: {
 							name: ctx.value.connectionName,
 							url: ctx.value.connectionUrl,
 						},
 					});
-					queryClient.invalidateQueries();
 					toaster.create({
 						title: "Success",
 						description:
@@ -79,14 +82,13 @@ export function ConnectionForm({
 								: "Connection updated successfully",
 					});
 				} else {
-					await updateDbConnectionServerFn({
+					await updateMutation.mutateAsync({
 						data: {
 							id: initialValues?.id || "",
 							name: ctx.value.connectionName,
 							url: ctx.value.connectionUrl,
 						},
 					});
-					queryClient.invalidateQueries();
 					toaster.create({
 						title: "Success",
 						description: "Connection updated successfully",

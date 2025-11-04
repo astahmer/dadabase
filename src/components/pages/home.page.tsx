@@ -1,21 +1,16 @@
-import { deleteDbConnectionServerFn } from "#src/server/start-fns/pg/delete-db-connection.server.ts";
-import { getSavedConnectionsQueryOptions } from "#src/server/start-fns/pg/get-saved-connections.server.ts";
-import { testPgConnectionServerFn } from "#src/server/start-fns/pg/test-pg-connection.server.ts";
+import { deleteDbConnectionMutation } from "#src/server/start-fns/db-connection/delete-db-connection.start.ts";
+import { listDbConnectionQueryOptions } from "#src/server/start-fns/db-connection/list-db-connection.start.ts";
+import { testPgConnectionServerFn } from "#src/server/start-fns/pg/test-pg-connection.start.ts";
 import { Clipboard } from "@ark-ui/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { DateTime } from "effect";
-import {
-	CheckIcon,
-	ClipboardCopyIcon,
-	ClipboardIcon,
-	EllipsisIcon,
-} from "lucide-react";
+import { CheckIcon, ClipboardIcon, EllipsisIcon } from "lucide-react";
 import { useState } from "react";
 import { DataTable } from "../data-table.tsx";
+import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button } from "../ui/button.tsx";
-import { toaster } from "../ui/toaster.tsx";
-import { useDataTable } from "../use-data-table.ts";
+import { HStack } from "../ui/layout.tsx";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/menu.tsx";
 import {
 	Sheet,
@@ -24,22 +19,25 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "../ui/sheet.tsx";
-import { ConnectionForm } from "./connection.form.tsx";
-import { AlertDialog } from "../ui/alert-dialog.tsx";
-import { queryClient } from "#src/query-client.ts";
+import { toaster } from "../ui/toaster.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
-import { HStack } from "../ui/layout.tsx";
+import { useDataTable } from "../use-data-table.ts";
+import { ConnectionForm } from "./connection.form.tsx";
+
+interface EditableConnection {
+	id: string;
+	name: string;
+	url: string;
+	dialect: string;
+	created_at: number;
+	updated_at: number;
+}
 
 export const HomePage = () => {
-	const [editingConnection, setEditingConnection] = useState<{
-		id: string;
-		name: string;
-		url: string;
-		dialect: string;
-		created_at: number;
-		updated_at: number;
-	} | null>(null);
-	const savedDatabaseList = useSuspenseQuery(getSavedConnectionsQueryOptions);
+	const [editingConnection, setEditingConnection] =
+		useState<EditableConnection | null>(null);
+
+	const savedDatabaseList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const table = useDataTable({
 		data: savedDatabaseList.data,
 		columns: [
@@ -147,6 +145,7 @@ export const HomePage = () => {
 				accessorKey: "actions",
 				header: "Actions",
 				cell: (ctx) => {
+					const deleteMutation = useMutation(deleteDbConnectionMutation);
 					return (
 						<Menu>
 							<MenuTrigger asChild>
@@ -171,10 +170,9 @@ export const HomePage = () => {
 									title="Delete connection?"
 									description="Are you sure you want to delete this connection?"
 									onConfirm={() => {
-										deleteDbConnectionServerFn({
+										deleteMutation.mutateAsync({
 											data: { id: ctx.row.original.id },
 										});
-										queryClient.invalidateQueries();
 									}}
 								/>
 							</MenuContent>
@@ -271,7 +269,6 @@ export const HomePage = () => {
 								}}
 								onSuccess={() => {
 									setEditingConnection(null);
-									queryClient.invalidateQueries();
 								}}
 							/>
 						</div>
