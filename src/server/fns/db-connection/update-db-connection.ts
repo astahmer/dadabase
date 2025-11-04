@@ -1,4 +1,4 @@
-import { DatabaseConnectionsRepository } from "#src/db/database-connections.repository.ts";
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { Effect } from "effect";
 
 export const updateDbConnection = Effect.fn(function* (input: {
@@ -6,7 +6,7 @@ export const updateDbConnection = Effect.fn(function* (input: {
 	name: string;
 	url: string;
 }) {
-	const repository = yield* DatabaseConnectionsRepository;
+	const repository = yield* DatabaseConnectionRepository;
 	yield* repository.update({
 		id: input.id,
 		name: input.name,

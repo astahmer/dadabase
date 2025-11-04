@@ -1,10 +1,10 @@
-import { DatabaseConnectionsRepository } from "#src/db/database-connections.repository.ts";
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { AppRuntime } from "#src/server/start-fns/runtime.ts";
 import { NanoId } from "#src/server/services/nano-id.ts";
 import { Effect } from "effect";
 
 const runWithDb = Effect.gen(function* () {
-	const repository = yield* DatabaseConnectionsRepository;
+	const repository = yield* DatabaseConnectionRepository;
 	const nanoId = yield* NanoId;
 
 	const now = new Date();

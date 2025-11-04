@@ -3,8 +3,8 @@ import { AppDatabase } from "./app.db.ts";
 import type { Insertable } from "kysely";
 import type { AppDatabaseSchema } from "./app.db.schema.ts";
 
-export class DatabaseConnectionsRepository extends Effect.Service<DatabaseConnectionsRepository>()(
-	"@dadabase/db/DatabaseConnectionsRepository",
+export class DatabaseConnectionRepository extends Effect.Service<DatabaseConnectionRepository>()(
+	"@dadabase/db/DatabaseConnectionRepository",
 	{
 		dependencies: [],
 		effect: Effect.gen(function* () {
