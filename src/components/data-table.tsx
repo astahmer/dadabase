@@ -88,21 +88,16 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 			<div className={`overflow-x-auto ${className || ""}`}>
 				<table
 					className={tableStyles({ variant })}
-					style={{
-						width: state.columnSizingInfo.isResizingColumn
-							? `calc(${getTotalWidth()}px + ${state.columnSizingInfo.deltaOffset}px)`
-							: `${getTotalWidth()}px`,
-					}}
+					// style={{
+					// 	width: state.columnSizingInfo.isResizingColumn
+					// 		? `calc(${getTotalWidth()}px + ${state.columnSizingInfo.deltaOffset}px)`
+					// 		: `${getTotalWidth()}px`,
+					// }}
 				>
 					<thead className={tableHeaderStyles({ stickyHeader, variant })}>
 						{table.getHeaderGroups().map((headerGroup) => (
 							<tr key={headerGroup.id}>
 								{headerGroup.headers.map((header) => {
-									const size_val = header.getSize();
-									const style = {
-										width: `${size_val}px`,
-										position: "relative",
-									} as React.CSSProperties;
 									const hasBulkActions =
 										hasSelectedRows && headerGroup.headers.at(-1) === header;
 									const column = header.column;
@@ -110,14 +105,15 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 
 									return (
 										<th
+											key={header.id}
+											colSpan={header.colSpan}
+											style={{ width: `${header.getSize()}px` }}
 											className={
 												tableHeaderCellStyles({
 													size,
 													showColumnBorder,
 												}) + (hasBulkActions ? " text-right" : "")
 											}
-											key={header.id}
-											style={style}
 										>
 											<div className="flex items-center justify-between">
 												<div className="flex-1">
@@ -151,11 +147,11 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 												</div>
 												{header.column.columnDef.enableResizing !== false && (
 													<div
-														onMouseDown={header.getResizeHandler?.()}
-														onTouchStart={header.getResizeHandler?.()}
+														onMouseDown={header.getResizeHandler()}
+														onTouchStart={header.getResizeHandler()}
 														className="select-none touch-none cursor-col-resize w-1 h-6 bg-border hover:bg-primary/50 transition-colors"
 														style={{
-															transform: header.column.getIsResizing?.()
+															transform: header.column.getIsResizing()
 																? `translateX(${table.getState().columnSizingInfo.deltaOffset}px)`
 																: "",
 														}}
