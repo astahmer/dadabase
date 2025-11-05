@@ -15,6 +15,7 @@ import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fn
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
+import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url";
 import { DataTable } from "../data-table";
 import { ColumnVisibilityControls } from "../column-visibility";
@@ -89,6 +90,16 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			orderDirection: orderDirection,
 		}),
 		placeholderData: keepPreviousData,
+		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
+	});
+
+	// Get table column metadata
+	const tableColumnsQuery = useQuery({
+		...getTableColumnsQueryOptions({
+			url: connection?.url || "",
+			schema: selectedSchema || "",
+			table: selectedTable || "",
+		}),
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
 	});
 
@@ -453,7 +464,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							<div className="flex-1 overflow-hidden flex flex-col">
 								{viewMode === "structure" ? (
 									formattedTableData && formattedTableData.length > 0 ? (
-										<StructureTable formattedTableData={formattedTableData} />
+										<StructureTable
+											formattedTableData={formattedTableData}
+											columnMetadata={tableColumnsQuery.data}
+										/>
 									) : (
 										<div className="p-4 overflow-auto flex-1">
 											<div className="space-y-2">
@@ -627,11 +641,32 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 const StructureTable = (props: {
 	formattedTableData: Record<string, unknown>[];
+	columnMetadata?: Array<{
+		name: string;
+		dataType: string;
+		nullable: boolean;
+		primaryKey: boolean;
+		defaultValue: string | null;
+	}>;
 }) => {
 	{
-		const { formattedTableData } = props;
-		// Create structure metadata for columns
+		const { formattedTableData, columnMetadata } = props;
+
+		// Create structure metadata for columns using backend data when available
 		const structureData = Object.keys(formattedTableData[0]).map((colName) => {
+			const metadata = columnMetadata?.find((col) => col.name === colName);
+
+			if (metadata) {
+				return {
+					name: colName,
+					datatype: metadata.dataType,
+					nullable: metadata.nullable,
+					primaryKey: metadata.primaryKey,
+					defaultValue: metadata.defaultValue,
+				};
+			}
+
+			// Fallback to inference from data if metadata not available
 			const sample = formattedTableData[0][colName];
 			let dataType: string = typeof sample;
 			if (Array.isArray(sample)) {
@@ -646,9 +681,9 @@ const StructureTable = (props: {
 			}
 			return {
 				name: colName,
-				datatype: dataType as string,
+				datatype: dataType,
 				nullable: formattedTableData.some((row) => row[colName] === null),
-				primaryKey: false, // Would need actual schema info
+				primaryKey: false,
 				defaultValue: null,
 			};
 		});
@@ -689,6 +724,17 @@ const StructureTable = (props: {
 						{info.getValue<boolean>() ? "Yes" : "No"}
 					</span>
 				),
+			},
+			{
+				accessorKey: "defaultValue",
+				header: "Default Value",
+				enableResizing: true,
+				cell: (info) => {
+					const value = info.getValue<string | null>();
+					return (
+						<span className="text-xs font-mono">{value ? value : "—"}</span>
+					);
+				},
 			},
 		];
 
