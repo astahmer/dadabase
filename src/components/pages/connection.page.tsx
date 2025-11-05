@@ -11,6 +11,7 @@ import { Pagination } from "@ark-ui/react/pagination";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
+import { useQueryBuilder } from "#src/hooks/use-query-builder";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
@@ -19,6 +20,7 @@ import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-
 import { redactConnectionUrl } from "#src/lib/redact-connection-url";
 import { DataTable } from "../data-table";
 import { ColumnVisibilityControls } from "../column-visibility";
+import { QueryFilterBuilder } from "../query-filter-builder";
 import { useDataTable } from "../use-data-table";
 import * as ArkSelect from "../ui/select";
 import { Button } from "../ui/button";
@@ -54,6 +56,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
+	// Initialize query builder
+	const queryBuilder = useQueryBuilder();
+
 	// Extract search params with defaults
 	const selectedSchema = search.schema;
 	const selectedTable = search.table;
@@ -79,6 +84,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		enabled: !!connection?.url && !!selectedSchema,
 	});
 
+	// Get the WHERE clause from query builder
+	const whereClauseData = queryBuilder.getWhereClause();
+
 	// Get table data
 	const tableDataQuery = useQuery({
 		...queryTableDataQueryOptions({
@@ -89,6 +97,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			offset: offset,
 			orderBy: orderBy,
 			orderDirection: orderDirection,
+			whereClause: whereClauseData?.whereClause,
+			whereParams: whereClauseData?.params,
 		}),
 		placeholderData: keepPreviousData,
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
@@ -468,6 +478,20 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									<ColumnVisibilityControls table={dataTable} minimal={true} />
 								)}
 							</div>
+
+							{/* Query Filter Builder */}
+							{viewMode === "rows" && columns.length > 0 && (
+								<QueryFilterBuilder
+									conditions={queryBuilder.filter.conditions}
+									onAddCondition={queryBuilder.addCondition}
+									onUpdateCondition={queryBuilder.updateCondition}
+									onRemoveCondition={queryBuilder.removeCondition}
+									onLogicalOperatorChange={queryBuilder.setLogicalOperator}
+									logicalOperator={queryBuilder.filter.logicalOperator}
+									availableColumns={Object.keys(formattedTableData[0] || {})}
+									isLoading={tableDataQuery.isLoading}
+								/>
+							)}
 
 							{/* Content */}
 							<div className="flex-1 overflow-hidden flex flex-col">
