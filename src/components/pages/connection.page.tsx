@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Pagination } from "@ark-ui/react/pagination";
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start";
@@ -55,8 +56,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const selectedSchema = search.schema || "public";
 	const selectedTable = search.table;
 	const viewMode = search.viewMode || "rows";
-	const pageSize = search.pageSize || 50;
-	const pageOffset = search.pageOffset || 0;
+	const limit = search.limit || 50;
+	const offset = search.offset || 0;
+	const orderBy = search.orderBy;
+	const orderDirection = search.orderDirection || "asc";
 
 	// Get databases
 	const databasesQuery = useQuery({
@@ -85,7 +88,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			url: connection?.url || "",
 			schema: selectedSchema || "",
 			table: selectedTable || "",
-			limit: pageSize,
+			limit: limit,
 		}),
 		placeholderData: keepPreviousData,
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
@@ -173,17 +176,57 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 				}))
 			: [];
 
+	// Create sorting state from URL params
+	const sortingState = orderBy
+		? [
+				{
+					id: orderBy,
+					desc: orderDirection === "desc",
+				},
+			]
+		: [];
+
 	const dataTable = useDataTable({
 		data: formattedTableData,
 		columns,
 		initialState: {
 			pagination: {
-				pageIndex: Math.floor(pageOffset / pageSize),
-				pageSize: pageSize,
+				pageIndex: Math.floor(offset / limit),
+				pageSize: limit,
 			},
+			sorting: sortingState,
 		},
 		manualPagination: true,
+		manualSorting: true,
 		rowCount: formattedTableData.length,
+		onSortingChange: (updater) => {
+			const newSorting =
+				typeof updater === "function" ? updater(sortingState) : updater;
+			const firstSort = newSorting[0];
+			navigate({
+				search: (prev) => ({
+					...prev,
+					orderBy: firstSort?.id || undefined,
+					orderDirection: firstSort?.desc ? "desc" : "asc",
+					offset: 0,
+				}),
+			});
+		},
+		onPaginationChange: (updater) => {
+			const current = {
+				pageIndex: Math.floor(offset / limit),
+				pageSize: limit,
+			};
+			const newPagination =
+				typeof updater === "function" ? updater(current) : updater;
+			navigate({
+				search: (prev) => ({
+					...prev,
+					offset: newPagination.pageIndex * newPagination.pageSize,
+					limit: newPagination.pageSize,
+				}),
+			});
+		},
 	});
 
 	const redactedUrl = connection ? redactConnectionUrl(connection.url) : "";
@@ -273,7 +316,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											dbName: newDatabase,
 											schema: undefined,
 											table: undefined,
-											pageOffset: 0,
+											offset: 0,
 										}),
 									});
 								}
@@ -330,7 +373,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												...prev,
 												schema: newSchema,
 												table: undefined,
-												pageOffset: 0,
+												offset: 0,
 											}),
 										});
 									}
@@ -386,7 +429,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													search: (prev) => ({
 														...prev,
 														table: table.name,
-														pageOffset: 0,
+														offset: 0,
 														viewMode: "rows",
 													}),
 												});
@@ -495,13 +538,57 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														` • ${queryResponse.timeTaken}ms • Loaded ${formatRelativeTime(queryResponse.ranAt)}`}
 												</span>
 												<div className="flex items-center gap-3">
+													{/* Pagination Controls */}
+													<Pagination.Root
+														count={formattedTableData.length}
+														pageSize={limit}
+														siblingCount={1}
+														page={Math.floor(offset / limit) + 1}
+														onPageChange={(details) => {
+															navigate({
+																search: (prev) => ({
+																	...prev,
+																	offset: (details.page - 1) * limit,
+																}),
+															});
+														}}
+													>
+														<Pagination.Context>
+															{(pagination) => (
+																<div className="flex items-center gap-1">
+																	<Pagination.PrevTrigger asChild>
+																		<Button
+																			variant="ghost"
+																			size="sm"
+																			className="h-6 px-1"
+																		>
+																			‹
+																		</Button>
+																	</Pagination.PrevTrigger>
+																	<span className="text-xs mx-2">
+																		{pagination.page} / {pagination.totalPages}
+																	</span>
+																	<Pagination.NextTrigger asChild>
+																		<Button
+																			variant="ghost"
+																			size="sm"
+																			className="h-6 px-1"
+																		>
+																			›
+																		</Button>
+																	</Pagination.NextTrigger>
+																</div>
+															)}
+														</Pagination.Context>
+													</Pagination.Root>
+
 													<div className="flex items-center gap-2">
 														<label className="font-medium uppercase tracking-wide whitespace-nowrap">
 															Rows per page:
 														</label>
 														<ArkSelect.Select
 															className="w-20"
-															value={[pageSize.toString()]}
+															value={[limit.toString()]}
 															collection={ArkSelect.createListCollection({
 																items: [
 																	{ label: "50", value: "50" },
@@ -514,13 +601,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 															onValueChange={(details: {
 																value?: string[];
 															}) => {
-																const newPageSize =
+																const newLimit =
 																	Number(details.value?.[0]) || 50;
 																navigate({
 																	search: (prev) => ({
 																		...prev,
-																		pageSize: newPageSize,
-																		pageOffset: 0,
+																		limit: newLimit,
+																		offset: 0,
 																	}),
 																});
 															}}
