@@ -75,19 +75,27 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		<>
 			{runIfFn(top, table)}
 			{runIfFn(header, table)}
+			<ColumnVisibilityControls table={table} />
 			<div
 				className={`overflow-x-auto overflow-y-hidden max-w-full ${className || ""}`}
 			>
-				<table className={tableStyles({ variant })}>
+				<table
+					className={tableStyles({ variant })}
+					style={{
+						width: state.columnSizingInfo.isResizingColumn
+							? `${state.columnSizingInfo.deltaOffset}px`
+							: "auto",
+					}}
+				>
 					<thead className={tableHeaderStyles({ stickyHeader, variant })}>
 						{table.getHeaderGroups().map((headerGroup) => (
 							<tr key={headerGroup.id}>
 								{headerGroup.headers.map((header) => {
-									const size_val = header.column.getSize();
-									const style =
-										size_val && size_val !== 150
-											? { minWidth: size_val }
-											: undefined;
+									const size_val = header.getSize();
+									const style = {
+										width: `${size_val}px`,
+										position: "relative",
+									} as React.CSSProperties;
 									const hasBulkActions =
 										hasSelectedRows && headerGroup.headers.at(-1) === header;
 									const column = header.column;
@@ -104,31 +112,47 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											key={header.id}
 											style={style}
 										>
-											{header.isPlaceholder ? null : column.getCanSort() &&
-												column.columnDef.enableSorting ? (
-												<button
-													onClick={column.getToggleSortingHandler()}
-													data-test-id={`table-sort-${column.id}`}
-													className={tableSortButtonStyles()}
-												>
-													{flexRender(
-														header.column.columnDef.header,
-														header.getContext(),
-													)}
-													{isSorted === "desc" ? (
-														<span>↓</span>
-													) : isSorted === "asc" ? (
-														<span>↑</span>
+											<div className="flex items-center justify-between">
+												<div className="flex-1">
+													{header.isPlaceholder ? null : column.getCanSort() &&
+														column.columnDef.enableSorting ? (
+														<button
+															onClick={column.getToggleSortingHandler()}
+															data-test-id={`table-sort-${column.id}`}
+															className={tableSortButtonStyles()}
+														>
+															{flexRender(
+																header.column.columnDef.header,
+																header.getContext(),
+															)}
+															{isSorted === "desc" ? (
+																<span>↓</span>
+															) : isSorted === "asc" ? (
+																<span>↑</span>
+															) : (
+																<span>↕</span>
+															)}
+														</button>
 													) : (
-														<span>↕</span>
+														flexRender(
+															header.column.columnDef.header,
+															header.getContext(),
+														)
 													)}
-												</button>
-											) : (
-												flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)
-											)}
+												</div>
+												{header.column.columnDef.enableResizing !== false && (
+													<div
+														onMouseDown={header.getResizeHandler?.()}
+														onTouchStart={header.getResizeHandler?.()}
+														className="select-none touch-none cursor-col-resize w-1 h-6 bg-border hover:bg-primary/50 transition-colors"
+														style={{
+															transform: header.column.getIsResizing?.()
+																? `translateX(${table.getState().columnSizingInfo.deltaOffset}px)`
+																: "",
+														}}
+													/>
+												)}
+											</div>
 										</th>
 									);
 								})}
@@ -348,6 +372,56 @@ function DataTablePagination<TData>(props: { table: TanstackTable<TData> }) {
 					Next
 				</button>
 			</div>
+		</div>
+	);
+}
+
+function ColumnVisibilityControls<TData>(props: {
+	table: TanstackTable<TData>;
+}) {
+	const { table } = props;
+
+	return (
+		<div className="px-4 py-2 border-b bg-muted/30 flex items-center gap-2">
+			<details className="relative">
+				<summary className="cursor-pointer text-xs font-medium text-foreground uppercase tracking-wide list-none">
+					📋 Columns
+				</summary>
+				<div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 p-2 min-w-48">
+					<div className="space-y-2 max-h-64 overflow-y-auto">
+						<div className="flex items-center gap-2 px-2 py-1 border-b pb-2">
+							<label className="flex items-center gap-2 cursor-pointer text-sm">
+								<input
+									type="checkbox"
+									checked={table.getIsAllColumnsVisible()}
+									onChange={
+										table.getToggleAllColumnsVisibilityHandler?.() as any
+									}
+									className="rounded"
+								/>
+								<span>Toggle All</span>
+							</label>
+						</div>
+						{table.getAllLeafColumns().map((column) => (
+							<label
+								key={column.id}
+								className="flex items-center gap-2 cursor-pointer text-sm px-2 py-1 hover:bg-muted rounded"
+							>
+								<input
+									type="checkbox"
+									checked={column.getIsVisible()}
+									onChange={column.getToggleVisibilityHandler?.() as any}
+									disabled={!column.getCanHide?.()}
+									className="rounded"
+								/>
+								<span className={!column.getCanHide?.() ? "opacity-50" : ""}>
+									{column.columnDef.header as string}
+								</span>
+							</label>
+						))}
+					</div>
+				</div>
+			</details>
 		</div>
 	);
 }

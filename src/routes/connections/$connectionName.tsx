@@ -6,6 +6,12 @@ const searchSchema = Schema.Struct({
 	dbName: Schema.String.pipe(Schema.optional),
 	schema: Schema.String.pipe(Schema.optional),
 	table: Schema.String.pipe(Schema.optional),
+	sortBy: Schema.String.pipe(Schema.optional),
+	sortOrder: Schema.Literal("asc", "desc").pipe(Schema.optional),
+	pageSize: Schema.Number.pipe(Schema.optional),
+	pageOffset: Schema.Number.pipe(Schema.optional),
+	viewMode: Schema.Literal("rows", "structure").pipe(Schema.optional),
+	columnVisibility: Schema.String.pipe(Schema.optional),
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({

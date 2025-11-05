@@ -1,6 +1,7 @@
 import type {
 	ColumnDef,
 	ColumnFiltersState,
+	ColumnSizingState,
 	PaginationState,
 	RowSelectionState,
 	SortingState,
@@ -42,6 +43,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>(
 		initialState?.rowSelection ?? {},
 	);
+	const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
 	const [pagination, setPagination] = useState<PaginationState>({
 		pageIndex: initialState?.pagination?.pageIndex ?? 0,
 		pageSize: initialState?.pagination?.pageSize ?? 25,
@@ -65,7 +67,9 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 			: getExpandedRowModel(),
 		onColumnVisibilityChange: setColumnVisibility,
 		onRowSelectionChange: setRowSelection,
+		onColumnSizingChange: setColumnSizing,
 		onPaginationChange: setPagination,
+		columnResizeMode: "onChange",
 		renderFallbackValue: "-",
 		rowCount,
 		getRowId: (row) => (row as { id: string }).id,
@@ -78,6 +82,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 			columnFilters,
 			columnVisibility,
 			rowSelection,
+			columnSizing,
 			pagination,
 		},
 	});

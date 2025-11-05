@@ -3,7 +3,8 @@ import {
 	useSuspenseQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start";
@@ -15,7 +16,8 @@ import { DataTable } from "../data-table";
 import { useDataTable } from "../use-data-table";
 import * as ArkSelect from "../ui/select";
 import { Button } from "../ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Rows, LayoutGrid } from "lucide-react";
+import { Route } from "#src/routes/connections/$connectionName";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -37,28 +39,22 @@ interface ConnectionPageProps {
 
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
+	const navigate = useNavigate({ from: Route.fullPath });
 	const connections = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connections.data.find((c) => c.name === connectionName);
 
-	const {
-		database: savedDatabase,
-		setDatabase,
-		schema: savedSchema,
-		setSchema,
-		table: savedTable,
-		setTable,
-	} = useConnectionStorage(connectionName);
+	const search = Route.useSearch();
 
-	const [selectedDatabase, setSelectedDatabase] = useState<string | undefined>(
-		savedDatabase,
-	);
-	const [selectedSchema, setSelectedSchema] = useState<string | undefined>(
-		savedSchema || "public",
-	);
-	const [selectedTable, setSelectedTable] = useState<string | undefined>(
-		savedTable,
-	);
-	const [showTableStructure, setShowTableStructure] = useState(false);
+	const { setDatabase, setSchema, setTable } =
+		useConnectionStorage(connectionName);
+
+	// Extract search params with defaults
+	const selectedDatabase = search.dbName;
+	const selectedSchema = search.schema || "public";
+	const selectedTable = search.table;
+	const viewMode = search.viewMode || "rows";
+	const pageSize = search.pageSize || 50;
+	const pageOffset = search.pageOffset || 0;
 
 	// Get databases
 	const databasesQuery = useQuery({
@@ -87,31 +83,72 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			url: connection?.url || "",
 			schema: selectedSchema || "",
 			table: selectedTable || "",
-			limit: 50,
+			limit: pageSize,
 		}),
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
 	});
 
 	const schemas = (schemasQuery.data || []) as string[];
-	const tables = (tablesQuery.data || []) as any[];
-	const queryResponse = (tableDataQuery.data || { rows: [], timeTaken: 0, ranAt: 0 }) as { rows: Record<string, any>[]; timeTaken: number; ranAt: number };
+	const tables = (tablesQuery.data || []) as Array<{ name: string }>;
+	const queryResponse = (tableDataQuery.data || {
+		rows: [],
+		timeTaken: 0,
+		ranAt: 0,
+	}) as {
+		rows: Array<Record<string, unknown>>;
+		timeTaken: number;
+		ranAt: number;
+	};
 	const tableData = queryResponse.rows;
 
 	const tableDisplayName = selectedTable
 		? `${selectedSchema}.${selectedTable}`
 		: "No table selected";
 
-	const columns = tableData && tableData.length > 0
-		? Object.keys(tableData[0]).map((key) => ({
-				accessorKey: key,
-				header: key,
-				size: 150,
-			}))
-		: [];
+	// Format data with ISO dates and create columns
+	const formatTableValue = (value: unknown): unknown => {
+		if (value instanceof Date) {
+			return value.toISOString();
+		}
+		if (typeof value === "string") {
+			// Check if it looks like a date
+			const dateObj = new Date(value);
+			if (!isNaN(dateObj.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+				return dateObj.toISOString();
+			}
+		}
+		return value;
+	};
+
+	const formattedTableData = tableData.map((row) => {
+		const formatted: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(row)) {
+			formatted[key] = formatTableValue(value);
+		}
+		return formatted;
+	});
+
+	const columns: Array<ColumnDef<Record<string, unknown>>> =
+		formattedTableData && formattedTableData.length > 0
+			? Object.keys(formattedTableData[0]).map((key) => ({
+					accessorKey: key,
+					header: key,
+					size: 150,
+					enableResizing: true,
+				}))
+			: [];
 
 	const dataTable = useDataTable({
-		data: tableData,
+		data: formattedTableData,
 		columns,
+		initialState: {
+			pagination: {
+				pageIndex: Math.floor(pageOffset / pageSize),
+				pageSize: pageSize,
+			},
+		},
+		manualPagination: true,
+		rowCount: formattedTableData.length,
 	});
 
 	const redactedUrl = connection ? redactConnectionUrl(connection.url) : "";
@@ -132,7 +169,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		items: schemas.map((s: string) => ({ label: s, value: s })),
 	});
 
-	const databases = (databasesQuery.data || []) as { datname: string }[];
+	const databases = (databasesQuery.data || []) as Array<{ datname: string }>;
 	const databaseCollection = ArkSelect.createListCollection({
 		items: databases.map((d) => ({ label: d.datname, value: d.datname })),
 	});
@@ -182,9 +219,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					</label>
 					{databasesQuery.isLoading ? (
 						<div className="h-9 rounded-md border border-input bg-card px-3 py-2 min-w-32 flex items-center">
-							<span className="text-xs text-muted-foreground">
-								Loading...
-							</span>
+							<span className="text-xs text-muted-foreground">Loading...</span>
 						</div>
 					) : (
 						<ArkSelect.Select
@@ -193,11 +228,19 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							collection={databaseCollection}
 							positioning={{ sameWidth: true }}
 							disabled={databasesQuery.isLoading}
-							onValueChange={(details: any) => {
+							onValueChange={(details: { value?: string[] }) => {
 								const newDatabase = details.value?.[0];
 								if (newDatabase) {
-									setSelectedDatabase(newDatabase);
 									setDatabase(newDatabase);
+									navigate({
+										search: (prev) => ({
+											...prev,
+											dbName: newDatabase,
+											schema: undefined,
+											table: undefined,
+											pageOffset: 0,
+										}),
+									});
 								}
 							}}
 						>
@@ -208,11 +251,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								</ArkSelect.SelectTrigger>
 							</ArkSelect.SelectControl>
 							<ArkSelect.SelectContent>
-								{databaseCollection.items.map((item: any) => (
-									<ArkSelect.SelectItem key={item.value} item={item}>
-										{item.label}
-									</ArkSelect.SelectItem>
-								))}
+								{databaseCollection.items.map(
+									(item: { label: string; value: string }) => (
+										<ArkSelect.SelectItem key={item.value} item={item}>
+											{item.label}
+										</ArkSelect.SelectItem>
+									),
+								)}
 							</ArkSelect.SelectContent>
 						</ArkSelect.Select>
 					)}
@@ -241,12 +286,18 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								collection={schemaCollection}
 								positioning={{ sameWidth: true }}
 								disabled={schemasQuery.isLoading}
-								onValueChange={(details: any) => {
+								onValueChange={(details: { value?: string[] }) => {
 									const newSchema = details.value?.[0];
 									if (newSchema) {
-										setSelectedSchema(newSchema);
 										setSchema(newSchema);
-										setSelectedTable(undefined);
+										navigate({
+											search: (prev) => ({
+												...prev,
+												schema: newSchema,
+												table: undefined,
+												pageOffset: 0,
+											}),
+										});
 									}
 								}}
 							>
@@ -257,11 +308,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									</ArkSelect.SelectTrigger>
 								</ArkSelect.SelectControl>
 								<ArkSelect.SelectContent>
-									{schemaCollection.items.map((item: any) => (
-										<ArkSelect.SelectItem key={item.value} item={item}>
-											{item.label}
-										</ArkSelect.SelectItem>
-									))}
+									{schemaCollection.items.map(
+										(item: { label: string; value: string }) => (
+											<ArkSelect.SelectItem key={item.value} item={item}>
+												{item.label}
+											</ArkSelect.SelectItem>
+										),
+									)}
 								</ArkSelect.SelectContent>
 							</ArkSelect.Select>
 						)}
@@ -289,13 +342,19 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								</div>
 							) : (
 								<div className="space-y-1 p-2">
-									{tables.map((table: any) => (
+									{tables.map((table) => (
 										<button
 											key={table.name}
 											onClick={() => {
-												setSelectedTable(table.name);
 												setTable(table.name);
-												setShowTableStructure(false);
+												navigate({
+													search: (prev) => ({
+														...prev,
+														table: table.name,
+														pageOffset: 0,
+														viewMode: "rows",
+													}),
+												});
 											}}
 											className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
 												selectedTable === table.name
@@ -317,42 +376,110 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					{selectedTable && selectedSchema ? (
 						<>
 							{/* View Toggle */}
-							<div className="border-b bg-muted/50 px-4 py-2 flex gap-2">
-								<Button
-									variant={!showTableStructure ? "default" : "outline"}
-									size="sm"
-									onClick={() => setShowTableStructure(false)}
-									className="text-xs"
-								>
-									Rows
-								</Button>
-								<Button
-									variant={showTableStructure ? "default" : "outline"}
-									size="sm"
-									onClick={() => setShowTableStructure(true)}
-									className="text-xs"
-								>
-									Structure
-								</Button>
+							<div className="border-b bg-muted/50 px-4 py-3 flex items-center justify-between">
+								<div className="flex gap-2">
+									<Button
+										variant={viewMode === "rows" ? "default" : "outline"}
+										size="sm"
+										onClick={() =>
+											navigate({
+												search: (prev) => ({
+													...prev,
+													viewMode: "rows",
+												}),
+											})
+										}
+									>
+										<Rows className="h-4 w-4" />
+									</Button>
+									<Button
+										variant={viewMode === "structure" ? "default" : "outline"}
+										size="sm"
+										onClick={() =>
+											navigate({
+												search: (prev) => ({
+													...prev,
+													viewMode: "structure",
+												}),
+											})
+										}
+									>
+										<LayoutGrid className="h-4 w-4" />
+									</Button>
+								</div>
+
+								{viewMode === "rows" && (
+									<div className="flex items-center gap-2">
+										<label className="text-xs font-medium text-foreground uppercase tracking-wide whitespace-nowrap">
+											Rows per page:
+										</label>
+										<ArkSelect.Select
+											className="w-32"
+											value={[pageSize.toString()]}
+											collection={ArkSelect.createListCollection({
+												items: [
+													{ label: "50", value: "50" },
+													{ label: "100", value: "100" },
+													{ label: "250", value: "250" },
+													{ label: "500", value: "500" },
+												],
+											})}
+											positioning={{ sameWidth: true }}
+											onValueChange={(details: { value?: string[] }) => {
+												const newPageSize = Number(details.value?.[0]) || 50;
+												navigate({
+													search: (prev) => ({
+														...prev,
+														pageSize: newPageSize,
+														pageOffset: 0,
+													}),
+												});
+											}}
+										>
+											<ArkSelect.SelectControl>
+												<ArkSelect.SelectTrigger>
+													<ArkSelect.SelectValueText />
+													<ArkSelect.SelectIndicator />
+												</ArkSelect.SelectTrigger>
+											</ArkSelect.SelectControl>
+											<ArkSelect.SelectContent>
+												{[
+													{ label: "50", value: "50" },
+													{ label: "100", value: "100" },
+													{ label: "250", value: "250" },
+													{ label: "500", value: "500" },
+												].map((item) => (
+													<ArkSelect.SelectItem key={item.value} item={item}>
+														{item.label}
+													</ArkSelect.SelectItem>
+												))}
+											</ArkSelect.SelectContent>
+										</ArkSelect.Select>
+									</div>
+								)}
 							</div>
 
 							{/* Content */}
 							<div className="flex-1 overflow-hidden flex flex-col">
-								{showTableStructure ? (
-									<div className="p-4">
+								{viewMode === "structure" ? (
+									<div className="p-4 overflow-auto flex-1">
 										<div className="space-y-2">
 											<h3 className="font-semibold text-sm">
 												{tableDisplayName} - Columns
 											</h3>
 											<div className="space-y-1 text-sm">
-												{columns.map((col: any) => (
-													<div
-														key={col.accessorKey}
-														className="text-muted-foreground"
-													>
-														• {col.accessorKey}
-													</div>
-												))}
+												{formattedTableData && formattedTableData.length > 0
+													? Object.keys(formattedTableData[0]).map(
+															(colName) => (
+																<div
+																	key={colName}
+																	className="text-muted-foreground"
+																>
+																	• {colName}
+																</div>
+															),
+														)
+													: null}
 											</div>
 										</div>
 									</div>
@@ -379,11 +506,15 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											</div>
 										)}
 										{/* Status Bar */}
-										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground space-y-1">
+										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
 											<div className="flex items-center justify-between">
 												<span>
-													{tableDisplayName} • {tableData.length} rows (0-
-													{tableData.length}) • {columns.length} columns
+													{tableDisplayName} • {formattedTableData.length} rows
+													(0-
+													{formattedTableData.length}) • {columns.length}{" "}
+													columns
+													{queryResponse.timeTaken > 0 &&
+														` • ${queryResponse.timeTaken}ms • Loaded ${formatRelativeTime(queryResponse.ranAt)}`}
 												</span>
 												<Button
 													variant="ghost"
@@ -393,11 +524,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												>
 													<RefreshCw className="h-3 w-3" />
 												</Button>
-											</div>
-											<div className="text-xs text-muted-foreground flex items-center justify-between">
-												<span>
-													{queryResponse.timeTaken > 0 && `${queryResponse.timeTaken}ms • Loaded ${formatRelativeTime(queryResponse.ranAt)}`}
-												</span>
 											</div>
 										</div>
 									</div>
