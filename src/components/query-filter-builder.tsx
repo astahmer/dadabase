@@ -31,6 +31,20 @@ interface QueryFilterBuilderProps {
 	isLoading?: boolean;
 }
 
+const operatorCollection = createListCollection({
+	items: Array.from(FilterOperator.options).map((op) => ({
+		label: getOperatorLabel(op),
+		value: op,
+	})),
+});
+
+const logicalOperatorCollection = createListCollection({
+	items: [
+		{ label: "AND", value: "and" },
+		{ label: "OR", value: "or" },
+	],
+});
+
 export const QueryFilterBuilder = ({
 	conditions,
 	onUpdateCondition,
@@ -49,28 +63,6 @@ export const QueryFilterBuilder = ({
 				})),
 			}),
 		[availableColumns],
-	);
-
-	const operatorCollection = useMemo(
-		() =>
-			createListCollection({
-				items: Array.from(FilterOperator.options).map((op) => ({
-					label: getOperatorLabel(op),
-					value: op,
-				})),
-			}),
-		[],
-	);
-
-	const logicalOperatorCollection = useMemo(
-		() =>
-			createListCollection({
-				items: [
-					{ label: "AND", value: "and" },
-					{ label: "OR", value: "or" },
-				],
-			}),
-		[],
 	);
 
 	if (conditions.length === 0) {
@@ -169,6 +161,7 @@ const FilterConditionRow = ({
 			)}
 			<div className="flex gap-2 items-start">
 				<Combobox
+					openOnClick
 					collection={columnCollection}
 					value={condition.column ? [condition.column] : []}
 					onValueChange={(details: any) => {
@@ -193,6 +186,7 @@ const FilterConditionRow = ({
 				</Combobox>
 
 				<Combobox
+					openOnClick
 					collection={operatorCollection}
 					value={[condition.operator]}
 					onValueChange={(details: any) => {

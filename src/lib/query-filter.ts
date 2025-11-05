@@ -188,7 +188,25 @@ export const conditionToWhereClause = (
 export const filterToWhereClause = (
 	filter: QueryFilter,
 ): WhereClauseParams | null => {
-	if (filter.conditions.length === 0) {
+	// Filter out incomplete conditions (missing column or value where required)
+	const validConditions = filter.conditions.filter((condition) => {
+		// Column is required
+		if (!condition.column || condition.column.trim() === "") {
+			return false;
+		}
+		// Value is required for non-null operators
+		if (
+			!nullOperators.includes(condition.operator) &&
+			(condition.value === undefined ||
+				condition.value === "" ||
+				(Array.isArray(condition.value) && condition.value.length === 0))
+		) {
+			return false;
+		}
+		return true;
+	});
+
+	if (validConditions.length === 0) {
 		return null;
 	}
 
@@ -196,7 +214,7 @@ export const filterToWhereClause = (
 	let paramIndex = 1;
 	const clauses: string[] = [];
 
-	for (const condition of filter.conditions) {
+	for (const condition of validConditions) {
 		const { clause, params, nextIndex } = conditionToWhereClause(
 			condition,
 			paramIndex,

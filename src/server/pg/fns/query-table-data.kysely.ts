@@ -35,6 +35,7 @@ export const queryTableData = (input: {
 				}>`${countSql} WHERE ${sql.raw(whereClause)}`;
 			}
 
+			console.log(input, countSql.compile(db));
 			const countResult = yield* db.execute(countSql);
 			const rowCount = countResult[0]?.count ?? 0;
 
@@ -63,6 +64,7 @@ export const queryTableData = (input: {
 				limit,
 			)} OFFSET ${sql.lit(offset)}`;
 
+			console.log(query.compile(db));
 			const rows = yield* db.execute(query);
 			return { rows, rowCount };
 		} catch (e) {
