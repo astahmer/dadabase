@@ -3,6 +3,7 @@ import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fn
 import { testPgConnectionServerFn } from "#src/server/pg/start-fns/test-pg-connection.start.ts";
 import { Clipboard } from "@ark-ui/react";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { DateTime } from "effect";
 import { CheckIcon, ClipboardIcon, EllipsisIcon } from "lucide-react";
@@ -24,7 +25,6 @@ import { toaster } from "../ui/toaster.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { useDataTable } from "../use-data-table.ts";
 import { ConnectionForm } from "./connection.form.tsx";
-import { Link, useNavigate } from "@tanstack/react-router";
 
 interface EditableConnection {
 	id: string;
@@ -39,7 +39,6 @@ export const HomePage = () => {
 	const [editingConnection, setEditingConnection] =
 		useState<EditableConnection | null>(null);
 
-	const navigate = useNavigate({ from: "/" });
 	const savedDatabaseList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const table = useDataTable({
 		data: savedDatabaseList.data,

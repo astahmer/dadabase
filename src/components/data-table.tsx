@@ -3,6 +3,8 @@ import { flexRender } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { Fragment, memo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
+import { ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
+import { Button } from "./ui/button";
 import { PageLimitSelect } from "./page-limit.select.tsx";
 import { runIfFn } from "./run-if-fn.ts";
 import {
@@ -11,7 +13,6 @@ import {
 	tableHeaderCellStyles,
 	tableHeaderStyles,
 	tableRowStyles,
-	tableSortButtonStyles,
 	tableStyles,
 } from "./data-table.styles.ts";
 
@@ -61,7 +62,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		striped = false,
 		showColumnBorder = false,
 		variant = "line",
-		size = "sm",
+		size = "md",
 		ExpandedRow,
 	} = props;
 
@@ -70,6 +71,15 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 	const columns = table.getAllColumns();
 	const selectedRowsCount = table.getSelectedRowModel().rows.length;
 	const hasSelectedRows = selectedRowsCount > 0;
+
+	// Calculate total width from column sizing
+	const getTotalWidth = () => {
+		let total = 0;
+		table.getHeaderGroups()[0]?.headers.forEach((header) => {
+			total += header.getSize();
+		});
+		return total;
+	};
 
 	return (
 		<>
@@ -83,8 +93,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 					className={tableStyles({ variant })}
 					style={{
 						width: state.columnSizingInfo.isResizingColumn
-							? `${state.columnSizingInfo.deltaOffset}px`
-							: "auto",
+							? `calc(${getTotalWidth()}px + ${state.columnSizingInfo.deltaOffset}px)`
+							: `${getTotalWidth()}px`,
 					}}
 				>
 					<thead className={tableHeaderStyles({ stickyHeader, variant })}>
@@ -116,23 +126,25 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 												<div className="flex-1">
 													{header.isPlaceholder ? null : column.getCanSort() &&
 														column.columnDef.enableSorting ? (
-														<button
+														<Button
 															onClick={column.getToggleSortingHandler()}
+															variant="ghost"
+															size="sm"
 															data-test-id={`table-sort-${column.id}`}
-															className={tableSortButtonStyles()}
+															className="h-6 px-1 gap-1"
 														>
 															{flexRender(
 																header.column.columnDef.header,
 																header.getContext(),
 															)}
 															{isSorted === "desc" ? (
-																<span>↓</span>
+																<ArrowDown className="h-3 w-3 shrink-0" />
 															) : isSorted === "asc" ? (
-																<span>↑</span>
+																<ArrowUp className="h-3 w-3 shrink-0" />
 															) : (
-																<span>↕</span>
+																<ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
 															)}
-														</button>
+														</Button>
 													) : (
 														flexRender(
 															header.column.columnDef.header,
@@ -387,7 +399,7 @@ function ColumnVisibilityControls<TData>(props: {
 				<summary className="cursor-pointer text-xs font-medium text-foreground uppercase tracking-wide list-none">
 					📋 Columns
 				</summary>
-				<div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 p-2 min-w-48">
+				<div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-md shadow-lg z-100 p-2 min-w-48">
 					<div className="space-y-2 max-h-64 overflow-y-auto">
 						<div className="flex items-center gap-2 px-2 py-1 border-b pb-2">
 							<label className="flex items-center gap-2 cursor-pointer text-sm">

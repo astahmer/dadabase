@@ -6,7 +6,6 @@ import type {
 	RowSelectionState,
 	SortingState,
 	TableOptions,
-	TableState,
 	VisibilityState,
 } from "@tanstack/react-table";
 import {
@@ -17,7 +16,7 @@ import {
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 export interface UseDataTableProps<TData>
 	extends Omit<
@@ -86,13 +85,6 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 			pagination,
 		},
 	});
-
-	const state = table.getState();
-	const prevStateRef = useRef<TableState>(state);
-
-	useEffect(() => {
-		prevStateRef.current = state;
-	}, [state]);
 
 	return table;
 }

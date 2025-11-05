@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import {
 	useQuery,
 	useSuspenseQuery,
 	useQueryClient,
+	keepPreviousData,
 } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -85,8 +87,38 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			table: selectedTable || "",
 			limit: pageSize,
 		}),
+		placeholderData: keepPreviousData,
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
 	});
+
+	// Handle cascading selection - reset dependent selects when parent changes
+	useEffect(() => {
+		const schemas = schemasQuery.data as string[] | undefined;
+		// If schema is not in the list of available schemas, reset it
+		if (selectedSchema && schemas && !schemas.includes(selectedSchema)) {
+			navigate({
+				search: (prev) => ({
+					...prev,
+					schema: undefined,
+					table: undefined,
+				}),
+			});
+		}
+	}, [selectedSchema, schemasQuery.data, navigate]);
+
+	useEffect(() => {
+		const tables = tablesQuery.data as Array<{ name: string }> | undefined;
+		const tableNames = tables?.map((t) => t.name) || [];
+		// If table is not in the list of available tables, reset it
+		if (selectedTable && tableNames && !tableNames.includes(selectedTable)) {
+			navigate({
+				search: (prev) => ({
+					...prev,
+					table: undefined,
+				}),
+			});
+		}
+	}, [selectedTable, tablesQuery.data, navigate]);
 
 	const schemas = (schemasQuery.data || []) as string[];
 	const tables = (tablesQuery.data || []) as Array<{ name: string }>;
@@ -133,8 +165,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			? Object.keys(formattedTableData[0]).map((key) => ({
 					accessorKey: key,
 					header: key,
-					size: 150,
+					// size: 150,
+					minSize: 75,
+					maxSize: 500,
 					enableResizing: true,
+					enableSorting: true,
 				}))
 			: [];
 
@@ -407,82 +442,25 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										<LayoutGrid className="h-4 w-4" />
 									</Button>
 								</div>
-
-								{viewMode === "rows" && (
-									<div className="flex items-center gap-2">
-										<label className="text-xs font-medium text-foreground uppercase tracking-wide whitespace-nowrap">
-											Rows per page:
-										</label>
-										<ArkSelect.Select
-											className="w-32"
-											value={[pageSize.toString()]}
-											collection={ArkSelect.createListCollection({
-												items: [
-													{ label: "50", value: "50" },
-													{ label: "100", value: "100" },
-													{ label: "250", value: "250" },
-													{ label: "500", value: "500" },
-												],
-											})}
-											positioning={{ sameWidth: true }}
-											onValueChange={(details: { value?: string[] }) => {
-												const newPageSize = Number(details.value?.[0]) || 50;
-												navigate({
-													search: (prev) => ({
-														...prev,
-														pageSize: newPageSize,
-														pageOffset: 0,
-													}),
-												});
-											}}
-										>
-											<ArkSelect.SelectControl>
-												<ArkSelect.SelectTrigger>
-													<ArkSelect.SelectValueText />
-													<ArkSelect.SelectIndicator />
-												</ArkSelect.SelectTrigger>
-											</ArkSelect.SelectControl>
-											<ArkSelect.SelectContent>
-												{[
-													{ label: "50", value: "50" },
-													{ label: "100", value: "100" },
-													{ label: "250", value: "250" },
-													{ label: "500", value: "500" },
-												].map((item) => (
-													<ArkSelect.SelectItem key={item.value} item={item}>
-														{item.label}
-													</ArkSelect.SelectItem>
-												))}
-											</ArkSelect.SelectContent>
-										</ArkSelect.Select>
-									</div>
-								)}
 							</div>
 
 							{/* Content */}
 							<div className="flex-1 overflow-hidden flex flex-col">
 								{viewMode === "structure" ? (
-									<div className="p-4 overflow-auto flex-1">
-										<div className="space-y-2">
-											<h3 className="font-semibold text-sm">
-												{tableDisplayName} - Columns
-											</h3>
-											<div className="space-y-1 text-sm">
-												{formattedTableData && formattedTableData.length > 0
-													? Object.keys(formattedTableData[0]).map(
-															(colName) => (
-																<div
-																	key={colName}
-																	className="text-muted-foreground"
-																>
-																	• {colName}
-																</div>
-															),
-														)
-													: null}
+									formattedTableData && formattedTableData.length > 0 ? (
+										<StructureTable formattedTableData={formattedTableData} />
+									) : (
+										<div className="p-4 overflow-auto flex-1">
+											<div className="space-y-2">
+												<h3 className="font-semibold text-sm">
+													{tableDisplayName} - Columns
+												</h3>
+												<p className="text-sm text-muted-foreground">
+													No data available to inspect structure
+												</p>
 											</div>
 										</div>
-									</div>
+									)
 								) : (
 									<div className="flex-1 overflow-auto flex flex-col">
 										{tableDataQuery.isLoading ? (
@@ -507,8 +485,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										)}
 										{/* Status Bar */}
 										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
-											<div className="flex items-center justify-between">
-												<span>
+											<div className="flex items-center justify-between gap-4">
+												<span className="flex-1">
 													{tableDisplayName} • {formattedTableData.length} rows
 													(0-
 													{formattedTableData.length}) • {columns.length}{" "}
@@ -516,14 +494,69 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													{queryResponse.timeTaken > 0 &&
 														` • ${queryResponse.timeTaken}ms • Loaded ${formatRelativeTime(queryResponse.ranAt)}`}
 												</span>
-												<Button
-													variant="ghost"
-													size="sm"
-													onClick={() => tableDataQuery.refetch()}
-													className="h-6 px-2"
-												>
-													<RefreshCw className="h-3 w-3" />
-												</Button>
+												<div className="flex items-center gap-3">
+													<div className="flex items-center gap-2">
+														<label className="font-medium uppercase tracking-wide whitespace-nowrap">
+															Rows per page:
+														</label>
+														<ArkSelect.Select
+															className="w-20"
+															value={[pageSize.toString()]}
+															collection={ArkSelect.createListCollection({
+																items: [
+																	{ label: "50", value: "50" },
+																	{ label: "100", value: "100" },
+																	{ label: "250", value: "250" },
+																	{ label: "500", value: "500" },
+																],
+															})}
+															positioning={{ sameWidth: true }}
+															onValueChange={(details: {
+																value?: string[];
+															}) => {
+																const newPageSize =
+																	Number(details.value?.[0]) || 50;
+																navigate({
+																	search: (prev) => ({
+																		...prev,
+																		pageSize: newPageSize,
+																		pageOffset: 0,
+																	}),
+																});
+															}}
+														>
+															<ArkSelect.SelectControl>
+																<ArkSelect.SelectTrigger>
+																	<ArkSelect.SelectValueText />
+																	<ArkSelect.SelectIndicator />
+																</ArkSelect.SelectTrigger>
+															</ArkSelect.SelectControl>
+															<ArkSelect.SelectContent>
+																{[
+																	{ label: "50", value: "50" },
+																	{ label: "100", value: "100" },
+																	{ label: "250", value: "250" },
+																	{ label: "500", value: "500" },
+																].map((item) => (
+																	<ArkSelect.SelectItem
+																		key={item.value}
+																		item={item}
+																	>
+																		{item.label}
+																	</ArkSelect.SelectItem>
+																))}
+															</ArkSelect.SelectContent>
+														</ArkSelect.Select>
+													</div>
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() => tableDataQuery.refetch()}
+														className="h-6 px-2"
+													>
+														<RefreshCw className="h-3 w-3" />
+													</Button>
+												</div>
 											</div>
 										</div>
 									</div>
@@ -543,4 +576,86 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			</div>
 		</div>
 	);
+};
+
+const StructureTable = (props: {
+	formattedTableData: Record<string, unknown>[];
+}) => {
+	{
+		const { formattedTableData } = props;
+		// Create structure metadata for columns
+		const structureData = Object.keys(formattedTableData[0]).map((colName) => {
+			const sample = formattedTableData[0][colName];
+			let dataType = typeof sample;
+			if (Array.isArray(sample)) {
+				dataType = "array" as any;
+			} else if (sample === null) {
+				dataType = "null" as any;
+			} else if (
+				sample instanceof Date ||
+				(typeof sample === "string" && /^\d{4}-\d{2}-\d{2}T/.test(sample))
+			) {
+				dataType = "timestamp" as any;
+			}
+			return {
+				name: colName,
+				datatype: dataType as string,
+				nullable: formattedTableData.some((row) => row[colName] === null),
+				primaryKey: false, // Would need actual schema info
+				defaultValue: null,
+			};
+		});
+
+		const structureColumns: Array<ColumnDef<(typeof structureData)[number]>> = [
+			{
+				accessorKey: "name",
+				header: "Name",
+				enableResizing: true,
+			},
+			{
+				accessorKey: "datatype",
+				header: "Data Type",
+				size: 120,
+				minSize: 80,
+				maxSize: 200,
+				enableResizing: true,
+				cell: (info) => (
+					<span className="text-xs font-mono">{info.getValue<string>()}</span>
+				),
+			},
+			{
+				accessorKey: "nullable",
+				header: "Nullable",
+				enableResizing: true,
+				cell: (info) => (
+					<span className="text-xs">
+						{info.getValue<boolean>() ? "Yes" : "No"}
+					</span>
+				),
+			},
+			{
+				accessorKey: "primaryKey",
+				header: "Primary Key",
+				enableResizing: true,
+				cell: (info) => (
+					<span className="text-xs">
+						{info.getValue<boolean>() ? "Yes" : "No"}
+					</span>
+				),
+			},
+		];
+
+		const structureTable = useDataTable({
+			data: structureData,
+			columns: structureColumns,
+			manualPagination: true,
+			rowCount: structureData.length,
+		});
+
+		return (
+			<div className="flex-1 overflow-auto">
+				<DataTable table={structureTable} isLoading={false} />
+			</div>
+		);
+	}
 };
