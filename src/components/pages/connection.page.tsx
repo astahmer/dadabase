@@ -53,7 +53,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	// Extract search params with defaults
 	const selectedDatabase = search.dbName;
-	const selectedSchema = search.schema || "public";
+	const selectedSchema = search.schema;
 	const selectedTable = search.table;
 	const viewMode = search.viewMode || "rows";
 	const limit = search.limit || 50;
@@ -89,6 +89,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			schema: selectedSchema || "",
 			table: selectedTable || "",
 			limit: limit,
+			offset: offset,
+			orderBy: orderBy,
+			orderDirection: orderDirection,
 		}),
 		placeholderData: keepPreviousData,
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
@@ -127,14 +130,17 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const tables = (tablesQuery.data || []) as Array<{ name: string }>;
 	const queryResponse = (tableDataQuery.data || {
 		rows: [],
+		rowCount: 0,
 		timeTaken: 0,
 		ranAt: 0,
 	}) as {
 		rows: Array<Record<string, unknown>>;
+		rowCount: number;
 		timeTaken: number;
 		ranAt: number;
 	};
 	const tableData = queryResponse.rows;
+	const totalRowCount = queryResponse.rowCount;
 
 	const tableDisplayName = selectedTable
 		? `${selectedSchema}.${selectedTable}`
@@ -198,7 +204,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		},
 		manualPagination: true,
 		manualSorting: true,
-		rowCount: formattedTableData.length,
+		rowCount: totalRowCount,
 		onSortingChange: (updater) => {
 			const newSorting =
 				typeof updater === "function" ? updater(sortingState) : updater;
@@ -519,12 +525,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												</p>
 											</div>
 										) : (
-											<div className="flex-1 overflow-auto">
-												<DataTable
-													table={dataTable}
-													isLoading={tableDataQuery.isLoading}
-												/>
-											</div>
+											<DataTable
+												table={dataTable}
+												isLoading={tableDataQuery.isLoading}
+											/>
 										)}
 										{/* Status Bar */}
 										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
@@ -540,7 +544,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												<div className="flex items-center gap-3">
 													{/* Pagination Controls */}
 													<Pagination.Root
-														count={formattedTableData.length}
+														count={totalRowCount}
 														pageSize={limit}
 														siblingCount={1}
 														page={Math.floor(offset / limit) + 1}

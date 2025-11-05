@@ -89,7 +89,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 			{runIfFn(top, table)}
 			{runIfFn(header, table)}
 			<ColumnVisibilityControls table={table} />
-			<div className={`overflow-x-auto max-w-full ${className || ""}`}>
+			<div className={`overflow-x-auto ${className || ""}`}>
 				<table
 					className={tableStyles({ variant })}
 					style={{
@@ -394,6 +394,7 @@ function ColumnVisibilityControls<TData>(props: {
 }) {
 	const { table } = props;
 	const [isOpen, setIsOpen] = useState(false);
+	const [inputValue, setInputValue] = useState("");
 	const { contains } = useFilter({ sensitivity: "base" });
 
 	const columns = table
@@ -410,6 +411,7 @@ function ColumnVisibilityControls<TData>(props: {
 	});
 
 	const handleInputChange = (details: Combobox.InputValueChangeDetails) => {
+		setInputValue(details.inputValue);
 		filter(details.inputValue);
 	};
 
@@ -418,6 +420,7 @@ function ColumnVisibilityControls<TData>(props: {
 			<Combobox.Root
 				collection={collection}
 				onInputValueChange={handleInputChange}
+				inputValue={inputValue}
 				open={isOpen}
 				onOpenChange={(details) => setIsOpen(details.open)}
 				closeOnSelect={false}
@@ -457,7 +460,7 @@ function ColumnVisibilityControls<TData>(props: {
 													key={item.value}
 													item={item}
 													className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors"
-													onClick={() => {
+													onClick={(e) => {
 														column?.toggleVisibility?.();
 													}}
 												>

@@ -12,6 +12,9 @@ const queryTableDataServerFn = createServerFn()
 			schema: Schema.String,
 			table: Schema.String,
 			limit: Schema.optional(Schema.Number),
+			offset: Schema.optional(Schema.Number),
+			orderBy: Schema.optional(Schema.String),
+			orderDirection: Schema.optional(Schema.Literal("asc", "desc")),
 		}).pipe(Schema.standardSchemaV1),
 	)
 	.handler(
@@ -19,21 +22,26 @@ const queryTableDataServerFn = createServerFn()
 			ctx,
 		): Promise<{
 			rows: Record<string, any>[];
+			rowCount: number;
 			timeTaken: number;
 			ranAt: number;
 		}> => {
 			const startTime = Date.now();
-			const rows = (await Effect.runPromise(
+			const { rows, rowCount } = (await Effect.runPromise(
 				queryTableData({
 					schema: ctx.data.schema,
 					table: ctx.data.table,
 					limit: ctx.data.limit ?? 50,
+					offset: ctx.data.offset ?? 0,
+					orderBy: ctx.data.orderBy,
+					orderDirection: ctx.data.orderDirection,
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(ctx.data.url))),
-			)) as Record<string, any>[];
+			)) as { rows: Record<string, any>[]; rowCount: number };
 			const endTime = Date.now();
 
 			return {
 				rows,
+				rowCount,
 				timeTaken: endTime - startTime,
 				ranAt: startTime,
 			};
