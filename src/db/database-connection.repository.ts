@@ -18,6 +18,27 @@ export class DatabaseConnectionRepository extends Effect.Service<DatabaseConnect
 							.where("id", "is not", null),
 					);
 				},
+				findByUrl: Effect.fn(function* (connectionUrl: string) {
+					// Parse URL to extract base URL (without database part)
+					// Connection URLs can be: postgresql://user:pass@host:port or postgresql://user:pass@host:port/database
+					const urlWithoutDb = connectionUrl.split("/").slice(0, -1).join("/");
+					const urlWithDb = connectionUrl;
+
+					// Find connections matching either the exact URL or the base URL
+					const results = yield* db.execute(
+						db
+							.selectFrom("database_connections")
+							.selectAll()
+							.where((qb) =>
+								qb.or([
+									qb("url", "=", urlWithDb),
+									qb("url", "=", urlWithoutDb),
+								]),
+							),
+					);
+
+					return results.length > 0 ? results[0] : null;
+				}),
 				insert: Effect.fn(function* (
 					insertable: Insertable<AppDatabaseSchema["database_connections"]>,
 				) {

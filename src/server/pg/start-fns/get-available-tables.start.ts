@@ -9,7 +9,6 @@ const getAvailableTablesServerFn = createServerFn()
 	.inputValidator(
 		Schema.Struct({
 			url: Schema.String,
-			schema: Schema.String,
 		}).pipe(Schema.standardSchemaV1),
 	)
 	.handler(async (ctx) => {

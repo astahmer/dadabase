@@ -10,12 +10,12 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Pagination } from "@ark-ui/react/pagination";
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
-import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url";
 import { DataTable } from "../data-table";
+import { ColumnVisibilityControls } from "../column-visibility";
 import { useDataTable } from "../use-data-table";
 import * as ArkSelect from "../ui/select";
 import { Button } from "../ui/button";
@@ -48,11 +48,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const search = Route.useSearch();
 
-	const { setDatabase, setSchema, setTable } =
-		useConnectionStorage(connectionName);
+	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
 	// Extract search params with defaults
-	const selectedDatabase = search.dbName;
 	const selectedSchema = search.schema;
 	const selectedTable = search.table;
 	const viewMode = search.viewMode || "rows";
@@ -61,15 +59,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const orderBy = search.orderBy;
 	const orderDirection = search.orderDirection || "asc";
 
-	// Get databases
-	const databasesQuery = useQuery({
-		...listAvailableDatabase({ url: connection?.url || "" }),
-		enabled: !!connection?.url,
-	});
-
 	// Get schemas
 	const schemasQuery = useQuery({
-		...listAvailableSchemasQueryOptions({ url: connection?.url || "" }),
+		...listAvailableSchemasQueryOptions({
+			url: connection?.url || "",
+		}),
 		enabled: !!connection?.url,
 	});
 
@@ -77,7 +71,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const tablesQuery = useQuery({
 		...listAvailableTablesQueryOptions({
 			url: connection?.url || "",
-			schema: selectedSchema || "",
 		}),
 		enabled: !!connection?.url && !!selectedSchema,
 	});
@@ -253,21 +246,16 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		items: schemas.map((s: string) => ({ label: s, value: s })),
 	});
 
-	const databases = (databasesQuery.data || []) as Array<{ datname: string }>;
-	const databaseCollection = ArkSelect.createListCollection({
-		items: databases.map((d) => ({ label: d.datname, value: d.datname })),
-	});
-
 	return (
 		<div className="h-screen bg-background flex flex-col">
 			{/* Header */}
-			<div className="border-b bg-card px-4 py-3 sm:px-6 space-y-2">
+			<div className="border-b bg-card px-4 py-2 sm:px-6 space-y-1">
 				<div className="flex items-center justify-between gap-4">
 					<div className="flex-1 min-w-0">
-						<h1 className="text-2xl font-bold tracking-tight text-foreground truncate">
+						<h1 className="text-lg font-bold tracking-tight text-foreground truncate">
 							{connection.name}
 						</h1>
-						<p className="text-sm text-muted-foreground truncate mt-1">
+						<p className="text-xs text-muted-foreground truncate">
 							{redactedUrl}
 						</p>
 					</div>
@@ -277,9 +265,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						onClick={() => {
 							queryClient.invalidateQueries({
 								queryKey: ["db", "list"],
-							});
-							queryClient.invalidateQueries({
-								queryKey: ["pg", "dbList"],
 							});
 							queryClient.invalidateQueries({
 								queryKey: ["pg", "schemaList"],
@@ -295,56 +280,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					>
 						<RefreshCw className="h-4 w-4" />
 					</Button>
-				</div>
-				{/* Database Selector */}
-				<div className="flex items-center gap-2">
-					<label className="text-xs font-medium text-foreground uppercase tracking-wide whitespace-nowrap">
-						Database:
-					</label>
-					{databasesQuery.isLoading ? (
-						<div className="h-9 rounded-md border border-input bg-card px-3 py-2 min-w-32 flex items-center">
-							<span className="text-xs text-muted-foreground">Loading...</span>
-						</div>
-					) : (
-						<ArkSelect.Select
-							className="w-48"
-							value={selectedDatabase ? [selectedDatabase] : []}
-							collection={databaseCollection}
-							positioning={{ sameWidth: true }}
-							disabled={databasesQuery.isLoading}
-							onValueChange={(details: { value?: string[] }) => {
-								const newDatabase = details.value?.[0];
-								if (newDatabase) {
-									setDatabase(newDatabase);
-									navigate({
-										search: (prev) => ({
-											...prev,
-											dbName: newDatabase,
-											schema: undefined,
-											table: undefined,
-											offset: 0,
-										}),
-									});
-								}
-							}}
-						>
-							<ArkSelect.SelectControl>
-								<ArkSelect.SelectTrigger>
-									<ArkSelect.SelectValueText placeholder="Select database" />
-									<ArkSelect.SelectIndicator />
-								</ArkSelect.SelectTrigger>
-							</ArkSelect.SelectControl>
-							<ArkSelect.SelectContent>
-								{databaseCollection.items.map(
-									(item: { label: string; value: string }) => (
-										<ArkSelect.SelectItem key={item.value} item={item}>
-											{item.label}
-										</ArkSelect.SelectItem>
-									),
-								)}
-							</ArkSelect.SelectContent>
-						</ArkSelect.Select>
-					)}
 				</div>
 			</div>
 
@@ -460,7 +395,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					{selectedTable && selectedSchema ? (
 						<>
 							{/* View Toggle */}
-							<div className="border-b bg-muted/50 px-4 py-3 flex items-center justify-between">
+							<div className="border-b bg-muted/50 px-4 py-2 flex items-center justify-between">
 								<div className="flex gap-2">
 									<Button
 										variant={viewMode === "rows" ? "default" : "outline"}
@@ -491,6 +426,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										<LayoutGrid className="h-4 w-4" />
 									</Button>
 								</div>
+								{viewMode === "rows" && (
+									<ColumnVisibilityControls table={dataTable} minimal={true} />
+								)}
 							</div>
 
 							{/* Content */}

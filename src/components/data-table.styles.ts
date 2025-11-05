@@ -34,8 +34,8 @@ export const tableHeaderCellStyles = cva(
 	{
 		variants: {
 			size: {
-				sm: "px-2 py-1 text-xs",
-				md: "px-2 py-1.5 text-xs",
+				sm: "px-2 py-0.5 text-xs",
+				md: "px-2 py-1 text-xs",
 				lg: "px-2 py-1.5 text-sm",
 			},
 			showColumnBorder: {

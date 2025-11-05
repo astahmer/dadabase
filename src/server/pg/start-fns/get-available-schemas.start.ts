@@ -7,7 +7,9 @@ import { getAvailableSchemas } from "../fns/get-available-schemas.kysely.ts";
 
 const getAvailableSchemasServerFn = createServerFn()
 	.inputValidator(
-		Schema.Struct({ url: Schema.String }).pipe(Schema.standardSchemaV1),
+		Schema.Struct({
+			url: Schema.String,
+		}).pipe(Schema.standardSchemaV1),
 	)
 	.handler(async (ctx) => {
 		return await Effect.runPromise(

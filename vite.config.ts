@@ -31,7 +31,7 @@ const config = defineConfig((env) => ({
 			projects: ["./tsconfig.json"],
 		}),
 		tailwindcss(),
-		tanstackStart(),
+		tanstackStart({ spa: { enabled: true } }),
 		viteReact(),
 	],
 }));
