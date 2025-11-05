@@ -24,7 +24,7 @@ import { QueryFilterBuilder } from "../query-filter-builder";
 import { useDataTable } from "../use-data-table";
 import * as ArkSelect from "../ui/select";
 import { Button } from "../ui/button";
-import { RefreshCw, Rows, LayoutGrid } from "lucide-react";
+import { RefreshCw, Rows, LayoutGrid, Plus } from "lucide-react";
 import { Route } from "#src/routes/connections/$connectionName";
 import { Stack } from "../ui/layout.tsx";
 
@@ -442,7 +442,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 				<div className="flex-1 flex flex-col overflow-hidden">
 					{selectedTable && selectedSchema ? (
 						<>
-							{/* View Toggle */}
+							{/* View Toggle & Filter Controls */}
 							<div className="border-b bg-muted/50 px-4 py-2 flex items-center justify-between">
 								<div className="flex gap-2">
 									<Button
@@ -473,6 +473,17 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									>
 										<LayoutGrid className="h-4 w-4" />
 									</Button>
+									{viewMode === "rows" && (
+										<Button
+											variant="outline"
+											size="sm"
+											onClick={queryBuilder.addCondition}
+											disabled={tableDataQuery.isLoading}
+										>
+											<Plus className="h-3 w-3 mr-1" />
+											Add Filter
+										</Button>
+									)}
 								</div>
 								{viewMode === "rows" && (
 									<ColumnVisibilityControls table={dataTable} minimal={true} />
@@ -483,7 +494,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							{viewMode === "rows" && columns.length > 0 && (
 								<QueryFilterBuilder
 									conditions={queryBuilder.filter.conditions}
-									onAddCondition={queryBuilder.addCondition}
 									onUpdateCondition={queryBuilder.updateCondition}
 									onRemoveCondition={queryBuilder.removeCondition}
 									onLogicalOperatorChange={queryBuilder.setLogicalOperator}

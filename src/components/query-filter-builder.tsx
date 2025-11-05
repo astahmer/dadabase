@@ -8,12 +8,21 @@ import {
 } from "#src/lib/query-filter";
 import { Button } from "./ui/button";
 import { Stack } from "./ui/layout";
-import { X, Plus } from "lucide-react";
+import { X } from "lucide-react";
+import {
+	Combobox,
+	ComboboxControl,
+	ComboboxInput,
+	ComboboxTrigger,
+	ComboboxContent,
+	ComboboxList,
+	ComboboxItem,
+	createListCollection,
+} from "./ui/combobox";
 import * as ArkSelect from "./ui/select";
 
 interface QueryFilterBuilderProps {
 	conditions: FilterCondition[];
-	onAddCondition: () => void;
 	onUpdateCondition: (id: string, updates: Partial<FilterCondition>) => void;
 	onRemoveCondition: (id: string) => void;
 	onLogicalOperatorChange?: (operator: "and" | "or") => void;
@@ -24,7 +33,6 @@ interface QueryFilterBuilderProps {
 
 export const QueryFilterBuilder = ({
 	conditions,
-	onAddCondition,
 	onUpdateCondition,
 	onRemoveCondition,
 	onLogicalOperatorChange,
@@ -34,7 +42,7 @@ export const QueryFilterBuilder = ({
 }: QueryFilterBuilderProps) => {
 	const columnCollection = useMemo(
 		() =>
-			ArkSelect.createListCollection({
+			createListCollection({
 				items: availableColumns.map((col) => ({
 					label: col,
 					value: col,
@@ -45,7 +53,7 @@ export const QueryFilterBuilder = ({
 
 	const operatorCollection = useMemo(
 		() =>
-			ArkSelect.createListCollection({
+			createListCollection({
 				items: Array.from(FilterOperator.options).map((op) => ({
 					label: getOperatorLabel(op),
 					value: op,
@@ -56,7 +64,7 @@ export const QueryFilterBuilder = ({
 
 	const logicalOperatorCollection = useMemo(
 		() =>
-			ArkSelect.createListCollection({
+			createListCollection({
 				items: [
 					{ label: "AND", value: "and" },
 					{ label: "OR", value: "or" },
@@ -66,23 +74,7 @@ export const QueryFilterBuilder = ({
 	);
 
 	if (conditions.length === 0) {
-		return (
-			<div className="p-4 space-y-2">
-				<div className="text-xs font-medium text-foreground uppercase tracking-wide">
-					Filters
-				</div>
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={onAddCondition}
-					disabled={isLoading}
-					className="w-full"
-				>
-					<Plus className="h-3 w-3 mr-1" />
-					Add Filter
-				</Button>
-			</div>
-		);
+		return null;
 	}
 
 	return (
@@ -138,17 +130,6 @@ export const QueryFilterBuilder = ({
 					/>
 				))}
 			</Stack>
-
-			<Button
-				variant="outline"
-				size="sm"
-				onClick={onAddCondition}
-				disabled={isLoading}
-				className="w-full"
-			>
-				<Plus className="h-3 w-3 mr-1" />
-				Add Filter
-			</Button>
 		</div>
 	);
 };
@@ -187,55 +168,53 @@ const FilterConditionRow = ({
 				</div>
 			)}
 			<div className="flex gap-2 items-start">
-				<ArkSelect.Select
-					className="flex-1 min-w-0"
-					value={condition.column ? [condition.column] : []}
+				<Combobox
 					collection={columnCollection}
-					positioning={{ sameWidth: true }}
-					disabled={isLoading}
-					onValueChange={(details: { value?: string[] }) => {
+					value={condition.column ? [condition.column] : []}
+					onValueChange={(details: any) => {
 						onUpdate(condition.id, { column: details.value?.[0] || "" });
 					}}
-				>
-					<ArkSelect.SelectControl>
-						<ArkSelect.SelectTrigger>
-							<ArkSelect.SelectValueText placeholder="Select column" />
-							<ArkSelect.SelectIndicator />
-						</ArkSelect.SelectTrigger>
-					</ArkSelect.SelectControl>
-					<ArkSelect.SelectContent>
-						{columnCollection.items.map((item: any) => (
-							<ArkSelect.SelectItem key={item.value} item={item}>
-								{item.label}
-							</ArkSelect.SelectItem>
-						))}
-					</ArkSelect.SelectContent>
-				</ArkSelect.Select>
-
-				<ArkSelect.Select
-					className="flex-1 min-w-0"
-					value={[condition.operator]}
-					collection={operatorCollection}
-					positioning={{ sameWidth: true }}
 					disabled={isLoading}
-					onValueChange={(details: { value?: string[] }) => {
+					className="flex-1 min-w-0"
+				>
+					<ComboboxControl>
+						<ComboboxInput placeholder="Select column" />
+						<ComboboxTrigger />
+					</ComboboxControl>
+					<ComboboxContent>
+						<ComboboxList>
+							{columnCollection.items.map((item: any) => (
+								<ComboboxItem key={item.value} item={item}>
+									{item.label}
+								</ComboboxItem>
+							))}
+						</ComboboxList>
+					</ComboboxContent>
+				</Combobox>
+
+				<Combobox
+					collection={operatorCollection}
+					value={[condition.operator]}
+					onValueChange={(details: any) => {
 						onUpdate(condition.id, { operator: details.value?.[0] as any });
 					}}
+					disabled={isLoading}
+					className="flex-1 min-w-0"
 				>
-					<ArkSelect.SelectControl>
-						<ArkSelect.SelectTrigger>
-							<ArkSelect.SelectValueText placeholder="Select operator" />
-							<ArkSelect.SelectIndicator />
-						</ArkSelect.SelectTrigger>
-					</ArkSelect.SelectControl>
-					<ArkSelect.SelectContent>
-						{operatorCollection.items.map((item: any) => (
-							<ArkSelect.SelectItem key={item.value} item={item}>
-								{item.label}
-							</ArkSelect.SelectItem>
-						))}
-					</ArkSelect.SelectContent>
-				</ArkSelect.Select>
+					<ComboboxControl>
+						<ComboboxInput placeholder="Select operator" />
+						<ComboboxTrigger />
+					</ComboboxControl>
+					<ComboboxContent>
+						<ComboboxList>
+							{operatorCollection.items.map((item: any) => (
+								<ComboboxItem key={item.value} item={item}>
+									{item.label}
+								</ComboboxItem>
+							))}
+						</ComboboxList>
+					</ComboboxContent>
+				</Combobox>
 
 				{!isNullOperator && (
 					<input

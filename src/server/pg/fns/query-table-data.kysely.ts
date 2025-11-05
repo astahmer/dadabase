@@ -29,7 +29,7 @@ export const queryTableData = (input: {
 				input.schema,
 			)}.${sql.ref(input.table)}`;
 
-			if (whereClause) {
+			if (whereClause && whereClause.trim()) {
 				countSql = sql<{
 					count: number;
 				}>`${countSql} WHERE ${sql.raw(whereClause)}`;
@@ -43,7 +43,7 @@ export const queryTableData = (input: {
 				input.schema,
 			)}.${sql.ref(input.table)}`;
 
-			if (whereClause) {
+			if (whereClause && whereClause.trim()) {
 				query = sql<Record<string, any>>`${query} WHERE ${sql.raw(
 					whereClause,
 				)}`;
