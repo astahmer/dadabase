@@ -20,33 +20,61 @@ export const queryTableData = (input: {
 		const orderBy = input.orderBy;
 		const orderDirection = input.orderDirection ?? "asc";
 		const whereClause = input.whereClause;
+		const whereParams = input.whereParams || {};
 
 		try {
-			// Get total count - use raw SQL for schema-qualified table
+			// Substitute parameters directly into the WHERE clause for safe execution
+			const whereClauseWithParams = whereClause
+				? whereClause.replace(/\$(\d+)/g, (_, num) => {
+						const key = `$${num}`;
+						const value = whereParams[key];
+						if (value === null || value === undefined) {
+							return "NULL";
+						}
+						// Properly escape and quote string values
+						if (typeof value === "string") {
+							return `'${value.replace(/'/g, "''")}'`;
+						}
+						if (Array.isArray(value)) {
+							const escaped = value
+								.map((v) => {
+									if (typeof v === "string") {
+										return `'${v.replace(/'/g, "''")}'`;
+									}
+									return String(v);
+								})
+								.join(", ");
+							return `(${escaped})`;
+						}
+						return String(value);
+					})
+				: null;
+
+			// Build count query with WHERE clause using raw SQL
 			let countSql = sql<{
 				count: number;
 			}>`SELECT COUNT(*) as count FROM ${sql.ref(
 				input.schema,
 			)}.${sql.ref(input.table)}`;
 
-			if (whereClause && whereClause.trim()) {
-				countSql = sql<{
-					count: number;
-				}>`${countSql} WHERE ${sql.raw(whereClause)}`;
+			if (whereClauseWithParams) {
+				countSql = sql<{ count: number }>`${countSql} WHERE ${sql.raw(
+					whereClauseWithParams,
+				)}`;
 			}
 
-			console.log(input, countSql.compile(db));
+			console.log("Count SQL:", countSql.compile(db).sql);
 			const countResult = yield* db.execute(countSql);
 			const rowCount = countResult[0]?.count ?? 0;
 
-			// Build the main query using raw SQL for schema-qualified table
+			// Build the main query using raw SQL
 			let query = sql<Record<string, any>>`SELECT * FROM ${sql.ref(
 				input.schema,
 			)}.${sql.ref(input.table)}`;
 
-			if (whereClause && whereClause.trim()) {
+			if (whereClauseWithParams) {
 				query = sql<Record<string, any>>`${query} WHERE ${sql.raw(
-					whereClause,
+					whereClauseWithParams,
 				)}`;
 			}
 
@@ -64,7 +92,7 @@ export const queryTableData = (input: {
 				limit,
 			)} OFFSET ${sql.lit(offset)}`;
 
-			console.log(query.compile(db));
+			console.log("Main SQL:", query.compile(db).sql);
 			const rows = yield* db.execute(query);
 			return { rows, rowCount };
 		} catch (e) {

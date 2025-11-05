@@ -54,11 +54,17 @@ export type QueryFilter = z.infer<typeof QueryFilter>;
 
 /**
  * Convert a filter condition to SQL WHERE clause
- * This generates parameterized queries
+ * Returns just the condition structure for Kysely to build properly
  */
+export interface FilterConditionExpression {
+	column: string;
+	operator: FilterOperator;
+	value?: any;
+}
+
 export interface WhereClauseParams {
-	whereClause: string;
-	params: Record<string, any>;
+	conditions: FilterConditionExpression[];
+	logicalOperator: LogicalOperator;
 }
 
 export const conditionToWhereClause = (
@@ -183,7 +189,7 @@ export const conditionToWhereClause = (
 };
 
 /**
- * Convert filter conditions to a WHERE clause string and params
+ * Convert filter conditions to structured format for Kysely
  */
 export const filterToWhereClause = (
 	filter: QueryFilter,
@@ -210,25 +216,18 @@ export const filterToWhereClause = (
 		return null;
 	}
 
-	const allParams: Record<string, any> = {};
-	let paramIndex = 1;
-	const clauses: string[] = [];
-
-	for (const condition of validConditions) {
-		const { clause, params, nextIndex } = conditionToWhereClause(
-			condition,
-			paramIndex,
-		);
-		clauses.push(clause);
-		Object.assign(allParams, params);
-		paramIndex = nextIndex;
-	}
-
-	const whereClause = clauses.join(` ${filter.logicalOperator.toUpperCase()} `);
+	// Convert to structured format for Kysely to handle parameterization
+	const conditions: FilterConditionExpression[] = validConditions.map(
+		(condition) => ({
+			column: condition.column,
+			operator: condition.operator,
+			value: condition.value,
+		}),
+	);
 
 	return {
-		whereClause,
-		params: allParams,
+		conditions,
+		logicalOperator: filter.logicalOperator,
 	};
 };
 
