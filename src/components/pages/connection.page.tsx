@@ -84,8 +84,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		enabled: !!connection?.url && !!selectedSchema,
 	});
 
-	// Get the WHERE clause from query builder
-	const whereClauseData = queryBuilder.getWhereClause();
+	// Get the filter config from query builder
+	const filterConfig = queryBuilder.getWhereClause();
 
 	// Get table data
 	const tableDataQuery = useQuery({
@@ -97,8 +97,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			offset: offset,
 			orderBy: orderBy,
 			orderDirection: orderDirection,
-			whereClause: whereClauseData?.whereClause,
-			whereParams: whereClauseData?.params,
+			filters: filterConfig || undefined,
 		}),
 		placeholderData: keepPreviousData,
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,

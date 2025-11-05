@@ -5,6 +5,10 @@ import { Effect } from "effect";
 import { queryTableData } from "../fns/query-table-data.kysely.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
+import type {
+	FilterConditionExpression,
+	LogicalOperator,
+} from "#src/lib/query-filter";
 
 // Using Record type with any for now to avoid schema validation issues
 const queryTableDataServerFn = createServerFn().handler(async (ctx: any) => {
@@ -16,8 +20,10 @@ const queryTableDataServerFn = createServerFn().handler(async (ctx: any) => {
 		offset?: number;
 		orderBy?: string;
 		orderDirection?: "asc" | "desc";
-		whereClause?: string;
-		whereParams?: Record<string, any>;
+		filters?: {
+			conditions: FilterConditionExpression[];
+			logicalOperator: LogicalOperator;
+		};
 	};
 
 	const startTime = Date.now();
@@ -37,8 +43,7 @@ const queryTableDataServerFn = createServerFn().handler(async (ctx: any) => {
 				offset: input.offset ?? 0,
 				orderBy: input.orderBy,
 				orderDirection: input.orderDirection,
-				whereClause: input.whereClause,
-				whereParams: input.whereParams,
+				filters: input.filters,
 			}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 		}),
 	)) as { rows: Record<string, any>[]; rowCount: number };
@@ -60,8 +65,10 @@ export type QueryTableDataInput = {
 	offset?: number;
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
-	whereClause?: string;
-	whereParams?: Record<string, any>;
+	filters?: {
+		conditions: FilterConditionExpression[];
+		logicalOperator: LogicalOperator;
+	};
 };
 
 export const queryTableDataQueryOptions = (input: QueryTableDataInput) =>
