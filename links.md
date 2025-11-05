@@ -26,3 +26,7 @@ https://chakra-ui-storybook-chakra-ui.vercel.app/?path=/story/components-listbox
 
 https://github.com/chakra-ui/chakra-ui/blob/main/packages/react/__stories__/listbox.stories.tsx
 https://github.com/chakra-ui/chakra-ui/blob/main/apps/compositions/src/examples/listbox-with-emoji-grid.tsx
+
+https://github.com/react-querybuilder/react-querybuilder
+https://github.com/ukrbublik/react-awesome-query-builder
+https://github.com/fridaymeng/react-sql-query-builder

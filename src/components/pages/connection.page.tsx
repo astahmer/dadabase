@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
 	useQuery,
 	useSuspenseQuery,
@@ -12,6 +12,7 @@ import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
+import { whereClauseParamsToQueryFilter } from "#src/lib/query-filter";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
@@ -56,8 +57,23 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
-	// Initialize query builder
-	const queryBuilder = useQueryBuilder();
+	// Convert deserialized WhereClauseParams from URL to QueryFilter for the builder
+	// Zipson/TanStack Router automatically handles serialization/deserialization
+	const initialQueryFilter = whereClauseParamsToQueryFilter(search.filters);
+	const queryBuilder = useQueryBuilder(initialQueryFilter);
+
+	// Sync filter changes to URL
+	useEffect(() => {
+		const filterConfig = queryBuilder.getWhereClause();
+
+		navigate({
+			search: (prev) => ({
+				...prev,
+				filters: filterConfig || undefined,
+				offset: 0, // Reset to first page when filters change
+			}),
+		});
+	}, [queryBuilder.filter, navigate]);
 
 	// Extract search params with defaults
 	const selectedSchema = search.schema;
@@ -87,6 +103,14 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	// Get the filter config from query builder
 	const filterConfig = queryBuilder.getWhereClause();
 
+	// Convert readonly to mutable for server function
+	const mutableFilterConfig = filterConfig
+		? {
+				conditions: [...filterConfig.conditions],
+				logicalOperator: filterConfig.logicalOperator,
+			}
+		: undefined;
+
 	// Get table data
 	const tableDataQuery = useQuery({
 		...queryTableDataQueryOptions({
@@ -97,7 +121,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			offset: offset,
 			orderBy: orderBy,
 			orderDirection: orderDirection,
-			filters: filterConfig || undefined,
+			filters: mutableFilterConfig,
 		}),
 		placeholderData: keepPreviousData,
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,

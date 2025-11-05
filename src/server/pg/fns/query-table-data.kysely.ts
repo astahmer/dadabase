@@ -108,7 +108,7 @@ export const queryTableData = (input: {
 				countQuery = countQuery.where(whereExpression as any);
 			}
 
-			console.log("Count SQL:", countQuery.compile().sql);
+			// console.log("Count SQL:", countQuery.compile().sql);
 			const countResult = yield* db.execute(countQuery as any);
 			const rowCount = (countResult[0] as any)?.count ?? 0;
 
@@ -132,7 +132,7 @@ export const queryTableData = (input: {
 			// Add limit and offset for pagination
 			query = query.limit(limit).offset(offset);
 
-			console.log("Main SQL:", query.compile().sql);
+			// console.log("Main SQL:", query.compile().sql);
 			const rows = yield* db.execute(query as any);
 			return { rows, rowCount };
 		} catch (e) {

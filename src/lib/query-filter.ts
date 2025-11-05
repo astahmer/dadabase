@@ -1,56 +1,67 @@
-import { z } from "zod";
+import { Schema } from "effect";
+import { nanoid } from "nanoid";
 
 /**
  * Operators supported for filtering
  */
-export const FilterOperator = z.enum([
-	"equals",
-	"not_equals",
-	"contains",
-	"not_contains",
-	"starts_with",
-	"ends_with",
-	"greater_than",
-	"greater_than_or_equal",
-	"less_than",
-	"less_than_or_equal",
-	"is_null",
-	"is_not_null",
-	"in",
-	"not_in",
-]);
+export const FilterOperator = Schema.Union(
+	Schema.Literal("equals"),
+	Schema.Literal("not_equals"),
+	Schema.Literal("contains"),
+	Schema.Literal("not_contains"),
+	Schema.Literal("starts_with"),
+	Schema.Literal("ends_with"),
+	Schema.Literal("greater_than"),
+	Schema.Literal("greater_than_or_equal"),
+	Schema.Literal("less_than"),
+	Schema.Literal("less_than_or_equal"),
+	Schema.Literal("is_null"),
+	Schema.Literal("is_not_null"),
+	Schema.Literal("in"),
+	Schema.Literal("not_in"),
+);
 
-export type FilterOperator = z.infer<typeof FilterOperator>;
+export type FilterOperator = Schema.Schema.Type<typeof FilterOperator>;
 
 /**
  * A single filter condition
  */
-export const FilterCondition = z.object({
-	id: z.string(),
-	column: z.string(),
+export const FilterCondition = Schema.Struct({
+	id: Schema.String,
+	column: Schema.String,
 	operator: FilterOperator,
-	value: z.union([z.string(), z.number(), z.array(z.string())]).optional(),
+	value: Schema.Union(
+		Schema.String,
+		Schema.Number,
+		Schema.Array(Schema.String),
+	).pipe(Schema.optional),
 	// Not serializable, but used for UI state
-	isOpen: z.boolean().optional(),
+	isOpen: Schema.Boolean.pipe(Schema.optional),
 });
 
-export type FilterCondition = z.infer<typeof FilterCondition>;
+export type FilterCondition = Schema.Schema.Type<typeof FilterCondition>;
 
 /**
  * Logical operator for combining conditions
  */
-export const LogicalOperator = z.enum(["and", "or"]);
-export type LogicalOperator = z.infer<typeof LogicalOperator>;
+export const LogicalOperator = Schema.Union(
+	Schema.Literal("and"),
+	Schema.Literal("or"),
+);
+
+export type LogicalOperator = Schema.Schema.Type<typeof LogicalOperator>;
 
 /**
  * Query filter configuration
  */
-export const QueryFilter = z.object({
-	conditions: z.array(FilterCondition),
-	logicalOperator: LogicalOperator.default("and"),
+export const QueryFilter = Schema.Struct({
+	conditions: Schema.Array(FilterCondition),
+	logicalOperator: LogicalOperator.pipe(
+		Schema.optionalWith({ default: () => "and" }),
+	),
 });
 
-export type QueryFilter = z.infer<typeof QueryFilter>;
+export type QueryFilter = Schema.Schema.Type<typeof QueryFilter>;
 
 /**
  * Convert a filter condition to SQL WHERE clause
@@ -63,7 +74,7 @@ export interface FilterConditionExpression {
 }
 
 export interface WhereClauseParams {
-	conditions: FilterConditionExpression[];
+	conditions: readonly FilterConditionExpression[];
 	logicalOperator: LogicalOperator;
 }
 
@@ -242,6 +253,26 @@ export const nullOperators: FilterOperator[] = ["is_null", "is_not_null"];
 export const arrayOperators: FilterOperator[] = ["in", "not_in"];
 
 /**
+ * All available operators
+ */
+export const allOperators: FilterOperator[] = [
+	"equals",
+	"not_equals",
+	"contains",
+	"not_contains",
+	"starts_with",
+	"ends_with",
+	"greater_than",
+	"greater_than_or_equal",
+	"less_than",
+	"less_than_or_equal",
+	"is_null",
+	"is_not_null",
+	"in",
+	"not_in",
+];
+
+/**
  * Get operator display name
  */
 export const getOperatorLabel = (operator: FilterOperator): string => {
@@ -262,4 +293,30 @@ export const getOperatorLabel = (operator: FilterOperator): string => {
 		not_in: "Not In",
 	};
 	return labels[operator];
+};
+
+/**
+ * Convert WhereClauseParams (from URL) back to QueryFilter with generated IDs
+ * Used when deserializing filters from URL
+ */
+export const whereClauseParamsToQueryFilter = (
+	params: WhereClauseParams | undefined,
+): QueryFilter | undefined => {
+	if (!params) {
+		return undefined;
+	}
+
+	const conditions: FilterCondition[] = (
+		params.conditions as FilterConditionExpression[]
+	).map((expr) => ({
+		id: nanoid(),
+		column: expr.column,
+		operator: expr.operator as FilterOperator,
+		value: expr.value,
+	}));
+
+	return {
+		conditions,
+		logicalOperator: params.logicalOperator as LogicalOperator,
+	};
 };

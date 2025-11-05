@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { FilterCondition } from "#src/lib/query-filter";
 import {
-	FilterOperator,
+	allOperators,
 	getOperatorLabel,
 	nullOperators,
 	arrayOperators,
@@ -22,7 +22,7 @@ import {
 import * as ArkSelect from "./ui/select";
 
 interface QueryFilterBuilderProps {
-	conditions: FilterCondition[];
+	conditions: readonly FilterCondition[];
 	onUpdateCondition: (id: string, updates: Partial<FilterCondition>) => void;
 	onRemoveCondition: (id: string) => void;
 	onLogicalOperatorChange?: (operator: "and" | "or") => void;
@@ -32,7 +32,7 @@ interface QueryFilterBuilderProps {
 }
 
 const operatorCollection = createListCollection({
-	items: Array.from(FilterOperator.options).map((op) => ({
+	items: allOperators.map((op) => ({
 		label: getOperatorLabel(op),
 		value: op,
 	})),
