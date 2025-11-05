@@ -24,6 +24,7 @@ import * as ArkSelect from "../ui/select";
 import { Button } from "../ui/button";
 import { RefreshCw, Rows, LayoutGrid } from "lucide-react";
 import { Route } from "#src/routes/connections/$connectionName";
+import { Stack } from "../ui/layout.tsx";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -173,8 +174,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					accessorKey: key,
 					header: key,
 					// size: 150,
-					minSize: 75,
-					maxSize: 500,
+					// minSize: 75,
+					// maxSize: 500,
 					enableResizing: true,
 					enableSorting: true,
 				}))
@@ -203,6 +204,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		manualPagination: true,
 		manualSorting: true,
 		rowCount: totalRowCount,
+		defaultColumn: {
+			size: 150,
+			minSize: 20,
+			maxSize: Number.MAX_SAFE_INTEGER,
+		},
 		onSortingChange: (updater) => {
 			const newSorting =
 				typeof updater === "function" ? updater(sortingState) : updater;
@@ -289,133 +295,136 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			</div>
 
 			{/* Main Layout */}
-			<div className="flex-1 flex overflow-hidden">
+			<div className="flex-1 flex h-full min-h-0">
 				{/* Sidebar */}
-				<div className="w-64 border-r bg-muted/30 flex flex-col">
-					{/* Schema Selector */}
-					<div className="p-4 border-b space-y-2">
-						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
-							Schema
-						</label>
-						{schemasQuery.isLoading ? (
-							<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9">
-								<span className="text-xs text-muted-foreground">
-									Loading...
-								</span>
-							</div>
-						) : (
-							<ArkSelect.Select
-								className="w-full"
-								value={selectedSchema ? [selectedSchema] : []}
-								collection={schemaCollection}
-								positioning={{ sameWidth: true }}
-								disabled={schemasQuery.isLoading}
-								onValueChange={(details: { value?: string[] }) => {
-									const newSchema = details.value?.[0];
-									if (newSchema) {
-										setSchema(newSchema);
-										navigate({
-											search: (prev) => ({
-												...prev,
-												schema: newSchema,
-												table: undefined,
-												offset: 0,
-											}),
-										});
-									}
-								}}
-							>
-								<ArkSelect.SelectControl>
-									<ArkSelect.SelectTrigger>
-										<ArkSelect.SelectValueText placeholder="Select schema" />
-										<ArkSelect.SelectIndicator />
-									</ArkSelect.SelectTrigger>
-								</ArkSelect.SelectControl>
-								<ArkSelect.SelectContent>
-									{schemaCollection.items.map(
-										(item: { label: string; value: string }) => (
-											<ArkSelect.SelectItem key={item.value} item={item}>
-												{item.label}
-											</ArkSelect.SelectItem>
-										),
-									)}
-								</ArkSelect.SelectContent>
-							</ArkSelect.Select>
-						)}
-					</div>
-
+				<div className="w-64 border-r bg-muted/30 flex flex-col overflow-hidden h-full min-h-0">
 					{/* Tables List */}
-					<div className="flex-1 overflow-hidden flex flex-col">
-						<div className="p-4 border-b">
+					<div className="flex-1 h-full min-h-0 flex flex-col gap-2">
+						{/* Schema Selector */}
+						<Stack className="px-4 pt-4" gap="2">
 							<label className="text-xs font-medium text-foreground uppercase tracking-wide">
-								Tables
+								Schema
 							</label>
-						</div>
-						{tablesQuery.isLoading ? (
-							<div className="p-4 text-center">
-								<p className="text-xs text-muted-foreground">
-									Loading tables...
-								</p>
-							</div>
-						) : (
-							<div className="flex-1 overflow-hidden flex flex-col">
-								<div className="p-2 border-b border-border">
-									<input
-										placeholder="Filter tables..."
-										className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
-										value={tableFilterValue}
-										onChange={(e) => setTableFilterValue(e.target.value)}
-									/>
+							{schemasQuery.isLoading ? (
+								<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9">
+									<span className="text-xs text-muted-foreground">
+										Loading...
+									</span>
 								</div>
-								<div className="flex-1 overflow-hidden">
-									{filteredTables.length === 0 ? (
-										<div className="p-4 text-center">
-											<p className="text-xs text-muted-foreground">
-												{tables.length === 0
-													? "No tables found"
-													: "No tables match filter"}
-											</p>
-										</div>
-									) : (
-										<Listbox.Root collection={tableCollection}>
-											<Listbox.Content className="overflow-y-auto h-full">
-												<Listbox.ItemGroup>
-													{filteredTables.map((table) => (
-														<Listbox.Item
-															key={table.name}
-															item={{
-																label: table.name,
-																value: table.name,
-															}}
-															className={`flex items-center px-3 py-2 cursor-pointer text-sm transition-colors ${
-																selectedTable === table.name
-																	? "bg-primary/10 text-primary font-medium"
-																	: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
-															}`}
-															onClick={() => {
-																setTable(table.name);
-																navigate({
-																	search: (prev) => ({
-																		...prev,
-																		table: table.name,
-																		offset: 0,
-																		viewMode: "rows",
-																	}),
-																});
-															}}
-														>
-															<Listbox.ItemText className="flex-1">
-																{table.name}
-															</Listbox.ItemText>
-														</Listbox.Item>
-													))}
-												</Listbox.ItemGroup>
-											</Listbox.Content>
-										</Listbox.Root>
-									)}
-								</div>
+							) : (
+								<ArkSelect.Select
+									className="w-full"
+									value={selectedSchema ? [selectedSchema] : []}
+									collection={schemaCollection}
+									positioning={{ sameWidth: true }}
+									disabled={schemasQuery.isLoading}
+									onValueChange={(details: { value?: string[] }) => {
+										const newSchema = details.value?.[0];
+										if (newSchema) {
+											setSchema(newSchema);
+											navigate({
+												search: (prev) => ({
+													...prev,
+													schema: newSchema,
+													table: undefined,
+													offset: 0,
+												}),
+											});
+										}
+									}}
+								>
+									<ArkSelect.SelectControl>
+										<ArkSelect.SelectTrigger>
+											<ArkSelect.SelectValueText placeholder="Select schema" />
+											<ArkSelect.SelectIndicator />
+										</ArkSelect.SelectTrigger>
+									</ArkSelect.SelectControl>
+									<ArkSelect.SelectContent>
+										{schemaCollection.items.map(
+											(item: { label: string; value: string }) => (
+												<ArkSelect.SelectItem key={item.value} item={item}>
+													{item.label}
+												</ArkSelect.SelectItem>
+											),
+										)}
+									</ArkSelect.SelectContent>
+								</ArkSelect.Select>
+							)}
+						</Stack>
+
+						<Stack className="h-full" gap="2">
+							<div className="px-4">
+								<label className="text-xs font-medium text-foreground uppercase tracking-wide">
+									Tables
+								</label>
 							</div>
-						)}
+							{tablesQuery.isLoading ? (
+								<div className="p-4 text-center">
+									<p className="text-xs text-muted-foreground">
+										Loading tables...
+									</p>
+								</div>
+							) : (
+								<div className="flex-1 overflow-hidden flex flex-col h-full">
+									<div className="px-4">
+										<input
+											placeholder="Filter tables..."
+											className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
+											value={tableFilterValue}
+											onChange={(e) => setTableFilterValue(e.target.value)}
+										/>
+									</div>
+									<div className="mt-2 flex-1 overflow-y-auto">
+										{filteredTables.length === 0 ? (
+											<div className="p-4 text-center">
+												<p className="text-xs text-muted-foreground">
+													{tables.length === 0
+														? "No tables found"
+														: "No tables match filter"}
+												</p>
+											</div>
+										) : (
+											<Listbox.Root collection={tableCollection}>
+												<Listbox.Content className="overflow-visible px-4">
+													<Listbox.ItemGroup>
+														{filteredTables.map((table) => (
+															<Listbox.Item
+																key={table.name}
+																item={{
+																	label: table.name,
+																	value: table.name,
+																}}
+																className={`flex items-center px-3 py-2 cursor-pointer text-sm transition-colors rounded-md truncate ${
+																	selectedTable === table.name
+																		? "bg-primary/10 text-primary font-medium"
+																		: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
+																}`}
+																title={table.name}
+																onClick={() => {
+																	setTable(table.name);
+																	navigate({
+																		search: (prev) => ({
+																			...prev,
+																			table: table.name,
+																			offset: 0,
+																			viewMode: "rows",
+																		}),
+																	});
+																}}
+															>
+																<Listbox.ItemText className="flex-1 truncate">
+																	{table.name}
+																</Listbox.ItemText>
+															</Listbox.Item>
+														))}
+													</Listbox.ItemGroup>
+												</Listbox.Content>
+											</Listbox.Root>
+										)}
+									</div>
+								</div>
+							)}
+						</Stack>
 					</div>
 				</div>
 

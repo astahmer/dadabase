@@ -243,10 +243,15 @@ const TableCell = memo(function TableCell({
 	size: DataTableSize;
 	showColumnBorder: boolean;
 }) {
+	const columnSize = cell.column.getSize();
 	return (
 		<td
 			className={tableCellStyles({ size, showColumnBorder })}
 			data-testid={`cell-${index}-${cell.column.id}`}
+			style={{
+				width: `${columnSize}px`,
+				position: "relative",
+			}}
 		>
 			<ErrorBoundary fallbackRender={fallbackRender}>
 				{flexRender(cell.column.columnDef.cell, cell.getContext())}
