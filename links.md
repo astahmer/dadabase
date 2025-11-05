@@ -19,3 +19,10 @@ https://github.com/wannabespace/conar/blob/4c120aab5a7b4dbb43f5a8d5af992453c3959
 https://github.com/brianc/node-postgres/tree/master/packages/pg-query-stream
 
 https://www.npmjs.com/package/pg-connection-string
+
+https://ark-ui.com/docs/components/listbox#grouping
+
+https://chakra-ui-storybook-chakra-ui.vercel.app/?path=/story/components-listbox--popover
+
+https://github.com/chakra-ui/chakra-ui/blob/main/packages/react/__stories__/listbox.stories.tsx
+https://github.com/chakra-ui/chakra-ui/blob/main/apps/compositions/src/examples/listbox-with-emoji-grid.tsx

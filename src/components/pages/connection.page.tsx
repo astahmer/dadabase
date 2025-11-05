@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useMemo, useState } from "react";
 import {
 	useQuery,
 	useSuspenseQuery,
@@ -8,6 +8,8 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pagination } from "@ark-ui/react/pagination";
+import { Listbox, createListCollection } from "@ark-ui/react/listbox";
+import { useFilter } from "@ark-ui/react/locale";
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
@@ -90,37 +92,29 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
 	});
 
-	// Handle cascading selection - reset dependent selects when parent changes
-	useEffect(() => {
-		const schemas = schemasQuery.data as string[] | undefined;
-		// If schema is not in the list of available schemas, reset it
-		if (selectedSchema && schemas && !schemas.includes(selectedSchema)) {
-			navigate({
-				search: (prev) => ({
-					...prev,
-					schema: undefined,
-					table: undefined,
-				}),
-			});
-		}
-	}, [selectedSchema, schemasQuery.data, navigate]);
+	const schemas = schemasQuery.data || [];
+	const tables = tablesQuery.data || [];
 
-	useEffect(() => {
-		const tables = tablesQuery.data as Array<{ name: string }> | undefined;
-		const tableNames = tables?.map((t) => t.name) || [];
-		// If table is not in the list of available tables, reset it
-		if (selectedTable && tableNames && !tableNames.includes(selectedTable)) {
-			navigate({
-				search: (prev) => ({
-					...prev,
-					table: undefined,
-				}),
-			});
-		}
-	}, [selectedTable, tablesQuery.data, navigate]);
+	// Filter tables based on search term
+	const [tableFilterValue, setTableFilterValue] = useState("");
+	const { contains } = useFilter({ sensitivity: "base" });
 
-	const schemas = (schemasQuery.data || []) as string[];
-	const tables = (tablesQuery.data || []) as Array<{ name: string }>;
+	const filteredTables = tables.filter(
+		(table) =>
+			contains(table.name, tableFilterValue) && selectedSchema === table.schema,
+	);
+
+	const tableCollection = useMemo(
+		() =>
+			createListCollection({
+				items: filteredTables.map((t) => ({
+					label: t.name,
+					value: t.name,
+				})),
+			}),
+		[filteredTables],
+	);
+
 	const queryResponse = (tableDataQuery.data || {
 		rows: [],
 		rowCount: 0,
@@ -346,47 +340,71 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								Tables
 							</label>
 						</div>
-						<div className="flex-1 overflow-y-auto">
-							{tablesQuery.isLoading ? (
-								<div className="p-4 text-center">
-									<p className="text-xs text-muted-foreground">
-										Loading tables...
-									</p>
+						{tablesQuery.isLoading ? (
+							<div className="p-4 text-center">
+								<p className="text-xs text-muted-foreground">
+									Loading tables...
+								</p>
+							</div>
+						) : (
+							<div className="flex-1 overflow-hidden flex flex-col">
+								<div className="p-2 border-b border-border">
+									<input
+										placeholder="Filter tables..."
+										className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
+										value={tableFilterValue}
+										onChange={(e) => setTableFilterValue(e.target.value)}
+									/>
 								</div>
-							) : tables.length === 0 ? (
-								<div className="p-4 text-center">
-									<p className="text-xs text-muted-foreground">
-										No tables found
-									</p>
+								<div className="flex-1 overflow-hidden">
+									{filteredTables.length === 0 ? (
+										<div className="p-4 text-center">
+											<p className="text-xs text-muted-foreground">
+												{tables.length === 0
+													? "No tables found"
+													: "No tables match filter"}
+											</p>
+										</div>
+									) : (
+										<Listbox.Root collection={tableCollection}>
+											<Listbox.Content className="overflow-y-auto h-full">
+												<Listbox.ItemGroup>
+													{filteredTables.map((table) => (
+														<Listbox.Item
+															key={table.name}
+															item={{
+																label: table.name,
+																value: table.name,
+															}}
+															className={`flex items-center px-3 py-2 cursor-pointer text-sm transition-colors ${
+																selectedTable === table.name
+																	? "bg-primary/10 text-primary font-medium"
+																	: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
+															}`}
+															onClick={() => {
+																setTable(table.name);
+																navigate({
+																	search: (prev) => ({
+																		...prev,
+																		table: table.name,
+																		offset: 0,
+																		viewMode: "rows",
+																	}),
+																});
+															}}
+														>
+															<Listbox.ItemText className="flex-1">
+																{table.name}
+															</Listbox.ItemText>
+														</Listbox.Item>
+													))}
+												</Listbox.ItemGroup>
+											</Listbox.Content>
+										</Listbox.Root>
+									)}
 								</div>
-							) : (
-								<div className="space-y-1 p-2">
-									{tables.map((table) => (
-										<button
-											key={table.name}
-											onClick={() => {
-												setTable(table.name);
-												navigate({
-													search: (prev) => ({
-														...prev,
-														table: table.name,
-														offset: 0,
-														viewMode: "rows",
-													}),
-												});
-											}}
-											className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-												selectedTable === table.name
-													? "bg-primary/10 text-primary font-medium"
-													: "text-muted-foreground hover:bg-muted hover:text-foreground"
-											}`}
-										>
-											{table.name}
-										</button>
-									))}
-								</div>
-							)}
-						</div>
+							</div>
+						)}
 					</div>
 				</div>
 
@@ -615,16 +633,16 @@ const StructureTable = (props: {
 		// Create structure metadata for columns
 		const structureData = Object.keys(formattedTableData[0]).map((colName) => {
 			const sample = formattedTableData[0][colName];
-			let dataType = typeof sample;
+			let dataType: string = typeof sample;
 			if (Array.isArray(sample)) {
-				dataType = "array" as any;
+				dataType = "array";
 			} else if (sample === null) {
-				dataType = "null" as any;
+				dataType = "null";
 			} else if (
 				sample instanceof Date ||
 				(typeof sample === "string" && /^\d{4}-\d{2}-\d{2}T/.test(sample))
 			) {
-				dataType = "timestamp" as any;
+				dataType = "timestamp";
 			}
 			return {
 				name: colName,
