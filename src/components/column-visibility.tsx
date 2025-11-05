@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { Table as TanstackTable } from "@tanstack/react-table";
-import { Combobox, useListCollection } from "@ark-ui/react/combobox";
-import { useFilter } from "@ark-ui/react/locale";
+import { Listbox, createListCollection } from "@ark-ui/react/listbox";
+import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
+import { useFilter } from "@ark-ui/react/locale";
 import { Button } from "./ui/button";
 import { ChevronsUpDown } from "lucide-react";
 
@@ -15,27 +16,37 @@ export function ColumnVisibilityControls<TData>(
 	props: ColumnVisibilityControlsProps<TData>,
 ) {
 	const { table, minimal = false } = props;
-	const [isOpen, setIsOpen] = useState(false);
-	const [inputValue, setInputValue] = useState("");
+	const [filterValue, setFilterValue] = useState("");
+	const [open, setOpen] = useState(false);
+	const triggerRef = useRef<HTMLButtonElement>(null);
 	const { contains } = useFilter({ sensitivity: "base" });
 
-	const columns = table
-		.getAllLeafColumns()
-		.filter((col) => col.getCanHide?.())
-		.map((col) => ({
-			label: (col.columnDef.header as string) || col.id,
-			value: col.id,
-		}));
+	const allColumns = useMemo(
+		() =>
+			table
+				.getAllLeafColumns()
+				.filter((col) => col.getCanHide?.())
+				.map((col) => ({
+					label: (col.columnDef.header as string) || col.id,
+					value: col.id,
+				})),
+		[table],
+	);
 
-	const { collection, filter } = useListCollection({
-		initialItems: columns,
-		filter: contains,
-	});
+	const [filteredItems, setFilteredItems] = useState(allColumns);
 
-	const handleInputChange = (details: Combobox.InputValueChangeDetails) => {
-		setInputValue(details.inputValue);
-		filter(details.inputValue);
-	};
+	const collection = useMemo(
+		() => createListCollection({ items: filteredItems }),
+		[filteredItems],
+	);
+
+	const handleFilterChange = useCallback(
+		(value: string) => {
+			setFilterValue(value);
+			setFilteredItems(allColumns.filter((col) => contains(col.label, value)));
+		},
+		[allColumns, contains],
+	);
 
 	const buttonClassName = minimal
 		? "h-8 px-2 gap-1 justify-between"
@@ -47,78 +58,75 @@ export function ColumnVisibilityControls<TData>(
 
 	return (
 		<div className={containerClassName}>
-			<Combobox.Root
-				collection={collection}
-				onInputValueChange={handleInputChange}
-				inputValue={inputValue}
-				open={isOpen}
-				onOpenChange={(details) => setIsOpen(details.open)}
-				closeOnSelect={false}
-			>
-				<Combobox.Control>
+			<Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
+				<Popover.Trigger asChild>
 					<Button
+						ref={triggerRef}
 						variant="outline"
 						size="sm"
 						className={buttonClassName}
-						onClick={() => setIsOpen(!isOpen)}
 					>
 						<span className="text-xs font-medium text-foreground uppercase tracking-wide">
 							📋 Columns
 						</span>
 						<ChevronsUpDown className="h-4 w-4 opacity-50" />
 					</Button>
-				</Combobox.Control>
+				</Popover.Trigger>
 				<Portal>
-					<Combobox.Positioner>
-						<Combobox.Content className="bg-card border border-border rounded-md shadow-lg z-50 min-w-48">
-							<div className="p-2 border-b">
-								<Combobox.Input
-									placeholder="Filter columns..."
-									className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
-									autoFocus
-								/>
-							</div>
-							<div className="p-2 max-h-64 overflow-y-auto">
-								<Combobox.ItemGroup>
+					<Popover.Positioner>
+						<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50">
+							<Listbox.Root collection={collection}>
+								<div className="p-2 border-b border-border">
+									<input
+										placeholder="Filter columns..."
+										className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
+										autoFocus
+										value={filterValue}
+										onChange={(e) => handleFilterChange(e.target.value)}
+									/>
+								</div>
+								<Listbox.Content className="max-h-64 overflow-y-auto">
 									{collection.items.length > 0 ? (
-										collection.items.map((item) => {
-											const column = table.getColumn(item.value);
-											const isVisible = column?.getIsVisible?.() ?? true;
+										<Listbox.ItemGroup>
+											{collection.items.map((item) => {
+												const column = table.getColumn(item.value);
+												const isVisible = column?.getIsVisible?.() ?? true;
 
-											return (
-												<Combobox.Item
-													key={item.value}
-													item={item}
-													className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors"
-													onClick={(e) => {
-														e.preventDefault();
-														e.stopPropagation();
-														column?.toggleVisibility?.();
-													}}
-												>
-													<input
-														type="checkbox"
-														checked={isVisible}
-														readOnly
-														className="rounded"
-													/>
-													<Combobox.ItemText className="flex-1">
-														{item.label}
-													</Combobox.ItemText>
-												</Combobox.Item>
-											);
-										})
+												return (
+													<Listbox.Item
+														key={item.value}
+														item={item}
+														className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors"
+														onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+															e.preventDefault();
+															e.stopPropagation();
+															column?.toggleVisibility?.();
+														}}
+													>
+														<input
+															type="checkbox"
+															checked={isVisible}
+															readOnly
+															className="rounded"
+														/>
+														<Listbox.ItemText className="flex-1">
+															{item.label}
+														</Listbox.ItemText>
+													</Listbox.Item>
+												);
+											})}
+										</Listbox.ItemGroup>
 									) : (
 										<div className="px-2 py-2 text-xs text-muted-foreground text-center">
 											No columns found
 										</div>
 									)}
-								</Combobox.ItemGroup>
-							</div>
-						</Combobox.Content>
-					</Combobox.Positioner>
+								</Listbox.Content>
+							</Listbox.Root>
+						</Popover.Content>
+					</Popover.Positioner>
 				</Portal>
-			</Combobox.Root>
+			</Popover.Root>
 		</div>
 	);
 }
