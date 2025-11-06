@@ -111,10 +111,15 @@ export function NaturalLanguageSearch({
 		<div className={`space-y-2 ${className}`}>
 			<form onSubmit={handleSubmit} className="flex gap-2 items-center">
 				<div className="flex-1 relative">
-					<Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
+					<Popover.Root
+						open={open}
+						onOpenChange={(e) => setOpen(e.open)}
+						initialFocusEl={() => document.getElementById("nls-input")}
+					>
 						<Popover.Trigger asChild>
 							<div>
 								<Input
+									id="nls-input"
 									placeholder={placeholder}
 									value={input}
 									onChange={(e) => setInput(e.target.value)}

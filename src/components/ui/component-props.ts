@@ -1,6 +1,12 @@
 import type { ComponentProps } from "react";
 
-type AllowedProps = "ref" | "children" | "className" | "id" | "onClick";
+type AllowedProps =
+	| "ref"
+	| "children"
+	| "className"
+	| "id"
+	| "onClick"
+	| "onBlur";
 
 export interface ExposedComponentProps<T extends "div" | "button" | "label">
 	extends Pick<ComponentProps<T>, AllowedProps> {}
