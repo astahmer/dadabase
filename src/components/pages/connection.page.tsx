@@ -17,7 +17,14 @@ import {
 } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { LayoutGrid, LucideListFilter, RefreshCw, Rows } from "lucide-react";
+import {
+	LayoutGrid,
+	LucideChevronDown,
+	LucideChevronUp,
+	LucideListFilter,
+	RefreshCw,
+	Rows,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
@@ -141,6 +148,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		}),
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
 	});
+	const columnMetadata = tableColumnsQuery.data ?? [];
 
 	const schemas = schemasQuery.data || [];
 	const tables = tablesQuery.data || [];
@@ -165,16 +173,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		[filteredTables],
 	);
 
-	const queryResponse = (tableDataQuery.data || {
+	const queryResponse = tableDataQuery.data || {
 		rows: [],
 		rowCount: 0,
 		timeTaken: 0,
 		ranAt: 0,
-	}) as {
-		rows: Array<Record<string, unknown>>;
-		rowCount: number;
-		timeTaken: number;
-		ranAt: number;
 	};
 	const tableData = queryResponse.rows;
 	const totalRowCount = queryResponse.rowCount;
@@ -207,10 +210,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	});
 
 	const columns: Array<ColumnDef<Record<string, unknown>>> =
-		formattedTableData && formattedTableData.length > 0
-			? Object.keys(formattedTableData[0]).map((key) => ({
-					accessorKey: key,
-					header: key,
+		columnMetadata.length > 0
+			? columnMetadata.map((col) => ({
+					accessorKey: col.name,
+					header: col.name,
 					// size: 150,
 					// minSize: 75,
 					// maxSize: 500,
@@ -522,44 +525,70 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											disabled={tableDataQuery.isLoading}
 										>
 											<LucideListFilter className="h-3 w-3 mr-1" />
-											Filters {`(${search.filters?.conditions.length || 0})`}
+											Filters
+											{` (${search.filters?.conditions.length || 0})`}
+											{search.filtersOpened ? (
+												<LucideChevronUp className="h-3 w-3 ml-1" />
+											) : (
+												<LucideChevronDown className="h-3 w-3 ml-1" />
+											)}
 										</Button>
 									)}
 								</div>
 								{viewMode === "rows" && (
 									<NaturalLanguageSearch
-										availableColumns={Object.keys(formattedTableData[0] || {})}
+										className="w-full"
+										availableColumns={columnMetadata.map((col) => col.name)}
 										onApplyFilters={(parsed) => {
 											const { filters = [], orderBy, limit } = parsed;
-											// queryBuilder.clearConditions();
-											// filters.forEach(() => {
-											// 	queryBuilder.addCondition();
-											// });
-											console.log(filters);
-											filters.forEach((f, i) => {
-												// Map NL operators to query filter operators
-												const operatorMap: Record<string, any> = {
-													eq: "equals",
-													gt: "greater_than",
-													lt: "less_than",
-													gte: "greater_than_or_equal",
-													lte: "less_than_or_equal",
-													contains: "contains",
-													in: "in",
-													not_eq: "not_equals",
-													not_contains: "not_contains",
-												};
+											console.log("onApplyFilters", filters);
+											// 	// Map NL operators to query filter operators
+											const operatorMap: Record<string, any> = {
+												eq: "equals",
+												gt: "greater_than",
+												lt: "less_than",
+												gte: "greater_than_or_equal",
+												lte: "less_than_or_equal",
+												contains: "contains",
+												in: "in",
+												not_eq: "not_equals",
+												not_contains: "not_contains",
+											};
 
-												const value = Array.isArray(f.value)
-													? f.value.map((v) => String(v))
-													: String(f.value);
-
-												queryBuilder.updateCondition(String(i), {
-													column: f.field,
-													operator: operatorMap[f.operator] || "equals",
-													value,
-												});
-											});
+											if (filters.length) {
+												const currentConditions =
+													search.filters?.conditions ?? [];
+												// Remove filters related to the NL query
+												if (parsed.clear) {
+													queryBuilder.updateManyConditions(
+														currentConditions.filter((current) => {
+															return filters.some(
+																(removed) =>
+																	current.column === removed.field &&
+																	current.operator === removed.operator &&
+																	current.value === removed.value,
+															);
+														}),
+													);
+												} else {
+													// Or add new filters
+													queryBuilder.updateManyConditions(
+														currentConditions
+															.map((f) => ({
+																column: f.column,
+																operator: f.operator,
+																value: f.value as string,
+															}))
+															.concat(
+																filters.map((f) => ({
+																	column: f.field,
+																	operator: operatorMap[f.operator] || "equals",
+																	value: f.value as string,
+																})),
+															),
+													);
+												}
+											}
 
 											if (orderBy) {
 												navigate({
@@ -606,7 +635,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										onAddCondition={queryBuilder.addCondition}
 										onClearAll={queryBuilder.clearConditions}
 										logicalOperator={queryBuilder.filter.logicalOperator}
-										availableColumns={Object.keys(formattedTableData[0] || {})}
+										availableColumns={columnMetadata.map((col) => col.name)}
 										isLoading={tableDataQuery.isLoading}
 									/>
 								)}
@@ -614,10 +643,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							{/* Content */}
 							<div className="flex-1 overflow-hidden flex flex-col">
 								{viewMode === "structure" ? (
-									formattedTableData && formattedTableData.length > 0 ? (
-										<StructureTable
-											columnMetadata={tableColumnsQuery.data ?? []}
-										/>
+									columnMetadata.length > 0 ? (
+										<StructureTable columnMetadata={columnMetadata} />
 									) : (
 										<div className="p-4 overflow-auto flex-1">
 											<div className="space-y-2">

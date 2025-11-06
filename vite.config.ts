@@ -19,7 +19,10 @@ const defaultTransformFileName = (
 
 const config = defineConfig((env) => ({
 	plugins: [
-		devtools({ injectSource: { enabled: false } }),
+		devtools({
+			injectSource: { enabled: false },
+			enhancedLogs: { enabled: false },
+		}),
 		env.mode === "development" &&
 			jsxSource({
 				enforce: "pre",

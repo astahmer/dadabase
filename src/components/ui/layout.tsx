@@ -2,7 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "#src/lib/utils.ts";
 import type { ExposedComponentProps } from "./component-props.ts";
 
-export const stack = cva("flex gap-4", {
+export const stack = cva("flex", {
 	variants: {
 		direction: {
 			row: "flex-row",
@@ -50,6 +50,7 @@ export const stack = cva("flex gap-4", {
 	},
 	defaultVariants: {
 		direction: "col",
+		gap: "2",
 		// align: "center",
 	},
 });
@@ -80,17 +81,20 @@ export const Stack = (
 export const HStack = (
 	props: ExposedComponentProps<"div"> & VariantProps<typeof stack>,
 ) => {
-	const { className, align, justify, wrap, w, ...rest } = props;
+	const { className, align, justify, wrap, w, h, gap, direction, ...rest } =
+		props;
 	return (
 		<div
 			{...rest}
 			className={cn(
 				stack({
-					direction: props.direction ?? "row",
+					direction: direction ?? "row",
 					align,
 					justify,
 					wrap,
 					w,
+					h,
+					gap,
 				}),
 				className,
 			)}

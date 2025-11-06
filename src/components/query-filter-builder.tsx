@@ -10,7 +10,7 @@ import {
 	arrayOperators,
 } from "#src/lib/query-filter";
 import { Button } from "./ui/button";
-import { Stack } from "./ui/layout";
+import { HStack, Stack } from "./ui/layout";
 import { X, Plus } from "lucide-react";
 import {
 	Combobox,
@@ -133,6 +133,7 @@ export const QueryFilterBuilder = ({
 						isLoading={isLoading}
 						showLogicalLabel={index === 0 && conditions.length > 1}
 						logicalOperator={logicalOperator}
+						isLast={index === conditions.length - 1}
 					/>
 				))}
 			</Stack>
@@ -156,6 +157,7 @@ interface FilterConditionRowProps {
 	onAdd: () => void;
 	onClearAll: () => void;
 	isLoading?: boolean;
+	isLast?: boolean;
 	showLogicalLabel?: boolean;
 	logicalOperator?: "and" | "or";
 }
@@ -171,6 +173,7 @@ const FilterConditionRow = ({
 	onAdd,
 	isLoading = false,
 	showLogicalLabel = false,
+	isLast,
 	logicalOperator = "and",
 }: FilterConditionRowProps) => {
 	const isNullOperator = nullOperators.includes(condition.operator);
@@ -187,7 +190,7 @@ const FilterConditionRow = ({
 	});
 
 	return (
-		<div className="space-y-2">
+		<Stack>
 			{showLogicalLabel && index > 0 && (
 				<div className="text-xs font-medium text-muted-foreground uppercase">
 					{logicalOperator}
@@ -286,28 +289,34 @@ const FilterConditionRow = ({
 					/>
 				)}
 
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => onAdd?.()}
-					disabled={isLoading}
-					className="h-9 gap-1"
-				>
-					<Plus className="h-4 w-4" />
-					<span className="text-xs">Add filter</span>
-				</Button>
+				<HStack className="min-w-[210px]">
+					{isLast && (
+						<>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => onAdd?.()}
+								disabled={isLoading}
+								className="h-9 gap-1"
+							>
+								<Plus className="h-4 w-4" />
+								<span className="text-xs">Add filter</span>
+							</Button>
 
-				<Button
-					variant="ghost"
-					onClick={() => {
-						onClearAll();
-					}}
-					disabled={isLoading}
-				>
-					<X className="h-4 w-4" />
-					<span className="text-xs">Clear filters</span>
-				</Button>
+							<Button
+								variant="ghost"
+								onClick={() => {
+									onClearAll();
+								}}
+								disabled={isLoading}
+							>
+								<X className="h-4 w-4" />
+								<span className="text-xs">Clear all</span>
+							</Button>
+						</>
+					)}
+				</HStack>
 			</div>
-		</div>
+		</Stack>
 	);
 };

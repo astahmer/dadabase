@@ -202,18 +202,27 @@ export function generateSuggestions(
 	availableColumns: string[],
 ): Suggestion[] {
 	const suggestions: Suggestion[] = [];
+	const seen = new Set<string>();
+
+	const addSuggestion = (suggestion: Suggestion) => {
+		const key = `${suggestion.type}:${suggestion.value}`;
+		if (!seen.has(key)) {
+			seen.add(key);
+			suggestions.push(suggestion);
+		}
+	};
 
 	if (context.state === "empty") {
 		// Show all available columns as column suggestions
 		const matched = matchFn(context.currentInput, availableColumns);
-		suggestions.push(
-			...matched.map((col) => ({
+		matched.forEach((col) => {
+			addSuggestion({
 				label: col,
 				value: col + " ",
-				type: "column" as const,
-				state: "column" as const,
-			})),
-		);
+				type: "column",
+				state: "column",
+			});
+		});
 	}
 
 	if (context.state === "column") {
@@ -221,25 +230,25 @@ export function generateSuggestions(
 		const matched = matchFn(context.currentInput, availableColumns);
 
 		// Show matching columns
-		suggestions.push(
-			...matched.map((col) => ({
+		matched.forEach((col) => {
+			addSuggestion({
 				label: col,
 				value: col + " ",
-				type: "column" as const,
-				state: "column" as const,
-			})),
-		);
+				type: "column",
+				state: "column",
+			});
+		});
 
 		// If there's a good match, also show operator suggestions
 		const bestMatch = matched[0];
 		if (bestMatch) {
 			const columnSoFar = bestMatch;
 			OPERATOR_LABELS.forEach((op) => {
-				suggestions.push({
+				addSuggestion({
 					label: `${columnSoFar} ${op}`,
 					value: `${columnSoFar} ${op} `,
-					type: "operator" as const,
-					state: "operator" as const,
+					type: "operator",
+					state: "operator",
 				});
 			});
 		}
@@ -266,16 +275,14 @@ export function generateSuggestions(
 
 				// Remove duplicates and show all matching operators
 				const uniqueMatches = Array.from(new Set(matchingOperators));
-				if (uniqueMatches.length > 0) {
-					suggestions.push(
-						...uniqueMatches.map((op) => ({
-							label: `${context.column} ${op}`,
-							value: `${context.column} ${op} `,
-							type: "operator" as const,
-							state: "operator" as const,
-						})),
-					);
-				}
+				uniqueMatches.forEach((op) => {
+					addSuggestion({
+						label: `${context.column} ${op}`,
+						value: `${context.column} ${op} `,
+						type: "operator",
+						state: "operator",
+					});
+				});
 			} else {
 				// Full operator, show value examples
 				const examples = generateExampleValues(
@@ -284,25 +291,25 @@ export function generateSuggestions(
 				);
 				const matched = matchFn(context.currentInput, examples);
 
-				suggestions.push(
-					...matched.map((ex) => ({
+				matched.forEach((ex) => {
+					addSuggestion({
 						label: `${context.column} ${context.operator} ${ex}`,
 						value: `${context.column} ${context.operator} ${ex}`,
-						type: "value" as const,
-						state: "value" as const,
-					})),
-				);
+						type: "value",
+						state: "value",
+					});
+				});
 
 				// If no input yet, show all examples
 				if (context.currentInput === "") {
-					suggestions.push(
-						...examples.map((ex) => ({
+					examples.forEach((ex) => {
+						addSuggestion({
 							label: `${context.column} ${context.operator} ${ex}`,
 							value: `${context.column} ${context.operator} ${ex}`,
-							type: "value" as const,
-							state: "value" as const,
-						})),
-					);
+							type: "value",
+							state: "value",
+						});
+					});
 				}
 			}
 		}
@@ -313,26 +320,26 @@ export function generateSuggestions(
 		const examples = generateExampleValues(context.column, context.operator);
 		const matched = matchFn(context.currentInput, examples);
 
-		suggestions.push(
-			...matched.map((ex) => ({
+		matched.forEach((ex) => {
+			addSuggestion({
 				label: `${context.column} ${context.operator} ${ex}`,
 				value: `${context.column} ${context.operator} ${ex}`,
-				type: "value" as const,
-				state: "value" as const,
-			})),
-		);
+				type: "value",
+				state: "value",
+			});
+		});
 
 		// Also show operators if nothing matched (in case user is refining)
 		if (matched.length === 0 && context.currentInput === "") {
 			// Show all example values when no input
-			suggestions.push(
-				...examples.map((ex) => ({
+			examples.forEach((ex) => {
+				addSuggestion({
 					label: `${context.column} ${context.operator} ${ex}`,
 					value: `${context.column} ${context.operator} ${ex}`,
-					type: "value" as const,
-					state: "value" as const,
-				})),
-			);
+					type: "value",
+					state: "value",
+				});
+			});
 		}
 	}
 
@@ -340,14 +347,14 @@ export function generateSuggestions(
 		// Show additional clauses (order by, limit)
 		const additional = ["sort by", "order by", "limit", "top", "first"];
 		const matched = matchFn(context.currentInput, additional);
-		suggestions.push(
-			...matched.map((clause) => ({
+		matched.forEach((clause) => {
+			addSuggestion({
 				label: `${clause}`,
 				value: ` ${clause} `,
-				type: "example" as const,
-				state: "complete" as const,
-			})),
-		);
+				type: "example",
+				state: "complete",
+			});
+		});
 	}
 
 	return suggestions;
