@@ -68,23 +68,7 @@ export function NaturalLanguageSearch({
 	// Setup listbox
 	const listbox = useListbox({
 		collection,
-		onValueChange() {
-			const selectedValue = listbox.selectedItems[0]?.value;
-			if (!selectedValue) return;
-
-			setInput(selectedValue);
-			setOpen(false);
-			setInputValue("");
-
-			// Parse and apply immediately
-			const parsed = parse(selectedValue, availableColumns);
-			setResult(parsed);
-			if (parsed.success && onApplyFilters) {
-				onApplyFilters(parsed);
-			}
-
-			triggerRef.current?.focus();
-		},
+		selectionMode: "none", // Prevent selection
 	});
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,15 +76,14 @@ export function NaturalLanguageSearch({
 		setInputValue(value);
 	};
 
-	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter" && inputValue.trim()) {
-			const parsed = parse(inputValue, availableColumns);
-			setResult(parsed);
-			if (parsed.success && onApplyFilters) {
-				onApplyFilters(parsed);
+	const handleListboxKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		// Only handle Enter key to fill input with highlighted item
+		if (e.key === "Enter") {
+			const highlightedItem = listbox.highlightedItem;
+			if (highlightedItem) {
+				e.preventDefault();
+				setInputValue(highlightedItem.value);
 			}
-			setInputValue("");
-			setOpen(false);
 		}
 	};
 
@@ -135,15 +118,19 @@ export function NaturalLanguageSearch({
 						<Popover.Positioner>
 							<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50 w-96 p-0">
 								<Listbox.RootProvider value={listbox}>
-									<input
-										type="text"
-										placeholder={placeholder}
-										value={inputValue}
+									<Listbox.Input
+										asChild
 										onChange={handleInputChange}
-										onKeyDown={handleKeyDown}
-										className="w-full h-9 px-3 py-2 bg-transparent outline-none border-b border-border placeholder:text-muted-foreground/70 focus:ring-0 focus:border-ring"
-										autoFocus
-									/>
+										onKeyDown={handleListboxKeyDown}
+									>
+										<input
+											type="text"
+											placeholder={placeholder}
+											value={inputValue}
+											className="w-full h-9 px-3 py-2 bg-transparent outline-none border-b border-border placeholder:text-muted-foreground/70 focus:ring-0 focus:border-ring"
+											autoFocus
+										/>
+									</Listbox.Input>
 									<Listbox.Content className="max-h-72 overflow-y-auto">
 										{collection.items.length > 0 ? (
 											collection.items.map((item) => (
