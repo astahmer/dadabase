@@ -11,7 +11,7 @@ import {
 } from "#src/lib/query-filter";
 import { Button } from "./ui/button";
 import { Stack } from "./ui/layout";
-import { X } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import {
 	Combobox,
 	ComboboxControl,
@@ -33,6 +33,8 @@ interface QueryFilterBuilderProps {
 		updates: Partial<FilterConditionExpression>,
 	) => void;
 	onRemoveCondition: (id: string) => void;
+	onAddCondition: () => void;
+	onClearAll: () => void;
 	onLogicalOperatorChange?: (operator: "and" | "or") => void;
 	logicalOperator: "and" | "or";
 	availableColumns: string[];
@@ -57,6 +59,8 @@ export const QueryFilterBuilder = ({
 	conditions,
 	onUpdateCondition,
 	onRemoveCondition,
+	onAddCondition,
+	onClearAll,
 	onLogicalOperatorChange,
 	logicalOperator,
 	availableColumns,
@@ -124,6 +128,8 @@ export const QueryFilterBuilder = ({
 						operatorCollection={operatorCollection}
 						onUpdate={onUpdateCondition}
 						onRemove={onRemoveCondition}
+						onAdd={onAddCondition}
+						onClearAll={onClearAll}
 						isLoading={isLoading}
 						showLogicalLabel={index === 0 && conditions.length > 1}
 						logicalOperator={logicalOperator}
@@ -147,6 +153,8 @@ interface FilterConditionRowProps {
 	}>;
 	onUpdate: (id: string, updates: Partial<FilterConditionExpression>) => void;
 	onRemove: (id: string) => void;
+	onAdd: () => void;
+	onClearAll: () => void;
 	isLoading?: boolean;
 	showLogicalLabel?: boolean;
 	logicalOperator?: "and" | "or";
@@ -159,6 +167,8 @@ const FilterConditionRow = ({
 	operatorCollection,
 	onUpdate,
 	onRemove,
+	onClearAll,
+	onAdd,
 	isLoading = false,
 	showLogicalLabel = false,
 	logicalOperator = "and",
@@ -184,6 +194,18 @@ const FilterConditionRow = ({
 				</div>
 			)}
 			<div className="flex gap-2 items-start">
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={() => {
+						onRemove(String(index));
+					}}
+					disabled={isLoading}
+					className="h-9 w-9 p-0"
+				>
+					<X className="h-4 w-4" />
+				</Button>
+
 				<Combobox
 					openOnClick
 					collection={columnList.collection}
@@ -265,13 +287,25 @@ const FilterConditionRow = ({
 				)}
 
 				<Button
-					variant="ghost"
+					variant="outline"
 					size="sm"
-					onClick={() => onRemove(String(index))}
+					onClick={() => onAdd?.()}
 					disabled={isLoading}
-					className="h-9 w-9 p-0"
+					className="h-9 gap-1"
+				>
+					<Plus className="h-4 w-4" />
+					<span className="text-xs">Add filter</span>
+				</Button>
+
+				<Button
+					variant="ghost"
+					onClick={() => {
+						onClearAll();
+					}}
+					disabled={isLoading}
 				>
 					<X className="h-4 w-4" />
+					<span className="text-xs">Clear filters</span>
 				</Button>
 			</div>
 		</div>

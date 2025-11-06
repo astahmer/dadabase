@@ -1,37 +1,31 @@
-import { useMemo, useState, useCallback } from "react";
-import {
-	useQuery,
-	useSuspenseQuery,
-	useQueryClient,
-	keepPreviousData,
-} from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Pagination } from "@ark-ui/react/pagination";
-import { Listbox, createListCollection } from "@ark-ui/react/listbox";
-import { useFilter } from "@ark-ui/react/locale";
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
-import {
-	whereClauseParamsToQueryFilter,
-	filterQueryValidConditions,
-} from "#src/lib/query-filter";
-import type { QueryFilterType } from "#src/lib/query-filter";
+import { redactConnectionUrl } from "#src/lib/redact-connection-url";
+import { Route } from "#src/routes/connections/$connectionName";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
-import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start";
-import { redactConnectionUrl } from "#src/lib/redact-connection-url";
-import { DataTable } from "../data-table";
+import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
+import { Listbox, createListCollection } from "@ark-ui/react/listbox";
+import { useFilter } from "@ark-ui/react/locale";
+import { Pagination } from "@ark-ui/react/pagination";
+import {
+	useQuery,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import type { ColumnDef } from "@tanstack/react-table";
+import { LayoutGrid, LucideListFilter, RefreshCw, Rows } from "lucide-react";
+import { useMemo, useState } from "react";
 import { ColumnVisibilityControls } from "../column-visibility";
+import { DataTable } from "../data-table";
 import { QueryFilterBuilder } from "../query-filter-builder";
-import { useDataTable } from "../use-data-table";
-import * as ArkSelect from "../ui/select";
 import { Button } from "../ui/button";
-import { RefreshCw, Rows, LayoutGrid, Plus } from "lucide-react";
-import { Route } from "#src/routes/connections/$connectionName";
 import { Stack } from "../ui/layout.tsx";
+import * as ArkSelect from "../ui/select";
+import { useDataTable } from "../use-data-table";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -61,27 +55,31 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
-	// Convert deserialized WhereClauseParams from URL to QueryFilter for the builder
-	// Zipson/TanStack Router automatically handles serialization/deserialization
 	const queryBuilder = useQueryBuilder(
 		search.filters ?? { conditions: [], logicalOperator: "and" },
 		(updatedFilter) => {
-			// const filterConfig = filterQueryValidConditions(updatedFilter);
+			let shouldOpenFilters = search.filtersOpened;
+			if (
+				!search.filters?.conditions?.length &&
+				updatedFilter.conditions.length
+			) {
+				shouldOpenFilters = true;
+			}
+
 			navigate({
 				search: (prev) => ({
 					...prev,
 					filters: updatedFilter || undefined,
+					filtersOpened: shouldOpenFilters,
 					offset: 0, // Reset to first page when filters change
 				}),
 			});
 		},
 	);
-	console.log(queryBuilder);
 
 	// Extract search params with defaults
 	const selectedSchema = search.schema;
 	const selectedTable = search.table;
-	console.log(selectedTable);
 	const viewMode = search.viewMode || "rows";
 	const limit = search.limit || 50;
 	const offset = search.offset || 0;
@@ -506,11 +504,22 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										<Button
 											variant="outline"
 											size="sm"
-											onClick={queryBuilder.addCondition}
+											onClick={() => {
+												if (queryBuilder.filter.conditions.length === 0) {
+													queryBuilder.addCondition();
+												} else {
+													navigate({
+														search: (prev) => ({
+															...prev,
+															filtersOpened: !prev.filtersOpened,
+														}),
+													});
+												}
+											}}
 											disabled={tableDataQuery.isLoading}
 										>
-											<Plus className="h-3 w-3 mr-1" />
-											Add Filter
+											<LucideListFilter className="h-3 w-3 mr-1" />
+											Filters {`(${search.filters?.conditions.length || 0})`}
 										</Button>
 									)}
 								</div>
@@ -526,18 +535,22 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							</div>
 
 							{/* Query Filter Builder */}
-							{viewMode === "rows" && columns.length > 0 && (
-								<QueryFilterBuilder
-									key={selectedTable}
-									conditions={queryBuilder.filter.conditions}
-									onUpdateCondition={queryBuilder.updateCondition}
-									onRemoveCondition={queryBuilder.removeCondition}
-									onLogicalOperatorChange={queryBuilder.setLogicalOperator}
-									logicalOperator={queryBuilder.filter.logicalOperator}
-									availableColumns={Object.keys(formattedTableData[0] || {})}
-									isLoading={tableDataQuery.isLoading}
-								/>
-							)}
+							{viewMode === "rows" &&
+								columns.length > 0 &&
+								search.filtersOpened && (
+									<QueryFilterBuilder
+										key={selectedTable}
+										conditions={queryBuilder.filter.conditions}
+										onUpdateCondition={queryBuilder.updateCondition}
+										onRemoveCondition={queryBuilder.removeCondition}
+										onLogicalOperatorChange={queryBuilder.setLogicalOperator}
+										onAddCondition={queryBuilder.addCondition}
+										onClearAll={queryBuilder.clearConditions}
+										logicalOperator={queryBuilder.filter.logicalOperator}
+										availableColumns={Object.keys(formattedTableData[0] || {})}
+										isLoading={tableDataQuery.isLoading}
+									/>
+								)}
 
 							{/* Content */}
 							<div className="flex-1 overflow-hidden flex flex-col">
