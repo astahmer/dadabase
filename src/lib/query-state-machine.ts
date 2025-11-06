@@ -1,9 +1,22 @@
 import { rankItem, rankings } from "@tanstack/match-sorter-utils";
 
-export type QueryState = "empty" | "column" | "operator" | "value" | "complete";
+export type QueryState =
+	| "empty"
+	| "column"
+	| "operator"
+	| "value"
+	| "sort_column"
+	| "sort_direction"
+	| "complete";
 
 export interface QueryToken {
-	type: "column" | "operator" | "value";
+	type:
+		| "column"
+		| "operator"
+		| "value"
+		| "sort_keyword"
+		| "sort_column"
+		| "sort_direction";
 	value: string;
 }
 
@@ -14,12 +27,21 @@ export interface QueryContext {
 	column?: string;
 	operator?: string;
 	value?: string;
+	sortKeyword?: string; // "sort by" or "order by"
+	sortColumn?: string;
+	sortDirection?: string; // "asc" or "desc"
 }
 
 export interface Suggestion {
 	label: string;
 	value: string;
-	type: "column" | "operator" | "value" | "example";
+	type:
+		| "column"
+		| "operator"
+		| "value"
+		| "example"
+		| "sort_column"
+		| "sort_direction";
 	state: QueryState;
 }
 
@@ -59,7 +81,7 @@ function matchFn(input: string, candidates: string[]): string[] {
  */
 export function analyzeQueryState(
 	input: string,
-	_availableColumns: string[],
+	availableColumns: string[],
 ): QueryContext {
 	const trimmed = input.trim();
 
@@ -69,6 +91,60 @@ export function analyzeQueryState(
 			tokens: [],
 			currentInput: "",
 		};
+	}
+
+	// Check for sort by / order by clause first
+	const sortMatch = parseSortClause(trimmed);
+	if (sortMatch && sortMatch.keyword) {
+		// We have a sort clause
+		if (sortMatch.direction) {
+			// Full sort clause: "sort by column asc"
+			return {
+				state: "complete",
+				tokens: [
+					{ type: "sort_keyword", value: sortMatch.keyword },
+					{ type: "sort_column", value: sortMatch.column || "" },
+					{ type: "sort_direction", value: sortMatch.direction },
+				],
+				currentInput: sortMatch.remaining || "",
+				sortKeyword: sortMatch.keyword,
+				sortColumn: sortMatch.column,
+				sortDirection: sortMatch.direction,
+			};
+		} else if (sortMatch.column) {
+			// Check if the column is a complete match or partial
+			const isCompleteColumn = availableColumns.includes(sortMatch.column);
+
+			if (isCompleteColumn) {
+				// Sort clause with column but no direction: "sort by column"
+				return {
+					state: "sort_direction",
+					tokens: [
+						{ type: "sort_keyword", value: sortMatch.keyword },
+						{ type: "sort_column", value: sortMatch.column },
+					],
+					currentInput: "",
+					sortKeyword: sortMatch.keyword,
+					sortColumn: sortMatch.column,
+				};
+			} else {
+				// Partial column match: "sort by cr" (waiting for user to complete or select)
+				return {
+					state: "sort_column",
+					tokens: [{ type: "sort_keyword", value: sortMatch.keyword }],
+					currentInput: sortMatch.column,
+					sortKeyword: sortMatch.keyword,
+				};
+			}
+		} else {
+			// Sort clause keyword only: "sort by"
+			return {
+				state: "sort_column",
+				tokens: [{ type: "sort_keyword", value: sortMatch.keyword }],
+				currentInput: "",
+				sortKeyword: sortMatch.keyword,
+			};
+		}
 	}
 
 	// Match operator pattern to identify what's been typed
@@ -192,6 +268,27 @@ export function analyzeQueryState(
 		column: beforeOperator,
 		operator,
 	};
+}
+
+// Check for sort by / order by clause at any point
+function parseSortClause(input: string): {
+	keyword?: string;
+	column?: string;
+	direction?: string;
+	remaining?: string;
+} | null {
+	const sortRegex =
+		/\b(sort\s+by|order\s+by)(?:\s+(\w+))?(?:\s+(asc|desc))?(?:\s+(.*))?$/i;
+	const match = sortRegex.exec(input);
+
+	if (!match) return null;
+
+	const keyword = match[1];
+	const column = match[2];
+	const direction = match[3];
+	const remaining = match[4];
+
+	return { keyword, column, direction, remaining };
 }
 
 /**
@@ -341,6 +438,33 @@ export function generateSuggestions(
 				});
 			});
 		}
+	}
+
+	if (context.state === "sort_column") {
+		// After "sort by", show available columns
+		const matched = matchFn(context.currentInput, availableColumns);
+		matched.forEach((col) => {
+			addSuggestion({
+				label: col,
+				value: `${context.sortKeyword} ${col}`,
+				type: "sort_column",
+				state: "sort_column",
+			});
+		});
+	}
+
+	if (context.state === "sort_direction") {
+		// After "sort by column", show asc/desc options
+		const directions = ["asc", "desc"];
+		const matched = matchFn(context.currentInput, directions);
+		matched.forEach((dir) => {
+			addSuggestion({
+				label: dir,
+				value: `${context.sortKeyword} ${context.sortColumn} ${dir}`,
+				type: "sort_direction",
+				state: "sort_direction",
+			});
+		});
 	}
 
 	if (context.state === "complete") {

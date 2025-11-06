@@ -73,6 +73,7 @@ export function NaturalLanguageSearch({
 	const listbox = useListbox({
 		collection,
 		selectionMode: "none", // Prevent selection
+		loopFocus: true,
 	});
 
 	// Setup listbox

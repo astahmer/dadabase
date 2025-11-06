@@ -156,6 +156,55 @@ describe("query-state-machine", () => {
 			const valueSuggestions = suggestions.filter((s) => s.type === "value");
 			expect(valueSuggestions.length).toBeGreaterThan(0);
 		});
+
+		it("should show columns after sort by", () => {
+			const context = analyzeQueryState("sort by ", columns);
+			const suggestions = generateSuggestions(context, columns);
+			const sortColumnSuggestions = suggestions.filter(
+				(s) => s.type === "sort_column",
+			);
+			expect(sortColumnSuggestions.length).toBeGreaterThan(0);
+			expect(sortColumnSuggestions.some((s) => s.label === "name")).toBe(true);
+		});
+
+		it("should filter sort columns by startsWith", () => {
+			const context = analyzeQueryState("sort by cr", columns);
+			const suggestions = generateSuggestions(context, columns);
+			const sortColumnSuggestions = suggestions.filter(
+				(s) => s.type === "sort_column",
+			);
+			expect(sortColumnSuggestions.some((s) => s.label === "created_at")).toBe(
+				true,
+			);
+		});
+
+		it("should show asc/desc after sort column", () => {
+			const context = analyzeQueryState("sort by name ", columns);
+			const suggestions = generateSuggestions(context, columns);
+			const sortDirectionSuggestions = suggestions.filter(
+				(s) => s.type === "sort_direction",
+			);
+			expect(sortDirectionSuggestions.length).toBe(2);
+			expect(sortDirectionSuggestions.map((s) => s.label)).toContain("asc");
+			expect(sortDirectionSuggestions.map((s) => s.label)).toContain("desc");
+		});
+
+		it("should handle order by keyword", () => {
+			const context = analyzeQueryState("order by ", columns);
+			const suggestions = generateSuggestions(context, columns);
+			const sortColumnSuggestions = suggestions.filter(
+				(s) => s.type === "sort_column",
+			);
+			expect(sortColumnSuggestions.length).toBeGreaterThan(0);
+		});
+
+		it("should remove duplicates from suggestions", () => {
+			const context = analyzeQueryState("name equals ", columns);
+			const suggestions = generateSuggestions(context, columns);
+			const labels = suggestions.map((s) => s.label);
+			const uniqueLabels = new Set(labels);
+			expect(labels.length).toBe(uniqueLabels.size);
+		});
 	});
 
 	describe("getInitialExamples", () => {

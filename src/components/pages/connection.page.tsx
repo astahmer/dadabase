@@ -304,6 +304,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		items: schemas.map((s: string) => ({ label: s, value: s })),
 	});
 
+	const filterConditions = search.filters?.conditions ?? [];
+
 	return (
 		<div className="h-screen bg-background flex flex-col">
 			{/* Header */}
@@ -541,9 +543,14 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											disabled={metadataQuery.isLoading}
 										>
 											<LucideListFilter className="h-3 w-3 mr-1" />
-											Filters
-											{` (${search.filters?.conditions.length || 0})`}
-											{(search.filters?.conditions ?? []).length > 0 ? (
+											{filterConditions.length > 0
+												? search.filtersOpened
+													? "Filters"
+													: "Open filters"
+												: "Add filter"}
+											{filterConditions.length > 0 &&
+												` (${search.filters?.conditions.length || 0})`}
+											{filterConditions.length > 0 ? (
 												search.filtersOpened ? (
 													<LucideChevronUp className="h-3 w-3 ml-1" />
 												) : (
