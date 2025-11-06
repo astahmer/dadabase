@@ -176,7 +176,6 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 					onClick={() => {
 						onRemove(String(index));
 					}}
-					disabled={isLoading}
 				>
 					<X />
 				</Button>
@@ -191,7 +190,6 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 					onInputValueChange={(details) =>
 						columnList.filter(details.inputValue)
 					}
-					disabled={isLoading}
 					className="flex-1 min-w-0"
 				>
 					<ComboboxControl size="sm">
@@ -221,7 +219,6 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 					onInputValueChange={(details) =>
 						operatorList.filter(details.inputValue)
 					}
-					disabled={isLoading}
 					className="flex-1 min-w-0"
 				>
 					<ComboboxControl size="sm">
@@ -258,7 +255,6 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 									: val,
 							});
 						}}
-						disabled={isLoading}
 					/>
 				)}
 
@@ -294,22 +290,12 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 					)}
 					{isLast && (
 						<>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => onAdd?.()}
-								disabled={isLoading}
-							>
+							<Button variant="outline" size="sm" onClick={() => onAdd?.()}>
 								<Plus />
 								<span className="text-xs">Add filter</span>
 							</Button>
 
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => onClearAll()}
-								disabled={isLoading}
-							>
+							<Button variant="ghost" size="sm" onClick={() => onClearAll()}>
 								<X />
 								<span className="text-xs">Clear all</span>
 							</Button>

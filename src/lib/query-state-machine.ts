@@ -437,8 +437,8 @@ export function getInitialExamples(availableColumns: string[]): Suggestion[] {
 	if (availableColumns.length > 0) {
 		const col1 = availableColumns[0];
 		suggestions.push({
-			label: `${col1} equals something`,
-			value: `${col1} equals something`,
+			label: `${col1} = something`,
+			value: `${col1} = something`,
 			type: "example",
 			state: "complete",
 		});
