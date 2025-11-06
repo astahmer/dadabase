@@ -515,7 +515,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									)}
 								</div>
 								{viewMode === "rows" && (
-									<ColumnVisibilityControls table={dataTable} minimal={true} />
+									<ColumnVisibilityControls
+										table={dataTable}
+										columnList={(tableColumnsQuery.data ?? []).map(
+											(col) => col.name,
+										)}
+										minimal={true}
+									/>
 								)}
 							</div>
 
@@ -538,8 +544,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								{viewMode === "structure" ? (
 									formattedTableData && formattedTableData.length > 0 ? (
 										<StructureTable
-											formattedTableData={formattedTableData}
-											columnMetadata={tableColumnsQuery.data}
+											columnMetadata={tableColumnsQuery.data ?? []}
 										/>
 									) : (
 										<div className="p-4 overflow-auto flex-1">
@@ -713,8 +718,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 };
 
 const StructureTable = (props: {
-	formattedTableData: Record<string, unknown>[];
-	columnMetadata?: Array<{
+	columnMetadata: Array<{
 		name: string;
 		dataType: string;
 		nullable: boolean;
@@ -723,99 +727,64 @@ const StructureTable = (props: {
 	}>;
 }) => {
 	{
-		const { formattedTableData, columnMetadata } = props;
+		const { columnMetadata } = props;
 
-		// Create structure metadata for columns using backend data when available
-		const structureData = Object.keys(formattedTableData[0]).map((colName) => {
-			const metadata = columnMetadata?.find((col) => col.name === colName);
-
-			if (metadata) {
-				return {
-					name: colName,
-					datatype: metadata.dataType,
-					nullable: metadata.nullable,
-					primaryKey: metadata.primaryKey,
-					defaultValue: metadata.defaultValue,
-				};
-			}
-
-			// Fallback to inference from data if metadata not available
-			const sample = formattedTableData[0][colName];
-			let dataType: string = typeof sample;
-			if (Array.isArray(sample)) {
-				dataType = "array";
-			} else if (sample === null) {
-				dataType = "null";
-			} else if (
-				sample instanceof Date ||
-				(typeof sample === "string" && /^\d{4}-\d{2}-\d{2}T/.test(sample))
-			) {
-				dataType = "timestamp";
-			}
-			return {
-				name: colName,
-				datatype: dataType,
-				nullable: formattedTableData.some((row) => row[colName] === null),
-				primaryKey: false,
-				defaultValue: null,
-			};
-		});
-
-		const structureColumns: Array<ColumnDef<(typeof structureData)[number]>> = [
-			{
-				accessorKey: "name",
-				header: "Name",
-				enableResizing: true,
-			},
-			{
-				accessorKey: "datatype",
-				header: "Data Type",
-				size: 120,
-				minSize: 80,
-				maxSize: 200,
-				enableResizing: true,
-				cell: (info) => (
-					<span className="text-xs font-mono">{info.getValue<string>()}</span>
-				),
-			},
-			{
-				accessorKey: "nullable",
-				header: "Nullable",
-				enableResizing: true,
-				cell: (info) => (
-					<span className="text-xs">
-						{info.getValue<boolean>() ? "Yes" : "No"}
-					</span>
-				),
-			},
-			{
-				accessorKey: "primaryKey",
-				header: "Primary Key",
-				enableResizing: true,
-				cell: (info) => (
-					<span className="text-xs">
-						{info.getValue<boolean>() ? "Yes" : "No"}
-					</span>
-				),
-			},
-			{
-				accessorKey: "defaultValue",
-				header: "Default Value",
-				enableResizing: true,
-				cell: (info) => {
-					const value = info.getValue<string | null>();
-					return (
-						<span className="text-xs font-mono">{value ? value : "—"}</span>
-					);
+		const structureColumns: Array<ColumnDef<(typeof columnMetadata)[number]>> =
+			[
+				{
+					accessorKey: "name",
+					header: "Name",
+					enableResizing: true,
 				},
-			},
-		];
+				{
+					accessorKey: "datatype",
+					header: "Data Type",
+					size: 120,
+					minSize: 80,
+					maxSize: 200,
+					enableResizing: true,
+					cell: (info) => (
+						<span className="text-xs font-mono">{info.getValue<string>()}</span>
+					),
+				},
+				{
+					accessorKey: "nullable",
+					header: "Nullable",
+					enableResizing: true,
+					cell: (info) => (
+						<span className="text-xs">
+							{info.getValue<boolean>() ? "Yes" : "No"}
+						</span>
+					),
+				},
+				{
+					accessorKey: "primaryKey",
+					header: "Primary Key",
+					enableResizing: true,
+					cell: (info) => (
+						<span className="text-xs">
+							{info.getValue<boolean>() ? "Yes" : "No"}
+						</span>
+					),
+				},
+				{
+					accessorKey: "defaultValue",
+					header: "Default Value",
+					enableResizing: true,
+					cell: (info) => {
+						const value = info.getValue<string | null>();
+						return (
+							<span className="text-xs font-mono">{value ? value : "—"}</span>
+						);
+					},
+				},
+			];
 
 		const structureTable = useDataTable({
-			data: structureData,
+			data: columnMetadata,
 			columns: structureColumns,
 			manualPagination: true,
-			rowCount: structureData.length,
+			rowCount: columnMetadata.length,
 		});
 
 		return (
