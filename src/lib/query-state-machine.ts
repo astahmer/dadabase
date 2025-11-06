@@ -71,50 +71,49 @@ export function analyzeQueryState(
 		};
 	}
 
-	// Split by common operator patterns to identify what's been typed
+	// Match operator pattern to identify what's been typed
 	const operatorRegex =
-		/\s+(equals?|contains?|like|includes|>|>=|<|<=|!=|<>|is)\s+/i;
-	const parts = trimmed.split(operatorRegex);
+		/\s+(equals?|contains?|like|includes|>|>=|<|<=|!=|<>|is)(?:\s+|$)/i;
+	const match = operatorRegex.exec(trimmed);
 
-	if (parts.length === 1) {
-		// Only column part, no operator yet
-		const columnPart = parts[0].trim();
+	if (!match) {
+		// No operator found yet - we're still in column state
 		return {
 			state: "column",
-			tokens: [{ type: "column", value: columnPart }],
-			currentInput: columnPart,
+			tokens: [{ type: "column", value: trimmed }],
+			currentInput: trimmed,
 		};
 	}
 
-	if (parts.length >= 3) {
-		// Have column, operator, and possibly value
-		const column = parts[0].trim();
-		const operator = parts[1].trim();
-		const value = parts.slice(2).join(" ").trim();
+	// We found an operator
+	const beforeOperator = trimmed.substring(0, match.index).trim();
+	const operator = match[1].trim();
+	const afterOperator = trimmed.substring(match.index + match[0].length).trim();
 
-		const tokens: QueryToken[] = [
-			{ type: "column", value: column },
-			{ type: "operator", value: operator },
-		];
+	const tokens: QueryToken[] = [
+		{ type: "column", value: beforeOperator },
+		{ type: "operator", value: operator },
+	];
 
-		if (value) {
-			tokens.push({ type: "value", value });
-		}
-
+	if (afterOperator) {
+		tokens.push({ type: "value", value: afterOperator });
 		return {
-			state: value ? "complete" : "value",
+			state: "complete",
 			tokens,
-			currentInput: value || "",
-			column,
+			currentInput: afterOperator,
+			column: beforeOperator,
 			operator,
-			value: value || undefined,
+			value: afterOperator,
 		};
 	}
 
+	// Operator found but no value yet
 	return {
-		state: "empty",
-		tokens: [],
-		currentInput: trimmed,
+		state: "value",
+		tokens,
+		currentInput: "",
+		column: beforeOperator,
+		operator,
 	};
 }
 
@@ -195,6 +194,19 @@ export function generateSuggestions(
 				state: "value" as const,
 			})),
 		);
+
+		// Also show operators if nothing matched (in case user is refining)
+		if (matched.length === 0 && context.currentInput === "") {
+			// Show all example values when no input
+			suggestions.push(
+				...examples.map((ex) => ({
+					label: `${context.column} ${context.operator} ${ex}`,
+					value: `${context.column} ${context.operator} ${ex}`,
+					type: "value" as const,
+					state: "value" as const,
+				})),
+			);
+		}
 	}
 
 	if (context.state === "complete") {

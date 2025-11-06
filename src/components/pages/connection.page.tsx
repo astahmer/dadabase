@@ -73,6 +73,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					filters: updatedFilter || undefined,
 					filtersOpened: shouldOpenFilters,
 					offset: 0, // Reset to first page when filters change
+					limit: 50,
 				}),
 			});
 		},
