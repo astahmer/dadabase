@@ -33,6 +33,29 @@ export function ColumnVisibilityControls<TData>(
 		[props.columnList],
 	);
 
+	const allVisible = useMemo(
+		() =>
+			allColumns.every((col) => {
+				const tableCol = table.getColumn(col.value);
+				return tableCol?.getIsVisible?.() ?? true;
+			}),
+		[allColumns, table],
+	);
+
+	const handleSelectAll = () => {
+		allColumns.forEach((col) => {
+			const column = table.getColumn(col.value);
+			const isVisible = column?.getIsVisible?.() ?? true;
+			if (allVisible && isVisible) {
+				// Unselect all
+				column?.toggleVisibility?.(false);
+			} else if (!allVisible && !isVisible) {
+				// Select all
+				column?.toggleVisibility?.(true);
+			}
+		});
+	};
+
 	const filters = useFilter({ sensitivity: "base" });
 	const list = useListCollection({
 		initialItems: allColumns,
@@ -67,7 +90,15 @@ export function ColumnVisibilityControls<TData>(
 					<Popover.Positioner>
 						<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50">
 							<Listbox.Root collection={list.collection}>
-								<div className="p-2 border-b border-border">
+								<div className="p-2 border-b border-border space-y-2">
+									<Button
+										size="sm"
+										variant="outline"
+										className="w-full text-xs h-7"
+										onClick={handleSelectAll}
+									>
+										{allVisible ? "Unselect All" : "Select All"}
+									</Button>
 									<input
 										placeholder="Filter columns..."
 										className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
