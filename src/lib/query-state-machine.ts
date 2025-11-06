@@ -326,15 +326,22 @@ export function generateSuggestions(
 		// Filter columns based on what's been typed
 		const matched = matchFn(context.currentInput, availableColumns);
 
-		// Show matching columns
-		matched.forEach((col) => {
-			addSuggestion({
-				label: col,
-				value: col + " ",
-				type: "column",
-				state: "column",
+		// If there's no input or multiple matches, show the matching columns
+		// Otherwise, only show operator suggestions for the best match
+		const shouldShowBareColumns =
+			context.currentInput === "" ? matched.length > 1 : matched.length > 0;
+
+		if (shouldShowBareColumns) {
+			// Show matching columns
+			matched.forEach((col) => {
+				addSuggestion({
+					label: col,
+					value: col + " ",
+					type: "column",
+					state: "column",
+				});
 			});
-		});
+		}
 
 		// If there's a good match, also show operator suggestions
 		const bestMatch = matched[0];

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNaturalLanguageSearch } from "#src/hooks/use-natural-language-search";
 import { Button } from "./ui/button";
-import { Lightbulb, AlertCircle, ChevronDown } from "lucide-react";
+import { Lightbulb, ChevronDown } from "lucide-react";
 import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
 import {
@@ -15,7 +15,6 @@ import {
 	generateSuggestions,
 	getInitialExamples,
 } from "#src/lib/query-state-machine";
-import { Tooltip } from "./ui/tooltip.tsx";
 import { cn } from "../lib/utils.ts";
 import { Kbd } from "./ui/kbd.tsx";
 
@@ -56,6 +55,12 @@ export function NaturalLanguageSearch({
 
 		const context = analyzeQueryState(inputValue, availableColumns);
 		return generateSuggestions(context, availableColumns);
+	}, [inputValue, availableColumns]);
+
+	// Track query state for determining when query is complete
+	const queryState = useMemo(() => {
+		if (!inputValue) return null;
+		return analyzeQueryState(inputValue, availableColumns);
 	}, [inputValue, availableColumns]);
 
 	// Build listbox collection
@@ -177,14 +182,15 @@ export function NaturalLanguageSearch({
 												</div>
 											</Listbox.Item>
 										))
-									) : inputValue && result?.success ? (
+									) : inputValue &&
+										(result?.success || queryState?.state === "complete") ? (
 										// Show success message if query is complete and valid
 										<Button
 											type="button"
 											variant="link"
 											size="sm"
 											onClick={() => {
-												onApplyFilters(result);
+												onApplyFilters(result || {});
 												clearState();
 											}}
 											className="w-full rounded-none"
