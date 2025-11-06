@@ -121,6 +121,20 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		// placeholderData: keepPreviousData,
 		enabled: !!connection?.url && !!search.schema && !!search.table,
 	});
+	// console.log("query", {
+	// 	url: connectionUrl,
+	// 	schema: search.schema || "",
+	// 	table: search.table || "",
+	// 	limit: search.limit,
+	// 	offset: search.offset,
+	// 	orderBy: search.orderBy,
+	// 	orderDirection: search.orderDirection,
+	// 	filters: queryBuilder.getWhereClause() ?? {
+	// 		conditions: [],
+	// 		logicalOperator: "and",
+	// 	},
+	// });
+	// console.log(rowsQuery.data);
 
 	const metadataQuery = useQuery({
 		...getTableColumnsQueryOptions({

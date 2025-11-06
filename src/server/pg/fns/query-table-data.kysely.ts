@@ -123,16 +123,16 @@ export const queryTableData = (input: {
 
 			// Add ordering if specified
 			if (orderBy) {
-				query = query.orderBy(sql.ref(orderBy) as any);
-				if (orderDirection === "desc") {
-					query = query.orderBy(sql`${sql.ref(orderBy)} DESC` as any);
-				}
+				query.orderBy(
+					sql.ref(orderBy),
+					orderDirection === "desc" ? "desc" : "asc",
+				);
 			}
 
 			// Add limit and offset for pagination
 			query = query.limit(limit).offset(offset);
 
-			// console.log("Main SQL:", query.compile().sql);
+			console.log("Main SQL:", query.compile().sql);
 			const rows = yield* db.execute(query as any);
 			return { rows, rowCount };
 		} catch (e) {

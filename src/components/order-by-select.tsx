@@ -3,7 +3,7 @@ import { Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
-import { ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
+import { ArrowUp, ArrowDown, ChevronsUpDown, ArrowDownUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "./ui/button";
 
@@ -88,7 +88,7 @@ export function OrderBySelect(props: OrderBySelectProps) {
 				<Popover.Trigger asChild>
 					<Button variant="outline" size="sm" className={buttonClassName}>
 						<span className="text-xs font-medium text-foreground uppercase tracking-wide flex items-center gap-1">
-							↗️ Sort
+							<ArrowDownUp /> Sort
 							{orderBy && (
 								<>
 									<span className="font-normal text-foreground/70">
@@ -170,7 +170,15 @@ export function OrderBySelect(props: OrderBySelectProps) {
 														onClick={(e: React.MouseEvent<HTMLDivElement>) => {
 															e.preventDefault();
 															e.stopPropagation();
-															onOrderChange(item.value, orderDirection);
+															// If already selected, toggle direction; otherwise select with current direction
+															if (isSelected) {
+																onOrderChange(
+																	item.value,
+																	orderDirection === "asc" ? "desc" : "asc",
+																);
+															} else {
+																onOrderChange(item.value, orderDirection);
+															}
 															setOpen(false);
 														}}
 													>
