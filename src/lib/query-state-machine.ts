@@ -547,8 +547,8 @@ function generateExampleValues(column: string, _operator: string): string[] {
 export function getInitialExamples(availableColumns: string[]): Suggestion[] {
 	const suggestions: Suggestion[] = [];
 
-	// Show first few columns as column examples
-	availableColumns.slice(0, 3).forEach((col) => {
+	// Show all available columns as column examples
+	availableColumns.forEach((col) => {
 		suggestions.push({
 			label: col,
 			value: col + " ",
