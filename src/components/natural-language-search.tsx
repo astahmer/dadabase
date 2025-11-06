@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useNaturalLanguageSearch } from "#src/hooks/use-natural-language-search";
 import { Button } from "./ui/button";
 import { Lightbulb, AlertCircle, ChevronDown } from "lucide-react";
@@ -42,8 +42,6 @@ export function NaturalLanguageSearch({
 	const [result, setResult] = useState<ParsedNLQuery | null>(null);
 	const [open, setOpen] = useState(false);
 
-	const triggerRef = useRef<HTMLButtonElement | null>(null);
-
 	const { parse } = useNaturalLanguageSearch();
 
 	// Generate context-aware suggestions based on input
@@ -75,29 +73,25 @@ export function NaturalLanguageSearch({
 
 	// Setup listbox
 	const onValueChange = (selectedValue: string) => {
+		// Fill the input with the suggestion
 		setInputValue(selectedValue);
+
 		if (!selectedValue) {
 			setResult(null);
 			listbox.clearValue();
 			return;
 		}
 
-		// Fill the input with the suggestion
-		setInputValue(selectedValue);
-
 		// Parse and check if it's complete
 		const parsed = parse(selectedValue, availableColumns);
 		setResult(parsed);
-		console.log(parsed);
 
 		// If query is complete and valid, apply filters immediately
 		if (parsed.success) {
 			setInput(selectedValue);
-			setOpen(false);
 			if (onApplyFilters) {
 				onApplyFilters(parsed);
 			}
-			triggerRef.current?.focus();
 		}
 	};
 
@@ -134,7 +128,6 @@ export function NaturalLanguageSearch({
 				<Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
 					<Popover.Trigger asChild>
 						<Button
-							ref={triggerRef}
 							variant="outline"
 							size="sm"
 							className="justify-between w-full text-left font-normal"
@@ -155,6 +148,7 @@ export function NaturalLanguageSearch({
 									>
 										<input
 											type="text"
+											id="nls-input"
 											placeholder={placeholder}
 											value={inputValue}
 											className="w-full h-9 px-3 py-2 bg-transparent outline-none border-b border-border placeholder:text-muted-foreground/70 focus:ring-0 focus:border-ring"

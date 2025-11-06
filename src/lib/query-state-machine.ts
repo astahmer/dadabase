@@ -39,13 +39,13 @@ export const OPERATOR_LABELS = OPERATORS.map((op) => op.label);
 /**
  * Fuzzy match helper
  */
-function fuzzyMatch(input: string, candidates: string[]): string[] {
+function matchFn(input: string, candidates: string[]): string[] {
 	if (!input) return candidates;
 
 	const scored = candidates
 		.map((candidate) => ({
 			candidate,
-			score: rankItem(candidate, input, { threshold: rankings.CONTAINS }),
+			score: rankItem(candidate, input, { threshold: rankings.STARTS_WITH }),
 		}))
 		.filter((item) => item.score.passed)
 		.sort((a, b) => b.score.rank - a.score.rank)
@@ -78,6 +78,45 @@ export function analyzeQueryState(
 	const match = operatorRegex.exec(trimmed);
 
 	if (!match) {
+		// Check if we have a symbol operator with space before it (e.g., "created_at !" or "created_at =")
+		const symbolWithSpaceRegex = /^(\w+)\s+([!<>=]+)(\s*)(.*)$/;
+		const symbolWithSpaceMatch = symbolWithSpaceRegex.exec(trimmed);
+
+		if (symbolWithSpaceMatch) {
+			const column = symbolWithSpaceMatch[1];
+			const partialOperator = symbolWithSpaceMatch[2];
+			const afterOperator = symbolWithSpaceMatch[4];
+
+			// If there's content after operator, it's complete
+			if (afterOperator.trim()) {
+				return {
+					state: "complete",
+					tokens: [
+						{ type: "column", value: column },
+						{ type: "operator", value: partialOperator },
+						{ type: "value", value: afterOperator },
+					],
+					currentInput: afterOperator,
+					column,
+					operator: partialOperator,
+					value: afterOperator,
+				};
+			}
+
+			// Operator found but no value yet - we're in "operator" state
+			// This handles cases like "created_at !" where the user might want "!="
+			return {
+				state: "operator",
+				tokens: [
+					{ type: "column", value: column },
+					{ type: "operator", value: partialOperator },
+				],
+				currentInput: "",
+				column,
+				operator: partialOperator,
+			};
+		}
+
 		// Check if we have a symbol operator without space before it (e.g., "created_at=")
 		const symbolOnlyRegex = /(\w+)(>=|<=|!=|<>|[=><])\s*(.*)$/;
 		const symbolMatch = symbolOnlyRegex.exec(trimmed);
@@ -145,9 +184,9 @@ export function analyzeQueryState(
 		};
 	}
 
-	// Operator found but no value yet
+	// Operator found but no value yet - return "operator" state
 	return {
-		state: "value",
+		state: "operator",
 		tokens,
 		currentInput: "",
 		column: beforeOperator,
@@ -166,7 +205,7 @@ export function generateSuggestions(
 
 	if (context.state === "empty") {
 		// Show all available columns as column suggestions
-		const matched = fuzzyMatch(context.currentInput, availableColumns);
+		const matched = matchFn(context.currentInput, availableColumns);
 		suggestions.push(
 			...matched.map((col) => ({
 				label: col,
@@ -179,7 +218,7 @@ export function generateSuggestions(
 
 	if (context.state === "column") {
 		// Filter columns based on what's been typed
-		const matched = fuzzyMatch(context.currentInput, availableColumns);
+		const matched = matchFn(context.currentInput, availableColumns);
 
 		// Show matching columns
 		suggestions.push(
@@ -209,28 +248,62 @@ export function generateSuggestions(
 	if (context.state === "operator") {
 		// Show value suggestions for the current operator
 		if (context.column && context.operator) {
-			const examples = generateExampleValues(context.column, context.operator);
-			const matched = fuzzyMatch(context.currentInput, examples);
+			// Check if operator is a symbol operator (including single symbols like "!", "=", "<", ">")
+			const isSymbolOperator = /^[!<>=]+$/.test(context.operator);
 
-			suggestions.push(
-				...matched.map((ex) => ({
-					label: `${context.column} ${context.operator} ${ex}`,
-					value: `${context.column} ${context.operator} ${ex}`,
-					type: "value" as const,
-					state: "value" as const,
-				})),
-			);
+			if (isSymbolOperator) {
+				// Show complete operators that match the symbol(s)
+				const operatorLower = context.operator.toLowerCase();
+				const matchingOperators = OPERATOR_LABELS.filter((op) => {
+					// Get all symbols for this operator
+					const operatorDef = OPERATORS.find((o) => o.label === op);
+					if (!operatorDef) return false;
+					// Check if any symbol matches exactly or could be extended (partial match)
+					return operatorDef.symbols.some(
+						(sym) => sym === operatorLower || sym.startsWith(operatorLower),
+					);
+				});
 
-			// If no input yet, show all examples
-			if (context.currentInput === "") {
+				// Remove duplicates and show all matching operators
+				const uniqueMatches = Array.from(new Set(matchingOperators));
+				if (uniqueMatches.length > 0) {
+					suggestions.push(
+						...uniqueMatches.map((op) => ({
+							label: `${context.column} ${op}`,
+							value: `${context.column} ${op} `,
+							type: "operator" as const,
+							state: "operator" as const,
+						})),
+					);
+				}
+			} else {
+				// Full operator, show value examples
+				const examples = generateExampleValues(
+					context.column,
+					context.operator,
+				);
+				const matched = matchFn(context.currentInput, examples);
+
 				suggestions.push(
-					...examples.map((ex) => ({
+					...matched.map((ex) => ({
 						label: `${context.column} ${context.operator} ${ex}`,
 						value: `${context.column} ${context.operator} ${ex}`,
 						type: "value" as const,
 						state: "value" as const,
 					})),
 				);
+
+				// If no input yet, show all examples
+				if (context.currentInput === "") {
+					suggestions.push(
+						...examples.map((ex) => ({
+							label: `${context.column} ${context.operator} ${ex}`,
+							value: `${context.column} ${context.operator} ${ex}`,
+							type: "value" as const,
+							state: "value" as const,
+						})),
+					);
+				}
 			}
 		}
 	}
@@ -238,7 +311,7 @@ export function generateSuggestions(
 	if (context.state === "value" && context.column && context.operator) {
 		// Show example values based on column and operator
 		const examples = generateExampleValues(context.column, context.operator);
-		const matched = fuzzyMatch(context.currentInput, examples);
+		const matched = matchFn(context.currentInput, examples);
 
 		suggestions.push(
 			...matched.map((ex) => ({
@@ -266,7 +339,7 @@ export function generateSuggestions(
 	if (context.state === "complete") {
 		// Show additional clauses (order by, limit)
 		const additional = ["sort by", "order by", "limit", "top", "first"];
-		const matched = fuzzyMatch(context.currentInput, additional);
+		const matched = matchFn(context.currentInput, additional);
 		suggestions.push(
 			...matched.map((clause) => ({
 				label: `${clause}`,

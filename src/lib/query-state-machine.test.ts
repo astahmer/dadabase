@@ -21,9 +21,9 @@ describe("query-state-machine", () => {
 			expect(result.currentInput).toBe("na");
 		});
 
-		it("should detect value state after operator", () => {
+		it("should detect operator state after operator", () => {
 			const result = analyzeQueryState("name equals ", columns);
-			expect(result.state).toBe("value");
+			expect(result.state).toBe("operator");
 			expect(result.column).toBe("name");
 			expect(result.operator).toBe("equals");
 		});
@@ -65,6 +65,61 @@ describe("query-state-machine", () => {
 			expect(result.state).toBe("operator");
 			expect(result.column).toBe("age");
 			expect(result.operator).toBe(">=");
+		});
+
+		it("should detect operator state with space before symbol operator", () => {
+			const result = analyzeQueryState("created_at !", columns);
+			expect(result.state).toBe("operator");
+			expect(result.column).toBe("created_at");
+			expect(result.operator).toBe("!");
+		});
+
+		it("should detect operator state with space before equals symbol", () => {
+			const result = analyzeQueryState("name =", columns);
+			expect(result.state).toBe("operator");
+			expect(result.column).toBe("name");
+			expect(result.operator).toBe("=");
+		});
+
+		it("should detect operator state with space before greater than symbol", () => {
+			const result = analyzeQueryState("age >", columns);
+			expect(result.state).toBe("operator");
+			expect(result.column).toBe("age");
+			expect(result.operator).toBe(">");
+		});
+	});
+
+	describe("generateSuggestions - operator state with partial symbols", () => {
+		it("should show operator suggestions for partial ! symbol", () => {
+			const context = analyzeQueryState("created_at !", columns);
+			const suggestions = generateSuggestions(context, columns);
+			const operatorSuggestions = suggestions.filter(
+				(s) => s.type === "operator",
+			);
+			// Should suggest "!= (not equal)" since "!" matches "!="
+			expect(
+				operatorSuggestions.some((s) => s.label.includes("!= (not equal)")),
+			).toBe(true);
+		});
+
+		it("should show operator suggestions for partial = symbol", () => {
+			const context = analyzeQueryState("name =", columns);
+			const suggestions = generateSuggestions(context, columns);
+			const operatorSuggestions = suggestions.filter(
+				(s) => s.type === "operator",
+			);
+			// Should suggest "equals" since "=" matches "=" in symbols
+			expect(operatorSuggestions.some((s) => s.label.includes("equals"))).toBe(
+				true,
+			);
+		});
+
+		it("should show value suggestions for complete operators", () => {
+			const context = analyzeQueryState("name equals ", columns);
+			const suggestions = generateSuggestions(context, columns);
+			const valueSuggestions = suggestions.filter((s) => s.type === "value");
+			// Should show example values, not operators
+			expect(valueSuggestions.length).toBeGreaterThan(0);
 		});
 	});
 
