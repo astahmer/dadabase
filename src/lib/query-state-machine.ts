@@ -72,11 +72,49 @@ export function analyzeQueryState(
 	}
 
 	// Match operator pattern to identify what's been typed
+	// Includes both word operators (equals, contains, etc.) and symbol operators (=, !=, >, >=, <, <=, <>)
 	const operatorRegex =
 		/\s+(equals?|contains?|like|includes|>|>=|<|<=|!=|<>|is)(?:\s+|$)/i;
 	const match = operatorRegex.exec(trimmed);
 
 	if (!match) {
+		// Check if we have a symbol operator without space before it (e.g., "created_at=")
+		const symbolOnlyRegex = /(\w+)(>=|<=|!=|<>|[=><])\s*(.*)$/;
+		const symbolMatch = symbolOnlyRegex.exec(trimmed);
+
+		if (symbolMatch) {
+			const column = symbolMatch[1];
+			const operator = symbolMatch[2];
+			const afterOperator = symbolMatch[3];
+
+			if (afterOperator.trim()) {
+				return {
+					state: "complete",
+					tokens: [
+						{ type: "column", value: column },
+						{ type: "operator", value: operator },
+						{ type: "value", value: afterOperator },
+					],
+					currentInput: afterOperator,
+					column,
+					operator,
+					value: afterOperator,
+				};
+			}
+
+			// Operator found but no value yet
+			return {
+				state: "operator",
+				tokens: [
+					{ type: "column", value: column },
+					{ type: "operator", value: operator },
+				],
+				currentInput: "",
+				column,
+				operator,
+			};
+		}
+
 		// No operator found yet - we're still in column state
 		return {
 			state: "column",
@@ -169,16 +207,32 @@ export function generateSuggestions(
 	}
 
 	if (context.state === "operator") {
-		// Show operator suggestions based on partial input
-		const matched = fuzzyMatch(context.currentInput, OPERATOR_LABELS);
-		suggestions.push(
-			...matched.map((op) => ({
-				label: `${context.column} ${op}`,
-				value: `${context.column} ${op} `,
-				type: "operator" as const,
-				state: "operator" as const,
-			})),
-		);
+		// Show value suggestions for the current operator
+		if (context.column && context.operator) {
+			const examples = generateExampleValues(context.column, context.operator);
+			const matched = fuzzyMatch(context.currentInput, examples);
+
+			suggestions.push(
+				...matched.map((ex) => ({
+					label: `${context.column} ${context.operator} ${ex}`,
+					value: `${context.column} ${context.operator} ${ex}`,
+					type: "value" as const,
+					state: "value" as const,
+				})),
+			);
+
+			// If no input yet, show all examples
+			if (context.currentInput === "") {
+				suggestions.push(
+					...examples.map((ex) => ({
+						label: `${context.column} ${context.operator} ${ex}`,
+						value: `${context.column} ${context.operator} ${ex}`,
+						type: "value" as const,
+						state: "value" as const,
+					})),
+				);
+			}
+		}
 	}
 
 	if (context.state === "value" && context.column && context.operator) {

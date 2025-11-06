@@ -35,6 +35,37 @@ describe("query-state-machine", () => {
 			expect(result.operator).toBe("equals");
 			expect(result.value).toBe("john");
 		});
+
+		it("should detect symbol operators with space", () => {
+			const result = analyzeQueryState("created_at != 2024", columns);
+			expect(result.state).toBe("complete");
+			expect(result.column).toBe("created_at");
+			expect(result.operator).toBe("!=");
+			expect(result.value).toBe("2024");
+		});
+
+		it("should detect symbol operators without space", () => {
+			const result = analyzeQueryState("created_at!=2024", columns);
+			expect(result.state).toBe("complete");
+			expect(result.column).toBe("created_at");
+			expect(result.operator).toBe("!=");
+			expect(result.value).toBe("2024");
+		});
+
+		it("should detect equals symbol operator", () => {
+			const result = analyzeQueryState("name=john", columns);
+			expect(result.state).toBe("complete");
+			expect(result.column).toBe("name");
+			expect(result.operator).toBe("=");
+			expect(result.value).toBe("john");
+		});
+
+		it("should detect operator state after symbol operator", () => {
+			const result = analyzeQueryState("age>=", columns);
+			expect(result.state).toBe("operator");
+			expect(result.column).toBe("age");
+			expect(result.operator).toBe(">=");
+		});
 	});
 
 	describe("generateSuggestions", () => {

@@ -69,6 +69,27 @@ export function NaturalLanguageSearch({
 	const listbox = useListbox({
 		collection,
 		selectionMode: "none", // Prevent selection
+		onValueChange(details) {
+			const selectedValue = details.value?.[0];
+			if (!selectedValue) return;
+
+			// Fill the input with the suggestion
+			setInputValue(selectedValue);
+
+			// Parse and check if it's complete
+			const parsed = parse(selectedValue, availableColumns);
+			setResult(parsed);
+
+			// If query is complete and valid, apply filters immediately
+			if (parsed.success) {
+				setInput(selectedValue);
+				setOpen(false);
+				if (onApplyFilters) {
+					onApplyFilters(parsed);
+				}
+				triggerRef.current?.focus();
+			}
+		},
 	});
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,6 +159,7 @@ export function NaturalLanguageSearch({
 													key={item.value}
 													item={item}
 													className="px-3 py-2 text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent data-highlighted:text-accent-foreground transition-colors text-foreground truncate"
+													onClick={() => setInputValue(item.value)}
 												>
 													<div className="flex items-center gap-2 justify-between">
 														<span>{item.label}</span>
@@ -149,6 +171,11 @@ export function NaturalLanguageSearch({
 													</div>
 												</Listbox.Item>
 											))
+										) : inputValue && result?.success ? (
+											// Show success message if query is complete and valid
+											<div className="px-3 py-3 text-xs text-center bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 font-medium">
+												✓ Query complete and valid!
+											</div>
 										) : (
 											<div className="px-3 py-2 text-xs text-muted-foreground text-center">
 												No suggestions available
