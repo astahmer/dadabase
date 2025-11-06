@@ -26,7 +26,7 @@ import { Button } from "../ui/button";
 import { Stack } from "../ui/layout.tsx";
 import * as ArkSelect from "../ui/select";
 import { useDataTable } from "../use-data-table";
-import { Input } from "../ui/input.tsx";
+import { NaturalLanguageSearch } from "../natural-language-search";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -524,7 +524,61 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										</Button>
 									)}
 								</div>
-								<Input size="sm" className="mx-4" />
+								{viewMode === "rows" && (
+									<NaturalLanguageSearch
+										availableColumns={Object.keys(formattedTableData[0] || {})}
+										onApplyFilters={(filters, orderBy, limit) => {
+											// queryBuilder.clearConditions();
+											// filters.forEach(() => {
+											// 	queryBuilder.addCondition();
+											// });
+											console.log(filters);
+											filters.forEach((f, i) => {
+												// Map NL operators to query filter operators
+												const operatorMap: Record<string, any> = {
+													eq: "equals",
+													gt: "greater_than",
+													lt: "less_than",
+													gte: "greater_than_or_equal",
+													lte: "less_than_or_equal",
+													contains: "contains",
+													in: "in",
+													not_eq: "not_equals",
+													not_contains: "not_contains",
+												};
+
+												const value = Array.isArray(f.value)
+													? f.value.map((v) => String(v))
+													: String(f.value);
+
+												queryBuilder.updateCondition(String(i), {
+													column: f.field,
+													operator: operatorMap[f.operator] || "equals",
+													value,
+												});
+											});
+
+											if (orderBy) {
+												navigate({
+													search: (prev) => ({
+														...prev,
+														orderBy: orderBy.field,
+														orderDirection: orderBy.direction,
+													}),
+												});
+											}
+
+											if (limit) {
+												navigate({
+													search: (prev) => ({
+														...prev,
+														limit: limit,
+													}),
+												});
+											}
+										}}
+									/>
+								)}
 								{viewMode === "rows" && (
 									<ColumnVisibilityControls
 										table={dataTable}
