@@ -23,11 +23,7 @@ export function ColumnVisibilityControls<TData>(
 	const allColumns = useMemo(
 		() =>
 			props.columnList.map((col) => {
-				const tableCol = table.getColumn(col);
-				return {
-					label: (tableCol?.columnDef.header as string | undefined) || col,
-					value: col,
-				};
+				return { label: col, value: col };
 			}),
 		[props.columnList],
 	);

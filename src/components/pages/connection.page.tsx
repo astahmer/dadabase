@@ -552,25 +552,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											) : null}
 										</Button>
 									)}
-									{search.viewMode === "rows" && (
-										<OrderBySelect
-											columnList={columnMetadata.map((col) => col.name)}
-											orderBy={search.orderBy}
-											orderDirection={search.orderDirection}
-											onOrderChange={(orderBy, direction) => {
-												navigate({
-													search: (prev) => ({
-														...prev,
-														orderBy,
-														orderDirection: direction || "asc",
-														offset: 0,
-													}),
-												});
-											}}
-											getColumnLabel={(col) => col}
-											minimal
-										/>
-									)}
 								</div>
 								{search.viewMode === "rows" && (
 									<NaturalLanguageSearch
@@ -653,6 +634,25 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										table={dataTable}
 										columnList={columnMetadata.map((col) => col.name)}
 										minimal={true}
+									/>
+								)}
+								{search.viewMode === "rows" && (
+									<OrderBySelect
+										columnList={columnMetadata.map((col) => col.name)}
+										orderBy={search.orderBy}
+										orderDirection={search.orderDirection}
+										onOrderChange={(orderBy, direction) => {
+											navigate({
+												search: (prev) => ({
+													...prev,
+													orderBy,
+													orderDirection: direction || "asc",
+													offset: 0,
+												}),
+											});
+										}}
+										getColumnLabel={(col) => col}
+										minimal
 									/>
 								)}
 							</HStack>

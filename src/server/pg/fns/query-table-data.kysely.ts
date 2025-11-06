@@ -123,8 +123,8 @@ export const queryTableData = (input: {
 
 			// Add ordering if specified
 			if (orderBy) {
-				query.orderBy(
-					sql.ref(orderBy),
+				query = query.orderBy(
+					orderBy,
 					orderDirection === "desc" ? "desc" : "asc",
 				);
 			}
