@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNaturalLanguageSearch } from "#src/hooks/use-natural-language-search";
-import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { Lightbulb, AlertCircle, X } from "lucide-react";
+import { Lightbulb, AlertCircle } from "lucide-react";
 import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
@@ -34,49 +33,17 @@ export function NaturalLanguageSearch({
 }: NaturalLanguageSearchProps) {
 	const [input, setInput] = useState("");
 	const [result, setResult] = useState<ParsedNLQuery | null>(null);
+	const [open, setOpen] = useState(false);
 
 	const { parse } = useNaturalLanguageSearch();
 
-	const [open, setOpen] = useState(false);
-
-	const handleSearch = () => {
-		if (!input.trim()) {
-			setResult(null);
-			return;
-		}
-
-		const parsed = parse(input, availableColumns);
-		setResult(parsed);
-
-		if (parsed.success && onApplyFilters) {
-			onApplyFilters(parsed);
-		}
-	};
-
-	const handleClear = () => {
-		setInput("");
-		setResult(null);
-		if (onApplyFilters) {
-			onApplyFilters({ filters: [] });
-		}
-	};
-
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
-		handleSearch();
-	};
-
-	// Generate context-aware suggestions
+	// Generate context-aware suggestions based on input
 	const suggestions = useMemo(() => {
 		if (!input) {
-			// Show initial examples when empty
 			return getInitialExamples(availableColumns);
 		}
 
-		// Analyze current query state
 		const context = analyzeQueryState(input, availableColumns);
-
-		// Generate suggestions based on state
 		return generateSuggestions(context, availableColumns);
 	}, [input, availableColumns]);
 
@@ -92,14 +59,18 @@ export function NaturalLanguageSearch({
 		[suggestions],
 	);
 
-	const handleHintSelect = (details: { value: string[] }) => {
+	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setInput(e.target.value);
+	};
+
+	const handleSuggestionSelect = (details: { value: string[] }) => {
 		const selectedValue = details.value?.[0];
 		if (!selectedValue) return;
 
 		setInput(selectedValue);
 		setOpen(false);
 
-		// run search immediately
+		// Parse and apply immediately
 		const parsed = parse(selectedValue, availableColumns);
 		setResult(parsed);
 		if (parsed.success && onApplyFilters) {
@@ -107,90 +78,120 @@ export function NaturalLanguageSearch({
 		}
 	};
 
+	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+		if (e.key === "Enter" && input.trim()) {
+			const parsed = parse(input, availableColumns);
+			setResult(parsed);
+			if (parsed.success && onApplyFilters) {
+				onApplyFilters(parsed);
+			}
+		}
+	};
+
+	const handleClear = () => {
+		setInput("");
+		setResult(null);
+		if (onApplyFilters) {
+			onApplyFilters({ filters: [] });
+		}
+	};
+
 	return (
 		<div className={`space-y-2 ${className}`}>
-			<form onSubmit={handleSubmit} className="flex gap-2 items-center">
-				<div className="flex-1 relative">
-					<Popover.Root
-						open={open}
-						onOpenChange={(e) => setOpen(e.open)}
-						initialFocusEl={() => document.getElementById("nls-input")}
-					>
-						<Popover.Trigger asChild>
-							<div>
-								<Input
-									id="nls-input"
+			<div className="flex gap-2 items-start">
+				<Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
+					<Popover.Trigger asChild>
+						<div className="flex-1">
+							<div className="relative h-9 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 transition-[color,box-shadow]">
+								<input
+									type="text"
 									placeholder={placeholder}
 									value={input}
-									onChange={(e) => setInput(e.target.value)}
-									className="pr-10"
+									onChange={handleInputChange}
+									onKeyDown={handleKeyDown}
+									className="w-full h-full bg-transparent outline-none placeholder:text-muted-foreground/70"
 								/>
-							</div>
-						</Popover.Trigger>
-
-						{input && (
-							<button
-								type="button"
-								onClick={handleClear}
-								className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-							>
-								<X className="w-4 h-4" />
-							</button>
-						)}
-
-						<Portal>
-							<Popover.Positioner>
-								<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50 w-96">
-									<div className="space-y-2 p-3">
-										<Listbox.Root
-											collection={hintCollection}
-											onValueChange={handleHintSelect}
+								{input && (
+									<button
+										type="button"
+										onClick={handleClear}
+										className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+										aria-label="Clear input"
+									>
+										<svg
+											className="w-4 h-4"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
 										>
-											<div className="flex items-center gap-2 text-xs font-medium text-foreground mb-2">
-												<Lightbulb className="w-3 h-3" />
-												<span>
-													{input
-														? "Suggestions for next token"
-														: "Start typing or pick a column"}{" "}
-												</span>
-											</div>
-											<Listbox.Content className="max-h-72 overflow-y-auto space-y-1">
-												{hintCollection.items.length > 0 ? (
-													<Listbox.ItemGroup>
-														{hintCollection.items.map((item) => (
-															<Listbox.Item
-																key={item.value}
-																item={item}
-																className="px-3 py-2 text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors rounded truncate"
-															>
-																<Listbox.ItemText>
-																	{item.label}
-																</Listbox.ItemText>
-															</Listbox.Item>
-														))}
-													</Listbox.ItemGroup>
-												) : (
-													<div className="px-3 py-2 text-xs text-muted-foreground text-center">
-														No suggestions available
-													</div>
-												)}
-											</Listbox.Content>
-										</Listbox.Root>
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M6 18L18 6M6 6l12 12"
+											/>
+										</svg>
+									</button>
+								)}
+							</div>
+						</div>
+					</Popover.Trigger>
+
+					<Portal>
+						<Popover.Positioner>
+							<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50 w-96 p-0">
+								<Listbox.Root
+									collection={hintCollection}
+									onValueChange={handleSuggestionSelect}
+								>
+									<div className="px-3 py-2 border-b border-border flex items-center gap-2 text-xs font-medium text-foreground">
+										<Lightbulb className="w-3 h-3 shrink-0" />
+										<span>
+											{input
+												? "Suggestions for next token"
+												: "Start typing or pick a column"}
+										</span>
 									</div>
-								</Popover.Content>
-							</Popover.Positioner>
-						</Portal>
-					</Popover.Root>
-				</div>
+									<Listbox.Content className="max-h-72 overflow-y-auto">
+										{hintCollection.items.length > 0 ? (
+											hintCollection.items.map((item) => (
+												<Listbox.Item
+													key={item.value}
+													item={item}
+													className="px-3 py-2 text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors text-foreground data-highlighted:text-accent-foreground truncate"
+												>
+													{item.label}
+												</Listbox.Item>
+											))
+										) : (
+											<div className="px-3 py-2 text-xs text-muted-foreground text-center">
+												No suggestions available
+											</div>
+										)}
+									</Listbox.Content>
+								</Listbox.Root>
+							</Popover.Content>
+						</Popover.Positioner>
+					</Portal>
+				</Popover.Root>
 				<Button
-					type="submit"
+					type="button"
 					variant="default"
 					size="sm"
 					disabled={!input.trim()}
+					onClick={() => {
+						if (input.trim()) {
+							const parsed = parse(input, availableColumns);
+							setResult(parsed);
+							if (parsed.success && onApplyFilters) {
+								onApplyFilters(parsed);
+							}
+						}
+					}}
 				>
 					Search
 				</Button>
-			</form>
+			</div>
 
 			{/* Error feedback if parse failed */}
 			{result && !result.success && (
