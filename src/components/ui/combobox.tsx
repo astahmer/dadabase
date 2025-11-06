@@ -119,7 +119,9 @@ const ComboboxItem = React.forwardRef<
 				<CheckIcon size={16} />
 			</ComboboxPrimitive.ItemIndicator>
 		</span>
-		<ComboboxPrimitive.ItemText>{children}</ComboboxPrimitive.ItemText>
+		<ComboboxPrimitive.ItemText className="w-full">
+			{children}
+		</ComboboxPrimitive.ItemText>
 	</ComboboxPrimitive.Item>
 ));
 ComboboxItem.displayName = "ComboboxItem";

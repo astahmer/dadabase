@@ -43,6 +43,7 @@ export interface Suggestion {
 		| "sort_column"
 		| "sort_direction";
 	state: QueryState;
+	symbols?: string[]; // Optional symbols for operator suggestions
 }
 
 // Available operators
@@ -348,11 +349,14 @@ export function generateSuggestions(
 		if (bestMatch) {
 			const columnSoFar = bestMatch;
 			OPERATOR_LABELS.forEach((op) => {
+				const operatorDef = OPERATORS.find((o) => o.label === op);
+				const symbols = operatorDef ? operatorDef.symbols.slice(0, 2) : []; // Get first 2 symbols
 				addSuggestion({
 					label: `${columnSoFar} ${op}`,
 					value: `${columnSoFar} ${op} `,
 					type: "operator",
 					state: "operator",
+					symbols: symbols as string[],
 				});
 			});
 		}
@@ -380,11 +384,14 @@ export function generateSuggestions(
 				// Remove duplicates and show all matching operators
 				const uniqueMatches = Array.from(new Set(matchingOperators));
 				uniqueMatches.forEach((op) => {
+					const operatorDef = OPERATORS.find((o) => o.label === op);
+					const symbols = operatorDef ? operatorDef.symbols.slice(0, 2) : [];
 					addSuggestion({
 						label: `${context.column} ${op}`,
 						value: `${context.column} ${op} `,
 						type: "operator",
 						state: "operator",
+						symbols: symbols as string[],
 					});
 				});
 			} else {

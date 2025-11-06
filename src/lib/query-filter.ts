@@ -274,6 +274,29 @@ export const getOperatorLabel = (operator: FilterOperatorType): string => {
 };
 
 /**
+ * Get operator symbol alternatives
+ */
+export const getOperatorSymbols = (operator: FilterOperatorType): string[] => {
+	const symbols: Record<FilterOperatorType, string[]> = {
+		equals: ["="],
+		not_equals: ["!=", "<>"],
+		contains: ["LIKE"],
+		not_contains: ["NOT LIKE"],
+		starts_with: [],
+		ends_with: [],
+		greater_than: [">"],
+		greater_than_or_equal: [">="],
+		less_than: ["<"],
+		less_than_or_equal: ["<="],
+		is_null: ["IS NULL"],
+		is_not_null: ["IS NOT NULL"],
+		in: ["IN"],
+		not_in: ["NOT IN"],
+	};
+	return symbols[operator];
+};
+
+/**
  * Convert WhereClauseParams (from URL) back to QueryFilter with generated IDs
  * Used when deserializing filters from URL
  */

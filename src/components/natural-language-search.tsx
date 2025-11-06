@@ -168,20 +168,42 @@ export function NaturalLanguageSearch({
 								</Listbox.Input>
 								<Listbox.Content className="max-h-72 overflow-y-auto">
 									{collection.items.length > 0 ? (
-										collection.items.map((item) => (
-											<Listbox.Item
-												key={item.value}
-												item={item}
-												className="px-3 py-2 text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent data-highlighted:text-accent-foreground transition-colors text-foreground truncate"
-												onClick={() => {
-													onValueChange(item.value);
-												}}
-											>
-												<div className="flex items-center gap-2 justify-between">
-													<span>{item.label}</span>
-												</div>
-											</Listbox.Item>
-										))
+										collection.items.map((item) => {
+											const suggestion = suggestions.find(
+												(s) => s.value === item.value,
+											);
+											return (
+												<Listbox.Item
+													key={item.value}
+													item={item}
+													className="px-3 py-2 text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent data-highlighted:text-accent-foreground transition-colors text-foreground"
+													onClick={() => {
+														onValueChange(item.value);
+													}}
+												>
+													<div className="flex items-center justify-between gap-3">
+														<span className="text-sm lowercase">
+															{item.label}
+														</span>
+														{suggestion?.symbols &&
+															suggestion.symbols.length > 0 && (
+																<div className="flex gap-1 ml-auto">
+																	{suggestion.symbols.map((symbol) => (
+																		<Kbd
+																			key={symbol}
+																			variant="outline"
+																			size="sm"
+																			className="text-xs lowercase"
+																		>
+																			{symbol}
+																		</Kbd>
+																	))}
+																</div>
+															)}
+													</div>
+												</Listbox.Item>
+											);
+										})
 									) : inputValue &&
 										(result?.success || queryState?.state === "complete") ? (
 										// Show success message if query is complete and valid

@@ -11,6 +11,7 @@
 - add dark mode in connection page
 - filters in datatable header ?
 - edit in datatable line?
+- support NOT operator in natural language search
 
 - add a way to favorite/save queries
 - add a way to view query history

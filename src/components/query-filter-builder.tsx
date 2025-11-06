@@ -6,6 +6,7 @@ import {
 	allOperators,
 	arrayOperators,
 	getOperatorLabel,
+	getOperatorSymbols,
 	nullOperators,
 } from "#src/lib/query-filter";
 import { useListCollection } from "@ark-ui/react";
@@ -26,6 +27,7 @@ import {
 import { Input } from "./ui/input.tsx";
 import { HStack, Stack } from "./ui/layout";
 import * as ArkSelect from "./ui/select";
+import { Kbd } from "./ui/kbd.tsx";
 
 interface QueryFilterBuilderProps {
 	conditions: readonly FilterConditionExpression[];
@@ -227,11 +229,32 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 					</ComboboxControl>
 					<ComboboxContent>
 						<ComboboxList>
-							{operatorList.collection.items.map((item) => (
-								<ComboboxItem key={item.value} item={item}>
-									{item.label}
-								</ComboboxItem>
-							))}
+							{operatorList.collection.items.map((item) => {
+								const symbols = getOperatorSymbols(
+									item.value as FilterOperatorType,
+								);
+								return (
+									<ComboboxItem key={item.value} item={item}>
+										<div className="flex items-center justify-between w-full gap-3">
+											<span className="text-sm lowercase">{item.label}</span>
+											{symbols.length > 0 && (
+												<div className="flex gap-1 ml-auto">
+													{symbols.map((symbol) => (
+														<Kbd
+															key={symbol}
+															variant="outline"
+															size="sm"
+															className="text-xs lowercase"
+														>
+															{symbol}
+														</Kbd>
+													))}
+												</div>
+											)}
+										</div>
+									</ComboboxItem>
+								);
+							})}
 						</ComboboxList>
 					</ComboboxContent>
 				</Combobox>
