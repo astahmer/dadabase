@@ -26,6 +26,7 @@ import { Button } from "../ui/button";
 import { Stack } from "../ui/layout.tsx";
 import * as ArkSelect from "../ui/select";
 import { useDataTable } from "../use-data-table";
+import { Input } from "../ui/input.tsx";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -523,6 +524,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										</Button>
 									)}
 								</div>
+								<Input size="sm" className="mx-4" />
 								{viewMode === "rows" && (
 									<ColumnVisibilityControls
 										table={dataTable}
