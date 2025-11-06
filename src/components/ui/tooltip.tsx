@@ -3,8 +3,11 @@ import * as React from "react";
 import { Tooltip as TooltipPrimitive } from "@ark-ui/react/tooltip";
 
 import { cn } from "#src/lib/utils";
+import type { ExposedComponentProps } from "./component-props.ts";
 
-export interface TooltipProps extends TooltipPrimitive.RootProps {
+export interface TooltipProps
+	extends TooltipPrimitive.RootBaseProps,
+		ExposedComponentProps<"div"> {
 	showArrow?: boolean;
 	content: React.ReactNode;
 	contentProps?: React.ComponentProps<typeof TooltipPrimitive.Content>;

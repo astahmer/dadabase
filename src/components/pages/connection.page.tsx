@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
 	useQuery,
 	useSuspenseQuery,
@@ -12,7 +12,11 @@ import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
-import { whereClauseParamsToQueryFilter } from "#src/lib/query-filter";
+import {
+	whereClauseParamsToQueryFilter,
+	filterToWhereClause,
+} from "#src/lib/query-filter";
+import type { QueryFilter } from "#src/lib/query-filter";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
@@ -57,23 +61,25 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
+	// Handler for filter changes - syncs to URL
+	const handleFilterChange = useCallback(
+		(updatedFilter: QueryFilter) => {
+			const filterConfig = filterToWhereClause(updatedFilter);
+			navigate({
+				search: (prev) => ({
+					...prev,
+					filters: filterConfig || undefined,
+					offset: 0, // Reset to first page when filters change
+				}),
+			});
+		},
+		[navigate],
+	);
+
 	// Convert deserialized WhereClauseParams from URL to QueryFilter for the builder
 	// Zipson/TanStack Router automatically handles serialization/deserialization
 	const initialQueryFilter = whereClauseParamsToQueryFilter(search.filters);
-	const queryBuilder = useQueryBuilder(initialQueryFilter);
-
-	// Sync filter changes to URL
-	useEffect(() => {
-		const filterConfig = queryBuilder.getWhereClause();
-
-		navigate({
-			search: (prev) => ({
-				...prev,
-				filters: filterConfig || undefined,
-				offset: 0, // Reset to first page when filters change
-			}),
-		});
-	}, [queryBuilder.filter, navigate]);
+	const queryBuilder = useQueryBuilder(initialQueryFilter, handleFilterChange);
 
 	// Extract search params with defaults
 	const selectedSchema = search.schema;
@@ -331,61 +337,62 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			<div className="flex-1 flex h-full min-h-0">
 				{/* Sidebar */}
 				<div className="w-64 border-r bg-muted/30 flex flex-col overflow-hidden h-full min-h-0">
-					{/* Tables List */}
-					<div className="flex-1 h-full min-h-0 flex flex-col gap-2">
-						{/* Schema Selector */}
-						<Stack className="px-4 pt-4" gap="2">
-							<label className="text-xs font-medium text-foreground uppercase tracking-wide">
-								Schema
-							</label>
-							{schemasQuery.isLoading ? (
-								<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9">
-									<span className="text-xs text-muted-foreground">
-										Loading...
-									</span>
-								</div>
-							) : (
-								<ArkSelect.Select
-									className="w-full"
-									value={selectedSchema ? [selectedSchema] : []}
-									collection={schemaCollection}
-									positioning={{ sameWidth: true }}
-									disabled={schemasQuery.isLoading}
-									onValueChange={(details: { value?: string[] }) => {
-										const newSchema = details.value?.[0];
-										if (newSchema) {
-											setSchema(newSchema);
-											navigate({
-												search: (prev) => ({
-													...prev,
-													schema: newSchema,
-													table: undefined,
-													offset: 0,
-												}),
-											});
-										}
-									}}
-								>
-									<ArkSelect.SelectControl>
-										<ArkSelect.SelectTrigger>
-											<ArkSelect.SelectValueText placeholder="Select schema" />
-											<ArkSelect.SelectIndicator />
-										</ArkSelect.SelectTrigger>
-									</ArkSelect.SelectControl>
-									<ArkSelect.SelectContent>
-										{schemaCollection.items.map(
-											(item: { label: string; value: string }) => (
-												<ArkSelect.SelectItem key={item.value} item={item}>
-													{item.label}
-												</ArkSelect.SelectItem>
-											),
-										)}
-									</ArkSelect.SelectContent>
-								</ArkSelect.Select>
-							)}
-						</Stack>
+					{/* Schema Selector */}
+					<Stack className="px-4 pt-4 shrink-0" gap="2">
+						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
+							Schema
+						</label>
+						{schemasQuery.isLoading ? (
+							<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9">
+								<span className="text-xs text-muted-foreground">
+									Loading...
+								</span>
+							</div>
+						) : (
+							<ArkSelect.Select
+								className="w-full"
+								value={selectedSchema ? [selectedSchema] : []}
+								collection={schemaCollection}
+								positioning={{ sameWidth: true }}
+								disabled={schemasQuery.isLoading}
+								onValueChange={(details: { value?: string[] }) => {
+									const newSchema = details.value?.[0];
+									if (newSchema) {
+										setSchema(newSchema);
+										navigate({
+											search: (prev) => ({
+												...prev,
+												schema: newSchema,
+												table: undefined,
+												offset: 0,
+												filters: undefined,
+											}),
+										});
+									}
+								}}
+							>
+								<ArkSelect.SelectControl>
+									<ArkSelect.SelectTrigger>
+										<ArkSelect.SelectValueText placeholder="Select schema" />
+										<ArkSelect.SelectIndicator />
+									</ArkSelect.SelectTrigger>
+								</ArkSelect.SelectControl>
+								<ArkSelect.SelectContent>
+									{schemaCollection.items.map(
+										(item: { label: string; value: string }) => (
+											<ArkSelect.SelectItem key={item.value} item={item}>
+												{item.label}
+											</ArkSelect.SelectItem>
+										),
+									)}
+								</ArkSelect.SelectContent>
+							</ArkSelect.Select>
+						)}
+					</Stack>
 
-						<Stack className="h-full" gap="2">
+					{/* Tables List */}
+					<div className="flex-1 h-full min-h-0 flex flex-col gap-2 overflow-hidden">
+						<Stack className="flex-1 h-full" gap="2">
 							<div className="px-4">
 								<label className="text-xs font-medium text-foreground uppercase tracking-wide">
 									Tables
@@ -441,6 +448,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																			table: table.name,
 																			offset: 0,
 																			viewMode: "rows",
+																			filters: undefined,
 																		}),
 																	});
 																}}
@@ -516,6 +524,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							{/* Query Filter Builder */}
 							{viewMode === "rows" && columns.length > 0 && (
 								<QueryFilterBuilder
+									key={selectedTable}
 									conditions={queryBuilder.filter.conditions}
 									onUpdateCondition={queryBuilder.updateCondition}
 									onRemoveCondition={queryBuilder.removeCondition}

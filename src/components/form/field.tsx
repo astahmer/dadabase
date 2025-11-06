@@ -1,8 +1,11 @@
 import { Field as ArkField } from "@ark-ui/react";
 import { forwardRef } from "react";
 import { Label } from "../ui/label.tsx";
+import type { ExposedComponentProps } from "../ui/component-props.ts";
 
-export interface FieldProps extends Omit<ArkField.RootProps, "label"> {
+export interface FieldProps
+	extends Omit<ArkField.RootBaseProps, "label">,
+		ExposedComponentProps<"div"> {
 	label?: React.ReactNode;
 	helperText?: React.ReactNode;
 	errorText?: React.ReactNode;

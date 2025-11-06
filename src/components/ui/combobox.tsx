@@ -9,7 +9,7 @@ import type { ExposedComponentProps } from "./component-props.ts";
 
 const ComboboxComponent = React.forwardRef(
 	<T extends ComboboxPrimitive.CollectionItem>(
-		props: ComboboxPrimitive.RootProps<T>,
+		props: ComboboxPrimitive.RootBaseProps<T>,
 		ref: React.Ref<HTMLDivElement>,
 	) => <ComboboxPrimitive.Root ref={ref} {...props} />,
 );

@@ -4,10 +4,11 @@ import { Switch as SwitchPrimitive } from "@ark-ui/react/switch";
 import * as React from "react";
 
 import { cn } from "#src/lib/utils";
+import type { ExposedComponentProps } from "./component-props.ts";
 
 const Switch = React.forwardRef<
 	React.ElementRef<typeof SwitchPrimitive.Root>,
-	SwitchPrimitive.RootProps
+	SwitchPrimitive.RootBaseProps & ExposedComponentProps<"label">
 >(({ className, children, ...props }, ref) => (
 	<SwitchPrimitive.Root
 		ref={ref}

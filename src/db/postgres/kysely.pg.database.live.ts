@@ -13,7 +13,7 @@ export const makeKyselyPgDatabaseLayer = (url: string) =>
 				dialect: new PostgresDialect({
 					pool: new Pool({ connectionString: url }),
 				}),
-				log: ["query"],
+				// log: ["query"],
 			});
 
 			yield* Effect.addFinalizer(() =>

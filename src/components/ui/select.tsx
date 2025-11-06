@@ -5,19 +5,21 @@ import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "#src/lib/utils";
+import type { ExposedComponentProps } from "./component-props.ts";
 
 const parts = selectAnatomy.extendWith("separator").build();
 
 const SelectComponent = React.forwardRef(
 	<T extends SelectPrimitive.CollectionItem>(
-		props: SelectPrimitive.RootProps<T>,
+		props: SelectPrimitive.RootBaseProps<T> & ExposedComponentProps<"div">,
 		ref: React.Ref<HTMLDivElement>,
 	) => <SelectPrimitive.Root ref={ref} {...props} />,
 );
 SelectComponent.displayName = "Select";
 const Select = SelectComponent as <T extends SelectPrimitive.CollectionItem>(
-	props: SelectPrimitive.RootProps<T> &
-		React.RefAttributes<React.ElementRef<typeof SelectPrimitive.Root>>,
+	props: SelectPrimitive.RootBaseProps<T> &
+		React.RefAttributes<React.ElementRef<typeof SelectPrimitive.Root>> &
+		ExposedComponentProps<"div">,
 ) => React.JSX.Element;
 
 const SelectClearTrigger = React.forwardRef<
