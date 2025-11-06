@@ -94,6 +94,27 @@ export function analyzeQueryState(
 		};
 	}
 
+	// Check for partial sort/order by keywords (e.g., "s", "so", "sort", "sort" but NOT "sort by")
+	// Only treat as partial if it doesn't contain a complete keyword
+	const hasCompleteCommand = commands.some((cmd) =>
+		trimmed.toLowerCase().includes(cmd),
+	);
+
+	if (!hasCompleteCommand) {
+		// Check if user is typing a partial command keyword
+		const isPartialCommand = commands.some((cmd) =>
+			cmd.startsWith(trimmed.toLowerCase()),
+		);
+		if (isPartialCommand) {
+			// User is typing a command keyword
+			return {
+				state: "empty",
+				tokens: [],
+				currentInput: trimmed,
+			};
+		}
+	}
+
 	// Check for sort by / order by clause first
 	const sortMatch = parseSortClause(trimmed);
 	if (sortMatch && sortMatch.keyword) {
@@ -292,6 +313,8 @@ function parseSortClause(input: string): {
 	return { keyword, column, direction, remaining };
 }
 
+const commands = ["sort by", "order by", "limit", "top", "first"];
+
 /**
  * Generate suggestions based on query state
  */
@@ -311,6 +334,17 @@ export function generateSuggestions(
 	};
 
 	if (context.state === "empty") {
+		// Show commands (sort by, order by, limit, top, first)
+		const matchedCommands = matchFn(context.currentInput, commands);
+		matchedCommands.forEach((cmd) => {
+			addSuggestion({
+				label: cmd,
+				value: cmd + " ",
+				type: "example",
+				state: "empty",
+			});
+		});
+
 		// Show all available columns as column suggestions
 		const matched = matchFn(context.currentInput, availableColumns);
 		matched.forEach((col) => {
@@ -327,36 +361,30 @@ export function generateSuggestions(
 		// Filter columns based on what's been typed
 		const matched = matchFn(context.currentInput, availableColumns);
 
-		// If there's no input or multiple matches, show the matching columns
-		// Otherwise, only show operator suggestions for the best match
-		const shouldShowBareColumns =
-			context.currentInput === "" ? matched.length > 1 : matched.length > 0;
+		// Check if we have an exact column match
+		const exactMatch = matched.find((col) => col === context.currentInput);
 
-		if (shouldShowBareColumns) {
-			// Show matching columns
+		if (exactMatch) {
+			// User has finished typing a column name - show only operator suggestions
+			OPERATOR_LABELS.forEach((op) => {
+				const operatorDef = OPERATORS.find((o) => o.label === op);
+				const symbols = operatorDef ? operatorDef.symbols.slice(0, 2) : []; // Get first 2 symbols
+				addSuggestion({
+					label: `${exactMatch} ${op}`,
+					value: `${exactMatch} ${op} `,
+					type: "operator",
+					state: "operator",
+					symbols: symbols as string[],
+				});
+			});
+		} else if (matched.length > 0) {
+			// User is still typing a column name - show column completions
 			matched.forEach((col) => {
 				addSuggestion({
 					label: col,
 					value: col + " ",
 					type: "column",
 					state: "column",
-				});
-			});
-		}
-
-		// If there's a good match, also show operator suggestions
-		const bestMatch = matched[0];
-		if (bestMatch) {
-			const columnSoFar = bestMatch;
-			OPERATOR_LABELS.forEach((op) => {
-				const operatorDef = OPERATORS.find((o) => o.label === op);
-				const symbols = operatorDef ? operatorDef.symbols.slice(0, 2) : []; // Get first 2 symbols
-				addSuggestion({
-					label: `${columnSoFar} ${op}`,
-					value: `${columnSoFar} ${op} `,
-					type: "operator",
-					state: "operator",
-					symbols: symbols as string[],
 				});
 			});
 		}
@@ -483,8 +511,7 @@ export function generateSuggestions(
 
 	if (context.state === "complete") {
 		// Show additional clauses (order by, limit)
-		const additional = ["sort by", "order by", "limit", "top", "first"];
-		const matched = matchFn(context.currentInput, additional);
+		const matched = matchFn(context.currentInput, commands);
 		matched.forEach((clause) => {
 			addSuggestion({
 				label: `${clause}`,

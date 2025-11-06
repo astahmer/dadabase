@@ -12,6 +12,7 @@
 - filters in datatable header ?
 - edit in datatable line?
 - support NOT operator in natural language search
+- move cva functions outside of their components so that fast refresh works
 
 - add a way to favorite/save queries
 - add a way to view query history
