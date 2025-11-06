@@ -8,6 +8,7 @@ import { AppRuntime } from "../../services/app.runtime.ts";
 import type {
 	FilterConditionExpression,
 	LogicalOperator,
+	QueryFilterType,
 } from "#src/lib/query-filter";
 
 // Using Record type with any for now to avoid schema validation issues
@@ -65,10 +66,7 @@ export type QueryTableDataInput = {
 	offset?: number;
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
-	filters?: {
-		conditions: FilterConditionExpression[];
-		logicalOperator: LogicalOperator;
-	};
+	filters?: QueryFilterType;
 };
 
 export const queryTableDataQueryOptions = (input: QueryTableDataInput) =>

@@ -30,10 +30,13 @@ import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
 import { QueryFilterBuilder } from "../query-filter-builder";
 import { Button } from "../ui/button";
-import { Stack } from "../ui/layout.tsx";
+import { HStack, Stack } from "../ui/layout.tsx";
 import * as ArkSelect from "../ui/select";
 import { useDataTable } from "../use-data-table";
 import { NaturalLanguageSearch } from "../natural-language-search";
+import { Spinner } from "../ui/spinner.tsx";
+import { Tooltip } from "../ui/tooltip.tsx";
+import { getErrorMessage } from "../../lib/get-error-message.ts";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -56,8 +59,10 @@ interface ConnectionPageProps {
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: Route.fullPath });
+
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
+	const connectionUrl = connection?.url || "";
 
 	const search = Route.useSearch();
 
@@ -81,77 +86,50 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					filtersOpened: shouldOpenFilters,
 					offset: 0, // Reset to first page when filters change
 					limit: 50,
+					orderBy: undefined,
+					orderDirection: undefined,
 				}),
 			});
 		},
 	);
-	console.log(search.filters, search.orderBy, search.limit);
 
-	// Extract search params with defaults
-	const selectedSchema = search.schema;
-	const selectedTable = search.table;
-	const viewMode = search.viewMode || "rows";
-	const limit = search.limit || 50;
-	const offset = search.offset || 0;
-	const orderBy = search.orderBy;
-	const orderDirection = search.orderDirection || "asc";
-
-	// Get schemas
-	const schemasQuery = useQuery({
-		...listAvailableSchemasQueryOptions({
-			url: connection?.url || "",
-		}),
+	const schemaListQuery = useQuery({
+		...listAvailableSchemasQueryOptions({ url: connectionUrl }),
 		enabled: !!connection?.url,
 	});
 
-	// Get tables
-	const tablesQuery = useQuery({
-		...listAvailableTablesQueryOptions({
-			url: connection?.url || "",
-		}),
-		enabled: !!connection?.url && !!selectedSchema,
+	const tablesListQuery = useQuery({
+		...listAvailableTablesQueryOptions({ url: connection?.url || "" }),
+		enabled: !!connection?.url && !!search.schema,
 	});
 
-	// Get the filter config from query builder
-	const filterConfig = queryBuilder.getWhereClause();
-
-	// Convert readonly to mutable for server function
-	const mutableFilterConfig = filterConfig
-		? {
-				conditions: [...filterConfig.conditions],
-				logicalOperator: filterConfig.logicalOperator,
-			}
-		: undefined;
-
-	// Get table data
-	const tableDataQuery = useQuery({
+	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
-			url: connection?.url || "",
-			schema: selectedSchema || "",
-			table: selectedTable || "",
-			limit: limit,
-			offset: offset,
-			orderBy: orderBy,
-			orderDirection: orderDirection,
-			filters: mutableFilterConfig,
+			url: connectionUrl,
+			schema: search.schema || "",
+			table: search.table || "",
+			limit: search.limit,
+			offset: search.offset,
+			orderBy: search.orderBy,
+			orderDirection: search.orderDirection,
+			filters: queryBuilder.getWhereClause() ?? ({} as any),
 		}),
 		// placeholderData: keepPreviousData,
-		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
+		enabled: !!connection?.url && !!search.schema && !!search.table,
 	});
 
-	// Get table column metadata
-	const tableColumnsQuery = useQuery({
+	const metadataQuery = useQuery({
 		...getTableColumnsQueryOptions({
-			url: connection?.url || "",
-			schema: selectedSchema || "",
-			table: selectedTable || "",
+			url: connectionUrl,
+			schema: search.schema || "",
+			table: search.table || "",
 		}),
-		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
+		enabled: !!connection?.url && !!search.schema && !!search.table,
 	});
-	const columnMetadata = tableColumnsQuery.data ?? [];
+	const columnMetadata = metadataQuery.data ?? [];
 
-	const schemas = schemasQuery.data || [];
-	const tables = tablesQuery.data || [];
+	const schemas = schemaListQuery.data || [];
+	const tables = tablesListQuery.data || [];
 
 	// Filter tables based on search term
 	const [tableFilterValue, setTableFilterValue] = useState("");
@@ -159,7 +137,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const filteredTables = tables.filter(
 		(table) =>
-			contains(table.name, tableFilterValue) && selectedSchema === table.schema,
+			contains(table.name, tableFilterValue) && search.schema === table.schema,
 	);
 
 	const tableCollection = useMemo(
@@ -173,7 +151,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		[filteredTables],
 	);
 
-	const queryResponse = tableDataQuery.data || {
+	const queryResponse = rowsQuery.data || {
 		rows: [],
 		rowCount: 0,
 		timeTaken: 0,
@@ -182,8 +160,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const tableData = queryResponse.rows;
 	const totalRowCount = queryResponse.rowCount;
 
-	const tableDisplayName = selectedTable
-		? `${selectedSchema}.${selectedTable}`
+	const tableDisplayName = search.table
+		? `${search.schema}.${search.table}`
 		: "No table selected";
 
 	// Format data with ISO dates and create columns
@@ -223,11 +201,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			: [];
 
 	// Create sorting state from URL params
-	const sortingState = orderBy
+	const sortingState = search.orderBy
 		? [
 				{
-					id: orderBy,
-					desc: orderDirection === "desc",
+					id: search.orderBy,
+					desc: search.orderDirection === "desc",
 				},
 			]
 		: [];
@@ -237,8 +215,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		columns,
 		initialState: {
 			pagination: {
-				pageIndex: Math.floor(offset / limit),
-				pageSize: limit,
+				pageIndex: Math.floor(search.offset / search.limit),
+				pageSize: search.limit,
 			},
 			sorting: sortingState,
 		},
@@ -265,8 +243,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		},
 		onPaginationChange: (updater) => {
 			const current = {
-				pageIndex: Math.floor(offset / limit),
-				pageSize: limit,
+				pageIndex: Math.floor(search.offset / search.limit),
+				pageSize: search.limit,
 			};
 			const newPagination =
 				typeof updater === "function" ? updater(current) : updater;
@@ -307,9 +285,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						<h1 className="text-lg font-bold tracking-tight text-foreground truncate">
 							{connection.name}
 						</h1>
-						<p className="text-xs text-muted-foreground truncate">
+						<span className="text-xs text-muted-foreground truncate">
 							{redactedUrl}
-						</p>
+						</span>
 					</div>
 					<Button
 						variant="outline"
@@ -344,7 +322,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
 							Schema
 						</label>
-						{schemasQuery.isLoading ? (
+						{schemaListQuery.isLoading ? (
 							<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9">
 								<span className="text-xs text-muted-foreground">
 									Loading...
@@ -353,10 +331,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						) : (
 							<ArkSelect.Select
 								className="w-full"
-								value={selectedSchema ? [selectedSchema] : []}
+								value={search.schema ? [search.schema] : []}
 								collection={schemaCollection}
 								positioning={{ sameWidth: true }}
-								disabled={schemasQuery.isLoading}
+								disabled={schemaListQuery.isLoading}
 								onValueChange={(details: { value?: string[] }) => {
 									const newSchema = details.value?.[0];
 									if (newSchema) {
@@ -400,11 +378,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									Tables
 								</label>
 							</div>
-							{tablesQuery.isLoading ? (
+							{tablesListQuery.isLoading ? (
 								<div className="p-4 text-center">
-									<p className="text-xs text-muted-foreground">
+									<span className="text-xs text-muted-foreground">
 										Loading tables...
-									</p>
+									</span>
 								</div>
 							) : (
 								<div className="flex-1 overflow-hidden flex flex-col h-full">
@@ -419,11 +397,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									<div className="mt-2 flex-1 overflow-y-auto">
 										{filteredTables.length === 0 ? (
 											<div className="p-4 text-center">
-												<p className="text-xs text-muted-foreground">
+												<span className="text-xs text-muted-foreground">
 													{tables.length === 0
 														? "No tables found"
 														: "No tables match filter"}
-												</p>
+												</span>
 											</div>
 										) : (
 											<Listbox.Root collection={tableCollection}>
@@ -437,7 +415,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																	value: table.name,
 																}}
 																className={`flex items-center px-3 py-2 cursor-pointer text-sm transition-colors rounded-md truncate ${
-																	selectedTable === table.name
+																	search.table === table.name
 																		? "bg-primary/10 text-primary font-medium"
 																		: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
 																}`}
@@ -473,40 +451,48 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 				{/* Content Area */}
 				<div className="flex-1 flex flex-col overflow-hidden">
-					{selectedTable && selectedSchema ? (
+					{search.table && search.schema ? (
 						<>
 							{/* View Toggle & Filter Controls */}
-							<div className="border-b bg-muted/50 px-4 py-2 flex items-center justify-between">
+							<HStack className="border-b bg-muted/50 px-4 py-2 items-center justify-between">
 								<div className="flex gap-2">
-									<Button
-										variant={viewMode === "rows" ? "default" : "outline"}
-										size="sm"
-										onClick={() =>
-											navigate({
-												search: (prev) => ({
-													...prev,
-													viewMode: "rows",
-												}),
-											})
-										}
-									>
-										<Rows className="h-4 w-4" />
-									</Button>
-									<Button
-										variant={viewMode === "structure" ? "default" : "outline"}
-										size="sm"
-										onClick={() =>
-											navigate({
-												search: (prev) => ({
-													...prev,
-													viewMode: "structure",
-												}),
-											})
-										}
-									>
-										<LayoutGrid className="h-4 w-4" />
-									</Button>
-									{viewMode === "rows" && (
+									<Tooltip content="View rows">
+										<Button
+											variant={
+												search.viewMode === "rows" ? "default" : "outline"
+											}
+											size="sm"
+											onClick={() =>
+												navigate({
+													search: (prev) => ({
+														...prev,
+														viewMode: "rows",
+													}),
+												})
+											}
+										>
+											<Rows className="h-4 w-4" />
+										</Button>
+									</Tooltip>
+									<Tooltip content="View table structure">
+										<Button
+											variant={
+												search.viewMode === "structure" ? "default" : "outline"
+											}
+											size="sm"
+											onClick={() =>
+												navigate({
+													search: (prev) => ({
+														...prev,
+														viewMode: "structure",
+													}),
+												})
+											}
+										>
+											<LayoutGrid className="h-4 w-4" />
+										</Button>
+									</Tooltip>
+									{search.viewMode === "rows" && (
 										<Button
 											variant="outline"
 											size="sm"
@@ -522,20 +508,22 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													});
 												}
 											}}
-											disabled={tableDataQuery.isLoading}
+											disabled={metadataQuery.isLoading}
 										>
 											<LucideListFilter className="h-3 w-3 mr-1" />
 											Filters
 											{` (${search.filters?.conditions.length || 0})`}
-											{search.filtersOpened ? (
-												<LucideChevronUp className="h-3 w-3 ml-1" />
-											) : (
-												<LucideChevronDown className="h-3 w-3 ml-1" />
-											)}
+											{(search.filters?.conditions ?? []).length > 0 ? (
+												search.filtersOpened ? (
+													<LucideChevronUp className="h-3 w-3 ml-1" />
+												) : (
+													<LucideChevronDown className="h-3 w-3 ml-1" />
+												)
+											) : null}
 										</Button>
 									)}
 								</div>
-								{viewMode === "rows" && (
+								{search.viewMode === "rows" && (
 									<NaturalLanguageSearch
 										className="w-full"
 										availableColumns={columnMetadata.map((col) => col.name)}
@@ -611,21 +599,21 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										}}
 									/>
 								)}
-								{viewMode === "rows" && (
+								{search.viewMode === "rows" && (
 									<ColumnVisibilityControls
 										table={dataTable}
 										columnList={columnMetadata.map((col) => col.name)}
 										minimal={true}
 									/>
 								)}
-							</div>
+							</HStack>
 
 							{/* Query Filter Builder */}
-							{viewMode === "rows" &&
+							{search.viewMode === "rows" &&
 								columns.length > 0 &&
 								search.filtersOpened && (
 									<QueryFilterBuilder
-										key={selectedTable}
+										key={search.table}
 										conditions={queryBuilder.filter.conditions}
 										onUpdateCondition={queryBuilder.updateCondition}
 										onRemoveCondition={queryBuilder.removeCondition}
@@ -634,50 +622,47 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										onClearAll={queryBuilder.clearConditions}
 										logicalOperator={queryBuilder.filter.logicalOperator}
 										availableColumns={columnMetadata.map((col) => col.name)}
-										isLoading={tableDataQuery.isLoading}
+										isLoading={rowsQuery.isLoading}
 									/>
 								)}
 
 							{/* Content */}
 							<div className="flex-1 overflow-hidden flex flex-col">
-								{viewMode === "structure" ? (
-									columnMetadata.length > 0 ? (
-										<StructureTable columnMetadata={columnMetadata} />
-									) : (
-										<div className="p-4 overflow-auto flex-1">
-											<div className="space-y-2">
-												<h3 className="font-semibold text-sm">
-													{tableDisplayName} - Columns
-												</h3>
-												<p className="text-sm text-muted-foreground">
-													No data available to inspect structure
-												</p>
-											</div>
-										</div>
-									)
+								{search.viewMode === "structure" ? (
+									<StructureTable
+										columnMetadata={columnMetadata}
+										isLoading={metadataQuery.isLoading}
+									/>
 								) : (
 									<div className="flex-1 overflow-auto flex flex-col">
-										{tableDataQuery.isLoading ? (
-											<div className="flex-1 flex items-center justify-center">
-												<p className="text-muted-foreground">
+										{rowsQuery.isLoading ? (
+											<Stack className="flex-1 flex items-center justify-center">
+												<Spinner />
+												<span className="text-muted-foreground">
 													Loading table data...
-												</p>
-											</div>
-										) : tableDataQuery.isError ? (
-											<div className="flex-1 flex items-center justify-center">
-												<p className="text-destructive">
-													Error loading table data
-												</p>
+												</span>
+											</Stack>
+										) : rowsQuery.isError ? (
+											<div className="flex-1 flex items-center justify-center p-4">
+												<Stack className="max-w-2xl w-full bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+													<span className="text-sm font-semibold text-destructive">
+														Error loading table data
+													</span>
+													<span className="text-xs text-destructive/80 font-mono wrap-break-word whitespace-pre-wrap max-h-48 overflow-y-auto">
+														{getErrorMessage(rowsQuery.error)}
+													</span>
+												</Stack>
 											</div>
 										) : (
 											<DataTable
 												table={dataTable}
-												isLoading={tableDataQuery.isLoading}
+												isLoading={rowsQuery.isLoading}
 											/>
 										)}
 										{/* Status Bar */}
 										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
 											<div className="flex items-center justify-between gap-4">
+												{/* TODO when loading dont show 0 everywhere */}
 												<span className="flex-1">
 													{tableDisplayName} • {formattedTableData.length} rows
 													(0-
@@ -690,14 +675,14 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													{/* Pagination Controls */}
 													<Pagination.Root
 														count={totalRowCount}
-														pageSize={limit}
+														pageSize={search.limit}
 														siblingCount={1}
-														page={Math.floor(offset / limit) + 1}
+														page={Math.floor(search.offset / search.limit) + 1}
 														onPageChange={(details) => {
 															navigate({
 																search: (prev) => ({
 																	...prev,
-																	offset: (details.page - 1) * limit,
+																	offset: (details.page - 1) * search.limit,
 																}),
 															});
 														}}
@@ -738,7 +723,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														{/* TODO change to combobox so it can use a custom value */}
 														<ArkSelect.Select
 															className="w-20"
-															value={[limit.toString()]}
+															value={[search.limit.toString()]}
 															collection={ArkSelect.createListCollection({
 																items: [
 																	{ label: "50", value: "50" },
@@ -788,7 +773,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													<Button
 														variant="ghost"
 														size="sm"
-														onClick={() => tableDataQuery.refetch()}
+														onClick={() => rowsQuery.refetch()}
 														className="h-6 px-2"
 													>
 														<RefreshCw className="h-3 w-3" />
@@ -803,9 +788,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					) : (
 						<div className="flex-1 flex items-center justify-center">
 							<div className="text-center">
-								<p className="text-muted-foreground">
+								<span className="text-muted-foreground">
 									Select a schema and table to view data
-								</p>
+								</span>
 							</div>
 						</div>
 					)}
@@ -823,6 +808,7 @@ const StructureTable = (props: {
 		primaryKey: boolean;
 		defaultValue: string | null;
 	}>;
+	isLoading: boolean;
 }) => {
 	{
 		const { columnMetadata } = props;
@@ -835,7 +821,7 @@ const StructureTable = (props: {
 					enableResizing: true,
 				},
 				{
-					accessorKey: "datatype",
+					accessorKey: "dataType",
 					header: "Data Type",
 					size: 120,
 					minSize: 80,
@@ -887,7 +873,7 @@ const StructureTable = (props: {
 
 		return (
 			<div className="flex-1 overflow-auto">
-				<DataTable table={structureTable} isLoading={false} />
+				<DataTable table={structureTable} isLoading={props.isLoading} />
 			</div>
 		);
 	}

@@ -141,7 +141,15 @@ const executeRaw =
 	<O>(query: QueryRaw<O>) =>
 		Effect.tryPromise({
 			try: () => queryAsPromise(client, query),
-			catch: (cause) => new SqlError({ cause }),
+			catch: (cause) => {
+				return new SqlError({
+					cause,
+					message:
+						cause instanceof Error
+							? `[executeRaw] SqlError: ${cause.message}\n\n query:\n ${query.compile(client).sql}`
+							: `[executeRaw] An error has occurred with the query: ${query.compile(client).sql}`,
+				});
+			},
 		}).pipe(executeSpan(client, query));
 
 const execute =
@@ -152,7 +160,15 @@ const execute =
 				isRawBuilder(query)
 					? queryAsPromise(client, query).then((result) => result.rows)
 					: query.execute().then((result) => result ?? []),
-			catch: (cause) => new SqlError({ cause }),
+			catch: (cause) => {
+				return new SqlError({
+					cause,
+					message:
+						cause instanceof Error
+							? `[execute] SqlError: ${cause.message}\n\n query:\n ${query.compile(client).sql}`
+							: `[execute] An error has occurred with the query: ${query.compile(client).sql}`,
+				});
+			},
 		}).pipe(executeSpan(client, query));
 
 const executeTakeFirstOption =
