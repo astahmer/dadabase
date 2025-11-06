@@ -77,6 +77,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			});
 		},
 	);
+	console.log(search.filters, search.orderBy, search.limit);
 
 	// Extract search params with defaults
 	const selectedSchema = search.schema;

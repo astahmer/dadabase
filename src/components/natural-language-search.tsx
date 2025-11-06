@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNaturalLanguageSearch } from "#src/hooks/use-natural-language-search";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { AlertCircle, Lightbulb, X } from "lucide-react";
+import { Lightbulb, AlertCircle, X } from "lucide-react";
 import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
+import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import type { ParsedNLQuery } from "#src/lib/natural-language-parser";
 
 interface NaturalLanguageSearchProps {
@@ -28,6 +29,7 @@ export function NaturalLanguageSearch({
 }: NaturalLanguageSearchProps) {
 	const [input, setInput] = useState("");
 	const [result, setResult] = useState<ParsedNLQuery | null>(null);
+	// console.log(result);
 
 	const { parse } = useNaturalLanguageSearch();
 
@@ -60,6 +62,60 @@ export function NaturalLanguageSearch({
 		handleSearch();
 	};
 
+	// Build hint items
+	const hintCollection = useMemo(
+		() =>
+			createListCollection({
+				items: (() => {
+					const items: Array<{ label: string; value: string }> = [];
+
+					if (availableColumns[0]) {
+						items.push({
+							label: `${availableColumns[0]} equals something`,
+							value: `${availableColumns[0]} equals something`,
+						});
+						items.push({
+							label: `${availableColumns[0]} > 100`,
+							value: `${availableColumns[0]} > 100`,
+						});
+						items.push({
+							label: `${availableColumns[0]} contains foo`,
+							value: `${availableColumns[0]} contains foo`,
+						});
+					}
+
+					if (availableColumns[1]) {
+						items.push({
+							label: `sort by ${availableColumns[1]} desc`,
+							value: `sort by ${availableColumns[1]} desc`,
+						});
+					}
+
+					items.push({
+						label: "limit 10",
+						value: "limit 10",
+					});
+
+					return items;
+				})(),
+			}),
+		[availableColumns],
+	);
+
+	const handleHintSelect = (details: { value: string[] }) => {
+		const value = details.value?.[0];
+		if (!value) return;
+
+		setInput(value);
+		setOpen(false);
+		// run search immediately
+		const parsed = parse(value, availableColumns);
+		setResult(parsed);
+		if (parsed.success && onApplyFilters) {
+			onApplyFilters(parsed);
+		}
+	};
+
 	return (
 		<div className={`space-y-2 ${className}`}>
 			<form onSubmit={handleSubmit} className="flex gap-2 items-center">
@@ -88,109 +144,35 @@ export function NaturalLanguageSearch({
 
 						<Portal>
 							<Popover.Positioner>
-								<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50 p-3 w-72">
-									<div className="flex items-center gap-2 text-xs font-medium text-foreground">
-										<Lightbulb className="w-3 h-3" />
-										Query Examples:
-									</div>
-									<div className="grid gap-1 text-xs text-muted-foreground mt-2">
-										{availableColumns[0] && (
-											<button
-												type="button"
-												onClick={() => {
-													const col = availableColumns[0];
-													const value = `${col} equals something`;
-													setInput(value);
-													setOpen(false);
-													// run search immediately
-													const parsed = parse(value, availableColumns);
-													setResult(parsed);
-													if (parsed.success && onApplyFilters) {
-														onApplyFilters(parsed);
-													}
-												}}
-												className="text-left hover:text-foreground hover:bg-muted p-1 rounded truncate"
-											>
-												{`"${availableColumns[0]} equals something"`}
-											</button>
-										)}
-
-										{availableColumns[0] && (
-											<button
-												type="button"
-												onClick={() => {
-													const col = availableColumns[0];
-													const value = `${col} > 100`;
-													setInput(value);
-													setOpen(false);
-													const parsed = parse(value, availableColumns);
-													setResult(parsed);
-													if (parsed.success && onApplyFilters) {
-														onApplyFilters(parsed);
-													}
-												}}
-												className="text-left hover:text-foreground hover:bg-muted p-1 rounded truncate"
-											>
-												{`"${availableColumns[0]} > 100"`}
-											</button>
-										)}
-
-										{availableColumns[0] && (
-											<button
-												type="button"
-												onClick={() => {
-													const col = availableColumns[0];
-													const value = `${col} contains foo`;
-													setInput(value);
-													setOpen(false);
-													const parsed = parse(value, availableColumns);
-													setResult(parsed);
-													if (parsed.success && onApplyFilters) {
-														onApplyFilters(parsed);
-													}
-												}}
-												className="text-left hover:text-foreground hover:bg-muted p-1 rounded truncate"
-											>
-												{`"${availableColumns[0]} contains foo"`}
-											</button>
-										)}
-
-										{availableColumns[1] && (
-											<button
-												type="button"
-												onClick={() => {
-													const value = `sort by ${availableColumns[1]} desc`;
-													setInput(value);
-													setOpen(false);
-													const parsed = parse(value, availableColumns);
-													setResult(parsed);
-													if (parsed.success && onApplyFilters) {
-														onApplyFilters(parsed);
-													}
-												}}
-												className="text-left hover:text-foreground hover:bg-muted p-1 rounded truncate"
-											>
-												{`"sort by ${availableColumns[1]} desc"`}
-											</button>
-										)}
-
-										<button
-											type="button"
-											onClick={() => {
-												const value = "limit 10";
-												setInput(value);
-												setOpen(false);
-												const parsed = parse(value, availableColumns);
-												setResult(parsed);
-												if (parsed.success && onApplyFilters) {
-													onApplyFilters(parsed);
-												}
-											}}
-											className="text-left hover:text-foreground hover:bg-muted p-1 rounded"
-										>
-											{'"limit 10"'}
-										</button>
-									</div>
+								<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50 w-72">
+									<Listbox.Root
+										collection={hintCollection}
+										onValueChange={handleHintSelect}
+									>
+										<div className="p-3 border-b border-border flex items-center gap-2 text-xs font-medium text-foreground">
+											<Lightbulb className="w-3 h-3" />
+											Query Examples:
+										</div>
+										<Listbox.Content className="max-h-64 overflow-y-auto">
+											{hintCollection.items.length > 0 ? (
+												<Listbox.ItemGroup>
+													{hintCollection.items.map((item) => (
+														<Listbox.Item
+															key={item.value}
+															item={item}
+															className="px-3 py-2 text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors truncate"
+														>
+															<Listbox.ItemText>{item.label}</Listbox.ItemText>
+														</Listbox.Item>
+													))}
+												</Listbox.ItemGroup>
+											) : (
+												<div className="px-3 py-2 text-xs text-muted-foreground text-center">
+													No hints available
+												</div>
+											)}
+										</Listbox.Content>
+									</Listbox.Root>
 								</Popover.Content>
 							</Popover.Positioner>
 						</Portal>
@@ -205,6 +187,14 @@ export function NaturalLanguageSearch({
 					Search
 				</Button>
 			</form>
+
+			{/* Error feedback if parse failed */}
+			{result && !result.success && (
+				<div className="flex gap-2 items-start text-destructive bg-destructive/10 p-2 rounded text-sm">
+					<AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+					<span>{result.message}</span>
+				</div>
+			)}
 		</div>
 	);
 }
