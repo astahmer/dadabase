@@ -3,7 +3,7 @@ import { cn } from "#src/lib/utils";
 import type { ExposedInputProps } from "./component-props.ts";
 import type { ComponentProps } from "react";
 
-const inputVariants = cva(
+export const inputVariants = cva(
 	"flex w-full min-w-0 rounded-md border border-input bg-transparent shadow-xs outline-none transition-[color,box-shadow] file:inline-flex file:border-0 file:bg-transparent file:font-medium file:text-foreground placeholder:text-muted-foreground/70 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
 	{
 		variants: {
@@ -55,5 +55,3 @@ export const Input = ({
 	);
 };
 Input.displayName = "Input";
-
-export { inputVariants };

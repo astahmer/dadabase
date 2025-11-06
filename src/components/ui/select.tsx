@@ -2,12 +2,29 @@ import { ark, type HTMLArkProps } from "@ark-ui/react/factory";
 import { Portal } from "@ark-ui/react/portal";
 import { Select as SelectPrimitive, selectAnatomy } from "@ark-ui/react/select";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 
 import { cn } from "#src/lib/utils";
 import type { ExposedComponentProps } from "./component-props.ts";
 
 const parts = selectAnatomy.extendWith("separator").build();
+
+export const selectVariants = cva(
+	"relative flex rounded-md border border-input outline-none transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 has-aria-invalid:border-destructive has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40",
+	{
+		variants: {
+			size: {
+				sm: "min-h-[32px] text-xs",
+				md: "min-h-[38px] text-sm",
+				lg: "min-h-[44px] text-base",
+			},
+		},
+		defaultVariants: {
+			size: "md",
+		},
+	},
+);
 
 const SelectComponent = React.forwardRef(
 	<T extends SelectPrimitive.CollectionItem>(
@@ -46,7 +63,7 @@ const SelectContent = React.forwardRef<
 			<SelectPrimitive.Content
 				ref={ref}
 				className={cn(
-					"relative w-full min-w-32 overflow-hidden rounded-md border border-input bg-popover p-1 text-popover-foreground shadow-lg",
+					"relative w-full min-w-32 overflow-hidden rounded-md border border-input bg-popover p-1 text-popover-foreground shadow-lg z-1",
 					"data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=open]:animate-in",
 					"data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=left]:-translate-x-1 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2 data-[placement=top]:-translate-y-1 data-[placement=right]:translate-x-1 data-[placement=bottom]:translate-y-1",
 					className,
@@ -62,14 +79,11 @@ const SelectContext = SelectPrimitive.Context;
 
 const SelectControl = React.forwardRef<
 	React.ElementRef<typeof SelectPrimitive.Control>,
-	SelectPrimitive.ControlProps
->(({ className, ...props }, ref) => (
+	SelectPrimitive.ControlProps & VariantProps<typeof selectVariants>
+>(({ className, size, ...props }, ref) => (
 	<SelectPrimitive.Control
 		ref={ref}
-		className={cn(
-			"relative flex min-h-[38px] rounded-md border border-input text-sm outline-none transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 has-aria-invalid:border-destructive has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40",
-			className,
-		)}
+		className={cn(selectVariants({ size }), className)}
 		{...props}
 	/>
 ));

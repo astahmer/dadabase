@@ -1,30 +1,31 @@
-import { useMemo } from "react";
 import type {
 	FilterConditionExpression,
 	FilterOperatorType,
 } from "#src/lib/query-filter";
 import {
 	allOperators,
+	arrayOperators,
 	getOperatorLabel,
 	nullOperators,
-	arrayOperators,
 } from "#src/lib/query-filter";
+import { useListCollection } from "@ark-ui/react";
+import { useFilter } from "@ark-ui/react/locale";
+import { Plus, X } from "lucide-react";
+import { useMemo } from "react";
 import { Button } from "./ui/button";
-import { HStack, Stack } from "./ui/layout";
-import { X, Plus } from "lucide-react";
 import {
 	Combobox,
+	ComboboxContent,
 	ComboboxControl,
 	ComboboxInput,
-	ComboboxTrigger,
-	ComboboxContent,
-	ComboboxList,
 	ComboboxItem,
+	ComboboxList,
+	ComboboxTrigger,
 	createListCollection,
 } from "./ui/combobox";
+import { Input } from "./ui/input.tsx";
+import { HStack, Stack } from "./ui/layout";
 import * as ArkSelect from "./ui/select";
-import { useFilter } from "@ark-ui/react/locale";
-import { useListCollection } from "@ark-ui/react";
 
 interface QueryFilterBuilderProps {
 	conditions: readonly FilterConditionExpression[];
@@ -35,7 +36,7 @@ interface QueryFilterBuilderProps {
 	onRemoveCondition: (id: string) => void;
 	onAddCondition: () => void;
 	onClearAll: () => void;
-	onLogicalOperatorChange?: (operator: "and" | "or") => void;
+	onLogicalOperatorChange: (operator: "and" | "or") => void;
 	logicalOperator: "and" | "or";
 	availableColumns: string[];
 	isLoading?: boolean;
@@ -83,41 +84,6 @@ export const QueryFilterBuilder = ({
 
 	return (
 		<div className="p-4 space-y-3 border-b">
-			<div className="flex items-center justify-between">
-				<div className="text-xs font-medium text-foreground uppercase tracking-wide">
-					Filters
-				</div>
-				{conditions.length > 1 && (
-					<ArkSelect.Select
-						className="w-24"
-						value={[logicalOperator]}
-						collection={logicalOperatorCollection}
-						positioning={{ sameWidth: true }}
-						onValueChange={(details: { value?: string[] }) => {
-							onLogicalOperatorChange?.(
-								(details.value?.[0] as "and" | "or") || "and",
-							);
-						}}
-					>
-						<ArkSelect.SelectControl>
-							<ArkSelect.SelectTrigger>
-								<ArkSelect.SelectValueText placeholder="AND" />
-								<ArkSelect.SelectIndicator />
-							</ArkSelect.SelectTrigger>
-						</ArkSelect.SelectControl>
-						<ArkSelect.SelectContent>
-							{logicalOperatorCollection.items.map(
-								(item: { label: string; value: string }) => (
-									<ArkSelect.SelectItem key={item.value} item={item}>
-										{item.label}
-									</ArkSelect.SelectItem>
-								),
-							)}
-						</ArkSelect.SelectContent>
-					</ArkSelect.Select>
-				)}
-			</div>
-
 			<Stack gap="2">
 				{conditions.map((condition, index) => (
 					<FilterConditionRow
@@ -130,10 +96,13 @@ export const QueryFilterBuilder = ({
 						onRemove={onRemoveCondition}
 						onAdd={onAddCondition}
 						onClearAll={onClearAll}
+						onLogicalOperatorChange={onLogicalOperatorChange}
 						isLoading={isLoading}
 						showLogicalLabel={index === 0 && conditions.length > 1}
 						logicalOperator={logicalOperator}
+						isFirst={index === 0}
 						isLast={index === conditions.length - 1}
+						hasMultipleConditions={conditions.length > 1}
 					/>
 				))}
 			</Stack>
@@ -156,26 +125,30 @@ interface FilterConditionRowProps {
 	onRemove: (id: string) => void;
 	onAdd: () => void;
 	onClearAll: () => void;
+	onLogicalOperatorChange: (operator: "and" | "or") => void;
 	isLoading?: boolean;
-	isLast?: boolean;
+	isFirst: boolean;
+	hasMultipleConditions: boolean;
+	isLast: boolean;
 	showLogicalLabel?: boolean;
 	logicalOperator?: "and" | "or";
 }
 
-const FilterConditionRow = ({
-	condition,
-	index,
-	columnCollection,
-	operatorCollection,
-	onUpdate,
-	onRemove,
-	onClearAll,
-	onAdd,
-	isLoading = false,
-	showLogicalLabel = false,
-	isLast,
-	logicalOperator = "and",
-}: FilterConditionRowProps) => {
+const FilterConditionRow = (props: FilterConditionRowProps) => {
+	const {
+		condition,
+		index,
+		columnCollection,
+		operatorCollection,
+		onUpdate,
+		onRemove,
+		onClearAll,
+		onAdd,
+		isLoading = false,
+		showLogicalLabel = false,
+		isLast,
+		logicalOperator = "and",
+	} = props;
 	const isNullOperator = nullOperators.includes(condition.operator);
 	const isArrayOperator = arrayOperators.includes(condition.operator);
 
@@ -204,9 +177,8 @@ const FilterConditionRow = ({
 						onRemove(String(index));
 					}}
 					disabled={isLoading}
-					className="h-9 w-9 p-0"
 				>
-					<X className="h-4 w-4" />
+					<X />
 				</Button>
 
 				<Combobox
@@ -222,7 +194,7 @@ const FilterConditionRow = ({
 					disabled={isLoading}
 					className="flex-1 min-w-0"
 				>
-					<ComboboxControl>
+					<ComboboxControl size="sm">
 						<ComboboxInput placeholder="Select column" />
 						<ComboboxTrigger />
 					</ComboboxControl>
@@ -252,7 +224,7 @@ const FilterConditionRow = ({
 					disabled={isLoading}
 					className="flex-1 min-w-0"
 				>
-					<ComboboxControl>
+					<ComboboxControl size="sm">
 						<ComboboxInput placeholder="Select operator" />
 						<ComboboxTrigger />
 					</ComboboxControl>
@@ -268,7 +240,9 @@ const FilterConditionRow = ({
 				</Combobox>
 
 				{!isNullOperator && (
-					<input
+					<Input
+						className="flex-1 min-w-0 rounded-md border border-input bg-transparent shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+						size="sm"
 						type="text"
 						placeholder="Value"
 						value={
@@ -285,11 +259,39 @@ const FilterConditionRow = ({
 							});
 						}}
 						disabled={isLoading}
-						className="flex-1 min-w-0 h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 					/>
 				)}
 
 				<HStack className="min-w-[210px]">
+					{props.isFirst && props.hasMultipleConditions && (
+						<ArkSelect.Select
+							className="w-24"
+							value={[logicalOperator]}
+							collection={logicalOperatorCollection}
+							positioning={{ sameWidth: true }}
+							onValueChange={(details: { value?: string[] }) => {
+								props.onLogicalOperatorChange?.(
+									(details.value?.[0] as "and" | "or") || "and",
+								);
+							}}
+						>
+							<ArkSelect.SelectControl size="sm">
+								<ArkSelect.SelectTrigger>
+									<ArkSelect.SelectValueText placeholder="AND" />
+									<ArkSelect.SelectIndicator />
+								</ArkSelect.SelectTrigger>
+							</ArkSelect.SelectControl>
+							<ArkSelect.SelectContent>
+								{logicalOperatorCollection.items.map(
+									(item: { label: string; value: string }) => (
+										<ArkSelect.SelectItem key={item.value} item={item}>
+											{item.label}
+										</ArkSelect.SelectItem>
+									),
+								)}
+							</ArkSelect.SelectContent>
+						</ArkSelect.Select>
+					)}
 					{isLast && (
 						<>
 							<Button
@@ -297,20 +299,18 @@ const FilterConditionRow = ({
 								size="sm"
 								onClick={() => onAdd?.()}
 								disabled={isLoading}
-								className="h-9 gap-1"
 							>
-								<Plus className="h-4 w-4" />
+								<Plus />
 								<span className="text-xs">Add filter</span>
 							</Button>
 
 							<Button
 								variant="ghost"
-								onClick={() => {
-									onClearAll();
-								}}
+								size="sm"
+								onClick={() => onClearAll()}
 								disabled={isLoading}
 							>
-								<X className="h-4 w-4" />
+								<X />
 								<span className="text-xs">Clear all</span>
 							</Button>
 						</>

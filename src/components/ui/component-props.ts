@@ -23,6 +23,7 @@ export interface ExposedInputProps
 		| "onChange"
 		| "onChangeCapture"
 		| "onBlur"
+		| "disabled"
 	> {}
 
 export interface ExposedTextareaProps
