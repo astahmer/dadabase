@@ -33,14 +33,15 @@ export function ColumnVisibilityControls<TData>(
 		[props.columnList],
 	);
 
-	const allVisible = useMemo(
+	const visibleCount = useMemo(
 		() =>
-			allColumns.every((col) => {
+			allColumns.reduce((acc, col) => {
 				const tableCol = table.getColumn(col.value);
-				return tableCol?.getIsVisible?.() ?? true;
-			}),
+				return acc + ((tableCol?.getIsVisible?.() ?? true) ? 1 : 0);
+			}, 0),
 		[allColumns, table],
 	);
+	const allVisible = visibleCount === allColumns.length;
 
 	const handleSelectAll = () => {
 		allColumns.forEach((col) => {
@@ -81,7 +82,8 @@ export function ColumnVisibilityControls<TData>(
 						className={buttonClassName}
 					>
 						<span className="text-xs font-medium text-foreground uppercase tracking-wide">
-							📋 Columns
+							📋 Columns{" "}
+							{allVisible ? "" : `(${visibleCount}/${allColumns.length})`}
 						</span>
 						<ChevronsUpDown className="h-4 w-4 opacity-50" />
 					</Button>
