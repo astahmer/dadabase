@@ -23,6 +23,8 @@ import {
 	createListCollection,
 } from "./ui/combobox";
 import * as ArkSelect from "./ui/select";
+import { useFilter } from "@ark-ui/react/locale";
+import { useListCollection } from "@ark-ui/react";
 
 interface QueryFilterBuilderProps {
 	conditions: readonly FilterConditionExpression[];
@@ -164,6 +166,16 @@ const FilterConditionRow = ({
 	const isNullOperator = nullOperators.includes(condition.operator);
 	const isArrayOperator = arrayOperators.includes(condition.operator);
 
+	const filters = useFilter({ sensitivity: "base" });
+	const columnList = useListCollection({
+		initialItems: columnCollection.items,
+		filter: filters.contains,
+	});
+	const operatorList = useListCollection({
+		initialItems: operatorCollection.items,
+		filter: filters.contains,
+	});
+
 	return (
 		<div className="space-y-2">
 			{showLogicalLabel && index > 0 && (
@@ -174,11 +186,14 @@ const FilterConditionRow = ({
 			<div className="flex gap-2 items-start">
 				<Combobox
 					openOnClick
-					collection={columnCollection}
+					collection={columnList.collection}
 					value={condition.column ? [condition.column] : []}
 					onValueChange={(details) => {
 						onUpdate(String(index), { column: details.value?.[0] || "" });
 					}}
+					onInputValueChange={(details) =>
+						columnList.filter(details.inputValue)
+					}
 					disabled={isLoading}
 					className="flex-1 min-w-0"
 				>
@@ -188,7 +203,7 @@ const FilterConditionRow = ({
 					</ComboboxControl>
 					<ComboboxContent>
 						<ComboboxList>
-							{columnCollection.items.map((item) => (
+							{columnList.collection.items.map((item) => (
 								<ComboboxItem key={item.value} item={item}>
 									{item.label}
 								</ComboboxItem>
@@ -199,13 +214,16 @@ const FilterConditionRow = ({
 
 				<Combobox
 					openOnClick
-					collection={operatorCollection}
+					collection={operatorList.collection}
 					value={[condition.operator]}
 					onValueChange={(details) => {
 						onUpdate(String(index), {
 							operator: details.value?.[0] as FilterOperatorType,
 						});
 					}}
+					onInputValueChange={(details) =>
+						operatorList.filter(details.inputValue)
+					}
 					disabled={isLoading}
 					className="flex-1 min-w-0"
 				>
@@ -215,7 +233,7 @@ const FilterConditionRow = ({
 					</ComboboxControl>
 					<ComboboxContent>
 						<ComboboxList>
-							{operatorCollection.items.map((item) => (
+							{operatorList.collection.items.map((item) => (
 								<ComboboxItem key={item.value} item={item}>
 									{item.label}
 								</ComboboxItem>
