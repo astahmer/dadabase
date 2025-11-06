@@ -7,6 +7,10 @@
 - JSON viewer available when clicking a table row -> show JSON data in a side panel
 - when clicking a table row -> JSON viewer that auto fetch nested entities with foreign keys (up to a limit of 50 rows per relation)
 - when clicking a table row -> add a way to copy as JSON (with nested entities based on foreign keys)
+- clear TODO in connection page
+- add dark mode in connection page
+- filters in datatable header ?
+- edit in datatable line?
 
 - add a way to favorite/save queries
 - add a way to view query history

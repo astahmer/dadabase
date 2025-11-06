@@ -5,6 +5,13 @@ export const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
 			staleTime: 3_000,
+			// retry: (failureCount, error) => {
+			// 	console.log("Retrying query", error);
+			// 	console.log(error.name, error.cause, error);
+			// 	if (error.name === "AbortError") return false;
+			// 	if (error.name === "FetchError") return false;
+			// 	return failureCount < 3;
+			// },
 		},
 	},
 	mutationCache: new MutationCache({

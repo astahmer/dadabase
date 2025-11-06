@@ -26,17 +26,17 @@ import {
 	Rows,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
+import { NaturalLanguageSearch } from "../natural-language-search";
 import { QueryFilterBuilder } from "../query-filter-builder";
 import { Button } from "../ui/button";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ArkSelect from "../ui/select";
-import { useDataTable } from "../use-data-table";
-import { NaturalLanguageSearch } from "../natural-language-search";
 import { Spinner } from "../ui/spinner.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
-import { getErrorMessage } from "../../lib/get-error-message.ts";
+import { useDataTable } from "../use-data-table";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -112,7 +112,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			offset: search.offset,
 			orderBy: search.orderBy,
 			orderDirection: search.orderDirection,
-			filters: queryBuilder.getWhereClause() ?? ({} as any),
+			filters: queryBuilder.getWhereClause() ?? {
+				conditions: [],
+				logicalOperator: "and",
+			},
 		}),
 		// placeholderData: keepPreviousData,
 		enabled: !!connection?.url && !!search.schema && !!search.table,
@@ -187,11 +190,21 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		return formatted;
 	});
 
-	const columns: Array<ColumnDef<Record<string, unknown>>> =
+	const rowsColumns: Array<ColumnDef<Record<string, unknown>>> =
 		columnMetadata.length > 0
 			? columnMetadata.map((col) => ({
 					accessorKey: col.name,
-					header: col.name,
+					// header: `${col.name} (${col.dataType})`,
+					header: () => (
+						<div>
+							<span>{col.name}</span>
+							<Tooltip content={col.dataType}>
+								<span className="ml-1 truncate max-w-16 inline-flex font-mono text-[0.625rem] text-muted-foreground/80 whitespace-nowrap pointer-events-none">
+									({col.dataType})
+								</span>
+							</Tooltip>
+						</div>
+					),
 					// size: 150,
 					// minSize: 75,
 					// maxSize: 500,
@@ -212,7 +225,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const dataTable = useDataTable({
 		data: formattedTableData,
-		columns,
+		columns: rowsColumns,
 		initialState: {
 			pagination: {
 				pageIndex: Math.floor(search.offset / search.limit),
@@ -427,8 +440,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																			...prev,
 																			table: table.name,
 																			offset: 0,
-																			viewMode: "rows",
 																			filters: undefined,
+																			orderBy: undefined,
+																			orderDirection: undefined,
+																			limit: 50,
 																		}),
 																	});
 																}}
@@ -610,7 +625,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 							{/* Query Filter Builder */}
 							{search.viewMode === "rows" &&
-								columns.length > 0 &&
+								rowsColumns.length > 0 &&
 								search.filtersOpened && (
 									<QueryFilterBuilder
 										key={search.table}
@@ -663,11 +678,17 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
 											<div className="flex items-center justify-between gap-4">
 												{/* TODO when loading dont show 0 everywhere */}
-												<span className="flex-1">
-													{tableDisplayName} • {formattedTableData.length} rows
-													(0-
-													{formattedTableData.length}) • {columns.length}{" "}
-													columns
+												<HStack className="flex-1 whitespace-nowrap">
+													<span>
+														{tableDisplayName}
+														<span> ({rowsColumns.length} columns)</span>
+													</span>
+													<span>
+														{search.offset}-{search.offset + search.limit} out
+														of {totalRowCount}
+													</span>
+												</HStack>
+												<span>
 													{queryResponse.timeTaken > 0 &&
 														` • ${queryResponse.timeTaken}ms • Loaded ${formatRelativeTime(queryResponse.ranAt)}`}
 												</span>

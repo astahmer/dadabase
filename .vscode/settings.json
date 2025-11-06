@@ -11,5 +11,6 @@
 	},
 	// "typescript.preferences.importModuleSpecifier": "shortest",
 	"typescript.preferences.importModuleSpecifier": "shortest",
-	"typescript.preferences.importModuleSpecifierEnding": "js"
+	"typescript.preferences.importModuleSpecifierEnding": "js",
+	"tailwindCSS.experimental.configFile": "src/styles.css"
 }
