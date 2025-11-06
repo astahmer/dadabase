@@ -5,7 +5,7 @@ import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
 import type { Table as TanstackTable } from "@tanstack/react-table";
 import { ChevronsUpDown } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "./ui/button";
 
 export interface ColumnVisibilityControlsProps<TData> {
@@ -19,7 +19,6 @@ export function ColumnVisibilityControls<TData>(
 ) {
 	const { table, minimal = false } = props;
 	const [open, setOpen] = useState(false);
-	const triggerRef = useRef<HTMLButtonElement>(null);
 
 	const allColumns = useMemo(
 		() =>
@@ -62,6 +61,9 @@ export function ColumnVisibilityControls<TData>(
 		initialItems: allColumns,
 		filter: filters.contains,
 	});
+	useEffect(() => {
+		list.set(allColumns);
+	}, [allColumns]);
 
 	const buttonClassName = minimal
 		? "h-8 px-2 gap-1 justify-between"
@@ -75,12 +77,7 @@ export function ColumnVisibilityControls<TData>(
 		<div className={containerClassName}>
 			<Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
 				<Popover.Trigger asChild>
-					<Button
-						ref={triggerRef}
-						variant="outline"
-						size="sm"
-						className={buttonClassName}
-					>
+					<Button variant="outline" size="sm" className={buttonClassName}>
 						<span className="text-xs font-medium text-foreground uppercase tracking-wide">
 							📋 Columns{" "}
 							{allVisible ? "" : `(${visibleCount}/${allColumns.length})`}

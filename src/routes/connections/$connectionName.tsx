@@ -2,6 +2,9 @@ import { ConnectionPage } from "#src/components/pages/connection.page";
 import { QueryFilter } from "#src/lib/query-filter";
 import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
+import { Suspense } from "react";
+import { Spinner } from "../../components/ui/spinner.tsx";
+import { FullCenter } from "../../components/ui/layout.tsx";
 
 const searchSchema = Schema.Struct({
 	dbName: Schema.String.pipe(Schema.optional),
@@ -30,5 +33,16 @@ export const Route = createFileRoute("/connections/$connectionName")({
 
 function RouteComponent() {
 	const { connectionName } = Route.useParams();
-	return <ConnectionPage connectionName={connectionName} />;
+
+	return (
+		<Suspense
+			fallback={
+				<FullCenter>
+					<Spinner />
+				</FullCenter>
+			}
+		>
+			{<ConnectionPage connectionName={connectionName} />}
+		</Suspense>
+	);
 }

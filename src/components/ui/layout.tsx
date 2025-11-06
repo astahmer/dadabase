@@ -101,3 +101,15 @@ export const HStack = (
 		/>
 	);
 };
+
+export const FullCenter = (props: ExposedComponentProps<"div">) => {
+	return (
+		<div
+			{...props}
+			className={cn(
+				"flex flex-col items-center justify-center h-full",
+				props.className,
+			)}
+		/>
+	);
+};

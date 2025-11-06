@@ -56,8 +56,8 @@ interface ConnectionPageProps {
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: Route.fullPath });
-	const connections = useSuspenseQuery(listDbConnectionQueryOptions);
-	const connection = connections.data.find((c) => c.name === connectionName);
+	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
+	const connection = connectionList.data.find((c) => c.name === connectionName);
 
 	const search = Route.useSearch();
 
@@ -614,9 +614,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								{viewMode === "rows" && (
 									<ColumnVisibilityControls
 										table={dataTable}
-										columnList={(tableColumnsQuery.data ?? []).map(
-											(col) => col.name,
-										)}
+										columnList={columnMetadata.map((col) => col.name)}
 										minimal={true}
 									/>
 								)}
@@ -733,10 +731,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														</Pagination.Context>
 													</Pagination.Root>
 
-													<div className="flex items-center gap-2">
+													<div className="flex items-center gap-2 text-foreground">
 														<label className="font-medium uppercase tracking-wide whitespace-nowrap">
 															Rows per page:
 														</label>
+														{/* TODO change to combobox so it can use a custom value */}
 														<ArkSelect.Select
 															className="w-20"
 															value={[limit.toString()]}
