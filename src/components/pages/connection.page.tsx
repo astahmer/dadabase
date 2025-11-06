@@ -527,7 +527,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								{viewMode === "rows" && (
 									<NaturalLanguageSearch
 										availableColumns={Object.keys(formattedTableData[0] || {})}
-										onApplyFilters={(filters, orderBy, limit) => {
+										onApplyFilters={(parsed) => {
+											const { filters = [], orderBy, limit } = parsed;
 											// queryBuilder.clearConditions();
 											// filters.forEach(() => {
 											// 	queryBuilder.addCondition();
