@@ -30,6 +30,7 @@ import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
 import { NaturalLanguageSearch } from "../natural-language-search";
+import { OrderBySelect } from "../order-by-select";
 import { QueryFilterBuilder } from "../query-filter-builder";
 import { Button } from "../ui/button";
 import { HStack, Stack } from "../ui/layout.tsx";
@@ -536,6 +537,25 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												)
 											) : null}
 										</Button>
+									)}
+									{search.viewMode === "rows" && (
+										<OrderBySelect
+											columnList={columnMetadata.map((col) => col.name)}
+											orderBy={search.orderBy}
+											orderDirection={search.orderDirection}
+											onOrderChange={(orderBy, direction) => {
+												navigate({
+													search: (prev) => ({
+														...prev,
+														orderBy,
+														orderDirection: direction || "asc",
+														offset: 0,
+													}),
+												});
+											}}
+											getColumnLabel={(col) => col}
+											minimal
+										/>
 									)}
 								</div>
 								{search.viewMode === "rows" && (

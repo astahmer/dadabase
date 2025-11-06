@@ -5,6 +5,8 @@ type AllowedProps =
 	| "children"
 	| "className"
 	| "id"
+	| "title"
+	| "hidden"
 	| "onClick"
 	| "onBlur";
 
