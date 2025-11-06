@@ -35,3 +35,6 @@ https://github.com/beenotung/better-sql
 https://github.com/gajus/liqe?tab=readme-ov-file
 
 https://github.com/riichard/boolean-parser-js
+
+https://github.com/wanasit/chrono/tree/master
+https://github.com/spencermountain/compromise

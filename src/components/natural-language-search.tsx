@@ -7,6 +7,11 @@ import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import type { ParsedNLQuery } from "#src/lib/natural-language-parser";
+import {
+	analyzeQueryState,
+	generateSuggestions,
+	getInitialExamples,
+} from "#src/lib/query-state-machine";
 
 interface NaturalLanguageSearchProps {
 	availableColumns: string[];
@@ -29,7 +34,6 @@ export function NaturalLanguageSearch({
 }: NaturalLanguageSearchProps) {
 	const [input, setInput] = useState("");
 	const [result, setResult] = useState<ParsedNLQuery | null>(null);
-	console.log(result);
 
 	const { parse } = useNaturalLanguageSearch();
 
@@ -62,54 +66,41 @@ export function NaturalLanguageSearch({
 		handleSearch();
 	};
 
-	// Build hint items
+	// Generate context-aware suggestions
+	const suggestions = useMemo(() => {
+		if (!input) {
+			// Show initial examples when empty
+			return getInitialExamples(availableColumns);
+		}
+
+		// Analyze current query state
+		const context = analyzeQueryState(input, availableColumns);
+
+		// Generate suggestions based on state
+		return generateSuggestions(context, availableColumns);
+	}, [input, availableColumns]);
+
+	// Build listbox collection
 	const hintCollection = useMemo(
 		() =>
 			createListCollection({
-				items: (() => {
-					const items: Array<{ label: string; value: string }> = [];
-
-					if (availableColumns[0]) {
-						items.push({
-							label: `${availableColumns[0]} equals something`,
-							value: `${availableColumns[0]} equals something`,
-						});
-						items.push({
-							label: `${availableColumns[0]} > 100`,
-							value: `${availableColumns[0]} > 100`,
-						});
-						items.push({
-							label: `${availableColumns[0]} contains foo`,
-							value: `${availableColumns[0]} contains foo`,
-						});
-					}
-
-					if (availableColumns[1]) {
-						items.push({
-							label: `sort by ${availableColumns[1]} desc`,
-							value: `sort by ${availableColumns[1]} desc`,
-						});
-					}
-
-					items.push({
-						label: "limit 10",
-						value: "limit 10",
-					});
-
-					return items;
-				})(),
+				items: suggestions.map((suggestion) => ({
+					label: suggestion.label,
+					value: suggestion.value,
+				})),
 			}),
-		[availableColumns],
+		[suggestions],
 	);
 
 	const handleHintSelect = (details: { value: string[] }) => {
-		const value = details.value?.[0];
-		if (!value) return;
+		const selectedValue = details.value?.[0];
+		if (!selectedValue) return;
 
-		setInput(value);
+		setInput(selectedValue);
 		setOpen(false);
+
 		// run search immediately
-		const parsed = parse(value, availableColumns);
+		const parsed = parse(selectedValue, availableColumns);
 		setResult(parsed);
 		if (parsed.success && onApplyFilters) {
 			onApplyFilters(parsed);
@@ -144,35 +135,43 @@ export function NaturalLanguageSearch({
 
 						<Portal>
 							<Popover.Positioner>
-								<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50 w-72">
-									<Listbox.Root
-										collection={hintCollection}
-										onValueChange={handleHintSelect}
-									>
-										<div className="p-3 border-b border-border flex items-center gap-2 text-xs font-medium text-foreground">
-											<Lightbulb className="w-3 h-3" />
-											Query Examples:
-										</div>
-										<Listbox.Content className="max-h-64 overflow-y-auto">
-											{hintCollection.items.length > 0 ? (
-												<Listbox.ItemGroup>
-													{hintCollection.items.map((item) => (
-														<Listbox.Item
-															key={item.value}
-															item={item}
-															className="px-3 py-2 text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors truncate"
-														>
-															<Listbox.ItemText>{item.label}</Listbox.ItemText>
-														</Listbox.Item>
-													))}
-												</Listbox.ItemGroup>
-											) : (
-												<div className="px-3 py-2 text-xs text-muted-foreground text-center">
-													No hints available
-												</div>
-											)}
-										</Listbox.Content>
-									</Listbox.Root>
+								<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50 w-96">
+									<div className="space-y-2 p-3">
+										<Listbox.Root
+											collection={hintCollection}
+											onValueChange={handleHintSelect}
+										>
+											<div className="flex items-center gap-2 text-xs font-medium text-foreground mb-2">
+												<Lightbulb className="w-3 h-3" />
+												<span>
+													{input
+														? "Suggestions for next token"
+														: "Start typing or pick a column"}{" "}
+												</span>
+											</div>
+											<Listbox.Content className="max-h-72 overflow-y-auto space-y-1">
+												{hintCollection.items.length > 0 ? (
+													<Listbox.ItemGroup>
+														{hintCollection.items.map((item) => (
+															<Listbox.Item
+																key={item.value}
+																item={item}
+																className="px-3 py-2 text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors rounded truncate"
+															>
+																<Listbox.ItemText>
+																	{item.label}
+																</Listbox.ItemText>
+															</Listbox.Item>
+														))}
+													</Listbox.ItemGroup>
+												) : (
+													<div className="px-3 py-2 text-xs text-muted-foreground text-center">
+														No suggestions available
+													</div>
+												)}
+											</Listbox.Content>
+										</Listbox.Root>
+									</div>
 								</Popover.Content>
 							</Popover.Positioner>
 						</Portal>
