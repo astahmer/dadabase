@@ -15,6 +15,7 @@ import {
 	generateSuggestions,
 	getInitialExamples,
 } from "#src/lib/query-state-machine";
+import { Tooltip } from "./ui/tooltip.tsx";
 
 interface NaturalLanguageSearchProps {
 	availableColumns: string[];
@@ -37,8 +38,10 @@ export function NaturalLanguageSearch({
 }: NaturalLanguageSearchProps) {
 	const [input, setInput] = useState("");
 	const [inputValue, setInputValue] = useState("");
+
 	const [result, setResult] = useState<ParsedNLQuery | null>(null);
 	const [open, setOpen] = useState(false);
+
 	const triggerRef = useRef<HTMLButtonElement | null>(null);
 
 	const { parse } = useNaturalLanguageSearch();
@@ -65,36 +68,37 @@ export function NaturalLanguageSearch({
 		[suggestions],
 	);
 
-	// Setup listbox
 	const listbox = useListbox({
 		collection,
 		selectionMode: "none", // Prevent selection
-		onValueChange(details) {
-			const selectedValue = details.value?.[0];
-			if (!selectedValue) return;
-
-			// Fill the input with the suggestion
-			setInputValue(selectedValue);
-
-			// Parse and check if it's complete
-			const parsed = parse(selectedValue, availableColumns);
-			setResult(parsed);
-
-			// If query is complete and valid, apply filters immediately
-			if (parsed.success) {
-				setInput(selectedValue);
-				setOpen(false);
-				if (onApplyFilters) {
-					onApplyFilters(parsed);
-				}
-				triggerRef.current?.focus();
-			}
-		},
 	});
 
-	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const value = e.currentTarget.value;
-		setInputValue(value);
+	// Setup listbox
+	const onValueChange = (selectedValue: string) => {
+		setInputValue(selectedValue);
+		if (!selectedValue) {
+			setResult(null);
+			listbox.clearValue();
+			return;
+		}
+
+		// Fill the input with the suggestion
+		setInputValue(selectedValue);
+
+		// Parse and check if it's complete
+		const parsed = parse(selectedValue, availableColumns);
+		setResult(parsed);
+		console.log(parsed);
+
+		// If query is complete and valid, apply filters immediately
+		if (parsed.success) {
+			setInput(selectedValue);
+			setOpen(false);
+			if (onApplyFilters) {
+				onApplyFilters(parsed);
+			}
+			triggerRef.current?.focus();
+		}
 	};
 
 	const handleListboxKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -103,7 +107,7 @@ export function NaturalLanguageSearch({
 			const highlightedItem = listbox.highlightedItem;
 			if (highlightedItem) {
 				e.preventDefault();
-				setInputValue(highlightedItem.value);
+				onValueChange(highlightedItem.value);
 			}
 		}
 	};
@@ -122,6 +126,11 @@ export function NaturalLanguageSearch({
 	return (
 		<div className={`space-y-2 ${className}`}>
 			<div className="flex gap-2 items-start">
+				{result && !result.success && (
+					<Tooltip content="Query is invalid" className="shrink-0">
+						<AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-destructive self-center" />
+					</Tooltip>
+				)}
 				<Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
 					<Popover.Trigger asChild>
 						<Button
@@ -141,7 +150,7 @@ export function NaturalLanguageSearch({
 								<Listbox.RootProvider value={listbox}>
 									<Listbox.Input
 										asChild
-										onChange={handleInputChange}
+										onChange={(e) => onValueChange(e.currentTarget.value)}
 										onKeyDown={handleListboxKeyDown}
 									>
 										<input
@@ -159,15 +168,12 @@ export function NaturalLanguageSearch({
 													key={item.value}
 													item={item}
 													className="px-3 py-2 text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent data-highlighted:text-accent-foreground transition-colors text-foreground truncate"
-													onClick={() => setInputValue(item.value)}
+													onClick={() => {
+														onValueChange(item.value);
+													}}
 												>
 													<div className="flex items-center gap-2 justify-between">
 														<span>{item.label}</span>
-														{listbox.selectedItems[0]?.value === item.value && (
-															<span className="text-xs text-muted-foreground">
-																✓
-															</span>
-														)}
 													</div>
 												</Listbox.Item>
 											))
@@ -229,14 +235,6 @@ export function NaturalLanguageSearch({
 					</Button>
 				)}
 			</div>
-
-			{/* Error feedback if parse failed */}
-			{result && !result.success && (
-				<div className="flex gap-2 items-start text-destructive bg-destructive/10 p-2 rounded text-sm">
-					<AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-					<span>{result.message}</span>
-				</div>
-			)}
 		</div>
 	);
 }
