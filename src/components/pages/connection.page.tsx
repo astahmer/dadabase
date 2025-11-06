@@ -14,9 +14,9 @@ import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
 import {
 	whereClauseParamsToQueryFilter,
-	filterToWhereClause,
+	filterQueryValidConditions,
 } from "#src/lib/query-filter";
-import type { QueryFilter } from "#src/lib/query-filter";
+import type { QueryFilterType } from "#src/lib/query-filter";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
@@ -61,29 +61,27 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
-	// Handler for filter changes - syncs to URL
-	const handleFilterChange = useCallback(
-		(updatedFilter: QueryFilter) => {
-			const filterConfig = filterToWhereClause(updatedFilter);
+	// Convert deserialized WhereClauseParams from URL to QueryFilter for the builder
+	// Zipson/TanStack Router automatically handles serialization/deserialization
+	const queryBuilder = useQueryBuilder(
+		search.filters ?? { conditions: [], logicalOperator: "and" },
+		(updatedFilter) => {
+			// const filterConfig = filterQueryValidConditions(updatedFilter);
 			navigate({
 				search: (prev) => ({
 					...prev,
-					filters: filterConfig || undefined,
+					filters: updatedFilter || undefined,
 					offset: 0, // Reset to first page when filters change
 				}),
 			});
 		},
-		[navigate],
 	);
-
-	// Convert deserialized WhereClauseParams from URL to QueryFilter for the builder
-	// Zipson/TanStack Router automatically handles serialization/deserialization
-	const initialQueryFilter = whereClauseParamsToQueryFilter(search.filters);
-	const queryBuilder = useQueryBuilder(initialQueryFilter, handleFilterChange);
+	console.log(queryBuilder);
 
 	// Extract search params with defaults
 	const selectedSchema = search.schema;
 	const selectedTable = search.table;
+	console.log(selectedTable);
 	const viewMode = search.viewMode || "rows";
 	const limit = search.limit || 50;
 	const offset = search.offset || 0;
@@ -129,7 +127,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			orderDirection: orderDirection,
 			filters: mutableFilterConfig,
 		}),
-		placeholderData: keepPreviousData,
+		// placeholderData: keepPreviousData,
 		enabled: !!connection?.url && !!selectedSchema && !!selectedTable,
 	});
 

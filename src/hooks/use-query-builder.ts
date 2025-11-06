@@ -1,94 +1,62 @@
-import { useCallback, useState } from "react";
 import type {
-	FilterCondition,
-	QueryFilter,
+	FilterConditionExpression,
 	LogicalOperator,
+	QueryFilterType,
 } from "#src/lib/query-filter";
-import { filterToWhereClause } from "#src/lib/query-filter";
-import { nanoid } from "nanoid";
+import { filterQueryValidConditions } from "#src/lib/query-filter";
 
 export const useQueryBuilder = (
-	initialFilter?: QueryFilter,
-	onFilterChange?: (filter: QueryFilter) => void,
+	filter: QueryFilterType,
+	setFilter: (filter: QueryFilterType) => void,
 ) => {
-	const [filter, setFilter] = useState<QueryFilter>(
-		initialFilter || {
-			conditions: [],
-			logicalOperator: "and",
-		},
-	);
-
-	// Wrapper to notify parent of filter changes
-	const updateFilter = useCallback(
-		(newFilter: QueryFilter) => {
-			setFilter(newFilter);
-			onFilterChange?.(newFilter);
-		},
-		[onFilterChange],
-	);
-
-	// Add a new condition
-	const addCondition = useCallback(() => {
-		const newCondition: FilterCondition = {
-			id: nanoid(),
+	const addCondition = () => {
+		const newCondition: FilterConditionExpression = {
 			column: "",
 			operator: "equals",
 		};
-		updateFilter({
+		setFilter({
 			...filter,
 			conditions: [...filter.conditions, newCondition],
 		});
-	}, [filter, updateFilter]);
+	};
 
-	// Update a condition
-	const updateCondition = useCallback(
-		(id: string, updates: Partial<FilterCondition>) => {
-			updateFilter({
-				...filter,
-				conditions: filter.conditions.map((c) =>
-					c.id === id ? { ...c, ...updates } : c,
-				),
-			});
-		},
-		[filter, updateFilter],
-	);
+	const updateCondition = (
+		id: string,
+		updates: Partial<FilterConditionExpression>,
+	) => {
+		setFilter({
+			...filter,
+			conditions: filter.conditions.map((c, index) =>
+				String(index) === id ? { ...c, ...updates } : c,
+			),
+		});
+	};
 
-	// Remove a condition
-	const removeCondition = useCallback(
-		(id: string) => {
-			updateFilter({
-				...filter,
-				conditions: filter.conditions.filter((c) => c.id !== id),
-			});
-		},
-		[filter, updateFilter],
-	);
+	const removeCondition = (id: string) => {
+		setFilter({
+			...filter,
+			conditions: filter.conditions.filter((c, index) => String(index) !== id),
+		});
+	};
 
-	// Update logical operator
-	const setLogicalOperator = useCallback(
-		(operator: LogicalOperator) => {
-			updateFilter({
-				...filter,
-				logicalOperator: operator,
-			});
-		},
-		[filter, updateFilter],
-	);
+	const setLogicalOperator = (operator: LogicalOperator) => {
+		setFilter({
+			...filter,
+			logicalOperator: operator,
+		});
+	};
 
-	// Clear all conditions
-	const clearConditions = useCallback(() => {
-		updateFilter({
+	const clearConditions = () => {
+		setFilter({
 			conditions: [],
 			logicalOperator: "and",
 		});
-	}, [updateFilter]);
+	};
 
-	// Get the WHERE clause SQL
-	const getWhereClause = useCallback(() => {
-		return filterToWhereClause(filter);
-	}, [filter]);
+	const getWhereClause = () => {
+		return filterQueryValidConditions(filter);
+	};
 
-	// Check if any filters are active
 	const hasActiveFilters = filter.conditions.length > 0;
 
 	return {

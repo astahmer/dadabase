@@ -1,5 +1,8 @@
 import { useMemo } from "react";
-import type { FilterCondition } from "#src/lib/query-filter";
+import type {
+	FilterConditionExpression,
+	FilterOperatorType,
+} from "#src/lib/query-filter";
 import {
 	allOperators,
 	getOperatorLabel,
@@ -22,8 +25,11 @@ import {
 import * as ArkSelect from "./ui/select";
 
 interface QueryFilterBuilderProps {
-	conditions: readonly FilterCondition[];
-	onUpdateCondition: (id: string, updates: Partial<FilterCondition>) => void;
+	conditions: readonly FilterConditionExpression[];
+	onUpdateCondition: (
+		id: string,
+		updates: Partial<FilterConditionExpression>,
+	) => void;
 	onRemoveCondition: (id: string) => void;
 	onLogicalOperatorChange?: (operator: "and" | "or") => void;
 	logicalOperator: "and" | "or";
@@ -109,7 +115,7 @@ export const QueryFilterBuilder = ({
 			<Stack gap="2">
 				{conditions.map((condition, index) => (
 					<FilterConditionRow
-						key={condition.id}
+						key={index}
 						condition={condition}
 						index={index}
 						columnCollection={columnCollection}
@@ -127,11 +133,17 @@ export const QueryFilterBuilder = ({
 };
 
 interface FilterConditionRowProps {
-	condition: FilterCondition;
+	condition: FilterConditionExpression;
 	index: number;
-	columnCollection: any;
-	operatorCollection: any;
-	onUpdate: (id: string, updates: Partial<FilterCondition>) => void;
+	columnCollection: ArkSelect.ListCollection<{
+		label: string;
+		value: string;
+	}>;
+	operatorCollection: ArkSelect.ListCollection<{
+		label: string;
+		value: FilterOperatorType;
+	}>;
+	onUpdate: (id: string, updates: Partial<FilterConditionExpression>) => void;
 	onRemove: (id: string) => void;
 	isLoading?: boolean;
 	showLogicalLabel?: boolean;
@@ -149,8 +161,8 @@ const FilterConditionRow = ({
 	showLogicalLabel = false,
 	logicalOperator = "and",
 }: FilterConditionRowProps) => {
-	const isNullOperator = nullOperators.includes(condition.operator as any);
-	const isArrayOperator = arrayOperators.includes(condition.operator as any);
+	const isNullOperator = nullOperators.includes(condition.operator);
+	const isArrayOperator = arrayOperators.includes(condition.operator);
 
 	return (
 		<div className="space-y-2">
@@ -164,8 +176,8 @@ const FilterConditionRow = ({
 					openOnClick
 					collection={columnCollection}
 					value={condition.column ? [condition.column] : []}
-					onValueChange={(details: any) => {
-						onUpdate(condition.id, { column: details.value?.[0] || "" });
+					onValueChange={(details) => {
+						onUpdate(String(index), { column: details.value?.[0] || "" });
 					}}
 					disabled={isLoading}
 					className="flex-1 min-w-0"
@@ -176,7 +188,7 @@ const FilterConditionRow = ({
 					</ComboboxControl>
 					<ComboboxContent>
 						<ComboboxList>
-							{columnCollection.items.map((item: any) => (
+							{columnCollection.items.map((item) => (
 								<ComboboxItem key={item.value} item={item}>
 									{item.label}
 								</ComboboxItem>
@@ -189,8 +201,10 @@ const FilterConditionRow = ({
 					openOnClick
 					collection={operatorCollection}
 					value={[condition.operator]}
-					onValueChange={(details: any) => {
-						onUpdate(condition.id, { operator: details.value?.[0] as any });
+					onValueChange={(details) => {
+						onUpdate(String(index), {
+							operator: details.value?.[0] as FilterOperatorType,
+						});
 					}}
 					disabled={isLoading}
 					className="flex-1 min-w-0"
@@ -201,7 +215,7 @@ const FilterConditionRow = ({
 					</ComboboxControl>
 					<ComboboxContent>
 						<ComboboxList>
-							{operatorCollection.items.map((item: any) => (
+							{operatorCollection.items.map((item) => (
 								<ComboboxItem key={item.value} item={item}>
 									{item.label}
 								</ComboboxItem>
@@ -221,7 +235,7 @@ const FilterConditionRow = ({
 						}
 						onChange={(e) => {
 							const val = e.target.value;
-							onUpdate(condition.id, {
+							onUpdate(String(index), {
 								value: isArrayOperator
 									? val.split(",").map((v) => v.trim())
 									: val,
@@ -235,7 +249,7 @@ const FilterConditionRow = ({
 				<Button
 					variant="ghost"
 					size="sm"
-					onClick={() => onRemove(condition.id)}
+					onClick={() => onRemove(String(index))}
 					disabled={isLoading}
 					className="h-9 w-9 p-0"
 				>

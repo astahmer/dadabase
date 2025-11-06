@@ -21,13 +21,13 @@ export const FilterOperator = Schema.Union(
 	Schema.Literal("not_in"),
 );
 
-export type FilterOperator = Schema.Schema.Type<typeof FilterOperator>;
+export type FilterOperatorType = Schema.Schema.Type<typeof FilterOperator>;
 
 /**
  * A single filter condition
  */
 export const FilterCondition = Schema.Struct({
-	id: Schema.String,
+	// id: Schema.String,
 	column: Schema.String,
 	operator: FilterOperator,
 	value: Schema.Union(
@@ -39,7 +39,9 @@ export const FilterCondition = Schema.Struct({
 	isOpen: Schema.Boolean.pipe(Schema.optional),
 });
 
-export type FilterCondition = Schema.Schema.Type<typeof FilterCondition>;
+export type FilterConditionExpression = Schema.Schema.Type<
+	typeof FilterCondition
+>;
 
 /**
  * Logical operator for combining conditions
@@ -61,25 +63,10 @@ export const QueryFilter = Schema.Struct({
 	),
 });
 
-export type QueryFilter = Schema.Schema.Type<typeof QueryFilter>;
-
-/**
- * Convert a filter condition to SQL WHERE clause
- * Returns just the condition structure for Kysely to build properly
- */
-export interface FilterConditionExpression {
-	column: string;
-	operator: FilterOperator;
-	value?: any;
-}
-
-export interface WhereClauseParams {
-	conditions: readonly FilterConditionExpression[];
-	logicalOperator: LogicalOperator;
-}
+export type QueryFilterType = Schema.Schema.Type<typeof QueryFilter>;
 
 export const conditionToWhereClause = (
-	condition: FilterCondition,
+	condition: FilterConditionExpression,
 	paramIndex: number,
 ): { clause: string; params: Record<string, any>; nextIndex: number } => {
 	const paramName = `$${paramIndex}`;
@@ -202,9 +189,9 @@ export const conditionToWhereClause = (
 /**
  * Convert filter conditions to structured format for Kysely
  */
-export const filterToWhereClause = (
-	filter: QueryFilter,
-): WhereClauseParams | null => {
+export const filterQueryValidConditions = (
+	filter: QueryFilterType,
+): QueryFilterType | null => {
 	// Filter out incomplete conditions (missing column or value where required)
 	const validConditions = filter.conditions.filter((condition) => {
 		// Column is required
@@ -227,17 +214,8 @@ export const filterToWhereClause = (
 		return null;
 	}
 
-	// Convert to structured format for Kysely to handle parameterization
-	const conditions: FilterConditionExpression[] = validConditions.map(
-		(condition) => ({
-			column: condition.column,
-			operator: condition.operator,
-			value: condition.value,
-		}),
-	);
-
 	return {
-		conditions,
+		conditions: validConditions,
 		logicalOperator: filter.logicalOperator,
 	};
 };
@@ -245,17 +223,17 @@ export const filterToWhereClause = (
 /**
  * Operators that don't require a value
  */
-export const nullOperators: FilterOperator[] = ["is_null", "is_not_null"];
+export const nullOperators: FilterOperatorType[] = ["is_null", "is_not_null"];
 
 /**
  * Operators that support array values (in, not_in)
  */
-export const arrayOperators: FilterOperator[] = ["in", "not_in"];
+export const arrayOperators: FilterOperatorType[] = ["in", "not_in"];
 
 /**
  * All available operators
  */
-export const allOperators: FilterOperator[] = [
+export const allOperators: FilterOperatorType[] = [
 	"equals",
 	"not_equals",
 	"contains",
@@ -275,8 +253,8 @@ export const allOperators: FilterOperator[] = [
 /**
  * Get operator display name
  */
-export const getOperatorLabel = (operator: FilterOperator): string => {
-	const labels: Record<FilterOperator, string> = {
+export const getOperatorLabel = (operator: FilterOperatorType): string => {
+	const labels: Record<FilterOperatorType, string> = {
 		equals: "Equals",
 		not_equals: "Not Equals",
 		contains: "Contains",
@@ -300,18 +278,18 @@ export const getOperatorLabel = (operator: FilterOperator): string => {
  * Used when deserializing filters from URL
  */
 export const whereClauseParamsToQueryFilter = (
-	params: WhereClauseParams | undefined,
-): QueryFilter | undefined => {
+	params: QueryFilterType | undefined,
+): QueryFilterType | undefined => {
 	if (!params) {
 		return undefined;
 	}
 
-	const conditions: FilterCondition[] = (
+	const conditions: FilterConditionExpression[] = (
 		params.conditions as FilterConditionExpression[]
 	).map((expr) => ({
 		id: nanoid(),
 		column: expr.column,
-		operator: expr.operator as FilterOperator,
+		operator: expr.operator as FilterOperatorType,
 		value: expr.value,
 	}));
 
