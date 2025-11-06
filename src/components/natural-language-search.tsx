@@ -29,7 +29,7 @@ export function NaturalLanguageSearch({
 }: NaturalLanguageSearchProps) {
 	const [input, setInput] = useState("");
 	const [result, setResult] = useState<ParsedNLQuery | null>(null);
-	// console.log(result);
+	console.log(result);
 
 	const { parse } = useNaturalLanguageSearch();
 

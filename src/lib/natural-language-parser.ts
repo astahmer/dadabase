@@ -276,11 +276,19 @@ export function parseNaturalLanguageQuery(
 		const orderBy = parseOrderBy(query, availableColumns);
 		const limit = parseLimit(query);
 
-		// If nothing was parsed, that's still okay - might be just showing all data
 		if (!filters.length && !orderBy && !limit) {
+			// If nothing was parsed, that's still okay - might be just showing all data
+			if (!normalizedQuery.length) {
+				return {
+					success: true,
+					message: "No filters applied",
+					rawInput: query,
+				};
+			}
+
 			return {
-				success: true,
-				message: "No filters applied",
+				success: false,
+				message: "Could not parse query",
 				rawInput: query,
 			};
 		}

@@ -30,3 +30,8 @@ https://github.com/chakra-ui/chakra-ui/blob/main/apps/compositions/src/examples/
 https://github.com/react-querybuilder/react-querybuilder
 https://github.com/ukrbublik/react-awesome-query-builder
 https://github.com/fridaymeng/react-sql-query-builder
+
+https://github.com/beenotung/better-sql
+https://github.com/gajus/liqe?tab=readme-ov-file
+
+https://github.com/riichard/boolean-parser-js
