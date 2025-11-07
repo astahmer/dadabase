@@ -8,8 +8,11 @@ import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-av
 import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
+import { useListCollection } from "@ark-ui/react";
 import { useFilter } from "@ark-ui/react/locale";
 import { Pagination } from "@ark-ui/react/pagination";
+import { Popover } from "@ark-ui/react/popover";
+import { Portal } from "@ark-ui/react/portal";
 import {
 	useQuery,
 	useQueryClient,
@@ -18,6 +21,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
+	ChevronDownIcon,
 	LayoutGrid,
 	LucideChevronDown,
 	LucideChevronUp,
@@ -795,24 +799,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														<label className="font-medium uppercase tracking-wide whitespace-nowrap">
 															Rows per page:
 														</label>
-														{/* Future: convert to combobox to allow custom values */}
-														<ArkSelect.Select
-															className="w-20"
-															value={[search.limit.toString()]}
-															collection={ArkSelect.createListCollection({
-																items: [
-																	{ label: "50", value: "50" },
-																	{ label: "100", value: "100" },
-																	{ label: "250", value: "250" },
-																	{ label: "500", value: "500" },
-																],
-															})}
-															positioning={{ sameWidth: true }}
-															onValueChange={(details: {
-																value?: string[];
-															}) => {
-																const newLimit =
-																	Number(details.value?.[0]) || 50;
+														<RowsPerPageSelector
+															value={search.limit}
+															onValueChange={(newLimit) => {
 																navigate({
 																	search: (prev) => ({
 																		...prev,
@@ -821,29 +810,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																	}),
 																});
 															}}
-														>
-															<ArkSelect.SelectControl>
-																<ArkSelect.SelectTrigger>
-																	<ArkSelect.SelectValueText />
-																	<ArkSelect.SelectIndicator />
-																</ArkSelect.SelectTrigger>
-															</ArkSelect.SelectControl>
-															<ArkSelect.SelectContent>
-																{[
-																	{ label: "50", value: "50" },
-																	{ label: "100", value: "100" },
-																	{ label: "250", value: "250" },
-																	{ label: "500", value: "500" },
-																].map((item) => (
-																	<ArkSelect.SelectItem
-																		key={item.value}
-																		item={item}
-																	>
-																		{item.label}
-																	</ArkSelect.SelectItem>
-																))}
-															</ArkSelect.SelectContent>
-														</ArkSelect.Select>
+														/>
 													</div>
 													<div className="flex items-center gap-2 text-foreground">
 														<label className="font-medium uppercase tracking-wide whitespace-nowrap">
@@ -930,6 +897,101 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		</div>
 	);
 };
+
+interface RowsPerPageSelectorProps {
+	value: number;
+	onValueChange: (newLimit: number) => void;
+}
+
+function RowsPerPageSelector({
+	value,
+	onValueChange,
+}: RowsPerPageSelectorProps) {
+	const [open, setOpen] = useState(false);
+	const [filterValue, setFilterValue] = useState("");
+
+	const items = [
+		{ label: "50", value: 50 },
+		{ label: "100", value: 100 },
+		{ label: "250", value: 250 },
+		{ label: "500", value: 500 },
+	];
+
+	const filters = useFilter({ sensitivity: "base" });
+	const list = useListCollection({
+		initialItems: items,
+		filter: filters.contains,
+	});
+
+	const filteredItems = list.collection.items;
+
+	const handleSelect = (newValue: number) => {
+		onValueChange(newValue);
+		setOpen(false);
+		setFilterValue("");
+	};
+
+	return (
+		<Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
+			<Popover.Trigger asChild>
+				<Button
+					variant="outline"
+					className="flex flex-1 items-center justify-between gap-5 bg-transparent px-3 py-2 outline-none outline-hidden placeholder:text-muted-foreground/70 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50 data-[placeholder-shown]:text-muted-foreground"
+				>
+					<span className="text-sm font-medium text-foreground">{value}</span>
+					<ChevronDownIcon className="size-4 shrink-0 in-aria-invalid:text-destructive/80 text-muted-foreground/80" />
+				</Button>
+			</Popover.Trigger>
+			<Portal>
+				<Popover.Positioner>
+					<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50">
+						<Listbox.Root collection={list.collection}>
+							<div className="p-2 border-b border-border">
+								<input
+									placeholder="Filter..."
+									className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
+									autoFocus
+									value={filterValue}
+									onChange={(e) => {
+										setFilterValue(e.target.value);
+										list.filter(e.target.value);
+									}}
+								/>
+							</div>
+							<Listbox.Content className="max-h-64 overflow-y-auto">
+								{filteredItems.length > 0 ? (
+									<Listbox.ItemGroup>
+										{filteredItems.map(
+											(item: { label: string; value: number }) => (
+												<Listbox.Item
+													key={item.value}
+													item={item}
+													className="flex items-center px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors"
+													onClick={() => handleSelect(item.value)}
+												>
+													<Listbox.ItemText className="flex-1">
+														{item.label}
+													</Listbox.ItemText>
+													{item.value === value && (
+														<span className="text-xs">✓</span>
+													)}
+												</Listbox.Item>
+											),
+										)}
+									</Listbox.ItemGroup>
+								) : (
+									<div className="px-2 py-2 text-xs text-muted-foreground text-center">
+										No items found
+									</div>
+								)}
+							</Listbox.Content>
+						</Listbox.Root>
+					</Popover.Content>
+				</Popover.Positioner>
+			</Portal>
+		</Popover.Root>
+	);
+}
 
 const StructureTable = (props: {
 	columnMetadata: Array<{
