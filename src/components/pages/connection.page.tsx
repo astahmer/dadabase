@@ -797,30 +797,39 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										)}
 										{/* Status Bar */}
 										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
-											<div className="flex items-center justify-between gap-4">
-												<HStack className="flex-1 whitespace-nowrap">
+											<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-4">
+												{/* Left side - Table info */}
+												<HStack className="flex-1 min-w-0 whitespace-nowrap overflow-x-auto">
 													{rowsQuery.isLoading ? (
 														<span className="text-muted-foreground/50">
 															Loading...
 														</span>
 													) : (
 														<>
-															<span>
+															<span className="truncate">
 																{tableDisplayName}
-																<span> ({rowsColumns.length} columns)</span>
+																<span className="hidden sm:inline">
+																	{" "}
+																	({rowsColumns.length} columns)
+																</span>
 															</span>
-															<span>
+															<span className="shrink-0">
 																{search.offset}-{search.offset + search.limit}{" "}
-																out of {totalRowCount}
+																<span className="hidden md:inline">out of</span>
+																<span className="hidden md:inline">
+																	{totalRowCount}
+																</span>
 															</span>
 														</>
 													)}
 												</HStack>
-												<span>
+												{/* Middle - Query time info */}
+												<span className="hidden lg:inline text-muted-foreground text-xs">
 													{queryResponse.timeTaken > 0 &&
 														` • ${queryResponse.timeTaken}ms • Loaded ${formatRelativeTime(queryResponse.ranAt)}`}
 												</span>
-												<div className="flex items-center gap-3">
+												{/* Right side - Controls */}
+												<div className="flex flex-wrap items-center gap-2 lg:gap-3">
 													{/* Pagination Controls */}
 													<Pagination.Root
 														count={totalRowCount}
@@ -883,9 +892,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														/>
 													</div>
 													<div className="flex items-center gap-2 text-foreground">
-														<label className="font-medium uppercase tracking-wide whitespace-nowrap">
-															Table size:
-														</label>
 														<ArkSelect.Select
 															className="w-28"
 															value={[search.tableSize]}
