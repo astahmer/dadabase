@@ -11,8 +11,6 @@ import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useListCollection } from "@ark-ui/react";
 import { useFilter } from "@ark-ui/react/locale";
 import { Pagination } from "@ark-ui/react/pagination";
-import { Popover } from "@ark-ui/react/popover";
-import { Portal } from "@ark-ui/react/portal";
 import {
 	useQuery,
 	useQueryClient,
@@ -29,7 +27,7 @@ import {
 	RefreshCw,
 	Rows,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
@@ -40,6 +38,7 @@ import { QueryFilterBuilder } from "../query-filter-builder";
 import { Button } from "../ui/button";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ArkSelect from "../ui/select";
+import * as ListboxMenu from "../ui/listbox-menu";
 import { Spinner } from "../ui/spinner.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { useDataTable } from "../use-data-table";
@@ -903,19 +902,18 @@ interface RowsPerPageSelectorProps {
 	onValueChange: (newLimit: number) => void;
 }
 
+const items = [
+	{ label: "50", value: 50 },
+	{ label: "100", value: 100 },
+	{ label: "250", value: 250 },
+	{ label: "500", value: 500 },
+];
+
 function RowsPerPageSelector({
 	value,
 	onValueChange,
 }: RowsPerPageSelectorProps) {
 	const [open, setOpen] = useState(false);
-	const [filterValue, setFilterValue] = useState("");
-
-	const items = [
-		{ label: "50", value: 50 },
-		{ label: "100", value: 100 },
-		{ label: "250", value: 250 },
-		{ label: "500", value: 500 },
-	];
 
 	const filters = useFilter({ sensitivity: "base" });
 	const list = useListCollection({
@@ -928,12 +926,14 @@ function RowsPerPageSelector({
 	const handleSelect = (newValue: number) => {
 		onValueChange(newValue);
 		setOpen(false);
-		setFilterValue("");
 	};
 
 	return (
-		<Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
-			<Popover.Trigger asChild>
+		<ListboxMenu.ListboxMenuRoot
+			open={open}
+			onOpenChange={(e) => setOpen(e.open)}
+		>
+			<ListboxMenu.ListboxMenuTrigger size="sm" asChild>
 				<Button
 					variant="outline"
 					className="flex flex-1 items-center justify-between gap-5 bg-transparent px-3 py-2 outline-none outline-hidden placeholder:text-muted-foreground/70 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50 data-[placeholder-shown]:text-muted-foreground"
@@ -941,55 +941,75 @@ function RowsPerPageSelector({
 					<span className="text-sm font-medium text-foreground">{value}</span>
 					<ChevronDownIcon className="size-4 shrink-0 in-aria-invalid:text-destructive/80 text-muted-foreground/80" />
 				</Button>
-			</Popover.Trigger>
-			<Portal>
-				<Popover.Positioner>
-					<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50">
-						<Listbox.Root collection={list.collection}>
-							<div className="p-2 border-b border-border">
-								<input
-									placeholder="Filter..."
-									className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
-									autoFocus
-									value={filterValue}
-									onChange={(e) => {
-										setFilterValue(e.target.value);
-										list.filter(e.target.value);
-									}}
-								/>
-							</div>
-							<Listbox.Content className="max-h-64 overflow-y-auto">
-								{filteredItems.length > 0 ? (
-									<Listbox.ItemGroup>
-										{filteredItems.map(
-											(item: { label: string; value: number }) => (
-												<Listbox.Item
-													key={item.value}
-													item={item}
-													className="flex items-center px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors"
-													onClick={() => handleSelect(item.value)}
-												>
-													<Listbox.ItemText className="flex-1">
-														{item.label}
-													</Listbox.ItemText>
-													{item.value === value && (
-														<span className="text-xs">✓</span>
-													)}
-												</Listbox.Item>
-											),
-										)}
-									</Listbox.ItemGroup>
-								) : (
-									<div className="px-2 py-2 text-xs text-muted-foreground text-center">
-										No items found
-									</div>
-								)}
-							</Listbox.Content>
-						</Listbox.Root>
-					</Popover.Content>
-				</Popover.Positioner>
-			</Portal>
-		</Popover.Root>
+			</ListboxMenu.ListboxMenuTrigger>
+			<ListboxMenu.ListboxMenuContent>
+				<ListboxMenu.ListboxRoot collection={list.collection}>
+					<ListboxMenu.ListboxMenuFilterContainer>
+						<Stack>
+							<ListboxMenu.ListboxMenuFilterInput
+								placeholder="Use a custom value"
+								autoFocus
+								type="number"
+								// onChange={(e) => {
+								// 	list.filter(e.target.value);
+								// }}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										const target = e.target as HTMLInputElement;
+										const exits = list.collection.items.some(
+											(item) => item.value === target.valueAsNumber,
+										);
+										if (
+											exits ||
+											target.valueAsNumber < 1 ||
+											target.valueAsNumber > 1000
+										) {
+											setOpen(false);
+											return;
+										}
+
+										const insertAfterIndex = list.collection.items.findIndex(
+											(item) => item.value > target.valueAsNumber,
+										);
+										list.insert(
+											insertAfterIndex === -1
+												? list.collection.items.length
+												: insertAfterIndex,
+											{
+												label: target.value,
+												value: target.valueAsNumber,
+											},
+										);
+										handleSelect(target.valueAsNumber);
+									}
+								}}
+							/>
+							<span className="text-xs text-muted-foreground">Max: 1000</span>
+						</Stack>
+					</ListboxMenu.ListboxMenuFilterContainer>
+					<ListboxMenu.ListboxMenuList>
+						{filteredItems.length > 0 ? (
+							<ListboxMenu.ListboxMenuItemGroup>
+								{filteredItems.map((item: { label: string; value: number }) => (
+									<ListboxMenu.ListboxMenuItem
+										key={item.value}
+										item={item}
+										onClick={() => handleSelect(item.value)}
+										showIndicator={item.value === value}
+									>
+										{item.label}
+									</ListboxMenu.ListboxMenuItem>
+								))}
+							</ListboxMenu.ListboxMenuItemGroup>
+						) : (
+							<ListboxMenu.ListboxMenuEmpty>
+								No items found
+							</ListboxMenu.ListboxMenuEmpty>
+						)}
+					</ListboxMenu.ListboxMenuList>
+				</ListboxMenu.ListboxRoot>
+			</ListboxMenu.ListboxMenuContent>
+		</ListboxMenu.ListboxMenuRoot>
 	);
 }
 

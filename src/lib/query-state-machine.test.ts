@@ -189,6 +189,17 @@ describe("query-state-machine", () => {
 			expect(sortDirectionSuggestions.map((s) => s.label)).toContain("desc");
 		});
 
+		it("should detected complete state with sort by column and direction", () => {
+			const context = analyzeQueryState("sort by name asc", columns);
+			const suggestions = generateSuggestions(context, columns);
+
+			expect(suggestions.length).toBe(0);
+			expect(context.state).toBe("complete");
+			expect(context.sortKeyword).toBe("sort by");
+			expect(context.sortColumn).toBe("name");
+			expect(context.sortDirection).toBe("asc");
+		});
+
 		it("should handle order by keyword", () => {
 			const context = analyzeQueryState("order by ", columns);
 			const suggestions = generateSuggestions(context, columns);

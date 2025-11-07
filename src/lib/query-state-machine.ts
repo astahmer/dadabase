@@ -509,7 +509,7 @@ export function generateSuggestions(
 		});
 	}
 
-	if (context.state === "complete") {
+	if (context.state === "complete" && !context.sortKeyword) {
 		// Show additional clauses (order by, limit)
 		const matched = matchFn(context.currentInput, commands);
 		matched.forEach((clause) => {
