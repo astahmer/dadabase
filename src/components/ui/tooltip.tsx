@@ -4,6 +4,7 @@ import { Tooltip as TooltipPrimitive } from "@ark-ui/react/tooltip";
 
 import { cn } from "#src/lib/utils";
 import type { ExposedComponentProps } from "./component-props.ts";
+import { Portal } from "@ark-ui/react";
 
 export interface TooltipProps
 	extends TooltipPrimitive.RootBaseProps,
@@ -12,6 +13,7 @@ export interface TooltipProps
 	content: React.ReactNode;
 	contentProps?: React.ComponentProps<typeof TooltipPrimitive.Content>;
 	disabled?: boolean;
+	portalled?: boolean;
 }
 
 export const Tooltip = React.forwardRef<HTMLDivElement, TooltipProps>(
@@ -21,30 +23,34 @@ export const Tooltip = React.forwardRef<HTMLDivElement, TooltipProps>(
 
 		if (disabled || !content) return children;
 
+		const Portallish = props.portalled ? Portal : React.Fragment;
+
 		return (
 			<TooltipPrimitive.Root openDelay={0} closeDelay={0} {...rest}>
 				<TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
-				<TooltipPrimitive.Positioner>
-					<TooltipPrimitive.Content
-						ref={ref}
-						className={cn(
-							"fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50  animate-in rounded-md border bg-popover px-3 py-1.5 text-popover-foreground text-sm data-[state=closed]:animate-out",
-							contentProps?.className,
-						)}
-						{...contentProps}
-					>
-						{showArrow && (
-							<TooltipPrimitive.Arrow
-								className={cn(
-									"[--arrow-background:var(--popover)] [--arrow-size:calc(var(--spacing)*2)]",
-								)}
-							>
-								<TooltipPrimitive.ArrowTip className="border-t border-l" />
-							</TooltipPrimitive.Arrow>
-						)}
-						{content}
-					</TooltipPrimitive.Content>
-				</TooltipPrimitive.Positioner>
+				<Portallish>
+					<TooltipPrimitive.Positioner>
+						<TooltipPrimitive.Content
+							ref={ref}
+							className={cn(
+								"fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50  animate-in rounded-md border bg-popover px-3 py-1.5 text-popover-foreground text-sm data-[state=closed]:animate-out",
+								contentProps?.className,
+							)}
+							{...contentProps}
+						>
+							{showArrow && (
+								<TooltipPrimitive.Arrow
+									className={cn(
+										"[--arrow-background:var(--popover)] [--arrow-size:calc(var(--spacing)*2)]",
+									)}
+								>
+									<TooltipPrimitive.ArrowTip className="border-t border-l" />
+								</TooltipPrimitive.Arrow>
+							)}
+							{content}
+						</TooltipPrimitive.Content>
+					</TooltipPrimitive.Positioner>
+				</Portallish>
 			</TooltipPrimitive.Root>
 		);
 	},

@@ -93,17 +93,19 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									const column = header.column;
 									const isSorted = column.getIsSorted();
 
+									const textAlign =
+										(header.column.columnDef.meta as any)?.textAlign || "left";
+
 									return (
 										<th
 											key={header.id}
 											colSpan={header.colSpan}
 											style={{ width: `${header.getSize()}px` }}
-											className={
-												tableHeaderCellStyles({
-													size,
-													showColumnBorder,
-												}) + (hasBulkActions ? " text-right" : "")
-											}
+											className={tableHeaderCellStyles({
+												size,
+												showColumnBorder,
+												textAlign: hasBulkActions ? "right" : textAlign,
+											})}
 										>
 											<div className="flex items-center justify-between">
 												<div className="flex-1">
@@ -247,9 +249,11 @@ const TableCell = memo(function TableCell({
 	showColumnBorder: boolean;
 }) {
 	const columnSize = cell.column.getSize();
+	const textAlign = (cell.column.columnDef.meta as any)?.textAlign || "left";
+
 	return (
 		<td
-			className={tableCellStyles({ size, showColumnBorder })}
+			className={tableCellStyles({ size, showColumnBorder, textAlign })}
 			data-testid={`cell-${index}-${cell.column.id}`}
 			style={{
 				width: `${columnSize}px`,

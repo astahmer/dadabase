@@ -1,6 +1,7 @@
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url";
+import { getColumnTextAlignment } from "#src/lib/data-type-utils";
 import { Route } from "#src/routes/connections/$connectionName";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
@@ -41,9 +42,10 @@ import { HStack, Stack } from "../ui/layout.tsx";
 import * as ArkSelect from "../ui/select";
 import * as ListboxMenu from "../ui/listbox-menu";
 import { Spinner } from "../ui/spinner.tsx";
-import { Tooltip } from "../ui/tooltip.tsx";
+import { ColumnHeaderWithInfo } from "../ui/column-header-with-info";
 import { useDataTable } from "../use-data-table";
-import { Checkbox, CheckboxControl, CheckboxLabel } from "../ui/checkbox.tsx";
+import { Checkbox, CheckboxControl } from "../ui/checkbox.tsx";
+import { Tooltip } from "../ui/tooltip.tsx";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -254,20 +256,16 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					},
 					...columnMetadata.map((col) => ({
 						accessorKey: col.name,
-						// header: `${col.name} (${col.dataType})`,
 						header: () => (
-							<div>
-								<span>{col.name}</span>
-								<Tooltip content={col.dataType}>
-									<span className="ml-1 truncate max-w-16 inline-flex font-mono text-[0.625rem] text-muted-foreground/80 whitespace-nowrap pointer-events-none">
-										({col.dataType})
-									</span>
-								</Tooltip>
-							</div>
+							<ColumnHeaderWithInfo
+								columnName={col.name}
+								dataType={col.dataType}
+								showBadge
+							/>
 						),
-						// size: 150,
-						// minSize: 75,
-						// maxSize: 500,
+						meta: {
+							textAlign: getColumnTextAlignment(col.dataType),
+						},
 						enableResizing: true,
 						enableSorting: true,
 					})),

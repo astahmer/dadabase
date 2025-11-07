@@ -30,7 +30,7 @@ export const tableHeaderStyles = cva("", {
 });
 
 export const tableHeaderCellStyles = cva(
-	"text-left font-medium text-foreground align-top truncate relative",
+	"font-medium text-foreground align-top truncate relative",
 	{
 		variants: {
 			size: {
@@ -42,9 +42,15 @@ export const tableHeaderCellStyles = cva(
 				true: "border-r border-border last:border-r-0",
 				false: "",
 			},
+			textAlign: {
+				left: "text-left",
+				right: "text-right",
+				center: "text-center",
+			},
 		},
 		defaultVariants: {
 			size: "cozy",
+			textAlign: "left",
 		},
 	},
 );
@@ -82,25 +88,28 @@ export const tableRowStyles = cva("border-b border-border", {
 	},
 });
 
-export const tableCellStyles = cva(
-	"text-left align-middle text-foreground truncate",
-	{
-		variants: {
-			size: {
-				compact: "px-1.5 py-0.5 text-xs",
-				cozy: "px-2 py-1 text-xs",
-				comfortable: "px-3 py-1.5 text-sm",
-			},
-			showColumnBorder: {
-				true: "border-r border-border last:border-r-0",
-				false: "",
-			},
+export const tableCellStyles = cva("align-middle text-foreground truncate", {
+	variants: {
+		size: {
+			compact: "px-1.5 py-0.5 text-xs",
+			cozy: "px-2 py-1 text-xs",
+			comfortable: "px-3 py-1.5 text-sm",
 		},
-		defaultVariants: {
-			size: "cozy",
+		showColumnBorder: {
+			true: "border-r border-border last:border-r-0",
+			false: "",
+		},
+		textAlign: {
+			left: "text-left",
+			right: "text-right",
+			center: "text-center",
 		},
 	},
-);
+	defaultVariants: {
+		size: "cozy",
+		textAlign: "left",
+	},
+});
 
 export const tableSortButtonStyles = cva(
 	"inline-flex items-center gap-2 transition-opacity hover:opacity-100 opacity-60",
