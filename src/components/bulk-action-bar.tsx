@@ -1,6 +1,7 @@
-import { Trash2, Copy } from "lucide-react";
+import { Trash2, Copy, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { HStack } from "./ui/layout";
+import * as ActionBar from "./ui/action-bar";
 
 interface BulkActionBarProps {
 	selectedCount: number;
@@ -18,36 +19,49 @@ export function BulkActionBar({
 	if (selectedCount === 0) return null;
 
 	return (
-		<div className="sticky bottom-0 left-0 right-0 z-10 bg-primary/10 border-t border-primary/20 backdrop-blur-sm">
-			<HStack className="px-4 py-3 items-center justify-between">
-				<div className="text-sm font-medium text-foreground">
-					{selectedCount} row{selectedCount !== 1 ? "s" : ""} selected
-				</div>
-				<HStack>
-					{onExport && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={onExport}
-							disabled={isLoading}
-						>
-							<Copy className="h-4 w-4 mr-1" />
-							Export
+		<ActionBar.ActionBarRoot open={selectedCount > 0}>
+			<ActionBar.ActionBarPositioner>
+				<ActionBar.ActionBarContent>
+					<ActionBar.ActionBarSelectionTrigger disabled>
+						{selectedCount} row{selectedCount !== 1 ? "s" : ""} selected
+					</ActionBar.ActionBarSelectionTrigger>
+
+					<ActionBar.ActionBarSeparator />
+
+					<HStack>
+						{onExport && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onExport}
+								disabled={isLoading}
+							>
+								<Copy className="h-4 w-4 mr-1" />
+								Export
+							</Button>
+						)}
+						{onDelete && (
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={onDelete}
+								disabled={isLoading}
+							>
+								<Trash2 className="h-4 w-4 mr-1" />
+								Delete
+							</Button>
+						)}
+					</HStack>
+
+					<ActionBar.ActionBarSeparator />
+
+					<ActionBar.ActionBarCloseTrigger asChild>
+						<Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+							<X className="h-4 w-4" />
 						</Button>
-					)}
-					{onDelete && (
-						<Button
-							variant="destructive"
-							size="sm"
-							onClick={onDelete}
-							disabled={isLoading}
-						>
-							<Trash2 className="h-4 w-4 mr-1" />
-							Delete
-						</Button>
-					)}
-				</HStack>
-			</HStack>
-		</div>
+					</ActionBar.ActionBarCloseTrigger>
+				</ActionBar.ActionBarContent>
+			</ActionBar.ActionBarPositioner>
+		</ActionBar.ActionBarRoot>
 	);
 }
