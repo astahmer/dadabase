@@ -43,6 +43,7 @@ import * as ListboxMenu from "../ui/listbox-menu";
 import { Spinner } from "../ui/spinner.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { useDataTable } from "../use-data-table";
+import { Checkbox, CheckboxControl, CheckboxLabel } from "../ui/checkbox.tsx";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -224,25 +225,26 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								}
 							}, [table]);
 							return (
-								<input
-									ref={checkboxRef}
-									type="checkbox"
+								<Checkbox
+									className="flex items-center gap-2"
 									checked={table.getIsAllRowsSelected()}
 									onChange={table.getToggleAllRowsSelectedHandler()}
 									aria-label="Select all rows"
-									className="cursor-pointer"
-								/>
+								>
+									<CheckboxControl />
+								</Checkbox>
 							);
 						},
 						cell: ({ row }) => (
-							<input
-								type="checkbox"
+							<Checkbox
+								className="flex items-center gap-2"
 								checked={row.getIsSelected()}
 								disabled={!row.getCanSelect()}
 								onChange={row.getToggleSelectedHandler()}
 								aria-label="Select row"
-								className="cursor-pointer"
-							/>
+							>
+								<CheckboxControl />
+							</Checkbox>
 						),
 						size: 40,
 						minSize: 40,
