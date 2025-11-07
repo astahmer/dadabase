@@ -34,9 +34,9 @@ export const tableHeaderCellStyles = cva(
 	{
 		variants: {
 			size: {
-				sm: "px-2 py-0.5 text-xs",
-				md: "px-2 py-1 text-xs",
-				lg: "px-2 py-1.5 text-sm",
+				compact: "px-1.5 py-0.5 text-xs",
+				cozy: "px-2 py-1 text-xs",
+				comfortable: "px-3 py-1.5 text-sm",
 			},
 			showColumnBorder: {
 				true: "border-r border-border last:border-r-0",
@@ -44,7 +44,7 @@ export const tableHeaderCellStyles = cva(
 			},
 		},
 		defaultVariants: {
-			size: "md",
+			size: "cozy",
 		},
 	},
 );
@@ -87,9 +87,9 @@ export const tableCellStyles = cva(
 	{
 		variants: {
 			size: {
-				sm: "px-2 py-1 text-xs",
-				md: "px-2 py-1.5 text-xs",
-				lg: "px-2 py-1.5 text-sm",
+				compact: "px-1.5 py-0.5 text-xs",
+				cozy: "px-2 py-1 text-xs",
+				comfortable: "px-3 py-1.5 text-sm",
 			},
 			showColumnBorder: {
 				true: "border-r border-border last:border-r-0",
@@ -97,7 +97,7 @@ export const tableCellStyles = cva(
 			},
 		},
 		defaultVariants: {
-			size: "md",
+			size: "cozy",
 		},
 	},
 );

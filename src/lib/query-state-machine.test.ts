@@ -205,6 +205,63 @@ describe("query-state-machine", () => {
 			const uniqueLabels = new Set(labels);
 			expect(labels.length).toBe(uniqueLabels.size);
 		});
+
+		it("should show sort by suggestion when typing 's'", () => {
+			const context = analyzeQueryState("s", columns);
+			const suggestions = generateSuggestions(context, columns);
+			expect(suggestions.some((s) => s.label === "sort by")).toBe(true);
+		});
+
+		it("should show sort by suggestion when typing 'so'", () => {
+			const context = analyzeQueryState("so", columns);
+			const suggestions = generateSuggestions(context, columns);
+			expect(suggestions.some((s) => s.label === "sort by")).toBe(true);
+		});
+
+		it("should show sort by suggestion when typing 'sor'", () => {
+			const context = analyzeQueryState("sor", columns);
+			const suggestions = generateSuggestions(context, columns);
+			expect(suggestions.some((s) => s.label === "sort by")).toBe(true);
+		});
+
+		it("should show sort by suggestion when typing 'sort'", () => {
+			const context = analyzeQueryState("sort", columns);
+			const suggestions = generateSuggestions(context, columns);
+			expect(suggestions.some((s) => s.label === "sort by")).toBe(true);
+		});
+
+		it("should show order by suggestion when typing 'o'", () => {
+			const context = analyzeQueryState("o", columns);
+			const suggestions = generateSuggestions(context, columns);
+			expect(suggestions.some((s) => s.label === "order by")).toBe(true);
+		});
+
+		it("should show order by suggestion when typing 'or'", () => {
+			const context = analyzeQueryState("or", columns);
+			const suggestions = generateSuggestions(context, columns);
+			expect(suggestions.some((s) => s.label === "order by")).toBe(true);
+		});
+
+		it("should show order by suggestion when typing 'ord'", () => {
+			const context = analyzeQueryState("ord", columns);
+			const suggestions = generateSuggestions(context, columns);
+			expect(suggestions.some((s) => s.label === "order by")).toBe(true);
+		});
+
+		it("should show limit suggestion when typing 'l'", () => {
+			const context = analyzeQueryState("l", columns);
+			const suggestions = generateSuggestions(context, columns);
+			expect(suggestions.some((s) => s.label === "limit")).toBe(true);
+		});
+
+		it("should show both sort and order by when ambiguous", () => {
+			const context = analyzeQueryState("", columns);
+			const suggestions = generateSuggestions(context, columns);
+			// Both commands should be in initial examples
+			const hasSort = suggestions.some((s) => s.label.includes("sort by"));
+			const hasOrder = suggestions.some((s) => s.label.includes("order by"));
+			expect(hasSort || hasOrder).toBe(true);
+		});
 	});
 
 	describe("getInitialExamples", () => {

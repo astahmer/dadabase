@@ -21,7 +21,7 @@ const i18n = {
 	errorText: "An error occurred.",
 };
 
-export type DataTableSize = "sm" | "md" | "lg";
+export type DataTableSize = "compact" | "cozy" | "comfortable";
 export type DataTableVariant = "line" | "outline";
 
 export interface DataTableProps<TData> {
@@ -62,7 +62,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		striped = false,
 		showColumnBorder = false,
 		variant = "line",
-		size = "md",
+		size = "cozy",
 		ExpandedRow,
 	} = props;
 
@@ -71,15 +71,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 	const columns = table.getAllColumns();
 	const selectedRowsCount = table.getSelectedRowModel().rows.length;
 	const hasSelectedRows = selectedRowsCount > 0;
-
-	// Calculate total width from column sizing
-	const getTotalWidth = () => {
-		let total = 0;
-		table.getHeaderGroups()[0]?.headers.forEach((header) => {
-			total += header.getSize();
-		});
-		return total;
-	};
 
 	return (
 		<>

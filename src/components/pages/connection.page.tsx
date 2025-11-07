@@ -29,6 +29,7 @@ import { useMemo, useState } from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
+import { DarkModeToggle } from "../ui/dark-mode-toggle";
 import { NaturalLanguageSearch } from "../natural-language-search";
 import { OrderBySelect } from "../order-by-select";
 import { QueryFilterBuilder } from "../query-filter-builder";
@@ -319,27 +320,30 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							{redactedUrl}
 						</span>
 					</div>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => {
-							queryClient.invalidateQueries({
-								queryKey: ["db", "list"],
-							});
-							queryClient.invalidateQueries({
-								queryKey: ["pg", "schemaList"],
-							});
-							queryClient.invalidateQueries({
-								queryKey: ["pg", "tableList"],
-							});
-							queryClient.invalidateQueries({
-								queryKey: ["pg", "tableData"],
-							});
-						}}
-						className="shrink-0"
-					>
-						<RefreshCw className="h-4 w-4" />
-					</Button>
+					<div className="flex items-center gap-2 shrink-0">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								queryClient.invalidateQueries({
+									queryKey: ["db", "list"],
+								});
+								queryClient.invalidateQueries({
+									queryKey: ["pg", "schemaList"],
+								});
+								queryClient.invalidateQueries({
+									queryKey: ["pg", "tableList"],
+								});
+								queryClient.invalidateQueries({
+									queryKey: ["pg", "tableData"],
+								});
+							}}
+							className="shrink-0"
+						>
+							<RefreshCw className="h-4 w-4" />
+						</Button>
+						<DarkModeToggle />
+					</div>
 				</div>
 			</div>
 
@@ -688,6 +692,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									<StructureTable
 										columnMetadata={columnMetadata}
 										isLoading={metadataQuery.isLoading}
+										tableSize={search.tableSize}
 									/>
 								) : (
 									<div className="flex-1 overflow-auto flex flex-col">
@@ -713,21 +718,29 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											<DataTable
 												table={dataTable}
 												isLoading={rowsQuery.isLoading}
+												size={search.tableSize}
 											/>
 										)}
 										{/* Status Bar */}
 										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
 											<div className="flex items-center justify-between gap-4">
-												{/* TODO when loading dont show 0 everywhere */}
 												<HStack className="flex-1 whitespace-nowrap">
-													<span>
-														{tableDisplayName}
-														<span> ({rowsColumns.length} columns)</span>
-													</span>
-													<span>
-														{search.offset}-{search.offset + search.limit} out
-														of {totalRowCount}
-													</span>
+													{rowsQuery.isLoading ? (
+														<span className="text-muted-foreground/50">
+															Loading...
+														</span>
+													) : (
+														<>
+															<span>
+																{tableDisplayName}
+																<span> ({rowsColumns.length} columns)</span>
+															</span>
+															<span>
+																{search.offset}-{search.offset + search.limit}{" "}
+																out of {totalRowCount}
+															</span>
+														</>
+													)}
 												</HStack>
 												<span>
 													{queryResponse.timeTaken > 0 &&
@@ -782,7 +795,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														<label className="font-medium uppercase tracking-wide whitespace-nowrap">
 															Rows per page:
 														</label>
-														{/* TODO change to combobox so it can use a custom value */}
+														{/* Future: convert to combobox to allow custom values */}
 														<ArkSelect.Select
 															className="w-20"
 															value={[search.limit.toString()]}
@@ -821,6 +834,62 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																	{ label: "100", value: "100" },
 																	{ label: "250", value: "250" },
 																	{ label: "500", value: "500" },
+																].map((item) => (
+																	<ArkSelect.SelectItem
+																		key={item.value}
+																		item={item}
+																	>
+																		{item.label}
+																	</ArkSelect.SelectItem>
+																))}
+															</ArkSelect.SelectContent>
+														</ArkSelect.Select>
+													</div>
+													<div className="flex items-center gap-2 text-foreground">
+														<label className="font-medium uppercase tracking-wide whitespace-nowrap">
+															Table size:
+														</label>
+														<ArkSelect.Select
+															className="w-28"
+															value={[search.tableSize]}
+															collection={ArkSelect.createListCollection({
+																items: [
+																	{ label: "Compact", value: "compact" },
+																	{ label: "Cozy", value: "cozy" },
+																	{
+																		label: "Comfortable",
+																		value: "comfortable",
+																	},
+																],
+															})}
+															positioning={{ sameWidth: true }}
+															onValueChange={(details: {
+																value?: string[];
+															}) => {
+																const newSize = (details.value?.[0] ||
+																	"cozy") as "compact" | "cozy" | "comfortable";
+																navigate({
+																	search: (prev) => ({
+																		...prev,
+																		tableSize: newSize,
+																	}),
+																});
+															}}
+														>
+															<ArkSelect.SelectControl>
+																<ArkSelect.SelectTrigger>
+																	<ArkSelect.SelectValueText />
+																	<ArkSelect.SelectIndicator />
+																</ArkSelect.SelectTrigger>
+															</ArkSelect.SelectControl>
+															<ArkSelect.SelectContent>
+																{[
+																	{ label: "Compact", value: "compact" },
+																	{ label: "Cozy", value: "cozy" },
+																	{
+																		label: "Comfortable",
+																		value: "comfortable",
+																	},
 																].map((item) => (
 																	<ArkSelect.SelectItem
 																		key={item.value}
@@ -871,6 +940,7 @@ const StructureTable = (props: {
 		defaultValue: string | null;
 	}>;
 	isLoading: boolean;
+	tableSize: "compact" | "cozy" | "comfortable";
 }) => {
 	{
 		const { columnMetadata } = props;
@@ -935,7 +1005,11 @@ const StructureTable = (props: {
 
 		return (
 			<div className="flex-1 overflow-auto">
-				<DataTable table={structureTable} isLoading={props.isLoading} />
+				<DataTable
+					table={structureTable}
+					isLoading={props.isLoading}
+					size={props.tableSize}
+				/>
 			</div>
 		);
 	}

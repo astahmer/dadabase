@@ -19,6 +19,9 @@ const searchSchema = Schema.Struct({
 	viewMode: Schema.Literal("rows", "structure").pipe(
 		Schema.optionalWith({ default: () => "rows" }),
 	),
+	tableSize: Schema.Literal("compact", "cozy", "comfortable").pipe(
+		Schema.optionalWith({ default: () => "cozy" }),
+	),
 	columnVisibility: Schema.String.pipe(Schema.optional),
 	filters: QueryFilter.pipe(Schema.optional), // Zipson-compressed filter config
 	filtersOpened: Schema.Boolean.pipe(

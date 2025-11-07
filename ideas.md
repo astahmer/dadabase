@@ -7,12 +7,13 @@
 - JSON viewer available when clicking a table row -> show JSON data in a side panel
 - when clicking a table row -> JSON viewer that auto fetch nested entities with foreign keys (up to a limit of 50 rows per relation)
 - when clicking a table row -> add a way to copy as JSON (with nested entities based on foreign keys)
-- clear TODO in connection page
+- when clicking a table row -> show related entities based on that id + foreign keys
 - add dark mode in connection page
-- filters in datatable header ?
+- filters in datatable header (th) ?
 - edit in datatable line?
 - support NOT operator in natural language search
 - move cva functions outside of their components so that fast refresh works
+- try to match possible operators based on datatype; ex: timestamps shouldnt have
 
 - add a way to favorite/save queries
 - add a way to view query history
