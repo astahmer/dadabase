@@ -71,7 +71,13 @@ export function ColumnVisibilityControls<TData>(
 
 	return (
 		<div className={containerClassName}>
-			<Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
+			<Popover.Root
+				open={open}
+				onOpenChange={(e) => setOpen(e.open)}
+				initialFocusEl={() =>
+					document.getElementById("column-visibility-filter")
+				}
+			>
 				<Popover.Trigger asChild>
 					<Button variant="outline" size="sm" className={buttonClassName}>
 						<span className="text-xs font-medium text-foreground uppercase tracking-wide">
@@ -94,14 +100,32 @@ export function ColumnVisibilityControls<TData>(
 									>
 										{allVisible ? "Unselect All" : "Select All"}
 									</Button>
-									<input
-										placeholder="Filter columns..."
-										className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
-										autoFocus
-										onChange={(e) => {
-											list.filter(e.target.value);
-										}}
-									/>
+									<Listbox.Context>
+										{(ctx) => (
+											<Listbox.Input
+												id="column-visibility-filter"
+												placeholder="Filter columns..."
+												className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
+												autoFocus
+												onChange={(e) => {
+													list.filter(e.target.value);
+												}}
+												onKeyDown={(e) => {
+													const highlightedItem = ctx.highlightedItem as {
+														value: string;
+													};
+													if (e.key === "Enter" && highlightedItem) {
+														const column = table.getColumn(
+															highlightedItem.value,
+														);
+														if (column) {
+															column.toggleVisibility();
+														}
+													}
+												}}
+											/>
+										)}
+									</Listbox.Context>
 								</div>
 								<Listbox.Content className="max-h-64 overflow-y-auto">
 									{list.collection.items.length > 0 ? (
@@ -115,7 +139,7 @@ export function ColumnVisibilityControls<TData>(
 														key={item.value}
 														item={item}
 														className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors"
-														onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+														onClick={(e) => {
 															e.preventDefault();
 															e.stopPropagation();
 															column?.toggleVisibility?.();
