@@ -27,8 +27,9 @@ import {
 	RefreshCw,
 	Rows,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
+import { BulkActionBar } from "../bulk-action-bar";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
 import { DarkModeToggle } from "../ui/dark-mode-toggle";
@@ -211,25 +212,64 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const rowsColumns: Array<ColumnDef<Record<string, unknown>>> =
 		columnMetadata.length > 0
-			? columnMetadata.map((col) => ({
-					accessorKey: col.name,
-					// header: `${col.name} (${col.dataType})`,
-					header: () => (
-						<div>
-							<span>{col.name}</span>
-							<Tooltip content={col.dataType}>
-								<span className="ml-1 truncate max-w-16 inline-flex font-mono text-[0.625rem] text-muted-foreground/80 whitespace-nowrap pointer-events-none">
-									({col.dataType})
-								</span>
-							</Tooltip>
-						</div>
-					),
-					// size: 150,
-					// minSize: 75,
-					// maxSize: 500,
-					enableResizing: true,
-					enableSorting: true,
-				}))
+			? [
+					{
+						id: "select",
+						header: ({ table }) => {
+							const checkboxRef = useRef<HTMLInputElement>(null);
+							useEffect(() => {
+								if (checkboxRef.current) {
+									checkboxRef.current.indeterminate =
+										table.getIsSomeRowsSelected();
+								}
+							}, [table]);
+							return (
+								<input
+									ref={checkboxRef}
+									type="checkbox"
+									checked={table.getIsAllRowsSelected()}
+									onChange={table.getToggleAllRowsSelectedHandler()}
+									aria-label="Select all rows"
+									className="cursor-pointer"
+								/>
+							);
+						},
+						cell: ({ row }) => (
+							<input
+								type="checkbox"
+								checked={row.getIsSelected()}
+								disabled={!row.getCanSelect()}
+								onChange={row.getToggleSelectedHandler()}
+								aria-label="Select row"
+								className="cursor-pointer"
+							/>
+						),
+						size: 40,
+						minSize: 40,
+						maxSize: 40,
+						enableResizing: false,
+						enableSorting: false,
+					},
+					...columnMetadata.map((col) => ({
+						accessorKey: col.name,
+						// header: `${col.name} (${col.dataType})`,
+						header: () => (
+							<div>
+								<span>{col.name}</span>
+								<Tooltip content={col.dataType}>
+									<span className="ml-1 truncate max-w-16 inline-flex font-mono text-[0.625rem] text-muted-foreground/80 whitespace-nowrap pointer-events-none">
+										({col.dataType})
+									</span>
+								</Tooltip>
+							</div>
+						),
+						// size: 150,
+						// minSize: 75,
+						// maxSize: 500,
+						enableResizing: true,
+						enableSorting: true,
+					})),
+				]
 			: [];
 
 	// Create sorting state from URL params
@@ -254,6 +294,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		},
 		manualPagination: true,
 		manualSorting: true,
+		enableRowSelection: true,
 		rowCount: totalRowCount,
 		defaultColumn: {
 			size: 150,
@@ -493,183 +534,197 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					{search.table && search.schema ? (
 						<>
 							{/* View Toggle & Filter Controls */}
-							<HStack className="border-b bg-muted/50 px-4 py-2 items-center justify-between">
-								<div className="flex gap-2">
-									<Tooltip content="View rows">
-										<Button
-											variant={
-												search.viewMode === "rows" ? "default" : "outline"
-											}
-											size="sm"
-											onClick={() =>
-												navigate({
-													search: (prev) => ({
-														...prev,
-														viewMode: "rows",
-													}),
-												})
-											}
-										>
-											<Rows className="h-4 w-4" />
-										</Button>
-									</Tooltip>
-									<Tooltip content="View table structure">
-										<Button
-											variant={
-												search.viewMode === "structure" ? "default" : "outline"
-											}
-											size="sm"
-											onClick={() =>
-												navigate({
-													search: (prev) => ({
-														...prev,
-														viewMode: "structure",
-													}),
-												})
-											}
-										>
-											<LayoutGrid className="h-4 w-4" />
-										</Button>
-									</Tooltip>
-									{search.viewMode === "rows" && (
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => {
-												if (queryBuilder.filter.conditions.length === 0) {
-													queryBuilder.addCondition();
-												} else {
+							<div className="relative border-b bg-muted/50">
+								{(rowsQuery.isLoading || metadataQuery.isLoading) && (
+									<div className="absolute inset-x-0 top-0 h-0.5 bg-linear-to-r from-primary via-primary to-transparent animate-pulse" />
+								)}
+								<HStack className="px-4 py-2 items-center justify-between">
+									<div className="flex gap-2">
+										<Tooltip content="View rows">
+											<Button
+												variant={
+													search.viewMode === "rows" ? "default" : "outline"
+												}
+												size="sm"
+												onClick={() =>
 													navigate({
 														search: (prev) => ({
 															...prev,
-															filtersOpened: !prev.filtersOpened,
+															viewMode: "rows",
+														}),
+													})
+												}
+											>
+												<Rows className="h-4 w-4" />
+											</Button>
+										</Tooltip>
+										<Tooltip content="View table structure">
+											<Button
+												variant={
+													search.viewMode === "structure"
+														? "default"
+														: "outline"
+												}
+												size="sm"
+												onClick={() =>
+													navigate({
+														search: (prev) => ({
+															...prev,
+															viewMode: "structure",
+														}),
+													})
+												}
+											>
+												<LayoutGrid className="h-4 w-4" />
+											</Button>
+										</Tooltip>
+										{search.viewMode === "rows" && (
+											<Button
+												variant={
+													filterConditions.length > 0 ? "default" : "outline"
+												}
+												size="sm"
+												onClick={() => {
+													if (queryBuilder.filter.conditions.length === 0) {
+														queryBuilder.addCondition();
+													} else {
+														navigate({
+															search: (prev) => ({
+																...prev,
+																filtersOpened: !prev.filtersOpened,
+															}),
+														});
+													}
+												}}
+												disabled={metadataQuery.isLoading}
+												className={filterConditions.length > 0 ? "gap-2" : ""}
+											>
+												<LucideListFilter className="h-3 w-3" />
+												{filterConditions.length > 0
+													? search.filtersOpened
+														? "Filters"
+														: "Open filters"
+													: "Add filter"}
+												{filterConditions.length > 0 && (
+													<span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-xs font-semibold bg-background/20">
+														{search.filters?.conditions.length || 0}
+													</span>
+												)}
+												{filterConditions.length > 0 ? (
+													search.filtersOpened ? (
+														<LucideChevronUp className="h-3 w-3" />
+													) : (
+														<LucideChevronDown className="h-3 w-3" />
+													)
+												) : null}
+											</Button>
+										)}
+									</div>
+									{search.viewMode === "rows" && (
+										<NaturalLanguageSearch
+											className="w-full"
+											availableColumns={columnMetadata.map((col) => col.name)}
+											onApplyFilters={(parsed) => {
+												const { filters = [], orderBy, limit } = parsed;
+												console.log("onApplyFilters", filters);
+												// 	// Map NL operators to query filter operators
+												const operatorMap: Record<string, any> = {
+													eq: "equals",
+													gt: "greater_than",
+													lt: "less_than",
+													gte: "greater_than_or_equal",
+													lte: "less_than_or_equal",
+													contains: "contains",
+													in: "in",
+													not_eq: "not_equals",
+													not_contains: "not_contains",
+												};
+
+												if (filters.length) {
+													const currentConditions =
+														search.filters?.conditions ?? [];
+													// Remove filters related to the NL query
+													if (parsed.clear) {
+														queryBuilder.updateManyConditions(
+															currentConditions.filter((current) => {
+																return filters.some(
+																	(removed) =>
+																		current.column === removed.field &&
+																		current.operator === removed.operator &&
+																		current.value === removed.value,
+																);
+															}),
+														);
+													} else {
+														// Or add new filters
+														queryBuilder.updateManyConditions(
+															currentConditions
+																.map((f) => ({
+																	column: f.column,
+																	operator: f.operator,
+																	value: f.value as string,
+																}))
+																.concat(
+																	filters.map((f) => ({
+																		column: f.field,
+																		operator:
+																			operatorMap[f.operator] || "equals",
+																		value: f.value as string,
+																	})),
+																),
+														);
+													}
+												}
+
+												if (orderBy) {
+													navigate({
+														search: (prev) => ({
+															...prev,
+															orderBy: orderBy.field,
+															orderDirection: orderBy.direction,
+														}),
+													});
+												}
+
+												if (limit) {
+													navigate({
+														search: (prev) => ({
+															...prev,
+															limit: limit,
 														}),
 													});
 												}
 											}}
-											disabled={metadataQuery.isLoading}
-										>
-											<LucideListFilter className="h-3 w-3 mr-1" />
-											{filterConditions.length > 0
-												? search.filtersOpened
-													? "Filters"
-													: "Open filters"
-												: "Add filter"}
-											{filterConditions.length > 0 &&
-												` (${search.filters?.conditions.length || 0})`}
-											{filterConditions.length > 0 ? (
-												search.filtersOpened ? (
-													<LucideChevronUp className="h-3 w-3 ml-1" />
-												) : (
-													<LucideChevronDown className="h-3 w-3 ml-1" />
-												)
-											) : null}
-										</Button>
+										/>
 									)}
-								</div>
-								{search.viewMode === "rows" && (
-									<NaturalLanguageSearch
-										className="w-full"
-										availableColumns={columnMetadata.map((col) => col.name)}
-										onApplyFilters={(parsed) => {
-											const { filters = [], orderBy, limit } = parsed;
-											console.log("onApplyFilters", filters);
-											// 	// Map NL operators to query filter operators
-											const operatorMap: Record<string, any> = {
-												eq: "equals",
-												gt: "greater_than",
-												lt: "less_than",
-												gte: "greater_than_or_equal",
-												lte: "less_than_or_equal",
-												contains: "contains",
-												in: "in",
-												not_eq: "not_equals",
-												not_contains: "not_contains",
-											};
-
-											if (filters.length) {
-												const currentConditions =
-													search.filters?.conditions ?? [];
-												// Remove filters related to the NL query
-												if (parsed.clear) {
-													queryBuilder.updateManyConditions(
-														currentConditions.filter((current) => {
-															return filters.some(
-																(removed) =>
-																	current.column === removed.field &&
-																	current.operator === removed.operator &&
-																	current.value === removed.value,
-															);
-														}),
-													);
-												} else {
-													// Or add new filters
-													queryBuilder.updateManyConditions(
-														currentConditions
-															.map((f) => ({
-																column: f.column,
-																operator: f.operator,
-																value: f.value as string,
-															}))
-															.concat(
-																filters.map((f) => ({
-																	column: f.field,
-																	operator: operatorMap[f.operator] || "equals",
-																	value: f.value as string,
-																})),
-															),
-													);
-												}
-											}
-
-											if (orderBy) {
+									{search.viewMode === "rows" && (
+										<ColumnVisibilityControls
+											table={dataTable}
+											columnList={columnMetadata.map((col) => col.name)}
+											minimal={true}
+										/>
+									)}
+									{search.viewMode === "rows" && (
+										<OrderBySelect
+											columnList={columnMetadata.map((col) => col.name)}
+											orderBy={search.orderBy}
+											orderDirection={search.orderDirection}
+											onOrderChange={(orderBy, direction) => {
 												navigate({
 													search: (prev) => ({
 														...prev,
-														orderBy: orderBy.field,
-														orderDirection: orderBy.direction,
+														orderBy,
+														orderDirection: direction || "asc",
+														offset: 0,
 													}),
 												});
-											}
-
-											if (limit) {
-												navigate({
-													search: (prev) => ({
-														...prev,
-														limit: limit,
-													}),
-												});
-											}
-										}}
-									/>
-								)}
-								{search.viewMode === "rows" && (
-									<ColumnVisibilityControls
-										table={dataTable}
-										columnList={columnMetadata.map((col) => col.name)}
-										minimal={true}
-									/>
-								)}
-								{search.viewMode === "rows" && (
-									<OrderBySelect
-										columnList={columnMetadata.map((col) => col.name)}
-										orderBy={search.orderBy}
-										orderDirection={search.orderDirection}
-										onOrderChange={(orderBy, direction) => {
-											navigate({
-												search: (prev) => ({
-													...prev,
-													orderBy,
-													orderDirection: direction || "asc",
-													offset: 0,
-												}),
-											});
-										}}
-										getColumnLabel={(col) => col}
-										minimal
-									/>
-								)}
-							</HStack>
+											}}
+											getColumnLabel={(col) => col}
+											minimal
+										/>
+									)}
+								</HStack>
+							</div>
 
 							{/* Query Filter Builder */}
 							{search.viewMode === "rows" &&
@@ -718,11 +773,27 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												</Stack>
 											</div>
 										) : (
-											<DataTable
-												table={dataTable}
-												isLoading={rowsQuery.isLoading}
-												size={search.tableSize}
-											/>
+											<>
+												<DataTable
+													table={dataTable}
+													isLoading={rowsQuery.isLoading}
+													size={search.tableSize}
+												/>
+												<BulkActionBar
+													selectedCount={
+														dataTable.getSelectedRowModel().rows.length
+													}
+													onDelete={() => {
+														// Placeholder - implement deletion logic
+														console.log("Delete selected rows");
+													}}
+													onExport={() => {
+														// Placeholder - implement export logic
+														console.log("Export selected rows");
+													}}
+													isLoading={rowsQuery.isLoading}
+												/>
+											</>
 										)}
 										{/* Status Bar */}
 										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">

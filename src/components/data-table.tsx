@@ -140,12 +140,13 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 													<div
 														onMouseDown={header.getResizeHandler()}
 														onTouchStart={header.getResizeHandler()}
-														className="select-none touch-none cursor-col-resize w-1 h-6 bg-border hover:bg-primary/50 transition-colors"
+														className="select-none touch-none cursor-col-resize w-1 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md"
 														style={{
 															transform: header.column.getIsResizing()
 																? `translateX(${table.getState().columnSizingInfo.deltaOffset}px)`
 																: "",
 														}}
+														title="Drag to resize column"
 													/>
 												)}
 											</div>
