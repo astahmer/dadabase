@@ -15,6 +15,7 @@ import {
 	tableRowStyles,
 	tableStyles,
 } from "./data-table.styles.ts";
+import { cn } from "../lib/utils.ts";
 
 const i18n = {
 	emptyText: "No results found.",
@@ -79,11 +80,9 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 			<div className={`overflow-x-auto ${className || ""}`}>
 				<table
 					className={tableStyles({ variant })}
-					// style={{
-					// 	width: state.columnSizingInfo.isResizingColumn
-					// 		? `calc(${getTotalWidth()}px + ${state.columnSizingInfo.deltaOffset}px)`
-					// 		: `${getTotalWidth()}px`,
-					// }}
+					style={{
+						width: table.getCenterTotalSize(),
+					}}
 				>
 					<thead className={tableHeaderStyles({ stickyHeader, variant })}>
 						{table.getHeaderGroups().map((headerGroup) => (
@@ -138,15 +137,31 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 												</div>
 												{header.column.columnDef.enableResizing !== false && (
 													<div
-														onMouseDown={header.getResizeHandler()}
-														onTouchStart={header.getResizeHandler()}
-														className="select-none touch-none cursor-col-resize w-1 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md"
-														style={{
-															transform: header.column.getIsResizing()
-																? `translateX(${table.getState().columnSizingInfo.deltaOffset}px)`
-																: "",
+														{...{
+															onDoubleClick: () => header.column.resetSize(),
+															onMouseDown: header.getResizeHandler(),
+															onTouchStart: header.getResizeHandler(),
+															className: cn(
+																table.options.columnResizeDirection,
+																header.column.getIsResizing() && "isResizing",
+																"select-none touch-none cursor-col-resize w-1 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md",
+															),
+															title: "Drag to resize column",
+															//   style: {
+															//     transform:
+															//       columnResizeMode === 'onEnd' &&
+															//       header.column.getIsResizing()
+															//         ? `translateX(${
+															//             (table.options.columnResizeDirection ===
+															//             'rtl'
+															//               ? -1
+															//               : 1) *
+															//             (table.getState().columnSizingInfo
+															//               .deltaOffset ?? 0)
+															//           }px)`
+															//         : '',
+															//   },
 														}}
-														title="Drag to resize column"
 													/>
 												)}
 											</div>

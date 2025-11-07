@@ -30,7 +30,7 @@ export const tableHeaderStyles = cva("", {
 });
 
 export const tableHeaderCellStyles = cva(
-	"text-left font-medium text-foreground align-top truncate",
+	"text-left font-medium text-foreground align-top truncate relative",
 	{
 		variants: {
 			size: {
