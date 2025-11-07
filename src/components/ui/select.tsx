@@ -2,29 +2,14 @@ import { ark, type HTMLArkProps } from "@ark-ui/react/factory";
 import { Portal } from "@ark-ui/react/portal";
 import { Select as SelectPrimitive, selectAnatomy } from "@ark-ui/react/select";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
-import { cva, type VariantProps } from "class-variance-authority";
+import { type VariantProps } from "class-variance-authority";
 import * as React from "react";
 
 import { cn } from "#src/lib/utils";
+import { selectVariants } from "./select.styles";
 import type { ExposedComponentProps } from "./component-props.ts";
 
 const parts = selectAnatomy.extendWith("separator").build();
-
-export const selectVariants = cva(
-	"relative flex rounded-md border border-input outline-none transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 has-aria-invalid:border-destructive has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40",
-	{
-		variants: {
-			size: {
-				sm: "min-h-[32px] text-xs",
-				md: "min-h-[38px] text-sm",
-				lg: "min-h-[44px] text-base",
-			},
-		},
-		defaultVariants: {
-			size: "md",
-		},
-	},
-);
 
 const SelectComponent = React.forwardRef(
 	<T extends SelectPrimitive.CollectionItem>(
@@ -232,3 +217,5 @@ export {
 	type SelectValueChangeDetails,
 	useSelect,
 } from "@ark-ui/react/select";
+
+export { selectVariants } from "./select.styles";
