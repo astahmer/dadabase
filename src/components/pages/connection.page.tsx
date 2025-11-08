@@ -13,6 +13,7 @@ import { useListCollection } from "@ark-ui/react";
 import { useFilter } from "@ark-ui/react/locale";
 import { Pagination } from "@ark-ui/react/pagination";
 import {
+	keepPreviousData,
 	useQuery,
 	useQueryClient,
 	useSuspenseQuery,
@@ -127,7 +128,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 				logicalOperator: "and",
 			},
 		}),
-		// placeholderData: keepPreviousData,
+		placeholderData: keepPreviousData,
 		enabled: !!connection?.url && !!search.schema && !!search.table,
 	});
 	// console.log("query", {
