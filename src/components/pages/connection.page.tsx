@@ -163,9 +163,14 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const [tableFilterValue, setTableFilterValue] = useState("");
 	const { contains } = useFilter({ sensitivity: "base" });
 
-	const filteredTables = tables.filter(
-		(table) =>
-			contains(table.name, tableFilterValue) && search.schema === table.schema,
+	const filteredTables = useMemo(
+		() =>
+			tables.filter(
+				(table) =>
+					contains(table.name, tableFilterValue) &&
+					search.schema === table.schema,
+			),
+		[tables, tableFilterValue, search.schema, contains],
 	);
 
 	const tableCollection = useMemo(
@@ -207,90 +212,128 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		return value;
 	};
 
-	const formattedTableData = tableData.map((row) => {
-		const formatted: Record<string, unknown> = {};
-		for (const [key, value] of Object.entries(row)) {
-			formatted[key] = formatTableValue(value);
-		}
-		return formatted;
-	});
+	const formattedTableData = useMemo(
+		() =>
+			tableData.map((row) => {
+				const formatted: Record<string, unknown> = {};
+				for (const [key, value] of Object.entries(row)) {
+					formatted[key] = formatTableValue(value);
+				}
+				return formatted;
+			}),
+		[tableData],
+	);
 
-	const rowsColumns: Array<ColumnDef<Record<string, unknown>>> =
-		columnMetadata.length > 0
-			? [
-					{
-						id: "select",
-						header: ({ table }) => {
-							const checkboxRef = useRef<HTMLInputElement>(null);
-							useEffect(() => {
-								if (checkboxRef.current) {
-									checkboxRef.current.indeterminate =
-										table.getIsSomeRowsSelected();
-								}
-							}, [table]);
-							return (
+	const rowsColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(
+		() =>
+			columnMetadata.length > 0
+				? [
+						{
+							id: "select",
+							header: ({ table }: { table: any }) => {
+								const checkboxRef = useRef<HTMLInputElement>(null);
+								useEffect(() => {
+									if (checkboxRef.current) {
+										checkboxRef.current.indeterminate =
+											table.getIsSomeRowsSelected();
+									}
+								}, [table]);
+								return (
+									<Checkbox
+										className="flex items-center gap-2"
+										checked={table.getIsAllRowsSelected()}
+										onChange={table.getToggleAllRowsSelectedHandler()}
+										aria-label="Select all rows"
+									>
+										<CheckboxControl />
+									</Checkbox>
+								);
+							},
+							cell: ({ row }: { row: any }) => (
 								<Checkbox
 									className="flex items-center gap-2"
-									checked={table.getIsAllRowsSelected()}
-									onChange={table.getToggleAllRowsSelectedHandler()}
-									aria-label="Select all rows"
+									checked={row.getIsSelected()}
+									disabled={!row.getCanSelect()}
+									onChange={row.getToggleSelectedHandler()}
+									aria-label="Select row"
 								>
 									<CheckboxControl />
 								</Checkbox>
-							);
+							),
+							size: 40,
+							minSize: 40,
+							maxSize: 40,
+							enableResizing: false,
+							enableSorting: false,
 						},
-						cell: ({ row }) => (
-							<Checkbox
-								className="flex items-center gap-2"
-								checked={row.getIsSelected()}
-								disabled={!row.getCanSelect()}
-								onChange={row.getToggleSelectedHandler()}
-								aria-label="Select row"
-							>
-								<CheckboxControl />
-							</Checkbox>
+						...columnMetadata.map(
+							(col) =>
+								({
+									accessorKey: col.name,
+									header: () => (
+										<ColumnHeaderWithInfo
+											columnName={col.name}
+											dataType={col.dataType}
+											showBadge
+										/>
+									),
+									meta: {
+										textAlign: getColumnTextAlignment(col.dataType),
+									},
+									cell: col.dataType.toLowerCase().includes("json")
+										? ({ row }: { row: any }) => (
+												<JsonCell value={row.original[col.name]} />
+											)
+										: (ctx) => ctx.renderValue(),
+									enableResizing: true,
+									enableSorting: true,
+								}) as ColumnDef<any> as any,
 						),
-						size: 40,
-						minSize: 40,
-						maxSize: 40,
-						enableResizing: false,
-						enableSorting: false,
-					},
-					...columnMetadata.map(
-						(col) =>
-							({
-								accessorKey: col.name,
-								header: () => (
-									<ColumnHeaderWithInfo
-										columnName={col.name}
-										dataType={col.dataType}
-										showBadge
-									/>
-								),
-								meta: {
-									textAlign: getColumnTextAlignment(col.dataType),
-								},
-								cell: col.dataType.toLowerCase().includes("json")
-									? ({ row }: { row: any }) => (
-											<JsonCell value={row.original[col.name]} />
-										)
-									: (ctx) => ctx.renderValue(),
-								enableResizing: true,
-								enableSorting: true,
-							}) as ColumnDef<any> as any,
-					),
-				]
-			: [];
+					]
+				: [],
+		[columnMetadata],
+	);
 
 	// Create sorting state from URL params
-	const sortingState = search.orderBy
-		? [
-				{
-					id: search.orderBy,
-					desc: search.orderDirection === "desc",
-				},
-			]
-		: [];
+	const sortingState = useMemo(
+		() =>
+			search.orderBy
+				? [
+						{
+							id: search.orderBy,
+							desc: search.orderDirection === "desc",
+						},
+					]
+				: [],
+		[search.orderBy, search.orderDirection],
+	);
+
+	// Create column visibility state from URL params
+	// Parse the comma-separated list of visible columns
+	const columnVisibilityState = useMemo(() => {
+		const visibility: Record<string, boolean> = {};
+
+		// All columns should be hidden by default except "select"
+		rowsColumns.forEach((col) => {
+			visibility[(col as any).id || (col as any).accessorKey] = false;
+		});
+
+		// Show "select" column and columns from URL
+		visibility["select"] = true;
+		if (search.columnVisibility) {
+			const visibleCols = search.columnVisibility;
+			visibleCols.forEach((col) => {
+				visibility[col.trim()] = true;
+			});
+		} else {
+			// Default: show all columns if nothing specified
+			rowsColumns.forEach((col) => {
+				visibility[(col as any).id || (col as any).accessorKey] = true;
+			});
+		}
+
+		return visibility;
+	}, [search.columnVisibility, rowsColumns]);
 
 	const dataTable = useDataTable({
 		data: formattedTableData,
@@ -301,6 +344,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 				pageSize: search.limit,
 			},
 			sorting: sortingState,
+			columnVisibility: columnVisibilityState,
 		},
 		manualPagination: true,
 		manualSorting: true,
@@ -336,6 +380,22 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					...prev,
 					offset: newPagination.pageIndex * newPagination.pageSize,
 					limit: newPagination.pageSize,
+				}),
+			});
+		},
+		onColumnVisibilityChange: (updater) => {
+			const newVisibility =
+				typeof updater === "function"
+					? updater(columnVisibilityState)
+					: updater;
+			// Store visible columns as array in URL
+			const visibleCols = Object.keys(newVisibility)
+				.filter((key) => newVisibility[key] && key !== "select")
+				.sort();
+			navigate({
+				search: (prev) => ({
+					...prev,
+					columnVisibility: visibleCols.length > 0 ? visibleCols : undefined,
 				}),
 			});
 		},
@@ -1023,7 +1083,7 @@ function RowsPerPageSelector({
 			<ListboxMenu.ListboxMenuTrigger size="sm" asChild>
 				<Button
 					variant="outline"
-					className="flex flex-1 items-center justify-between gap-5 bg-transparent px-3 py-2 outline-none outline-hidden placeholder:text-muted-foreground/70 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50 data-[placeholder-shown]:text-muted-foreground"
+					className="flex flex-1 items-center justify-between gap-5 bg-transparent px-3 py-2 outline-none outline-hidden placeholder:text-muted-foreground/70 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50 data-placeholder-shown:text-muted-foreground"
 				>
 					<span className="text-sm font-medium text-foreground">{value}</span>
 					<ChevronDownIcon className="size-4 shrink-0 in-aria-invalid:text-destructive/80 text-muted-foreground/80" />
