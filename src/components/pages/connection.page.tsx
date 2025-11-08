@@ -39,6 +39,7 @@ import { OrderBySelect } from "../order-by-select";
 import { QueryFilterBuilder } from "../query-filter-builder";
 import { Button } from "../ui/button";
 import { HStack, Stack } from "../ui/layout.tsx";
+import { JsonCell } from "../ui/json-cell";
 import * as ArkSelect from "../ui/select";
 import * as ListboxMenu from "../ui/listbox-menu";
 import { Spinner } from "../ui/spinner.tsx";
@@ -254,21 +255,29 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						enableResizing: false,
 						enableSorting: false,
 					},
-					...columnMetadata.map((col) => ({
-						accessorKey: col.name,
-						header: () => (
-							<ColumnHeaderWithInfo
-								columnName={col.name}
-								dataType={col.dataType}
-								showBadge
-							/>
-						),
-						meta: {
-							textAlign: getColumnTextAlignment(col.dataType),
-						},
-						enableResizing: true,
-						enableSorting: true,
-					})),
+					...columnMetadata.map(
+						(col) =>
+							({
+								accessorKey: col.name,
+								header: () => (
+									<ColumnHeaderWithInfo
+										columnName={col.name}
+										dataType={col.dataType}
+										showBadge
+									/>
+								),
+								meta: {
+									textAlign: getColumnTextAlignment(col.dataType),
+								},
+								cell: col.dataType.toLowerCase().includes("json")
+									? ({ row }: { row: any }) => (
+											<JsonCell value={row.original[col.name]} />
+										)
+									: (ctx) => ctx.renderValue(),
+								enableResizing: true,
+								enableSorting: true,
+							}) as ColumnDef<any>,
+					),
 				]
 			: [];
 
@@ -876,7 +885,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 													<div className="flex items-center gap-2 text-foreground">
 														<label className="font-medium uppercase tracking-wide whitespace-nowrap">
-															Rows per page:
+															Limit:
 														</label>
 														<RowsPerPageSelector
 															value={search.limit}
