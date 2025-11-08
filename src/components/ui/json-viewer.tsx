@@ -251,20 +251,19 @@ export const JsonViewerModal = memo(function JsonViewerModal({
 	}, [data]);
 
 	return (
-		<div className={cn("flex flex-col gap-3", className)}>
+		<div className={cn("flex flex-col gap-3 min-h-0 h-full", className)}>
 			<div className="flex items-center justify-between">
-				<span className="text-sm font-medium text-foreground">JSON Data</span>
 				<Button
 					size="sm"
 					variant="ghost"
 					onClick={handleCopy}
-					className="h-7 gap-2"
+					className="h-7 gap-2 ml-auto"
 				>
 					<Copy size={14} />
 					{copied ? "Copied!" : "Copy"}
 				</Button>
 			</div>
-			<div className="bg-muted p-3 rounded border border-border overflow-auto max-h-96">
+			<div className="bg-muted p-3 rounded border border-border overflow-auto min-h-0 h-full">
 				<JsonViewer data={data} defaultExpanded={true} />
 			</div>
 		</div>

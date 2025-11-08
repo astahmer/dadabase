@@ -276,7 +276,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									: (ctx) => ctx.renderValue(),
 								enableResizing: true,
 								enableSorting: true,
-							}) as ColumnDef<any>,
+							}) as ColumnDef<any> as any,
 					),
 				]
 			: [];

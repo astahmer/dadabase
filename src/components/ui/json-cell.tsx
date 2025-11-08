@@ -54,11 +54,14 @@ export function JsonCell({ value, className }: JsonCellProps) {
 			</Button>
 
 			<Dialog open={open} onOpenChange={(details) => setOpen(details.open)}>
-				<DialogContent className="max-w-6xl h-[90vh] flex flex-col">
+				<DialogContent
+					size="6xl"
+					className="h-[90vh] flex flex-col overflow-hidden"
+				>
 					<DialogHeader>
 						<DialogTitle>JSON Data</DialogTitle>
 					</DialogHeader>
-					<div className="mt-4 flex-1 overflow-auto">
+					<div className="mt-4 flex-1 h-full min-h-0">
 						<JsonViewerModal data={value} />
 					</div>
 				</DialogContent>
