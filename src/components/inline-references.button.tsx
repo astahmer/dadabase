@@ -3,6 +3,7 @@ import { Popover, Portal } from "@ark-ui/react";
 import { Link as LinkIcon } from "lucide-react";
 import { useState } from "react";
 import { InlineReferencesPopover } from "./inline-references.popover";
+import { Button } from "./ui/button.tsx";
 
 interface InlineReferencesButton {
 	schema: string;
@@ -26,6 +27,7 @@ interface InlineReferencesButton {
 	) => void;
 	onNavigateToReference?: (ref: ColumnReference, cellValue: unknown) => void;
 	onExpandToSheet?: () => void;
+	children: React.ReactNode;
 }
 
 export function InlineReferencesButton({
@@ -39,6 +41,7 @@ export function InlineReferencesButton({
 	onNavigateToFK,
 	onNavigateToReference,
 	onExpandToSheet,
+	children,
 }: InlineReferencesButton) {
 	const [isOpen, setIsOpen] = useState(false);
 
@@ -52,9 +55,21 @@ export function InlineReferencesButton({
 				className="focus-visible:ring-2 focus-visible:ring-ring rounded p-0.5"
 				title="View relationships"
 				aria-label="View relationships"
+				asChild
 			>
-				<LinkIcon className="h-4 w-4 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" />
+				<Button variant="ghost" size="xs" className="px-1">
+					<LinkIcon className="h-4 w-4 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" />
+				</Button>
 			</Popover.Trigger>
+			<div
+				onClick={(e) => {
+					if (e.metaKey) {
+						setIsOpen(true);
+					}
+				}}
+			>
+				{children}
+			</div>
 
 			<Portal>
 				<Popover.Positioner>
