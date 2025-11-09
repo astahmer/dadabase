@@ -104,6 +104,14 @@ function replaceDatabaseInConnectionUrl(
 	}
 }
 
+function safeJsonParse(value: string) {
+	try {
+		return JSON.parse(value);
+	} catch {
+		return value;
+	}
+}
+
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -185,14 +193,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		placeholderData: keepPreviousData,
 		enabled: !!activeConnectionUrl && !!search.schema && !!search.table,
 	});
-	console.log(
-		1,
-		schemaListQuery.error,
-		2,
-		tablesListQuery.error,
-		3,
-		rowsQuery.error,
-	);
 	// console.log("query", {
 	// 	url: activeConnectionUrl,
 	// 	schema: search.schema || "",
@@ -266,7 +266,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		timeTaken: 0,
 		ranAt: 0,
 	};
-	const tableData = queryResponse.rows;
+	const rowsList = queryResponse.rows;
 	const totalRowCount = queryResponse.rowCount;
 
 	const tableDisplayName = search.table
@@ -284,20 +284,25 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			if (!isNaN(dateObj.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(value)) {
 				return dateObj.toISOString();
 			}
+
+			if (value.at(0) === "{" && value.at(-1) === "}") {
+				// Check if it looks like a JSON object
+				return safeJsonParse(value);
+			}
 		}
 		return value;
 	};
 
-	const formattedTableData = useMemo(
+	const formattedTableRowsData = useMemo(
 		() =>
-			tableData.map((row) => {
+			rowsList.map((row) => {
 				const formatted: Record<string, unknown> = {};
 				for (const [key, value] of Object.entries(row)) {
 					formatted[key] = formatTableValue(value);
 				}
 				return formatted;
 			}),
-		[tableData],
+		[rowsList],
 	);
 
 	const rowsColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(
@@ -363,7 +368,14 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									},
 									cell: col.dataType.toLowerCase().includes("json")
 										? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
-										: (ctx) => ctx.renderValue(),
+										: (ctx) => {
+												const value = ctx.getValue();
+												return typeof value === "object" && value !== null ? (
+													<JsonCell value={ctx.row.original[col.name]} />
+												) : (
+													ctx.renderValue()
+												);
+											},
 									enableResizing: true,
 									enableSorting: true,
 								}) as ColumnDef<any> as any,
@@ -409,8 +421,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		return visibility;
 	}, [search.hiddenColumnList, rowsColumns]);
 
-	const dataTable = useDataTable({
-		data: formattedTableData,
+	const rowsDataTable = useDataTable({
+		data: formattedTableRowsData,
 		columns: rowsColumns,
 		state: {
 			pagination: {
@@ -427,7 +439,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		defaultColumn: {
 			size: 150,
 			minSize: 20,
-			maxSize: Number.MAX_SAFE_INTEGER,
+			maxSize: 500,
 		},
 		onSortingChange: (updater) => {
 			const newSorting =
@@ -1102,7 +1114,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										<ColumnVisibilityControls
 											// key={(search.hiddenColumnList ?? []).join(",")}
 											key={JSON.stringify(columnVisibilityState)}
-											table={dataTable}
+											table={rowsDataTable}
 											columnList={columnMetadata.map((col) => col.name)}
 											minimal={true}
 										/>
@@ -1180,13 +1192,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										) : (
 											<>
 												<DataTable
-													table={dataTable}
+													table={rowsDataTable}
 													isLoading={rowsQuery.isLoading}
 													size={search.tableSize}
 												/>
 												<BulkActionBar
 													selectedCount={
-														dataTable.getSelectedRowModel().rows.length
+														rowsDataTable.getSelectedRowModel().rows.length
 													}
 													onDelete={() => {
 														// Placeholder - implement deletion logic

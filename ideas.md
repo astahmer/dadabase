@@ -9,7 +9,6 @@
 - filters in datatable header (th) ?
 - edit in datatable line? double click triggers the edit UI with a commit phase (nothing is persisted until you click save with the count + list of changes available to review / the translated raw SQL update)
 - support NOT operator in natural language search
-- move cva functions outside of their components so that fast refresh works
 - try to match possible operators based on datatype; ex: timestamps shouldnt have
 
 - add a way to favorite/save queries
