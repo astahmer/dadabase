@@ -733,9 +733,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		enableRowSelection: true,
 		rowCount: totalRowCount,
 		defaultColumn: {
-			size: 150,
-			minSize: 20,
-			maxSize: 500,
+			size: 280,
+			minSize: 100,
+			maxSize: 1000,
 		},
 		onSortingChange: (updater) => {
 			const newSorting =
