@@ -7,6 +7,7 @@ import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-a
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
 import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
+import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start.ts";
 import { useListCollection } from "@ark-ui/react";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
@@ -80,6 +81,16 @@ interface ConnectionPageProps {
 	connectionName: string;
 }
 
+function parseConnectionUrl(connectionUrl: string) {
+	try {
+		const url = new URL(connectionUrl);
+		const databaseName = url.pathname.replace("/", "");
+		return databaseName;
+	} catch {
+		return "";
+	}
+}
+
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -88,10 +99,17 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
 	const connectionUrl = connection?.url || "";
+	const defaultDatabaseName = parseConnectionUrl(connectionUrl);
 
 	const search = useSearch({ from: "/connections/$connectionName" });
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
+
+	const databaseListQuery = useQuery({
+		...listAvailableDatabase({ url: connectionUrl }),
+		enabled: !!connection?.url,
+		retry: 3,
+	});
 
 	const queryBuilder = useQueryBuilder(
 		search.filters ?? { conditions: [], logicalOperator: "and" },
@@ -591,6 +609,96 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			<div className="flex-1 flex h-full min-h-0">
 				{/* Sidebar */}
 				<div className="w-64 border-r bg-muted/30 flex flex-col overflow-hidden h-full min-h-0">
+					{/* Database Selector */}
+					<Stack className="px-4 pt-4 shrink-0" gap="2">
+						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
+							Database
+						</label>
+						{databaseListQuery.isError ? (
+							<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
+								<div className="text-xs font-semibold text-destructive mb-1">
+									Failed to load databases
+								</div>
+								<div className="text-xs text-destructive/80 font-mono wrap-break-word mb-2 max-h-24 overflow-y-auto">
+									{getErrorMessage(databaseListQuery.error)}
+								</div>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => databaseListQuery.refetch()}
+									className="w-full text-xs h-7"
+								>
+									Retry
+								</Button>
+							</div>
+						) : databaseListQuery.isLoading ? (
+							<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9 gap-2">
+								<Spinner />
+								<div className="text-xs text-muted-foreground">
+									{databaseListQuery.failureCount > 0 ? (
+										<>
+											Failed {databaseListQuery.failureCount} time
+											{databaseListQuery.failureCount > 1 ? "s" : ""},
+											retrying...
+										</>
+									) : (
+										"Loading databases..."
+									)}
+								</div>
+							</div>
+						) : (
+							<ArkSelect.Select
+								className="w-full"
+								value={
+									search.dbName
+										? [search.dbName]
+										: defaultDatabaseName
+											? [defaultDatabaseName]
+											: []
+								}
+								collection={ArkSelect.createListCollection({
+									items: (databaseListQuery.data || []).map((db: any) => ({
+										label: db.datname,
+										value: db.datname,
+									})),
+								})}
+								positioning={{ sameWidth: true }}
+								disabled={databaseListQuery.isLoading}
+								onValueChange={(details: { value?: string[] }) => {
+									const newDbName = details.value?.[0];
+									if (newDbName) {
+										navigate({
+											search: (prev) => ({
+												...prev,
+												dbName: newDbName,
+												schema: undefined,
+												table: undefined,
+												offset: 0,
+												filters: undefined,
+											}),
+										});
+									}
+								}}
+							>
+								<ArkSelect.SelectControl>
+									<ArkSelect.SelectTrigger>
+										<ArkSelect.SelectValueText placeholder="Select database" />
+										<ArkSelect.SelectIndicator />
+									</ArkSelect.SelectTrigger>
+								</ArkSelect.SelectControl>
+								<ArkSelect.SelectContent>
+									{(databaseListQuery.data || []).map((db: any) => (
+										<ArkSelect.SelectItem
+											key={db.datname}
+											item={{ label: db.datname, value: db.datname }}
+										>
+											{db.datname}
+										</ArkSelect.SelectItem>
+									))}
+								</ArkSelect.SelectContent>
+							</ArkSelect.Select>
+						)}
+					</Stack>
 					{/* Schema Selector */}
 					<Stack className="px-4 pt-4 shrink-0" gap="2">
 						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
