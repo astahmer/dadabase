@@ -6,7 +6,7 @@ import { redactConnectionUrl } from "#src/lib/redact-connection-url";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
-import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start";
+import { getAllTablesColumnsQueryOptions } from "#src/server/pg/start-fns/get-all-tables-columns.start";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start.ts";
 import { useListCollection } from "@ark-ui/react";
@@ -31,14 +31,7 @@ import {
 	RefreshCw,
 	Rows,
 } from "lucide-react";
-import {
-	useCallback,
-	useEffect,
-	useEffectEvent,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { BulkActionBar } from "../bulk-action-bar";
 import { ColumnVisibilityControls } from "../column-visibility";
@@ -163,15 +156,20 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		});
 	};
 
-	// Helper function to prefetch column metadata
-	const prefetchTableColumns = (schema: string, table: string) => {
+	// Helper function to prefetch all tables' column metadata for a schema
+	const prefetchAllTablesColumns = (schema: string) => {
 		queryClient.prefetchQuery({
-			...getTableColumnsQueryOptions({
+			...getAllTablesColumnsQueryOptions({
 				url: activeConnectionUrl,
 				schema,
-				table,
 			}),
 		});
+	};
+
+	// Helper function to prefetch column metadata (kept for backward compatibility)
+	const prefetchTableColumns = (schema: string) => {
+		// First try to prefetch all tables' metadata
+		prefetchAllTablesColumns(schema);
 	};
 
 	const databaseListQuery = useQuery({
@@ -231,7 +229,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 				logicalOperator: "and",
 			},
 		}),
-		placeholderData: keepPreviousData,
+		// placeholderData: keepPreviousData,
 		enabled: !!activeConnectionUrl && !!search.schema && !!search.table,
 	});
 	// console.log("query", {
@@ -249,15 +247,23 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	// });
 	// console.log(rowsQuery.data);
 
-	const metadataQuery = useQuery({
-		...getTableColumnsQueryOptions({
+	const allTablesColumnsQuery = useQuery({
+		...getAllTablesColumnsQueryOptions({
 			url: activeConnectionUrl,
 			schema: search.schema || "",
-			table: search.table || "",
 		}),
-		enabled: !!activeConnectionUrl && !!search.schema && !!search.table,
+		enabled: !!activeConnectionUrl && !!search.schema,
 	});
-	const columnMetadata = metadataQuery.data ?? [];
+
+	// Get metadata for the currently selected table from the cache
+	const columnMetadata = useMemo(() => {
+		if (!search.table || !search.schema) return [];
+
+		const tableData = allTablesColumnsQuery.data?.find(
+			(t) => t.table === search.table,
+		);
+		return tableData?.columns ?? [];
+	}, [allTablesColumnsQuery.data, search.table, search.schema]);
 
 	const allSchemaList = schemaListQuery.data || [];
 	const tableList = tablesListQuery.data || [];
@@ -1034,7 +1040,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						onTabHover={(tab) => {
 							if (!tab.id.startsWith("empty-") && tab.schema && tab.table) {
 								prefetchTableData(tab.schema, tab.table);
-								prefetchTableColumns(tab.schema, tab.table);
+								prefetchTableColumns(tab.schema);
 							}
 						}}
 						onTabChange={(tabId) => {
@@ -1117,7 +1123,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						<>
 							{/* View Toggle & Filter Controls */}
 							<div className="relative border-b bg-muted/50">
-								{(rowsQuery.isLoading || metadataQuery.isLoading) && (
+								{(rowsQuery.isLoading || allTablesColumnsQuery.isLoading) && (
 									<div className="absolute inset-x-0 top-0 h-0.5 bg-linear-to-r from-primary via-primary to-transparent animate-pulse" />
 								)}
 								<HStack className="px-4 py-2 items-center justify-between">
@@ -1178,7 +1184,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														});
 													}
 												}}
-												disabled={metadataQuery.isLoading}
+												disabled={allTablesColumnsQuery.isLoading}
 												className={filterConditions.length > 0 ? "gap-2" : ""}
 											>
 												<LucideListFilter className="h-3 w-3" />
@@ -1334,7 +1340,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									<div className="flex-1 p-2 pt-0 overflow-auto">
 										<StructureTable
 											columnMetadata={columnMetadata}
-											isLoading={metadataQuery.isLoading}
+											isLoading={allTablesColumnsQuery.isLoading}
 											tableSize={search.tableSize}
 										/>
 									</div>
