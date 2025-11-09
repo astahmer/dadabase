@@ -206,7 +206,7 @@ export function QuickReferencesPanel({
 									<ChevronRight className="h-4 w-4 text-muted-foreground" />
 								)}
 								<LinkIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-								<span className="font-semibold text-sm">Points To</span>
+								<span className="font-semibold text-sm">From source table</span>
 							</div>
 						</button>
 

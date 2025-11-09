@@ -35,7 +35,8 @@ exports.forwardRef @ chunk-SDBL6XOS.js?v=08d9c5c8:807
 - remove any forwardRef and just pass props/refs directly (React 19 works fine like this)
 
 
-- sort the list of references by count or A-Z
+- select to sort the list of references by count or A-Z
+- data table size "minimal" even smaller than compact
 
 
 ---

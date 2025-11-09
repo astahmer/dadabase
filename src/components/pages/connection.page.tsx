@@ -49,7 +49,7 @@ import { DataTypeBadge } from "../ui/data-type-badge";
 import { ForeignKeyIcon } from "../ui/foreign-key-icon";
 import { CellContextMenu } from "../cell-context-menu";
 import { QuickReferencesPanel } from "../quick-references-panel";
-import { RelationshipsQuickButton } from "../relationships-quick-button";
+import { InlineReferencesButton } from "../inline-references.button.tsx";
 import { JsonCell } from "../ui/json-cell";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
@@ -478,7 +478,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														{search.table &&
 															ctx.row.original[col.name] &&
 															col.foreignKey && (
-																<RelationshipsQuickButton
+																<InlineReferencesButton
 																	schema={search.schema}
 																	table={search.table}
 																	columnName={col.name}

@@ -10,7 +10,7 @@ import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
 import { Stack } from "./ui/layout.tsx";
 
-export interface InlineRelationshipsPopoverProps {
+interface InlineReferencesPopoverProps {
 	schema: string;
 	table: string;
 	columnName: string;
@@ -34,7 +34,7 @@ export interface InlineRelationshipsPopoverProps {
 	onExpandToSheet?: () => void;
 }
 
-export function InlineRelationshipsPopover({
+export function InlineReferencesPopover({
 	schema,
 	table,
 	columnName,
@@ -44,7 +44,7 @@ export function InlineRelationshipsPopover({
 	onNavigateToFK,
 	onNavigateToReference,
 	onExpandToSheet,
-}: InlineRelationshipsPopoverProps) {
+}: InlineReferencesPopoverProps) {
 	// Determine the reference target
 	const referenceTarget = foreignKey
 		? {
@@ -104,7 +104,7 @@ export function InlineRelationshipsPopover({
 					<div>
 						<div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
 							<ChevronRight className="h-3 w-3" />
-							Points To
+							From source table
 						</div>
 						<button
 							onClick={() => {

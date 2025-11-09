@@ -2,9 +2,9 @@ import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.
 import { Popover, Portal } from "@ark-ui/react";
 import { Link as LinkIcon } from "lucide-react";
 import { useState } from "react";
-import { InlineRelationshipsPopover } from "./inline-relationships-popover";
+import { InlineReferencesPopover } from "./inline-references.popover";
 
-export interface RelationshipsQuickButtonProps {
+interface InlineReferencesButton {
 	schema: string;
 	table: string;
 	columnName: string;
@@ -28,7 +28,7 @@ export interface RelationshipsQuickButtonProps {
 	onExpandToSheet?: () => void;
 }
 
-export function RelationshipsQuickButton({
+export function InlineReferencesButton({
 	schema,
 	table,
 	columnName,
@@ -39,7 +39,7 @@ export function RelationshipsQuickButton({
 	onNavigateToFK,
 	onNavigateToReference,
 	onExpandToSheet,
-}: RelationshipsQuickButtonProps) {
+}: InlineReferencesButton) {
 	const [isOpen, setIsOpen] = useState(false);
 
 	return (
@@ -59,7 +59,7 @@ export function RelationshipsQuickButton({
 			<Portal>
 				<Popover.Positioner>
 					<Popover.Content className="z-50">
-						<InlineRelationshipsPopover
+						<InlineReferencesPopover
 							schema={schema}
 							table={table}
 							columnName={columnName}
