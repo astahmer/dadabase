@@ -82,7 +82,7 @@ export function CellContextMenu({
 						<MenuItemText>Copy value</MenuItemText>
 					</MenuItem>
 
-					{foreignKey && cellValue !== null && (
+					{foreignKey && cellValue !== null && onFollowFK && (
 						<>
 							<MenuSeparator />
 							<MenuItem value="follow-fk" onClick={handleFollowFK}>
@@ -94,7 +94,7 @@ export function CellContextMenu({
 						</>
 					)}
 
-					{cellValue !== null && (
+					{cellValue !== null && onFindReferences && (
 						<>
 							<MenuSeparator />
 							<MenuItem value="find-refs" onClick={handleFindReferences}>

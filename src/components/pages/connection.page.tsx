@@ -475,27 +475,50 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														cellValue={ctx.row.original[col.name]}
 														columnName={col.name}
 														foreignKey={col.foreignKey}
-														onFollowFK={(fkInfo) => {
-															const event = new CustomEvent("cellFollowFK", {
-																detail: {
-																	columnName: col.name,
-																	cellValue: ctx.row.original[col.name],
-																	fkInfo,
-																},
-															});
-															window.dispatchEvent(event);
-														}}
-														onFindReferences={() => {
-															const event = new CustomEvent(
-																"cellFindReferences",
-																{
-																	detail: {
-																		columnName: col.name,
-																		cellValue: ctx.row.original[col.name],
+														onFollowFK={(fkInfo, cellValue) => {
+															// Follow FK to the referenced table
+															navigate({
+																search: (prev) => ({
+																	...prev,
+																	schema: fkInfo.referencedSchema,
+																	table: fkInfo.referencedTable,
+																	filtersOpened: true,
+																	filters: {
+																		conditions: [
+																			{
+																				column: fkInfo.referencedColumn,
+																				operator: "equals",
+																				value: String(cellValue),
+																			},
+																		],
+																		logicalOperator: "and",
 																	},
-																},
-															);
-															window.dispatchEvent(event);
+																	offset: 0,
+																	limit: 50,
+																	orderBy: undefined,
+																	orderDirection: undefined,
+																}),
+															});
+														}}
+														onFindReferences={(columnName, cellValue) => {
+															// Filter the current table to rows where this column has this value
+															navigate({
+																search: (prev) => ({
+																	...prev,
+																	filtersOpened: true,
+																	filters: {
+																		conditions: [
+																			{
+																				column: columnName,
+																				operator: "equals",
+																				value: String(cellValue),
+																			},
+																		],
+																		logicalOperator: "and",
+																	},
+																	offset: 0,
+																}),
+															});
 														}}
 													>
 														{content as React.ReactNode}
@@ -1408,50 +1431,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													table={rowsDataTable}
 													isLoading={rowsQuery.isLoading}
 													size={search.tableSize}
-													onCellFollowFK={(_, cellValue, fkInfo) => {
-														// Follow FK to the referenced table
-														navigate({
-															search: (prev) => ({
-																...prev,
-																schema: fkInfo.referencedSchema,
-																table: fkInfo.referencedTable,
-																filters: {
-																	conditions: [
-																		{
-																			column: fkInfo.referencedColumn,
-																			operator: "equals",
-																			value: String(cellValue),
-																		},
-																	],
-																	logicalOperator: "and",
-																},
-																offset: 0,
-																limit: 50,
-																orderBy: undefined,
-																orderDirection: undefined,
-															}),
-														});
-													}}
-													onCellFindReferences={(columnName, cellValue) => {
-														// For now, just filter the current table to rows where this column has this value
-														// TODO: In Phase 3, we'll show which other tables reference this value
-														navigate({
-															search: (prev) => ({
-																...prev,
-																filters: {
-																	conditions: [
-																		{
-																			column: columnName,
-																			operator: "equals",
-																			value: String(cellValue),
-																		},
-																	],
-																	logicalOperator: "and",
-																},
-																offset: 0,
-															}),
-														});
-													}}
 												/>
 												<BulkActionBar
 													selectedCount={
