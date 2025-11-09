@@ -127,7 +127,7 @@ export function InlineReferencesButton({
 						setIsOpen(true);
 					}
 				}}
-				className="group cursor-pointer transition-all"
+				className="group"
 			>
 				{children}
 			</div>

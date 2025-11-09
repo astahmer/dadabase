@@ -445,7 +445,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
 										: (ctx) => {
 												const value = ctx.getValue();
-												const content = (() => {
+												const content = ((): React.ReactNode => {
 													if (typeof value === "object" && value !== null) {
 														return (
 															<JsonCell value={ctx.row.original[col.name]} />
@@ -470,7 +470,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 															</Badge>
 														);
 													}
-													return ctx.renderValue();
+													return ctx.renderValue() as React.ReactNode;
 												})();
 
 												const CellValue = (
@@ -569,7 +569,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 															);
 														}}
 													>
-														{content as React.ReactNode}
+														{content}
 													</CellContextMenu>
 												);
 

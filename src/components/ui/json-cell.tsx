@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { ChevronRightIcon } from "lucide-react";
+import { InlineJsonButton } from "../inline-json-button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
-import { Button } from "./button";
 import { JsonViewerModal } from "./json-viewer";
-import { cn } from "../../lib/utils";
 
 interface JsonCellProps {
 	value: unknown;
@@ -41,19 +39,11 @@ export function JsonCell({ value, className }: JsonCellProps) {
 
 	return (
 		<>
-			<Button
-				variant="ghost"
-				size="sm"
-				onClick={() => setOpen(true)}
-				className={cn(
-					"h-6 text-xs px-2 w-full text-left justify-start gap-1.5",
-					className,
-				)}
-				title={preview}
-			>
-				<ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
-				<span className="truncate w-full">{preview}</span>
-			</Button>
+			<InlineJsonButton value={value} onOpenDialog={() => setOpen(true)}>
+				<span className="truncate w-full group-data-cmd-hover:underline group-data-cmd-hover:underline-offset-2 group-data-cmd-hover:cursor-pointer">
+					{preview}
+				</span>
+			</InlineJsonButton>
 
 			<Dialog open={open} onOpenChange={(details) => setOpen(details.open)}>
 				<DialogContent size="6xl" className="h-[90vh] flex flex-col">
