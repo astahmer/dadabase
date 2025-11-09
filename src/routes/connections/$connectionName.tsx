@@ -33,6 +33,7 @@ const searchSchema = Schema.Struct({
 	),
 	quickReferencesColumnName: Schema.String.pipe(Schema.optional),
 	quickReferencesCellValue: Schema.String.pipe(Schema.optional),
+	tabs: Schema.String.pipe(Schema.Array, Schema.optional), // Comma-separated list of "schema.table" tab IDs
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({

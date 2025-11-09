@@ -1,6 +1,5 @@
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
-import { useOpenTabs } from "#src/hooks/use-open-tabs";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
@@ -124,16 +123,54 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
-	const { tabs, addTab, addEmptyTab, closeTab } = useOpenTabs(connectionName);
 
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
 	const connectionUrl = connection?.url || "";
 	const search = useSearch({ from: "/connections/$connectionName" });
 
+	// Derive tabs from the URL search params
+	const tabs = (search.tabs ?? []).map((tabId: string) => {
+		const [schema, table] = tabId.split(".");
+		return { id: tabId, schema, table };
+	});
+
 	// Derive the active tab from the URL search params instead of internal state
 	// This ensures the tab selection always matches the current URL
-	const activeTabId = search.schema && search.table ? `${search.schema}.${search.table}` : null;
+	const activeTabId =
+		search.schema && search.table ? `${search.schema}.${search.table}` : null;
+
+	// Helper functions to manage tabs via URL
+	const addTab = (schema: string, table: string) => {
+		const newTabId = `${schema}.${table}`;
+		navigate({
+			search: (prev) => ({
+				...prev,
+				tabs: Array.from(new Set([...(prev.tabs ?? []), newTabId])), // Add if not already present
+			}),
+		});
+	};
+
+	const addEmptyTab = () => {
+		// Create a placeholder empty tab with a temporary ID
+		const timestamp = Date.now();
+		const emptyTabId = `empty-${timestamp}`;
+		navigate({
+			search: (prev) => ({
+				...prev,
+				tabs: [...(prev.tabs ?? []), emptyTabId],
+			}),
+		});
+	};
+
+	const closeTab = (tabId: string) => {
+		navigate({
+			search: (prev) => ({
+				...prev,
+				tabs: (prev.tabs ?? []).filter((t) => t !== tabId),
+			}),
+		});
+	};
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
