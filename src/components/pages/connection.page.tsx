@@ -123,17 +123,16 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
-
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
 	const connectionUrl = connection?.url || "";
 	const search = useSearch({ from: "/connections/$connectionName" });
 
 	// Derive tabs from the URL search params
-	const tabs = (search.tabs ?? []).map((tabId: string) => {
-		const [schema, table] = tabId.split(".");
-		return { id: tabId, schema, table };
-	});
+	const tabs = (search.tabs ?? []).map((tabState: any) => ({
+		id: `${tabState.schema}.${tabState.table}`,
+		...tabState,
+	}));
 
 	// Derive the active tab from the URL search params instead of internal state
 	// This ensures the tab selection always matches the current URL
@@ -142,33 +141,74 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	// Helper functions to manage tabs via URL
 	const addTab = (schema: string, table: string) => {
-		const newTabId = `${schema}.${table}`;
+		const newTabState = {
+			schema,
+			table,
+			tableFilter: undefined,
+			orderBy: undefined,
+			orderDirection: undefined,
+			limit: 50,
+			offset: 0,
+			viewMode: "rows" as const,
+			tableSize: "cozy" as const,
+			hiddenColumnList: undefined,
+			filters: undefined,
+			filtersOpened: false,
+		};
 		navigate({
-			search: (prev) => ({
-				...prev,
-				tabs: Array.from(new Set([...(prev.tabs ?? []), newTabId])), // Add if not already present
-			}),
+			search: (prev) => {
+				// Check if tab already exists
+				const existingTab = (prev.tabs ?? []).find(
+					(t: any) => t.schema === schema && t.table === table,
+				);
+				if (existingTab) return prev;
+
+				return {
+					...prev,
+					tabs: [...(prev.tabs ?? []), newTabState],
+				};
+			},
 		});
 	};
 
 	const addEmptyTab = () => {
 		// Create a placeholder empty tab with a temporary ID
 		const timestamp = Date.now();
-		const emptyTabId = `empty-${timestamp}`;
+		const emptyTabState = {
+			schema: "",
+			table: "",
+			tableFilter: undefined,
+			orderBy: undefined,
+			orderDirection: undefined,
+			limit: 50,
+			offset: 0,
+			viewMode: "rows" as const,
+			tableSize: "cozy" as const,
+			hiddenColumnList: undefined,
+			filters: undefined,
+			filtersOpened: false,
+			__emptyTabId: `empty-${timestamp}`,
+		};
 		navigate({
 			search: (prev) => ({
 				...prev,
-				tabs: [...(prev.tabs ?? []), emptyTabId],
+				tabs: [...(prev.tabs ?? []), emptyTabState],
 			}),
 		});
 	};
 
 	const closeTab = (tabId: string) => {
 		navigate({
-			search: (prev) => ({
-				...prev,
-				tabs: (prev.tabs ?? []).filter((t) => t !== tabId),
-			}),
+			search: (prev) => {
+				const updatedTabs = (prev.tabs ?? []).filter((t: any) => {
+					const tId = `${t.schema}.${t.table}`;
+					return tId !== tabId && t.__emptyTabId !== tabId;
+				});
+				return {
+					...prev,
+					tabs: updatedTabs,
+				};
+			},
 		});
 	};
 
@@ -186,17 +226,45 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	) => {
 		navigate({
 			search: (prev) => {
-				const newTabId = `${schema}.${table}`;
-				const newTabs = Array.from(new Set([...(prev.tabs ?? []), newTabId]));
+				// Create the tab state
+				const newTabState = {
+					schema,
+					table,
+					tableFilter: undefined,
+					orderBy: undefined,
+					orderDirection: undefined,
+					limit: options?.limit ?? 50,
+					offset: options?.offset ?? 0,
+					viewMode: "rows" as const,
+					tableSize: "cozy" as const,
+					hiddenColumnList: undefined,
+					filters: options?.filters,
+					filtersOpened: options?.filtersOpened ?? false,
+				};
+
+				// Check if tab already exists and update it, or add new
+				const existingTabIndex = (prev.tabs ?? []).findIndex(
+					(t: any) => t.schema === schema && t.table === table,
+				);
+
+				let newTabs: any[];
+				if (existingTabIndex >= 0) {
+					// Update existing tab
+					newTabs = [...(prev.tabs ?? [])];
+					newTabs[existingTabIndex] = {
+						...newTabs[existingTabIndex],
+						...newTabState,
+					};
+				} else {
+					// Add new tab
+					newTabs = [...(prev.tabs ?? []), newTabState];
+				}
+
 				return {
 					...prev,
 					schema,
 					table,
 					tabs: newTabs,
-					offset: options?.offset ?? 0,
-					limit: options?.limit ?? 50,
-					orderBy: undefined,
-					orderDirection: undefined,
 					...(options?.filters && { filters: options.filters }),
 					filtersOpened: options?.filtersOpened ?? false,
 					...(options?.closeQuickReferences && {
@@ -1304,7 +1372,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						tabs={tabs}
 						activeTabId={activeTabId}
 						onTabHover={(tab) => {
-							if (!tab.id.startsWith("empty-") && tab.schema && tab.table) {
+							if (!tab.__emptyTabId && tab.schema && tab.table) {
 								prefetchTableData(tab.schema, tab.table);
 								prefetchTableColumns(tab.schema);
 							}
@@ -1312,26 +1380,32 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						onTabChange={(tabId) => {
 							const tab = tabs.find((t) => t.id === tabId);
 							if (tab) {
-								if (tab.id.startsWith("empty-")) {
+								if (tab.__emptyTabId) {
 									// Empty tab - just switch to it without selecting a table
 									navigate({
 										search: (prev) => ({
 											...prev,
 											table: undefined,
+											schema: undefined,
 										}),
 									});
 								} else {
-									// Named tab with schema/table - navigate to it
+									// Named tab with schema/table - restore its state
 									navigate({
 										search: (prev) => ({
 											...prev,
 											schema: tab.schema,
 											table: tab.table,
-											offset: 0,
-											filters: undefined,
-											orderBy: undefined,
-											orderDirection: undefined,
-											limit: 50,
+											offset: tab.offset ?? 0,
+											limit: tab.limit ?? 50,
+											orderBy: tab.orderBy,
+											orderDirection: tab.orderDirection,
+											filters: tab.filters,
+											filtersOpened: tab.filtersOpened ?? false,
+											viewMode: tab.viewMode ?? "rows",
+											tableSize: tab.tableSize ?? "cozy",
+											tableFilter: tab.tableFilter,
+											hiddenColumnList: tab.hiddenColumnList,
 										}),
 									});
 								}
@@ -1343,11 +1417,12 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							const remainingTabs = tabs.filter((t) => t.id !== tabId);
 							if (remainingTabs.length > 0) {
 								const lastTab = remainingTabs[remainingTabs.length - 1];
-								if (lastTab.id.startsWith("empty-")) {
+								if (lastTab.__emptyTabId) {
 									navigate({
 										search: (prev) => ({
 											...prev,
 											table: undefined,
+											schema: undefined,
 										}),
 									});
 								} else {
@@ -1356,11 +1431,16 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											...prev,
 											schema: lastTab.schema,
 											table: lastTab.table,
-											offset: 0,
-											filters: undefined,
-											orderBy: undefined,
-											orderDirection: undefined,
-											limit: 50,
+											offset: lastTab.offset ?? 0,
+											limit: lastTab.limit ?? 50,
+											orderBy: lastTab.orderBy,
+											orderDirection: lastTab.orderDirection,
+											filters: lastTab.filters,
+											filtersOpened: lastTab.filtersOpened ?? false,
+											viewMode: lastTab.viewMode ?? "rows",
+											tableSize: lastTab.tableSize ?? "cozy",
+											tableFilter: lastTab.tableFilter,
+											hiddenColumnList: lastTab.hiddenColumnList,
 										}),
 									});
 								}
@@ -1370,6 +1450,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									search: (prev) => ({
 										...prev,
 										table: undefined,
+										schema: undefined,
 									}),
 								});
 							}

@@ -6,6 +6,7 @@ export interface TableTab {
 	id: string; // "schema.table"
 	schema: string;
 	table: string;
+	__emptyTabId?: string;
 }
 
 interface TableTabsBarProps {

@@ -6,6 +6,28 @@ import { Suspense } from "react";
 import { Spinner } from "../../components/ui/spinner.tsx";
 import { FullCenter } from "../../components/ui/layout.tsx";
 
+// Schema for individual tab state
+const tabStateSchema = Schema.Struct({
+	schema: Schema.String,
+	table: Schema.String,
+	tableFilter: Schema.String.pipe(Schema.optional),
+	orderBy: Schema.String.pipe(Schema.optional),
+	orderDirection: Schema.Literal("asc", "desc").pipe(Schema.optional),
+	limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
+	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
+	viewMode: Schema.Literal("rows", "structure").pipe(
+		Schema.optionalWith({ default: () => "rows" }),
+	),
+	tableSize: Schema.Literal("compact", "cozy", "comfortable").pipe(
+		Schema.optionalWith({ default: () => "cozy" }),
+	),
+	hiddenColumnList: Schema.String.pipe(Schema.Array, Schema.optional),
+	filters: QueryFilter.pipe(Schema.optional),
+	filtersOpened: Schema.Boolean.pipe(
+		Schema.optionalWith({ default: () => false }),
+	),
+});
+
 const searchSchema = Schema.Struct({
 	dbName: Schema.String.pipe(Schema.optional),
 	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
@@ -33,7 +55,7 @@ const searchSchema = Schema.Struct({
 	),
 	quickReferencesColumnName: Schema.String.pipe(Schema.optional),
 	quickReferencesCellValue: Schema.String.pipe(Schema.optional),
-	tabs: Schema.String.pipe(Schema.Array, Schema.optional), // Comma-separated list of "schema.table" tab IDs
+	tabs: tabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({
