@@ -62,7 +62,7 @@ import { Tooltip } from "../ui/tooltip.tsx";
 import { useDataTable } from "../use-data-table";
 import { ConnectionForm } from "./connection.form.tsx";
 import { DateTime } from "effect";
-import { LogRowButton } from "../ui/log-row-button";
+import { RowActionsMenu } from "../ui/row-actions-menu";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -311,7 +311,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			columnMetadata.length > 0
 				? [
 						{
-							id: "select",
+							id: "__select",
 							header: ({ table }: { table: any }) => {
 								const checkboxRef = useRef<HTMLInputElement>(null);
 								useEffect(() => {
@@ -341,6 +341,18 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								>
 									<CheckboxControl />
 								</Checkbox>
+							),
+							size: 40,
+							minSize: 40,
+							maxSize: 40,
+							enableResizing: false,
+							enableSorting: false,
+						},
+						{
+							id: "__actions",
+							header: () => null,
+							cell: ({ row }: { row: any }) => (
+								<RowActionsMenu row={row.original} />
 							),
 							size: 40,
 							minSize: 40,

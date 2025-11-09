@@ -25,7 +25,7 @@ export function RowContextMenu({ row, children }: RowContextMenuProps) {
 	};
 
 	return (
-		<Menu>
+		<Menu lazyMount>
 			<MenuContextTrigger asChild>{children}</MenuContextTrigger>
 			<MenuContent className="z-1">
 				<MenuItem value="log" onClick={handleLogRow}>

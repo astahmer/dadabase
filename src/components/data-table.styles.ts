@@ -1,6 +1,6 @@
 import { cva } from "class-variance-authority";
 
-export const tableStyles = cva("w-full border-collapse", {
+export const tableStyles = cva("w-full border-collapse table-fixed", {
 	variants: {
 		variant: {
 			line: "",
@@ -88,28 +88,31 @@ export const tableRowStyles = cva("border-b border-border", {
 	},
 });
 
-export const tableCellStyles = cva("align-middle text-foreground truncate", {
-	variants: {
-		size: {
-			compact: "px-1.5 py-0.5 text-xs",
-			cozy: "px-2 py-1 text-xs",
-			comfortable: "px-3 py-1.5 text-sm",
+export const tableCellStyles = cva(
+	"align-middle text-foreground truncate relative",
+	{
+		variants: {
+			size: {
+				compact: "px-1.5 py-0.5 text-xs",
+				cozy: "px-2 py-1 text-xs",
+				comfortable: "px-3 py-1.5 text-sm",
+			},
+			showColumnBorder: {
+				true: "border-r border-border last:border-r-0",
+				false: "",
+			},
+			textAlign: {
+				left: "text-left",
+				right: "text-right",
+				center: "text-center",
+			},
 		},
-		showColumnBorder: {
-			true: "border-r border-border last:border-r-0",
-			false: "",
-		},
-		textAlign: {
-			left: "text-left",
-			right: "text-right",
-			center: "text-center",
+		defaultVariants: {
+			size: "cozy",
+			textAlign: "left",
 		},
 	},
-	defaultVariants: {
-		size: "cozy",
-		textAlign: "left",
-	},
-});
+);
 
 export const tableSortButtonStyles = cva(
 	"inline-flex items-center gap-2 transition-opacity hover:opacity-100 opacity-60",

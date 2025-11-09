@@ -41,6 +41,7 @@ export interface DataTableProps<TData> {
 	interactive?: boolean;
 	striped?: boolean;
 	showColumnBorder?: boolean;
+	withContextMenu?: boolean;
 	variant?: DataTableVariant;
 	size?: DataTableSize;
 	ExpandedRow?: (props: { row: Row<TData> }) => ReactNode;
@@ -64,6 +65,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		interactive = false,
 		striped = false,
 		showColumnBorder = false,
+		withContextMenu = false,
 		resizable = true,
 		variant = "line",
 		size = "cozy",
@@ -210,6 +212,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											striped={striped}
 											interactive={interactive}
 											showColumnBorder={showColumnBorder}
+											withContextMenu={withContextMenu}
 											ExpandedRow={ExpandedRow}
 										/>
 									))
@@ -261,7 +264,6 @@ const TableCell = memo(function TableCell({
 			data-testid={`cell-${index}-${cell.column.id}`}
 			style={{
 				width: `${columnSize}px`,
-				position: "relative",
 			}}
 		>
 			<ErrorBoundary fallbackRender={fallbackRender}>
@@ -279,6 +281,7 @@ const TableRow = memo(function TableRow({
 	striped,
 	interactive,
 	showColumnBorder,
+	withContextMenu,
 	ExpandedRow,
 }: {
 	index: number;
@@ -288,15 +291,18 @@ const TableRow = memo(function TableRow({
 	striped: boolean;
 	interactive: boolean;
 	showColumnBorder: boolean;
+	withContextMenu: boolean;
 	ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
 }) {
 	const row = getRow();
 	const visibleCells = row.getVisibleCells();
 	const isSelected = row.getIsSelected();
 
+	const ContextMenu = withContextMenu ? RowContextMenu : Fragment;
+
 	return (
 		<Fragment>
-			<RowContextMenu row={row.original as Record<string, unknown>}>
+			<ContextMenu row={row.original as Record<string, unknown>}>
 				<tr
 					className={tableRowStyles({
 						striped,
@@ -326,7 +332,7 @@ const TableRow = memo(function TableRow({
 						/>
 					))}
 				</tr>
-			</RowContextMenu>
+			</ContextMenu>
 			{row.getIsExpanded() && ExpandedRow && (
 				<tr
 					className={`border-b ${isSelected ? "bg-blue-50" : ""}`}

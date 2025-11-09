@@ -8,6 +8,9 @@ type AllowedProps =
 	| "title"
 	| "hidden"
 	| "onClick"
+	| "onMouseOver"
+	| "onMouseEnter"
+	| "onMouseLeave"
 	| "onBlur";
 
 export interface ExposedComponentProps<T extends "div" | "button" | "label">
