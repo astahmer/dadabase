@@ -14,14 +14,16 @@ const badgeVariants = cva(
 			},
 			// Color scheme
 			colorPalette: {
-				default: "text-primary",
-				secondary: "text-secondary",
-				destructive: "text-destructive",
-				success: "text-green-700 dark:text-green-300",
-				error: "text-red-700 dark:text-red-300",
-				warning: "text-amber-700 dark:text-amber-300",
-				info: "text-blue-700 dark:text-blue-300",
-				muted: "text-gray-600 dark:text-gray-400",
+				default: "bg-primary/10 text-primary dark:text-primary",
+				secondary: "bg-secondary/10 text-secondary dark:text-secondary",
+				destructive: "bg-destructive/10 text-destructive dark:text-destructive",
+				success:
+					"bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200",
+				error: "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200",
+				warning:
+					"bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-200",
+				info: "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
+				muted: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
 			},
 			size: {
 				xs: "px-1.5 py-0.5 text-xs",
@@ -29,15 +31,18 @@ const badgeVariants = cva(
 				md: "px-3 py-1.5 text-sm",
 				lg: "px-4 py-2 text-base",
 			},
-			// Data type specific colors
+			// Data type specific colors - colorful backgrounds
 			dataType: {
-				id: "text-purple-700 dark:text-purple-300",
-				timestamp: "text-blue-700 dark:text-blue-300",
-				numeric: "text-green-700 dark:text-green-300",
-				text: "text-slate-700 dark:text-slate-300",
-				boolean: "text-amber-700 dark:text-amber-300",
-				json: "text-pink-700 dark:text-pink-300",
-				other: "text-gray-700 dark:text-gray-300",
+				id: "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
+				timestamp:
+					"bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
+				numeric:
+					"bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
+				text: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200",
+				boolean:
+					"bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-200",
+				json: "bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-200",
+				other: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200",
 			},
 		},
 		defaultVariants: {
