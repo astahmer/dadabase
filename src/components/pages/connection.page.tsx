@@ -9,6 +9,7 @@ import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-av
 import { getAllTablesColumnsQueryOptions } from "#src/server/pg/start-fns/get-all-tables-columns.start";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import { useListCollection } from "@ark-ui/react";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
@@ -532,6 +533,39 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																	),
 																}),
 															});
+														}}
+														onOpen={() => {
+															// Prefetch the column references data when menu opens
+															const cellValue = ctx.row.original[col.name];
+
+															// Determine the reference target
+															const referenceTarget = col.foreignKey
+																? {
+																		referencedSchema:
+																			col.foreignKey.referencedSchema,
+																		referencedTable:
+																			col.foreignKey.referencedTable,
+																		referencedColumn:
+																			col.foreignKey.referencedColumn,
+																	}
+																: {
+																		referencedSchema: search.schema || "",
+																		referencedTable: search.table || "",
+																		referencedColumn: col.name,
+																	};
+
+															queryClient.prefetchQuery(
+																findColumnReferencesWithCountsQueryOptions({
+																	url: activeConnectionUrl,
+																	referencedSchema:
+																		referenceTarget.referencedSchema,
+																	referencedTable:
+																		referenceTarget.referencedTable,
+																	referencedColumn:
+																		referenceTarget.referencedColumn,
+																	cellValue,
+																}),
+															);
 														}}
 													>
 														{content as React.ReactNode}

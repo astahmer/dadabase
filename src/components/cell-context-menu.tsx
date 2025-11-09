@@ -1,4 +1,4 @@
-import { Copy, Eye, Link, Search } from "lucide-react";
+import { Copy, Eye, Link, Link2, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import {
@@ -24,6 +24,7 @@ export interface CellContextMenuProps {
 	onFollowFK?: (fkInfo: ForeignKeyInfo, cellValue: unknown) => void;
 	onFindReferences?: (columnName: string, cellValue: unknown) => void;
 	onShowQuickReferences?: () => void;
+	onOpen?: () => void;
 	children: ReactNode;
 }
 
@@ -34,15 +35,17 @@ export function CellContextMenu({
 	onFollowFK,
 	onFindReferences,
 	onShowQuickReferences,
+	onOpen,
 	children,
 }: CellContextMenuProps) {
-	const [isOpen, setIsOpen] = useState(false);
-
 	return (
 		<Menu
 			lazyMount
-			open={isOpen}
-			onOpenChange={(details) => setIsOpen(details.open)}
+			onOpenChange={(details) => {
+				if (details.open && cellValue !== null && onOpen) {
+					onOpen();
+				}
+			}}
 		>
 			<MenuContextTrigger>
 				<span className="select-text cursor-auto">{children}</span>
@@ -53,7 +56,6 @@ export function CellContextMenu({
 						value="log"
 						onClick={() => {
 							console.log(`Cell [${columnName}]:`, cellValue);
-							setIsOpen(false);
 						}}
 					>
 						<Eye className="size-4" />
@@ -66,7 +68,6 @@ export function CellContextMenu({
 							navigator.clipboard.writeText(text).catch((err) => {
 								console.error("Failed to copy:", err);
 							});
-							setIsOpen(false);
 						}}
 					>
 						<Copy className="size-4" />
@@ -82,7 +83,6 @@ export function CellContextMenu({
 									if (onFollowFK && foreignKey && cellValue !== null) {
 										onFollowFK(foreignKey, cellValue);
 									}
-									setIsOpen(false);
 								}}
 							>
 								<Link className="size-4" />
@@ -103,7 +103,6 @@ export function CellContextMenu({
 									if (onFindReferences && cellValue !== null) {
 										onFindReferences(columnName, cellValue);
 									}
-									setIsOpen(false);
 								}}
 							>
 								<Search className="size-4" />
@@ -121,10 +120,9 @@ export function CellContextMenu({
 									if (onShowQuickReferences) {
 										onShowQuickReferences();
 									}
-									setIsOpen(false);
 								}}
 							>
-								<Search className="size-4" />
+								<Link2 className="size-4" />
 								<MenuItemText>View all relationships</MenuItemText>
 							</MenuItem>
 						</>
