@@ -10,6 +10,7 @@
 - edit in datatable line? double click triggers the edit UI with a commit phase (nothing is persisted until you click save with the count + list of changes available to review / the translated raw SQL update)
 - support NOT operator in natural language search
 - try to match possible operators based on datatype; ex: timestamps shouldnt have
+- rows count (in muted text) for each table in the sidebar like `{tableName} ({rowsCount})`
 
 - add a way to favorite/save queries
 - add a way to view query history
