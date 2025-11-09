@@ -8,6 +8,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
+import { Stack } from "./ui/layout.tsx";
 
 export interface InlineRelationshipsPopoverProps {
 	schema: string;
@@ -70,7 +71,7 @@ export function InlineRelationshipsPopover({
 
 	if (cellValue === null) {
 		return (
-			<div className="w-80 p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded">
+			<div className="min-w-80 max-w-2xl p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded">
 				<div className="flex items-start gap-2">
 					<AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
 					<div className="text-xs text-amber-900 dark:text-amber-100">
@@ -82,22 +83,22 @@ export function InlineRelationshipsPopover({
 	}
 
 	return (
-		<div className="w-80 bg-background border border-border rounded-lg shadow-lg overflow-hidden">
+		<div className="min-w-80 max-w-2xl bg-background border border-border rounded-lg shadow-lg overflow-hidden">
 			{/* Header */}
 			<div className="px-3 py-2 border-b border-border bg-muted/30">
 				<div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
 					<LinkIcon className="h-3 w-3" />
 					<span>Relationships</span>
 				</div>
-				<div className="text-xs text-muted-foreground mt-1">
+				<div className="text-xs text-muted-foreground mt-1 truncate">
 					<code className="font-mono text-foreground">{columnName}</code> ={" "}
-					{String(cellValue).slice(0, 40)}
-					{String(cellValue).length > 40 ? "..." : ""}
+					{String(cellValue).slice(0, 150)}
+					{String(cellValue).length > 150 ? "..." : ""}
 				</div>
 			</div>
 
 			{/* Content */}
-			<div className="max-h-72 overflow-y-auto space-y-3 p-3">
+			<Stack className="max-h-72 w-full overflow-y-auto space-y-3 p-3">
 				{/* Forward FK */}
 				{foreignKey && (
 					<div>
@@ -128,7 +129,7 @@ export function InlineRelationshipsPopover({
 
 				{/* Reverse References */}
 				{reverseReferences && reverseReferences.length > 0 && (
-					<div>
+					<div className="w-full">
 						<div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
 							<ChevronRight className="h-3 w-3" />
 							Referenced By
@@ -142,7 +143,7 @@ export function InlineRelationshipsPopover({
 
 						{!isLoading && (
 							<div className="space-y-1">
-								{reverseReferences.slice(0, 5).map((ref) => (
+								{reverseReferences.map((ref) => (
 									<button
 										key={`${ref.schema}.${ref.table}.${ref.column}`}
 										onClick={() => {
@@ -163,11 +164,6 @@ export function InlineRelationshipsPopover({
 										</span>
 									</button>
 								))}
-								{reverseReferences.length > 5 && (
-									<div className="text-xs text-muted-foreground px-2 py-1">
-										+{reverseReferences.length - 5} more
-									</div>
-								)}
 							</div>
 						)}
 					</div>
@@ -187,7 +183,7 @@ export function InlineRelationshipsPopover({
 						No relationships found
 					</div>
 				)}
-			</div>
+			</Stack>
 
 			{/* Footer */}
 			{onExpandToSheet && (
@@ -196,7 +192,7 @@ export function InlineRelationshipsPopover({
 						onClick={onExpandToSheet}
 						className="w-full text-xs text-center py-1.5 hover:bg-muted/70 rounded transition-colors font-medium text-foreground"
 					>
-						View all relationships →
+						Expand panel →
 					</button>
 				</div>
 			)}

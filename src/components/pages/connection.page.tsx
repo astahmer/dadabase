@@ -466,7 +466,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													if (value === null || value === undefined) {
 														return (
 															<Badge colorPalette="muted" size="xs">
-																null
+																{value === null ? "null" : "undefined"}
 															</Badge>
 														);
 													}
@@ -474,75 +474,80 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												})();
 
 												return (
-													<RelationshipsQuickButton
-														schema={search.schema || ""}
-														table={search.table || ""}
-														columnName={col.name}
-														columnDataType={col.dataType}
-														foreignKey={col.foreignKey}
-														cellValue={ctx.row.original[col.name]}
-														connectionUrl={activeConnectionUrl}
-														onNavigateToFK={(fkInfo, cellValue) => {
-															navigate({
-																search: (prev) => ({
-																	...prev,
-																	schema: fkInfo.referencedSchema,
-																	table: fkInfo.referencedTable,
-																	filtersOpened: true,
-																	filters: {
-																		conditions: [
-																			{
-																				column: fkInfo.referencedColumn,
-																				operator: "equals",
-																				value: String(cellValue),
-																			},
-																		],
-																		logicalOperator: "and",
-																	},
-																	offset: 0,
-																	limit: 50,
-																	orderBy: undefined,
-																	orderDirection: undefined,
-																}),
-															});
-														}}
-														onNavigateToReference={(ref, cellValue) => {
-															navigate({
-																search: (prev) => ({
-																	...prev,
-																	schema: ref.schema,
-																	table: ref.table,
-																	filtersOpened: true,
-																	filters: {
-																		conditions: [
-																			{
-																				column: ref.column,
-																				operator: "equals",
-																				value: String(cellValue),
-																			},
-																		],
-																		logicalOperator: "and",
-																	},
-																	offset: 0,
-																	limit: 50,
-																	orderBy: undefined,
-																	orderDirection: undefined,
-																}),
-															});
-														}}
-														onExpandToSheet={() => {
-															navigate({
-																search: (prev) => ({
-																	...prev,
-																	quickReferencesOpen: true,
-																	quickReferencesColumnName: col.name,
-																	quickReferencesCellValue: String(
-																		ctx.row.original[col.name],
-																	),
-																}),
-															});
-														}}
-													>
+													<HStack gap="1" align="center" className="group">
+														{search.table &&
+															ctx.row.original[col.name] &&
+															col.foreignKey && (
+																<RelationshipsQuickButton
+																	schema={search.schema}
+																	table={search.table}
+																	columnName={col.name}
+																	columnDataType={col.dataType}
+																	foreignKey={col.foreignKey}
+																	cellValue={ctx.row.original[col.name]}
+																	connectionUrl={activeConnectionUrl}
+																	onNavigateToFK={(fkInfo, cellValue) => {
+																		navigate({
+																			search: (prev) => ({
+																				...prev,
+																				schema: fkInfo.referencedSchema,
+																				table: fkInfo.referencedTable,
+																				filtersOpened: true,
+																				filters: {
+																					conditions: [
+																						{
+																							column: fkInfo.referencedColumn,
+																							operator: "equals",
+																							value: String(cellValue),
+																						},
+																					],
+																					logicalOperator: "and",
+																				},
+																				offset: 0,
+																				limit: 50,
+																				orderBy: undefined,
+																				orderDirection: undefined,
+																			}),
+																		});
+																	}}
+																	onNavigateToReference={(ref, cellValue) => {
+																		navigate({
+																			search: (prev) => ({
+																				...prev,
+																				schema: ref.schema,
+																				table: ref.table,
+																				filtersOpened: true,
+																				filters: {
+																					conditions: [
+																						{
+																							column: ref.column,
+																							operator: "equals",
+																							value: String(cellValue),
+																						},
+																					],
+																					logicalOperator: "and",
+																				},
+																				offset: 0,
+																				limit: 50,
+																				orderBy: undefined,
+																				orderDirection: undefined,
+																			}),
+																		});
+																	}}
+																	onExpandToSheet={() => {
+																		navigate({
+																			search: (prev) => ({
+																				...prev,
+																				quickReferencesOpen: true,
+																				quickReferencesColumnName: col.name,
+																				quickReferencesCellValue: String(
+																					ctx.row.original[col.name],
+																				),
+																			}),
+																		});
+																	}}
+																/>
+															)}
 														<CellContextMenu
 															cellValue={ctx.row.original[col.name]}
 															columnName={col.name}
@@ -640,7 +645,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														>
 															{content as React.ReactNode}
 														</CellContextMenu>
-													</RelationshipsQuickButton>
+													</HStack>
 												);
 											},
 									enableResizing: true,
