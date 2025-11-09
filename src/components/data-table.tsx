@@ -43,6 +43,7 @@ export interface DataTableProps<TData> {
 	variant?: DataTableVariant;
 	size?: DataTableSize;
 	ExpandedRow?: (props: { row: Row<TData> }) => ReactNode;
+	resizable?: boolean;
 }
 
 const fallbackRender = () => "An error happened";
@@ -62,6 +63,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		interactive = false,
 		striped = false,
 		showColumnBorder = false,
+		resizable = true,
 		variant = "line",
 		size = "cozy",
 		ExpandedRow,
@@ -137,35 +139,36 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 														)
 													)}
 												</div>
-												{header.column.columnDef.enableResizing !== false && (
-													<div
-														{...{
-															onDoubleClick: () => header.column.resetSize(),
-															onMouseDown: header.getResizeHandler(),
-															onTouchStart: header.getResizeHandler(),
-															className: cn(
-																table.options.columnResizeDirection,
-																header.column.getIsResizing() && "isResizing",
-																"select-none touch-none cursor-col-resize w-1 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md",
-															),
-															title: "Drag to resize column",
-															//   style: {
-															//     transform:
-															//       columnResizeMode === 'onEnd' &&
-															//       header.column.getIsResizing()
-															//         ? `translateX(${
-															//             (table.options.columnResizeDirection ===
-															//             'rtl'
-															//               ? -1
-															//               : 1) *
-															//             (table.getState().columnSizingInfo
-															//               .deltaOffset ?? 0)
-															//           }px)`
-															//         : '',
-															//   },
-														}}
-													/>
-												)}
+												{resizable &&
+													header.column.columnDef.enableResizing !== false && (
+														<div
+															{...{
+																onDoubleClick: () => header.column.resetSize(),
+																onMouseDown: header.getResizeHandler(),
+																onTouchStart: header.getResizeHandler(),
+																className: cn(
+																	table.options.columnResizeDirection,
+																	header.column.getIsResizing() && "isResizing",
+																	"select-none touch-none cursor-col-resize w-1 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md",
+																),
+																title: "Drag to resize column",
+																//   style: {
+																//     transform:
+																//       columnResizeMode === 'onEnd' &&
+																//       header.column.getIsResizing()
+																//         ? `translateX(${
+																//             (table.options.columnResizeDirection ===
+																//             'rtl'
+																//               ? -1
+																//               : 1) *
+																//             (table.getState().columnSizingInfo
+																//               .deltaOffset ?? 0)
+																//           }px)`
+																//         : '',
+																//   },
+															}}
+														/>
+													)}
 											</div>
 										</th>
 									);

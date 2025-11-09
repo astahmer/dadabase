@@ -9,8 +9,9 @@ import { updateDbConnectionMutation } from "#src/server/db-connection/start-fns/
 import { useMutation } from "@tanstack/react-query";
 import z from "zod";
 import { useAppForm } from "../form/form.hook.ts";
-import { Stack } from "../ui/layout.tsx";
+import { HStack, Stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
+import { LucideCheck } from "lucide-react";
 
 const connectionType = z.enum(["postgres", "mysql", "sqlite"]);
 const connectionFormSchema = z.object({
@@ -73,12 +74,15 @@ export function ConnectionForm({
 							url: ctx.value.connectionUrl,
 						},
 					});
+
 					toaster.create({
-						title: "Success",
-						description:
-							mode === "create"
-								? "Connection created successfully"
-								: "Connection updated successfully",
+						title: (
+							<HStack align="center" className="text-chart-2">
+								<LucideCheck className="h-3 w-3" />
+								Success
+							</HStack>
+						),
+						description: "Connection created successfully",
 					});
 				} else {
 					await updateMutation.mutateAsync({
@@ -89,14 +93,24 @@ export function ConnectionForm({
 						},
 					});
 					toaster.create({
-						title: "Success",
+						title: (
+							<HStack align="center" className="text-chart-2">
+								<LucideCheck className="h-3 w-3" />
+								Success
+							</HStack>
+						),
 						description: "Connection updated successfully",
 					});
 				}
 				onSuccess?.();
 			} catch (error) {
 				toaster.create({
-					title: "Error",
+					title: (
+						<HStack align="center" className="text-chart-2">
+							<LucideCheck className="h-3 w-3" />
+							Error
+						</HStack>
+					),
 					description: "Failed to save connection",
 				});
 			}

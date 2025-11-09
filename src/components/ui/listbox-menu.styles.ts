@@ -5,6 +5,7 @@ export const listboxMenuVariants = cva(
 	{
 		variants: {
 			size: {
+				xs: "min-h-[24px] px-2 py-1 text-2xs",
 				sm: "min-h-[32px] px-2 py-1 text-xs",
 				md: "min-h-[38px] px-3 py-2 text-sm",
 				lg: "min-h-[44px] px-4 py-2 text-base",

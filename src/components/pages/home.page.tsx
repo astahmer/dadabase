@@ -1,12 +1,18 @@
 import { deleteDbConnectionMutation } from "#src/server/db-connection/start-fns/delete-db-connection.start.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { testPgConnectionServerFn } from "#src/server/pg/start-fns/test-pg-connection.start.ts";
-import { Clipboard } from "@ark-ui/react";
+import { Clipboard, Portal } from "@ark-ui/react";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { DateTime } from "effect";
-import { CheckIcon, ClipboardIcon, EllipsisIcon } from "lucide-react";
+import {
+	CheckIcon,
+	ClipboardIcon,
+	EllipsisIcon,
+	LucideAlertCircle,
+	LucideCheck,
+	LucideWifi,
+} from "lucide-react";
 import { useState } from "react";
 import { DataTable } from "../data-table.tsx";
 import { AlertDialog } from "../ui/alert-dialog.tsx";
@@ -56,9 +62,11 @@ export const HomePage = () => {
 				id: "_connect",
 				cell: (ctx) => {
 					const testPgConnectionUrl = useServerFn(testPgConnectionServerFn);
+					const [state, setState] = useState("idle");
 					return (
 						<HStack>
 							<Button
+								className="ml-auto"
 								variant="outline"
 								size="sm"
 								onClick={async () => {
@@ -66,19 +74,46 @@ export const HomePage = () => {
 										data: { url: ctx.row.original.url },
 									});
 									if (canConnect.success) {
+										setState("success");
 										toaster.create({
-											title: "Connection successful",
+											title: (
+												<HStack align="center" className="text-chart-2">
+													<LucideCheck className="h-3 w-3" />
+													Connection successful
+												</HStack>
+											),
 											description: "You can now connect to this database",
 										});
 									} else {
+										setState("failure");
 										toaster.create({
-											title: "Connection failed",
+											title: (
+												<HStack align="center" className="text-chart-1">
+													<LucideAlertCircle className="h-3 w-3" />
+													Connection failed
+												</HStack>
+											),
 											description: canConnect.message,
 										});
 									}
 								}}
 							>
-								? Test
+								{state === "idle" ? (
+									<>
+										<LucideWifi className="h-4 w-4" />
+										Test
+									</>
+								) : state === "success" ? (
+									<>
+										<LucideCheck className="h-4 w-4 text-chart-2" />
+										Success
+									</>
+								) : (
+									<>
+										<LucideAlertCircle className="h-4 w-4 text-chart-1" />
+										Error
+									</>
+								)}
 							</Button>
 							<Link
 								to="/connections/$connectionName"
@@ -91,26 +126,26 @@ export const HomePage = () => {
 				},
 			},
 			{ accessorKey: "dialect", header: "Dialect" },
-			{
-				accessorKey: "created_at",
-				header: "Created At",
-				accessorFn: (params) =>
-					params.created_at
-						? DateTime.format(DateTime.unsafeMake(params.created_at), {
-								locale: "fr",
-							})
-						: "--",
-			},
-			{
-				accessorKey: "updated_at",
-				header: "Updated At",
-				accessorFn: (params) =>
-					params.created_at
-						? DateTime.format(DateTime.unsafeMake(params.created_at), {
-								locale: "fr",
-							})
-						: "--",
-			},
+			// {
+			// 	accessorKey: "created_at",
+			// 	header: "Created At",
+			// 	accessorFn: (params) =>
+			// 		params.created_at
+			// 			? DateTime.format(DateTime.unsafeMake(params.created_at), {
+			// 					locale: "fr",
+			// 				})
+			// 			: "--",
+			// },
+			// {
+			// 	accessorKey: "updated_at",
+			// 	header: "Updated At",
+			// 	accessorFn: (params) =>
+			// 		params.created_at
+			// 			? DateTime.format(DateTime.unsafeMake(params.created_at), {
+			// 					locale: "fr",
+			// 				})
+			// 			: "--",
+			// },
 			{
 				accessorKey: "url",
 				header: "URL",
@@ -145,24 +180,26 @@ export const HomePage = () => {
 									<EllipsisIcon size={16} aria-hidden="true" />
 								</Button>
 							</MenuTrigger>
-							<MenuContent>
-								<MenuItem
-									value="edit"
-									onClick={() => setEditingConnection(ctx.row.original)}
-								>
-									Edit
-								</MenuItem>
-								<AlertDialog
-									trigger={<MenuItem value="delete">Delete</MenuItem>}
-									title="Delete connection?"
-									description="Are you sure you want to delete this connection?"
-									onConfirm={() => {
-										deleteMutation.mutateAsync({
-											data: { id: ctx.row.original.id },
-										});
-									}}
-								/>
-							</MenuContent>
+							<Portal>
+								<MenuContent>
+									<MenuItem
+										value="edit"
+										onClick={() => setEditingConnection(ctx.row.original)}
+									>
+										Edit
+									</MenuItem>
+									<AlertDialog
+										trigger={<MenuItem value="delete">Delete</MenuItem>}
+										title="Delete connection?"
+										description="Are you sure you want to delete this connection?"
+										onConfirm={() => {
+											deleteMutation.mutateAsync({
+												data: { id: ctx.row.original.id },
+											});
+										}}
+									/>
+								</MenuContent>
+							</Portal>
 						</Menu>
 					);
 				},
@@ -202,7 +239,7 @@ export const HomePage = () => {
 							</div>
 						</div>
 						<div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-							<DataTable table={table} />
+							<DataTable table={table} size="comfortable" resizable={false} />
 						</div>
 					</div>
 

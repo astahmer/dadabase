@@ -437,11 +437,64 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								</Breadcrumb.BreadcrumbItem>
 								<Breadcrumb.BreadcrumbSeparator />
 								<Breadcrumb.BreadcrumbItem>
-									<Breadcrumb.BreadcrumbCurrentLink>
-										<h1 className="text-lg font-bold tracking-tight text-foreground truncate">
-											{connection.name}
-										</h1>
-									</Breadcrumb.BreadcrumbCurrentLink>
+									<ListboxMenu.ListboxMenuRoot>
+										<ListboxMenu.ListboxMenuTrigger size="sm" asChild>
+											<Button variant="ghost">
+												<span className="text-foreground">
+													{connection.name}
+												</span>
+												<ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
+											</Button>
+										</ListboxMenu.ListboxMenuTrigger>
+										<ListboxMenu.ListboxMenuContent>
+											<ListboxMenu.ListboxRoot
+												collection={createListCollection({
+													items: connectionList.data.map((conn) => ({
+														label: conn.name,
+														value: conn.name,
+													})),
+												})}
+												onValueChange={(details) => {
+													if (
+														details.value &&
+														details.value[0] !== connectionName
+													) {
+														navigate({
+															to: "/connections/$connectionName",
+															params: { connectionName: details.value[0] },
+														});
+													}
+												}}
+											>
+												<ListboxMenu.ListboxMenuList>
+													{connectionList.data.map((conn) => (
+														<ListboxMenu.ListboxMenuItem
+															className="p-2"
+															key={conn.name}
+															item={{ label: conn.name, value: conn.name }}
+															showIndicator={conn.name === connectionName}
+														>
+															{conn.name}
+														</ListboxMenu.ListboxMenuItem>
+													))}
+													<ListboxMenu.ListboxMenuItem
+														className="p-2"
+														item={{
+															label: "Add new connection",
+															value: "__add",
+														}}
+														onClick={() => {
+															navigate({
+																to: "/",
+															});
+														}}
+													>
+														Add new connection
+													</ListboxMenu.ListboxMenuItem>
+												</ListboxMenu.ListboxMenuList>
+											</ListboxMenu.ListboxRoot>
+										</ListboxMenu.ListboxMenuContent>
+									</ListboxMenu.ListboxMenuRoot>
 								</Breadcrumb.BreadcrumbItem>
 							</Breadcrumb.BreadcrumbList>
 						</Breadcrumb.BreadcrumbRoot>
@@ -580,6 +633,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											defaultValue={search.tableFilter}
 											onChange={(e) =>
 												navigate({
+													replace: true,
 													search: (prev) => ({
 														...prev,
 														tableFilter: e.target.value,
