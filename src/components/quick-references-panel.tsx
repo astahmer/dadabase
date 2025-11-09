@@ -10,7 +10,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useListCollection, useFilter } from "@ark-ui/react";
-import { findColumnReferencesQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
 import {
 	ListboxRoot,
@@ -81,11 +81,12 @@ export function QuickReferencesPanel({
 		isLoading: isLoadingReferences,
 		error: referencesError,
 	} = useQuery(
-		findColumnReferencesQueryOptions({
+		findColumnReferencesWithCountsQueryOptions({
 			url: connectionUrl,
 			referencedSchema: referenceTarget.referencedSchema,
 			referencedTable: referenceTarget.referencedTable,
 			referencedColumn: referenceTarget.referencedColumn,
+			cellValue,
 		}),
 	);
 
@@ -260,7 +261,17 @@ export function QuickReferencesPanel({
 								<span className="font-semibold text-sm">Referenced By</span>
 								{!isLoadingReferences && (
 									<span className="text-xs text-muted-foreground">
-										({reverseReferences?.length ?? 0})
+										(
+										{reverseReferences
+											?.reduce(
+												(sum, ref) =>
+													Number(ref.matchingRowCount) === -1
+														? sum
+														: sum + Number(ref.matchingRowCount ?? 0),
+												0,
+											)
+											.toLocaleString() ?? 0}
+										)
 									</span>
 								)}
 								{isLoadingReferences && (
@@ -323,8 +334,8 @@ export function QuickReferencesPanel({
 										</div>
 										<ListboxMenuList className="overflow-visible px-2">
 											{refList.collection.items.length > 0 ? (
-												refList.collection.items.map((item) => {
-													const ref = item.ref;
+												refList.collection.items.map((item: any) => {
+													const ref = item.ref as ColumnReference;
 													return (
 														<ListboxMenuItem
 															key={item.value}
@@ -333,10 +344,21 @@ export function QuickReferencesPanel({
 															className="px-2 py-1.5 text-xs font-mono hover:bg-muted/70 border-l-2 border-transparent hover:border-foreground cursor-pointer"
 															onClick={() => handleNavigateToReference(ref)}
 														>
-															<span className="text-muted-foreground">
-																{ref.table}.
-															</span>
-															<span className="font-medium">{ref.column}</span>
+															<div className="flex items-center justify-between gap-2 w-full">
+																<span>
+																	<span className="text-muted-foreground">
+																		{ref.table}.
+																	</span>
+																	<span className="font-medium">
+																		{ref.column}
+																	</span>
+																</span>
+																{ref.matchingRowCount !== undefined && (
+																	<span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
+																		({ref.matchingRowCount.toLocaleString()})
+																	</span>
+																)}
+															</div>
 														</ListboxMenuItem>
 													);
 												})
@@ -345,6 +367,7 @@ export function QuickReferencesPanel({
 													No matching references
 												</div>
 											)}
+											<div className="pb-4" />
 										</ListboxMenuList>
 									</ListboxRoot>
 								)}

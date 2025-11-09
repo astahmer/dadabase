@@ -64,6 +64,7 @@ export interface ColumnReference {
 	column: string;
 	referencedColumn: string;
 	constraintName: string;
+	matchingRowCount: number;
 }
 
 export const findColumnReferences = (input: {
@@ -101,6 +102,81 @@ export const findColumnReferences = (input: {
 			`);
 
 			return references;
+		} catch (e) {
+			return yield* Effect.fail(
+				new SqlError.SqlError({
+					cause: e,
+					message: `Couldn't find references to column ${input.referencedSchema}.${input.referencedTable}.${input.referencedColumn}`,
+				}),
+			);
+		}
+	});
+
+/**
+ * Get all tables and columns that reference a specific column with row counts
+ * Counts how many rows in each referencing table match the given cell value
+ * All COUNT queries execute in parallel for efficiency
+ */
+export const findColumnReferencesWithCounts = (input: {
+	referencedSchema: string;
+	referencedTable: string;
+	referencedColumn: string;
+	cellValue: unknown;
+}) =>
+	Effect.gen(function* () {
+		const db = yield* KyselyPgDatabase;
+
+		try {
+			const references = yield* db.execute(sql<ColumnReference>`
+				SELECT
+					kcu1.table_schema AS "schema",
+					kcu1.table_name AS "table",
+					kcu1.column_name AS "column",
+					kcu2.column_name AS "referencedColumn",
+					kcu1.constraint_name AS "constraintName"
+				FROM
+					information_schema.key_column_usage kcu1
+					LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
+					LEFT JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_name = kcu2.constraint_name
+				WHERE
+					kcu1.constraint_name IN (
+						SELECT constraint_name
+						FROM information_schema.table_constraints
+						WHERE constraint_type = 'FOREIGN KEY'
+					)
+					AND kcu2.table_schema = ${input.referencedSchema}
+					AND kcu2.table_name = ${input.referencedTable}
+					AND kcu2.column_name = ${input.referencedColumn}
+				ORDER BY
+					kcu1.table_name,
+					kcu1.column_name
+			`);
+
+			// Execute all COUNT queries in parallel
+			const referencesWithCounts = yield* Effect.all(
+				references.map((ref) =>
+					db
+						.execute(sql<{ count: number }>`
+							SELECT COUNT(*) as count
+							FROM ${sql.table(`${ref.schema}.${ref.table}`)}
+							WHERE ${sql.ref(ref.column)} = ${input.cellValue}
+						`)
+						.pipe(
+							Effect.map((countResult: { count: number }[]) => ({
+								...ref,
+								matchingRowCount: countResult[0]?.count ?? 0,
+							})),
+							Effect.catchAll(() =>
+								Effect.succeed({
+									...ref,
+									matchingRowCount: -1, // Default to 0 on error
+								}),
+							),
+						),
+				),
+			);
+
+			return referencesWithCounts;
 		} catch (e) {
 			return yield* Effect.fail(
 				new SqlError.SqlError({
