@@ -6,12 +6,20 @@ import {
 	Link as LinkIcon,
 	Copy,
 	Check,
-	Search,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useListCollection, useFilter } from "@ark-ui/react";
 import { findColumnReferencesQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
+import {
+	ListboxRoot,
+	ListboxMenuList,
+	ListboxMenuItem,
+	ListboxMenuFilterInput,
+	ListboxMenuFilterContainer,
+} from "./ui/listbox-menu.tsx";
+import { Stack } from "./ui/layout.tsx";
 
 export interface QuickReferencesPanelProps {
 	schema: string;
@@ -38,7 +46,6 @@ export interface QuickReferencesPanelProps {
 		column: string,
 		value: unknown,
 	) => void;
-	onClose?: () => void;
 }
 
 export function QuickReferencesPanel({
@@ -48,13 +55,11 @@ export function QuickReferencesPanel({
 	cellValue,
 	connectionUrl,
 	onNavigate,
-	onClose,
 }: QuickReferencesPanelProps) {
 	const [expandedSections, setExpandedSections] = useState<Set<string>>(
 		new Set(["forward-fk", "reverse-fk"]),
 	);
 	const [copiedValue, setCopiedValue] = useState(false);
-	const [filterText, setFilterText] = useState("");
 
 	// Fetch reverse FK references for any column
 	// If this column is a FK, get references to the target column
@@ -109,23 +114,27 @@ export function QuickReferencesPanel({
 	const forwardFKsExist = column.foreignKey !== undefined;
 	const reverseReferencesExist = (reverseReferences?.length ?? 0) > 0;
 
-	// Group reverse references by table for cleaner UI
-	const referencesByTable = (reverseReferences ?? []).reduce(
-		(acc, ref) => {
-			const key = `${ref.schema}.${ref.table}`;
-			if (!acc[key]) {
-				acc[key] = [];
-			}
-			acc[key].push(ref);
-			return acc;
-		},
-		{} as Record<string, ColumnReference[]>,
+	// Create list collection items from references
+	const referenceItems = useMemo(
+		() =>
+			reverseReferences.map((ref) => ({
+				label: `${ref.table}.${ref.column}`,
+				value: `${ref.schema}.${ref.table}.${ref.column}`,
+				ref,
+			})),
+		[reverseReferences],
 	);
 
+	const filters = useFilter({ sensitivity: "base" });
+	const refList = useListCollection({
+		initialItems: referenceItems,
+		filter: filters.contains,
+	});
+
 	return (
-		<div className="w-full space-y-0">
+		<div className="w-full space-y-0 h-full flex flex-col overflow-hidden">
 			{/* Header - Column Info */}
-			<div className="sticky top-0 z-10 bg-linear-to-b from-background to-background/95 px-4 py-3 border-b">
+			<div className="bg-linear-to-b from-background to-background/95 px-4 py-3 border-b shrink-0">
 				<div className="flex items-start justify-between gap-3 mb-2">
 					<div className="flex-1 min-w-0">
 						<p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
@@ -143,15 +152,6 @@ export function QuickReferencesPanel({
 							</span>
 						</div>
 					</div>
-					{onClose && (
-						<button
-							onClick={onClose}
-							className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-							aria-label="Close"
-						>
-							✕
-						</button>
-					)}
 				</div>
 
 				{/* Value Copy */}
@@ -175,7 +175,7 @@ export function QuickReferencesPanel({
 				)}
 			</div>
 			{/* Content */}
-			<div className="overflow-y-auto">
+			<Stack className="overflow-y-auto min-h-0 flex-1">
 				{cellValue === null && (
 					<div className="m-3 p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg">
 						<div className="flex items-start gap-2">
@@ -189,7 +189,7 @@ export function QuickReferencesPanel({
 
 				{/* Forward FK Section */}
 				{cellValue !== null && forwardFKsExist && (
-					<div className="border-b">
+					<div>
 						<button
 							onClick={() => toggleSection("forward-fk")}
 							className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
@@ -241,7 +241,7 @@ export function QuickReferencesPanel({
 
 				{/* Reverse FK References Section */}
 				{cellValue !== null && (
-					<div className="border-b">
+					<div>
 						<button
 							onClick={() => toggleSection("reverse-fk")}
 							className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
@@ -266,7 +266,7 @@ export function QuickReferencesPanel({
 						</button>
 
 						{expandedSections.has("reverse-fk") && (
-							<div className="px-0 pb-3 bg-muted/20">
+							<div className="px-0 pb-3 bg-muted/20 h-full">
 								{isLoadingReferences && (
 									<div className="flex items-center gap-2 text-sm text-muted-foreground py-3 px-4">
 										<Loader className="h-4 w-4 animate-spin" />
@@ -292,59 +292,55 @@ export function QuickReferencesPanel({
 								)}
 
 								{!isLoadingReferences && reverseReferencesExist && (
-									<>
-										<div className="text-xs text-muted-foreground px-4 py-2">
-											View rows with{" "}
-											<code className="font-mono">{column.name}</code> ={" "}
-											<code className="font-mono text-foreground truncate">
-												{String(cellValue).slice(0, 150)}
-												{String(cellValue).length > 150 ? "..." : ""}
-											</code>
-										</div>
-										<div className="px-4 py-2 border-b">
-											<div className="relative">
-												<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-												<input
-													type="text"
-													placeholder="Filter tables..."
-													value={filterText}
-													onChange={(e) => setFilterText(e.target.value)}
-													className="w-full pl-9 pr-3 py-1.5 text-xs bg-background border border-border rounded placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
-												/>
+									<ListboxRoot
+										collection={refList.collection}
+										className="h-full"
+									>
+										<div className="space-y-2 px-4 py-2">
+											<div className="text-xs text-muted-foreground">
+												View rows with{" "}
+												<code className="font-mono">{column.name}</code> ={" "}
+												<code className="font-mono text-foreground truncate">
+													{String(cellValue).slice(0, 150)}
+													{String(cellValue).length > 150 ? "..." : ""}
+												</code>
 											</div>
+											<ListboxMenuFilterContainer className="p-0">
+												<ListboxMenuFilterInput
+													placeholder="Filter tables..."
+													className="h-7 text-xs px-2 rounded"
+													onChange={(e) => {
+														refList.filter(e.target.value);
+													}}
+												/>
+											</ListboxMenuFilterContainer>
 										</div>
-										<div className="space-y-0 px-2">
-											{Object.entries(referencesByTable)
-												.filter(([tableKey]) =>
-													tableKey
-														.toLowerCase()
-														.includes(filterText.toLowerCase()),
-												)
-												.map(([tableKey, refs]) => (
-													<div key={tableKey} className="space-y-0">
-														{refs.map((ref) => (
-															<button
-																key={`${ref.schema}.${ref.table}.${ref.column}`}
-																onClick={() => handleNavigateToReference(ref)}
-																className="w-full px-4 py-2 flex items-center justify-between gap-3 hover:bg-muted/70 transition-colors text-left group text-sm border-l-2 border-transparent hover:border-foreground"
-															>
-																<div className="font-mono text-xs min-w-0 flex-1">
-																	<span className="text-muted-foreground">
-																		{ref.table}.
-																	</span>
-																	<span className="font-medium">
-																		{ref.column}
-																	</span>
-																</div>
-																<div className="text-xs text-muted-foreground shrink-0 whitespace-nowrap group-hover:text-foreground transition-colors">
-																	go →
-																</div>
-															</button>
-														))}
-													</div>
-												))}
-										</div>
-									</>
+										<ListboxMenuList className="overflow-visible px-2">
+											{refList.collection.items.length > 0 ? (
+												refList.collection.items.map((item) => {
+													const ref = item.ref;
+													return (
+														<ListboxMenuItem
+															key={item.value}
+															item={item}
+															showIndicator={false}
+															className="px-2 py-1.5 text-xs font-mono hover:bg-muted/70 border-l-2 border-transparent hover:border-foreground cursor-pointer"
+															onClick={() => handleNavigateToReference(ref)}
+														>
+															<span className="text-muted-foreground">
+																{ref.table}.
+															</span>
+															<span className="font-medium">{ref.column}</span>
+														</ListboxMenuItem>
+													);
+												})
+											) : (
+												<div className="px-2 py-2 text-xs text-muted-foreground text-center">
+													No matching references
+												</div>
+											)}
+										</ListboxMenuList>
+									</ListboxRoot>
 								)}
 							</div>
 						)}
@@ -365,7 +361,7 @@ export function QuickReferencesPanel({
 							</div>
 						</div>
 					)}
-			</div>
+			</Stack>
 		</div>
 	);
 }
