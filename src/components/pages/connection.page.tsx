@@ -293,6 +293,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											columnName={col.name}
 											dataType={col.dataType}
 											showBadge
+											isPrimaryKey={col.primaryKey}
+											isUnique={col.unique}
 										>
 											<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
 											<UniqueConstraintIcon isUnique={col.unique} />
