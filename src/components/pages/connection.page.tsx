@@ -393,7 +393,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												if (typeof value === "boolean") {
 													return (
 														<Badge
-															variant={value ? "success" : "error"}
+															colorPalette={value ? "success" : "error"}
 															size="xs"
 														>
 															{value ? "true" : "false"}
@@ -403,7 +403,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												// Handle null/undefined with a neutral badge
 												if (value === null || value === undefined) {
 													return (
-														<Badge variant="muted" size="xs">
+														<Badge colorPalette="muted" size="xs">
 															null
 														</Badge>
 													);

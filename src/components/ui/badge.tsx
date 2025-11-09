@@ -6,19 +6,22 @@ const badgeVariants = cva(
 	"inline-flex items-center rounded font-semibold whitespace-nowrap",
 	{
 		variants: {
+			// Visual style: how the badge is displayed
 			variant: {
-				default: "bg-primary/10 text-primary border border-primary/20",
-				secondary: "bg-secondary/10 text-secondary border border-secondary/20",
-				destructive:
-					"bg-destructive/10 text-destructive border border-destructive/20",
-				outline: "border border-input bg-background text-foreground",
-				success:
-					"bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200",
-				error: "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200",
-				warning:
-					"bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-200",
-				info: "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
-				muted: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+				subtle: "bg-current/10 text-current",
+				solid: "bg-current text-white dark:text-black",
+				outline: "border border-current text-current bg-transparent",
+			},
+			// Color scheme
+			colorPalette: {
+				default: "text-primary",
+				secondary: "text-secondary",
+				destructive: "text-destructive",
+				success: "text-green-700 dark:text-green-300",
+				error: "text-red-700 dark:text-red-300",
+				warning: "text-amber-700 dark:text-amber-300",
+				info: "text-blue-700 dark:text-blue-300",
+				muted: "text-gray-600 dark:text-gray-400",
 			},
 			size: {
 				xs: "px-1.5 py-0.5 text-xs",
@@ -26,38 +29,47 @@ const badgeVariants = cva(
 				md: "px-3 py-1.5 text-sm",
 				lg: "px-4 py-2 text-base",
 			},
-			// Data type specific variants
+			// Data type specific colors
 			dataType: {
-				id: "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
-				timestamp:
-					"bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
-				numeric:
-					"bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
-				text: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200",
-				boolean:
-					"bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-200",
-				json: "bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-200",
-				other: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200",
+				id: "text-purple-700 dark:text-purple-300",
+				timestamp: "text-blue-700 dark:text-blue-300",
+				numeric: "text-green-700 dark:text-green-300",
+				text: "text-slate-700 dark:text-slate-300",
+				boolean: "text-amber-700 dark:text-amber-300",
+				json: "text-pink-700 dark:text-pink-300",
+				other: "text-gray-700 dark:text-gray-300",
 			},
 		},
 		defaultVariants: {
-			variant: "default",
+			variant: "subtle",
+			colorPalette: "default",
 			size: "sm",
 		},
 	},
 );
 
 export interface BadgeProps
-	extends React.HTMLAttributes<HTMLSpanElement>,
+	extends Omit<React.HTMLAttributes<HTMLSpanElement>, "color">,
 		VariantProps<typeof badgeVariants> {}
 
 const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
-	({ className, variant, size, dataType, ...props }, ref) => (
+	(
+		{
+			className,
+			variant: display,
+			colorPalette: color,
+			size,
+			dataType,
+			...props
+		},
+		ref,
+	) => (
 		<span
 			ref={ref}
 			className={cn(
 				badgeVariants({
-					variant: dataType ? undefined : variant,
+					variant: display,
+					colorPalette: dataType ? undefined : color,
 					size,
 					dataType,
 				}),
