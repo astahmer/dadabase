@@ -44,6 +44,7 @@ import { DarkModeToggle } from "../ui/dark-mode-toggle";
 import { JsonCell } from "../ui/json-cell";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
+import { PrimaryKeyIcon } from "../ui/primary-key-icon";
 import * as ArkSelect from "../ui/select";
 import { Spinner } from "../ui/spinner.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
@@ -1254,9 +1255,10 @@ const StructureTable = (props: {
 					header: "Primary Key",
 					enableResizing: true,
 					cell: (info) => (
-						<span className="text-xs">
+						<HStack className="text-xs">
 							{info.getValue<boolean>() ? "Yes" : "No"}
-						</span>
+							<PrimaryKeyIcon isPrimaryKey={info.getValue<boolean>()} />
+						</HStack>
 					),
 				},
 				{
