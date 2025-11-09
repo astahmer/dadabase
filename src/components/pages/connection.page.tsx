@@ -1742,12 +1742,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					}}
 				>
 					<SheetContent className="z-50 w-full sm:max-w-[500px] overflow-y-auto">
-						<SheetHeader>
-							<SheetTitle>Relationships</SheetTitle>
-							<SheetDescription>
-								View all relationships for this cell
-							</SheetDescription>
-						</SheetHeader>
 						{search.quickReferencesColumnName &&
 							search.quickReferencesCellValue &&
 							search.schema &&

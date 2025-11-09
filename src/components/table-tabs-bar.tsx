@@ -50,25 +50,28 @@ export const TableTabsBar = ({
 										: "bg-muted text-muted-foreground border-muted hover:bg-muted/80"
 								}`}
 								onMouseEnter={() => onTabHover?.(tab)}
+								asChild
 							>
-								<span className="truncate">
-									{tab.schema && tab.table
-										? `${tab.schema}.${tab.table}`
-										: tab.id.startsWith("empty-")
-											? "New Tab"
-											: "—"}
-								</span>
-								<button
-									className="rounded hover:bg-destructive/20 p-0.5 flex items-center justify-center hover:text-destructive"
-									onClick={(e) => {
-										e.stopPropagation();
-										onTabClose(tab.id);
-									}}
-									aria-label="Close tab"
-									type="button"
-								>
-									<X className="h-3 w-3" />
-								</button>
+								<div>
+									<span className="truncate">
+										{tab.schema && tab.table
+											? `${tab.schema}.${tab.table}`
+											: tab.id.startsWith("empty-")
+												? "New Tab"
+												: "—"}
+									</span>
+									<button
+										className="rounded hover:bg-destructive/20 p-0.5 flex items-center justify-center hover:text-destructive"
+										onClick={(e) => {
+											e.stopPropagation();
+											onTabClose(tab.id);
+										}}
+										aria-label="Close tab"
+										type="button"
+									>
+										<X className="h-3 w-3" />
+									</button>
+								</div>
 							</Tabs.Trigger>
 						))}
 					</Tabs.List>
