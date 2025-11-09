@@ -2,6 +2,7 @@
 - copy/export table structure (csv, json, tsv, toon)
 - switch filter from query builder to SQL raw input (switch with icon buttons like the view mode buttons)
 - JSON viewer available when clicking a table row -> show JSON data in a side panel
+- easy to use JSON filters -> search in path / contains string; eval JS expression (row.nested.prop.name.includes('test') or rows.filter(r => r.nested.prop.name === 'test') ) / use JSON path to navigate to nested objects
 - when clicking a table row -> JSON viewer that auto fetch nested entities with foreign keys (up to a limit of 50 rows per relation)
 - when clicking a table row -> add a way to copy as JSON (with nested entities based on foreign keys)
 - when clicking a table row -> show related entities based on that id + foreign keys

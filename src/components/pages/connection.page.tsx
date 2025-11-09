@@ -586,6 +586,24 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																foreignKey={col.foreignKey}
 																cellValue={ctx.row.original[col.name]}
 																connectionUrl={activeConnectionUrl}
+																onPrefetchReferences={() => {
+																	// Prefetch the column references data when either:
+																	// hovering icon button, or modifier key is pressed + hovering anywhere in the cell
+
+																	const foreignKey = col.foreignKey!;
+																	queryClient.prefetchQuery(
+																		findColumnReferencesWithCountsQueryOptions({
+																			url: activeConnectionUrl,
+																			referencedSchema:
+																				foreignKey.referencedSchema,
+																			referencedTable:
+																				foreignKey.referencedTable,
+																			referencedColumn:
+																				foreignKey.referencedColumn,
+																			cellValue: ctx.row.original[col.name],
+																		}),
+																	);
+																}}
 																onNavigateToFK={(fkInfo, cellValue) => {
 																	navigate({
 																		search: (prev) => ({

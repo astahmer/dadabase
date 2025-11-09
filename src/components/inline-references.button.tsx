@@ -1,7 +1,7 @@
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
 import { Popover, Portal } from "@ark-ui/react";
 import { Link as LinkIcon } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { InlineReferencesPopover } from "./inline-references.popover";
 import { Button } from "./ui/button.tsx";
 
@@ -26,6 +26,7 @@ interface InlineReferencesButton {
 		cellValue: unknown,
 	) => void;
 	onNavigateToReference?: (ref: ColumnReference, cellValue: unknown) => void;
+	onPrefetchReferences: () => void;
 	onExpandToSheet?: () => void;
 	children: React.ReactNode;
 }
@@ -41,6 +42,7 @@ export function InlineReferencesButton({
 	onNavigateToFK,
 	onNavigateToReference,
 	onExpandToSheet,
+	onPrefetchReferences,
 	children,
 }: InlineReferencesButton) {
 	const [isOpen, setIsOpen] = useState(false);
@@ -57,6 +59,7 @@ export function InlineReferencesButton({
 
 		if (isMouseOver && isModifierPressedRef.current) {
 			divRef.current.dataset.cmdHover = "true";
+			onPrefetchReferences();
 		} else {
 			delete divRef.current.dataset.cmdHover;
 		}
@@ -102,6 +105,7 @@ export function InlineReferencesButton({
 				title="View relationships (⌘ click on Mac, Ctrl click on Windows)"
 				aria-label="View relationships"
 				asChild
+				onMouseEnter={onPrefetchReferences}
 			>
 				<Button variant="ghost" size="xs" className="px-1">
 					<LinkIcon className="h-4 w-4 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" />
