@@ -112,7 +112,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 												textAlign: hasBulkActions ? "right" : textAlign,
 											})}
 										>
-											<div className="flex items-center justify-between">
+											<div className="flex items-center justify-between overflow-hidden">
 												<div className="flex-1 min-w-0">
 													{header.isPlaceholder ? null : column.getCanSort() &&
 														column.columnDef.enableSorting ? (
@@ -152,7 +152,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 																className: cn(
 																	table.options.columnResizeDirection,
 																	header.column.getIsResizing() && "isResizing",
-																	"select-none touch-none cursor-col-resize w-1 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md shrink-0 -mx-0.5",
+																	"select-none touch-none cursor-col-resize w-1.5 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md shrink-0 -mx-0.5",
 																),
 																title: "Drag to resize column",
 																//   style: {
