@@ -37,6 +37,7 @@ import { NaturalLanguageSearch } from "../natural-language-search";
 import { OrderBySelect } from "../order-by-select";
 import { QueryFilterBuilder } from "../query-filter-builder";
 import { Button } from "../ui/button";
+import * as Breadcrumb from "../ui/breadcrumb";
 import { Checkbox, CheckboxControl } from "../ui/checkbox.tsx";
 import { ColumnHeaderWithInfo } from "../ui/column-header-with-info";
 import { DarkModeToggle } from "../ui/dark-mode-toggle";
@@ -159,17 +160,18 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const tables = tablesListQuery.data || [];
 
 	// Filter tables based on search term
-	const [tableFilterValue, setTableFilterValue] = useState("");
 	const { contains } = useFilter({ sensitivity: "base" });
 
 	const filteredTables = useMemo(
 		() =>
-			tables.filter(
-				(table) =>
-					contains(table.name, tableFilterValue) &&
-					search.schema === table.schema,
-			),
-		[tables, tableFilterValue, search.schema, contains],
+			search.tableFilter
+				? tables.filter(
+						(table) =>
+							contains(table.name, search.tableFilter!) &&
+							search.schema === table.schema,
+					)
+				: tables,
+		[tables, search.tableFilter, search.schema, contains],
 	);
 
 	const tableCollection = useMemo(
@@ -416,13 +418,33 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	return (
 		<div className="h-screen bg-background flex flex-col">
 			{/* Header */}
-			<div className="border-b bg-card px-4 py-2 sm:px-6 space-y-1">
+			<div className="border-b bg-card px-4 py-2 sm:px-6 space-y-2">
 				<div className="flex items-center justify-between gap-4">
 					<div className="flex-1 min-w-0">
-						<h1 className="text-lg font-bold tracking-tight text-foreground truncate">
-							{connection.name}
-						</h1>
-						<span className="text-xs text-muted-foreground truncate">
+						<Breadcrumb.BreadcrumbRoot>
+							<Breadcrumb.BreadcrumbList size="sm">
+								<Breadcrumb.BreadcrumbItem>
+									<Breadcrumb.BreadcrumbLink
+										href="#"
+										onClick={(e) => {
+											e.preventDefault();
+											navigate({ to: "/" });
+										}}
+									>
+										Connections
+									</Breadcrumb.BreadcrumbLink>
+								</Breadcrumb.BreadcrumbItem>
+								<Breadcrumb.BreadcrumbSeparator />
+								<Breadcrumb.BreadcrumbItem>
+									<Breadcrumb.BreadcrumbCurrentLink>
+										<h1 className="text-lg font-bold tracking-tight text-foreground truncate">
+											{connection.name}
+										</h1>
+									</Breadcrumb.BreadcrumbCurrentLink>
+								</Breadcrumb.BreadcrumbItem>
+							</Breadcrumb.BreadcrumbList>
+						</Breadcrumb.BreadcrumbRoot>
+						<span className="text-xs text-muted-foreground truncate block">
 							{redactedUrl}
 						</span>
 					</div>
@@ -554,8 +576,15 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										<input
 											placeholder="Filter tables..."
 											className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
-											value={tableFilterValue}
-											onChange={(e) => setTableFilterValue(e.target.value)}
+											defaultValue={search.tableFilter}
+											onChange={(e) =>
+												navigate({
+													search: (prev) => ({
+														...prev,
+														tableFilter: e.target.value,
+													}),
+												})
+											}
 										/>
 									</div>
 									<div className="mt-2 flex-1 overflow-y-auto">

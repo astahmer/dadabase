@@ -46,7 +46,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			</head>
 			<body className="bg-background text-foreground">
 				<div className="flex flex-col min-h-screen h-full">{children}</div>
-				<TanStackDevtools
+				{/* <TanStackDevtools
 					config={{
 						position: "bottom-right",
 					}}
@@ -60,7 +60,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 							render: <ReactQueryDevtoolsPanel />,
 						},
 					]}
-				/>
+				/> */}
 				<Scripts />
 			</body>
 		</html>

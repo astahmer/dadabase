@@ -10,6 +10,7 @@ const searchSchema = Schema.Struct({
 	dbName: Schema.String.pipe(Schema.optional),
 	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
 	table: Schema.String.pipe(Schema.optional),
+	tableFilter: Schema.String.pipe(Schema.optional),
 	orderBy: Schema.String.pipe(Schema.optional),
 	orderDirection: Schema.Literal("asc", "desc").pipe(
 		Schema.optionalWith({ default: () => "asc" }),
