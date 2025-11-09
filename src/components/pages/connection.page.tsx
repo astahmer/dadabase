@@ -172,6 +172,43 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		});
 	};
 
+	// Helper function to navigate to a table while adding it to the tabs
+	const navigateToTable = (
+		schema: string,
+		table: string,
+		options?: {
+			filters?: any;
+			offset?: number;
+			limit?: number;
+			filtersOpened?: boolean;
+			closeQuickReferences?: boolean;
+		},
+	) => {
+		navigate({
+			search: (prev) => {
+				const newTabId = `${schema}.${table}`;
+				const newTabs = Array.from(new Set([...(prev.tabs ?? []), newTabId]));
+				return {
+					...prev,
+					schema,
+					table,
+					tabs: newTabs,
+					offset: options?.offset ?? 0,
+					limit: options?.limit ?? 50,
+					orderBy: undefined,
+					orderDirection: undefined,
+					...(options?.filters && { filters: options.filters }),
+					filtersOpened: options?.filtersOpened ?? false,
+					...(options?.closeQuickReferences && {
+						quickReferencesOpen: false,
+						quickReferencesColumnName: undefined,
+						quickReferencesCellValue: undefined,
+					}),
+				};
+			},
+		});
+	};
+
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
 	// Use the selected database from search params, fall back to the default
@@ -520,12 +557,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														foreignKey={col.foreignKey}
 														onFollowFK={(fkInfo, cellValue) => {
 															// Follow FK to the referenced table
-															navigate({
-																search: (prev) => ({
-																	...prev,
-																	schema: fkInfo.referencedSchema,
-																	table: fkInfo.referencedTable,
-																	filtersOpened: true,
+															navigateToTable(
+																fkInfo.referencedSchema,
+																fkInfo.referencedTable,
+																{
 																	filters: {
 																		conditions: [
 																			{
@@ -536,12 +571,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																		],
 																		logicalOperator: "and",
 																	},
-																	offset: 0,
-																	limit: 50,
-																	orderBy: undefined,
-																	orderDirection: undefined,
-																}),
-															});
+																	filtersOpened: true,
+																},
+															);
 														}}
 														onFindReferences={(columnName, cellValue) => {
 															// Filter the current table to rows where this column has this value
@@ -645,12 +677,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																	);
 																}}
 																onNavigateToFK={(fkInfo, cellValue) => {
-																	navigate({
-																		search: (prev) => ({
-																			...prev,
-																			schema: fkInfo.referencedSchema,
-																			table: fkInfo.referencedTable,
-																			filtersOpened: true,
+																	navigateToTable(
+																		fkInfo.referencedSchema,
+																		fkInfo.referencedTable,
+																		{
 																			filters: {
 																				conditions: [
 																					{
@@ -661,35 +691,23 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																				],
 																				logicalOperator: "and",
 																			},
-																			offset: 0,
-																			limit: 50,
-																			orderBy: undefined,
-																			orderDirection: undefined,
-																		}),
-																	});
+																			filtersOpened: true,
+																		},
+																	);
 																}}
 																onNavigateToReference={(ref, cellValue) => {
-																	navigate({
-																		search: (prev) => ({
-																			...prev,
-																			schema: ref.schema,
-																			table: ref.table,
-																			filtersOpened: true,
-																			filters: {
-																				conditions: [
-																					{
-																						column: ref.column,
-																						operator: "equals",
-																						value: String(cellValue),
-																					},
-																				],
-																				logicalOperator: "and",
-																			},
-																			offset: 0,
-																			limit: 50,
-																			orderBy: undefined,
-																			orderDirection: undefined,
-																		}),
+																	navigateToTable(ref.schema, ref.table, {
+																		filters: {
+																			conditions: [
+																				{
+																					column: ref.column,
+																					operator: "equals",
+																					value: String(cellValue),
+																				},
+																			],
+																			logicalOperator: "and",
+																		},
+																		filtersOpened: true,
 																	});
 																}}
 																onExpandToSheet={() => {
@@ -1934,27 +1952,19 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										cellValue={search.quickReferencesCellValue}
 										connectionUrl={activeConnectionUrl}
 										onNavigate={(schema, table, column, value) => {
-											navigate({
-												search: (prev) => ({
-													...prev,
-													schema,
-													table,
-													filters: {
-														conditions: [
-															{
-																column,
-																operator: "equals",
-																value: String(value),
-															},
-														],
-														logicalOperator: "and",
-													},
-													offset: 0,
-													filtersOpened: true,
-													quickReferencesOpen: false,
-													quickReferencesColumnName: undefined,
-													quickReferencesCellValue: undefined,
-												}),
+											navigateToTable(schema, table, {
+												filters: {
+													conditions: [
+														{
+															column,
+															operator: "equals",
+															value: String(value),
+														},
+													],
+													logicalOperator: "and",
+												},
+												filtersOpened: true,
+												closeQuickReferences: true,
 											});
 										}}
 									/>
