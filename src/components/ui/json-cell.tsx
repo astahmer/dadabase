@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronRightIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
 import { Button } from "./button";
 import { JsonViewerModal } from "./json-viewer";
@@ -45,12 +46,13 @@ export function JsonCell({ value, className }: JsonCellProps) {
 				size="sm"
 				onClick={() => setOpen(true)}
 				className={cn(
-					"h-6 text-xs px-2 truncate max-w-32 text-left justify-start",
+					"h-6 text-xs px-2 w-full text-left justify-start gap-1.5",
 					className,
 				)}
 				title={preview}
 			>
-				{preview}
+				<ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
+				<span className="truncate w-full">{preview}</span>
 			</Button>
 
 			<Dialog open={open} onOpenChange={(details) => setOpen(details.open)}>
