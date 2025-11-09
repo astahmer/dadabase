@@ -170,14 +170,18 @@ export function OrderBySelect(props: OrderBySelectProps) {
 														onClick={(e: React.MouseEvent<HTMLDivElement>) => {
 															e.preventDefault();
 															e.stopPropagation();
-															// If already selected, toggle direction; otherwise select with current direction
+															// Cycle through: none -> asc -> desc -> none
 															if (isSelected) {
-																onOrderChange(
-																	item.value,
-																	orderDirection === "asc" ? "desc" : "asc",
-																);
+																// Same column: cycle through asc -> desc -> none
+																if (orderDirection === "asc") {
+																	onOrderChange(item.value, "desc");
+																} else {
+																	// desc -> reset
+																	onOrderChange(undefined);
+																}
 															} else {
-																onOrderChange(item.value, orderDirection);
+																// Different column: start with asc
+																onOrderChange(item.value, "asc");
 															}
 															setOpen(false);
 														}}
