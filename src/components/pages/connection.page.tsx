@@ -348,18 +348,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							enableResizing: false,
 							enableSorting: false,
 						},
-						{
-							id: "log-row",
-							header: () => null,
-							cell: ({ row }: { row: any }) => (
-								<LogRowButton row={row.original} />
-							),
-							size: 60,
-							minSize: 60,
-							maxSize: 60,
-							enableResizing: false,
-							enableSorting: false,
-						},
 						...columnMetadata.map(
 							(col) =>
 								({
