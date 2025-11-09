@@ -1741,19 +1741,19 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						}
 					}}
 				>
-					<SheetContent className="z-50 w-full sm:max-w-[500px] overflow-y-auto">
+					<SheetContent className="z-50 w-full sm:max-w-[500px] p-0 flex flex-col">
 						{search.quickReferencesColumnName &&
-							search.quickReferencesCellValue &&
-							search.schema &&
-							search.table &&
-							columnMetadata.length > 0 &&
+						search.quickReferencesCellValue &&
+						search.schema &&
+						search.table &&
+						columnMetadata.length > 0 ? (
 							(() => {
 								const column = columnMetadata.find(
 									(c) => c.name === search.quickReferencesColumnName,
 								);
-								if (!column) return null;
-								return (
+								return column ? (
 									<QuickReferencesPanel
+										key={`${search.schema}.${search.table}.${search.quickReferencesColumnName}.${search.quickReferencesCellValue}`}
 										schema={search.schema}
 										table={search.table}
 										column={column}
@@ -1784,8 +1784,37 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											});
 										}}
 									/>
-								);
-							})()}
+								) : null;
+							})()
+						) : (
+							<div className="w-full h-full flex flex-col">
+								{/* Skeleton Header */}
+								<div className="bg-linear-to-b from-background to-background/95 px-4 py-3 border-b shrink-0">
+									<div className="flex items-start justify-between gap-3 mb-2">
+										<div className="flex-1 min-w-0 space-y-2">
+											<div className="h-3 w-24 bg-muted/60 rounded animate-pulse" />
+											<div className="h-4 w-40 bg-muted/60 rounded animate-pulse" />
+											<div className="h-3 w-32 bg-muted/60 rounded animate-pulse mt-2" />
+										</div>
+									</div>
+									<div className="h-3 w-28 bg-muted/60 rounded animate-pulse" />
+								</div>
+								{/* Skeleton Content */}
+								<div className="overflow-y-auto flex-1 p-4 space-y-4">
+									{/* Skeleton Button */}
+									<div className="h-10 bg-muted/60 rounded animate-pulse" />
+									{/* Skeleton List Items */}
+									<div className="space-y-2">
+										{[1, 2, 3].map((i) => (
+											<div
+												key={i}
+												className="h-8 bg-muted/60 rounded animate-pulse"
+											/>
+										))}
+									</div>
+								</div>
+							</div>
+						)}
 					</SheetContent>
 				</Sheet>
 			)}

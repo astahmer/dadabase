@@ -7,7 +7,7 @@ import {
 	Copy,
 	Check,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useListCollection, useFilter } from "@ark-ui/react";
 import { findColumnReferencesQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
@@ -130,6 +130,10 @@ export function QuickReferencesPanel({
 		initialItems: referenceItems,
 		filter: filters.contains,
 	});
+
+	useEffect(() => {
+		refList.set(referenceItems);
+	}, [referenceItems]);
 
 	return (
 		<div className="w-full space-y-0 h-full flex flex-col overflow-hidden">
@@ -266,11 +270,13 @@ export function QuickReferencesPanel({
 						</button>
 
 						{expandedSections.has("reverse-fk") && (
-							<div className="px-0 pb-3 bg-muted/20 h-full">
+							<div className="px-0 pb-3 bg-muted/20 flex flex-col min-h-0 flex-1">
 								{isLoadingReferences && (
-									<div className="flex items-center gap-2 text-sm text-muted-foreground py-3 px-4">
-										<Loader className="h-4 w-4 animate-spin" />
-										Loading tables that reference this...
+									<div className="flex flex-col items-center justify-center py-12 px-4 gap-4 flex-1">
+										<div className="flex items-center gap-2 text-sm text-muted-foreground py-3 px-4">
+											<Loader className="h-4 w-4 animate-spin" />
+											Loading tables that reference this...
+										</div>
 									</div>
 								)}
 
