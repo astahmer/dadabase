@@ -25,4 +25,5 @@ export const listAvailableSchemasQueryOptions = (
 	queryOptions({
 		queryKey: ["pg", "schemaList", input],
 		queryFn: () => getAvailableSchemasServerFn({ data: input }),
+		staleTime: 60 * 1000, // 1 minute
 	});

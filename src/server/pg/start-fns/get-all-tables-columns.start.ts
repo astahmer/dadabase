@@ -40,4 +40,5 @@ export const getAllTablesColumnsQueryOptions = (
 	queryOptions({
 		queryKey: ["pg", "allTablesColumns", input],
 		queryFn: () => getAllTablesColumnsServerFn({ data: input }),
+		staleTime: 60 * 1000, // 1 minute
 	});

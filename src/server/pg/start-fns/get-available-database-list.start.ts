@@ -23,4 +23,5 @@ export const listAvailableDatabase = (
 	queryOptions({
 		queryKey: ["pg", "dbList", input],
 		queryFn: () => getAvailableDatabaseListServerFn({ data: input }),
+		staleTime: 60 * 1000, // 1 minute
 	});

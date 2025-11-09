@@ -707,27 +707,18 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						>
 							Reset page
 						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => {
-								queryClient.invalidateQueries({
-									queryKey: ["db", "list"],
-								});
-								queryClient.invalidateQueries({
-									queryKey: ["pg", "schemaList"],
-								});
-								queryClient.invalidateQueries({
-									queryKey: ["pg", "tableList"],
-								});
-								queryClient.invalidateQueries({
-									queryKey: ["pg", "tableData"],
-								});
-							}}
-							className="shrink-0"
-						>
-							<RefreshCw className="h-4 w-4" />
-						</Button>
+						<Tooltip content="Refetch all">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									queryClient.invalidateQueries();
+								}}
+								className="shrink-0"
+							>
+								<RefreshCw className="h-4 w-4" />
+							</Button>
+						</Tooltip>
 						<DarkModeToggle />
 					</div>
 				</div>

@@ -25,4 +25,5 @@ export const listAvailableTablesQueryOptions = (
 	queryOptions({
 		queryKey: ["pg", "tableList", input],
 		queryFn: () => getAvailableTablesServerFn({ data: input }),
+		staleTime: 60 * 1000, // 1 minute
 	});
