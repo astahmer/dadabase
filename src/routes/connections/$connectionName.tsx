@@ -22,7 +22,7 @@ const searchSchema = Schema.Struct({
 	tableSize: Schema.Literal("compact", "cozy", "comfortable").pipe(
 		Schema.optionalWith({ default: () => "cozy" }),
 	),
-	columnVisibility: Schema.String.pipe(Schema.Array, Schema.optional), // Comma-separated list of visible column names
+	hiddenColumnList: Schema.String.pipe(Schema.Array, Schema.optional), // Comma-separated list of hidden column names
 	filters: QueryFilter.pipe(Schema.optional), // Zipson-compressed filter config
 	filtersOpened: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),

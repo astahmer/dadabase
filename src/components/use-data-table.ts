@@ -1,13 +1,4 @@
-import type {
-	ColumnDef,
-	ColumnFiltersState,
-	ColumnSizingState,
-	PaginationState,
-	RowSelectionState,
-	SortingState,
-	TableOptions,
-	VisibilityState,
-} from "@tanstack/react-table";
+import type { ColumnDef, TableOptions } from "@tanstack/react-table";
 import {
 	getCoreRowModel,
 	getExpandedRowModel,
@@ -16,7 +7,6 @@ import {
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useState } from "react";
 
 export interface UseDataTableProps<TData>
 	extends Omit<
@@ -28,29 +18,9 @@ export interface UseDataTableProps<TData>
 }
 
 export function useDataTable<TData>(props: UseDataTableProps<TData>) {
-	const { columns, data, initialState, rowCount, ...tableOptions } = props;
-
-	const [sorting, setSorting] = useState<SortingState>(
-		initialState?.sorting ?? [],
-	);
-	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
-		initialState?.columnFilters ?? [],
-	);
-	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
-		initialState?.columnVisibility ?? {},
-	);
-	const [rowSelection, setRowSelection] = useState<RowSelectionState>(
-		initialState?.rowSelection ?? {},
-	);
-	const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
-	const [pagination, setPagination] = useState<PaginationState>({
-		pageIndex: initialState?.pagination?.pageIndex ?? 0,
-		pageSize: initialState?.pagination?.pageSize ?? 25,
-	});
+	const { columns, data, rowCount, ...tableOptions } = props;
 
 	const table = useReactTable({
-		onSortingChange: setSorting,
-		onColumnFiltersChange: setColumnFilters,
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: tableOptions.manualPagination
 			? undefined
@@ -64,10 +34,6 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 		getExpandedRowModel: tableOptions.manualExpanding
 			? undefined
 			: getExpandedRowModel(),
-		onColumnVisibilityChange: setColumnVisibility,
-		onRowSelectionChange: setRowSelection,
-		onColumnSizingChange: setColumnSizing,
-		onPaginationChange: setPagination,
 		columnResizeMode: "onChange",
 		renderFallbackValue: "-",
 		rowCount,
@@ -75,15 +41,6 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 		...tableOptions,
 		data: data as TData[],
 		columns,
-		initialState,
-		state: {
-			sorting,
-			columnFilters,
-			columnVisibility,
-			rowSelection,
-			columnSizing,
-			pagination,
-		},
 	});
 
 	return table;

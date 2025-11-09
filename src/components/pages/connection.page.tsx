@@ -1,15 +1,14 @@
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
-import { redactConnectionUrl } from "#src/lib/redact-connection-url";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils";
-import { Route } from "#src/routes/connections/$connectionName";
+import { redactConnectionUrl } from "#src/lib/redact-connection-url";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
 import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useListCollection } from "@ark-ui/react";
+import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { Pagination } from "@ark-ui/react/pagination";
 import {
@@ -18,8 +17,8 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import type { AccessorKeyColumnDef, ColumnDef } from "@tanstack/react-table";
 import {
 	ChevronDownIcon,
 	LayoutGrid,
@@ -29,25 +28,25 @@ import {
 	RefreshCw,
 	Rows,
 } from "lucide-react";
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { BulkActionBar } from "../bulk-action-bar";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
-import { DarkModeToggle } from "../ui/dark-mode-toggle";
 import { NaturalLanguageSearch } from "../natural-language-search";
 import { OrderBySelect } from "../order-by-select";
 import { QueryFilterBuilder } from "../query-filter-builder";
 import { Button } from "../ui/button";
-import { HStack, Stack } from "../ui/layout.tsx";
-import { JsonCell } from "../ui/json-cell";
-import * as ArkSelect from "../ui/select";
-import * as ListboxMenu from "../ui/listbox-menu";
-import { Spinner } from "../ui/spinner.tsx";
-import { ColumnHeaderWithInfo } from "../ui/column-header-with-info";
-import { useDataTable } from "../use-data-table";
 import { Checkbox, CheckboxControl } from "../ui/checkbox.tsx";
+import { ColumnHeaderWithInfo } from "../ui/column-header-with-info";
+import { DarkModeToggle } from "../ui/dark-mode-toggle";
+import { JsonCell } from "../ui/json-cell";
+import { HStack, Stack } from "../ui/layout.tsx";
+import * as ListboxMenu from "../ui/listbox-menu";
+import * as ArkSelect from "../ui/select";
+import { Spinner } from "../ui/spinner.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
+import { useDataTable } from "../use-data-table";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -69,13 +68,13 @@ interface ConnectionPageProps {
 
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
-	const navigate = useNavigate({ from: Route.fullPath });
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
 	const connectionUrl = connection?.url || "";
 
-	const search = Route.useSearch();
+	const search = useSearch({ from: "/connections/$connectionName" });
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
@@ -281,9 +280,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										textAlign: getColumnTextAlignment(col.dataType),
 									},
 									cell: col.dataType.toLowerCase().includes("json")
-										? ({ row }: { row: any }) => (
-												<JsonCell value={row.original[col.name]} />
-											)
+										? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
 										: (ctx) => ctx.renderValue(),
 									enableResizing: true,
 									enableSorting: true,
@@ -309,36 +306,31 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	);
 
 	// Create column visibility state from URL params
-	// Parse the comma-separated list of visible columns
+	// Parse the comma-separated list of hidden columns
 	const columnVisibilityState = useMemo(() => {
 		const visibility: Record<string, boolean> = {};
 
-		// All columns should be hidden by default except "select"
+		// By default, all columns are visible
 		rowsColumns.forEach((col) => {
-			visibility[(col as any).id || (col as any).accessorKey] = false;
+			visibility[
+				col.id || ((col as AccessorKeyColumnDef<any>).accessorKey as string)
+			] = true;
 		});
 
-		// Show "select" column and columns from URL
-		visibility["select"] = true;
-		if (search.columnVisibility) {
-			const visibleCols = search.columnVisibility;
-			visibleCols.forEach((col) => {
-				visibility[col.trim()] = true;
-			});
-		} else {
-			// Default: show all columns if nothing specified
-			rowsColumns.forEach((col) => {
-				visibility[(col as any).id || (col as any).accessorKey] = true;
+		// Hide columns specified in the URL (stored as hidden columns)
+		if (search.hiddenColumnList?.length) {
+			search.hiddenColumnList.forEach((col) => {
+				visibility[col.trim()] = false;
 			});
 		}
 
 		return visibility;
-	}, [search.columnVisibility, rowsColumns]);
+	}, [search.hiddenColumnList, rowsColumns]);
 
 	const dataTable = useDataTable({
 		data: formattedTableData,
 		columns: rowsColumns,
-		initialState: {
+		state: {
 			pagination: {
 				pageIndex: Math.floor(search.offset / search.limit),
 				pageSize: search.limit,
@@ -388,14 +380,14 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 				typeof updater === "function"
 					? updater(columnVisibilityState)
 					: updater;
-			// Store visible columns as array in URL
-			const visibleCols = Object.keys(newVisibility)
-				.filter((key) => newVisibility[key] && key !== "select")
+			// Store hidden columns as array in URL (inverse of visible)
+			const hiddenCols = Object.keys(newVisibility)
+				.filter((key) => !newVisibility[key])
 				.sort();
 			navigate({
 				search: (prev) => ({
 					...prev,
-					columnVisibility: visibleCols.length > 0 ? visibleCols : undefined,
+					hiddenColumnList: hiddenCols.length > 0 ? hiddenCols : undefined,
 				}),
 			});
 		},
@@ -435,6 +427,30 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						</span>
 					</div>
 					<div className="flex items-center gap-2 shrink-0">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => {
+								navigate({
+									search: (prev) => ({
+										dbName: prev.dbName,
+										schema: prev.schema,
+										table: prev.table,
+										viewMode: prev.viewMode,
+										tableSize: prev.tableSize,
+										hiddenColumnList: [],
+										filters: undefined,
+										filtersOpened: false,
+										offset: 0, // Reset to first page when filters change
+										limit: 50,
+										orderBy: undefined,
+										orderDirection: undefined,
+									}),
+								});
+							}}
+						>
+							Reset page
+						</Button>
 						<Button
 							variant="outline"
 							size="sm"
@@ -769,6 +785,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									)}
 									{search.viewMode === "rows" && (
 										<ColumnVisibilityControls
+											// key={(search.hiddenColumnList ?? []).join(",")}
+											key={JSON.stringify(columnVisibilityState)}
 											table={dataTable}
 											columnList={columnMetadata.map((col) => col.name)}
 											minimal={true}
