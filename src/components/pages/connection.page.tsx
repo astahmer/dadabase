@@ -122,15 +122,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
-	const [quickReferencesSheet, setQuickReferencesSheet] = useState<{
-		isOpen: boolean;
-		column: any;
-		cellValue: unknown;
-	}>({
-		isOpen: false,
-		column: null,
-		cellValue: null,
-	});
 	const { tabs, activeTabId, addTab, addEmptyTab, closeTab, setActiveTab } =
 		useOpenTabs(connectionName);
 
@@ -531,10 +522,15 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 															});
 														}}
 														onShowQuickReferences={() => {
-															setQuickReferencesSheet({
-																isOpen: true,
-																column: col,
-																cellValue: ctx.row.original[col.name],
+															navigate({
+																search: (prev) => ({
+																	...prev,
+																	quickReferencesOpen: true,
+																	quickReferencesColumnName: col.name,
+																	quickReferencesCellValue: String(
+																		ctx.row.original[col.name],
+																	),
+																}),
 															});
 														}}
 													>
@@ -1730,13 +1726,16 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 			{/* Quick References Panel */}
 			<Sheet
-				open={quickReferencesSheet.isOpen}
+				open={search.quickReferencesOpen}
 				onOpenChange={(details) => {
 					if (!details.open) {
-						setQuickReferencesSheet({
-							isOpen: false,
-							column: null,
-							cellValue: null,
+						navigate({
+							search: (prev) => ({
+								...prev,
+								quickReferencesOpen: false,
+								quickReferencesColumnName: undefined,
+								quickReferencesCellValue: undefined,
+							}),
 						});
 					}
 				}}
@@ -1748,50 +1747,60 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							View all relationships for this cell
 						</SheetDescription>
 					</SheetHeader>
-					{quickReferencesSheet.column && search.schema && search.table && (
-						<div className="mt-4">
-							<QuickReferencesPanel
-								schema={search.schema}
-								table={search.table}
-								column={quickReferencesSheet.column}
-								cellValue={quickReferencesSheet.cellValue}
-								connectionUrl={activeConnectionUrl}
-								onNavigate={(schema, table, column, value) => {
-									navigate({
-										search: (prev) => ({
-											...prev,
-											schema,
-											table,
-											filters: {
-												conditions: [
-													{
-														column,
-														operator: "equals",
-														value: String(value),
+					{search.quickReferencesColumnName &&
+						search.quickReferencesCellValue &&
+						search.schema &&
+						search.table &&
+						(() => {
+							const column = columnMetadata.find(
+								(c) => c.name === search.quickReferencesColumnName,
+							);
+							return column ? (
+								<div className="mt-4">
+									<QuickReferencesPanel
+										schema={search.schema}
+										table={search.table}
+										column={column}
+										cellValue={search.quickReferencesCellValue}
+										connectionUrl={activeConnectionUrl}
+										onNavigate={(schema, table, column, value) => {
+											navigate({
+												search: (prev) => ({
+													...prev,
+													schema,
+													table,
+													filters: {
+														conditions: [
+															{
+																column,
+																operator: "equals",
+																value: String(value),
+															},
+														],
+														logicalOperator: "and",
 													},
-												],
-												logicalOperator: "and",
-											},
-											offset: 0,
-											filtersOpened: true,
-										}),
-									});
-									setQuickReferencesSheet({
-										isOpen: false,
-										column: null,
-										cellValue: null,
-									});
-								}}
-								onClose={() => {
-									setQuickReferencesSheet({
-										isOpen: false,
-										column: null,
-										cellValue: null,
-									});
-								}}
-							/>
-						</div>
-					)}
+													offset: 0,
+													filtersOpened: true,
+													quickReferencesOpen: false,
+													quickReferencesColumnName: undefined,
+													quickReferencesCellValue: undefined,
+												}),
+											});
+										}}
+										onClose={() => {
+											navigate({
+												search: (prev) => ({
+													...prev,
+													quickReferencesOpen: false,
+													quickReferencesColumnName: undefined,
+													quickReferencesCellValue: undefined,
+												}),
+											});
+										}}
+									/>
+								</div>
+							) : null;
+						})()}
 				</SheetContent>
 			</Sheet>
 		</div>

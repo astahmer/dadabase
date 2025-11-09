@@ -28,6 +28,11 @@ const searchSchema = Schema.Struct({
 	filtersOpened: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
+	quickReferencesOpen: Schema.Boolean.pipe(
+		Schema.optionalWith({ default: () => false }),
+	),
+	quickReferencesColumnName: Schema.String.pipe(Schema.optional),
+	quickReferencesCellValue: Schema.String.pipe(Schema.optional),
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({
