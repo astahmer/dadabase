@@ -683,29 +683,43 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													<HStack gap="1" align="center" className="group">
 														{search.table &&
 														ctx.row.original[col.name] &&
-														col.foreignKey ? (
+														(col.foreignKey || col.primaryKey) ? (
 															<InlineReferencesButton
 																schema={search.schema}
 																table={search.table}
 																columnName={col.name}
 																columnDataType={col.dataType}
-																foreignKey={col.foreignKey}
+																reference={col.foreignKey}
 																cellValue={ctx.row.original[col.name]}
 																connectionUrl={activeConnectionUrl}
 																onPrefetchReferences={() => {
 																	// Prefetch the column references data when either:
 																	// hovering icon button, or modifier key is pressed + hovering anywhere in the cell
 
-																	const foreignKey = col.foreignKey!;
+																	const referenceTarget = col.foreignKey
+																		? {
+																				referencedSchema:
+																					col.foreignKey.referencedSchema,
+																				referencedTable:
+																					col.foreignKey.referencedTable,
+																				referencedColumn:
+																					col.foreignKey.referencedColumn,
+																			}
+																		: {
+																				referencedSchema: search.schema || "",
+																				referencedTable: search.table || "",
+																				referencedColumn: col.name,
+																			};
+
 																	queryClient.prefetchQuery(
 																		findColumnReferencesWithCountsQueryOptions({
 																			url: activeConnectionUrl,
 																			referencedSchema:
-																				foreignKey.referencedSchema,
+																				referenceTarget.referencedSchema,
 																			referencedTable:
-																				foreignKey.referencedTable,
+																				referenceTarget.referencedTable,
 																			referencedColumn:
-																				foreignKey.referencedColumn,
+																				referenceTarget.referencedColumn,
 																			cellValue: ctx.row.original[col.name],
 																		}),
 																	);

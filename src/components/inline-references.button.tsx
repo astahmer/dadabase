@@ -10,7 +10,7 @@ interface InlineReferencesButton {
 	table: string;
 	columnName: string;
 	columnDataType: string;
-	foreignKey?: {
+	reference?: {
 		referencedSchema: string;
 		referencedTable: string;
 		referencedColumn: string;
@@ -29,6 +29,12 @@ interface InlineReferencesButton {
 	onPrefetchReferences: () => void;
 	onExpandToSheet?: () => void;
 	children: React.ReactNode;
+	/** For backwards compatibility, foreignKey will be mapped to reference */
+	foreignKey?: {
+		referencedSchema: string;
+		referencedTable: string;
+		referencedColumn: string;
+	};
 }
 
 export function InlineReferencesButton({
@@ -36,7 +42,8 @@ export function InlineReferencesButton({
 	table,
 	columnName,
 	columnDataType,
-	foreignKey,
+	reference,
+	foreignKey, // for backwards compatibility
 	cellValue,
 	connectionUrl,
 	onNavigateToFK,
@@ -45,6 +52,8 @@ export function InlineReferencesButton({
 	onPrefetchReferences,
 	children,
 }: InlineReferencesButton) {
+	// Support both 'reference' (new) and 'foreignKey' (backwards compat)
+	const effectiveReference = reference ?? foreignKey;
 	const [isOpen, setIsOpen] = useState(false);
 	const divRef = useRef<HTMLDivElement>(null);
 	const mousePositionRef = useRef({ x: 0, y: 0 });
@@ -141,7 +150,7 @@ export function InlineReferencesButton({
 							table={table}
 							columnName={columnName}
 							columnDataType={columnDataType}
-							foreignKey={foreignKey}
+							reference={effectiveReference}
 							cellValue={cellValue}
 							connectionUrl={connectionUrl}
 							onNavigateToFK={onNavigateToFK}

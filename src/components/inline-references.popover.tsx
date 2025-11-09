@@ -16,7 +16,7 @@ interface InlineReferencesPopoverProps {
 	table: string;
 	columnName: string;
 	columnDataType: string;
-	foreignKey?: {
+	reference?: {
 		referencedSchema: string;
 		referencedTable: string;
 		referencedColumn: string;
@@ -34,13 +34,20 @@ interface InlineReferencesPopoverProps {
 	onNavigateToReference?: (ref: ColumnReference, cellValue: unknown) => void;
 	onExpandToSheet?: () => void;
 	onClose?: () => void;
+	/** For backwards compatibility, foreignKey will be mapped to reference */
+	foreignKey?: {
+		referencedSchema: string;
+		referencedTable: string;
+		referencedColumn: string;
+	};
 }
 
 export function InlineReferencesPopover({
 	schema,
 	table,
 	columnName,
-	foreignKey,
+	reference,
+	foreignKey, // for backwards compatibility
 	cellValue,
 	connectionUrl,
 	onNavigateToFK,
@@ -48,12 +55,15 @@ export function InlineReferencesPopover({
 	onExpandToSheet,
 	onClose,
 }: InlineReferencesPopoverProps) {
+	// Support both 'reference' (new) and 'foreignKey' (backwards compat)
+	const effectiveReference = reference ?? foreignKey;
+
 	// Determine the reference target
-	const referenceTarget = foreignKey
+	const referenceTarget = effectiveReference
 		? {
-				referencedSchema: foreignKey.referencedSchema,
-				referencedTable: foreignKey.referencedTable,
-				referencedColumn: foreignKey.referencedColumn,
+				referencedSchema: effectiveReference.referencedSchema,
+				referencedTable: effectiveReference.referencedTable,
+				referencedColumn: effectiveReference.referencedColumn,
 			}
 		: {
 				referencedSchema: schema,
@@ -114,7 +124,7 @@ export function InlineReferencesPopover({
 			{/* Content */}
 			<Stack className="max-h-72 w-full overflow-y-auto space-y-3 p-3">
 				{/* Forward FK */}
-				{foreignKey && (
+				{effectiveReference && (
 					<div>
 						<div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
 							<ChevronRight className="h-3 w-3" />
@@ -122,18 +132,22 @@ export function InlineReferencesPopover({
 						</div>
 						<button
 							onClick={() => {
-								if (onNavigateToFK && foreignKey && cellValue !== null) {
-									onNavigateToFK(foreignKey, cellValue);
+								if (
+									onNavigateToFK &&
+									effectiveReference &&
+									cellValue !== null
+								) {
+									onNavigateToFK(effectiveReference, cellValue);
 								}
 							}}
 							className="w-full px-2 py-1.5 flex items-center justify-between gap-2 text-xs hover:bg-muted/70 rounded transition-colors text-left font-mono"
 						>
 							<span>
 								<span className="text-muted-foreground">
-									{foreignKey.referencedTable}.
+									{effectiveReference.referencedTable}.
 								</span>
 								<span className="font-medium">
-									{foreignKey.referencedColumn}
+									{effectiveReference.referencedColumn}
 								</span>
 							</span>
 							<ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -192,11 +206,13 @@ export function InlineReferencesPopover({
 				)}
 
 				{/* No References State */}
-				{!isLoading && !foreignKey && reverseReferences.length === 0 && (
-					<div className="text-xs text-muted-foreground py-2">
-						No relationships found
-					</div>
-				)}
+				{!isLoading &&
+					!effectiveReference &&
+					reverseReferences.length === 0 && (
+						<div className="text-xs text-muted-foreground py-2">
+							No relationships found
+						</div>
+					)}
 			</Stack>
 
 			{/* Footer */}
