@@ -3,10 +3,9 @@ import { Tabs } from "@ark-ui/react/tabs";
 import { Button } from "./ui/button";
 
 export interface TableTab {
-	id: string; // "schema.table"
+	tabId: string; // Explicit unique identifier
 	schema: string;
 	table: string;
-	__emptyTabId?: string;
 	fkValue?: string; // Optional FK value used when navigating to this tab
 }
 
@@ -44,10 +43,10 @@ export const TableTabsBar = ({
 					<Tabs.List className="flex items-center gap-1">
 						{tabs.map((tab) => (
 							<Tabs.Trigger
-								key={tab.id}
-								value={tab.id}
+								key={tab.tabId}
+								value={tab.tabId}
 								className={`flex items-center gap-2 px-3 py-1.5 rounded-t-md border border-b-0 cursor-pointer transition-all whitespace-nowrap text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
-									activeTabId === tab.id
+									activeTabId === tab.tabId
 										? "bg-background text-foreground border-input"
 										: "bg-muted text-muted-foreground border-muted hover:bg-muted/80"
 								}`}
@@ -71,17 +70,15 @@ export const TableTabsBar = ({
 													</span>
 												)}
 											</span>
-										) : tab.__emptyTabId ? (
-											"New Tab"
 										) : (
-											"—"
+											"New Tab"
 										)}
 									</span>
 									<button
 										className="rounded hover:bg-destructive/20 p-0.5 flex items-center justify-center hover:text-destructive"
 										onClick={(e) => {
 											e.stopPropagation();
-											onTabClose(tab.id);
+											onTabClose(tab.tabId);
 										}}
 										aria-label="Close tab"
 										type="button"

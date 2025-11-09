@@ -46,7 +46,7 @@ export function CellContextMenu({
 				}
 			}}
 		>
-			<MenuContextTrigger>
+			<MenuContextTrigger asChild>
 				<span className="select-text cursor-auto group-data-cmd-hover:underline group-data-cmd-hover:underline-offset-2 group-data-cmd-hover:cursor-pointer">
 					{children}
 				</span>

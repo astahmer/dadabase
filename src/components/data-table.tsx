@@ -85,9 +85,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 			<div className={`overflow-x-auto h-full ${className || ""}`}>
 				<table
 					className={tableStyles({ variant })}
-					style={{
-						width: table.getCenterTotalSize(),
-					}}
+					// style={{ width: table.getCenterTotalSize() }}
 				>
 					<thead className={tableHeaderStyles({ stickyHeader, variant })}>
 						{table.getHeaderGroups().map((headerGroup) => (

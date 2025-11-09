@@ -8,6 +8,7 @@ import { FullCenter } from "../../components/ui/layout.tsx";
 
 // Schema for individual tab state
 const tabStateSchema = Schema.Struct({
+	tabId: Schema.String, // Explicit unique identifier for the tab
 	schema: Schema.String,
 	table: Schema.String,
 	tableFilter: Schema.String.pipe(Schema.optional),
@@ -33,6 +34,7 @@ const searchSchema = Schema.Struct({
 	dbName: Schema.String.pipe(Schema.optional),
 	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
 	table: Schema.String.pipe(Schema.optional),
+	activeTabId: Schema.String.pipe(Schema.optional), // Explicit active tab ID
 	tableFilter: Schema.String.pipe(Schema.optional),
 	orderBy: Schema.String.pipe(Schema.optional),
 	orderDirection: Schema.Literal("asc", "desc").pipe(

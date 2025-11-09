@@ -122,59 +122,30 @@ function safeJsonParse(value: string) {
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
+
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
 	const connectionUrl = connection?.url || "";
-	const search = useSearch({ from: "/connections/$connectionName" });
 
-	// Derive tabs from the URL search params
-	const tabs = (search.tabs ?? []).map((tabState: any) => ({
-		id: `${tabState.schema}.${tabState.table}`,
+	const search = useSearch({ from: "/connections/$connectionName" });
+	// console.log(search);
+
+	// Use explicit tabIds from URL search params
+	const tabs = (search.tabs ?? []).map((tabState) => ({
 		...tabState,
 	}));
 
-	// Derive the active tab from the URL search params instead of internal state
-	// This ensures the tab selection always matches the current URL
-	const activeTabId =
-		search.schema && search.table ? `${search.schema}.${search.table}` : null;
+	// Use explicit activeTabId from URL search params
+	const activeTabId = search.activeTabId ?? null;
 
 	// Helper functions to manage tabs via URL
-	const addTab = (schema: string, table: string) => {
-		const newTabState = {
-			schema,
-			table,
-			tableFilter: undefined,
-			orderBy: undefined,
-			orderDirection: undefined,
-			limit: 50,
-			offset: 0,
-			viewMode: "rows" as const,
-			tableSize: "cozy" as const,
-			hiddenColumnList: undefined,
-			filters: undefined,
-			filtersOpened: false,
-		};
-		navigate({
-			search: (prev) => {
-				// Check if tab already exists
-				const existingTab = (prev.tabs ?? []).find(
-					(t: any) => t.schema === schema && t.table === table,
-				);
-				if (existingTab) return prev;
-
-				return {
-					...prev,
-					tabs: [...(prev.tabs ?? []), newTabState],
-				};
-			},
-		});
-	};
-
 	const addEmptyTab = () => {
-		// Create a placeholder empty tab with a temporary ID
-		const timestamp = Date.now();
+		// Create a placeholder empty tab with a unique ID
+		const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 		const emptyTabState = {
+			tabId,
 			schema: "",
 			table: "",
 			tableFilter: undefined,
@@ -187,12 +158,12 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			hiddenColumnList: undefined,
 			filters: undefined,
 			filtersOpened: false,
-			__emptyTabId: `empty-${timestamp}`,
 		};
 		navigate({
 			search: (prev) => ({
 				...prev,
 				tabs: [...(prev.tabs ?? []), emptyTabState],
+				activeTabId: tabId,
 			}),
 		});
 	};
@@ -200,13 +171,22 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const closeTab = (tabId: string) => {
 		navigate({
 			search: (prev) => {
-				const updatedTabs = (prev.tabs ?? []).filter((t: any) => {
-					const tId = `${t.schema}.${t.table}`;
-					return tId !== tabId && t.__emptyTabId !== tabId;
-				});
+				const updatedTabs = (prev.tabs ?? []).filter((t) => t.tabId !== tabId);
+				let newActiveTabId = prev.activeTabId;
+
+				// If we closed the active tab, switch to another tab
+				if (prev.activeTabId === tabId) {
+					if (updatedTabs.length > 0) {
+						newActiveTabId = updatedTabs[updatedTabs.length - 1].tabId;
+					} else {
+						newActiveTabId = undefined;
+					}
+				}
+
 				return {
 					...prev,
 					tabs: updatedTabs,
+					activeTabId: newActiveTabId,
 				};
 			},
 		});
@@ -224,6 +204,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			fkValue?: string;
 		},
 	) => ({
+		tabId: `${schema}.${table}:${options?.fkValue ?? ""}`,
 		schema,
 		table,
 		tableFilter: undefined,
@@ -469,31 +450,31 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 				? [
 						{
 							id: "__select",
-							header: ({ table }: { table: any }) => {
+							header: (ctx) => {
 								const checkboxRef = useRef<HTMLInputElement>(null);
 								useEffect(() => {
 									if (checkboxRef.current) {
 										checkboxRef.current.indeterminate =
-											table.getIsSomeRowsSelected();
+											ctx.table.getIsSomeRowsSelected();
 									}
-								}, [table]);
+								}, [ctx.table]);
 								return (
 									<Checkbox
 										className="flex items-center gap-2"
-										checked={table.getIsAllRowsSelected()}
-										onChange={table.getToggleAllRowsSelectedHandler()}
+										checked={ctx.table.getIsAllRowsSelected()}
+										onChange={ctx.table.getToggleAllRowsSelectedHandler()}
 										aria-label="Select all rows"
 									>
 										<CheckboxControl />
 									</Checkbox>
 								);
 							},
-							cell: ({ row }: { row: any }) => (
+							cell: (ctx) => (
 								<Checkbox
 									className="flex items-center gap-2"
-									checked={row.getIsSelected()}
-									disabled={!row.getCanSelect()}
-									onChange={row.getToggleSelectedHandler()}
+									checked={ctx.row.getIsSelected()}
+									disabled={!ctx.row.getCanSelect()}
+									onChange={ctx.row.getToggleSelectedHandler()}
 									aria-label="Select row"
 								>
 									<CheckboxControl />
@@ -504,19 +485,17 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							maxSize: 40,
 							enableResizing: false,
 							enableSorting: false,
-						},
+						} as ColumnDef<Record<string, unknown>>,
 						{
 							id: "__actions",
 							header: () => null,
-							cell: ({ row }: { row: any }) => (
-								<RowActionsMenu row={row.original} />
-							),
+							cell: (ctx) => <RowActionsMenu row={ctx.row.original} />,
 							size: 40,
 							minSize: 40,
 							maxSize: 40,
 							enableResizing: false,
 							enableSorting: false,
-						},
+						} as ColumnDef<Record<string, unknown>>,
 						...columnMetadata.map(
 							(col) =>
 								({
@@ -610,6 +589,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																	...prev,
 																	schema: fkInfo.referencedSchema,
 																	table: fkInfo.referencedTable,
+																	activeTabId: newTabState.tabId,
 																	tabs: [...(prev.tabs ?? []), newTabState],
 																	filters: {
 																		conditions: [
@@ -754,6 +734,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																			...prev,
 																			schema: fkInfo.referencedSchema,
 																			table: fkInfo.referencedTable,
+																			activeTabId: newTabState.tabId,
 																			tabs: [...(prev.tabs ?? []), newTabState],
 																			filters: {
 																				conditions: [
@@ -797,6 +778,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																			...prev,
 																			schema: ref.schema,
 																			table: ref.table,
+																			activeTabId: newTabState.tabId,
 																			tabs: [...(prev.tabs ?? []), newTabState],
 																			filters: {
 																				conditions: [
@@ -897,7 +879,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		enableRowSelection: true,
 		rowCount: totalRowCount,
 		defaultColumn: {
-			size: 280,
+			size: columnMetadata.some((col) => col.dataType.includes("uuid"))
+				? 280
+				: 180,
 			minSize: 100,
 			maxSize: 1000,
 		},
@@ -1082,6 +1066,12 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										limit: 50,
 										orderBy: undefined,
 										orderDirection: undefined,
+										quickReferencesCellValue: undefined,
+										quickReferencesColumnName: undefined,
+										quickReferencesOpen: false,
+										tableFilter: prev.tableFilter,
+										tabs: [],
+										activeTabId: undefined,
 									}),
 								});
 							}}
@@ -1157,7 +1147,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											: []
 								}
 								collection={ArkSelect.createListCollection({
-									items: (databaseListQuery.data || []).map((db: any) => ({
+									items: (databaseListQuery.data || []).map((db) => ({
 										label: db.datname,
 										value: db.datname,
 									})),
@@ -1187,7 +1177,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									</ArkSelect.SelectTrigger>
 								</ArkSelect.SelectControl>
 								<ArkSelect.SelectContent>
-									{(databaseListQuery.data || []).map((db: any) => (
+									{(databaseListQuery.data || []).map((db) => (
 										<ArkSelect.SelectItem
 											key={db.datname}
 											item={{ label: db.datname, value: db.datname }}
@@ -1372,17 +1362,25 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																onClick={() => {
 																	const schema = search.schema || "public";
 																	setTable(table.name);
-																	addTab(schema, table.name);
+																	const tabState = createTabState(
+																		schema,
+																		table.name,
+																	);
 																	navigate({
 																		search: (prev) => ({
 																			...prev,
-																			schema: schema,
+																			schema,
 																			table: table.name,
+																			activeTabId: tabState.tabId,
+																			tabs: [...(prev.tabs ?? []), tabState],
+																			filtersOpened: false,
 																			offset: 0,
-																			filters: undefined,
+																			limit: 50,
 																			orderBy: undefined,
 																			orderDirection: undefined,
-																			limit: 50,
+																			quickReferencesOpen: false,
+																			quickReferencesColumnName: undefined,
+																			quickReferencesCellValue: undefined,
 																		}),
 																	});
 																}}
@@ -1410,21 +1408,22 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						tabs={tabs}
 						activeTabId={activeTabId}
 						onTabHover={(tab) => {
-							if (!tab.__emptyTabId && tab.schema && tab.table) {
+							if (tab.schema && tab.table) {
 								prefetchTableData(tab.schema, tab.table);
 								prefetchTableColumns(tab.schema);
 							}
 						}}
 						onTabChange={(tabId) => {
-							const tab = tabs.find((t) => t.id === tabId);
+							const tab = tabs.find((t) => t.tabId === tabId);
 							if (tab) {
-								if (tab.__emptyTabId) {
+								if (!tab.schema || !tab.table) {
 									// Empty tab - just switch to it without selecting a table
 									navigate({
 										search: (prev) => ({
 											...prev,
 											table: undefined,
 											schema: undefined,
+											activeTabId: tabId,
 										}),
 									});
 								} else {
@@ -1444,6 +1443,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											tableSize: tab.tableSize ?? "cozy",
 											tableFilter: tab.tableFilter,
 											hiddenColumnList: tab.hiddenColumnList,
+											fkValue: tab.fkValue,
+											activeTabId: tabId,
 										}),
 									});
 								}
@@ -1452,15 +1453,16 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						onTabClose={(tabId) => {
 							closeTab(tabId);
 							// If there are remaining tabs, navigate to the last one
-							const remainingTabs = tabs.filter((t) => t.id !== tabId);
+							const remainingTabs = tabs.filter((t) => t.tabId !== tabId);
 							if (remainingTabs.length > 0) {
 								const lastTab = remainingTabs[remainingTabs.length - 1];
-								if (lastTab.__emptyTabId) {
+								if (!lastTab.schema || !lastTab.table) {
 									navigate({
 										search: (prev) => ({
 											...prev,
 											table: undefined,
 											schema: undefined,
+											activeTabId: lastTab.tabId,
 										}),
 									});
 								} else {
@@ -1479,6 +1481,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											tableSize: lastTab.tableSize ?? "cozy",
 											tableFilter: lastTab.tableFilter,
 											hiddenColumnList: lastTab.hiddenColumnList,
+											activeTabId: lastTab.tabId,
 										}),
 									});
 								}
@@ -1489,6 +1492,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										...prev,
 										table: undefined,
 										schema: undefined,
+										activeTabId: undefined,
 									}),
 								});
 							}
@@ -2092,6 +2096,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													...prev,
 													schema,
 													table,
+													activeTabId: newTabState.tabId,
 													tabs: [...(prev.tabs ?? []), newTabState],
 													filters: {
 														conditions: [
