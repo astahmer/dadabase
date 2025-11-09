@@ -314,41 +314,38 @@ export function QuickReferencesPanel({
 								)}
 
 								{!isLoadingReferences && reverseReferencesExist && (
-									<div className="space-y-3 pt-2">
-										{Object.entries(referencesByTable).map(
-											([tableKey, refs]) => (
-												<div key={tableKey} className="space-y-2">
-													<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-														{tableKey}
-													</div>
-													<div className="space-y-1.5 ml-0">
+									<>
+										<div className="text-xs text-muted-foreground px-0 py-2 mb-2">
+											Click to view rows filtered by this value
+										</div>
+										<div className="space-y-0">
+											{Object.entries(referencesByTable).map(
+												([tableKey, refs]) => (
+													<div key={tableKey} className="space-y-0">
 														{refs.map((ref) => (
-															<div
+															<button
 																key={`${ref.schema}.${ref.table}.${ref.column}`}
-																className="flex items-center justify-between gap-2 px-2 py-1.5 bg-background rounded border border-border hover:border-border hover:bg-background transition-colors"
+																onClick={() => handleNavigateToReference(ref)}
+																className="w-full px-4 py-2 flex items-center justify-between gap-3 hover:bg-muted/70 transition-colors text-left group text-sm border-l-2 border-transparent hover:border-foreground"
 															>
-																<code className="text-xs font-mono">
-																	{ref.column}
-																</code>
-																{onNavigate && (
-																	<Button
-																		size="sm"
-																		variant="ghost"
-																		className="h-6 px-2 text-xs"
-																		onClick={() =>
-																			handleNavigateToReference(ref)
-																		}
-																	>
-																		View
-																	</Button>
-																)}
-															</div>
+																<div className="font-mono text-xs min-w-0 flex-1">
+																	<span className="text-muted-foreground">
+																		{ref.table}.
+																	</span>
+																	<span className="font-medium">
+																		{ref.column}
+																	</span>
+																</div>
+																<div className="text-xs text-muted-foreground shrink-0 whitespace-nowrap group-hover:text-foreground transition-colors">
+																	go →
+																</div>
+															</button>
 														))}
 													</div>
-												</div>
-											),
-										)}
-									</div>
+												),
+											)}
+										</div>
+									</>
 								)}
 							</div>
 						)}
