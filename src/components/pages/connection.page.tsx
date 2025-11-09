@@ -31,7 +31,14 @@ import {
 	RefreshCw,
 	Rows,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useEffectEvent,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { BulkActionBar } from "../bulk-action-bar";
 import { ColumnVisibilityControls } from "../column-visibility";
@@ -138,6 +145,34 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const activeConnectionUrl = selectedDbName
 		? replaceDatabaseInConnectionUrl(connectionUrl, selectedDbName)
 		: connectionUrl;
+
+	// Helper function to prefetch table data - must be after activeConnectionUrl is defined
+	// Uses exact same params that will be used when switching to ensure cache hit
+	const prefetchTableData = (schema: string, table: string) => {
+		queryClient.prefetchQuery({
+			...queryTableDataQueryOptions({
+				url: activeConnectionUrl,
+				schema,
+				table,
+				limit: 50,
+				offset: 0,
+				orderBy: undefined,
+				orderDirection: undefined,
+				filters: { conditions: [], logicalOperator: "and" },
+			}),
+		});
+	};
+
+	// Helper function to prefetch column metadata
+	const prefetchTableColumns = (schema: string, table: string) => {
+		queryClient.prefetchQuery({
+			...getTableColumnsQueryOptions({
+				url: activeConnectionUrl,
+				schema,
+				table,
+			}),
+		});
+	};
 
 	const databaseListQuery = useQuery({
 		...listAvailableDatabase({ url: connectionUrl }),
@@ -952,6 +987,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																		: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
 																}`}
 																title={table.name}
+																onMouseEnter={() => {
+																	const schema = search.schema || "public";
+																	prefetchTableData(schema, table.name);
+																}}
 																onClick={() => {
 																	const schema = search.schema || "public";
 																	setTable(table.name);
@@ -992,6 +1031,12 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					<TableTabsBar
 						tabs={tabs}
 						activeTabId={activeTabId}
+						onTabHover={(tab) => {
+							if (!tab.id.startsWith("empty-") && tab.schema && tab.table) {
+								prefetchTableData(tab.schema, tab.table);
+								prefetchTableColumns(tab.schema, tab.table);
+							}
+						}}
 						onTabChange={(tabId) => {
 							const tab = tabs.find((t) => t.id === tabId);
 							if (tab) {

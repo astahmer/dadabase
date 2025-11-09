@@ -71,6 +71,19 @@ export type QueryTableDataInput = {
 
 export const queryTableDataQueryOptions = (input: QueryTableDataInput) =>
 	queryOptions({
-		queryKey: ["pg", "tableData", input],
+		queryKey: [
+			"pg",
+			"tableData",
+			input.url,
+			input.schema,
+			input.table,
+			input.limit ?? 50,
+			input.offset ?? 0,
+			input.orderBy,
+			input.orderDirection,
+			JSON.stringify(
+				input.filters ?? { conditions: [], logicalOperator: "and" },
+			),
+		],
 		queryFn: async () => queryTableDataServerFn({ data: input as any }),
 	});

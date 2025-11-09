@@ -14,6 +14,7 @@ interface TableTabsBarProps {
 	onTabChange: (tabId: string) => void;
 	onTabClose: (tabId: string) => void;
 	onAddTab?: () => void;
+	onTabHover?: (tab: TableTab) => void;
 }
 
 export const TableTabsBar = ({
@@ -22,6 +23,7 @@ export const TableTabsBar = ({
 	onTabChange,
 	onTabClose,
 	onAddTab,
+	onTabHover,
 }: TableTabsBarProps) => {
 	if (tabs.length === 0) {
 		return null;
@@ -47,6 +49,7 @@ export const TableTabsBar = ({
 										? "bg-background text-foreground border-input"
 										: "bg-muted text-muted-foreground border-muted hover:bg-muted/80"
 								}`}
+								onMouseEnter={() => onTabHover?.(tab)}
 							>
 								<span className="truncate">
 									{tab.schema && tab.table
