@@ -988,87 +988,88 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 				{/* Content Area */}
 				<div className="flex-1 flex flex-col overflow-hidden">
-					{search.table && search.schema ? (
-						<>
-							{/* Table Tabs */}
-							<TableTabsBar
-								tabs={tabs}
-								activeTabId={activeTabId}
-								onTabChange={(tabId) => {
-									const tab = tabs.find((t) => t.id === tabId);
-									if (tab) {
-										setActiveTab(tabId);
-										if (tab.id.startsWith("empty-")) {
-											// Empty tab - just switch to it without selecting a table
-											navigate({
-												search: (prev) => ({
-													...prev,
-													table: undefined,
-												}),
-											});
-										} else {
-											// Named tab with schema/table
-											navigate({
-												search: (prev) => ({
-													...prev,
-													table: tab.table,
-													offset: 0,
-													filters: undefined,
-													orderBy: undefined,
-													orderDirection: undefined,
-													limit: 50,
-												}),
-											});
-										}
-									}
-								}}
-								onTabClose={(tabId) => {
-									closeTab(tabId);
-									// If there are remaining tabs, navigate to the last one
-									const remainingTabs = tabs.filter((t) => t.id !== tabId);
-									if (remainingTabs.length > 0) {
-										const lastTab = remainingTabs[remainingTabs.length - 1];
-										setActiveTab(lastTab.id);
-										if (lastTab.id.startsWith("empty-")) {
-											navigate({
-												search: (prev) => ({
-													...prev,
-													table: undefined,
-												}),
-											});
-										} else {
-											navigate({
-												search: (prev) => ({
-													...prev,
-													table: lastTab.table,
-													offset: 0,
-													filters: undefined,
-													orderBy: undefined,
-													orderDirection: undefined,
-													limit: 50,
-												}),
-											});
-										}
-									} else {
-										// No more tabs, go back to no table selected
-										navigate({
-											search: (prev) => ({
-												...prev,
-												table: undefined,
-											}),
-										});
-									}
-								}}
-								onAddTab={() => {
-									addEmptyTab();
+					{/* Table Tabs - Always visible when there are tabs */}
+					<TableTabsBar
+						tabs={tabs}
+						activeTabId={activeTabId}
+						onTabChange={(tabId) => {
+							const tab = tabs.find((t) => t.id === tabId);
+							if (tab) {
+								setActiveTab(tabId);
+								if (tab.id.startsWith("empty-")) {
+									// Empty tab - just switch to it without selecting a table
 									navigate({
 										search: (prev) => ({
 											...prev,
 											table: undefined,
 										}),
 									});
-								}}
-							/>
+								} else {
+									// Named tab with schema/table
+									navigate({
+										search: (prev) => ({
+											...prev,
+											table: tab.table,
+											offset: 0,
+											filters: undefined,
+											orderBy: undefined,
+											orderDirection: undefined,
+											limit: 50,
+										}),
+									});
+								}
+							}
+						}}
+						onTabClose={(tabId) => {
+							closeTab(tabId);
+							// If there are remaining tabs, navigate to the last one
+							const remainingTabs = tabs.filter((t) => t.id !== tabId);
+							if (remainingTabs.length > 0) {
+								const lastTab = remainingTabs[remainingTabs.length - 1];
+								setActiveTab(lastTab.id);
+								if (lastTab.id.startsWith("empty-")) {
+									navigate({
+										search: (prev) => ({
+											...prev,
+											table: undefined,
+										}),
+									});
+								} else {
+									navigate({
+										search: (prev) => ({
+											...prev,
+											table: lastTab.table,
+											offset: 0,
+											filters: undefined,
+											orderBy: undefined,
+											orderDirection: undefined,
+											limit: 50,
+										}),
+									});
+								}
+							} else {
+								// No more tabs, go back to no table selected
+								navigate({
+									search: (prev) => ({
+										...prev,
+										table: undefined,
+									}),
+								});
+							}
+						}}
+						onAddTab={() => {
+							addEmptyTab();
+							navigate({
+								search: (prev) => ({
+									...prev,
+									table: undefined,
+								}),
+							});
+						}}
+					/>
+
+					{search.table && search.schema ? (
+						<>
 							{/* View Toggle & Filter Controls */}
 							<div className="relative border-b bg-muted/50">
 								{(rowsQuery.isLoading || metadataQuery.isLoading) && (
