@@ -383,11 +383,34 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
 										: (ctx) => {
 												const value = ctx.getValue();
-												return typeof value === "object" && value !== null ? (
-													<JsonCell value={ctx.row.original[col.name]} />
-												) : (
-													ctx.renderValue()
-												);
+												if (typeof value === "object" && value !== null) {
+													return (
+														<JsonCell value={ctx.row.original[col.name]} />
+													);
+												}
+												// Handle boolean values with colored badges
+												if (typeof value === "boolean") {
+													return (
+														<span
+															className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${
+																value
+																	? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
+																	: "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
+															}`}
+														>
+															{value ? "true" : "false"}
+														</span>
+													);
+												}
+												// Handle null/undefined with a neutral badge
+												if (value === null || value === undefined) {
+													return (
+														<span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+															null
+														</span>
+													);
+												}
+												return ctx.renderValue();
 											},
 									enableResizing: true,
 									enableSorting: true,
