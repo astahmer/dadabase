@@ -1,7 +1,7 @@
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
 import { Popover, Portal } from "@ark-ui/react";
 import { Link as LinkIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { InlineReferencesPopover } from "./inline-references.popover";
 import { Button } from "./ui/button.tsx";
 
@@ -44,6 +44,24 @@ export function InlineReferencesButton({
 	children,
 }: InlineReferencesButton) {
 	const [isOpen, setIsOpen] = useState(false);
+	const [isModifierPressed, setIsModifierPressed] = useState(false);
+	const [isHovering, setIsHovering] = useState(false);
+
+	useEffect(() => {
+		const checkModifier = (e: KeyboardEvent) => {
+			setIsModifierPressed(e.ctrlKey || e.metaKey);
+		};
+
+		const handleKeyUp = () => setIsModifierPressed(false);
+
+		window.addEventListener("keydown", checkModifier);
+		window.addEventListener("keyup", handleKeyUp);
+
+		return () => {
+			window.removeEventListener("keydown", checkModifier);
+			window.removeEventListener("keyup", handleKeyUp);
+		};
+	}, []);
 
 	return (
 		<Popover.Root
@@ -53,7 +71,7 @@ export function InlineReferencesButton({
 		>
 			<Popover.Trigger
 				className="focus-visible:ring-2 focus-visible:ring-ring rounded p-0.5"
-				title="View relationships"
+				title="View relationships (⌘ click on Mac, Ctrl click on Windows)"
 				aria-label="View relationships"
 				asChild
 			>
@@ -63,10 +81,14 @@ export function InlineReferencesButton({
 			</Popover.Trigger>
 			<div
 				onClick={(e) => {
-					if (e.metaKey) {
+					if (e.ctrlKey || e.metaKey) {
 						setIsOpen(true);
 					}
 				}}
+				onMouseEnter={() => setIsHovering(true)}
+				onMouseLeave={() => setIsHovering(false)}
+				data-cmd-hover={isHovering && isModifierPressed ? "true" : undefined}
+				className="group cursor-pointer transition-all"
 			>
 				{children}
 			</div>
