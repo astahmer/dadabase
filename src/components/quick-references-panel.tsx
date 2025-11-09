@@ -10,7 +10,6 @@ import { useQuery } from "@tanstack/react-query";
 import { findColumnReferencesQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
 import { Button } from "./ui/button.tsx";
-import { Card } from "./ui/card.tsx";
 
 export interface QuickReferencesPanelProps {
 	schema: string;
@@ -53,20 +52,32 @@ export function QuickReferencesPanel({
 		new Set(["forward-fk", "reverse-fk"]),
 	);
 
-	// Fetch reverse FK references if this column is a PK or has reverse references
+	// Fetch reverse FK references for any column
+	// If this column is a FK, get references to the target column
+	// Otherwise, get references to this column itself
+	const referenceTarget = column.foreignKey
+		? {
+				referencedSchema: column.foreignKey.referencedSchema,
+				referencedTable: column.foreignKey.referencedTable,
+				referencedColumn: column.foreignKey.referencedColumn,
+			}
+		: {
+				referencedSchema: schema,
+				referencedTable: table,
+				referencedColumn: column.name,
+			};
+
 	const {
-		data: reverseReferences,
+		data: reverseReferences = [],
 		isLoading: isLoadingReferences,
 		error: referencesError,
 	} = useQuery(
-		column.primaryKey || column.unique
-			? findColumnReferencesQueryOptions({
-					url: connectionUrl,
-					referencedSchema: schema,
-					referencedTable: table,
-					referencedColumn: column.name,
-				})
-			: { queryKey: [], queryFn: async () => [] },
+		findColumnReferencesQueryOptions({
+			url: connectionUrl,
+			referencedSchema: referenceTarget.referencedSchema,
+			referencedTable: referenceTarget.referencedTable,
+			referencedColumn: referenceTarget.referencedColumn,
+		}),
 	);
 
 	const toggleSection = (sectionId: string) => {
@@ -131,7 +142,7 @@ export function QuickReferencesPanel({
 			)}
 
 			{/* Forward FK Section */}
-			{forwardFKsExist && cellValue !== null && (
+			{cellValue !== null && (
 				<div className="p-4">
 					<button
 						onClick={() => toggleSection("forward-fk")}
@@ -194,94 +205,93 @@ export function QuickReferencesPanel({
 			)}
 
 			{/* Reverse FK References Section */}
-			{(isLoadingReferences || reverseReferencesExist) &&
-				cellValue !== null && (
-					<div className="p-4">
-						<button
-							onClick={() => toggleSection("reverse-fk")}
-							className="flex items-center gap-2 w-full font-semibold text-sm hover:opacity-75"
-						>
-							{expandedSections.has("reverse-fk") ? (
-								<ChevronDown className="h-4 w-4" />
-							) : (
-								<ChevronRight className="h-4 w-4" />
-							)}
-							<LinkIcon className="h-4 w-4" />
-							<span>
-								Reverse References{" "}
-								{reverseReferences && (
-									<span className="text-muted-foreground">
-										({reverseReferences.length})
-									</span>
-								)}
-							</span>
-						</button>
-
-						{expandedSections.has("reverse-fk") && (
-							<div className="mt-3 space-y-3 ml-6">
-								{isLoadingReferences && (
-									<div className="flex items-center gap-2 text-sm text-muted-foreground">
-										<Loader className="h-4 w-4 animate-spin" />
-										Loading references...
-									</div>
-								)}
-
-								{referencesError && (
-									<div className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md">
-										<AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-										<div className="text-sm text-red-800 dark:text-red-200">
-											Failed to load references
-										</div>
-									</div>
-								)}
-
-								{reverseReferencesExist && !isLoadingReferences && (
-									<div className="text-xs text-muted-foreground">
-										{reverseReferences && reverseReferences.length} table
-										{reverseReferences && reverseReferences.length !== 1
-											? "s"
-											: ""}{" "}
-										reference this value
-									</div>
-								)}
-
-								{Object.entries(referencesByTable).map(([tableKey, refs]) => (
-									<div key={tableKey} className="space-y-2">
-										<div className="text-sm font-medium">{tableKey}</div>
-										<div className="space-y-1 ml-3">
-											{refs.map((ref) => (
-												<div
-													key={`${ref.schema}.${ref.table}.${ref.column}`}
-													className="flex items-center justify-between gap-2 text-xs bg-muted p-2 rounded"
-												>
-													<div>
-														<code className="font-mono">{ref.column}</code>
-													</div>
-													{onNavigate && (
-														<Button
-															size="sm"
-															variant="ghost"
-															className="h-6 px-2"
-															onClick={() => handleNavigateToReference(ref)}
-														>
-															View
-														</Button>
-													)}
-												</div>
-											))}
-										</div>
-									</div>
-								))}
-
-								{!isLoadingReferences && !reverseReferencesExist && (
-									<div className="text-sm text-muted-foreground">
-										No tables reference this column
-									</div>
-								)}
-							</div>
+			{cellValue !== null && (
+				<div className="p-4">
+					<button
+						onClick={() => toggleSection("reverse-fk")}
+						className="flex items-center gap-2 w-full font-semibold text-sm hover:opacity-75"
+					>
+						{expandedSections.has("reverse-fk") ? (
+							<ChevronDown className="h-4 w-4" />
+						) : (
+							<ChevronRight className="h-4 w-4" />
 						)}
-					</div>
-				)}
+						<LinkIcon className="h-4 w-4" />
+						<span>
+							Reverse References{" "}
+							{reverseReferences && (
+								<span className="text-muted-foreground">
+									({reverseReferences.length})
+								</span>
+							)}
+						</span>
+					</button>
+
+					{expandedSections.has("reverse-fk") && (
+						<div className="mt-3 space-y-3 ml-6">
+							{isLoadingReferences && (
+								<div className="flex items-center gap-2 text-sm text-muted-foreground">
+									<Loader className="h-4 w-4 animate-spin" />
+									Loading references...
+								</div>
+							)}
+
+							{referencesError && (
+								<div className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md">
+									<AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+									<div className="text-sm text-red-800 dark:text-red-200">
+										Failed to load references
+									</div>
+								</div>
+							)}
+
+							{reverseReferencesExist && !isLoadingReferences && (
+								<div className="text-xs text-muted-foreground">
+									{reverseReferences && reverseReferences.length} table
+									{reverseReferences && reverseReferences.length !== 1
+										? "s"
+										: ""}{" "}
+									reference this value
+								</div>
+							)}
+
+							{Object.entries(referencesByTable).map(([tableKey, refs]) => (
+								<div key={tableKey} className="space-y-2">
+									<div className="text-sm font-medium">{tableKey}</div>
+									<div className="space-y-1 ml-3">
+										{refs.map((ref) => (
+											<div
+												key={`${ref.schema}.${ref.table}.${ref.column}`}
+												className="flex items-center justify-between gap-2 text-xs bg-muted p-2 rounded"
+											>
+												<div>
+													<code className="font-mono">{ref.column}</code>
+												</div>
+												{onNavigate && (
+													<Button
+														size="sm"
+														variant="ghost"
+														className="h-6 px-2"
+														onClick={() => handleNavigateToReference(ref)}
+													>
+														View
+													</Button>
+												)}
+											</div>
+										))}
+									</div>
+								</div>
+							))}
+
+							{!isLoadingReferences && !reverseReferencesExist && (
+								<div className="text-sm text-muted-foreground">
+									No tables reference this column
+								</div>
+							)}
+						</div>
+					)}
+				</div>
+			)}
 
 			{!forwardFKsExist &&
 				!isLoadingReferences &&
