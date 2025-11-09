@@ -47,6 +47,7 @@ import { JsonCell } from "../ui/json-cell";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
 import { PrimaryKeyIcon } from "../ui/primary-key-icon";
+import { UniqueConstraintIcon } from "../ui/unique-constraint-icon";
 import * as ArkSelect from "../ui/select";
 import {
 	Sheet,
@@ -294,6 +295,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											showBadge
 										>
 											<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
+											<UniqueConstraintIcon isUnique={col.unique} />
 										</ColumnHeaderWithInfo>
 									),
 									meta: {
@@ -940,11 +942,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							{/* Content */}
 							<div className="flex-1 overflow-hidden flex flex-col">
 								{search.viewMode === "structure" ? (
-									<StructureTable
-										columnMetadata={columnMetadata}
-										isLoading={metadataQuery.isLoading}
-										tableSize={search.tableSize}
-									/>
+									<div className="flex-1 p-2 pt-0 overflow-auto">
+										<StructureTable
+											columnMetadata={columnMetadata}
+											isLoading={metadataQuery.isLoading}
+											tableSize={search.tableSize}
+										/>
+									</div>
 								) : (
 									<div className="flex-1 overflow-auto flex flex-col">
 										{rowsQuery.isLoading ? (
@@ -1341,6 +1345,7 @@ const StructureTable = (props: {
 		dataType: string;
 		nullable: boolean;
 		primaryKey: boolean;
+		unique: boolean;
 		defaultValue: string | null;
 	}>;
 	isLoading: boolean;
@@ -1394,6 +1399,17 @@ const StructureTable = (props: {
 					),
 				},
 				{
+					accessorKey: "unique",
+					header: "Unique",
+					enableResizing: true,
+					cell: (info) => (
+						<HStack className="text-xs">
+							{info.getValue<boolean>() ? "Yes" : "No"}
+							<UniqueConstraintIcon isUnique={info.getValue<boolean>()} />
+						</HStack>
+					),
+				},
+				{
 					accessorKey: "defaultValue",
 					header: "Default Value",
 					enableResizing: true,
@@ -1414,13 +1430,11 @@ const StructureTable = (props: {
 		});
 
 		return (
-			<div className="flex-1 overflow-auto">
-				<DataTable
-					table={structureTable}
-					isLoading={props.isLoading}
-					size={props.tableSize}
-				/>
-			</div>
+			<DataTable
+				table={structureTable}
+				isLoading={props.isLoading}
+				size={props.tableSize}
+			/>
 		);
 	}
 };
