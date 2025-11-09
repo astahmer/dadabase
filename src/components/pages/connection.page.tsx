@@ -220,46 +220,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		fkValue: options?.fkValue,
 	});
 
-	// Helper function to update the active tab's state along with main search state
-	const updateActiveTab = (
-		updates: Partial<
-			Record<
-				| "filters"
-				| "filtersOpened"
-				| "orderBy"
-				| "orderDirection"
-				| "limit"
-				| "offset"
-				| "viewMode"
-				| "tableSize"
-				| "hiddenColumnList"
-				| "tableFilter",
-				any
-			>
-		>,
-	) => {
-		navigate({
-			search: (prev) => {
-				// Update the currently active tab with the same updates
-				const updatedTabs = (prev.tabs ?? []).map((tab) => {
-					if (tab.tabId === prev.activeTabId) {
-						return {
-							...tab,
-							...updates,
-						};
-					}
-					return tab;
-				});
-
-				return {
-					...prev,
-					...updates,
-					tabs: updatedTabs,
-				};
-			},
-		});
-	};
-
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
 	// Use the selected database from search params, fall back to the default
@@ -321,13 +281,31 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 				shouldOpenFilters = true;
 			}
 
-			updateActiveTab({
-				filters: updatedFilter || undefined,
-				filtersOpened: shouldOpenFilters,
-				offset: 0, // Reset to first page when filters change
-				limit: 50,
-				orderBy: undefined,
-				orderDirection: undefined,
+			navigate({
+				search: (prev) => {
+					// Update the currently active tab's filters in the tabs array
+					const updatedTabs = (prev.tabs ?? []).map((tab) => {
+						if (tab.tabId === prev.activeTabId) {
+							return {
+								...tab,
+								filters: updatedFilter,
+								filtersOpened: shouldOpenFilters,
+							};
+						}
+						return tab;
+					});
+
+					return {
+						...prev,
+						filters: updatedFilter || undefined,
+						filtersOpened: shouldOpenFilters,
+						offset: 0, // Reset to first page when filters change
+						limit: 50,
+						orderBy: undefined,
+						orderDirection: undefined,
+						tabs: updatedTabs,
+					};
+				},
 			});
 		},
 	);
@@ -940,10 +918,33 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			const newSorting =
 				typeof updater === "function" ? updater(sortingState) : updater;
 			const firstSort = newSorting[0];
-			updateActiveTab({
-				orderBy: firstSort?.id || undefined,
-				orderDirection: firstSort?.desc ? "desc" : "asc",
-				offset: 0,
+			navigate({
+				search: (prev) => {
+					// Update the currently active tab with the same sorting updates
+					const updatedTabs = (prev.tabs ?? []).map((tab) => {
+						if (tab.tabId === prev.activeTabId) {
+							return {
+								...tab,
+								orderBy: firstSort?.id || undefined,
+								orderDirection: (firstSort?.desc ? "desc" : "asc") as
+									| "asc"
+									| "desc",
+								offset: 0,
+							};
+						}
+						return tab;
+					});
+
+					return {
+						...prev,
+						orderBy: firstSort?.id || undefined,
+						orderDirection: (firstSort?.desc ? "desc" : "asc") as
+							| "asc"
+							| "desc",
+						offset: 0,
+						tabs: updatedTabs,
+					};
+				},
 			});
 		},
 		onPaginationChange: (updater) => {
@@ -953,9 +954,27 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			};
 			const newPagination =
 				typeof updater === "function" ? updater(current) : updater;
-			updateActiveTab({
-				offset: newPagination.pageIndex * newPagination.pageSize,
-				limit: newPagination.pageSize,
+			navigate({
+				search: (prev) => {
+					// Update the currently active tab with the same pagination updates
+					const updatedTabs = (prev.tabs ?? []).map((tab) => {
+						if (tab.tabId === prev.activeTabId) {
+							return {
+								...tab,
+								offset: newPagination.pageIndex * newPagination.pageSize,
+								limit: newPagination.pageSize,
+							};
+						}
+						return tab;
+					});
+
+					return {
+						...prev,
+						offset: newPagination.pageIndex * newPagination.pageSize,
+						limit: newPagination.pageSize,
+						tabs: updatedTabs,
+					};
+				},
 			});
 		},
 		onColumnVisibilityChange: (updater) => {
@@ -967,8 +986,26 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			const hiddenCols = Object.keys(newVisibility)
 				.filter((key) => !newVisibility[key])
 				.sort();
-			updateActiveTab({
-				hiddenColumnList: hiddenCols.length > 0 ? hiddenCols : undefined,
+			navigate({
+				search: (prev) => {
+					// Update the currently active tab with the same visibility updates
+					const updatedTabs = (prev.tabs ?? []).map((tab) => {
+						if (tab.tabId === prev.activeTabId) {
+							return {
+								...tab,
+								hiddenColumnList:
+									hiddenCols.length > 0 ? hiddenCols : undefined,
+							};
+						}
+						return tab;
+					});
+
+					return {
+						...prev,
+						hiddenColumnList: hiddenCols.length > 0 ? hiddenCols : undefined,
+						tabs: updatedTabs,
+					};
+				},
 			});
 		},
 	});
@@ -1566,8 +1603,27 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												}
 												size="sm"
 												onClick={() =>
-													updateActiveTab({
-														viewMode: "rows",
+													navigate({
+														search: (prev) => {
+															// Update the currently active tab with the same viewMode
+															const updatedTabs = (prev.tabs ?? []).map(
+																(tab) => {
+																	if (tab.tabId === prev.activeTabId) {
+																		return {
+																			...tab,
+																			viewMode: "rows" as const,
+																		};
+																	}
+																	return tab;
+																},
+															);
+
+															return {
+																...prev,
+																viewMode: "rows" as const,
+																tabs: updatedTabs,
+															};
+														},
 													})
 												}
 											>
@@ -1583,8 +1639,27 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												}
 												size="sm"
 												onClick={() =>
-													updateActiveTab({
-														viewMode: "structure",
+													navigate({
+														search: (prev) => {
+															// Update the currently active tab with the same viewMode
+															const updatedTabs = (prev.tabs ?? []).map(
+																(tab) => {
+																	if (tab.tabId === prev.activeTabId) {
+																		return {
+																			...tab,
+																			viewMode: "structure" as const,
+																		};
+																	}
+																	return tab;
+																},
+															);
+
+															return {
+																...prev,
+																viewMode: "structure" as const,
+																tabs: updatedTabs,
+															};
+														},
 													})
 												}
 											>
@@ -1603,8 +1678,27 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													if (queryBuilder.filter.conditions.length === 0) {
 														queryBuilder.addCondition();
 													} else {
-														updateActiveTab({
-															filtersOpened: !search.filtersOpened,
+														navigate({
+															search: (prev) => {
+																// Update the currently active tab with the same filtersOpened state
+																const updatedTabs = (prev.tabs ?? []).map(
+																	(tab) => {
+																		if (tab.tabId === prev.activeTabId) {
+																			return {
+																				...tab,
+																				filtersOpened: !prev.filtersOpened,
+																			};
+																		}
+																		return tab;
+																	},
+																);
+
+																return {
+																	...prev,
+																	filtersOpened: !prev.filtersOpened,
+																	tabs: updatedTabs,
+																};
+															},
 														});
 													}
 												}}
@@ -1724,10 +1818,29 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											orderBy={search.orderBy}
 											orderDirection={search.orderDirection}
 											onOrderChange={(orderBy, direction) => {
-												updateActiveTab({
-													orderBy,
-													orderDirection: direction || "asc",
-													offset: 0,
+												navigate({
+													search: (prev) => {
+														// Update the currently active tab with the same order updates
+														const updatedTabs = (prev.tabs ?? []).map((tab) => {
+															if (tab.tabId === prev.activeTabId) {
+																return {
+																	...tab,
+																	orderBy,
+																	orderDirection: direction || "asc",
+																	offset: 0,
+																};
+															}
+															return tab;
+														});
+
+														return {
+															...prev,
+															orderBy,
+															orderDirection: direction || "asc",
+															offset: 0,
+															tabs: updatedTabs,
+														};
+													},
 												});
 											}}
 											getColumnLabel={(col) => col}
@@ -1870,8 +1983,28 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														siblingCount={1}
 														page={Math.floor(search.offset / search.limit) + 1}
 														onPageChange={(details) => {
-															updateActiveTab({
-																offset: (details.page - 1) * search.limit,
+															navigate({
+																search: (prev) => {
+																	// Update the currently active tab with the same offset
+																	const updatedTabs = (prev.tabs ?? []).map(
+																		(tab) => {
+																			if (tab.tabId === prev.activeTabId) {
+																				return {
+																					...tab,
+																					offset:
+																						(details.page - 1) * search.limit,
+																				};
+																			}
+																			return tab;
+																		},
+																	);
+
+																	return {
+																		...prev,
+																		offset: (details.page - 1) * search.limit,
+																		tabs: updatedTabs,
+																	};
+																},
 															});
 														}}
 													>
@@ -1914,9 +2047,29 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														<RowsPerPageSelector
 															value={search.limit}
 															onValueChange={(newLimit) => {
-																updateActiveTab({
-																	limit: newLimit,
-																	offset: 0,
+																navigate({
+																	search: (prev) => {
+																		// Update the currently active tab with the same limit updates
+																		const updatedTabs = (prev.tabs ?? []).map(
+																			(tab) => {
+																				if (tab.tabId === prev.activeTabId) {
+																					return {
+																						...tab,
+																						limit: newLimit,
+																						offset: 0,
+																					};
+																				}
+																				return tab;
+																			},
+																		);
+
+																		return {
+																			...prev,
+																			limit: newLimit,
+																			offset: 0,
+																			tabs: updatedTabs,
+																		};
+																	},
 																});
 															}}
 														/>
@@ -1941,8 +2094,27 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 															}) => {
 																const newSize = (details.value?.[0] ||
 																	"cozy") as "compact" | "cozy" | "comfortable";
-																updateActiveTab({
-																	tableSize: newSize,
+																navigate({
+																	search: (prev) => {
+																		// Update the currently active tab with the same tableSize
+																		const updatedTabs = (prev.tabs ?? []).map(
+																			(tab) => {
+																				if (tab.tabId === prev.activeTabId) {
+																					return {
+																						...tab,
+																						tableSize: newSize,
+																					};
+																				}
+																				return tab;
+																			},
+																		);
+
+																		return {
+																			...prev,
+																			tableSize: newSize,
+																			tabs: updatedTabs,
+																		};
+																	},
 																});
 															}}
 														>
