@@ -52,10 +52,19 @@ export function InlineReferencesButton({
 
 	const updateDataAttribute = () => {
 		if (!divRef.current) return;
-		const rect = divRef.current.getBoundingClientRect();
+
+		// Use parent's bounding box to avoid overflow issues
+		// Such as the previous column overflowing into the one currently hovered
+		// so that both the previous and the (visually) current column would have the underline style
+		const parentRect = divRef.current.parentElement?.getBoundingClientRect();
+		if (!parentRect) return;
+
 		const { x, y } = mousePositionRef.current;
 		const isMouseOver =
-			x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+			x >= parentRect.left &&
+			x <= parentRect.right &&
+			y >= parentRect.top &&
+			y <= parentRect.bottom;
 
 		if (isMouseOver && isModifierPressedRef.current) {
 			divRef.current.dataset.cmdHover = "true";
