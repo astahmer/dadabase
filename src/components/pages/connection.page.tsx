@@ -212,8 +212,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		});
 	};
 
-	// Helper function to navigate to a table while adding it to the tabs
-	const navigateToTable = (
+	// Helper function to create a new tab state
+	const createTabState = (
 		schema: string,
 		table: string,
 		options?: {
@@ -221,61 +221,21 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			offset?: number;
 			limit?: number;
 			filtersOpened?: boolean;
-			closeQuickReferences?: boolean;
 		},
-	) => {
-		navigate({
-			search: (prev) => {
-				// Create the tab state
-				const newTabState = {
-					schema,
-					table,
-					tableFilter: undefined,
-					orderBy: undefined,
-					orderDirection: undefined,
-					limit: options?.limit ?? 50,
-					offset: options?.offset ?? 0,
-					viewMode: "rows" as const,
-					tableSize: "cozy" as const,
-					hiddenColumnList: undefined,
-					filters: options?.filters,
-					filtersOpened: options?.filtersOpened ?? false,
-				};
-
-				// Check if tab already exists and update it, or add new
-				const existingTabIndex = (prev.tabs ?? []).findIndex(
-					(t: any) => t.schema === schema && t.table === table,
-				);
-
-				let newTabs: any[];
-				if (existingTabIndex >= 0) {
-					// Update existing tab
-					newTabs = [...(prev.tabs ?? [])];
-					newTabs[existingTabIndex] = {
-						...newTabs[existingTabIndex],
-						...newTabState,
-					};
-				} else {
-					// Add new tab
-					newTabs = [...(prev.tabs ?? []), newTabState];
-				}
-
-				return {
-					...prev,
-					schema,
-					table,
-					tabs: newTabs,
-					...(options?.filters && { filters: options.filters }),
-					filtersOpened: options?.filtersOpened ?? false,
-					...(options?.closeQuickReferences && {
-						quickReferencesOpen: false,
-						quickReferencesColumnName: undefined,
-						quickReferencesCellValue: undefined,
-					}),
-				};
-			},
-		});
-	};
+	) => ({
+		schema,
+		table,
+		tableFilter: undefined,
+		orderBy: undefined,
+		orderDirection: undefined,
+		limit: options?.limit ?? 50,
+		offset: options?.offset ?? 0,
+		viewMode: "rows" as const,
+		tableSize: "cozy" as const,
+		hiddenColumnList: undefined,
+		filters: options?.filters,
+		filtersOpened: options?.filtersOpened ?? false,
+	});
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
@@ -625,7 +585,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														foreignKey={col.foreignKey}
 														onFollowFK={(fkInfo, cellValue) => {
 															// Follow FK to the referenced table
-															navigateToTable(
+															const newTabState = createTabState(
 																fkInfo.referencedSchema,
 																fkInfo.referencedTable,
 																{
@@ -642,6 +602,29 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																	filtersOpened: true,
 																},
 															);
+															navigate({
+																search: (prev) => ({
+																	...prev,
+																	schema: fkInfo.referencedSchema,
+																	table: fkInfo.referencedTable,
+																	tabs: [...(prev.tabs ?? []), newTabState],
+																	filters: {
+																		conditions: [
+																			{
+																				column: fkInfo.referencedColumn,
+																				operator: "equals",
+																				value: String(cellValue),
+																			},
+																		],
+																		logicalOperator: "and",
+																	},
+																	filtersOpened: true,
+																	offset: 0,
+																	limit: 50,
+																	orderBy: undefined,
+																	orderDirection: undefined,
+																}),
+															});
 														}}
 														onFindReferences={(columnName, cellValue) => {
 															// Filter the current table to rows where this column has this value
@@ -745,7 +728,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																	);
 																}}
 																onNavigateToFK={(fkInfo, cellValue) => {
-																	navigateToTable(
+																	const newTabState = createTabState(
 																		fkInfo.referencedSchema,
 																		fkInfo.referencedTable,
 																		{
@@ -762,20 +745,70 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																			filtersOpened: true,
 																		},
 																	);
+																	navigate({
+																		search: (prev) => ({
+																			...prev,
+																			schema: fkInfo.referencedSchema,
+																			table: fkInfo.referencedTable,
+																			tabs: [...(prev.tabs ?? []), newTabState],
+																			filters: {
+																				conditions: [
+																					{
+																						column: fkInfo.referencedColumn,
+																						operator: "equals",
+																						value: String(cellValue),
+																					},
+																				],
+																				logicalOperator: "and",
+																			},
+																			filtersOpened: true,
+																			offset: 0,
+																			limit: 50,
+																			orderBy: undefined,
+																			orderDirection: undefined,
+																		}),
+																	});
 																}}
 																onNavigateToReference={(ref, cellValue) => {
-																	navigateToTable(ref.schema, ref.table, {
-																		filters: {
-																			conditions: [
-																				{
-																					column: ref.column,
-																					operator: "equals",
-																					value: String(cellValue),
-																				},
-																			],
-																			logicalOperator: "and",
+																	const newTabState = createTabState(
+																		ref.schema,
+																		ref.table,
+																		{
+																			filters: {
+																				conditions: [
+																					{
+																						column: ref.column,
+																						operator: "equals",
+																						value: String(cellValue),
+																					},
+																				],
+																				logicalOperator: "and",
+																			},
+																			filtersOpened: true,
 																		},
-																		filtersOpened: true,
+																	);
+																	navigate({
+																		search: (prev) => ({
+																			...prev,
+																			schema: ref.schema,
+																			table: ref.table,
+																			tabs: [...(prev.tabs ?? []), newTabState],
+																			filters: {
+																				conditions: [
+																					{
+																						column: ref.column,
+																						operator: "equals",
+																						value: String(cellValue),
+																					},
+																				],
+																				logicalOperator: "and",
+																			},
+																			filtersOpened: true,
+																			offset: 0,
+																			limit: 50,
+																			orderBy: undefined,
+																			orderDirection: undefined,
+																		}),
 																	});
 																}}
 																onExpandToSheet={() => {
@@ -2033,7 +2066,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										cellValue={search.quickReferencesCellValue}
 										connectionUrl={activeConnectionUrl}
 										onNavigate={(schema, table, column, value) => {
-											navigateToTable(schema, table, {
+											const newTabState = createTabState(schema, table, {
 												filters: {
 													conditions: [
 														{
@@ -2045,7 +2078,32 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													logicalOperator: "and",
 												},
 												filtersOpened: true,
-												closeQuickReferences: true,
+											});
+											navigate({
+												search: (prev) => ({
+													...prev,
+													schema,
+													table,
+													tabs: [...(prev.tabs ?? []), newTabState],
+													filters: {
+														conditions: [
+															{
+																column,
+																operator: "equals",
+																value: String(value),
+															},
+														],
+														logicalOperator: "and",
+													},
+													filtersOpened: true,
+													offset: 0,
+													limit: 50,
+													orderBy: undefined,
+													orderDirection: undefined,
+													quickReferencesOpen: false,
+													quickReferencesColumnName: undefined,
+													quickReferencesCellValue: undefined,
+												}),
 											});
 										}}
 									/>
