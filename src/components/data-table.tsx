@@ -37,6 +37,12 @@ export interface DataTableProps<TData> {
 	isLoading?: boolean;
 	hasError?: boolean;
 	onRowClick?: (row: Row<TData>) => void;
+	onCellFollowFK?: (
+		columnName: string,
+		cellValue: unknown,
+		fkInfo: any,
+	) => void;
+	onCellFindReferences?: (columnName: string, cellValue: unknown) => void;
 	stickyHeader?: boolean;
 	interactive?: boolean;
 	striped?: boolean;
@@ -61,6 +67,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		hasError,
 		isLoading,
 		onRowClick,
+		onCellFollowFK,
+		onCellFindReferences,
 		stickyHeader = true,
 		interactive = false,
 		striped = false,
@@ -208,6 +216,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											index={index}
 											getRow={() => row}
 											onRowClick={onRowClick}
+											onCellFollowFK={onCellFollowFK}
+											onCellFindReferences={onCellFindReferences}
 											size={size}
 											striped={striped}
 											interactive={interactive}
@@ -251,9 +261,15 @@ const TableCell = memo(function TableCell({
 }: {
 	cell: Cell<any, any>;
 	index: number;
-	isExpanded: boolean;
+	isExpanded?: boolean;
 	size: DataTableSize;
 	showColumnBorder: boolean;
+	onCellFollowFK?: (
+		columnName: string,
+		cellValue: unknown,
+		fkInfo: any,
+	) => void;
+	onCellFindReferences?: (columnName: string, cellValue: unknown) => void;
 }) {
 	const columnSize = cell.column.getSize();
 	const textAlign = (cell.column.columnDef.meta as any)?.textAlign || "left";
@@ -277,6 +293,8 @@ const TableRow = memo(function TableRow({
 	index,
 	getRow,
 	onRowClick,
+	onCellFollowFK,
+	onCellFindReferences,
 	size,
 	striped,
 	interactive,
@@ -287,6 +305,12 @@ const TableRow = memo(function TableRow({
 	index: number;
 	getRow: () => Row<any>;
 	onRowClick?: (row: Row<any>) => void;
+	onCellFollowFK?: (
+		columnName: string,
+		cellValue: unknown,
+		fkInfo: any,
+	) => void;
+	onCellFindReferences?: (columnName: string, cellValue: unknown) => void;
 	size: DataTableSize;
 	striped: boolean;
 	interactive: boolean;
@@ -327,6 +351,8 @@ const TableRow = memo(function TableRow({
 							cell={cell}
 							index={cellIndex}
 							isExpanded={row.getIsExpanded()}
+							onCellFollowFK={onCellFollowFK}
+							onCellFindReferences={onCellFindReferences}
 							size={size}
 							showColumnBorder={showColumnBorder}
 						/>

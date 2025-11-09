@@ -14,7 +14,6 @@ import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { Pagination } from "@ark-ui/react/pagination";
 import {
-	keepPreviousData,
 	useQuery,
 	useQueryClient,
 	useSuspenseQuery,
@@ -47,6 +46,7 @@ import { ColumnHeaderWithInfo } from "../ui/column-header-with-info";
 import { DarkModeToggle } from "../ui/dark-mode-toggle";
 import { DataTypeBadge } from "../ui/data-type-badge";
 import { ForeignKeyIcon } from "../ui/foreign-key-icon";
+import { CellContextMenu } from "../cell-context-menu";
 import { JsonCell } from "../ui/json-cell";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
@@ -439,34 +439,98 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										textAlign: getColumnTextAlignment(col.dataType),
 									},
 									cell: col.dataType.toLowerCase().includes("json")
-										? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
+										? (ctx) => (
+												<CellContextMenu
+													cellValue={ctx.row.original[col.name]}
+													columnName={col.name}
+													foreignKey={col.foreignKey}
+													onFollowFK={(fkInfo) => {
+														const event = new CustomEvent("cellFollowFK", {
+															detail: {
+																columnName: col.name,
+																cellValue: ctx.row.original[col.name],
+																fkInfo,
+															},
+														});
+														window.dispatchEvent(event);
+													}}
+													onFindReferences={() => {
+														const event = new CustomEvent(
+															"cellFindReferences",
+															{
+																detail: {
+																	columnName: col.name,
+																	cellValue: ctx.row.original[col.name],
+																},
+															},
+														);
+														window.dispatchEvent(event);
+													}}
+												>
+													<JsonCell value={ctx.row.original[col.name]} />
+												</CellContextMenu>
+											)
 										: (ctx) => {
 												const value = ctx.getValue();
-												if (typeof value === "object" && value !== null) {
-													return (
-														<JsonCell value={ctx.row.original[col.name]} />
-													);
-												}
-												// Handle boolean values with colored badges
-												if (typeof value === "boolean") {
-													return (
-														<Badge
-															colorPalette={value ? "success" : "error"}
-															size="xs"
-														>
-															{value ? "true" : "false"}
-														</Badge>
-													);
-												}
-												// Handle null/undefined with a neutral badge
-												if (value === null || value === undefined) {
-													return (
-														<Badge colorPalette="muted" size="xs">
-															null
-														</Badge>
-													);
-												}
-												return ctx.renderValue();
+												const content = (() => {
+													if (typeof value === "object" && value !== null) {
+														return (
+															<JsonCell value={ctx.row.original[col.name]} />
+														);
+													}
+													// Handle boolean values with colored badges
+													if (typeof value === "boolean") {
+														return (
+															<Badge
+																colorPalette={value ? "success" : "error"}
+																size="xs"
+															>
+																{value ? "true" : "false"}
+															</Badge>
+														);
+													}
+													// Handle null/undefined with a neutral badge
+													if (value === null || value === undefined) {
+														return (
+															<Badge colorPalette="muted" size="xs">
+																null
+															</Badge>
+														);
+													}
+													return ctx.renderValue();
+												})();
+
+												return (
+													<CellContextMenu
+														cellValue={ctx.row.original[col.name]}
+														columnName={col.name}
+														foreignKey={col.foreignKey}
+														onFollowFK={(fkInfo) => {
+															const event = new CustomEvent("cellFollowFK", {
+																detail: {
+																	columnName: col.name,
+																	cellValue: ctx.row.original[col.name],
+																	fkInfo,
+																},
+															});
+															window.dispatchEvent(event);
+														}}
+														onFindReferences={() => {
+															const event = new CustomEvent(
+																"cellFindReferences",
+																{
+																	detail: {
+																		columnName: col.name,
+																		cellValue: ctx.row.original[col.name],
+																	},
+																},
+															);
+															window.dispatchEvent(event);
+														}}
+													>
+														{content as React.ReactNode}
+													</CellContextMenu>
+												);
 											},
 									enableResizing: true,
 									enableSorting: true,
@@ -1374,6 +1438,50 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													table={rowsDataTable}
 													isLoading={rowsQuery.isLoading}
 													size={search.tableSize}
+													onCellFollowFK={(_, cellValue, fkInfo) => {
+														// Follow FK to the referenced table
+														navigate({
+															search: (prev) => ({
+																...prev,
+																schema: fkInfo.referencedSchema,
+																table: fkInfo.referencedTable,
+																filters: {
+																	conditions: [
+																		{
+																			column: fkInfo.referencedColumn,
+																			operator: "equals",
+																			value: String(cellValue),
+																		},
+																	],
+																	logicalOperator: "and",
+																},
+																offset: 0,
+																limit: 50,
+																orderBy: undefined,
+																orderDirection: undefined,
+															}),
+														});
+													}}
+													onCellFindReferences={(columnName, cellValue) => {
+														// For now, just filter the current table to rows where this column has this value
+														// TODO: In Phase 3, we'll show which other tables reference this value
+														navigate({
+															search: (prev) => ({
+																...prev,
+																filters: {
+																	conditions: [
+																		{
+																			column: columnName,
+																			operator: "equals",
+																			value: String(cellValue),
+																		},
+																	],
+																	logicalOperator: "and",
+																},
+																offset: 0,
+															}),
+														});
+													}}
 												/>
 												<BulkActionBar
 													selectedCount={
