@@ -4,15 +4,14 @@ import {
 	ChevronRight,
 	Loader,
 	Link as LinkIcon,
-	ArrowRight,
 	Copy,
 	Check,
+	Search,
 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { findColumnReferencesQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
-import { Button } from "./ui/button.tsx";
 
 export interface QuickReferencesPanelProps {
 	schema: string;
@@ -55,6 +54,7 @@ export function QuickReferencesPanel({
 		new Set(["forward-fk", "reverse-fk"]),
 	);
 	const [copiedValue, setCopiedValue] = useState(false);
+	const [filterText, setFilterText] = useState("");
 
 	// Fetch reverse FK references for any column
 	// If this column is a FK, get references to the target column
@@ -131,22 +131,22 @@ export function QuickReferencesPanel({
 						<p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
 							Relationships for
 						</p>
-						<div className="flex items-center gap-2 flex-wrap">
-							<code className="text-sm font-mono font-bold bg-muted px-2 py-1 rounded">
-								{column.name}
-							</code>
-							<span className="text-xs text-muted-foreground truncate">
+						<code className="text-xs font-mono text-muted-foreground font-bold">
+							{schema}.{table}.{column.name}
+						</code>
+						<div className="mt-1 flex items-center gap-2">
+							<span className="text-xs text-muted-foreground">
 								{cellValue === null
 									? "NULL"
-									: String(cellValue).slice(0, 150) +
-										(String(cellValue).length > 150 ? "..." : "")}
+									: String(cellValue).slice(0, 100) +
+										(String(cellValue).length > 100 ? "..." : "")}
 							</span>
 						</div>
 					</div>
 					{onClose && (
 						<button
 							onClick={onClose}
-							className="text-muted-foreground hover:text-foreground transition-colors mt-1"
+							className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
 							aria-label="Close"
 						>
 							✕
@@ -158,7 +158,7 @@ export function QuickReferencesPanel({
 				{cellValue !== null && (
 					<button
 						onClick={handleCopyValue}
-						className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mt-2"
+						className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
 					>
 						{copiedValue ? (
 							<>
@@ -174,7 +174,6 @@ export function QuickReferencesPanel({
 					</button>
 				)}
 			</div>
-
 			{/* Content */}
 			<div className="overflow-y-auto">
 				{cellValue === null && (
@@ -203,44 +202,13 @@ export function QuickReferencesPanel({
 								)}
 								<LinkIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 								<span className="font-semibold text-sm">Points To</span>
-								<span className="text-xs text-muted-foreground">
-									({column.foreignKey?.referencedTable})
-								</span>
 							</div>
 						</button>
 
 						{expandedSections.has("forward-fk") && column.foreignKey && (
-							<div className="px-4 py-4 space-y-3 bg-muted/20 border-t">
-								<div className="grid grid-cols-2 gap-3 text-sm">
-									<div>
-										<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-											Table
-										</p>
-										<code className="block text-sm font-mono bg-background px-2 py-1.5 rounded border">
-											{column.foreignKey.referencedTable}
-										</code>
-									</div>
-									<div>
-										<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-											Column
-										</p>
-										<code className="block text-sm font-mono bg-background px-2 py-1.5 rounded border">
-											{column.foreignKey.referencedColumn}
-										</code>
-									</div>
-								</div>
-								<div>
-									<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-										Value
-									</p>
-									<code className="block text-sm font-mono bg-background px-2 py-1.5 rounded border break-all max-h-16 overflow-y-auto">
-										{String(cellValue)}
-									</code>
-								</div>
+							<div className="px-0 pb-0 bg-muted/20">
 								{onNavigate && (
-									<Button
-										size="sm"
-										className="w-full mt-3 h-8"
+									<button
 										onClick={() => {
 											if (column.foreignKey) {
 												onNavigate(
@@ -251,10 +219,20 @@ export function QuickReferencesPanel({
 												);
 											}
 										}}
+										className="w-full px-4 py-2 flex items-center justify-between gap-3 hover:bg-muted/70 transition-colors text-left group border-l-2 border-transparent hover:border-foreground"
 									>
-										<ArrowRight className="h-3 w-3 mr-1" />
-										Navigate to Row
-									</Button>
+										<div className="font-mono text-xs min-w-0 flex-1">
+											<span className="text-muted-foreground">
+												{column.foreignKey.referencedTable}.
+											</span>
+											<span className="font-medium">
+												{column.foreignKey.referencedColumn}
+											</span>
+										</div>
+										<div className="text-xs text-muted-foreground shrink-0 whitespace-nowrap group-hover:text-foreground transition-colors">
+											go →
+										</div>
+									</button>
 								)}
 							</div>
 						)}
@@ -288,16 +266,16 @@ export function QuickReferencesPanel({
 						</button>
 
 						{expandedSections.has("reverse-fk") && (
-							<div className="px-4 pb-3 bg-muted/30">
+							<div className="px-0 pb-3 bg-muted/20">
 								{isLoadingReferences && (
-									<div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
+									<div className="flex items-center gap-2 text-sm text-muted-foreground py-3 px-4">
 										<Loader className="h-4 w-4 animate-spin" />
 										Loading tables that reference this...
 									</div>
 								)}
 
 								{referencesError && (
-									<div className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg my-2">
+									<div className="m-3 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
 										<div className="flex items-start gap-2">
 											<AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
 											<div className="text-sm text-red-900 dark:text-red-100">
@@ -308,19 +286,41 @@ export function QuickReferencesPanel({
 								)}
 
 								{!isLoadingReferences && !reverseReferencesExist && (
-									<div className="text-sm text-muted-foreground py-3">
+									<div className="text-sm text-muted-foreground py-3 px-4">
 										No tables reference this value
 									</div>
 								)}
 
 								{!isLoadingReferences && reverseReferencesExist && (
 									<>
-										<div className="text-xs text-muted-foreground px-0 py-2 mb-2">
-											Click to view rows filtered by this value
+										<div className="text-xs text-muted-foreground px-4 py-2">
+											View rows with{" "}
+											<code className="font-mono">{column.name}</code> ={" "}
+											<code className="font-mono text-foreground truncate">
+												{String(cellValue).slice(0, 150)}
+												{String(cellValue).length > 150 ? "..." : ""}
+											</code>
 										</div>
-										<div className="space-y-0">
-											{Object.entries(referencesByTable).map(
-												([tableKey, refs]) => (
+										<div className="px-4 py-2 border-b">
+											<div className="relative">
+												<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+												<input
+													type="text"
+													placeholder="Filter tables..."
+													value={filterText}
+													onChange={(e) => setFilterText(e.target.value)}
+													className="w-full pl-9 pr-3 py-1.5 text-xs bg-background border border-border rounded placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
+												/>
+											</div>
+										</div>
+										<div className="space-y-0 px-2">
+											{Object.entries(referencesByTable)
+												.filter(([tableKey]) =>
+													tableKey
+														.toLowerCase()
+														.includes(filterText.toLowerCase()),
+												)
+												.map(([tableKey, refs]) => (
 													<div key={tableKey} className="space-y-0">
 														{refs.map((ref) => (
 															<button
@@ -342,8 +342,7 @@ export function QuickReferencesPanel({
 															</button>
 														))}
 													</div>
-												),
-											)}
+												))}
 										</div>
 									</>
 								)}
