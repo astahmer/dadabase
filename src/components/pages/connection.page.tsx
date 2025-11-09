@@ -25,6 +25,7 @@ import {
 	LucideChevronDown,
 	LucideChevronUp,
 	LucideListFilter,
+	LucidePlus,
 	RefreshCw,
 	Rows,
 } from "lucide-react";
@@ -478,7 +479,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												<ListboxMenu.ListboxMenuList>
 													{connectionList.data.map((conn) => (
 														<ListboxMenu.ListboxMenuItem
-															className="p-2"
 															key={conn.name}
 															item={{ label: conn.name, value: conn.name }}
 															showIndicator={conn.name === connectionName}
@@ -486,8 +486,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 															{conn.name}
 														</ListboxMenu.ListboxMenuItem>
 													))}
+													<div className="border-t" />
 													<ListboxMenu.ListboxMenuItem
-														className="p-2"
 														item={{
 															label: "Add new connection",
 															value: "__add",
@@ -496,7 +496,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 															setShowAddConnectionDrawer(true);
 														}}
 													>
-														Add new connection
+														<HStack gap="1" align="center">
+															<LucidePlus className="h-3 w-3" />
+															<span>Add new connection</span>
+														</HStack>
 													</ListboxMenu.ListboxMenuItem>
 												</ListboxMenu.ListboxMenuList>
 											</ListboxMenu.ListboxRoot>
