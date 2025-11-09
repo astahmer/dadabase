@@ -81,13 +81,26 @@ interface ConnectionPageProps {
 	connectionName: string;
 }
 
-function parseConnectionUrl(connectionUrl: string) {
+function getDbNameFromConnectionUrl(connectionUrl: string) {
 	try {
 		const url = new URL(connectionUrl);
 		const databaseName = url.pathname.replace("/", "");
 		return databaseName;
 	} catch {
 		return "";
+	}
+}
+
+function replaceDatabaseInConnectionUrl(
+	connectionUrl: string,
+	newDatabase: string,
+) {
+	try {
+		const url = new URL(connectionUrl);
+		url.pathname = `/${newDatabase}`;
+		return url.toString();
+	} catch {
+		return connectionUrl;
 	}
 }
 
@@ -99,11 +112,18 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
 	const connectionUrl = connection?.url || "";
-	const defaultDatabaseName = parseConnectionUrl(connectionUrl);
-
 	const search = useSearch({ from: "/connections/$connectionName" });
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
+
+	// Use the selected database from search params, fall back to the default
+	const defaultDatabaseName = getDbNameFromConnectionUrl(connectionUrl);
+	const selectedDbName = search.dbName;
+
+	// Build the connection URL with the selected database
+	const activeConnectionUrl = selectedDbName
+		? replaceDatabaseInConnectionUrl(connectionUrl, selectedDbName)
+		: connectionUrl;
 
 	const databaseListQuery = useQuery({
 		...listAvailableDatabase({ url: connectionUrl }),
@@ -137,20 +157,20 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	);
 
 	const schemaListQuery = useQuery({
-		...listAvailableSchemasQueryOptions({ url: connectionUrl }),
-		enabled: !!connection?.url,
+		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
+		enabled: !!activeConnectionUrl,
 		retry: 3,
 	});
 
 	const tablesListQuery = useQuery({
-		...listAvailableTablesQueryOptions({ url: connection?.url || "" }),
-		enabled: !!connection?.url && !!search.schema,
+		...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
+		enabled: !!activeConnectionUrl && !!search.schema,
 		retry: 3,
 	});
 
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
-			url: connectionUrl,
+			url: activeConnectionUrl,
 			schema: search.schema || "",
 			table: search.table || "",
 			limit: search.limit,
@@ -163,7 +183,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			},
 		}),
 		placeholderData: keepPreviousData,
-		enabled: !!connection?.url && !!search.schema && !!search.table,
+		enabled: !!activeConnectionUrl && !!search.schema && !!search.table,
 	});
 	console.log(
 		1,
@@ -174,7 +194,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		rowsQuery.error,
 	);
 	// console.log("query", {
-	// 	url: connectionUrl,
+	// 	url: activeConnectionUrl,
 	// 	schema: search.schema || "",
 	// 	table: search.table || "",
 	// 	limit: search.limit,
@@ -190,11 +210,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const metadataQuery = useQuery({
 		...getTableColumnsQueryOptions({
-			url: connectionUrl,
+			url: activeConnectionUrl,
 			schema: search.schema || "",
 			table: search.table || "",
 		}),
-		enabled: !!connection?.url && !!search.schema && !!search.table,
+		enabled: !!activeConnectionUrl && !!search.schema && !!search.table,
 	});
 	const columnMetadata = metadataQuery.data ?? [];
 
