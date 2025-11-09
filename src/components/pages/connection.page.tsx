@@ -1725,84 +1725,88 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			</Sheet>
 
 			{/* Quick References Panel */}
-			<Sheet
-				open={search.quickReferencesOpen}
-				onOpenChange={(details) => {
-					if (!details.open) {
-						navigate({
-							search: (prev) => ({
-								...prev,
-								quickReferencesOpen: false,
-								quickReferencesColumnName: undefined,
-								quickReferencesCellValue: undefined,
-							}),
-						});
-					}
-				}}
-			>
-				<SheetContent className="z-50 w-full sm:max-w-[500px] overflow-y-auto">
-					<SheetHeader>
-						<SheetTitle>Relationships</SheetTitle>
-						<SheetDescription>
-							View all relationships for this cell
-						</SheetDescription>
-					</SheetHeader>
-					{search.quickReferencesColumnName &&
-						search.quickReferencesCellValue &&
-						search.schema &&
-						search.table &&
-						(() => {
-							const column = columnMetadata.find(
-								(c) => c.name === search.quickReferencesColumnName,
-							);
-							return column ? (
-								<div className="mt-4">
-									<QuickReferencesPanel
-										schema={search.schema}
-										table={search.table}
-										column={column}
-										cellValue={search.quickReferencesCellValue}
-										connectionUrl={activeConnectionUrl}
-										onNavigate={(schema, table, column, value) => {
-											navigate({
-												search: (prev) => ({
-													...prev,
-													schema,
-													table,
-													filters: {
-														conditions: [
-															{
-																column,
-																operator: "equals",
-																value: String(value),
-															},
-														],
-														logicalOperator: "and",
-													},
-													offset: 0,
-													filtersOpened: true,
-													quickReferencesOpen: false,
-													quickReferencesColumnName: undefined,
-													quickReferencesCellValue: undefined,
-												}),
-											});
-										}}
-										onClose={() => {
-											navigate({
-												search: (prev) => ({
-													...prev,
-													quickReferencesOpen: false,
-													quickReferencesColumnName: undefined,
-													quickReferencesCellValue: undefined,
-												}),
-											});
-										}}
-									/>
-								</div>
-							) : null;
-						})()}
-				</SheetContent>
-			</Sheet>
+			{search.quickReferencesOpen && (
+				<Sheet
+					open={true}
+					onOpenChange={(details) => {
+						if (!details.open) {
+							navigate({
+								search: (prev) => ({
+									...prev,
+									quickReferencesOpen: false,
+									quickReferencesColumnName: undefined,
+									quickReferencesCellValue: undefined,
+								}),
+							});
+						}
+					}}
+				>
+					<SheetContent className="z-50 w-full sm:max-w-[500px] overflow-y-auto">
+						<SheetHeader>
+							<SheetTitle>Relationships</SheetTitle>
+							<SheetDescription>
+								View all relationships for this cell
+							</SheetDescription>
+						</SheetHeader>
+						{search.quickReferencesColumnName &&
+							search.quickReferencesCellValue &&
+							search.schema &&
+							search.table &&
+							columnMetadata.length > 0 &&
+							(() => {
+								const column = columnMetadata.find(
+									(c) => c.name === search.quickReferencesColumnName,
+								);
+								if (!column) return null;
+								return (
+									<div className="mt-4">
+										<QuickReferencesPanel
+											schema={search.schema}
+											table={search.table}
+											column={column}
+											cellValue={search.quickReferencesCellValue}
+											connectionUrl={activeConnectionUrl}
+											onNavigate={(schema, table, column, value) => {
+												navigate({
+													search: (prev) => ({
+														...prev,
+														schema,
+														table,
+														filters: {
+															conditions: [
+																{
+																	column,
+																	operator: "equals",
+																	value: String(value),
+																},
+															],
+															logicalOperator: "and",
+														},
+														offset: 0,
+														filtersOpened: true,
+														quickReferencesOpen: false,
+														quickReferencesColumnName: undefined,
+														quickReferencesCellValue: undefined,
+													}),
+												});
+											}}
+											onClose={() => {
+												navigate({
+													search: (prev) => ({
+														...prev,
+														quickReferencesOpen: false,
+														quickReferencesColumnName: undefined,
+														quickReferencesCellValue: undefined,
+													}),
+												});
+											}}
+										/>
+									</div>
+								);
+							})()}
+					</SheetContent>
+				</Sheet>
+			)}
 		</div>
 	);
 };
