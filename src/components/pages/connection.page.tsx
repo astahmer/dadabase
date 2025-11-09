@@ -49,6 +49,7 @@ import { DataTypeBadge } from "../ui/data-type-badge";
 import { ForeignKeyIcon } from "../ui/foreign-key-icon";
 import { CellContextMenu } from "../cell-context-menu";
 import { QuickReferencesPanel } from "../quick-references-panel";
+import { RelationshipsQuickButton } from "../relationships-quick-button";
 import { JsonCell } from "../ui/json-cell";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
@@ -473,12 +474,15 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												})();
 
 												return (
-													<CellContextMenu
-														cellValue={ctx.row.original[col.name]}
+													<RelationshipsQuickButton
+														schema={search.schema || ""}
+														table={search.table || ""}
 														columnName={col.name}
+														columnDataType={col.dataType}
 														foreignKey={col.foreignKey}
-														onFollowFK={(fkInfo, cellValue) => {
-															// Follow FK to the referenced table
+														cellValue={ctx.row.original[col.name]}
+														connectionUrl={activeConnectionUrl}
+														onNavigateToFK={(fkInfo, cellValue) => {
 															navigate({
 																search: (prev) => ({
 																	...prev,
@@ -502,16 +506,17 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																}),
 															});
 														}}
-														onFindReferences={(columnName, cellValue) => {
-															// Filter the current table to rows where this column has this value
+														onNavigateToReference={(ref, cellValue) => {
 															navigate({
 																search: (prev) => ({
 																	...prev,
+																	schema: ref.schema,
+																	table: ref.table,
 																	filtersOpened: true,
 																	filters: {
 																		conditions: [
 																			{
-																				column: columnName,
+																				column: ref.column,
 																				operator: "equals",
 																				value: String(cellValue),
 																			},
@@ -519,10 +524,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																		logicalOperator: "and",
 																	},
 																	offset: 0,
+																	limit: 50,
+																	orderBy: undefined,
+																	orderDirection: undefined,
 																}),
 															});
 														}}
-														onShowQuickReferences={() => {
+														onExpandToSheet={() => {
 															navigate({
 																search: (prev) => ({
 																	...prev,
@@ -534,42 +542,105 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																}),
 															});
 														}}
-														onOpen={() => {
-															// Prefetch the column references data when menu opens
-															const cellValue = ctx.row.original[col.name];
-
-															// Determine the reference target
-															const referenceTarget = col.foreignKey
-																? {
-																		referencedSchema:
-																			col.foreignKey.referencedSchema,
-																		referencedTable:
-																			col.foreignKey.referencedTable,
-																		referencedColumn:
-																			col.foreignKey.referencedColumn,
-																	}
-																: {
-																		referencedSchema: search.schema || "",
-																		referencedTable: search.table || "",
-																		referencedColumn: col.name,
-																	};
-
-															queryClient.prefetchQuery(
-																findColumnReferencesWithCountsQueryOptions({
-																	url: activeConnectionUrl,
-																	referencedSchema:
-																		referenceTarget.referencedSchema,
-																	referencedTable:
-																		referenceTarget.referencedTable,
-																	referencedColumn:
-																		referenceTarget.referencedColumn,
-																	cellValue,
-																}),
-															);
-														}}
 													>
-														{content as React.ReactNode}
-													</CellContextMenu>
+														<CellContextMenu
+															cellValue={ctx.row.original[col.name]}
+															columnName={col.name}
+															foreignKey={col.foreignKey}
+															onFollowFK={(fkInfo, cellValue) => {
+																// Follow FK to the referenced table
+																navigate({
+																	search: (prev) => ({
+																		...prev,
+																		schema: fkInfo.referencedSchema,
+																		table: fkInfo.referencedTable,
+																		filtersOpened: true,
+																		filters: {
+																			conditions: [
+																				{
+																					column: fkInfo.referencedColumn,
+																					operator: "equals",
+																					value: String(cellValue),
+																				},
+																			],
+																			logicalOperator: "and",
+																		},
+																		offset: 0,
+																		limit: 50,
+																		orderBy: undefined,
+																		orderDirection: undefined,
+																	}),
+																});
+															}}
+															onFindReferences={(columnName, cellValue) => {
+																// Filter the current table to rows where this column has this value
+																navigate({
+																	search: (prev) => ({
+																		...prev,
+																		filtersOpened: true,
+																		filters: {
+																			conditions: [
+																				{
+																					column: columnName,
+																					operator: "equals",
+																					value: String(cellValue),
+																				},
+																			],
+																			logicalOperator: "and",
+																		},
+																		offset: 0,
+																	}),
+																});
+															}}
+															onShowQuickReferences={() => {
+																navigate({
+																	search: (prev) => ({
+																		...prev,
+																		quickReferencesOpen: true,
+																		quickReferencesColumnName: col.name,
+																		quickReferencesCellValue: String(
+																			ctx.row.original[col.name],
+																		),
+																	}),
+																});
+															}}
+															onOpen={() => {
+																// Prefetch the column references data when menu opens
+																const cellValue = ctx.row.original[col.name];
+
+																// Determine the reference target
+																const referenceTarget = col.foreignKey
+																	? {
+																			referencedSchema:
+																				col.foreignKey.referencedSchema,
+																			referencedTable:
+																				col.foreignKey.referencedTable,
+																			referencedColumn:
+																				col.foreignKey.referencedColumn,
+																		}
+																	: {
+																			referencedSchema: search.schema || "",
+																			referencedTable: search.table || "",
+																			referencedColumn: col.name,
+																		};
+
+																queryClient.prefetchQuery(
+																	findColumnReferencesWithCountsQueryOptions({
+																		url: activeConnectionUrl,
+																		referencedSchema:
+																			referenceTarget.referencedSchema,
+																		referencedTable:
+																			referenceTarget.referencedTable,
+																		referencedColumn:
+																			referenceTarget.referencedColumn,
+																		cellValue,
+																	}),
+																);
+															}}
+														>
+															{content as React.ReactNode}
+														</CellContextMenu>
+													</RelationshipsQuickButton>
 												);
 											},
 									enableResizing: true,

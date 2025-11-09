@@ -35,7 +35,7 @@ exports.forwardRef @ chunk-SDBL6XOS.js?v=08d9c5c8:807
 - remove any forwardRef and just pass props/refs directly (React 19 works fine like this)
 
 
-- how bad (or the opposite: how quick?) would it be to have the number of lines matching each table referencing the column? so that in the "refs by" section it could be awesome to the "{table}.{column} (count)" but ideally i want to keep the drawer fast to show
+- sort the list of references by count or A-Z
 
 
 ---

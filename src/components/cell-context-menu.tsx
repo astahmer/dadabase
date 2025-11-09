@@ -1,6 +1,5 @@
 import { Copy, Eye, Link, Link2, Search } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
 import {
 	Menu,
 	MenuContextTrigger,
