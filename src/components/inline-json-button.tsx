@@ -110,6 +110,7 @@ export function InlineJsonButton({
 								setIsOpen(false);
 								onOpenDialog?.();
 							}}
+							onClose={() => setIsOpen(false)}
 						/>
 					</Popover.Content>
 				</Popover.Positioner>

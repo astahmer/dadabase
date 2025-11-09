@@ -1,7 +1,6 @@
-import { useState, useCallback, memo } from "react";
-import { ChevronDown, Copy } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { memo, useState } from "react";
 import { cn } from "../../lib/utils";
-import { Button } from "./button";
 
 interface JsonViewerProps {
 	data: unknown;
@@ -242,27 +241,8 @@ export const JsonViewerModal = memo(function JsonViewerModal({
 	data,
 	className,
 }: JsonViewerModalProps) {
-	const [copied, setCopied] = useState(false);
-
-	const handleCopy = useCallback(() => {
-		navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2000);
-	}, [data]);
-
 	return (
 		<div className={cn("flex flex-col gap-3 min-h-0 h-full", className)}>
-			<div className="flex items-center justify-between">
-				<Button
-					size="sm"
-					variant="ghost"
-					onClick={handleCopy}
-					className="h-7 gap-2 ml-auto"
-				>
-					<Copy size={14} />
-					{copied ? "Copied!" : "Copy"}
-				</Button>
-			</div>
 			<div className="bg-muted p-3 rounded border border-border overflow-auto min-h-0 h-full">
 				<JsonViewer data={data} defaultExpanded={true} />
 			</div>

@@ -4,6 +4,7 @@ import {
 	Loader,
 	Link as LinkIcon,
 	ArrowRight,
+	X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
@@ -32,6 +33,7 @@ interface InlineReferencesPopoverProps {
 	) => void;
 	onNavigateToReference?: (ref: ColumnReference, cellValue: unknown) => void;
 	onExpandToSheet?: () => void;
+	onClose?: () => void;
 }
 
 export function InlineReferencesPopover({
@@ -44,6 +46,7 @@ export function InlineReferencesPopover({
 	onNavigateToFK,
 	onNavigateToReference,
 	onExpandToSheet,
+	onClose,
 }: InlineReferencesPopoverProps) {
 	// Determine the reference target
 	const referenceTarget = foreignKey
@@ -85,16 +88,27 @@ export function InlineReferencesPopover({
 	return (
 		<div className="min-w-80 max-w-2xl bg-background border border-border rounded-lg shadow-lg overflow-hidden">
 			{/* Header */}
-			<div className="px-3 py-2 border-b border-border bg-muted/30">
+			<div className="px-3 py-2 border-b border-border bg-muted/30 flex items-center justify-between">
 				<div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
 					<LinkIcon className="h-3 w-3" />
 					<span>Relationships</span>
 				</div>
-				<div className="text-xs text-muted-foreground mt-1 truncate">
-					<code className="font-mono text-foreground">{columnName}</code> ={" "}
-					{String(cellValue).slice(0, 150)}
-					{String(cellValue).length > 150 ? "..." : ""}
-				</div>
+				{onClose && (
+					<button
+						onClick={onClose}
+						className="p-1 hover:bg-muted/70 rounded transition-colors text-muted-foreground"
+						aria-label="Close"
+					>
+						<X className="h-3.5 w-3.5" />
+					</button>
+				)}
+			</div>
+
+			{/* Subheader with cell value */}
+			<div className="px-3 py-1.5 text-xs text-muted-foreground truncate border-b border-border/50">
+				<code className="font-mono text-foreground">{columnName}</code> ={" "}
+				{String(cellValue).slice(0, 150)}
+				{String(cellValue).length > 150 ? "..." : ""}
 			</div>
 
 			{/* Content */}

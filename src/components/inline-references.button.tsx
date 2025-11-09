@@ -149,6 +149,7 @@ export function InlineReferencesButton({
 								setIsOpen(false);
 								onExpandToSheet?.();
 							}}
+							onClose={() => setIsOpen(false)}
 						/>
 					</Popover.Content>
 				</Popover.Positioner>
