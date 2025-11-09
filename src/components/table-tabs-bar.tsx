@@ -7,6 +7,7 @@ export interface TableTab {
 	schema: string;
 	table: string;
 	__emptyTabId?: string;
+	fkValue?: string; // Optional FK value used when navigating to this tab
 }
 
 interface TableTabsBarProps {
@@ -53,13 +54,28 @@ export const TableTabsBar = ({
 								onMouseEnter={() => onTabHover?.(tab)}
 								asChild
 							>
-								<div>
+								<div
+									title={
+										tab.schema && tab.table
+											? `${tab.schema}.${tab.table}${tab.fkValue ? ` [${tab.fkValue}]` : ""}`
+											: undefined
+									}
+								>
 									<span className="truncate">
-										{tab.schema && tab.table
-											? `${tab.schema}.${tab.table}`
-											: tab.id.startsWith("empty-")
-												? "New Tab"
-												: "—"}
+										{tab.schema && tab.table ? (
+											<span className="flex items-center gap-1">
+												<span>{`${tab.schema}.${tab.table}`}</span>
+												{tab.fkValue && (
+													<span className="text-xs italic text-muted-foreground truncate">
+														[{tab.fkValue}]
+													</span>
+												)}
+											</span>
+										) : tab.__emptyTabId ? (
+											"New Tab"
+										) : (
+											"—"
+										)}
 									</span>
 									<button
 										className="rounded hover:bg-destructive/20 p-0.5 flex items-center justify-center hover:text-destructive"

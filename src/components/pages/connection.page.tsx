@@ -221,6 +221,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			offset?: number;
 			limit?: number;
 			filtersOpened?: boolean;
+			fkValue?: string;
 		},
 	) => ({
 		schema,
@@ -235,6 +236,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		hiddenColumnList: undefined,
 		filters: options?.filters,
 		filtersOpened: options?.filtersOpened ?? false,
+		fkValue: options?.fkValue,
 	});
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
@@ -600,6 +602,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																		logicalOperator: "and",
 																	},
 																	filtersOpened: true,
+																	fkValue: String(cellValue),
 																},
 															);
 															navigate({
@@ -743,6 +746,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																				logicalOperator: "and",
 																			},
 																			filtersOpened: true,
+																			fkValue: String(cellValue),
 																		},
 																	);
 																	navigate({
@@ -785,6 +789,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																				logicalOperator: "and",
 																			},
 																			filtersOpened: true,
+																			fkValue: String(cellValue),
 																		},
 																	);
 																	navigate({
@@ -1549,7 +1554,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										{search.viewMode === "rows" && (
 											<Button
 												variant={
-													filterConditions.length > 0 ? "default" : "outline"
+													filterConditions.length > 0 && !search.filtersOpened
+														? "default"
+														: "outline"
 												}
 												size="sm"
 												onClick={() => {
@@ -2078,6 +2085,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													logicalOperator: "and",
 												},
 												filtersOpened: true,
+												fkValue: String(value),
 											});
 											navigate({
 												search: (prev) => ({
