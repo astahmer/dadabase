@@ -80,8 +80,8 @@ export function InlineJsonButton({
 			<HStack gap="1" align="center" className="group">
 				<Popover.Trigger
 					className="focus-visible:ring-2 focus-visible:ring-ring rounded p-0.5"
-					title="View JSON (⌘ click on Mac, Ctrl click on Windows)"
-					aria-label="View JSON"
+					title="Open quick preview (⌘ click on Mac, Ctrl click on Windows)"
+					aria-label="Open quick preview"
 					asChild
 				>
 					<Button variant="ghost" size="xs" className="px-1">
@@ -96,6 +96,7 @@ export function InlineJsonButton({
 						}
 					}}
 					className="group"
+					title="Open quick preview (⌘ click on Mac, Ctrl click on Windows)"
 				>
 					{children}
 				</div>

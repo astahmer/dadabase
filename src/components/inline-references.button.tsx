@@ -111,8 +111,8 @@ export function InlineReferencesButton({
 		>
 			<Popover.Trigger
 				className="focus-visible:ring-2 focus-visible:ring-ring rounded p-0.5"
-				title="View relationships (⌘ click on Mac, Ctrl click on Windows)"
-				aria-label="View relationships"
+				title="Open references (⌘ click on Mac, Ctrl click on Windows)"
+				aria-label="Open references"
 				asChild
 				onMouseEnter={onPrefetchReferences}
 			>
@@ -128,6 +128,7 @@ export function InlineReferencesButton({
 					}
 				}}
 				className="group"
+				title="Open references (⌘ click on Mac, Ctrl click on Windows)"
 			>
 				{children}
 			</div>
