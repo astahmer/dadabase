@@ -45,7 +45,7 @@ const DialogContent = React.forwardRef<
 >(({ className, children, size, ...props }, ref) => (
 	<Portal>
 		<DialogBackdrop />
-		<DialogPrimitive.Positioner>
+		<DialogPrimitive.Positioner className="overflow-hidden">
 			<DialogPrimitive.Content
 				ref={ref}
 				className={cn(dialogContentVariants({ size }), className)}
