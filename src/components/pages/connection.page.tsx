@@ -448,8 +448,12 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								<Breadcrumb.BreadcrumbSeparator />
 								<Breadcrumb.BreadcrumbItem>
 									<ListboxMenu.ListboxMenuRoot>
-										<ListboxMenu.ListboxMenuTrigger size="sm" asChild>
-											<Button variant="ghost">
+										<ListboxMenu.ListboxMenuTrigger
+											variant="unstyled"
+											size="unstyled"
+											asChild
+										>
+											<Button variant="ghost" size="sm">
 												<span className="text-foreground">
 													{connection.name}
 												</span>

@@ -31,10 +31,10 @@ const ListboxMenuTrigger = React.forwardRef<
 		VariantProps<typeof listboxMenuVariants> & {
 			className?: string;
 		}
->(({ className, size, ...props }, ref) => (
+>(({ className, size, variant, ...props }, ref) => (
 	<PopoverPrimitive.Trigger
 		ref={ref}
-		className={cn(listboxMenuVariants({ size }), className)}
+		className={cn(listboxMenuVariants({ variant, size }), className)}
 		{...props}
 	/>
 ));
