@@ -58,6 +58,7 @@ import { Spinner } from "../ui/spinner.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { useDataTable } from "../use-data-table";
 import { ConnectionForm } from "./connection.form.tsx";
+import { DateTime } from "effect";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -124,6 +125,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		...listAvailableTablesQueryOptions({ url: connection?.url || "" }),
 		enabled: !!connection?.url && !!search.schema,
 	});
+	console.log(tablesListQuery.data);
 
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
@@ -167,22 +169,24 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	});
 	const columnMetadata = metadataQuery.data ?? [];
 
-	const schemas = schemaListQuery.data || [];
-	const tables = tablesListQuery.data || [];
+	const allSchemaList = schemaListQuery.data || [];
+	const tableList = tablesListQuery.data || [];
+	const schemaList = allSchemaList.filter((schema) =>
+		tableList.some((t) => t.schema === schema),
+	);
 
 	// Filter tables based on search term
 	const { contains } = useFilter({ sensitivity: "base" });
 
 	const filteredTables = useMemo(
 		() =>
-			search.tableFilter
-				? tables.filter(
-						(table) =>
-							contains(table.name, search.tableFilter!) &&
-							search.schema === table.schema,
-					)
-				: tables,
-		[tables, search.tableFilter, search.schema, contains],
+			tableList.filter(
+				(table) =>
+					(search.tableFilter
+						? contains(table.name, search.tableFilter)
+						: true) && search.schema === table.schema,
+			),
+		[tableList, search.tableFilter, search.schema, contains],
 	);
 
 	const tableCollection = useMemo(
@@ -421,7 +425,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	}
 
 	const schemaCollection = ArkSelect.createListCollection({
-		items: schemas.map((s: string) => ({ label: s, value: s })),
+		items: schemaList.map((s: string) => ({ label: s, value: s })),
 	});
 
 	const filterConditions = search.filters?.conditions ?? [];
@@ -660,7 +664,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										{filteredTables.length === 0 ? (
 											<div className="p-4 text-center">
 												<span className="text-xs text-muted-foreground">
-													{tables.length === 0
+													{tableList.length === 0
 														? "No tables found"
 														: "No tables match filter"}
 												</span>
@@ -1013,8 +1017,22 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												</HStack>
 												{/* Middle - Query time info */}
 												<span className="hidden lg:inline text-muted-foreground text-xs">
-													{queryResponse.timeTaken > 0 &&
-														` • ${queryResponse.timeTaken}ms • Loaded ${formatRelativeTime(queryResponse.ranAt)}`}
+													{queryResponse.timeTaken > 0 && (
+														<HStack gap="1" align="center">
+															{`${queryResponse.timeTaken}ms`}
+															<span>•</span>
+															<Tooltip
+																content={DateTime.formatIso(
+																	DateTime.unsafeMake(queryResponse.ranAt),
+																)}
+															>
+																<span>
+																	Loaded{" "}
+																	{formatRelativeTime(queryResponse.ranAt)}
+																</span>
+															</Tooltip>
+														</HStack>
+													)}
 												</span>
 												{/* Right side - Controls */}
 												<div className="flex flex-wrap items-center gap-2 lg:gap-3">
