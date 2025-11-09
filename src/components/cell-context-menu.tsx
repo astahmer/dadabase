@@ -1,4 +1,4 @@
-import { Copy, Link, Search } from "lucide-react";
+import { Copy, Eye, Link, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import {
@@ -23,6 +23,7 @@ export interface CellContextMenuProps {
 	foreignKey?: ForeignKeyInfo;
 	onFollowFK?: (fkInfo: ForeignKeyInfo, cellValue: unknown) => void;
 	onFindReferences?: (columnName: string, cellValue: unknown) => void;
+	onShowQuickReferences?: () => void;
 	children: ReactNode;
 }
 
@@ -32,6 +33,7 @@ export function CellContextMenu({
 	foreignKey,
 	onFollowFK,
 	onFindReferences,
+	onShowQuickReferences,
 	children,
 }: CellContextMenuProps) {
 	const [isOpen, setIsOpen] = useState(false);
@@ -63,6 +65,13 @@ export function CellContextMenu({
 		setIsOpen(false);
 	};
 
+	const handleShowQuickReferences = () => {
+		if (onShowQuickReferences) {
+			onShowQuickReferences();
+		}
+		setIsOpen(false);
+	};
+
 	return (
 		<Menu
 			lazyMount
@@ -75,6 +84,7 @@ export function CellContextMenu({
 			<Portal>
 				<MenuContent className="z-1">
 					<MenuItem value="log" onClick={handleLogCell}>
+						<Eye className="size-4" />
 						<MenuItemText>Log cell to console</MenuItemText>
 					</MenuItem>
 					<MenuItem value="copy" onClick={handleCopyCell}>
@@ -99,7 +109,17 @@ export function CellContextMenu({
 							<MenuSeparator />
 							<MenuItem value="find-refs" onClick={handleFindReferences}>
 								<Search className="size-4" />
-								<MenuItemText>Find references</MenuItemText>
+								<MenuItemText>Find references in current table</MenuItemText>
+							</MenuItem>
+						</>
+					)}
+
+					{cellValue !== null && onShowQuickReferences && (
+						<>
+							<MenuSeparator />
+							<MenuItem value="quick-refs" onClick={handleShowQuickReferences}>
+								<Search className="size-4" />
+								<MenuItemText>View all relationships</MenuItemText>
 							</MenuItem>
 						</>
 					)}

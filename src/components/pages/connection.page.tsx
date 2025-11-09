@@ -47,6 +47,7 @@ import { DarkModeToggle } from "../ui/dark-mode-toggle";
 import { DataTypeBadge } from "../ui/data-type-badge";
 import { ForeignKeyIcon } from "../ui/foreign-key-icon";
 import { CellContextMenu } from "../cell-context-menu";
+import { QuickReferencesPanel } from "../quick-references-panel";
 import { JsonCell } from "../ui/json-cell";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
@@ -121,6 +122,15 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
+	const [quickReferencesSheet, setQuickReferencesSheet] = useState<{
+		isOpen: boolean;
+		column: any;
+		cellValue: unknown;
+	}>({
+		isOpen: false,
+		column: null,
+		cellValue: null,
+	});
 	const { tabs, activeTabId, addTab, addEmptyTab, closeTab, setActiveTab } =
 		useOpenTabs(connectionName);
 
@@ -518,6 +528,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																	},
 																	offset: 0,
 																}),
+															});
+														}}
+														onShowQuickReferences={() => {
+															setQuickReferencesSheet({
+																isOpen: true,
+																column: col,
+																cellValue: ctx.row.original[col.name],
 															});
 														}}
 													>
@@ -1708,6 +1725,73 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							}}
 						/>
 					</div>
+				</SheetContent>
+			</Sheet>
+
+			{/* Quick References Panel */}
+			<Sheet
+				open={quickReferencesSheet.isOpen}
+				onOpenChange={(details) => {
+					if (!details.open) {
+						setQuickReferencesSheet({
+							isOpen: false,
+							column: null,
+							cellValue: null,
+						});
+					}
+				}}
+			>
+				<SheetContent className="z-50 w-full sm:max-w-[500px] overflow-y-auto">
+					<SheetHeader>
+						<SheetTitle>Relationships</SheetTitle>
+						<SheetDescription>
+							View all relationships for this cell
+						</SheetDescription>
+					</SheetHeader>
+					{quickReferencesSheet.column && search.schema && search.table && (
+						<div className="mt-4">
+							<QuickReferencesPanel
+								schema={search.schema}
+								table={search.table}
+								column={quickReferencesSheet.column}
+								cellValue={quickReferencesSheet.cellValue}
+								connectionUrl={activeConnectionUrl}
+								onNavigate={(schema, table, column, value) => {
+									navigate({
+										search: (prev) => ({
+											...prev,
+											schema,
+											table,
+											filters: {
+												conditions: [
+													{
+														column,
+														operator: "equals",
+														value: String(value),
+													},
+												],
+												logicalOperator: "and",
+											},
+											offset: 0,
+											filtersOpened: true,
+										}),
+									});
+									setQuickReferencesSheet({
+										isOpen: false,
+										column: null,
+										cellValue: null,
+									});
+								}}
+								onClose={() => {
+									setQuickReferencesSheet({
+										isOpen: false,
+										column: null,
+										cellValue: null,
+									});
+								}}
+							/>
+						</div>
+					)}
 				</SheetContent>
 			</Sheet>
 		</div>

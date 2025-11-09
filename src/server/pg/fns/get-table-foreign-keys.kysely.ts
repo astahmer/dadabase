@@ -87,7 +87,7 @@ export const findColumnReferences = (input: {
 					LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
 					LEFT JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_name = kcu2.constraint_name
 				WHERE
-					constraint_name IN (
+					kcu1.constraint_name IN (
 						SELECT constraint_name
 						FROM information_schema.table_constraints
 						WHERE constraint_type = 'FOREIGN KEY'
