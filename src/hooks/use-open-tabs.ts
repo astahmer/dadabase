@@ -75,10 +75,19 @@ export const useOpenTabs = (connectionName: string) => {
 		setActiveTabId(tabId);
 	};
 
+	const addEmptyTab = () => {
+		// Create a placeholder empty tab with a temporary ID
+		const timestamp = Date.now();
+		const emptyTabId = `empty-${timestamp}`;
+		setTabs((prev) => [...prev, { schema: "", table: "", id: emptyTabId }]);
+		setActiveTabId(emptyTabId);
+	};
+
 	return {
 		tabs,
 		activeTabId,
 		addTab,
+		addEmptyTab,
 		closeTab,
 		closeAllTabs,
 		setActiveTab,

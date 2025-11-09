@@ -120,7 +120,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
-	const { tabs, activeTabId, addTab, closeTab, setActiveTab } =
+	const { tabs, activeTabId, addTab, addEmptyTab, closeTab, setActiveTab } =
 		useOpenTabs(connectionName);
 
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
@@ -864,7 +864,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						)}
 					</Stack>{" "}
 					{/* Tables List */}
-					<div className="flex-1 h-full min-h-0 flex flex-col gap-2 overflow-hidden">
+					<div
+						className="flex-1 h-full min-h-0 flex flex-col gap-2 overflow-hidden"
+						data-tables-list
+					>
 						<Stack className="flex-1 h-full" gap="2">
 							<div className="px-4">
 								<label className="text-xs font-medium text-foreground uppercase tracking-wide">
@@ -995,17 +998,28 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									const tab = tabs.find((t) => t.id === tabId);
 									if (tab) {
 										setActiveTab(tabId);
-										navigate({
-											search: (prev) => ({
-												...prev,
-												table: tab.table,
-												offset: 0,
-												filters: undefined,
-												orderBy: undefined,
-												orderDirection: undefined,
-												limit: 50,
-											}),
-										});
+										if (tab.id.startsWith("empty-")) {
+											// Empty tab - just switch to it without selecting a table
+											navigate({
+												search: (prev) => ({
+													...prev,
+													table: undefined,
+												}),
+											});
+										} else {
+											// Named tab with schema/table
+											navigate({
+												search: (prev) => ({
+													...prev,
+													table: tab.table,
+													offset: 0,
+													filters: undefined,
+													orderBy: undefined,
+													orderDirection: undefined,
+													limit: 50,
+												}),
+											});
+										}
 									}
 								}}
 								onTabClose={(tabId) => {
@@ -1015,17 +1029,26 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									if (remainingTabs.length > 0) {
 										const lastTab = remainingTabs[remainingTabs.length - 1];
 										setActiveTab(lastTab.id);
-										navigate({
-											search: (prev) => ({
-												...prev,
-												table: lastTab.table,
-												offset: 0,
-												filters: undefined,
-												orderBy: undefined,
-												orderDirection: undefined,
-												limit: 50,
-											}),
-										});
+										if (lastTab.id.startsWith("empty-")) {
+											navigate({
+												search: (prev) => ({
+													...prev,
+													table: undefined,
+												}),
+											});
+										} else {
+											navigate({
+												search: (prev) => ({
+													...prev,
+													table: lastTab.table,
+													offset: 0,
+													filters: undefined,
+													orderBy: undefined,
+													orderDirection: undefined,
+													limit: 50,
+												}),
+											});
+										}
 									} else {
 										// No more tabs, go back to no table selected
 										navigate({
@@ -1035,6 +1058,15 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											}),
 										});
 									}
+								}}
+								onAddTab={() => {
+									addEmptyTab();
+									navigate({
+										search: (prev) => ({
+											...prev,
+											table: undefined,
+										}),
+									});
 								}}
 							/>
 							{/* View Toggle & Filter Controls */}
