@@ -1,5 +1,5 @@
-import { cn } from "#src/lib/utils";
 import React from "react";
+import { Badge } from "./badge";
 
 interface DataTypeBadgeProps {
 	dataType: string;
@@ -19,7 +19,6 @@ function getDataTypeCategory(dataType: string): {
 		| "json"
 		| "other";
 	label: string;
-	color: string;
 } {
 	const normalized = dataType.toLowerCase().trim();
 
@@ -30,20 +29,10 @@ function getDataTypeCategory(dataType: string): {
 		normalized === "int8" ||
 		normalized === "bigint"
 	) {
-		if (normalized === "uuid") {
+		if (normalized === "uuid" || normalized.includes("uuid")) {
 			return {
 				category: "id",
 				label: "UUID",
-				color:
-					"bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
-			};
-		}
-		if (normalized.includes("uuid")) {
-			return {
-				category: "id",
-				label: "UUID",
-				color:
-					"bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
 			};
 		}
 	}
@@ -62,7 +51,6 @@ function getDataTypeCategory(dataType: string): {
 		return {
 			category: "timestamp",
 			label: "Timestamp",
-			color: "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
 		};
 	}
 
@@ -84,8 +72,6 @@ function getDataTypeCategory(dataType: string): {
 		return {
 			category: "numeric",
 			label: "Numeric",
-			color:
-				"bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
 		};
 	}
 
@@ -94,8 +80,6 @@ function getDataTypeCategory(dataType: string): {
 		return {
 			category: "boolean",
 			label: "Boolean",
-			color:
-				"bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-200",
 		};
 	}
 
@@ -108,7 +92,6 @@ function getDataTypeCategory(dataType: string): {
 		return {
 			category: "json",
 			label: "JSON",
-			color: "bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-200",
 		};
 	}
 
@@ -122,8 +105,6 @@ function getDataTypeCategory(dataType: string): {
 		return {
 			category: "text",
 			label: "Text",
-			color:
-				"bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200",
 		};
 	}
 
@@ -131,7 +112,6 @@ function getDataTypeCategory(dataType: string): {
 	return {
 		category: "other",
 		label: "Other",
-		color: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200",
 	};
 }
 
@@ -142,17 +122,15 @@ export const DataTypeBadge = React.forwardRef<
 	const typeInfo = getDataTypeCategory(dataType);
 
 	return (
-		<span
+		<Badge
 			ref={ref}
-			className={cn(
-				"inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
-				typeInfo.color,
-				className,
-			)}
+			dataType={typeInfo.category as any}
+			size="xs"
+			className={className}
 			title={dataType}
 		>
 			{typeInfo.label}
-		</span>
+		</Badge>
 	);
 });
 

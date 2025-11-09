@@ -40,6 +40,7 @@ import { OrderBySelect } from "../order-by-select";
 import { QueryFilterBuilder } from "../query-filter-builder";
 import { Button } from "../ui/button";
 import * as Breadcrumb from "../ui/breadcrumb";
+import { Badge } from "../ui/badge";
 import { Checkbox, CheckboxControl } from "../ui/checkbox.tsx";
 import { ColumnHeaderWithInfo } from "../ui/column-header-with-info";
 import { DarkModeToggle } from "../ui/dark-mode-toggle";
@@ -391,23 +392,20 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												// Handle boolean values with colored badges
 												if (typeof value === "boolean") {
 													return (
-														<span
-															className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${
-																value
-																	? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
-																	: "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"
-															}`}
+														<Badge
+															variant={value ? "success" : "error"}
+															size="xs"
 														>
 															{value ? "true" : "false"}
-														</span>
+														</Badge>
 													);
 												}
 												// Handle null/undefined with a neutral badge
 												if (value === null || value === undefined) {
 													return (
-														<span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+														<Badge variant="muted" size="xs">
 															null
-														</span>
+														</Badge>
 													);
 												}
 												return ctx.renderValue();
