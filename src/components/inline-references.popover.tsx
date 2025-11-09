@@ -34,12 +34,6 @@ interface InlineReferencesPopoverProps {
 	onNavigateToReference?: (ref: ColumnReference, cellValue: unknown) => void;
 	onExpandToSheet?: () => void;
 	onClose?: () => void;
-	/** For backwards compatibility, foreignKey will be mapped to reference */
-	foreignKey?: {
-		referencedSchema: string;
-		referencedTable: string;
-		referencedColumn: string;
-	};
 }
 
 export function InlineReferencesPopover({
@@ -47,7 +41,6 @@ export function InlineReferencesPopover({
 	table,
 	columnName,
 	reference,
-	foreignKey, // for backwards compatibility
 	cellValue,
 	connectionUrl,
 	onNavigateToFK,
@@ -55,15 +48,12 @@ export function InlineReferencesPopover({
 	onExpandToSheet,
 	onClose,
 }: InlineReferencesPopoverProps) {
-	// Support both 'reference' (new) and 'foreignKey' (backwards compat)
-	const effectiveReference = reference ?? foreignKey;
-
 	// Determine the reference target
-	const referenceTarget = effectiveReference
+	const referenceTarget = reference
 		? {
-				referencedSchema: effectiveReference.referencedSchema,
-				referencedTable: effectiveReference.referencedTable,
-				referencedColumn: effectiveReference.referencedColumn,
+				referencedSchema: reference.referencedSchema,
+				referencedTable: reference.referencedTable,
+				referencedColumn: reference.referencedColumn,
 			}
 		: {
 				referencedSchema: schema,
@@ -124,7 +114,7 @@ export function InlineReferencesPopover({
 			{/* Content */}
 			<Stack className="max-h-72 w-full overflow-y-auto space-y-3 p-3">
 				{/* Forward FK */}
-				{effectiveReference && (
+				{reference && (
 					<div>
 						<div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
 							<ChevronRight className="h-3 w-3" />
@@ -132,29 +122,24 @@ export function InlineReferencesPopover({
 						</div>
 						<button
 							onClick={() => {
-								if (
-									onNavigateToFK &&
-									effectiveReference &&
-									cellValue !== null
-								) {
-									onNavigateToFK(effectiveReference, cellValue);
+								if (onNavigateToFK && reference && cellValue !== null) {
+									onNavigateToFK(reference, cellValue);
 								}
 							}}
 							className="w-full px-2 py-1.5 flex items-center justify-between gap-2 text-xs hover:bg-muted/70 rounded transition-colors text-left font-mono"
 						>
 							<span>
 								<span className="text-muted-foreground">
-									{effectiveReference.referencedTable}.
+									{reference.referencedTable}.
 								</span>
 								<span className="font-medium">
-									{effectiveReference.referencedColumn}
+									{reference.referencedColumn}
 								</span>
 							</span>
 							<ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
 						</button>
 					</div>
-				)}
-
+				)}{" "}
 				{/* Reverse References */}
 				{reverseReferences && reverseReferences.length > 0 && (
 					<div className="w-full">
@@ -196,7 +181,6 @@ export function InlineReferencesPopover({
 						)}
 					</div>
 				)}
-
 				{/* Loading State */}
 				{isLoading && !reverseReferences.length && (
 					<div className="flex items-center justify-center py-4 gap-2 text-sm text-muted-foreground">
@@ -204,15 +188,12 @@ export function InlineReferencesPopover({
 						<span>Loading relationships...</span>
 					</div>
 				)}
-
 				{/* No References State */}
-				{!isLoading &&
-					!effectiveReference &&
-					reverseReferences.length === 0 && (
-						<div className="text-xs text-muted-foreground py-2">
-							No relationships found
-						</div>
-					)}
+				{!isLoading && !reference && reverseReferences.length === 0 && (
+					<div className="text-xs text-muted-foreground py-2">
+						No relationships found
+					</div>
+				)}
 			</Stack>
 
 			{/* Footer */}
