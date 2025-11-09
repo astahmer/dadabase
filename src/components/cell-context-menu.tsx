@@ -38,40 +38,6 @@ export function CellContextMenu({
 }: CellContextMenuProps) {
 	const [isOpen, setIsOpen] = useState(false);
 
-	const handleLogCell = () => {
-		console.log(`Cell [${columnName}]:`, cellValue);
-		setIsOpen(false);
-	};
-
-	const handleCopyCell = () => {
-		const text = cellValue === null ? "null" : String(cellValue);
-		navigator.clipboard.writeText(text).catch((err) => {
-			console.error("Failed to copy:", err);
-		});
-		setIsOpen(false);
-	};
-
-	const handleFollowFK = () => {
-		if (onFollowFK && foreignKey && cellValue !== null) {
-			onFollowFK(foreignKey, cellValue);
-		}
-		setIsOpen(false);
-	};
-
-	const handleFindReferences = () => {
-		if (onFindReferences && cellValue !== null) {
-			onFindReferences(columnName, cellValue);
-		}
-		setIsOpen(false);
-	};
-
-	const handleShowQuickReferences = () => {
-		if (onShowQuickReferences) {
-			onShowQuickReferences();
-		}
-		setIsOpen(false);
-	};
-
 	return (
 		<Menu
 			lazyMount
@@ -83,11 +49,26 @@ export function CellContextMenu({
 			</MenuContextTrigger>
 			<Portal>
 				<MenuContent className="z-1">
-					<MenuItem value="log" onClick={handleLogCell}>
+					<MenuItem
+						value="log"
+						onClick={() => {
+							console.log(`Cell [${columnName}]:`, cellValue);
+							setIsOpen(false);
+						}}
+					>
 						<Eye className="size-4" />
 						<MenuItemText>Log cell to console</MenuItemText>
 					</MenuItem>
-					<MenuItem value="copy" onClick={handleCopyCell}>
+					<MenuItem
+						value="copy"
+						onClick={() => {
+							const text = cellValue === null ? "null" : String(cellValue);
+							navigator.clipboard.writeText(text).catch((err) => {
+								console.error("Failed to copy:", err);
+							});
+							setIsOpen(false);
+						}}
+					>
 						<Copy className="size-4" />
 						<MenuItemText>Copy value</MenuItemText>
 					</MenuItem>
@@ -95,10 +76,19 @@ export function CellContextMenu({
 					{foreignKey && cellValue !== null && onFollowFK && (
 						<>
 							<MenuSeparator />
-							<MenuItem value="follow-fk" onClick={handleFollowFK}>
+							<MenuItem
+								value="follow-fk"
+								onClick={() => {
+									if (onFollowFK && foreignKey && cellValue !== null) {
+										onFollowFK(foreignKey, cellValue);
+									}
+									setIsOpen(false);
+								}}
+							>
 								<Link className="size-4" />
 								<MenuItemText>
-									Follow to {foreignKey.referencedTable}
+									Go to {foreignKey.referencedTable}.
+									{foreignKey.referencedColumn}
 								</MenuItemText>
 							</MenuItem>
 						</>
@@ -107,9 +97,17 @@ export function CellContextMenu({
 					{cellValue !== null && onFindReferences && (
 						<>
 							<MenuSeparator />
-							<MenuItem value="find-refs" onClick={handleFindReferences}>
+							<MenuItem
+								value="find-refs"
+								onClick={() => {
+									if (onFindReferences && cellValue !== null) {
+										onFindReferences(columnName, cellValue);
+									}
+									setIsOpen(false);
+								}}
+							>
 								<Search className="size-4" />
-								<MenuItemText>Find references in current table</MenuItemText>
+								<MenuItemText>Filter rows with this value</MenuItemText>
 							</MenuItem>
 						</>
 					)}
@@ -117,7 +115,15 @@ export function CellContextMenu({
 					{cellValue !== null && onShowQuickReferences && (
 						<>
 							<MenuSeparator />
-							<MenuItem value="quick-refs" onClick={handleShowQuickReferences}>
+							<MenuItem
+								value="quick-refs"
+								onClick={() => {
+									if (onShowQuickReferences) {
+										onShowQuickReferences();
+									}
+									setIsOpen(false);
+								}}
+							>
 								<Search className="size-4" />
 								<MenuItemText>View all relationships</MenuItemText>
 							</MenuItem>

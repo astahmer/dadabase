@@ -1,4 +1,8 @@
-import { MoreHorizontal } from "lucide-react";
+import {
+	LucideMoreHorizontal,
+	MoreHorizontal,
+	MoreHorizontalIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { Button } from "./button";
 import { Menu, MenuTrigger, MenuContent, MenuItem, MenuItemText } from "./menu";
@@ -32,7 +36,7 @@ export function RowActionsMenu({ row }: RowActionsMenuProps) {
 		>
 			<MenuTrigger asChild>
 				<Button variant="ghost" size="xs">
-					<MoreHorizontal className="h-3! w-3!" />
+					<LucideMoreHorizontal />
 				</Button>
 			</MenuTrigger>
 			<Portal>
