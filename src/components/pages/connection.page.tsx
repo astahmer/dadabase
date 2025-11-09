@@ -124,13 +124,16 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
-	const { tabs, activeTabId, addTab, addEmptyTab, closeTab, setActiveTab } =
-		useOpenTabs(connectionName);
+	const { tabs, addTab, addEmptyTab, closeTab } = useOpenTabs(connectionName);
 
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
 	const connectionUrl = connection?.url || "";
 	const search = useSearch({ from: "/connections/$connectionName" });
+
+	// Derive the active tab from the URL search params instead of internal state
+	// This ensures the tab selection always matches the current URL
+	const activeTabId = search.schema && search.table ? `${search.schema}.${search.table}` : null;
 
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
@@ -1209,10 +1212,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																	const schema = search.schema || "public";
 																	setTable(table.name);
 																	addTab(schema, table.name);
-																	setActiveTab(`${schema}.${table.name}`);
 																	navigate({
 																		search: (prev) => ({
 																			...prev,
+																			schema: schema,
 																			table: table.name,
 																			offset: 0,
 																			filters: undefined,
@@ -1254,7 +1257,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						onTabChange={(tabId) => {
 							const tab = tabs.find((t) => t.id === tabId);
 							if (tab) {
-								setActiveTab(tabId);
 								if (tab.id.startsWith("empty-")) {
 									// Empty tab - just switch to it without selecting a table
 									navigate({
@@ -1264,10 +1266,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										}),
 									});
 								} else {
-									// Named tab with schema/table
+									// Named tab with schema/table - navigate to it
 									navigate({
 										search: (prev) => ({
 											...prev,
+											schema: tab.schema,
 											table: tab.table,
 											offset: 0,
 											filters: undefined,
@@ -1285,7 +1288,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							const remainingTabs = tabs.filter((t) => t.id !== tabId);
 							if (remainingTabs.length > 0) {
 								const lastTab = remainingTabs[remainingTabs.length - 1];
-								setActiveTab(lastTab.id);
 								if (lastTab.id.startsWith("empty-")) {
 									navigate({
 										search: (prev) => ({
@@ -1297,6 +1299,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 									navigate({
 										search: (prev) => ({
 											...prev,
+											schema: lastTab.schema,
 											table: lastTab.table,
 											offset: 0,
 											filters: undefined,
