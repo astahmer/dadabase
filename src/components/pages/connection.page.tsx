@@ -224,6 +224,17 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		tableList.some((t) => t.schema === schema),
 	);
 
+	// Calculate counts for databases and schemas
+	const schemaTableCounts = useMemo(() => {
+		const counts = new Map<string, number>();
+		tableList.forEach((table) => {
+			if (table.schema) {
+				counts.set(table.schema, (counts.get(table.schema) || 0) + 1);
+			}
+		});
+		return counts;
+	}, [tableList]);
+
 	// Filter tables based on search term
 	const { contains } = useFilter({ sensitivity: "base" });
 
@@ -479,7 +490,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	}
 
 	const schemaCollection = ArkSelect.createListCollection({
-		items: schemaList.map((s: string) => ({ label: s, value: s })),
+		items: schemaList.map((s: string) => {
+			const tableCount = schemaTableCounts.get(s) || 0;
+			return {
+				label: `${s} (${tableCount} tables)`,
+				value: s,
+			};
+		}),
 	});
 
 	const filterConditions = search.filters?.conditions ?? [];
