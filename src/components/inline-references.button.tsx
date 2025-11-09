@@ -1,7 +1,7 @@
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
 import { Popover, Portal } from "@ark-ui/react";
 import { Link as LinkIcon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { InlineReferencesPopover } from "./inline-references.popover";
 import { Button } from "./ui/button.tsx";
 
@@ -44,21 +44,49 @@ export function InlineReferencesButton({
 	children,
 }: InlineReferencesButton) {
 	const [isOpen, setIsOpen] = useState(false);
-	const [isModifierPressed, setIsModifierPressed] = useState(false);
-	const [isHovering, setIsHovering] = useState(false);
+	const divRef = useRef<HTMLDivElement>(null);
+	const mousePositionRef = useRef({ x: 0, y: 0 });
+	const isModifierPressedRef = useRef(false);
+
+	const updateDataAttribute = () => {
+		if (!divRef.current) return;
+		const rect = divRef.current.getBoundingClientRect();
+		const { x, y } = mousePositionRef.current;
+		const isMouseOver =
+			x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+
+		if (isMouseOver && isModifierPressedRef.current) {
+			divRef.current.dataset.cmdHover = "true";
+		} else {
+			delete divRef.current.dataset.cmdHover;
+		}
+	};
 
 	useEffect(() => {
-		const checkModifier = (e: KeyboardEvent) => {
-			setIsModifierPressed(e.ctrlKey || e.metaKey);
+		const trackMouse = (e: MouseEvent) => {
+			mousePositionRef.current = { x: e.clientX, y: e.clientY };
+			updateDataAttribute();
 		};
 
-		const handleKeyUp = () => setIsModifierPressed(false);
+		const handleKeyDown = (e: KeyboardEvent) => {
+			isModifierPressedRef.current = e.ctrlKey || e.metaKey;
+			updateDataAttribute();
+		};
 
-		window.addEventListener("keydown", checkModifier);
+		const handleKeyUp = () => {
+			isModifierPressedRef.current = false;
+			if (divRef.current) {
+				delete divRef.current.dataset.cmdHover;
+			}
+		};
+
+		window.addEventListener("mousemove", trackMouse);
+		window.addEventListener("keydown", handleKeyDown);
 		window.addEventListener("keyup", handleKeyUp);
 
 		return () => {
-			window.removeEventListener("keydown", checkModifier);
+			window.removeEventListener("mousemove", trackMouse);
+			window.removeEventListener("keydown", handleKeyDown);
 			window.removeEventListener("keyup", handleKeyUp);
 		};
 	}, []);
@@ -80,14 +108,12 @@ export function InlineReferencesButton({
 				</Button>
 			</Popover.Trigger>
 			<div
+				ref={divRef}
 				onClick={(e) => {
 					if (e.ctrlKey || e.metaKey) {
 						setIsOpen(true);
 					}
 				}}
-				onMouseEnter={() => setIsHovering(true)}
-				onMouseLeave={() => setIsHovering(false)}
-				data-cmd-hover={isHovering && isModifierPressed ? "true" : undefined}
 				className="group cursor-pointer transition-all"
 			>
 				{children}
