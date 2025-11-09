@@ -11,6 +11,7 @@ interface ColumnHeaderWithInfoProps {
 	className?: string;
 	isPrimaryKey?: boolean;
 	isUnique?: boolean;
+	sortOrder?: "asc" | "desc" | false;
 }
 
 export const ColumnHeaderWithInfo = React.forwardRef<
@@ -25,6 +26,7 @@ export const ColumnHeaderWithInfo = React.forwardRef<
 		className,
 		isPrimaryKey = false,
 		isUnique = false,
+		sortOrder,
 	},
 	ref,
 ) {
@@ -35,6 +37,11 @@ export const ColumnHeaderWithInfo = React.forwardRef<
 	}
 	if (isUnique) {
 		tooltipParts.push("Unique");
+	}
+	if (sortOrder) {
+		tooltipParts.push(
+			`Sorted ${sortOrder === "desc" ? "descending" : "ascending"}`,
+		);
 	}
 	const tooltipContent = tooltipParts.join(" • ");
 

@@ -410,18 +410,25 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							(col) =>
 								({
 									accessorKey: col.name,
-									header: () => (
-										<ColumnHeaderWithInfo
-											columnName={col.name}
-											dataType={col.dataType}
-											showBadge
-											isPrimaryKey={col.primaryKey}
-											isUnique={col.unique}
-										>
-											<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
-											<UniqueConstraintIcon isUnique={col.unique} />
-										</ColumnHeaderWithInfo>
-									),
+									header: () => {
+										const sortOrder =
+											search.orderBy === col.name
+												? (search.orderDirection as "asc" | "desc")
+												: false;
+										return (
+											<ColumnHeaderWithInfo
+												columnName={col.name}
+												dataType={col.dataType}
+												showBadge
+												isPrimaryKey={col.primaryKey}
+												isUnique={col.unique}
+												sortOrder={sortOrder}
+											>
+												<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
+												<UniqueConstraintIcon isUnique={col.unique} />
+											</ColumnHeaderWithInfo>
+										);
+									},
 									meta: {
 										textAlign: getColumnTextAlignment(col.dataType),
 									},

@@ -1,7 +1,6 @@
 - copy/export data (csv, json, tsv, toon)
 - copy/export table structure (csv, json, tsv, toon)
 - switch filter from query builder to SQL raw input (switch with icon buttons like the view mode buttons)
-- add tabs: when there's no selected table clicking on a sql table opens a new tab with the table data, otherwise you need to double click to open a new tab? or click on a button near the table name?
 - JSON viewer available when clicking a table row -> show JSON data in a side panel
 - when clicking a table row -> JSON viewer that auto fetch nested entities with foreign keys (up to a limit of 50 rows per relation)
 - when clicking a table row -> add a way to copy as JSON (with nested entities based on foreign keys)
