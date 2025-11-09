@@ -103,3 +103,18 @@ export const key_column_usage = information_schema.table("key_column_usage", {
 	ordinal_position: integer().notNull(),
 	position_in_unique_constraint: integer(),
 });
+
+export const referential_constraints = information_schema.table(
+	"referential_constraints",
+	{
+		constraint_catalog: text().notNull(),
+		constraint_schema: text().notNull(),
+		constraint_name: text().notNull(),
+		unique_constraint_catalog: text(),
+		unique_constraint_schema: text(),
+		unique_constraint_name: text(),
+		match_option: text(),
+		update_rule: text(),
+		delete_rule: text(),
+	},
+);

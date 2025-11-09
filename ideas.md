@@ -10,6 +10,10 @@
 - support NOT operator in natural language search
 - try to match possible operators based on datatype; ex: timestamps shouldnt have
 - rows count (in muted text) for each table in the sidebar like `{tableName} ({rowsCount})`
+- add a way to see the query plan for the current query
+- add a way to visualize indexes for the current table
+- add a way to visualize foreign keys for the current table
+- suggested queries based on the current table schema and data -> find all possible values for a column (helps with enums stored as strings)
 
 - add a way to favorite/save queries
 - add a way to view query history

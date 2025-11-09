@@ -3,6 +3,12 @@ import { DataTypeBadge } from "./data-type-badge";
 import type { ReactNode } from "react";
 import React from "react";
 
+interface ForeignKeyInfo {
+	referencedSchema: string;
+	referencedTable: string;
+	referencedColumn: string;
+}
+
 interface ColumnHeaderWithInfoProps {
 	columnName: string;
 	dataType: string;
@@ -11,6 +17,8 @@ interface ColumnHeaderWithInfoProps {
 	className?: string;
 	isPrimaryKey?: boolean;
 	isUnique?: boolean;
+	isForeignKey?: boolean;
+	foreignKey?: ForeignKeyInfo;
 	sortOrder?: "asc" | "desc" | false;
 }
 
@@ -26,6 +34,8 @@ export const ColumnHeaderWithInfo = React.forwardRef<
 		className,
 		isPrimaryKey = false,
 		isUnique = false,
+		isForeignKey = false,
+		foreignKey,
 		sortOrder,
 	},
 	ref,
@@ -37,6 +47,11 @@ export const ColumnHeaderWithInfo = React.forwardRef<
 	}
 	if (isUnique) {
 		tooltipParts.push("Unique");
+	}
+	if (isForeignKey && foreignKey) {
+		tooltipParts.push(
+			`Foreign Key → ${foreignKey.referencedSchema}.${foreignKey.referencedTable}.${foreignKey.referencedColumn}`,
+		);
 	}
 	if (sortOrder) {
 		tooltipParts.push(

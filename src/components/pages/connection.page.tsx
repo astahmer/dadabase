@@ -46,6 +46,7 @@ import { Checkbox, CheckboxControl } from "../ui/checkbox.tsx";
 import { ColumnHeaderWithInfo } from "../ui/column-header-with-info";
 import { DarkModeToggle } from "../ui/dark-mode-toggle";
 import { DataTypeBadge } from "../ui/data-type-badge";
+import { ForeignKeyIcon } from "../ui/foreign-key-icon";
 import { JsonCell } from "../ui/json-cell";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
@@ -422,10 +423,15 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												showBadge
 												isPrimaryKey={col.primaryKey}
 												isUnique={col.unique}
+												isForeignKey={col.isForeignKey}
+												foreignKey={col.foreignKey}
 												sortOrder={sortOrder}
 											>
 												<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
 												<UniqueConstraintIcon isUnique={col.unique} />
+												<ForeignKeyIcon
+													isForeignKey={col.isForeignKey ?? false}
+												/>
 											</ColumnHeaderWithInfo>
 										);
 									},
@@ -1468,7 +1474,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																		</Button>
 																	</Pagination.PrevTrigger>
 																	<span className="text-xs mx-2">
-																		{pagination.page} / {pagination.totalPages}
+																		{pagination.page} /{" "}
+																		{pagination.totalPages === 0
+																			? "..."
+																			: pagination.totalPages}
 																	</span>
 																	<Pagination.NextTrigger asChild>
 																		<Button
@@ -1772,6 +1781,12 @@ const StructureTable = (props: {
 		primaryKey: boolean;
 		unique: boolean;
 		defaultValue: string | null;
+		isForeignKey?: boolean;
+		foreignKey?: {
+			referencedSchema: string;
+			referencedTable: string;
+			referencedColumn: string;
+		};
 	}>;
 	isLoading: boolean;
 	tableSize: "compact" | "cozy" | "comfortable";
@@ -1833,6 +1848,23 @@ const StructureTable = (props: {
 							<UniqueConstraintIcon isUnique={info.getValue<boolean>()} />
 						</HStack>
 					),
+				},
+				{
+					id: "foreignKey",
+					header: "Foreign Key",
+					enableResizing: true,
+					cell: (info) => {
+						const row = info.row.original;
+						if (!row.isForeignKey || !row.foreignKey) {
+							return <span className="text-xs text-muted-foreground">—</span>;
+						}
+						const fk = row.foreignKey;
+						return (
+							<span className="text-xs font-mono">
+								{fk.referencedSchema}.{fk.referencedTable}.{fk.referencedColumn}
+							</span>
+						);
+					},
 				},
 				{
 					accessorKey: "defaultValue",
