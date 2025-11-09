@@ -42,6 +42,7 @@ import * as Breadcrumb from "../ui/breadcrumb";
 import { Checkbox, CheckboxControl } from "../ui/checkbox.tsx";
 import { ColumnHeaderWithInfo } from "../ui/column-header-with-info";
 import { DarkModeToggle } from "../ui/dark-mode-toggle";
+import { DataTypeBadge } from "../ui/data-type-badge";
 import { JsonCell } from "../ui/json-cell";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
@@ -291,7 +292,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											columnName={col.name}
 											dataType={col.dataType}
 											showBadge
-										/>
+										>
+											<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
+										</ColumnHeaderWithInfo>
 									),
 									meta: {
 										textAlign: getColumnTextAlignment(col.dataType),
@@ -1361,7 +1364,12 @@ const StructureTable = (props: {
 					maxSize: 200,
 					enableResizing: true,
 					cell: (info) => (
-						<span className="text-xs font-mono">{info.getValue<string>()}</span>
+						<div className="flex items-center gap-2">
+							<DataTypeBadge dataType={info.getValue<string>()} />
+							<span className="text-xs font-mono text-muted-foreground">
+								{info.getValue<string>()}
+							</span>
+						</div>
 					),
 				},
 				{
