@@ -7,6 +7,7 @@ import { ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { PageLimitSelect } from "./page-limit.select.tsx";
 import { runIfFn } from "./run-if-fn.ts";
+import { RowContextMenu } from "./row-context-menu";
 import {
 	tableCellStyles,
 	tableEmptyStateStyles,
@@ -295,35 +296,37 @@ const TableRow = memo(function TableRow({
 
 	return (
 		<Fragment>
-			<tr
-				className={tableRowStyles({
-					striped,
-					selected: isSelected,
-					interactive: interactive && !!onRowClick,
-				})}
-				data-testid={`row-${index}`}
-				data-state={isSelected && "selected"}
-				onClick={
-					onRowClick
-						? (e) => {
-								if (isDescendantOfButton(e, ["BUTTON", "A"])) return;
-								e.stopPropagation();
-								return onRowClick(row);
-							}
-						: undefined
-				}
-			>
-				{visibleCells.map((cell, cellIndex) => (
-					<TableCell
-						key={cell.id}
-						cell={cell}
-						index={cellIndex}
-						isExpanded={row.getIsExpanded()}
-						size={size}
-						showColumnBorder={showColumnBorder}
-					/>
-				))}
-			</tr>
+			<RowContextMenu row={row.original as Record<string, unknown>}>
+				<tr
+					className={tableRowStyles({
+						striped,
+						selected: isSelected,
+						interactive: interactive && !!onRowClick,
+					})}
+					data-testid={`row-${index}`}
+					data-state={isSelected && "selected"}
+					onClick={
+						onRowClick
+							? (e) => {
+									if (isDescendantOfButton(e, ["BUTTON", "A"])) return;
+									e.stopPropagation();
+									return onRowClick(row);
+								}
+							: undefined
+					}
+				>
+					{visibleCells.map((cell, cellIndex) => (
+						<TableCell
+							key={cell.id}
+							cell={cell}
+							index={cellIndex}
+							isExpanded={row.getIsExpanded()}
+							size={size}
+							showColumnBorder={showColumnBorder}
+						/>
+					))}
+				</tr>
+			</RowContextMenu>
 			{row.getIsExpanded() && ExpandedRow && (
 				<tr
 					className={`border-b ${isSelected ? "bg-blue-50" : ""}`}
