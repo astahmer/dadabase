@@ -1004,7 +1004,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																</span>
 															</span>
 															<span className="shrink-0">
-																{search.offset}-{search.offset + search.limit}{" "}
+																{search.offset}-
+																{Math.min(
+																	totalRowCount,
+																	search.offset + search.limit,
+																)}{" "}
 																<span className="hidden md:inline">
 																	out of{" "}
 																</span>
