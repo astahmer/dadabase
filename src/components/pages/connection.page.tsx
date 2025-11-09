@@ -439,37 +439,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										textAlign: getColumnTextAlignment(col.dataType),
 									},
 									cell: col.dataType.toLowerCase().includes("json")
-										? (ctx) => (
-												<CellContextMenu
-													cellValue={ctx.row.original[col.name]}
-													columnName={col.name}
-													foreignKey={col.foreignKey}
-													onFollowFK={(fkInfo) => {
-														const event = new CustomEvent("cellFollowFK", {
-															detail: {
-																columnName: col.name,
-																cellValue: ctx.row.original[col.name],
-																fkInfo,
-															},
-														});
-														window.dispatchEvent(event);
-													}}
-													onFindReferences={() => {
-														const event = new CustomEvent(
-															"cellFindReferences",
-															{
-																detail: {
-																	columnName: col.name,
-																	cellValue: ctx.row.original[col.name],
-																},
-															},
-														);
-														window.dispatchEvent(event);
-													}}
-												>
-													<JsonCell value={ctx.row.original[col.name]} />
-												</CellContextMenu>
-											)
+										? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
 										: (ctx) => {
 												const value = ctx.getValue();
 												const content = (() => {

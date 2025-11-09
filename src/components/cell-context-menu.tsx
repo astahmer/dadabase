@@ -9,6 +9,7 @@ import {
 	MenuItemText,
 	MenuSeparator,
 } from "./ui/menu";
+import { Portal } from "@ark-ui/react";
 
 export interface ForeignKeyInfo {
 	referencedSchema: string;
@@ -68,38 +69,42 @@ export function CellContextMenu({
 			open={isOpen}
 			onOpenChange={(details) => setIsOpen(details.open)}
 		>
-			<MenuContextTrigger asChild>{children}</MenuContextTrigger>
-			<MenuContent className="z-1">
-				<MenuItem value="log" onClick={handleLogCell}>
-					<MenuItemText>Log cell to console</MenuItemText>
-				</MenuItem>
-				<MenuItem value="copy" onClick={handleCopyCell}>
-					<Copy className="size-4" />
-					<MenuItemText>Copy value</MenuItemText>
-				</MenuItem>
+			<MenuContextTrigger>
+				<span className="select-text cursor-auto">{children}</span>
+			</MenuContextTrigger>
+			<Portal>
+				<MenuContent className="z-1">
+					<MenuItem value="log" onClick={handleLogCell}>
+						<MenuItemText>Log cell to console</MenuItemText>
+					</MenuItem>
+					<MenuItem value="copy" onClick={handleCopyCell}>
+						<Copy className="size-4" />
+						<MenuItemText>Copy value</MenuItemText>
+					</MenuItem>
 
-				{foreignKey && cellValue !== null && (
-					<>
-						<MenuSeparator />
-						<MenuItem value="follow-fk" onClick={handleFollowFK}>
-							<Link className="size-4" />
-							<MenuItemText>
-								Follow to {foreignKey.referencedTable}
-							</MenuItemText>
-						</MenuItem>
-					</>
-				)}
+					{foreignKey && cellValue !== null && (
+						<>
+							<MenuSeparator />
+							<MenuItem value="follow-fk" onClick={handleFollowFK}>
+								<Link className="size-4" />
+								<MenuItemText>
+									Follow to {foreignKey.referencedTable}
+								</MenuItemText>
+							</MenuItem>
+						</>
+					)}
 
-				{cellValue !== null && (
-					<>
-						<MenuSeparator />
-						<MenuItem value="find-refs" onClick={handleFindReferences}>
-							<Search className="size-4" />
-							<MenuItemText>Find references</MenuItemText>
-						</MenuItem>
-					</>
-				)}
-			</MenuContent>
+					{cellValue !== null && (
+						<>
+							<MenuSeparator />
+							<MenuItem value="find-refs" onClick={handleFindReferences}>
+								<Search className="size-4" />
+								<MenuItemText>Find references</MenuItemText>
+							</MenuItem>
+						</>
+					)}
+				</MenuContent>
+			</Portal>
 		</Menu>
 	);
 }
