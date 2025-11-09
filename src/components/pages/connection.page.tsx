@@ -220,6 +220,46 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		fkValue: options?.fkValue,
 	});
 
+	// Helper function to update the active tab's state along with main search state
+	const updateActiveTab = (
+		updates: Partial<
+			Record<
+				| "filters"
+				| "filtersOpened"
+				| "orderBy"
+				| "orderDirection"
+				| "limit"
+				| "offset"
+				| "viewMode"
+				| "tableSize"
+				| "hiddenColumnList"
+				| "tableFilter",
+				any
+			>
+		>,
+	) => {
+		navigate({
+			search: (prev) => {
+				// Update the currently active tab with the same updates
+				const updatedTabs = (prev.tabs ?? []).map((tab) => {
+					if (tab.tabId === prev.activeTabId) {
+						return {
+							...tab,
+							...updates,
+						};
+					}
+					return tab;
+				});
+
+				return {
+					...prev,
+					...updates,
+					tabs: updatedTabs,
+				};
+			},
+		});
+	};
+
 	const { setSchema, setTable } = useConnectionStorage(connectionName);
 
 	// Use the selected database from search params, fall back to the default
@@ -281,31 +321,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 				shouldOpenFilters = true;
 			}
 
-			navigate({
-				search: (prev) => {
-					// Update the currently active tab's filters in the tabs array
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								filters: updatedFilter,
-								filtersOpened: shouldOpenFilters,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
-						filters: updatedFilter || undefined,
-						filtersOpened: shouldOpenFilters,
-						offset: 0, // Reset to first page when filters change
-						limit: 50,
-						orderBy: undefined,
-						orderDirection: undefined,
-						tabs: updatedTabs,
-					};
-				},
+			updateActiveTab({
+				filters: updatedFilter || undefined,
+				filtersOpened: shouldOpenFilters,
+				offset: 0, // Reset to first page when filters change
+				limit: 50,
+				orderBy: undefined,
+				orderDirection: undefined,
 			});
 		},
 	);
@@ -918,13 +940,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			const newSorting =
 				typeof updater === "function" ? updater(sortingState) : updater;
 			const firstSort = newSorting[0];
-			navigate({
-				search: (prev) => ({
-					...prev,
-					orderBy: firstSort?.id || undefined,
-					orderDirection: firstSort?.desc ? "desc" : "asc",
-					offset: 0,
-				}),
+			updateActiveTab({
+				orderBy: firstSort?.id || undefined,
+				orderDirection: firstSort?.desc ? "desc" : "asc",
+				offset: 0,
 			});
 		},
 		onPaginationChange: (updater) => {
@@ -934,12 +953,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			};
 			const newPagination =
 				typeof updater === "function" ? updater(current) : updater;
-			navigate({
-				search: (prev) => ({
-					...prev,
-					offset: newPagination.pageIndex * newPagination.pageSize,
-					limit: newPagination.pageSize,
-				}),
+			updateActiveTab({
+				offset: newPagination.pageIndex * newPagination.pageSize,
+				limit: newPagination.pageSize,
 			});
 		},
 		onColumnVisibilityChange: (updater) => {
@@ -951,11 +967,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			const hiddenCols = Object.keys(newVisibility)
 				.filter((key) => !newVisibility[key])
 				.sort();
-			navigate({
-				search: (prev) => ({
-					...prev,
-					hiddenColumnList: hiddenCols.length > 0 ? hiddenCols : undefined,
-				}),
+			updateActiveTab({
+				hiddenColumnList: hiddenCols.length > 0 ? hiddenCols : undefined,
 			});
 		},
 	});
@@ -1553,11 +1566,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												}
 												size="sm"
 												onClick={() =>
-													navigate({
-														search: (prev) => ({
-															...prev,
-															viewMode: "rows",
-														}),
+													updateActiveTab({
+														viewMode: "rows",
 													})
 												}
 											>
@@ -1573,11 +1583,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 												}
 												size="sm"
 												onClick={() =>
-													navigate({
-														search: (prev) => ({
-															...prev,
-															viewMode: "structure",
-														}),
+													updateActiveTab({
+														viewMode: "structure",
 													})
 												}
 											>
@@ -1596,11 +1603,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													if (queryBuilder.filter.conditions.length === 0) {
 														queryBuilder.addCondition();
 													} else {
-														navigate({
-															search: (prev) => ({
-																...prev,
-																filtersOpened: !prev.filtersOpened,
-															}),
+														updateActiveTab({
+															filtersOpened: !search.filtersOpened,
 														});
 													}
 												}}
@@ -1720,13 +1724,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											orderBy={search.orderBy}
 											orderDirection={search.orderDirection}
 											onOrderChange={(orderBy, direction) => {
-												navigate({
-													search: (prev) => ({
-														...prev,
-														orderBy,
-														orderDirection: direction || "asc",
-														offset: 0,
-													}),
+												updateActiveTab({
+													orderBy,
+													orderDirection: direction || "asc",
+													offset: 0,
 												});
 											}}
 											getColumnLabel={(col) => col}
@@ -1869,11 +1870,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														siblingCount={1}
 														page={Math.floor(search.offset / search.limit) + 1}
 														onPageChange={(details) => {
-															navigate({
-																search: (prev) => ({
-																	...prev,
-																	offset: (details.page - 1) * search.limit,
-																}),
+															updateActiveTab({
+																offset: (details.page - 1) * search.limit,
 															});
 														}}
 													>
@@ -1916,12 +1914,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														<RowsPerPageSelector
 															value={search.limit}
 															onValueChange={(newLimit) => {
-																navigate({
-																	search: (prev) => ({
-																		...prev,
-																		limit: newLimit,
-																		offset: 0,
-																	}),
+																updateActiveTab({
+																	limit: newLimit,
+																	offset: 0,
 																});
 															}}
 														/>
@@ -1946,11 +1941,8 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 															}) => {
 																const newSize = (details.value?.[0] ||
 																	"cozy") as "compact" | "cozy" | "comfortable";
-																navigate({
-																	search: (prev) => ({
-																		...prev,
-																		tableSize: newSize,
-																	}),
+																updateActiveTab({
+																	tableSize: newSize,
 																});
 															}}
 														>
