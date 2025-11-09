@@ -62,6 +62,7 @@ import { Tooltip } from "../ui/tooltip.tsx";
 import { useDataTable } from "../use-data-table";
 import { ConnectionForm } from "./connection.form.tsx";
 import { DateTime } from "effect";
+import { LogRowButton } from "../ui/log-row-button";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -344,6 +345,18 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							size: 40,
 							minSize: 40,
 							maxSize: 40,
+							enableResizing: false,
+							enableSorting: false,
+						},
+						{
+							id: "log-row",
+							header: () => null,
+							cell: ({ row }: { row: any }) => (
+								<LogRowButton row={row.original} />
+							),
+							size: 60,
+							minSize: 60,
+							maxSize: 60,
 							enableResizing: false,
 							enableSorting: false,
 						},
