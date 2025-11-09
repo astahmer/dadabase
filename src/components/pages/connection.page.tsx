@@ -46,9 +46,17 @@ import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
 import { PrimaryKeyIcon } from "../ui/primary-key-icon";
 import * as ArkSelect from "../ui/select";
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+} from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { useDataTable } from "../use-data-table";
+import { ConnectionForm } from "./connection.form.tsx";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -71,6 +79,7 @@ interface ConnectionPageProps {
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
+	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
 
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
@@ -484,9 +493,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 															value: "__add",
 														}}
 														onClick={() => {
-															navigate({
-																to: "/",
-															});
+															setShowAddConnectionDrawer(true);
 														}}
 													>
 														Add new connection
@@ -987,7 +994,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 															</span>
 															<span className="shrink-0">
 																{search.offset}-{search.offset + search.limit}{" "}
-																<span className="hidden md:inline">out of</span>
+																<span className="hidden md:inline">
+																	out of{" "}
+																</span>
 																<span className="hidden md:inline">
 																	{totalRowCount}
 																</span>
@@ -1142,6 +1151,38 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					)}
 				</div>
 			</div>
+
+			{/* Add Connection Drawer */}
+			<Sheet
+				open={showAddConnectionDrawer}
+				onOpenChange={(details) => {
+					if (!details.open) setShowAddConnectionDrawer(false);
+				}}
+			>
+				<SheetContent className="z-50 w-full sm:max-w-[540px]">
+					<SheetHeader>
+						<SheetTitle>Add Connection</SheetTitle>
+						<SheetDescription>
+							Create a new database connection
+						</SheetDescription>
+					</SheetHeader>
+					<div className="px-4">
+						<ConnectionForm
+							mode="create"
+							onSuccess={(newConnectionName) => {
+								setShowAddConnectionDrawer(false);
+								// Navigate to the new connection page
+								if (newConnectionName) {
+									navigate({
+										to: "/connections/$connectionName",
+										params: { connectionName: newConnectionName },
+									});
+								}
+							}}
+						/>
+					</div>
+				</SheetContent>
+			</Sheet>
 		</div>
 	);
 };

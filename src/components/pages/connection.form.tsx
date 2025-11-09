@@ -45,7 +45,7 @@ export type ConnectionFormValues = z.infer<typeof connectionFormSchema>;
 interface ConnectionFormProps {
 	mode?: "create" | "edit";
 	initialValues?: ConnectionFormValues & { id?: string };
-	onSuccess?: () => void;
+	onSuccess?: (connectionName?: string) => void;
 }
 
 export function ConnectionForm({
@@ -84,6 +84,7 @@ export function ConnectionForm({
 						),
 						description: "Connection created successfully",
 					});
+					onSuccess?.(ctx.value.connectionName);
 				} else {
 					await updateMutation.mutateAsync({
 						data: {
@@ -101,8 +102,8 @@ export function ConnectionForm({
 						),
 						description: "Connection updated successfully",
 					});
+					onSuccess?.();
 				}
-				onSuccess?.();
 			} catch (error) {
 				toaster.create({
 					title: (
