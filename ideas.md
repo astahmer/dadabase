@@ -15,6 +15,7 @@
 - add a way to visualize indexes for the current table
 - add a way to visualize foreign keys for the current table
 - suggested queries based on the current table schema and data -> find all possible values for a column (helps with enums stored as strings)
+- suggest missing indexes to add
 - date filter with calendar/date range with presets (today, last 7 days, last 30 days, this month, last month, this year, last year)
 
 - add a way to favorite/save queries

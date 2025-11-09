@@ -124,7 +124,7 @@ export function CellContextMenu({
 								}}
 							>
 								<Link2 className="size-4" />
-								<MenuItemText>View all relationships</MenuItemText>
+								<MenuItemText>View all references</MenuItemText>
 							</MenuItem>
 						</>
 					)}

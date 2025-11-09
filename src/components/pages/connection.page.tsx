@@ -282,15 +282,30 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			}
 
 			navigate({
-				search: (prev) => ({
-					...prev,
-					filters: updatedFilter || undefined,
-					filtersOpened: shouldOpenFilters,
-					offset: 0, // Reset to first page when filters change
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
-				}),
+				search: (prev) => {
+					// Update the currently active tab's filters in the tabs array
+					const updatedTabs = (prev.tabs ?? []).map((tab) => {
+						if (tab.tabId === prev.activeTabId) {
+							return {
+								...tab,
+								filters: updatedFilter,
+								filtersOpened: shouldOpenFilters,
+							};
+						}
+						return tab;
+					});
+
+					return {
+						...prev,
+						filters: updatedFilter || undefined,
+						filtersOpened: shouldOpenFilters,
+						offset: 0, // Reset to first page when filters change
+						limit: 50,
+						orderBy: undefined,
+						orderDirection: undefined,
+						tabs: updatedTabs,
+					};
+				},
 			});
 		},
 	);
