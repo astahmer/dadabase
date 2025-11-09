@@ -32,7 +32,7 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 				referencedTable: string;
 				referencedColumn: string;
 			}>`
-				SELECT DISTINCT
+				SELECT
 					a.attname AS "columnName",
 					nf.nspname AS "referencedSchema",
 					cf.relname AS "referencedTable",
@@ -51,8 +51,6 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 					AND con.contype = 'f'
 					AND a.attnum > 0
 					AND NOT a.attisdropped
-				ORDER BY
-					a.attnum
 			`);
 
 			// Create a map for quick FK lookup
