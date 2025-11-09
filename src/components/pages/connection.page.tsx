@@ -1396,7 +1396,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								)}
 
 							{/* Content */}
-							<div className="flex-1 overflow-hidden flex flex-col">
+							<div className="flex-1 overflow-hidden flex flex-col h-full">
 								{search.viewMode === "structure" ? (
 									<div className="flex-1 p-2 pt-0 overflow-auto">
 										<StructureTable
@@ -1406,7 +1406,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										/>
 									</div>
 								) : (
-									<div className="flex-1 overflow-auto flex flex-col">
+									<div className="flex-1 overflow-auto flex flex-col h-full">
 										{rowsQuery.isLoading ? (
 											<Stack className="flex-1 flex items-center justify-center">
 												<Spinner />

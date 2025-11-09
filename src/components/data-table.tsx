@@ -82,7 +82,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		<>
 			{runIfFn(top, table)}
 			{runIfFn(header, table)}
-			<div className={`overflow-x-auto ${className || ""}`}>
+			<div className={`overflow-x-auto h-full ${className || ""}`}>
 				<table
 					className={tableStyles({ variant })}
 					style={{
