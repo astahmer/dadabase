@@ -39,8 +39,8 @@ export const TableTabsBar = ({
 				}}
 				className="flex flex-col gap-0"
 			>
-				<div className="flex items-center gap-1 px-2 py-2 overflow-x-auto bg-muted/50">
-					<Tabs.List className="flex items-center gap-1">
+				<div className="flex items-baseline justify-between gap-1 px-2 py-2 bg-muted/50">
+					<Tabs.List className="flex items-center gap-1 overflow-x-auto">
 						{tabs.map((tab) => (
 							<Tabs.Trigger
 								key={tab.tabId}
@@ -94,7 +94,7 @@ export const TableTabsBar = ({
 							onClick={onAddTab}
 							variant="outline"
 							size="sm"
-							className="ml-auto shrink-0"
+							className="ml-4 shrink-0"
 							aria-label="Add new tab"
 							type="button"
 						>
