@@ -20,6 +20,7 @@ export interface ForeignKeyInfo {
 export interface CellContextMenuProps {
 	cellValue: unknown;
 	columnName: string;
+	primaryKey?: boolean;
 	foreignKey?: ForeignKeyInfo;
 	onFollowFK?: (fkInfo: ForeignKeyInfo, cellValue: unknown) => void;
 	onFindReferences?: (columnName: string, cellValue: unknown) => void;
@@ -31,6 +32,7 @@ export interface CellContextMenuProps {
 export function CellContextMenu({
 	cellValue,
 	columnName,
+	primaryKey,
 	foreignKey,
 	onFollowFK,
 	onFindReferences,
@@ -111,22 +113,24 @@ export function CellContextMenu({
 						</>
 					)}
 
-					{cellValue !== null && onShowQuickReferences && (
-						<>
-							<MenuSeparator />
-							<MenuItem
-								value="quick-refs"
-								onClick={() => {
-									if (onShowQuickReferences) {
-										onShowQuickReferences();
-									}
-								}}
-							>
-								<Link2 className="size-4" />
-								<MenuItemText>View all references</MenuItemText>
-							</MenuItem>
-						</>
-					)}
+					{(foreignKey || primaryKey) &&
+						cellValue !== null &&
+						onShowQuickReferences && (
+							<>
+								<MenuSeparator />
+								<MenuItem
+									value="quick-refs"
+									onClick={() => {
+										if (onShowQuickReferences) {
+											onShowQuickReferences();
+										}
+									}}
+								>
+									<Link2 className="size-4" />
+									<MenuItemText>View all references</MenuItemText>
+								</MenuItem>
+							</>
+						)}
 				</MenuContent>
 			</Portal>
 		</Menu>

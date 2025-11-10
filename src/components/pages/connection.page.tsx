@@ -621,6 +621,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										cellValue={ctx.row.original[col.name]}
 										columnName={col.name}
 										foreignKey={col.foreignKey}
+										primaryKey={col.primaryKey}
 										onFollowFK={(fkInfo, cellValue) => {
 											// Follow FK to the referenced table
 											const newTabState = createTabState(
