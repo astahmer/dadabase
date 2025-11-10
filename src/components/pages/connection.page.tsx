@@ -475,7 +475,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					}, [isSomeRowsSelected]);
 					return (
 						<Checkbox
-							className="flex items-center gap-2"
+							className="flex items-center gap-2 ml-2"
 							checked={ctx.table.getIsAllRowsSelected()}
 							onChange={ctx.table.getToggleAllRowsSelectedHandler()}
 							aria-label="Select all rows"
@@ -486,7 +486,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 				},
 				cell: (ctx) => (
 					<Checkbox
-						className="flex items-center gap-2"
+						className="flex items-center gap-2 ml-2"
 						checked={ctx.row.getIsSelected()}
 						disabled={!ctx.row.getCanSelect()}
 						onChange={ctx.row.getToggleSelectedHandler()}
@@ -1439,7 +1439,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											}
 										/>
 									</div>
-									<div className="mt-2 flex-1 overflow-y-auto">
+									<div className="mt-2 flex-1 overflow-y-auto mr-4">
 										{filteredTables.length === 0 ? (
 											<div className="p-4 text-center">
 												<span className="text-xs text-muted-foreground">
@@ -1910,7 +1910,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 										/>
 									</div>
 								) : (
-									<div className="flex-1 overflow-auto flex flex-col h-full">
+									<div className="flex-1 overflow-auto flex flex-col h-full px-2">
 										{rowsQuery.isLoading ? (
 											<Stack className="flex-1 flex items-center justify-center">
 												<Spinner />

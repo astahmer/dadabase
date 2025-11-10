@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "#src/lib/utils";
 
@@ -9,6 +9,9 @@ interface CollapsibleSidebarProps {
 	className?: string;
 }
 
+const MIN_WIDTH = 224;
+const MAX_WIDTH = 400;
+
 export const CollapsibleSidebar = ({
 	children,
 	isOpen: controlledIsOpen,
@@ -16,6 +19,10 @@ export const CollapsibleSidebar = ({
 	className,
 }: CollapsibleSidebarProps) => {
 	const [internalIsOpen, setInternalIsOpen] = useState(true);
+	const [width, setWidth] = useState(224);
+	const [isResizing, setIsResizing] = useState(false);
+	const sidebarRef = useRef<HTMLDivElement>(null);
+
 	const isOpen = controlledIsOpen ?? internalIsOpen;
 	const setIsOpen = (value: boolean) => {
 		setInternalIsOpen(value);
@@ -25,6 +32,31 @@ export const CollapsibleSidebar = ({
 	const toggleSidebar = () => {
 		setIsOpen(!isOpen);
 	};
+
+	useEffect(() => {
+		if (!isResizing) return;
+
+		const handleMouseMove = (e: MouseEvent) => {
+			if (!sidebarRef.current) return;
+
+			const sidebarRect = sidebarRef.current.getBoundingClientRect();
+			const newWidth = e.clientX - sidebarRect.left;
+			const clampedWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth));
+			setWidth(clampedWidth);
+		};
+
+		const handleMouseUp = () => {
+			setIsResizing(false);
+		};
+
+		document.addEventListener("mousemove", handleMouseMove);
+		document.addEventListener("mouseup", handleMouseUp);
+
+		return () => {
+			document.removeEventListener("mousemove", handleMouseMove);
+			document.removeEventListener("mouseup", handleMouseUp);
+		};
+	}, [isResizing]);
 
 	if (!isOpen) {
 		// Closed state: 40px wide on the left
@@ -44,17 +76,26 @@ export const CollapsibleSidebar = ({
 
 	// Open state: visible on left with close button on right edge
 	return (
-		<div className="relative h-full shrink-0">
+		<div className="relative h-full shrink-0 select-none" ref={sidebarRef}>
 			{/* Sidebar content - relatively positioned */}
-			<div className="w-56 bg-muted/30 border-r h-full flex flex-col overflow-hidden z-20">
+			<div
+				style={{ width: `${width}px` }}
+				className="bg-muted/30 border-r h-full flex flex-col overflow-hidden z-20 transition-[width] duration-75"
+			>
 				{children}
 			</div>
 
-			{/* Close button - absolutely positioned on right edge */}
+			{/* Close button & resize handle - absolutely positioned on right edge */}
 			<div
-				className="absolute top-0 bottom-0 right-0 translate-x-1/2 w-10 h-full bg-card/50 cursor-w-resize z-30 group"
-				onClick={toggleSidebar}
-				title="Close sidebar"
+				className={cn(
+					"absolute top-0 bottom-0 right-0 translate-x-1/2 w-8 h-full bg-card/50 z-30 group",
+					isResizing
+						? "cursor-grabbing"
+						: "cursor-col-resize hover:bg-muted/50",
+				)}
+				onMouseDown={() => setIsResizing(true)}
+				onDoubleClick={toggleSidebar}
+				title="Drag to resize, double-click to close"
 			>
 				<div className="w-px h-full m-auto group-hover:bg-foreground/30 transition-colors" />
 			</div>
