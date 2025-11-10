@@ -36,6 +36,7 @@ import { BulkActionBar } from "../bulk-action-bar";
 import { CollapsibleSidebar } from "../collapsible-sidebar";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
+import { ScrollToColumnButton } from "../scroll-to-column.button.tsx";
 import { NaturalLanguageSearch } from "../natural-language-search";
 import { OrderBySelect } from "../order-by-select";
 import { QueryFilterBuilder } from "../query-filter-builder";
@@ -126,6 +127,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
+	const tableContainerRef = useRef<HTMLDivElement>(null);
 
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
@@ -1981,18 +1983,30 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											</div>
 										) : (
 											<>
-												<DataTable
-													table={rowsDataTable}
-													isLoading={
-														rowsQuery.isLoading ||
-														allTablesColumnsQuery.isLoading
-													}
-													size={search.tableSize}
-													withContextMenu
-													onExpandRowJson={(row) => {
-														setRowJsonData(row);
-													}}
-												/>
+												<div className="flex-1 overflow-auto flex flex-col h-full relative">
+													<DataTable
+														table={rowsDataTable}
+														containerRef={tableContainerRef}
+														isLoading={
+															rowsQuery.isLoading ||
+															allTablesColumnsQuery.isLoading
+														}
+														size={search.tableSize}
+														withContextMenu
+														onExpandRowJson={(row) => {
+															setRowJsonData(row);
+														}}
+													/>
+													{!rowsQuery.isLoading &&
+														!allTablesColumnsQuery.isLoading && (
+															<ScrollToColumnButton
+																columnList={columnMetadata.map(
+																	(col) => col.name,
+																)}
+																containerRef={tableContainerRef}
+															/>
+														)}
+												</div>
 												<BulkActionBar
 													selectedCount={
 														rowsDataTable.getSelectedRowModel().rows.length

@@ -4,14 +4,13 @@ import {
 	type ListboxRootBaseProps,
 } from "@ark-ui/react/listbox";
 import { Popover as PopoverPrimitive } from "@ark-ui/react/popover";
-import { Portal } from "@ark-ui/react/portal";
-import { CheckIcon } from "lucide-react";
 import { type VariantProps } from "class-variance-authority";
+import { CheckIcon } from "lucide-react";
 
 import { cn } from "#src/lib/utils";
-import { listboxMenuVariants } from "./listbox-menu.styles";
+import { type JSX } from "react";
 import type { ExposedComponentProps } from "./component-props.ts";
-import type { JSX } from "react";
+import { listboxMenuVariants } from "./listbox-menu.styles";
 
 type ListboxMenuProps = PopoverPrimitive.RootProps &
 	ExposedComponentProps<"div"> & {
@@ -42,8 +41,8 @@ ListboxMenuTrigger.displayName = "ListboxMenuTrigger";
 const ListboxMenuContent = ({
 	className,
 	...props
-}: PopoverPrimitive.ContentProps) => (
-	<Portal>
+}: PopoverPrimitive.ContentProps) => {
+	return (
 		<PopoverPrimitive.Positioner>
 			<PopoverPrimitive.Content
 				className={cn(
@@ -53,8 +52,8 @@ const ListboxMenuContent = ({
 				{...props}
 			/>
 		</PopoverPrimitive.Positioner>
-	</Portal>
-);
+	);
+};
 ListboxMenuContent.displayName = "ListboxMenuContent";
 
 type ListboxRootMenuRootComponent = <T extends CollectionItem>(
@@ -174,18 +173,18 @@ const ListboxMenuEmpty = ({
 ListboxMenuEmpty.displayName = "ListboxMenuEmpty";
 
 export {
-	ListboxMenuRoot,
-	ListboxMenuTrigger,
 	ListboxMenuContent,
-	ListboxRoot,
-	ListboxMenuList,
+	ListboxMenuEmpty,
+	ListboxMenuFilterContainer,
+	ListboxMenuFilterInput,
 	ListboxMenuItem,
 	ListboxMenuItemGroup,
 	ListboxMenuItemGroupLabel,
 	ListboxMenuItemText,
-	ListboxMenuFilterInput,
-	ListboxMenuFilterContainer,
-	ListboxMenuEmpty,
+	ListboxMenuList,
+	ListboxMenuRoot,
+	ListboxMenuTrigger,
+	ListboxRoot,
 };
 
 export { listboxMenuVariants } from "./listbox-menu.styles";

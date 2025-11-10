@@ -34,6 +34,7 @@ export type DataTableVariant = "line" | "outline";
 export interface DataTableProps<TData> {
 	className?: string;
 	table: TanstackTable<TData>;
+	containerRef?: React.RefObject<HTMLDivElement | null>;
 	header?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
 	footer?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
 	top?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
@@ -60,6 +61,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 	const {
 		className,
 		table,
+		containerRef,
 		header,
 		top,
 		bottom,
@@ -88,7 +90,10 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		<>
 			{runIfFn(top, table)}
 			{runIfFn(header, table)}
-			<div className={`overflow-x-auto h-full ${className || ""}`}>
+			<div
+				className={`overflow-x-auto h-full ${className || ""}`}
+				ref={containerRef}
+			>
 				<table
 					className={tableStyles({ variant })}
 					// style={{ width: table.getCenterTotalSize() }}
@@ -109,6 +114,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 										<th
 											key={header.id}
 											colSpan={header.colSpan}
+											data-column-id={header.column.id}
 											style={{ width: `${header.getSize()}px` }}
 											className={tableHeaderCellStyles({
 												size,
