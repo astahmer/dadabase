@@ -17,6 +17,7 @@
 - suggested queries based on the current table schema and data -> find all possible values for a column (helps with enums stored as strings)
 - suggest missing indexes to add
 - date filter with calendar/date range with presets (today, last 7 days, last 30 days, this month, last month, this year, last year)
+- double clicking a cell value should copy it to the clipboard
 
 - add a way to favorite/save queries
 - add a way to view query history
