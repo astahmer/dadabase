@@ -1,15 +1,10 @@
 import type { Cell, Row, Table as TanstackTable } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { Fragment, memo, useRef, useState } from "react";
+import { Fragment, memo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
-import { Portal } from "@ark-ui/react";
-import { Button } from "./ui/button";
-import { PageLimitSelect } from "./page-limit.select.tsx";
-import { runIfFn } from "./run-if-fn.ts";
-import { RowContextMenu } from "./row-context-menu";
-import { RowJsonViewer } from "./row-json-viewer";
+import { cn } from "../lib/utils.ts";
 import {
 	tableCellStyles,
 	tableEmptyStateStyles,
@@ -18,7 +13,10 @@ import {
 	tableRowStyles,
 	tableStyles,
 } from "./data-table.styles.ts";
-import { cn } from "../lib/utils.ts";
+import { PageLimitSelect } from "./page-limit.select.tsx";
+import { RowContextMenu } from "./row-context-menu";
+import { runIfFn } from "./run-if-fn.ts";
+import { Button } from "./ui/button";
 
 const i18n = {
 	emptyText: "No results found.",
@@ -79,12 +77,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		size = "cozy",
 		ExpandedRow,
 	} = props;
-
-	const [viewingRowJson, setViewingRowJson] = useState<{
-		row: Record<string, unknown>;
-		rowIndex: number;
-		anchorRect?: DOMRect | null;
-	} | null>(null);
 
 	const state = table.getState();
 	const { pagination } = state;
@@ -212,27 +204,23 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 					) : (
 						<tbody>
 							{table.getRowModel().rows.length ? (
-								table.getRowModel().rows.map((row, index) => (
-									<TableRow
-										key={row.id}
-										index={index}
-										getRow={() => row}
-										onRowClick={onRowClick}
-										onViewJson={(rowData, rect) => {
-											setViewingRowJson({
-												row: rowData,
-												rowIndex: index,
-												anchorRect: rect ?? null,
-											});
-										}}
-										size={size}
-										striped={striped}
-										interactive={interactive}
-										showColumnBorder={showColumnBorder}
-										withContextMenu={withContextMenu}
-										ExpandedRow={ExpandedRow}
-									/>
-								))
+								table
+									.getRowModel()
+									.rows.map((row, index) => (
+										<TableRow
+											key={row.id}
+											index={index}
+											getRow={() => row}
+											onRowClick={onRowClick}
+											size={size}
+											striped={striped}
+											interactive={interactive}
+											showColumnBorder={showColumnBorder}
+											withContextMenu={withContextMenu}
+											ExpandedRow={ExpandedRow}
+											onExpandRowJson={props.onExpandRowJson}
+										/>
+									))
 							) : (
 								<tr>
 									{emptyState ? (
@@ -250,38 +238,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 					)}
 				</table>
 			</div>
-
-			{/* Row JSON Viewer Popover - single instance positioned using anchor rect */}
-			{viewingRowJson && (
-				<Portal>
-					<div
-						className="z-50 fixed"
-						style={{
-							left: viewingRowJson.anchorRect
-								? viewingRowJson.anchorRect.left + window.scrollX
-								: "50%",
-							top: viewingRowJson.anchorRect
-								? viewingRowJson.anchorRect.bottom + window.scrollY + 6
-								: 80,
-							transform: viewingRowJson.anchorRect
-								? "none"
-								: "translateX(-50%)",
-							maxWidth: "90%",
-						}}
-					>
-						<RowJsonViewer
-							row={viewingRowJson.row}
-							onExpandToDialog={() => {
-								// close the inline viewer and notify parent (if any) to open sheet
-								const rowData = viewingRowJson.row;
-								setViewingRowJson(null);
-								props.onExpandRowJson?.(rowData);
-							}}
-							onClose={() => setViewingRowJson(null)}
-						/>
-					</div>
-				</Portal>
-			)}
 
 			{table.options.manualPagination === false &&
 			(table.getRowModel().rows.length >= pagination.pageSize ||
@@ -327,32 +283,28 @@ const TableRow = memo(function TableRow({
 	index,
 	getRow,
 	onRowClick,
-	onViewJson,
 	size,
 	striped,
 	interactive,
 	showColumnBorder,
 	withContextMenu,
 	ExpandedRow,
+	onExpandRowJson,
 }: {
 	index: number;
 	getRow: () => Row<any>;
 	onRowClick?: (row: Row<any>) => void;
-	onViewJson?: (
-		row: Record<string, unknown>,
-		anchorRect?: DOMRect | null,
-	) => void;
 	size: DataTableSize;
 	striped: boolean;
 	interactive: boolean;
 	showColumnBorder: boolean;
 	withContextMenu: boolean;
 	ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
+	onExpandRowJson?: (row: Record<string, unknown>) => void;
 }) {
 	const row = getRow();
 	const visibleCells = row.getVisibleCells();
 	const isSelected = row.getIsSelected();
-	const trRef = useRef<HTMLTableRowElement | null>(null);
 
 	const ContextMenu = withContextMenu ? RowContextMenu : Fragment;
 
@@ -360,18 +312,9 @@ const TableRow = memo(function TableRow({
 		<Fragment>
 			<ContextMenu
 				row={row.original as Record<string, unknown>}
-				onViewJson={
-					onViewJson
-						? () =>
-								onViewJson(
-									row.original as Record<string, unknown>,
-									trRef.current?.getBoundingClientRect() ?? null,
-								)
-						: undefined
-				}
+				onExpandRowJson={onExpandRowJson}
 			>
 				<tr
-					ref={trRef}
 					className={tableRowStyles({
 						striped,
 						selected: isSelected,

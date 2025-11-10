@@ -46,7 +46,10 @@ const MenuCheckboxItem = ({
 );
 MenuCheckboxItem.displayName = "MenuCheckboxItem";
 
-const MenuContent = ({ className, ...props }: MenuPrimitive.ContentProps) => (
+const MenuContent = ({
+	className,
+	...props
+}: MenuPrimitive.ContentProps & { ref?: React.Ref<HTMLDivElement> }) => (
 	<MenuPrimitive.Positioner>
 		<MenuPrimitive.Content
 			className={cn(
