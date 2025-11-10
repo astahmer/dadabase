@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "#src/lib/utils";
+import { ChevronRight } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 interface CollapsibleSidebarProps {
 	children: React.ReactNode;

@@ -42,7 +42,7 @@ export const useQueryBuilder = (
 	const removeCondition = (id: string) => {
 		setFilter({
 			...filter,
-			conditions: filter.conditions.filter((c, index) => String(index) !== id),
+			conditions: filter.conditions.filter((_c, index) => String(index) !== id),
 		});
 	};
 

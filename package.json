@@ -27,7 +27,7 @@
 	"dependencies": {
 		"@ai-sdk/anthropic": "2.0.38",
 		"@ai-sdk/react": "2.0.81",
-		"@ark-ui/react": "5.26.2",
+		"@ark-ui/react": "5.27.1",
 		"@effect/platform": "0.92.1",
 		"@effect/platform-node": "0.98.4",
 		"@effect/sql": "0.46.0",
@@ -98,5 +98,6 @@
 		"patchedDependencies": {
 			"drizzle-kit@0.31.6": "patches/drizzle-kit@0.31.6.patch"
 		}
-	}
+	},
+	"packageManager": "pnpm@10.21.0+sha512.da3337267e400fdd3d479a6c68079ac6db01d8ca4f67572083e722775a796788a7a9956613749e000fac20d424b594f7a791a5f4e2e13581c5ef947f26968a40"
 }

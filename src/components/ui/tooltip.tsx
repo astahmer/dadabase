@@ -24,7 +24,7 @@ export const Tooltip = (props: TooltipProps) => {
 	const Portallish = props.portalled ? Portal : Fragment;
 
 	return (
-		<TooltipPrimitive.Root openDelay={0} closeDelay={0} {...rest}>
+		<TooltipPrimitive.Root openDelay={0} closeDelay={0} lazyMount {...rest}>
 			<TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
 			<Portallish>
 				<TooltipPrimitive.Positioner>

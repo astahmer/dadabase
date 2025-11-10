@@ -1,32 +1,17 @@
-import {
-	LucideMoreHorizontal,
-	MoreHorizontal,
-	MoreHorizontalIcon,
-} from "lucide-react";
+import { LucideMoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./button";
-import { Menu, MenuTrigger, MenuContent, MenuItem, MenuItemText } from "./menu";
+import { Menu, MenuTrigger, MenuContent } from "./menu";
 import { Portal } from "@ark-ui/react";
+import { RowActionsMenuContent } from "./row-actions-menu-content";
 
 export interface RowActionsMenuProps {
 	row: Record<string, unknown>;
+	onViewJson?: () => void;
 }
 
-export function RowActionsMenu({ row }: RowActionsMenuProps) {
+export function RowActionsMenu({ row, onViewJson }: RowActionsMenuProps) {
 	const [open, setOpen] = useState(false);
-
-	const handleLogRow = () => {
-		console.log("Row data:", row);
-		setOpen(false);
-	};
-
-	const handleCopyRow = () => {
-		const json = JSON.stringify(row, null, 2);
-		navigator.clipboard.writeText(json).catch((err) => {
-			console.error("Failed to copy:", err);
-		});
-		setOpen(false);
-	};
 
 	return (
 		<Menu
@@ -41,12 +26,11 @@ export function RowActionsMenu({ row }: RowActionsMenuProps) {
 			</MenuTrigger>
 			<Portal>
 				<MenuContent className="z-50">
-					<MenuItem value="log" onClick={handleLogRow}>
-						<MenuItemText>Log row to console</MenuItemText>
-					</MenuItem>
-					<MenuItem value="copy" onClick={handleCopyRow}>
-						<MenuItemText>Copy row as JSON</MenuItemText>
-					</MenuItem>
+					<RowActionsMenuContent
+						row={row}
+						onClose={() => setOpen(false)}
+						onViewJson={onViewJson}
+					/>
 				</MenuContent>
 			</Portal>
 		</Menu>

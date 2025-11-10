@@ -73,9 +73,9 @@ export function InlineJsonButton({
 
 	return (
 		<Popover.Root
+			lazyMount
 			open={isOpen}
 			onOpenChange={(details) => setIsOpen(details.open)}
-			lazyMount
 		>
 			<HStack gap="1" align="center" className="group">
 				<Popover.Trigger

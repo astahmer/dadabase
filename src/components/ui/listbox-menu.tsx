@@ -19,7 +19,7 @@ type ListboxMenuProps = PopoverPrimitive.RootProps &
 	};
 
 const ListboxMenuRoot = (props: ListboxMenuProps) => (
-	<PopoverPrimitive.Root {...props} />
+	<PopoverPrimitive.Root lazyMount {...props} />
 );
 ListboxMenuRoot.displayName = "ListboxMenuRoot";
 

@@ -1,14 +1,8 @@
 import { Popover, Portal } from "@ark-ui/react";
-import { Code, Copy, Eye } from "lucide-react";
 import { useState } from "react";
 import { RowJsonViewer } from "./row-json-viewer.tsx";
-import {
-	Menu,
-	MenuContent,
-	MenuContextTrigger,
-	MenuItem,
-	MenuItemText,
-} from "./ui/menu";
+import { Menu, MenuContent, MenuContextTrigger } from "./ui/menu";
+import { RowActionsMenuContent } from "./ui/row-actions-menu-content";
 
 export interface RowContextMenuProps {
 	row: Record<string, unknown>;
@@ -26,6 +20,7 @@ export function RowContextMenu({
 
 	return (
 		<Popover.Root
+			lazyMount
 			open={isJsonViewerOpen}
 			onOpenChange={(details) => setIsJsonViewerOpen(details.open)}
 		>
@@ -34,36 +29,10 @@ export function RowContextMenu({
 				<Portal>
 					<Popover.Anchor>
 						<MenuContent className="z-1" data-row-context-menu>
-							<MenuItem
-								value="view-json"
-								onClick={() => {
-									setIsJsonViewerOpen(true);
-								}}
-							>
-								<Code className="size-4" />
-								<MenuItemText>View JSON</MenuItemText>
-							</MenuItem>
-							<MenuItem
-								value="log"
-								onClick={() => {
-									console.log("Row data:", row);
-								}}
-							>
-								<Eye className="size-4" />
-								<MenuItemText>Log row to console</MenuItemText>
-							</MenuItem>
-							<MenuItem
-								value="copy"
-								onClick={() => {
-									const json = JSON.stringify(row, null, 2);
-									navigator.clipboard.writeText(json).catch((err) => {
-										console.error("Failed to copy:", err);
-									});
-								}}
-							>
-								<Copy className="size-4" />
-								<MenuItemText>Copy row as JSON</MenuItemText>
-							</MenuItem>
+							<RowActionsMenuContent
+								row={row}
+								onViewJson={() => setIsJsonViewerOpen(true)}
+							/>
 						</MenuContent>
 					</Popover.Anchor>
 				</Portal>

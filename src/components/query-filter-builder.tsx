@@ -146,7 +146,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 		onRemove,
 		onClearAll,
 		onAdd,
-		isLoading = false,
+		// isLoading = false,
 		showLogicalLabel = false,
 		isLast,
 		logicalOperator = "and",

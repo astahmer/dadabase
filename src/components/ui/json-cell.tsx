@@ -45,7 +45,11 @@ export function JsonCell({ value, className }: JsonCellProps) {
 				</span>
 			</InlineJsonButton>
 
-			<Dialog open={open} onOpenChange={(details) => setOpen(details.open)}>
+			<Dialog
+				lazyMount
+				open={open}
+				onOpenChange={(details) => setOpen(details.open)}
+			>
 				<DialogContent size="6xl" className="h-[90vh] flex flex-col">
 					<DialogHeader>
 						<DialogTitle>JSON Data</DialogTitle>

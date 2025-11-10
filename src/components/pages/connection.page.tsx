@@ -390,16 +390,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		return row || null;
 	}, [search.rowJsonViewerRowId, primaryKeyColumn, rowsQuery.data]);
 
-	const setRowJsonSheetOpen = (open: boolean) => {
-		navigate({
-			search: (prev) => ({
-				...prev,
-				rowJsonViewerOpen: open,
-				rowJsonViewerRowId: open ? prev.rowJsonViewerRowId : undefined,
-			}),
-		});
-	};
-
 	const setRowJsonData = (data: Record<string, unknown> | null) => {
 		const rowId =
 			data && primaryKeyColumn
@@ -545,7 +535,14 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			{
 				id: "__actions",
 				header: () => null,
-				cell: (ctx) => <RowActionsMenu row={ctx.row.original} />,
+				cell: (ctx) => (
+					<RowActionsMenu
+						row={ctx.row.original}
+						onViewJson={() => {
+							setRowJsonData(ctx.row.original);
+						}}
+					/>
+				),
 				size: 40,
 				minSize: 40,
 				maxSize: 40,
@@ -1976,7 +1973,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 													withContextMenu
 													onExpandRowJson={(row) => {
 														setRowJsonData(row);
-														setRowJsonSheetOpen(true);
 													}}
 												/>
 												<BulkActionBar
@@ -2412,7 +2408,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 					open={true}
 					onOpenChange={(details) => {
 						if (!details.open) {
-							setRowJsonSheetOpen(false);
 							setRowJsonData(null);
 						}
 					}}
