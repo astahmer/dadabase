@@ -1949,7 +1949,15 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											<Stack className="flex-1 flex items-center justify-center">
 												<Spinner />
 												<span className="text-muted-foreground">
-													Loading table data...
+													{rowsQuery.failureCount > 0 ? (
+														<>
+															Failed {rowsQuery.failureCount} time
+															{rowsQuery.failureCount > 1 ? "s" : ""},
+															retrying...
+														</>
+													) : (
+														"Loading table data..."
+													)}
 												</span>
 											</Stack>
 										) : rowsQuery.isError ? (
