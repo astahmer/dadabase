@@ -866,7 +866,17 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	// Combine static and data columns
 	const rowsColumns = useMemo(
-		() => [...staticColumns, ...dataColumns],
+		() =>
+			dataColumns.length
+				? [...staticColumns, ...dataColumns]
+				: // For skeletons
+					[
+						...staticColumns,
+						...(Array.from(
+							{ length: 10 },
+							(_, i) => ({ id: `__skeleton-${i}` }) as ColumnDef<any>,
+						) as typeof staticColumns),
+					],
 		[staticColumns, dataColumns],
 	);
 
@@ -1933,7 +1943,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 											<>
 												<DataTable
 													table={rowsDataTable}
-													isLoading={rowsQuery.isLoading}
+													isLoading={
+														rowsQuery.isLoading ||
+														allTablesColumnsQuery.isLoading
+													}
 													size={search.tableSize}
 												/>
 												<BulkActionBar

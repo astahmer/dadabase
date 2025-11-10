@@ -17,7 +17,6 @@
 - suggest missing indexes to add
 - date filter with calendar/date range with presets (today, last 7 days, last 30 days, this month, last month, this year, last year)
 - double clicking a cell value should copy it to the clipboard
-- collapsible sidebar
 - zen mode (collapsible everything, filters, small status bar, no page header with connection name etc)
 
 - add a way to favorite/save queries
