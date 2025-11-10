@@ -1503,22 +1503,34 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																		table.name,
 																	);
 																	navigate({
-																		search: (prev) => ({
-																			...prev,
-																			schema,
-																			table: table.name,
-																			activeTabId: tabState.tabId,
-																			tabs: [...(prev.tabs ?? []), tabState],
-																			filters: undefined,
-																			filtersOpened: false,
-																			offset: 0,
-																			limit: 50,
-																			orderBy: undefined,
-																			orderDirection: undefined,
-																			quickReferencesOpen: false,
-																			quickReferencesColumnName: undefined,
-																			quickReferencesCellValue: undefined,
-																		}),
+																		search: (prev) => {
+																			// Check if a tab with this tabId already exists
+																			const existingTab = (
+																				prev.tabs ?? []
+																			).find((t) => t.tabId === tabState.tabId);
+
+																			// If tab exists, just switch to it, otherwise add it
+																			const updatedTabs = existingTab
+																				? (prev.tabs ?? [])
+																				: [...(prev.tabs ?? []), tabState];
+
+																			return {
+																				...prev,
+																				schema,
+																				table: table.name,
+																				activeTabId: tabState.tabId,
+																				tabs: updatedTabs,
+																				filters: undefined,
+																				filtersOpened: false,
+																				offset: 0,
+																				limit: 50,
+																				orderBy: undefined,
+																				orderDirection: undefined,
+																				quickReferencesOpen: false,
+																				quickReferencesColumnName: undefined,
+																				quickReferencesCellValue: undefined,
+																			};
+																		},
 																	});
 																}}
 															>
