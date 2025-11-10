@@ -1,5 +1,3 @@
-import * as React from "react";
-
 import { Accordion as AccordionPrimitive } from "@ark-ui/react/accordion";
 import { ChevronDown } from "lucide-react";
 
@@ -9,40 +7,39 @@ const Accordion = AccordionPrimitive.Root;
 
 const AccordionContext = AccordionPrimitive.Context;
 
-const AccordionItem = React.forwardRef<
-	React.ElementRef<typeof AccordionPrimitive.Item>,
-	AccordionPrimitive.ItemProps
->(({ className, ...props }, ref) => (
+const AccordionItem = ({
+	className,
+	...props
+}: AccordionPrimitive.ItemProps) => (
 	<AccordionPrimitive.Item
-		ref={ref}
 		className={cn("border-b last:border-b-0", className)}
 		{...props}
 	/>
-));
+);
 AccordionItem.displayName = "AccordionItem";
 
-const AccordionItemContent = React.forwardRef<
-	React.ElementRef<typeof AccordionPrimitive.ItemContent>,
-	AccordionPrimitive.ItemContentProps
->(({ className, children, ...props }, ref) => (
+const AccordionItemContent = ({
+	className,
+	children,
+	...props
+}: AccordionPrimitive.ItemContentProps) => (
 	<AccordionPrimitive.ItemContent
-		ref={ref}
 		className="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
 		{...props}
 	>
 		<div className={cn("pt-0 pb-4", className)}>{children}</div>
 	</AccordionPrimitive.ItemContent>
-));
+);
 AccordionItemContent.displayName = "AccordionItemContent";
 
 const AccordionItemContext = AccordionPrimitive.ItemContext;
 
-const AccordionItemTrigger = React.forwardRef<
-	React.ElementRef<typeof AccordionPrimitive.ItemTrigger>,
-	AccordionPrimitive.ItemTriggerProps
->(({ className, children, ...props }, ref) => (
+const AccordionItemTrigger = ({
+	className,
+	children,
+	...props
+}: AccordionPrimitive.ItemTriggerProps) => (
 	<AccordionPrimitive.ItemTrigger
-		ref={ref}
 		className={cn(
 			"flex w-full flex-1 items-center justify-between gap-4 rounded-md py-4 text-left font-semibold text-sm outline-none transition-all hover:underline focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
 			className,
@@ -54,7 +51,7 @@ const AccordionItemTrigger = React.forwardRef<
 			<ChevronDown className="pointer-events-none size-4 shrink-0 opacity-60 transition-transform duration-200" />
 		</AccordionPrimitive.ItemIndicator>
 	</AccordionPrimitive.ItemTrigger>
-));
+);
 AccordionItemTrigger.displayName = "AccordionItemTrigger";
 
 export {

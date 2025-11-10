@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Popover as ArkPopover } from "@ark-ui/react/popover";
 import { cn } from "#src/lib/utils";
 import { actionBarVariants } from "./action-bar.styles";
@@ -33,16 +32,12 @@ ActionBarRootProvider.displayName = "ActionBarRootProvider";
 export interface ActionBarPositionerProps
 	extends React.HTMLAttributes<HTMLDivElement> {}
 
-export const ActionBarPositioner = React.forwardRef<
-	HTMLDivElement,
-	ActionBarPositionerProps
->(({ className, ...props }, ref) => (
-	<div
-		ref={ref}
-		className={cn(actionBarVariants.positioner(), className)}
-		{...props}
-	/>
-));
+export const ActionBarPositioner = ({
+	className,
+	...props
+}: ActionBarPositionerProps) => (
+	<div className={cn(actionBarVariants.positioner(), className)} {...props} />
+);
 ActionBarPositioner.displayName = "ActionBarPositioner";
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -53,12 +48,12 @@ export interface ActionBarContentProps
 	state?: "open" | "closed";
 }
 
-export const ActionBarContent = React.forwardRef<
-	HTMLDivElement,
-	ActionBarContentProps
->(({ className, state, ...props }, ref) => (
+export const ActionBarContent = ({
+	className,
+	state,
+	...props
+}: ActionBarContentProps) => (
 	<ArkPopover.Content
-		ref={ref}
 		className={cn(
 			actionBarVariants.content({ state }),
 			actionBarVariants.contentOffset(),
@@ -66,7 +61,7 @@ export const ActionBarContent = React.forwardRef<
 		)}
 		{...props}
 	/>
-));
+);
 ActionBarContent.displayName = "ActionBarContent";
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -74,16 +69,12 @@ ActionBarContent.displayName = "ActionBarContent";
 export interface ActionBarSeparatorProps
 	extends React.HTMLAttributes<HTMLDivElement> {}
 
-export const ActionBarSeparator = React.forwardRef<
-	HTMLDivElement,
-	ActionBarSeparatorProps
->(({ className, ...props }, ref) => (
-	<div
-		ref={ref}
-		className={cn(actionBarVariants.separator(), className)}
-		{...props}
-	/>
-));
+export const ActionBarSeparator = ({
+	className,
+	...props
+}: ActionBarSeparatorProps) => (
+	<div className={cn(actionBarVariants.separator(), className)} {...props} />
+);
 ActionBarSeparator.displayName = "ActionBarSeparator";
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -91,16 +82,15 @@ ActionBarSeparator.displayName = "ActionBarSeparator";
 export interface ActionBarSelectionTriggerProps
 	extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
 
-export const ActionBarSelectionTrigger = React.forwardRef<
-	HTMLButtonElement,
-	ActionBarSelectionTriggerProps
->(({ className, ...props }, ref) => (
+export const ActionBarSelectionTrigger = ({
+	className,
+	...props
+}: ActionBarSelectionTriggerProps) => (
 	<button
-		ref={ref}
 		className={cn(actionBarVariants.selectionTrigger(), className)}
 		{...props}
 	/>
-));
+);
 ActionBarSelectionTrigger.displayName = "ActionBarSelectionTrigger";
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -109,16 +99,15 @@ export interface ActionBarCloseTriggerProps
 	extends ArkPopover.CloseTriggerProps,
 		React.HTMLAttributes<HTMLButtonElement> {}
 
-export const ActionBarCloseTrigger = React.forwardRef<
-	HTMLButtonElement,
-	ActionBarCloseTriggerProps
->(({ className, ...props }, ref) => (
+export const ActionBarCloseTrigger = ({
+	className,
+	...props
+}: ActionBarCloseTriggerProps) => (
 	<ArkPopover.CloseTrigger
-		ref={ref}
 		className={cn(actionBarVariants.closeTrigger(), className)}
 		{...props}
 	/>
-));
+);
 ActionBarCloseTrigger.displayName = "ActionBarCloseTrigger";
 
 ////////////////////////////////////////////////////////////////////////////////////

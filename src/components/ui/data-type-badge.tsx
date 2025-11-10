@@ -1,4 +1,3 @@
-import React from "react";
 import { Badge } from "./badge";
 
 interface DataTypeBadgeProps {
@@ -115,15 +114,11 @@ function getDataTypeCategory(dataType: string): {
 	};
 }
 
-export const DataTypeBadge = React.forwardRef<
-	HTMLSpanElement,
-	DataTypeBadgeProps
->(function DataTypeBadge({ dataType, className }, ref) {
+export const DataTypeBadge = ({ dataType, className }: DataTypeBadgeProps) => {
 	const typeInfo = getDataTypeCategory(dataType);
 
 	return (
 		<Badge
-			ref={ref}
 			dataType={typeInfo.category as any}
 			size="xs"
 			className={className}
@@ -132,6 +127,6 @@ export const DataTypeBadge = React.forwardRef<
 			{typeInfo.label}
 		</Badge>
 	);
-});
+};
 
 DataTypeBadge.displayName = "DataTypeBadge";

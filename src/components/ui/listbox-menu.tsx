@@ -1,5 +1,3 @@
-import * as React from "react";
-
 import {
 	Listbox as ListboxPrimitive,
 	type CollectionItem,
@@ -20,34 +18,34 @@ type ListboxMenuProps = PopoverPrimitive.RootProps &
 		children?: React.ReactNode;
 	};
 
-const ListboxMenuRoot = React.forwardRef<HTMLDivElement, ListboxMenuProps>(
-	(props) => <PopoverPrimitive.Root {...props} />,
+const ListboxMenuRoot = (props: ListboxMenuProps) => (
+	<PopoverPrimitive.Root {...props} />
 );
 ListboxMenuRoot.displayName = "ListboxMenuRoot";
 
-const ListboxMenuTrigger = React.forwardRef<
-	React.ElementRef<typeof PopoverPrimitive.Trigger>,
-	PopoverPrimitive.TriggerProps &
-		VariantProps<typeof listboxMenuVariants> & {
-			className?: string;
-		}
->(({ className, size, variant, ...props }, ref) => (
+const ListboxMenuTrigger = ({
+	className,
+	size,
+	variant,
+	...props
+}: PopoverPrimitive.TriggerProps &
+	VariantProps<typeof listboxMenuVariants> & {
+		className?: string;
+	}) => (
 	<PopoverPrimitive.Trigger
-		ref={ref}
 		className={cn(listboxMenuVariants({ variant, size }), className)}
 		{...props}
 	/>
-));
+);
 ListboxMenuTrigger.displayName = "ListboxMenuTrigger";
 
-const ListboxMenuContent = React.forwardRef<
-	React.ElementRef<typeof PopoverPrimitive.Content>,
-	PopoverPrimitive.ContentProps
->(({ className, ...props }, ref) => (
+const ListboxMenuContent = ({
+	className,
+	...props
+}: PopoverPrimitive.ContentProps) => (
 	<Portal>
 		<PopoverPrimitive.Positioner>
 			<PopoverPrimitive.Content
-				ref={ref}
 				className={cn(
 					"bg-card border border-border rounded-md shadow-lg z-50",
 					className,
@@ -56,7 +54,7 @@ const ListboxMenuContent = React.forwardRef<
 			/>
 		</PopoverPrimitive.Positioner>
 	</Portal>
-));
+);
 ListboxMenuContent.displayName = "ListboxMenuContent";
 
 type ListboxRootMenuRootComponent = <T extends CollectionItem>(
@@ -66,31 +64,31 @@ type ListboxRootMenuRootComponent = <T extends CollectionItem>(
 		},
 ) => JSX.Element;
 
-const ListboxRoot = React.forwardRef<HTMLDivElement, any>((props: any) => (
+const ListboxRoot = ((props: any) => (
 	<ListboxPrimitive.Root {...props} />
 )) as ListboxRootMenuRootComponent;
 (ListboxRoot as any).displayName = "ListboxRoot";
 
-const ListboxMenuList = React.forwardRef<
-	React.ElementRef<typeof ListboxPrimitive.Content>,
-	ListboxPrimitive.ContentProps
->(({ className, ...props }, ref) => (
+const ListboxMenuList = ({
+	className,
+	...props
+}: ListboxPrimitive.ContentProps) => (
 	<ListboxPrimitive.Content
-		ref={ref}
 		className={cn("max-h-64 overflow-y-auto", className)}
 		{...props}
 	/>
-));
+);
 ListboxMenuList.displayName = "ListboxMenuList";
 
-const ListboxMenuItem = React.forwardRef<
-	React.ElementRef<typeof ListboxPrimitive.Item>,
-	ListboxPrimitive.ItemProps & {
-		showIndicator?: boolean;
-	}
->(({ className, showIndicator = true, children, ...props }, ref) => (
+const ListboxMenuItem = ({
+	className,
+	showIndicator = true,
+	children,
+	...props
+}: ListboxPrimitive.ItemProps & {
+	showIndicator?: boolean;
+}) => (
 	<ListboxPrimitive.Item
-		ref={ref}
 		className={cn(
 			"flex items-center justify-between px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted data-highlighted:bg-accent transition-colors relative",
 			className,
@@ -106,71 +104,64 @@ const ListboxMenuItem = React.forwardRef<
 			</ListboxPrimitive.ItemIndicator>
 		)}
 	</ListboxPrimitive.Item>
-));
+);
 ListboxMenuItem.displayName = "ListboxMenuItem";
 
-const ListboxMenuItemGroup = React.forwardRef<
-	React.ElementRef<typeof ListboxPrimitive.ItemGroup>,
-	ListboxPrimitive.ItemGroupProps
->(({ className, ...props }, ref) => (
+const ListboxMenuItemGroup = ({
+	className,
+	...props
+}: ListboxPrimitive.ItemGroupProps) => (
 	<ListboxPrimitive.ItemGroup
-		ref={ref}
 		className={cn("overflow-hidden", className)}
 		{...props}
 	/>
-));
+);
 ListboxMenuItemGroup.displayName = "ListboxMenuItemGroup";
 
 const ListboxMenuItemText = ListboxPrimitive.ItemText;
 
-const ListboxMenuItemGroupLabel = React.forwardRef<
-	React.ElementRef<typeof ListboxPrimitive.ItemGroupLabel>,
-	ListboxPrimitive.ItemGroupLabelProps
->(({ className, ...props }, ref) => (
+const ListboxMenuItemGroupLabel = ({
+	className,
+	...props
+}: ListboxPrimitive.ItemGroupLabelProps) => (
 	<ListboxPrimitive.ItemGroupLabel
-		ref={ref}
 		className={cn(
 			"px-2 py-1.5 font-medium text-muted-foreground text-xs",
 			className,
 		)}
 		{...props}
 	/>
-));
+);
 ListboxMenuItemGroupLabel.displayName = "ListboxMenuItemGroupLabel";
 
-const ListboxMenuFilterInput = React.forwardRef<
-	HTMLInputElement,
-	React.InputHTMLAttributes<HTMLInputElement>
->(({ className, ...props }, ref) => (
+const ListboxMenuFilterInput = ({
+	className,
+	...props
+}: React.InputHTMLAttributes<HTMLInputElement>) => (
 	<ListboxPrimitive.Input
-		ref={ref}
 		className={cn(
 			"flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full",
 			className,
 		)}
 		{...props}
 	/>
-));
+);
 ListboxMenuFilterInput.displayName = "ListboxMenuFilterInput";
 
-const ListboxMenuFilterContainer = React.forwardRef<
-	HTMLDivElement,
-	React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-	<div
-		ref={ref}
-		className={cn("p-2 border-b border-border", className)}
-		{...props}
-	/>
-));
+const ListboxMenuFilterContainer = ({
+	className,
+	...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
+	<div className={cn("p-2 border-b border-border", className)} {...props} />
+);
 ListboxMenuFilterContainer.displayName = "ListboxMenuFilterContainer";
 
-const ListboxMenuEmpty = React.forwardRef<
-	HTMLDivElement,
-	React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => (
+const ListboxMenuEmpty = ({
+	className,
+	children,
+	...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
 	<div
-		ref={ref}
 		className={cn(
 			"px-2 py-2 text-xs text-muted-foreground text-center",
 			className,
@@ -179,7 +170,7 @@ const ListboxMenuEmpty = React.forwardRef<
 	>
 		{children}
 	</div>
-));
+);
 ListboxMenuEmpty.displayName = "ListboxMenuEmpty";
 
 export {

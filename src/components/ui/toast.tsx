@@ -1,5 +1,3 @@
-import * as React from "react";
-
 import {
 	Toast as ToastPrimitive,
 	Toaster as ToasterPrimitive,
@@ -12,77 +10,68 @@ import { cn } from "#src/lib/utils";
 import type { ExposedComponentProps } from "./component-props.ts";
 import { toastVariants } from "./toast.styles";
 
-const Toaster = React.forwardRef<
-	React.ElementRef<typeof ToasterPrimitive>,
-	React.ComponentPropsWithoutRef<typeof ToasterPrimitive>
->(({ ...props }, ref) => (
+const Toaster = ({
+	...props
+}: React.ComponentPropsWithoutRef<typeof ToasterPrimitive>) => (
 	<ToasterPrimitive
-		ref={ref}
 		className="max-h-screen w-[calc(100%-var(--gap)*4)] flex-col-reverse p-4 sm:flex-col md:max-w-[420px]"
 		{...props}
 	/>
-));
+);
 Toaster.displayName = "Toaster";
 
-const Toast = React.forwardRef<
-	React.ElementRef<typeof ToastPrimitive.Root>,
-	ToastPrimitive.RootBaseProps &
-		VariantProps<typeof toastVariants> &
-		ExposedComponentProps<"div">
->(({ className, variant, ...props }, ref) => (
+const Toast = ({
+	className,
+	variant,
+	...props
+}: ToastPrimitive.RootBaseProps &
+	VariantProps<typeof toastVariants> &
+	ExposedComponentProps<"div">) => (
 	<ToastPrimitive.Root
-		ref={ref}
 		className={cn(toastVariants({ variant }), className)}
 		{...props}
 	/>
-));
+);
 Toast.displayName = "Toast";
 
-const ToastTitle = React.forwardRef<
-	React.ElementRef<typeof ToastPrimitive.Title>,
-	ToastPrimitive.TitleProps
->(({ className, ...props }, ref) => (
+const ToastTitle = ({ className, ...props }: ToastPrimitive.TitleProps) => (
 	<ToastPrimitive.Title
-		ref={ref}
 		className={cn("font-semibold text-sm", className)}
 		{...props}
 	/>
-));
+);
 ToastTitle.displayName = "ToastTitle";
 
-const ToastDescription = React.forwardRef<
-	React.ElementRef<typeof ToastPrimitive.Description>,
-	ToastPrimitive.DescriptionProps
->(({ className, ...props }, ref) => (
+const ToastDescription = ({
+	className,
+	...props
+}: ToastPrimitive.DescriptionProps) => (
 	<ToastPrimitive.Description
-		ref={ref}
 		className={cn("text-sm opacity-90", className)}
 		{...props}
 	/>
-));
+);
 ToastDescription.displayName = "ToastDescription";
 
-const ToastActionTrigger = React.forwardRef<
-	React.ElementRef<typeof ToastPrimitive.ActionTrigger>,
-	ToastPrimitive.ActionTriggerProps
->(({ className, ...props }, ref) => (
+const ToastActionTrigger = ({
+	className,
+	...props
+}: ToastPrimitive.ActionTriggerProps) => (
 	<ToastPrimitive.ActionTrigger
-		ref={ref}
 		className={cn(
 			"inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 font-medium text-sm ring-offset-background transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:focus:ring-destructive group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground",
 			className,
 		)}
 		{...props}
 	/>
-));
+);
 ToastActionTrigger.displayName = "ToastActionTrigger";
 
-const ToastCloseTrigger = React.forwardRef<
-	React.ElementRef<typeof ToastPrimitive.CloseTrigger>,
-	ToastPrimitive.CloseTriggerProps
->(({ className, ...props }, ref) => (
+const ToastCloseTrigger = ({
+	className,
+	...props
+}: ToastPrimitive.CloseTriggerProps) => (
 	<ToastPrimitive.CloseTrigger
-		ref={ref}
 		className={cn(
 			"absolute top-2 right-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100 group-[.destructive]:text-red-300 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600 group-[.destructive]:hover:text-red-50",
 			className,
@@ -91,7 +80,7 @@ const ToastCloseTrigger = React.forwardRef<
 	>
 		<X className="h-4 w-4" />
 	</ToastPrimitive.CloseTrigger>
-));
+);
 ToastCloseTrigger.displayName = "ToastCloseTrigger";
 
 export {
