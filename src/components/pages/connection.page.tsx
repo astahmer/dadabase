@@ -2425,8 +2425,29 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 						<div className="p-4 flex-1 overflow-auto">
 							{rowJsonData ? (
 								<JsonViewerModal data={rowJsonData} className="h-full" />
-							) : (
+							) : !search.rowJsonViewerRowId ? (
 								<div className="text-sm text-muted-foreground">No data</div>
+							) : (
+								// Loading skeleton
+								<div className="w-full h-full flex flex-col gap-3">
+									{/* Header skeleton */}
+									<div className="space-y-2">
+										<div className="h-4 w-32 bg-muted/60 rounded animate-pulse" />
+										<div className="h-3 w-48 bg-muted/60 rounded animate-pulse" />
+									</div>
+									{/* Content skeleton - nested object structure */}
+									<div className="space-y-3">
+										{[1, 2, 3, 4, 5].map((i) => (
+											<div
+												key={i}
+												className="space-y-2 pl-4 border-l border-muted/40"
+											>
+												<div className="h-3 w-24 bg-muted/60 rounded animate-pulse" />
+												<div className="h-3 w-40 bg-muted/60 rounded animate-pulse" />
+											</div>
+										))}
+									</div>
+								</div>
 							)}
 						</div>
 					</SheetContent>
