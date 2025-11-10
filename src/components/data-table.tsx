@@ -23,7 +23,12 @@ const i18n = {
 	errorText: "An error occurred.",
 };
 
-export type DataTableSize = "compact" | "cozy" | "comfortable";
+export type DataTableSize =
+	| "excel"
+	| "minimal"
+	| "compact"
+	| "cozy"
+	| "comfortable";
 export type DataTableVariant = "line" | "outline";
 
 export interface DataTableProps<TData> {

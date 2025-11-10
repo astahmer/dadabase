@@ -907,6 +907,20 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	// Manage row selection state
 	const [rowSelection, setRowSelection] = useState({});
 
+	let defaultColumnSize = columnMetadata.some((col) =>
+		col.dataType.includes("uuid"),
+	)
+		? 280
+		: 180;
+	if (search.tableSize === "excel") {
+		defaultColumnSize -= 50;
+	} else if (search.tableSize === "compact") {
+		defaultColumnSize += 20;
+	} else if (search.tableSize === "cozy") {
+		defaultColumnSize += 30;
+	} else if (search.tableSize === "comfortable") {
+		defaultColumnSize += 60;
+	}
 	const rowsDataTable = useDataTable({
 		data: formattedTableRowsData,
 		columns: rowsColumns,
@@ -925,9 +939,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		onRowSelectionChange: setRowSelection,
 		rowCount: totalRowCount,
 		defaultColumn: {
-			size: columnMetadata.some((col) => col.dataType.includes("uuid"))
-				? 280
-				: 180,
+			size: defaultColumnSize,
 			minSize: 100,
 			maxSize: 1000,
 		},
@@ -2095,16 +2107,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														<ArkSelect.Select
 															className="w-28"
 															value={[search.tableSize]}
-															collection={ArkSelect.createListCollection({
-																items: [
-																	{ label: "Compact", value: "compact" },
-																	{ label: "Cozy", value: "cozy" },
-																	{
-																		label: "Comfortable",
-																		value: "comfortable",
-																	},
-																],
-															})}
+															collection={TableSizeCollection}
 															positioning={{ sameWidth: true }}
 															onValueChange={(details: {
 																value?: string[];
@@ -2142,14 +2145,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																</ArkSelect.SelectTrigger>
 															</ArkSelect.SelectControl>
 															<ArkSelect.SelectContent>
-																{[
-																	{ label: "Compact", value: "compact" },
-																	{ label: "Cozy", value: "cozy" },
-																	{
-																		label: "Comfortable",
-																		value: "comfortable",
-																	},
-																].map((item) => (
+																{TableSizeCollection.items.map((item) => (
 																	<ArkSelect.SelectItem
 																		key={item.value}
 																		item={item}
@@ -2368,6 +2364,19 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	);
 };
 
+const TableSizeCollection = ArkSelect.createListCollection({
+	items: [
+		{ label: "Excel", value: "excel" },
+		{ label: "Minimal", value: "minimal" },
+		{ label: "Compact", value: "compact" },
+		{ label: "Cozy", value: "cozy" },
+		{
+			label: "Comfortable",
+			value: "comfortable",
+		},
+	],
+});
+
 interface RowsPerPageSelectorProps {
 	value: number;
 	onValueChange: (newLimit: number) => void;
@@ -2500,7 +2509,7 @@ const StructureTable = (props: {
 		};
 	}>;
 	isLoading: boolean;
-	tableSize: "compact" | "cozy" | "comfortable";
+	tableSize: "excel" | "minimal" | "compact" | "cozy" | "comfortable";
 }) => {
 	{
 		const { columnMetadata } = props;

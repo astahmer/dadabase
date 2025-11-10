@@ -7,6 +7,13 @@ import { Spinner } from "../../components/ui/spinner.tsx";
 import { FullCenter } from "../../components/ui/layout.tsx";
 
 // Schema for individual tab state
+const tableSize = Schema.Literal(
+	"excel",
+	"minimal",
+	"compact",
+	"cozy",
+	"comfortable",
+);
 const tabStateSchema = Schema.Struct({
 	tabId: Schema.String, // Explicit unique identifier for the tab
 	schema: Schema.String,
@@ -19,9 +26,7 @@ const tabStateSchema = Schema.Struct({
 	viewMode: Schema.Literal("rows", "structure").pipe(
 		Schema.optionalWith({ default: () => "rows" }),
 	),
-	tableSize: Schema.Literal("compact", "cozy", "comfortable").pipe(
-		Schema.optionalWith({ default: () => "cozy" }),
-	),
+	tableSize: tableSize.pipe(Schema.optionalWith({ default: () => "cozy" })),
 	hiddenColumnList: Schema.String.pipe(Schema.Array, Schema.optional),
 	filters: QueryFilter.pipe(Schema.optional),
 	filtersOpened: Schema.Boolean.pipe(
@@ -45,9 +50,7 @@ const searchSchema = Schema.Struct({
 	viewMode: Schema.Literal("rows", "structure").pipe(
 		Schema.optionalWith({ default: () => "rows" }),
 	),
-	tableSize: Schema.Literal("compact", "cozy", "comfortable").pipe(
-		Schema.optionalWith({ default: () => "cozy" }),
-	),
+	tableSize: tableSize.pipe(Schema.optionalWith({ default: () => "cozy" })),
 	hiddenColumnList: Schema.String.pipe(Schema.Array, Schema.optional), // Comma-separated list of hidden column names
 	filters: QueryFilter.pipe(Schema.optional), // Zipson-compressed filter config
 	filtersOpened: Schema.Boolean.pipe(

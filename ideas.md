@@ -17,6 +17,8 @@
 - suggest missing indexes to add
 - date filter with calendar/date range with presets (today, last 7 days, last 30 days, this month, last month, this year, last year)
 - double clicking a cell value should copy it to the clipboard
+- collapsible sidebar
+- zen mode (collapsible everything, filters, small status bar, no page header with connection name etc)
 
 - add a way to favorite/save queries
 - add a way to view query history
@@ -33,10 +35,6 @@ exports.forwardRef @ chunk-SDBL6XOS.js?v=08d9c5c8:807
 (anonymous) @ listbox-menu.tsx:14Understand this error
 - remove any reference to `<ark.xxx` and instead just use the raw `<xxx` tag, this only means you can remove any HTMLArkProps and instead use React.HTMLAttributes or even ExposedComponentProps for the allowed tags, this will lead to a way better tsc perf as there will be a lot less properties (and also better autocompletions when using these components)
 - remove any forwardRef and just pass props/refs directly (React 19 works fine like this)
-
-
-- data table size "minimal" even smaller than compact
-
 
 ---
 VSCode inspiration:
