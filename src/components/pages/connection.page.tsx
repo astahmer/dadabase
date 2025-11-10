@@ -1516,6 +1516,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 																			table: table.name,
 																			activeTabId: tabState.tabId,
 																			tabs: [...(prev.tabs ?? []), tabState],
+																			filters: undefined,
 																			filtersOpened: false,
 																			offset: 0,
 																			limit: 50,
