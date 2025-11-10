@@ -1,8 +1,8 @@
-import { LucideMoreHorizontal } from "lucide-react";
-import { useState } from "react";
-import { Button } from "./button";
-import { Menu, MenuTrigger, MenuContent } from "./menu";
 import { Portal } from "@ark-ui/react";
+import { LucideMoreHorizontal } from "lucide-react";
+import { useRef, useState } from "react";
+import { Button } from "./button";
+import { Menu, MenuContent } from "./menu";
 import { RowActionsMenuContent } from "./row-actions-menu-content";
 
 export interface RowActionsMenuProps {
@@ -12,18 +12,35 @@ export interface RowActionsMenuProps {
 
 export function RowActionsMenu({ row, onViewJson }: RowActionsMenuProps) {
 	const [open, setOpen] = useState(false);
+	const buttonRef = useRef<HTMLButtonElement>(null);
 
 	return (
 		<Menu
 			open={open}
-			onOpenChange={(details) => setOpen(details.open)}
+			onOpenChange={(details) => {
+				console.trace();
+				return setOpen(details.open);
+			}}
 			lazyMount
+			// https://github.com/chakra-ui/chakra-ui/issues/9171#issuecomment-2479477547
+			positioning={{
+				getAnchorRect: () => buttonRef.current!.getBoundingClientRect(),
+			}}
+			onInteractOutside={(e) => {
+				const target = e.detail.originalEvent.target as HTMLElement | null;
+				if (buttonRef.current!.contains(target)) {
+					e.preventDefault();
+				}
+			}}
 		>
-			<MenuTrigger asChild>
-				<Button variant="ghost" size="xs">
-					<LucideMoreHorizontal />
-				</Button>
-			</MenuTrigger>
+			<Button
+				ref={buttonRef}
+				variant="ghost"
+				size="xs"
+				onClick={() => setOpen((c) => !c)}
+			>
+				<LucideMoreHorizontal />
+			</Button>
 			<Portal>
 				<MenuContent className="z-50">
 					<RowActionsMenuContent
