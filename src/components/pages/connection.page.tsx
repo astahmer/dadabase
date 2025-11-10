@@ -578,6 +578,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														</Badge>
 													);
 												}
+
 												return ctx.renderValue() as React.ReactNode;
 											})();
 

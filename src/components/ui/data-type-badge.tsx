@@ -99,7 +99,8 @@ function getDataTypeCategory(dataType: string): {
 		normalized === "text" ||
 		normalized === "varchar" ||
 		normalized.includes("char") ||
-		normalized === "string"
+		normalized === "string" ||
+		normalized.includes("text")
 	) {
 		return {
 			category: "text",
