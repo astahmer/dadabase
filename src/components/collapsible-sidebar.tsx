@@ -22,6 +22,8 @@ export const CollapsibleSidebar = ({
 	const [width, setWidth] = useState(224);
 	const [isResizing, setIsResizing] = useState(false);
 	const sidebarRef = useRef<HTMLDivElement>(null);
+	const dragStartX = useRef<number | null>(null);
+	const hasDragged = useRef(false);
 
 	const isOpen = controlledIsOpen ?? internalIsOpen;
 	const setIsOpen = (value: boolean) => {
@@ -33,11 +35,29 @@ export const CollapsibleSidebar = ({
 		setIsOpen(!isOpen);
 	};
 
+	const handleResizeMouseDown = (e: React.MouseEvent) => {
+		setIsResizing(true);
+		dragStartX.current = e.clientX;
+		hasDragged.current = false;
+	};
+
+	const handleResizeClick = () => {
+		// Only toggle if there was no significant drag
+		if (!hasDragged.current) {
+			toggleSidebar();
+		}
+	};
+
 	useEffect(() => {
 		if (!isResizing) return;
 
 		const handleMouseMove = (e: MouseEvent) => {
-			if (!sidebarRef.current) return;
+			if (!sidebarRef.current || dragStartX.current === null) return;
+
+			// Track if there was meaningful movement
+			if (Math.abs(e.clientX - dragStartX.current) > 5) {
+				hasDragged.current = true;
+			}
 
 			const sidebarRect = sidebarRef.current.getBoundingClientRect();
 			const newWidth = e.clientX - sidebarRect.left;
@@ -47,6 +67,7 @@ export const CollapsibleSidebar = ({
 
 		const handleMouseUp = () => {
 			setIsResizing(false);
+			dragStartX.current = null;
 		};
 
 		document.addEventListener("mousemove", handleMouseMove);
@@ -93,9 +114,10 @@ export const CollapsibleSidebar = ({
 						? "cursor-grabbing"
 						: "cursor-col-resize hover:bg-muted/50",
 				)}
-				onMouseDown={() => setIsResizing(true)}
+				onMouseDown={handleResizeMouseDown}
+				onClick={handleResizeClick}
 				onDoubleClick={toggleSidebar}
-				title="Drag to resize, double-click to close"
+				title="Click to toggle, drag to resize, double-click to close"
 			>
 				<div className="w-px h-full m-auto group-hover:bg-foreground/30 transition-colors" />
 			</div>
