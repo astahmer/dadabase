@@ -41,23 +41,28 @@ SelectClearTrigger.displayName = "SelectClearTrigger";
 
 const SelectContent = React.forwardRef<
 	React.ElementRef<typeof SelectPrimitive.Content>,
-	SelectPrimitive.ContentProps
->(({ className, ...props }, ref) => (
-	<Portal>
-		<SelectPrimitive.Positioner>
-			<SelectPrimitive.Content
-				ref={ref}
-				className={cn(
-					"relative w-full min-w-32 overflow-hidden rounded-md border border-input bg-popover p-1 text-popover-foreground shadow-lg z-1",
-					"data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=open]:animate-in",
-					"data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=left]:-translate-x-1 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2 data-[placement=top]:-translate-y-1 data-[placement=right]:translate-x-1 data-[placement=bottom]:translate-y-1",
-					className,
-				)}
-				{...props}
-			/>
-		</SelectPrimitive.Positioner>
-	</Portal>
-));
+	SelectPrimitive.ContentProps & {
+		portalled?: boolean;
+	}
+>(({ className, portalled = true, ...props }, ref) => {
+	const Portallish = portalled ? Portal : React.Fragment;
+	return (
+		<Portallish>
+			<SelectPrimitive.Positioner>
+				<SelectPrimitive.Content
+					ref={ref}
+					className={cn(
+						"relative w-full min-w-32 overflow-hidden rounded-md border border-input bg-popover p-1 text-popover-foreground shadow-lg z-1",
+						"data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=open]:animate-in",
+						"data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=left]:-translate-x-1 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2 data-[placement=top]:-translate-y-1 data-[placement=right]:translate-x-1 data-[placement=bottom]:translate-y-1",
+						className,
+					)}
+					{...props}
+				/>
+			</SelectPrimitive.Positioner>
+		</Portallish>
+	);
+});
 SelectContent.displayName = "SelectContent";
 
 const SelectContext = SelectPrimitive.Context;

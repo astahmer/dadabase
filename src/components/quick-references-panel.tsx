@@ -20,6 +20,16 @@ import {
 	ListboxMenuFilterContainer,
 } from "./ui/listbox-menu.tsx";
 import { Stack } from "./ui/layout.tsx";
+import {
+	Select,
+	SelectControl,
+	SelectContent,
+	SelectItem,
+	SelectList,
+	SelectTrigger,
+	SelectValueText,
+	createListCollection,
+} from "./ui/select.tsx";
 
 export interface QuickReferencesPanelProps {
 	schema: string;
@@ -60,6 +70,7 @@ export function QuickReferencesPanel({
 		new Set(["forward-fk", "reverse-fk"]),
 	);
 	const [copiedValue, setCopiedValue] = useState(false);
+	const [sortBy, setSortBy] = useState<"name" | "count">("name");
 
 	// Fetch reverse FK references for any column
 	// If this column is a FK, get references to the target column
@@ -116,15 +127,27 @@ export function QuickReferencesPanel({
 	const reverseReferencesExist = (reverseReferences?.length ?? 0) > 0;
 
 	// Create list collection items from references
-	const referenceItems = useMemo(
-		() =>
-			reverseReferences.map((ref) => ({
-				label: `${ref.table}.${ref.column}`,
-				value: `${ref.schema}.${ref.table}.${ref.column}`,
-				ref,
-			})),
-		[reverseReferences],
-	);
+	const referenceItems = useMemo(() => {
+		let items = reverseReferences.map((ref) => ({
+			label: `${ref.table}.${ref.column}`,
+			value: `${ref.schema}.${ref.table}.${ref.column}`,
+			ref,
+		}));
+
+		// Sort based on sortBy state
+		if (sortBy === "count") {
+			items.sort(
+				(a, b) =>
+					(Number(b.ref.matchingRowCount ?? 0) ?? 0) -
+					(Number(a.ref.matchingRowCount ?? 0) ?? 0),
+			);
+		} else {
+			// Default sort by name (A-Z ascending)
+			items.sort((a, b) => a.label.localeCompare(b.label));
+		}
+
+		return items;
+	}, [reverseReferences, sortBy]);
 
 	const filters = useFilter({ sensitivity: "base" });
 	const refList = useListCollection({
@@ -322,15 +345,52 @@ export function QuickReferencesPanel({
 													{String(cellValue).length > 150 ? "..." : ""}
 												</code>
 											</div>
-											<ListboxMenuFilterContainer className="p-0">
-												<ListboxMenuFilterInput
-													placeholder="Filter tables..."
-													className="h-7 text-xs px-2 rounded"
-													onChange={(e) => {
-														refList.filter(e.target.value);
-													}}
-												/>
-											</ListboxMenuFilterContainer>
+											<div className="flex gap-2">
+												<ListboxMenuFilterContainer className="p-0 flex-1">
+													<ListboxMenuFilterInput
+														placeholder="Filter tables..."
+														className="h-7 text-xs px-2 rounded"
+														onChange={(e) => {
+															refList.filter(e.target.value);
+														}}
+													/>
+												</ListboxMenuFilterContainer>
+												<Select
+													value={[sortBy]}
+													onValueChange={(details) =>
+														setSortBy(details.value[0] as "name" | "count")
+													}
+													collection={createListCollection({
+														items: [
+															{ label: "A-Z", value: "name" },
+															{ label: "Count", value: "count" },
+														],
+													})}
+												>
+													<SelectControl
+														className="h-7 text-xs rounded w-24"
+														size="sm"
+													>
+														<SelectTrigger>
+															<SelectValueText placeholder="Sort by" />
+														</SelectTrigger>
+													</SelectControl>
+													<SelectContent portalled={false}>
+														<SelectList>
+															{createListCollection({
+																items: [
+																	{ label: "A-Z", value: "name" },
+																	{ label: "Count", value: "count" },
+																],
+															}).items.map((item) => (
+																<SelectItem key={item.value} item={item}>
+																	{item.label}
+																</SelectItem>
+															))}
+														</SelectList>
+													</SelectContent>
+												</Select>
+											</div>
 										</div>
 										<ListboxMenuList className="overflow-visible px-2">
 											{refList.collection.items.length > 0 ? (
