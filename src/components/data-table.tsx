@@ -1,10 +1,10 @@
 import type { Cell, Row, Table as TanstackTable } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
 import type { ReactNode } from "react";
-import { Fragment, memo, useState } from "react";
+import { Fragment, memo, useRef, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
-import { Popover, Portal } from "@ark-ui/react";
+import { Portal } from "@ark-ui/react";
 import { Button } from "./ui/button";
 import { PageLimitSelect } from "./page-limit.select.tsx";
 import { runIfFn } from "./run-if-fn.ts";
@@ -53,6 +53,7 @@ export interface DataTableProps<TData> {
 	size?: DataTableSize;
 	ExpandedRow?: (props: { row: Row<TData> }) => ReactNode;
 	resizable?: boolean;
+	onExpandRowJson?: (row: Record<string, unknown>) => void;
 }
 
 const fallbackRender = () => "An error happened";
@@ -82,6 +83,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 	const [viewingRowJson, setViewingRowJson] = useState<{
 		row: Record<string, unknown>;
 		rowIndex: number;
+		anchorRect?: DOMRect | null;
 	} | null>(null);
 
 	const state = table.getState();
@@ -216,8 +218,12 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 										index={index}
 										getRow={() => row}
 										onRowClick={onRowClick}
-										onViewJson={(rowData) => {
-											setViewingRowJson({ row: rowData, rowIndex: index });
+										onViewJson={(rowData, rect) => {
+											setViewingRowJson({
+												row: rowData,
+												rowIndex: index,
+												anchorRect: rect ?? null,
+											});
 										}}
 										size={size}
 										striped={striped}
@@ -245,32 +251,37 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 				</table>
 			</div>
 
-			{/* Row JSON Viewer Popover */}
-			<Popover.Root
-				open={viewingRowJson !== null}
-				onOpenChange={(details) => {
-					if (!details.open) {
-						setViewingRowJson(null);
-					}
-				}}
-				lazyMount
-			>
+			{/* Row JSON Viewer Popover - single instance positioned using anchor rect */}
+			{viewingRowJson && (
 				<Portal>
-					<Popover.Positioner>
-						<Popover.Content className="z-50">
-							{viewingRowJson && (
-								<RowJsonViewer
-									row={viewingRowJson.row}
-									onExpandToDialog={() => {
-										setViewingRowJson(null);
-									}}
-									onClose={() => setViewingRowJson(null)}
-								/>
-							)}
-						</Popover.Content>
-					</Popover.Positioner>
+					<div
+						className="z-50 fixed"
+						style={{
+							left: viewingRowJson.anchorRect
+								? viewingRowJson.anchorRect.left + window.scrollX
+								: "50%",
+							top: viewingRowJson.anchorRect
+								? viewingRowJson.anchorRect.bottom + window.scrollY + 6
+								: 80,
+							transform: viewingRowJson.anchorRect
+								? "none"
+								: "translateX(-50%)",
+							maxWidth: "90%",
+						}}
+					>
+						<RowJsonViewer
+							row={viewingRowJson.row}
+							onExpandToDialog={() => {
+								// close the inline viewer and notify parent (if any) to open sheet
+								const rowData = viewingRowJson.row;
+								setViewingRowJson(null);
+								props.onExpandRowJson?.(rowData);
+							}}
+							onClose={() => setViewingRowJson(null)}
+						/>
+					</div>
 				</Portal>
-			</Popover.Root>
+			)}
 
 			{table.options.manualPagination === false &&
 			(table.getRowModel().rows.length >= pagination.pageSize ||
@@ -327,7 +338,10 @@ const TableRow = memo(function TableRow({
 	index: number;
 	getRow: () => Row<any>;
 	onRowClick?: (row: Row<any>) => void;
-	onViewJson?: (row: Record<string, unknown>) => void;
+	onViewJson?: (
+		row: Record<string, unknown>,
+		anchorRect?: DOMRect | null,
+	) => void;
 	size: DataTableSize;
 	striped: boolean;
 	interactive: boolean;
@@ -338,6 +352,7 @@ const TableRow = memo(function TableRow({
 	const row = getRow();
 	const visibleCells = row.getVisibleCells();
 	const isSelected = row.getIsSelected();
+	const trRef = useRef<HTMLTableRowElement | null>(null);
 
 	const ContextMenu = withContextMenu ? RowContextMenu : Fragment;
 
@@ -347,11 +362,16 @@ const TableRow = memo(function TableRow({
 				row={row.original as Record<string, unknown>}
 				onViewJson={
 					onViewJson
-						? () => onViewJson(row.original as Record<string, unknown>)
+						? () =>
+								onViewJson(
+									row.original as Record<string, unknown>,
+									trRef.current?.getBoundingClientRect() ?? null,
+								)
 						: undefined
 				}
 			>
 				<tr
+					ref={trRef}
 					className={tableRowStyles({
 						striped,
 						selected: isSelected,
