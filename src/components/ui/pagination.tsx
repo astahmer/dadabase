@@ -1,6 +1,5 @@
 "use client";
 
-import { type HTMLArkProps, ark } from "@ark-ui/react/factory";
 import {
 	Pagination as PaginationPrimitive,
 	paginationAnatomy,
@@ -15,43 +14,37 @@ import type { ExposedComponentProps } from "./component-props.ts";
 
 const parts = paginationAnatomy.extendWith("content").build();
 
-const Pagination = React.forwardRef<
-	React.ElementRef<typeof PaginationPrimitive.Root>,
-	Omit<PaginationPrimitive.RootBaseProps, "type"> & ExposedComponentProps<"div">
->(({ className, ...props }, ref) => (
+const Pagination = ({
+	className,
+	...props
+}: Omit<PaginationPrimitive.RootBaseProps, "type"> & ExposedComponentProps<"div">) => (
 	<PaginationPrimitive.Root
-		ref={ref}
 		className={cn(
 			"mx-auto flex w-full flex-row items-center justify-center gap-1",
 			className,
 		)}
 		{...props}
 	/>
-));
+);
 Pagination.displayName = "Pagination";
 
-const PaginationContent = React.forwardRef<
-	HTMLUListElement,
-	HTMLArkProps<"ul">
->(({ className, ...props }, ref) => (
-	<ark.ul
-		ref={ref}
+const PaginationContent = ({ className, ...props }: React.HTMLAttributes<HTMLUListElement>) => (
+	<ul
 		{...parts.content.attrs}
 		className={cn("flex flex-row items-center gap-1", className)}
 		{...props}
 	/>
-));
+);
 PaginationContent.displayName = "PaginationContent";
 
 const PaginationContext = PaginationPrimitive.Context;
 
-const PaginationEllipsis = React.forwardRef<
-	React.ElementRef<typeof PaginationPrimitive.Ellipsis>,
-	PaginationPrimitive.EllipsisProps
->(({ className, ...props }, ref) => (
-	<ark.li>
+const PaginationEllipsis = ({
+	className,
+	...props
+}: PaginationPrimitive.EllipsisProps) => (
+	<li>
 		<PaginationPrimitive.Ellipsis
-			ref={ref}
 			aria-hidden
 			className={cn("flex h-9 w-9 items-center justify-center", className)}
 			{...props}
@@ -59,64 +52,67 @@ const PaginationEllipsis = React.forwardRef<
 			<MoreHorizontal className="h-4 w-4" />
 			<span className="sr-only">More pages</span>
 		</PaginationPrimitive.Ellipsis>
-	</ark.li>
-));
+	</li>
+);
 PaginationEllipsis.displayName = "PaginationEllipsis";
 
 export interface PaginationItemProps
 	extends PaginationPrimitive.ItemProps,
 		VariantProps<typeof buttonVariants> {}
 
-const PaginationItem = React.forwardRef<
-	React.ElementRef<typeof PaginationPrimitive.Item>,
-	PaginationItemProps
->(({ className, variant = "outline", size, ...props }, ref) => (
-	<ark.li>
+const PaginationItem = ({
+	className,
+	variant = "outline",
+	size,
+	...props
+}: PaginationItemProps) => (
+	<li>
 		<PaginationPrimitive.Item
-			ref={ref}
 			className={cn(buttonVariants({ variant, size }), className)}
 			{...props}
 		/>
-	</ark.li>
-));
+	</li>
+);
 PaginationItem.displayName = "PaginationItem";
 
 export interface PaginationNextTriggerProps
 	extends PaginationPrimitive.NextTriggerProps,
 		VariantProps<typeof buttonVariants> {}
 
-const PaginationNextTrigger = React.forwardRef<
-	React.ElementRef<typeof PaginationPrimitive.NextTrigger>,
-	PaginationNextTriggerProps
->(({ className, variant = "outline", size, ...props }, ref) => (
-	<ark.li>
+const PaginationNextTrigger = ({
+	className,
+	variant = "outline",
+	size,
+	...props
+}: PaginationNextTriggerProps) => (
+	<li>
 		<PaginationPrimitive.NextTrigger
-			ref={ref}
 			aria-label="Go to next page"
 			className={cn(buttonVariants({ variant, size }), className)}
 			{...props}
 		/>
-	</ark.li>
-));
+	</li>
+);
 PaginationNextTrigger.displayName = "PaginationNextTrigger";
 
 export interface PaginationPrevTriggerProps
 	extends PaginationPrimitive.PrevTriggerProps,
 		VariantProps<typeof buttonVariants> {}
 
-const PaginationPrevTrigger = React.forwardRef<
-	React.ElementRef<typeof PaginationPrimitive.PrevTrigger>,
-	PaginationPrevTriggerProps
->(({ className, variant = "outline", size, ...props }, ref) => (
-	<ark.li>
+const PaginationPrevTrigger = ({
+	className,
+	variant = "outline",
+	size,
+	...props
+}: PaginationPrevTriggerProps) => (
+	<li>
 		<PaginationPrimitive.PrevTrigger
-			ref={ref}
 			aria-label="Go to previous page"
 			className={cn(buttonVariants({ variant, size }), className)}
 			{...props}
 		/>
-	</ark.li>
-));
+	</li>
+);
 PaginationPrevTrigger.displayName = "PaginationPrevTrigger";
 
 const PaginationRootProvider = PaginationPrimitive.RootProvider;

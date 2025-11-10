@@ -1,7 +1,6 @@
 import * as React from "react"
 
 import { Dialog as SheetPrimitive, dialogAnatomy } from "@ark-ui/react/dialog"
-import { type HTMLArkProps, ark } from "@ark-ui/react/factory"
 import { Portal } from "@ark-ui/react/portal"
 import { XIcon } from "lucide-react"
 
@@ -12,12 +11,8 @@ const parts = sheetAnatomy.extendWith("header", "footer").build()
 
 const Sheet = SheetPrimitive.Root
 
-const SheetBackdrop = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Backdrop>,
-  SheetPrimitive.BackdropProps
->(({ className, ...props }, ref) => (
+const SheetBackdrop = ({ className, ...props }: SheetPrimitive.BackdropProps) => (
   <SheetPrimitive.Backdrop
-    ref={ref}
     {...parts.backdrop.attrs}
     className={cn(
       "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-(--z-index) bg-black/80 data-[state=closed]:animate-out data-[state=open]:animate-in",
@@ -25,33 +20,30 @@ const SheetBackdrop = React.forwardRef<
     )}
     {...props}
   />
-))
+)
 SheetBackdrop.displayName = "SheetBackdrop"
 
-const SheetCloseTrigger = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.CloseTrigger>,
-  SheetPrimitive.CloseTriggerProps
->(({ className, ...props }, ref) => (
+const SheetCloseTrigger = ({ className, ...props }: SheetPrimitive.CloseTriggerProps) => (
   <SheetPrimitive.CloseTrigger
-    ref={ref}
     {...parts.closeTrigger.attrs}
     className={cn(className)}
     {...props}
   />
-))
+)
 SheetCloseTrigger.displayName = "SheetCloseTrigger"
 
-const SheetContent = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Content>,
-  SheetPrimitive.ContentProps & {
-    side?: "top" | "right" | "bottom" | "left"
-  }
->(({ className, children, side = "right", ...props }, ref) => (
+const SheetContent = ({
+  className,
+  children,
+  side = "right",
+  ...props
+}: SheetPrimitive.ContentProps & {
+  side?: "top" | "right" | "bottom" | "left"
+}) => (
   <Portal>
     <SheetBackdrop {...parts.backdrop.attrs} />
     <SheetPrimitive.Positioner {...parts.positioner.attrs}>
       <SheetPrimitive.Content
-        ref={ref}
         {...parts.content.attrs}
         className={cn(
           "fixed z-(--z-index) flex flex-col gap-4 bg-background shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:duration-300 data-[state=open]:duration-500",
@@ -78,72 +70,54 @@ const SheetContent = React.forwardRef<
       </SheetPrimitive.Content>
     </SheetPrimitive.Positioner>
   </Portal>
-))
+)
 SheetContent.displayName = "SheetContent"
 
 const SheetContext = SheetPrimitive.Context
 
-const SheetDescription = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Description>,
-  SheetPrimitive.DescriptionProps
->(({ className, ...props }, ref) => (
+const SheetDescription = ({ className, ...props }: SheetPrimitive.DescriptionProps) => (
   <SheetPrimitive.Description
-    ref={ref}
     {...parts.description.attrs}
     className={cn("text-muted-foreground text-sm", className)}
     {...props}
   />
-))
+)
 SheetDescription.displayName = "SheetDescription"
 
-const SheetFooter = React.forwardRef<HTMLDivElement, HTMLArkProps<"div">>(
-  ({ className, ...props }, ref) => (
-    <ark.div
-      ref={ref}
-      {...parts.footer.attrs}
-      className={cn("mt-auto flex flex-col gap-2 p-4", className)}
-      {...props}
-    />
-  )
+const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    {...parts.footer.attrs}
+    className={cn("mt-auto flex flex-col gap-2 p-4", className)}
+    {...props}
+  />
 )
 SheetFooter.displayName = "SheetFooter"
 
-const SheetHeader = React.forwardRef<HTMLDivElement, HTMLArkProps<"div">>(
-  ({ className, ...props }, ref) => (
-    <ark.div
-      ref={ref}
-      {...parts.header.attrs}
-      className={cn("flex flex-col gap-1.5 p-4", className)}
-      {...props}
-    />
-  )
+const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div
+    {...parts.header.attrs}
+    className={cn("flex flex-col gap-1.5 p-4", className)}
+    {...props}
+  />
 )
 SheetHeader.displayName = "SheetHeader"
 
-const SheetTitle = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Title>,
-  SheetPrimitive.TitleProps
->(({ className, ...props }, ref) => (
+const SheetTitle = ({ className, ...props }: SheetPrimitive.TitleProps) => (
   <SheetPrimitive.Title
-    ref={ref}
     {...parts.title.attrs}
     className={cn("font-semibold text-foreground", className)}
     {...props}
   />
-))
+)
 SheetTitle.displayName = "SheetTitle"
 
-const SheetTrigger = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Trigger>,
-  SheetPrimitive.TriggerProps
->(({ className, ...props }, ref) => (
+const SheetTrigger = ({ className, ...props }: SheetPrimitive.TriggerProps) => (
   <SheetPrimitive.Trigger
-    ref={ref}
     {...parts.trigger.attrs}
     className={cn(className)}
     {...props}
   />
-))
+)
 SheetTrigger.displayName = "SheetTrigger"
 
 export {

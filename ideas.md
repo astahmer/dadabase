@@ -29,12 +29,6 @@
 
 - the filter "column" dropdown should show informations like data type badge etc (like the column header) next to each column name, align it to the right
 - the filter "column" dropdown should be prefixed with the table name (because later on we will add the ability to filter with joins)
-- forwardRef render functions accept exactly two parameters: props and ref. Did you forget to use the ref parameter?
-overrideMethod @ installHook.js:1
-exports.forwardRef @ chunk-SDBL6XOS.js?v=08d9c5c8:807
-(anonymous) @ listbox-menu.tsx:14Understand this error
-- remove any reference to `<ark.xxx` and instead just use the raw `<xxx` tag, this only means you can remove any HTMLArkProps and instead use React.HTMLAttributes or even ExposedComponentProps for the allowed tags, this will lead to a way better tsc perf as there will be a lot less properties (and also better autocompletions when using these components)
-- remove any forwardRef and just pass props/refs directly (React 19 works fine like this)
 
 ---
 VSCode inspiration:

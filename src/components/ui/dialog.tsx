@@ -1,7 +1,6 @@
 import * as React from "react";
 
 import { Dialog as DialogPrimitive, dialogAnatomy } from "@ark-ui/react/dialog";
-import { type HTMLArkProps, ark } from "@ark-ui/react/factory";
 import { Portal } from "@ark-ui/react/portal";
 import { XIcon } from "lucide-react";
 
@@ -12,42 +11,39 @@ const parts = dialogAnatomy.extendWith("header").build();
 
 const Dialog = DialogPrimitive.Root;
 
-const DialogBackdrop = React.forwardRef<
-	React.ElementRef<typeof DialogPrimitive.Backdrop>,
-	DialogPrimitive.BackdropProps
->(({ className, ...props }, ref) => (
+const DialogBackdrop = ({ className, ...props }: DialogPrimitive.BackdropProps) => (
 	<DialogPrimitive.Backdrop
-		ref={ref}
 		className={cn(dialogBackdropVariants(), className)}
 		{...props}
 	/>
-));
+);
 DialogBackdrop.displayName = "DialogBackdrop";
 
 const DialogCloseTrigger = DialogPrimitive.CloseTrigger;
 
-const DialogContent = React.forwardRef<
-	React.ElementRef<typeof DialogPrimitive.Content>,
-	DialogPrimitive.ContentProps & {
-		size?:
-			| "sm"
-			| "md"
-			| "lg"
-			| "xl"
-			| "2xl"
-			| "3xl"
-			| "4xl"
-			| "5xl"
-			| "6xl"
-			| "7xl"
-			| "full";
-	}
->(({ className, children, size, ...props }, ref) => (
+const DialogContent = ({
+	className,
+	children,
+	size,
+	...props
+}: DialogPrimitive.ContentProps & {
+	size?:
+		| "sm"
+		| "md"
+		| "lg"
+		| "xl"
+		| "2xl"
+		| "3xl"
+		| "4xl"
+		| "5xl"
+		| "6xl"
+		| "7xl"
+		| "full";
+}) => (
 	<Portal>
 		<DialogBackdrop />
 		<DialogPrimitive.Positioner className="overflow-hidden">
 			<DialogPrimitive.Content
-				ref={ref}
 				className={cn(dialogContentVariants({ size }), className)}
 				{...props}
 			>
@@ -59,21 +55,17 @@ const DialogContent = React.forwardRef<
 			</DialogPrimitive.Content>
 		</DialogPrimitive.Positioner>
 	</Portal>
-));
+);
 DialogContent.displayName = "DialogContent";
 
 const DialogContext = DialogPrimitive.Context;
 
-const DialogDescription = React.forwardRef<
-	React.ElementRef<typeof DialogPrimitive.Description>,
-	DialogPrimitive.DescriptionProps
->(({ className, ...props }, ref) => (
+const DialogDescription = ({ className, ...props }: DialogPrimitive.DescriptionProps) => (
 	<DialogPrimitive.Description
-		ref={ref}
 		className={cn("text-muted-foreground text-sm", className)}
 		{...props}
 	/>
-));
+);
 DialogDescription.displayName = "DialogDescription";
 
 const DialogFooter = ({
@@ -88,28 +80,21 @@ const DialogFooter = ({
 		{...props}
 	/>
 );
-const DialogHeader = React.forwardRef<HTMLDivElement, HTMLArkProps<"div">>(
-	({ className, ...props }, ref) => (
-		<ark.div
-			ref={ref}
-			{...parts.header.attrs}
-			className={cn("flex flex-col gap-1 text-center sm:text-left", className)}
-			{...props}
-		/>
-	),
+const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+	<div
+		{...parts.header.attrs}
+		className={cn("flex flex-col gap-1 text-center sm:text-left", className)}
+		{...props}
+	/>
 );
 DialogHeader.displayName = "DialogHeader";
 
-const DialogTitle = React.forwardRef<
-	React.ElementRef<typeof DialogPrimitive.Title>,
-	DialogPrimitive.TitleProps
->(({ className, ...props }, ref) => (
+const DialogTitle = ({ className, ...props }: DialogPrimitive.TitleProps) => (
 	<DialogPrimitive.Title
-		ref={ref}
 		className={cn("font-semibold text-lg leading-none", className)}
 		{...props}
 	/>
-));
+);
 DialogTitle.displayName = "DialogTitle";
 
 const DialogTrigger = DialogPrimitive.Trigger;
