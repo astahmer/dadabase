@@ -42,4 +42,5 @@ export const getTableColumnsQueryOptions = (
 	queryOptions({
 		queryKey: ["pg", "tableColumns", input],
 		queryFn: () => getTableColumnsServerFn({ data: input }),
+		staleTime: 60 * 1000, // 1 minute
 	});
