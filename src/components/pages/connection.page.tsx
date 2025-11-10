@@ -1657,7 +1657,15 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							{/* View Toggle & Filter Controls */}
 							<div className="relative border-b bg-muted/50">
 								{(rowsQuery.isLoading || allTablesColumnsQuery.isLoading) && (
-									<div className="absolute inset-x-0 top-0 h-0.5 bg-linear-to-r from-primary via-primary to-transparent animate-pulse" />
+									<div
+										// bg-linear-to-r from-primary via-primary to-transparent
+										className="absolute inset-x-0 top-0 h-0.5 bg-primary"
+										style={{
+											background:
+												"linear-gradient(90deg, transparent, var(--color-primary), transparent)",
+											animation: "shimmer 1.5s infinite",
+										}}
+									/>
 								)}
 								<HStack className="px-4 py-2 items-center justify-between">
 									<div className="flex gap-2">
