@@ -62,6 +62,9 @@ const searchSchema = Schema.Struct({
 	quickReferencesColumnName: Schema.String.pipe(Schema.optional),
 	quickReferencesCellValue: Schema.String.pipe(Schema.optional),
 	tabs: tabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
+	sidebarCollapsed: Schema.Boolean.pipe(
+		Schema.optionalWith({ default: () => false }),
+	),
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({
