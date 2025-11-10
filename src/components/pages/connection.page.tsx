@@ -33,6 +33,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { BulkActionBar } from "../bulk-action-bar";
+import { CollapsibleSidebar } from "../collapsible-sidebar";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
 import { NaturalLanguageSearch } from "../natural-language-search";
@@ -1205,13 +1206,9 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			</div>
 
 			{/* Main Layout */}
-			<div className="flex-1 flex h-full min-h-0 relative">
-				{/* Sidebar */}
-				<div
-					className={`border-r bg-muted/30 flex flex-col overflow-hidden h-full min-h-0 transition-all relative duration-150 ${
-						search.sidebarCollapsed ? "w-8" : "w-64"
-					}`}
-				>
+			<div className="flex-1 flex h-full min-h-0">
+				{/* Collapsible Sidebar */}
+				<CollapsibleSidebar>
 					{/* Database Selector */}
 					<Stack className="px-4 pt-4 shrink-0" gap="2">
 						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
@@ -1512,23 +1509,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							)}
 						</Stack>
 					</div>
-					{/* Sidebar Toggle - Minimal border-only toggle */}
-					<button
-						onClick={() => {
-							navigate({
-								search: (prev) => ({
-									...prev,
-									sidebarCollapsed: !prev.sidebarCollapsed,
-								}),
-							});
-						}}
-						className="absolute top-0 right-0 bottom-0 z-10 w-[40px] border-r cursor-col-resize hover:bg-primary/10 transition-colors -translate-x-1/2"
-						style={{
-							right: search.sidebarCollapsed ? "0" : "-1px",
-						}}
-						title={search.sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-					/>
-				</div>
+				</CollapsibleSidebar>
 
 				{/* Content Area */}
 				<div className="flex-1 flex flex-col overflow-hidden">
