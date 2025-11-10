@@ -6,6 +6,7 @@
 - when clicking a table row -> add a way to copy as JSON (with nested entities based on foreign keys)
 - when clicking a table row -> show related entities based on that id + foreign keys
 - filters in datatable header (th) ?
+- if not all column header fit in the screen -> scroll to column button -> ListboxMenu
 - edit in datatable line? double click triggers the edit UI with a commit phase (nothing is persisted until you click save with the count + list of changes available to review / the translated raw SQL update)
 - support NOT operator in natural language search
 - try to match possible operators based on datatype; ex: timestamps shouldnt have

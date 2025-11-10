@@ -1,5 +1,6 @@
 import { Copy, Eye, Link, Link2, Search } from "lucide-react";
 import type { ReactNode } from "react";
+import { Clipboard } from "@ark-ui/react";
 import {
 	Menu,
 	MenuContextTrigger,
@@ -37,6 +38,8 @@ export function CellContextMenu({
 	onOpen,
 	children,
 }: CellContextMenuProps) {
+	const text = cellValue === null ? "null" : String(cellValue);
+
 	return (
 		<Menu
 			lazyMount
@@ -62,18 +65,14 @@ export function CellContextMenu({
 						<Eye className="size-4" />
 						<MenuItemText>Log cell to console</MenuItemText>
 					</MenuItem>
-					<MenuItem
-						value="copy"
-						onClick={() => {
-							const text = cellValue === null ? "null" : String(cellValue);
-							navigator.clipboard.writeText(text).catch((err) => {
-								console.error("Failed to copy:", err);
-							});
-						}}
-					>
-						<Copy className="size-4" />
-						<MenuItemText>Copy value</MenuItemText>
-					</MenuItem>
+					<Clipboard.Root value={text}>
+						<MenuItem value="copy" asChild>
+							<Clipboard.Trigger>
+								<Copy className="size-4" />
+								<MenuItemText>Copy value</MenuItemText>
+							</Clipboard.Trigger>
+						</MenuItem>
+					</Clipboard.Root>
 
 					{foreignKey && cellValue !== null && onFollowFK && (
 						<>

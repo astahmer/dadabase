@@ -1,4 +1,5 @@
 import { Code, Copy, Eye } from "lucide-react";
+import { Clipboard, useClipboard } from "@ark-ui/react";
 import { MenuItem, MenuItemText } from "./menu";
 
 export interface RowActionsMenuContentProps {
@@ -17,13 +18,7 @@ export function RowActionsMenuContent({
 		onClose?.();
 	};
 
-	const handleCopyRow = () => {
-		const json = JSON.stringify(row, null, 2);
-		navigator.clipboard.writeText(json).catch((err) => {
-			console.error("Failed to copy:", err);
-		});
-		onClose?.();
-	};
+	const clipboard = useClipboard();
 
 	return (
 		<>
@@ -37,10 +32,22 @@ export function RowActionsMenuContent({
 				<Eye className="size-4" />
 				<MenuItemText>Log row to console</MenuItemText>
 			</MenuItem>
-			<MenuItem value="copy" onClick={handleCopyRow}>
-				<Copy className="size-4" />
-				<MenuItemText>Copy row as JSON</MenuItemText>
-			</MenuItem>
+			<Clipboard.RootProvider value={clipboard}>
+				<MenuItem value="copy" asChild>
+					<Clipboard.Trigger
+						onMouseEnter={() => {
+							clipboard.setValue(JSON.stringify(row, null, 2));
+						}}
+						onClick={() => {
+							clipboard.copy();
+							onClose?.();
+						}}
+					>
+						<Copy className="size-4" />
+						<MenuItemText>Copy row as JSON</MenuItemText>
+					</Clipboard.Trigger>
+				</MenuItem>
+			</Clipboard.RootProvider>
 		</>
 	);
 }

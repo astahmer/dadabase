@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useListCollection, useFilter } from "@ark-ui/react";
+import { useListCollection, useFilter, Clipboard } from "@ark-ui/react";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
 import {
@@ -19,7 +19,7 @@ import {
 	ListboxMenuFilterInput,
 	ListboxMenuFilterContainer,
 } from "./ui/listbox-menu.tsx";
-import { Stack } from "./ui/layout.tsx";
+import { HStack, Stack } from "./ui/layout.tsx";
 import {
 	Select,
 	SelectControl,
@@ -69,7 +69,6 @@ export function QuickReferencesPanel({
 	const [expandedSections, setExpandedSections] = useState<Set<string>>(
 		new Set(["forward-fk", "reverse-fk"]),
 	);
-	const [copiedValue, setCopiedValue] = useState(false);
 	const [sortBy, setSortBy] = useState<"name" | "count">("name");
 
 	// Fetch reverse FK references for any column
@@ -115,12 +114,6 @@ export function QuickReferencesPanel({
 		if (onNavigate && cellValue !== null) {
 			onNavigate(ref.schema, ref.table, ref.column, cellValue);
 		}
-	};
-
-	const handleCopyValue = () => {
-		navigator.clipboard.writeText(String(cellValue));
-		setCopiedValue(true);
-		setTimeout(() => setCopiedValue(false), 2000);
 	};
 
 	const forwardFKsExist = column.foreignKey !== undefined;
@@ -184,22 +177,25 @@ export function QuickReferencesPanel({
 
 				{/* Value Copy */}
 				{cellValue !== null && (
-					<button
-						onClick={handleCopyValue}
-						className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-					>
-						{copiedValue ? (
-							<>
-								<Check className="h-3 w-3" />
-								Copied
-							</>
-						) : (
-							<>
-								<Copy className="h-3 w-3" />
-								Copy value
-							</>
-						)}
-					</button>
+					<Clipboard.Root value={String(cellValue)}>
+						<Clipboard.Trigger asChild>
+							<button className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+								<Clipboard.Indicator
+									copied={
+										<HStack align="center">
+											<Check className="h-3 w-3" />
+											Copied
+										</HStack>
+									}
+								>
+									<HStack align="center">
+										<Copy className="h-3 w-3" />
+										Copy value
+									</HStack>
+								</Clipboard.Indicator>
+							</button>
+						</Clipboard.Trigger>
+					</Clipboard.Root>
 				)}
 			</div>
 			{/* Content */}

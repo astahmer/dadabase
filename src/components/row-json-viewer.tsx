@@ -1,7 +1,7 @@
 import { Code, X, Copy } from "lucide-react";
+import { Clipboard, useClipboard } from "@ark-ui/react";
 import { JsonViewerModal } from "./ui/json-viewer";
 import { Stack } from "./ui/layout.tsx";
-import { useState, useCallback } from "react";
 
 interface RowJsonViewerProps {
 	row: Record<string, unknown>;
@@ -14,14 +14,6 @@ export function RowJsonViewer({
 	onExpandToDialog,
 	onClose,
 }: RowJsonViewerProps) {
-	const [copied, setCopied] = useState(false);
-
-	const handleCopy = useCallback(() => {
-		navigator.clipboard.writeText(JSON.stringify(row, null, 2));
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2000);
-	}, [row]);
-
 	function generatePreview(val: unknown): string {
 		try {
 			const str = JSON.stringify(val);
@@ -35,6 +27,7 @@ export function RowJsonViewer({
 	}
 
 	const preview = generatePreview(row);
+	const clipboard = useClipboard();
 
 	return (
 		<div className="min-w-96 max-w-2xl bg-background border border-border rounded-lg shadow-lg overflow-hidden">
@@ -47,13 +40,22 @@ export function RowJsonViewer({
 					</span>
 				</div>
 				<div className="flex items-center gap-1">
-					<button
-						onClick={handleCopy}
-						className="p-1 hover:bg-muted/70 rounded transition-colors text-muted-foreground text-xs"
-						title={copied ? "Copied!" : "Copy row JSON"}
-					>
-						<Copy className="h-3.5 w-3.5" />
-					</button>
+					<Clipboard.RootProvider value={clipboard}>
+						<Clipboard.Trigger asChild>
+							<button
+								className="p-1 hover:bg-muted/70 rounded transition-colors text-muted-foreground text-xs"
+								title="Copy row JSON"
+								onMouseEnter={() => {
+									clipboard.setValue(JSON.stringify(row, null, 2));
+								}}
+								onClick={() => {
+									clipboard.copy();
+								}}
+							>
+								<Copy className="h-3.5 w-3.5" />
+							</button>
+						</Clipboard.Trigger>
+					</Clipboard.RootProvider>
 					{onClose && (
 						<button
 							onClick={onClose}
