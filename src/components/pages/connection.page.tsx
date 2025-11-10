@@ -51,6 +51,7 @@ import { CellContextMenu } from "../cell-context-menu";
 import { QuickReferencesPanel } from "../quick-references-panel";
 import { InlineReferencesButton } from "../inline-references.button.tsx";
 import { JsonCell } from "../ui/json-cell";
+import { JsonViewerModal } from "../ui/json-viewer";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
 import { PrimaryKeyIcon } from "../ui/primary-key-icon";
@@ -125,6 +126,13 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
+
+	// Row JSON sheet state (expanded JSON viewer)
+	const [rowJsonSheetOpen, setRowJsonSheetOpen] = useState(false);
+	const [rowJsonData, setRowJsonData] = useState<Record<
+		string,
+		unknown
+	> | null>(null);
 
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
@@ -1932,6 +1940,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 														allTablesColumnsQuery.isLoading
 													}
 													size={search.tableSize}
+													withContextMenu
+													onExpandRowJson={(row) => {
+														setRowJsonData(row);
+														setRowJsonSheetOpen(true);
+													}}
 												/>
 												<BulkActionBar
 													selectedCount={
@@ -2356,6 +2369,33 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 								</div>
 							</div>
 						)}
+					</SheetContent>
+				</Sheet>
+			)}
+
+			{/* Row JSON Viewer Sheet (expanded) */}
+			{rowJsonSheetOpen && (
+				<Sheet
+					open={true}
+					onOpenChange={(details) => {
+						if (!details.open) {
+							setRowJsonSheetOpen(false);
+							setRowJsonData(null);
+						}
+					}}
+				>
+					<SheetContent className="z-50 w-full sm:max-w-[800px] p-0 flex flex-col">
+						<SheetHeader>
+							<SheetTitle>Row Data</SheetTitle>
+							<SheetDescription>Expanded JSON viewer</SheetDescription>
+						</SheetHeader>
+						<div className="p-4 flex-1 overflow-auto">
+							{rowJsonData ? (
+								<JsonViewerModal data={rowJsonData} className="h-full" />
+							) : (
+								<div className="text-sm text-muted-foreground">No data</div>
+							)}
+						</div>
 					</SheetContent>
 				</Sheet>
 			)}
