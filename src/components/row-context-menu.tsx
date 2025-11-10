@@ -1,4 +1,4 @@
-import { Copy, Code } from "lucide-react";
+import { Copy, Code, Eye } from "lucide-react";
 import {
 	Menu,
 	MenuContextTrigger,
@@ -32,7 +32,7 @@ export function RowContextMenu({
 	return (
 		<Menu lazyMount>
 			<MenuContextTrigger asChild>{children}</MenuContextTrigger>
-			<MenuContent className="z-1">
+			<MenuContent className="z-1" data-row-context-menu>
 				{onViewJson && (
 					<MenuItem value="view-json" onClick={onViewJson}>
 						<Code className="size-4" />
@@ -40,6 +40,7 @@ export function RowContextMenu({
 					</MenuItem>
 				)}
 				<MenuItem value="log" onClick={handleLogRow}>
+					<Eye className="size-4" />
 					<MenuItemText>Log row to console</MenuItemText>
 				</MenuItem>
 				<MenuItem value="copy" onClick={handleCopyRow}>

@@ -85,7 +85,7 @@ export function RowJsonViewer({
 						onClick={onExpandToDialog}
 						className="w-full text-xs text-center py-1.5 hover:bg-muted/70 rounded transition-colors font-medium text-foreground"
 					>
-						Expand to sheet →
+						Expand JSON viewer →
 					</button>
 				</div>
 			)}
