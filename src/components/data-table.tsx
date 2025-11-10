@@ -1,13 +1,15 @@
 import type { Cell, Row, Table as TanstackTable } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
 import type { ReactNode } from "react";
-import { Fragment, memo } from "react";
+import { Fragment, memo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
+import { Popover, Portal } from "@ark-ui/react";
 import { Button } from "./ui/button";
 import { PageLimitSelect } from "./page-limit.select.tsx";
 import { runIfFn } from "./run-if-fn.ts";
 import { RowContextMenu } from "./row-context-menu";
+import { RowJsonViewer } from "./row-json-viewer";
 import {
 	tableCellStyles,
 	tableEmptyStateStyles,
@@ -76,6 +78,11 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		size = "cozy",
 		ExpandedRow,
 	} = props;
+
+	const [viewingRowJson, setViewingRowJson] = useState<{
+		row: Record<string, unknown>;
+		rowIndex: number;
+	} | null>(null);
 
 	const state = table.getState();
 	const { pagination } = state;
@@ -203,22 +210,23 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 					) : (
 						<tbody>
 							{table.getRowModel().rows.length ? (
-								table
-									.getRowModel()
-									.rows.map((row, index) => (
-										<TableRow
-											key={row.id}
-											index={index}
-											getRow={() => row}
-											onRowClick={onRowClick}
-											size={size}
-											striped={striped}
-											interactive={interactive}
-											showColumnBorder={showColumnBorder}
-											withContextMenu={withContextMenu}
-											ExpandedRow={ExpandedRow}
-										/>
-									))
+								table.getRowModel().rows.map((row, index) => (
+									<TableRow
+										key={row.id}
+										index={index}
+										getRow={() => row}
+										onRowClick={onRowClick}
+										onViewJson={(rowData) => {
+											setViewingRowJson({ row: rowData, rowIndex: index });
+										}}
+										size={size}
+										striped={striped}
+										interactive={interactive}
+										showColumnBorder={showColumnBorder}
+										withContextMenu={withContextMenu}
+										ExpandedRow={ExpandedRow}
+									/>
+								))
 							) : (
 								<tr>
 									{emptyState ? (
@@ -236,6 +244,34 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 					)}
 				</table>
 			</div>
+
+			{/* Row JSON Viewer Popover */}
+			<Popover.Root
+				open={viewingRowJson !== null}
+				onOpenChange={(details) => {
+					if (!details.open) {
+						setViewingRowJson(null);
+					}
+				}}
+				lazyMount
+			>
+				<Portal>
+					<Popover.Positioner>
+						<Popover.Content className="z-50">
+							{viewingRowJson && (
+								<RowJsonViewer
+									row={viewingRowJson.row}
+									onExpandToDialog={() => {
+										setViewingRowJson(null);
+									}}
+									onClose={() => setViewingRowJson(null)}
+								/>
+							)}
+						</Popover.Content>
+					</Popover.Positioner>
+				</Portal>
+			</Popover.Root>
+
 			{table.options.manualPagination === false &&
 			(table.getRowModel().rows.length >= pagination.pageSize ||
 				pagination.pageSize > 100) ? (
@@ -280,6 +316,7 @@ const TableRow = memo(function TableRow({
 	index,
 	getRow,
 	onRowClick,
+	onViewJson,
 	size,
 	striped,
 	interactive,
@@ -290,6 +327,7 @@ const TableRow = memo(function TableRow({
 	index: number;
 	getRow: () => Row<any>;
 	onRowClick?: (row: Row<any>) => void;
+	onViewJson?: (row: Record<string, unknown>) => void;
 	size: DataTableSize;
 	striped: boolean;
 	interactive: boolean;
@@ -305,7 +343,14 @@ const TableRow = memo(function TableRow({
 
 	return (
 		<Fragment>
-			<ContextMenu row={row.original as Record<string, unknown>}>
+			<ContextMenu
+				row={row.original as Record<string, unknown>}
+				onViewJson={
+					onViewJson
+						? () => onViewJson(row.original as Record<string, unknown>)
+						: undefined
+				}
+			>
 				<tr
 					className={tableRowStyles({
 						striped,

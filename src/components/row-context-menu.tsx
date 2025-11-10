@@ -1,4 +1,4 @@
-import { Copy } from "lucide-react";
+import { Copy, Code } from "lucide-react";
 import {
 	Menu,
 	MenuContextTrigger,
@@ -10,9 +10,14 @@ import {
 export interface RowContextMenuProps {
 	row: Record<string, unknown>;
 	children: React.ReactNode;
+	onViewJson?: () => void;
 }
 
-export function RowContextMenu({ row, children }: RowContextMenuProps) {
+export function RowContextMenu({
+	row,
+	children,
+	onViewJson,
+}: RowContextMenuProps) {
 	const handleLogRow = () => {
 		console.log("Row data:", row);
 	};
@@ -28,6 +33,12 @@ export function RowContextMenu({ row, children }: RowContextMenuProps) {
 		<Menu lazyMount>
 			<MenuContextTrigger asChild>{children}</MenuContextTrigger>
 			<MenuContent className="z-1">
+				{onViewJson && (
+					<MenuItem value="view-json" onClick={onViewJson}>
+						<Code className="size-4" />
+						<MenuItemText>View JSON</MenuItemText>
+					</MenuItem>
+				)}
 				<MenuItem value="log" onClick={handleLogRow}>
 					<MenuItemText>Log row to console</MenuItemText>
 				</MenuItem>
