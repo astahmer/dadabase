@@ -65,6 +65,10 @@ const searchSchema = Schema.Struct({
 	sidebarCollapsed: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
+	rowJsonViewerOpen: Schema.Boolean.pipe(
+		Schema.optionalWith({ default: () => false }),
+	),
+	rowJsonViewerRowId: Schema.String.pipe(Schema.optional), // Primary key value to identify which row to display
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({

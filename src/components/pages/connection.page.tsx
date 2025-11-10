@@ -127,13 +127,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
 
-	// Row JSON sheet state (expanded JSON viewer)
-	const [rowJsonSheetOpen, setRowJsonSheetOpen] = useState(false);
-	const [rowJsonData, setRowJsonData] = useState<Record<
-		string,
-		unknown
-	> | null>(null);
-
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
 	const connectionUrl = connection?.url || "";
@@ -380,6 +373,46 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		);
 		return tableData?.columns ?? [];
 	}, [allTablesColumnsQuery.data, search.table, search.schema]);
+
+	// Row JSON viewer state - stored in URL params
+	const rowJsonSheetOpen = search.rowJsonViewerOpen ?? false;
+	const primaryKeyColumn = columnMetadata.find((col) => col.primaryKey);
+
+	// Reconstruct row data from URL rowId by looking it up in current table data
+	const rowJsonData = useMemo(() => {
+		if (!search.rowJsonViewerRowId || !primaryKeyColumn || !rowsQuery.data) {
+			return null;
+		}
+		const rows = rowsQuery.data.rows || [];
+		const row = rows.find(
+			(r) => String(r[primaryKeyColumn.name]) === search.rowJsonViewerRowId,
+		);
+		return row || null;
+	}, [search.rowJsonViewerRowId, primaryKeyColumn, rowsQuery.data]);
+
+	const setRowJsonSheetOpen = (open: boolean) => {
+		navigate({
+			search: (prev) => ({
+				...prev,
+				rowJsonViewerOpen: open,
+				rowJsonViewerRowId: open ? prev.rowJsonViewerRowId : undefined,
+			}),
+		});
+	};
+
+	const setRowJsonData = (data: Record<string, unknown> | null) => {
+		const rowId =
+			data && primaryKeyColumn
+				? String(data[primaryKeyColumn.name])
+				: undefined;
+		navigate({
+			search: (prev) => ({
+				...prev,
+				rowJsonViewerRowId: rowId,
+				rowJsonViewerOpen: !!rowId,
+			}),
+		});
+	};
 
 	const allSchemaList = schemaListQuery.data || [];
 	const tableList = tablesListQuery.data || [];
