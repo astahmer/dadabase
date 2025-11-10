@@ -10,17 +10,16 @@ import { ChevronRightIcon, EllipsisIcon } from "lucide-react";
 export interface BreadcrumbRootProps
 	extends React.HTMLAttributes<HTMLElement> {}
 
-export const BreadcrumbRoot = React.forwardRef<
-	HTMLElement,
-	BreadcrumbRootProps
->(({ className, ...props }, ref) => (
+export const BreadcrumbRoot = ({
+	className,
+	...props
+}: BreadcrumbRootProps) => (
 	<nav
-		ref={ref}
 		className={cn(breadcrumbVariants.root(), className)}
 		aria-label="breadcrumb"
 		{...props}
 	/>
-));
+);
 BreadcrumbRoot.displayName = "BreadcrumbRoot";
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -31,16 +30,17 @@ export interface BreadcrumbListProps
 	variant?: "plain" | "underline";
 }
 
-export const BreadcrumbList = React.forwardRef<
-	HTMLOListElement,
-	BreadcrumbListProps
->(({ className, size = "md", variant = "plain", ...props }, ref) => (
+export const BreadcrumbList = ({
+	className,
+	size = "md",
+	variant = "plain",
+	...props
+}: BreadcrumbListProps) => (
 	<ol
-		ref={ref}
 		className={cn(breadcrumbVariants.list({ size, variant }), className)}
 		{...props}
 	/>
-));
+);
 BreadcrumbList.displayName = "BreadcrumbList";
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -48,16 +48,12 @@ BreadcrumbList.displayName = "BreadcrumbList";
 export interface BreadcrumbItemProps
 	extends React.HTMLAttributes<HTMLLIElement> {}
 
-export const BreadcrumbItem = React.forwardRef<
-	HTMLLIElement,
-	BreadcrumbItemProps
->(({ className, ...props }, ref) => (
-	<li
-		ref={ref}
-		className={cn(breadcrumbVariants.item(), className)}
-		{...props}
-	/>
-));
+export const BreadcrumbItem = ({
+	className,
+	...props
+}: BreadcrumbItemProps) => (
+	<li className={cn(breadcrumbVariants.item(), className)} {...props} />
+);
 BreadcrumbItem.displayName = "BreadcrumbItem";
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -67,16 +63,16 @@ export interface BreadcrumbLinkProps
 	variant?: "plain" | "underline";
 }
 
-export const BreadcrumbLink = React.forwardRef<
-	HTMLAnchorElement,
-	BreadcrumbLinkProps
->(({ className, variant = "plain", ...props }, ref) => (
+export const BreadcrumbLink = ({
+	className,
+	variant = "plain",
+	...props
+}: BreadcrumbLinkProps) => (
 	<a
-		ref={ref}
 		className={cn(breadcrumbVariants.link({ variant }), className)}
 		{...props}
 	/>
-));
+);
 BreadcrumbLink.displayName = "BreadcrumbLink";
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -86,18 +82,18 @@ export interface BreadcrumbCurrentLinkProps
 	variant?: "plain" | "underline";
 }
 
-export const BreadcrumbCurrentLink = React.forwardRef<
-	HTMLSpanElement,
-	BreadcrumbCurrentLinkProps
->(({ className, variant = "plain", ...props }, ref) => (
+export const BreadcrumbCurrentLink = ({
+	className,
+	variant = "plain",
+	...props
+}: BreadcrumbCurrentLinkProps) => (
 	<span
-		ref={ref}
 		className={cn(breadcrumbVariants.currentLink({ variant }), className)}
 		role="link"
 		aria-current="page"
 		{...props}
 	/>
-));
+);
 BreadcrumbCurrentLink.displayName = "BreadcrumbCurrentLink";
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -105,19 +101,19 @@ BreadcrumbCurrentLink.displayName = "BreadcrumbCurrentLink";
 export interface BreadcrumbSeparatorProps
 	extends React.HTMLAttributes<HTMLLIElement> {}
 
-export const BreadcrumbSeparator = React.forwardRef<
-	HTMLLIElement,
-	BreadcrumbSeparatorProps
->(({ className, children, ...props }, ref) => (
+export const BreadcrumbSeparator = ({
+	className,
+	children,
+	...props
+}: BreadcrumbSeparatorProps) => (
 	<li
-		ref={ref}
 		className={cn(breadcrumbVariants.separator(), className)}
 		aria-hidden="true"
 		{...props}
 	>
 		{children ?? <ChevronRightIcon />}
 	</li>
-));
+);
 BreadcrumbSeparator.displayName = "BreadcrumbSeparator";
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -125,12 +121,12 @@ BreadcrumbSeparator.displayName = "BreadcrumbSeparator";
 export interface BreadcrumbEllipsisProps
 	extends React.HTMLAttributes<HTMLLIElement> {}
 
-export const BreadcrumbEllipsis = React.forwardRef<
-	HTMLLIElement,
-	BreadcrumbEllipsisProps
->(({ className, children, ...props }, ref) => (
+export const BreadcrumbEllipsis = ({
+	className,
+	children,
+	...props
+}: BreadcrumbEllipsisProps) => (
 	<li
-		ref={ref}
 		className={cn(breadcrumbVariants.ellipsis(), className)}
 		role="presentation"
 		aria-hidden="true"
@@ -138,5 +134,5 @@ export const BreadcrumbEllipsis = React.forwardRef<
 	>
 		{children ?? <EllipsisIcon />}
 	</li>
-));
+);
 BreadcrumbEllipsis.displayName = "BreadcrumbEllipsis";

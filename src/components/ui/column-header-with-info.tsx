@@ -1,7 +1,6 @@
 import { Tooltip } from "./tooltip";
 import { DataTypeBadge } from "./data-type-badge";
 import type { ReactNode } from "react";
-import React from "react";
 
 interface ForeignKeyInfo {
 	referencedSchema: string;
@@ -22,24 +21,18 @@ interface ColumnHeaderWithInfoProps {
 	sortOrder?: "asc" | "desc" | false;
 }
 
-export const ColumnHeaderWithInfo = React.forwardRef<
-	HTMLDivElement,
-	ColumnHeaderWithInfoProps
->(function ColumnHeaderWithInfo(
-	{
-		columnName,
-		dataType,
-		showBadge = true,
-		children,
-		className,
-		isPrimaryKey = false,
-		isUnique = false,
-		isForeignKey = false,
-		foreignKey,
-		sortOrder,
-	},
-	ref,
-) {
+export const ColumnHeaderWithInfo = ({
+	columnName,
+	dataType,
+	showBadge = true,
+	children,
+	className,
+	isPrimaryKey = false,
+	isUnique = false,
+	isForeignKey = false,
+	foreignKey,
+	sortOrder,
+}: ColumnHeaderWithInfoProps) => {
 	// Build tooltip content with data type and constraints
 	const tooltipParts = [dataType];
 	if (isPrimaryKey) {
@@ -62,16 +55,13 @@ export const ColumnHeaderWithInfo = React.forwardRef<
 
 	return (
 		<Tooltip content={tooltipContent} portalled>
-			<div
-				ref={ref}
-				className={`flex items-center gap-2 min-w-0 ${className || ""}`}
-			>
+			<div className={`flex items-center gap-2 min-w-0 ${className || ""}`}>
 				<span className="truncate">{columnName}</span>
 				{showBadge && <DataTypeBadge dataType={dataType} />}
 				{children}
 			</div>
 		</Tooltip>
 	);
-});
+};
 
 ColumnHeaderWithInfo.displayName = "ColumnHeaderWithInfo";

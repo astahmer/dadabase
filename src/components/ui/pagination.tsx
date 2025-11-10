@@ -17,7 +17,8 @@ const parts = paginationAnatomy.extendWith("content").build();
 const Pagination = ({
 	className,
 	...props
-}: Omit<PaginationPrimitive.RootBaseProps, "type"> & ExposedComponentProps<"div">) => (
+}: Omit<PaginationPrimitive.RootBaseProps, "type"> &
+	ExposedComponentProps<"div">) => (
 	<PaginationPrimitive.Root
 		className={cn(
 			"mx-auto flex w-full flex-row items-center justify-center gap-1",
@@ -28,7 +29,10 @@ const Pagination = ({
 );
 Pagination.displayName = "Pagination";
 
-const PaginationContent = ({ className, ...props }: React.HTMLAttributes<HTMLUListElement>) => (
+const PaginationContent = ({
+	className,
+	...props
+}: React.HTMLAttributes<HTMLUListElement>) => (
 	<ul
 		{...parts.content.attrs}
 		className={cn("flex flex-row items-center gap-1", className)}

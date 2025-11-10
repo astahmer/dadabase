@@ -57,32 +57,26 @@ export interface BadgeProps
 	extends Omit<React.HTMLAttributes<HTMLSpanElement>, "color">,
 		VariantProps<typeof badgeVariants> {}
 
-const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
-	(
-		{
+const Badge = ({
+	className,
+	variant: display,
+	colorPalette: color,
+	size,
+	dataType,
+	...props
+}: BadgeProps) => (
+	<span
+		className={cn(
+			badgeVariants({
+				variant: display,
+				colorPalette: dataType ? undefined : color,
+				size,
+				dataType,
+			}),
 			className,
-			variant: display,
-			colorPalette: color,
-			size,
-			dataType,
-			...props
-		},
-		ref,
-	) => (
-		<span
-			ref={ref}
-			className={cn(
-				badgeVariants({
-					variant: display,
-					colorPalette: dataType ? undefined : color,
-					size,
-					dataType,
-				}),
-				className,
-			)}
-			{...props}
-		/>
-	),
+		)}
+		{...props}
+	/>
 );
 Badge.displayName = "Badge";
 

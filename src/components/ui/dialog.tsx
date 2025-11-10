@@ -11,7 +11,10 @@ const parts = dialogAnatomy.extendWith("header").build();
 
 const Dialog = DialogPrimitive.Root;
 
-const DialogBackdrop = ({ className, ...props }: DialogPrimitive.BackdropProps) => (
+const DialogBackdrop = ({
+	className,
+	...props
+}: DialogPrimitive.BackdropProps) => (
 	<DialogPrimitive.Backdrop
 		className={cn(dialogBackdropVariants(), className)}
 		{...props}
@@ -60,7 +63,10 @@ DialogContent.displayName = "DialogContent";
 
 const DialogContext = DialogPrimitive.Context;
 
-const DialogDescription = ({ className, ...props }: DialogPrimitive.DescriptionProps) => (
+const DialogDescription = ({
+	className,
+	...props
+}: DialogPrimitive.DescriptionProps) => (
 	<DialogPrimitive.Description
 		className={cn("text-muted-foreground text-sm", className)}
 		{...props}
@@ -80,7 +86,10 @@ const DialogFooter = ({
 		{...props}
 	/>
 );
-const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+const DialogHeader = ({
+	className,
+	...props
+}: React.HTMLAttributes<HTMLDivElement>) => (
 	<div
 		{...parts.header.attrs}
 		className={cn("flex flex-col gap-1 text-center sm:text-left", className)}
