@@ -6,6 +6,7 @@ import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fn
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
 import { getAllTablesColumnsQueryOptions } from "#src/server/pg/start-fns/get-all-tables-columns.start";
+import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
@@ -358,23 +359,69 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	// });
 	// console.log(rowsQuery.data);
 
+	// Fetch all tables' columns in the background (for cache on navigation)
+	// Strategy: We fetch all table metadata in the background while showing the user
+	// data for their currently selected table. This way:
+	// 1. Initial load is fast (single table query starts immediately)
+	// 2. Subsequent table navigations in the same schema are instant (from all-tables cache)
+	// 3. No redundant fetching on navigation since all data is already in the cache
 	const allTablesColumnsQuery = useQuery({
 		...getAllTablesColumnsQueryOptions({
 			url: activeConnectionUrl,
 			schema: search.schema || "",
 		}),
 		enabled: !!activeConnectionUrl && !!search.schema,
+		// Longer stale time since this is comprehensive data fetched in background
+		staleTime: 5 * 60 * 1000, // 5 minutes
 	});
 
-	// Get metadata for the currently selected table from the cache
+	// Fetch only the current table's columns (fast path for initial load)
+	// This enables quick initial rendering while allTablesColumnsQuery is fetching in parallel.
+	// Once allTablesColumnsQuery completes, we switch to using its data for better performance.
+	const singleTableMetadataQuery = useQuery({
+		...getTableColumnsQueryOptions({
+			url: activeConnectionUrl,
+			schema: search.schema || "",
+			table: search.table || "",
+		}),
+		enabled: !!activeConnectionUrl && !!search.schema && !!search.table,
+		// Shorter stale time since this is just a fallback while allTables data loads
+		staleTime: 60 * 1000, // 1 minute
+	});
+
+	// Get metadata for the currently selected table
+	// Strategy: Prefer all-tables data (background cache), fall back to single-table data (fast)
+	// This gives us:
+	// - Fast initial load: singleTableMetadataQuery data shows up immediately
+	// - Optimal caching: Once allTablesColumnsQuery finishes, we use its data for all navigations
+	// - No redundant requests: Navigating to another table in the same schema hits the cache
 	const columnMetadata = useMemo(() => {
 		if (!search.table || !search.schema) return [];
 
-		const tableData = allTablesColumnsQuery.data?.find(
-			(t) => t.table === search.table,
-		);
-		return tableData?.columns ?? [];
-	}, [allTablesColumnsQuery.data, search.table, search.schema]);
+		// Prefer all tables data if available (from background fetch)
+		// This ensures we use the comprehensive cached data for all table navigations
+		if (allTablesColumnsQuery.data) {
+			const tableData = allTablesColumnsQuery.data.find(
+				(t) => t.table === search.table,
+			);
+			if (tableData?.columns) {
+				return tableData.columns;
+			}
+		}
+
+		// Fall back to single table metadata (faster initial load while waiting for all tables)
+		// This is only used until the all-tables query completes
+		if (singleTableMetadataQuery.data) {
+			return singleTableMetadataQuery.data;
+		}
+
+		return [];
+	}, [
+		allTablesColumnsQuery.data,
+		singleTableMetadataQuery.data,
+		search.table,
+		search.schema,
+	]);
 
 	// Row JSON viewer state - stored in URL params
 	const rowJsonSheetOpen = search.rowJsonViewerOpen ?? false;
