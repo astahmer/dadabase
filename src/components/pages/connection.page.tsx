@@ -22,8 +22,6 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import type { AccessorKeyColumnDef, ColumnDef } from "@tanstack/react-table";
 import {
 	ChevronDownIcon,
-	ChevronLeft,
-	ChevronRight,
 	LayoutGrid,
 	LucideChevronDown,
 	LucideChevronUp,
@@ -1207,11 +1205,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 			</div>
 
 			{/* Main Layout */}
-			<div className="flex-1 flex h-full min-h-0">
+			<div className="flex-1 flex h-full min-h-0 relative">
 				{/* Sidebar */}
 				<div
-					className={`border-r bg-muted/30 flex flex-col overflow-hidden h-full min-h-0 transition-all duration-300 ${
-						search.sidebarCollapsed ? "w-0" : "w-64"
+					className={`border-r bg-muted/30 flex flex-col overflow-hidden h-full min-h-0 transition-all relative duration-150 ${
+						search.sidebarCollapsed ? "w-8" : "w-64"
 					}`}
 				>
 					{/* Database Selector */}
@@ -1514,33 +1512,22 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 							)}
 						</Stack>
 					</div>
-				</div>
-
-				{/* Sidebar Toggle */}
-				<div className="w-8 border-r bg-muted/50 flex items-center justify-center">
-					<Tooltip
-						content={search.sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-					>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => {
-								navigate({
-									search: (prev) => ({
-										...prev,
-										sidebarCollapsed: !prev.sidebarCollapsed,
-									}),
-								});
-							}}
-							className="h-8 w-8 p-0"
-						>
-							{search.sidebarCollapsed ? (
-								<ChevronRight className="h-4 w-4" />
-							) : (
-								<ChevronLeft className="h-4 w-4" />
-							)}
-						</Button>
-					</Tooltip>
+					{/* Sidebar Toggle - Minimal border-only toggle */}
+					<button
+						onClick={() => {
+							navigate({
+								search: (prev) => ({
+									...prev,
+									sidebarCollapsed: !prev.sidebarCollapsed,
+								}),
+							});
+						}}
+						className="absolute top-0 right-0 bottom-0 z-10 w-[40px] border-r cursor-col-resize hover:bg-primary/10 transition-colors -translate-x-1/2"
+						style={{
+							right: search.sidebarCollapsed ? "0" : "-1px",
+						}}
+						title={search.sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+					/>
 				</div>
 
 				{/* Content Area */}
