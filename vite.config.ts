@@ -1,11 +1,10 @@
 import tailwindcss from "@tailwindcss/vite";
+import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
+import jsxSource from "unplugin-jsx-source/vite";
 import { defineConfig } from "vite";
 import viteTsConfigPaths from "vite-tsconfig-paths";
-import { devtools } from "@tanstack/devtools-vite";
-import jsxSource from "unplugin-jsx-source/vite";
-import { nitro } from "nitro/vite";
 
 const defaultTransformFileName = (
 	id: string,
@@ -30,13 +29,11 @@ const config = defineConfig((env) => ({
 				transformFileName: (fileName, loc) =>
 					defaultTransformFileName(fileName, loc),
 			}),
-		// this is the plugin that enables path aliases
 		viteTsConfigPaths({
 			projects: ["./tsconfig.json"],
 		}),
 		tailwindcss(),
-		tanstackStart({ spa: { enabled: true } }),
-		nitro({ preset: "node-server" }),
+		tanstackStart({ spa: { enabled: false } }),
 		viteReact(),
 	],
 }));

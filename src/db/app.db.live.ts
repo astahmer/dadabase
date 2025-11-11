@@ -12,6 +12,7 @@ const makeAppDatabaseLayer = (url: string) =>
 		AppDatabase,
 		Effect.gen(function* () {
 			const client = createClient({ url });
+			console.log("Connecting to database:", url);
 
 			const qb = new Kysely<AppDatabaseSchema>({
 				dialect: new LibsqlDialect({ client: client as any }),
@@ -36,6 +37,7 @@ const makeAppDatabaseLayer = (url: string) =>
 export const makeAppDatabaseLayerFromEnv = Layer.unwrapEffect(
 	Effect.gen(function* () {
 		const url = yield* DatabaseUrl;
-		return makeAppDatabaseLayer(Redacted.value(url));
+		const rawValue = Redacted.value(url);
+		return makeAppDatabaseLayer(rawValue);
 	}),
 );
