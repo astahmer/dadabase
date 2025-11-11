@@ -127,6 +127,25 @@ function safeJsonParse(value: string) {
 	}
 }
 
+const formatTableValue = (value: unknown): unknown => {
+	if (value instanceof Date) {
+		return value.toISOString();
+	}
+	if (typeof value === "string") {
+		// Check if it looks like a date
+		const dateObj = new Date(value);
+		if (!isNaN(dateObj.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+			return dateObj.toISOString();
+		}
+
+		if (value.at(0) === "{" && value.at(-1) === "}") {
+			// Check if it looks like a JSON object
+			return safeJsonParse(value);
+		}
+	}
+	return value;
+};
+
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
@@ -189,7 +208,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
 	const tableContainerRef = useRef<HTMLDivElement>(null);
 
-	const connectionUrl = connection?.url || "";
+	const connectionUrl = connection.url || "";
 
 	const search = useSearch({ from: "/connections/$connectionName" });
 	// console.log(search);
@@ -255,23 +274,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 				logicalOperator: "and",
 			},
 		}),
-		// placeholderData: keepPreviousData,
-		enabled: !!activeConnectionUrl && !!search.schema && !!search.table,
+		enabled: !!search.schema && !!search.table,
 	});
-	// console.log("query", {
-	// 	url: activeConnectionUrl,
-	// 	schema: search.schema || "",
-	// 	table: search.table || "",
-	// 	limit: search.limit,
-	// 	offset: search.offset,
-	// 	orderBy: search.orderBy,
-	// 	orderDirection: search.orderDirection,
-	// 	filters: queryBuilder.getWhereClause() ?? {
-	// 		conditions: [],
-	// 		logicalOperator: "and",
-	// 	},
-	// });
-	// console.log(rowsQuery.data);
 
 	// Fetch table column metadata with hybrid strategy (fast initial + efficient navigation)
 	const {
@@ -322,26 +326,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	};
 	const rowsList = queryResponse.rows;
 	const totalRowCount = queryResponse.rowCount;
-
-	// Format data with ISO dates and create columns
-	const formatTableValue = (value: unknown): unknown => {
-		if (value instanceof Date) {
-			return value.toISOString();
-		}
-		if (typeof value === "string") {
-			// Check if it looks like a date
-			const dateObj = new Date(value);
-			if (!isNaN(dateObj.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-				return dateObj.toISOString();
-			}
-
-			if (value.at(0) === "{" && value.at(-1) === "}") {
-				// Check if it looks like a JSON object
-				return safeJsonParse(value);
-			}
-		}
-		return value;
-	};
 
 	const formattedTableRowsData = useMemo(
 		() =>
@@ -1615,7 +1599,7 @@ const ConnectionPageSidebar = (props: {
 
 	const databaseListQuery = useQuery({
 		...listAvailableDatabase({ url: connectionUrl }),
-		enabled: !!connection?.url,
+		enabled: !!connection.url,
 		retry: 3,
 	});
 
@@ -1636,7 +1620,7 @@ const ConnectionPageSidebar = (props: {
 	});
 	const tablesListQuery = useQuery({
 		...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
-		enabled: !!activeConnectionUrl && !!selectedSchema,
+		enabled: !!selectedSchema,
 		retry: 3,
 	});
 

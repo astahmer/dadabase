@@ -69,8 +69,9 @@ export type QueryTableDataInput = {
 	filters?: QueryFilterType;
 };
 
-export const queryTableDataQueryOptions = (input: QueryTableDataInput) =>
-	queryOptions({
+export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
+	// console.log("[rows query]", input)
+	return queryOptions({
 		queryKey: [
 			"pg",
 			"tableData",
@@ -87,3 +88,4 @@ export const queryTableDataQueryOptions = (input: QueryTableDataInput) =>
 		],
 		queryFn: async () => queryTableDataServerFn({ data: input as any }),
 	});
+};
