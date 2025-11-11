@@ -24,6 +24,7 @@ interface UseTableColumnMetadataResult {
 			referencedColumn: string;
 		};
 	}>;
+	columnList: string[];
 	isLoading: boolean;
 	isError: boolean;
 	error: Error | null;
@@ -116,8 +117,14 @@ export const useTableColumnMetadata = ({
 		allTablesColumnsQuery.isError || singleTableMetadataQuery.isError;
 	const error = allTablesColumnsQuery.error || singleTableMetadataQuery.error;
 
+	const columnList = useMemo(
+		() => columnMetadata.map((col) => col.name),
+		[columnMetadata],
+	);
+
 	return {
 		columnMetadata,
+		columnList,
 		isLoading,
 		isError,
 		error: error ?? null,

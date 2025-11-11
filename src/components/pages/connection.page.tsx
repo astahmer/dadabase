@@ -1,5 +1,8 @@
 import { useConnectionStorage } from "#src/hooks/use-connection-storage";
-import { useQueryBuilder } from "#src/hooks/use-query-builder";
+import {
+	useQueryBuilder,
+	type QueryFilterBuilderReturn,
+} from "#src/hooks/use-query-builder";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url";
@@ -14,12 +17,13 @@ import { useListCollection } from "@ark-ui/react";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { Pagination } from "@ark-ui/react/pagination";
+import type { Table as TanstackTable } from "@tanstack/react-table";
 import {
 	useQuery,
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
 import type { AccessorKeyColumnDef, ColumnDef } from "@tanstack/react-table";
 import {
 	ChevronDownIcon,
@@ -237,12 +241,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		},
 	);
 
-	const schemaListQuery = useQuery({
-		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
-		enabled: !!activeConnectionUrl,
-		retry: 3,
-	});
-
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
 			url: activeConnectionUrl,
@@ -276,12 +274,15 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	// console.log(rowsQuery.data);
 
 	// Fetch table column metadata with hybrid strategy (fast initial + efficient navigation)
-	const { columnMetadata, isLoading: isColumnMetadataLoading } =
-		useTableColumnMetadata({
-			url: activeConnectionUrl,
-			schema: search.schema || "",
-			table: search.table || "",
-		});
+	const {
+		columnMetadata,
+		columnList,
+		isLoading: isColumnMetadataLoading,
+	} = useTableColumnMetadata({
+		url: activeConnectionUrl,
+		schema: search.schema || "",
+		table: search.table || "",
+	});
 
 	// Row JSON viewer state - stored in URL params
 	const rowJsonSheetOpen = search.rowJsonViewerOpen ?? false;
@@ -321,10 +322,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	};
 	const rowsList = queryResponse.rows;
 	const totalRowCount = queryResponse.rowCount;
-
-	const tableDisplayName = search.table
-		? `${search.schema}.${search.table}`
-		: "No table selected";
 
 	// Format data with ISO dates and create columns
 	const formatTableValue = (value: unknown): unknown => {
@@ -863,8 +860,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		},
 	});
 
-	const filterConditions = search.filters?.conditions ?? [];
-
 	return (
 		<div className="h-screen bg-background flex flex-col">
 			{/* Header */}
@@ -889,273 +884,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 					{search.table && search.schema ? (
 						<>
 							{/* View Toggle & Filter Controls */}
-							<div className="relative border-b bg-muted/50">
-								{(rowsQuery.isLoading || isColumnMetadataLoading) && (
-									<div
-										// bg-linear-to-r from-primary via-primary to-transparent
-										className="absolute inset-x-0 top-0 h-0.5 bg-primary"
-										style={{
-											background:
-												"linear-gradient(90deg, transparent, var(--color-primary), transparent)",
-											animation: "shimmer 1.5s infinite",
-										}}
-									/>
-								)}
-								<HStack className="px-4 py-2 items-center justify-between">
-									<div className="flex gap-2">
-										<Tooltip content="View rows">
-											<Button
-												variant={
-													search.viewMode === "rows" ? "default" : "outline"
-												}
-												size="sm"
-												onClick={() =>
-													navigate({
-														search: (prev) => {
-															// Update the currently active tab with the same viewMode
-															const updatedTabs = (prev.tabs ?? []).map(
-																(tab) => {
-																	if (tab.tabId === prev.activeTabId) {
-																		return {
-																			...tab,
-																			viewMode: "rows" as const,
-																		};
-																	}
-																	return tab;
-																},
-															);
-
-															return {
-																...prev,
-																viewMode: "rows" as const,
-																tabs: updatedTabs,
-															};
-														},
-													})
-												}
-											>
-												<Rows className="h-4 w-4" />
-											</Button>
-										</Tooltip>
-										<Tooltip content="View table structure">
-											<Button
-												variant={
-													search.viewMode === "structure"
-														? "default"
-														: "outline"
-												}
-												size="sm"
-												onClick={() =>
-													navigate({
-														search: (prev) => {
-															// Update the currently active tab with the same viewMode
-															const updatedTabs = (prev.tabs ?? []).map(
-																(tab) => {
-																	if (tab.tabId === prev.activeTabId) {
-																		return {
-																			...tab,
-																			viewMode: "structure" as const,
-																		};
-																	}
-																	return tab;
-																},
-															);
-
-															return {
-																...prev,
-																viewMode: "structure" as const,
-																tabs: updatedTabs,
-															};
-														},
-													})
-												}
-											>
-												<LayoutGrid className="h-4 w-4" />
-											</Button>
-										</Tooltip>
-										{search.viewMode === "rows" && (
-											<Button
-												variant={
-													filterConditions.length > 0 && !search.filtersOpened
-														? "default"
-														: "outline"
-												}
-												size="sm"
-												onClick={() => {
-													if (queryBuilder.filter.conditions.length === 0) {
-														queryBuilder.addCondition();
-													} else {
-														navigate({
-															search: (prev) => {
-																// Update the currently active tab with the same filtersOpened state
-																const updatedTabs = (prev.tabs ?? []).map(
-																	(tab) => {
-																		if (tab.tabId === prev.activeTabId) {
-																			return {
-																				...tab,
-																				filtersOpened: !prev.filtersOpened,
-																			};
-																		}
-																		return tab;
-																	},
-																);
-
-																return {
-																	...prev,
-																	filtersOpened: !prev.filtersOpened,
-																	tabs: updatedTabs,
-																};
-															},
-														});
-													}
-												}}
-												disabled={isColumnMetadataLoading}
-												className={filterConditions.length > 0 ? "gap-2" : ""}
-											>
-												<LucideListFilter className="h-3 w-3" />
-												{filterConditions.length > 0
-													? search.filtersOpened
-														? "Filters"
-														: "Open filters"
-													: "Add filter"}
-												{filterConditions.length > 0 && (
-													<span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-xs font-semibold bg-background/20">
-														{search.filters?.conditions.length || 0}
-													</span>
-												)}
-												{filterConditions.length > 0 ? (
-													search.filtersOpened ? (
-														<LucideChevronUp className="h-3 w-3" />
-													) : (
-														<LucideChevronDown className="h-3 w-3" />
-													)
-												) : null}
-											</Button>
-										)}
-									</div>
-									{search.viewMode === "rows" && (
-										<NaturalLanguageSearch
-											className="w-full"
-											availableColumns={columnMetadata.map((col) => col.name)}
-											onApplyFilters={(parsed) => {
-												const { filters = [], orderBy, limit } = parsed;
-												console.log("onApplyFilters", filters);
-												// 	// Map NL operators to query filter operators
-												const operatorMap: Record<string, any> = {
-													eq: "equals",
-													gt: "greater_than",
-													lt: "less_than",
-													gte: "greater_than_or_equal",
-													lte: "less_than_or_equal",
-													contains: "contains",
-													in: "in",
-													not_eq: "not_equals",
-													not_contains: "not_contains",
-												};
-
-												if (filters.length) {
-													const currentConditions =
-														search.filters?.conditions ?? [];
-													// Remove filters related to the NL query
-													if (parsed.clear) {
-														queryBuilder.updateManyConditions(
-															currentConditions.filter((current) => {
-																return filters.some(
-																	(removed) =>
-																		current.column === removed.field &&
-																		current.operator === removed.operator &&
-																		current.value === removed.value,
-																);
-															}),
-														);
-													} else {
-														// Or add new filters
-														queryBuilder.updateManyConditions(
-															currentConditions
-																.map((f) => ({
-																	column: f.column,
-																	operator: f.operator,
-																	value: f.value as string,
-																}))
-																.concat(
-																	filters.map((f) => ({
-																		column: f.field,
-																		operator:
-																			operatorMap[f.operator] || "equals",
-																		value: f.value as string,
-																	})),
-																),
-														);
-													}
-												}
-
-												if (orderBy) {
-													navigate({
-														search: (prev) => ({
-															...prev,
-															orderBy: orderBy.field,
-															orderDirection: orderBy.direction,
-														}),
-													});
-												}
-
-												if (limit) {
-													navigate({
-														search: (prev) => ({
-															...prev,
-															limit: limit,
-														}),
-													});
-												}
-											}}
-										/>
-									)}
-									{search.viewMode === "rows" && (
-										<ColumnVisibilityControls
-											// key={(search.hiddenColumnList ?? []).join(",")}
-											key={JSON.stringify(columnVisibilityState)}
-											table={rowsDataTable}
-											columnList={columnMetadata.map((col) => col.name)}
-											minimal={true}
-										/>
-									)}
-									{search.viewMode === "rows" && (
-										<OrderBySelect
-											columnList={columnMetadata.map((col) => col.name)}
-											orderBy={search.orderBy}
-											orderDirection={search.orderDirection}
-											onOrderChange={(orderBy, direction) => {
-												navigate({
-													search: (prev) => {
-														// Update the currently active tab with the same order updates
-														const updatedTabs = (prev.tabs ?? []).map((tab) => {
-															if (tab.tabId === prev.activeTabId) {
-																return {
-																	...tab,
-																	orderBy,
-																	orderDirection: direction || "asc",
-																	offset: 0,
-																};
-															}
-															return tab;
-														});
-
-														return {
-															...prev,
-															orderBy,
-															orderDirection: direction || "asc",
-															offset: 0,
-															tabs: updatedTabs,
-														};
-													},
-												});
-											}}
-											getColumnLabel={(col) => col}
-											minimal
-										/>
-									)}
-								</HStack>
-							</div>
+							<ConnectionPageFilters
+								columnList={columnList}
+								table={rowsDataTable}
+								isLoading={rowsQuery.isLoading || isColumnMetadataLoading}
+								queryBuilder={queryBuilder}
+							/>
 
 							{/* Query Filter Builder */}
 							{search.viewMode === "rows" &&
@@ -1252,266 +986,20 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											</>
 										)}
 										{/* Status Bar */}
-										<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
-											<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-4">
-												{/* Left side - Table info */}
-												<HStack className="flex-1 min-w-0 whitespace-nowrap overflow-x-auto">
-													{rowsQuery.isLoading ? (
-														<span className="text-muted-foreground/50">
-															Loading...
-														</span>
-													) : (
-														<>
-															<span className="truncate">
-																{tableDisplayName}
-																<span className="hidden sm:inline">
-																	{" "}
-																	({rowsColumns.length} columns)
-																</span>
-															</span>
-															<span className="shrink-0">
-																{search.offset}-
-																{Math.min(
-																	totalRowCount,
-																	search.offset + search.limit,
-																)}{" "}
-																<span className="hidden md:inline">
-																	out of{" "}
-																</span>
-																<span className="hidden md:inline">
-																	{totalRowCount}
-																</span>
-															</span>
-														</>
-													)}
-												</HStack>
-												{/* Middle - Query time info */}
-												<span className="hidden lg:inline text-muted-foreground text-xs">
-													{queryResponse.timeTaken > 0 && (
-														<HStack gap="1" align="center">
-															{`${queryResponse.timeTaken}ms`}
-															<span>•</span>
-															<Tooltip
-																content={DateTime.formatIso(
-																	DateTime.unsafeMake(queryResponse.ranAt),
-																)}
-															>
-																<span>
-																	Loaded{" "}
-																	{formatRelativeTime(queryResponse.ranAt)}
-																</span>
-															</Tooltip>
-														</HStack>
-													)}
-												</span>
-												{/* Right side - Controls */}
-												<div className="flex flex-wrap items-center gap-2 lg:gap-3">
-													{/* Pagination Controls */}
-													<Pagination.Root
-														count={totalRowCount}
-														pageSize={search.limit}
-														siblingCount={1}
-														page={Math.floor(search.offset / search.limit) + 1}
-														onPageChange={(details) => {
-															navigate({
-																search: (prev) => {
-																	// Update the currently active tab with the same offset
-																	const updatedTabs = (prev.tabs ?? []).map(
-																		(tab) => {
-																			if (tab.tabId === prev.activeTabId) {
-																				return {
-																					...tab,
-																					offset:
-																						(details.page - 1) * search.limit,
-																				};
-																			}
-																			return tab;
-																		},
-																	);
-
-																	return {
-																		...prev,
-																		offset: (details.page - 1) * search.limit,
-																		tabs: updatedTabs,
-																	};
-																},
-															});
-														}}
-													>
-														<Pagination.Context>
-															{(pagination) => (
-																<div className="flex items-center gap-1">
-																	<Pagination.PrevTrigger asChild>
-																		<Button
-																			variant="ghost"
-																			size="sm"
-																			className="h-6 px-1"
-																		>
-																			‹
-																		</Button>
-																	</Pagination.PrevTrigger>
-																	<span className="text-xs mx-2">
-																		{pagination.page} /{" "}
-																		{pagination.totalPages === 0
-																			? "..."
-																			: pagination.totalPages}
-																	</span>
-																	<Pagination.NextTrigger asChild>
-																		<Button
-																			variant="ghost"
-																			size="sm"
-																			className="h-6 px-1"
-																		>
-																			›
-																		</Button>
-																	</Pagination.NextTrigger>
-																</div>
-															)}
-														</Pagination.Context>
-													</Pagination.Root>
-
-													<div className="flex items-center gap-2 text-foreground">
-														<label className="font-medium uppercase tracking-wide whitespace-nowrap">
-															Limit:
-														</label>
-														<RowsPerPageSelector
-															value={search.limit}
-															onValueChange={(newLimit) => {
-																navigate({
-																	search: (prev) => {
-																		// Update the currently active tab with the same limit updates
-																		const updatedTabs = (prev.tabs ?? []).map(
-																			(tab) => {
-																				if (tab.tabId === prev.activeTabId) {
-																					return {
-																						...tab,
-																						limit: newLimit,
-																						offset: 0,
-																					};
-																				}
-																				return tab;
-																			},
-																		);
-
-																		return {
-																			...prev,
-																			limit: newLimit,
-																			offset: 0,
-																			tabs: updatedTabs,
-																		};
-																	},
-																});
-															}}
-														/>
-													</div>
-													<div className="flex items-center gap-2 text-foreground">
-														<ArkSelect.Select
-															className="w-28"
-															value={[search.tableSize]}
-															collection={TableSizeCollection}
-															positioning={{ sameWidth: true }}
-															onValueChange={(details: {
-																value?: string[];
-															}) => {
-																const newSize = (details.value?.[0] ||
-																	"cozy") as "compact" | "cozy" | "comfortable";
-																navigate({
-																	search: (prev) => {
-																		// Update the currently active tab with the same tableSize
-																		const updatedTabs = (prev.tabs ?? []).map(
-																			(tab) => {
-																				if (tab.tabId === prev.activeTabId) {
-																					return {
-																						...tab,
-																						tableSize: newSize,
-																					};
-																				}
-																				return tab;
-																			},
-																		);
-
-																		return {
-																			...prev,
-																			tableSize: newSize,
-																			tabs: updatedTabs,
-																		};
-																	},
-																});
-															}}
-														>
-															<ArkSelect.SelectControl>
-																<ArkSelect.SelectTrigger>
-																	<ArkSelect.SelectValueText />
-																	<ArkSelect.SelectIndicator />
-																</ArkSelect.SelectTrigger>
-															</ArkSelect.SelectControl>
-															<ArkSelect.SelectContent>
-																{TableSizeCollection.items.map((item) => (
-																	<ArkSelect.SelectItem
-																		key={item.value}
-																		item={item}
-																	>
-																		{item.label}
-																	</ArkSelect.SelectItem>
-																))}
-															</ArkSelect.SelectContent>
-														</ArkSelect.Select>
-													</div>
-													<Button
-														variant="ghost"
-														size="sm"
-														onClick={() => rowsQuery.refetch()}
-														className="h-6 px-2"
-													>
-														<RefreshCw className="h-3 w-3" />
-													</Button>
-												</div>
-											</div>
-										</div>
+										<ConnectionPageStatusBar
+											isLoading={rowsQuery.isLoading}
+											refetch={rowsQuery.refetch}
+											timeTaken={queryResponse.timeTaken}
+											ranAt={queryResponse.ranAt}
+											totalRowCount={totalRowCount}
+											rowsColumnsCount={rowsColumns.length}
+										/>
 									</div>
 								)}
 							</div>
 						</>
 					) : (
-						// Show error if schema query failed, otherwise ask to select schema/table
-						<div className="flex-1 flex items-center justify-center">
-							{schemaListQuery.isError ? (
-								<div className="max-w-2xl w-full mx-4 bg-destructive/10 border border-destructive/30 rounded-lg p-6">
-									<div className="flex flex-col gap-3">
-										<span className="text-sm font-semibold text-destructive">
-											Failed to connect to database
-										</span>
-										<span className="text-xs text-destructive/80 font-mono wrap-break-word whitespace-pre-wrap max-h-48 overflow-y-auto">
-											{getErrorMessage(schemaListQuery.error)}
-										</span>
-										<div className="flex gap-2 pt-2">
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => schemaListQuery.refetch()}
-											>
-												Retry Connection
-											</Button>
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => {
-													navigate({ to: "/" });
-												}}
-											>
-												Back to Connections
-											</Button>
-										</div>
-									</div>
-								</div>
-							) : (
-								<div className="text-center">
-									<span className="text-muted-foreground">
-										Select a schema and table to view data
-									</span>
-								</div>
-							)}
-						</div>
+						<RowsTableErrorState activeConnectionUrl={activeConnectionUrl} />
 					)}
 				</div>
 			</div>
@@ -2731,5 +2219,576 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 				});
 			}}
 		/>
+	);
+};
+
+const RowsTableErrorState = ({
+	activeConnectionUrl,
+}: {
+	activeConnectionUrl: string;
+}) => {
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
+	const schemaListQuery = useQuery({
+		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
+		enabled: !!activeConnectionUrl,
+		retry: 3,
+	});
+	return (
+		// Show error if schema query failed, otherwise ask to select schema/table
+		<div className="flex-1 flex items-center justify-center">
+			{schemaListQuery.isError ? (
+				<div className="max-w-2xl w-full mx-4 bg-destructive/10 border border-destructive/30 rounded-lg p-6">
+					<div className="flex flex-col gap-3">
+						<span className="text-sm font-semibold text-destructive">
+							Failed to connect to database
+						</span>
+						<span className="text-xs text-destructive/80 font-mono wrap-break-word whitespace-pre-wrap max-h-48 overflow-y-auto">
+							{getErrorMessage(schemaListQuery.error)}
+						</span>
+						<div className="flex gap-2 pt-2">
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => schemaListQuery.refetch()}
+							>
+								Retry Connection
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									navigate({ to: "/" });
+								}}
+							>
+								Back to Connections
+							</Button>
+						</div>
+					</div>
+				</div>
+			) : (
+				<div className="text-center">
+					<span className="text-muted-foreground">
+						Select a schema and table to view data
+					</span>
+				</div>
+			)}
+		</div>
+	);
+};
+
+const ConnectionPageFilters = (props: {
+	columnList: string[];
+	isLoading: boolean;
+	table: TanstackTable<any>;
+	queryBuilder: QueryFilterBuilderReturn;
+}) => {
+	const { columnList, isLoading, table, queryBuilder } = props;
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
+	const viewMode = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.viewMode,
+	});
+
+	const filtersOpened = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.filtersOpened,
+	});
+
+	const filterConditions = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.filters?.conditions ?? [],
+	});
+
+	const orderBy = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.orderBy,
+	});
+
+	const orderDirection = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.orderDirection,
+	});
+
+	return (
+		<div className="relative border-b bg-muted/50">
+			{isLoading && (
+				<div
+					// bg-linear-to-r from-primary via-primary to-transparent
+					className="absolute inset-x-0 top-0 h-0.5 bg-primary"
+					style={{
+						background:
+							"linear-gradient(90deg, transparent, var(--color-primary), transparent)",
+						animation: "shimmer 1.5s infinite",
+					}}
+				/>
+			)}
+			<HStack className="px-4 py-2 items-center justify-between">
+				<div className="flex gap-2">
+					<Tooltip content="View rows">
+						<Button
+							variant={viewMode === "rows" ? "default" : "outline"}
+							size="sm"
+							onClick={() =>
+								navigate({
+									search: (prev) => {
+										// Update the currently active tab with the same viewMode
+										const updatedTabs = (prev.tabs ?? []).map((tab) => {
+											if (tab.tabId === prev.activeTabId) {
+												return {
+													...tab,
+													viewMode: "rows" as const,
+												};
+											}
+											return tab;
+										});
+
+										return {
+											...prev,
+											viewMode: "rows" as const,
+											tabs: updatedTabs,
+										};
+									},
+								})
+							}
+						>
+							<Rows className="h-4 w-4" />
+						</Button>
+					</Tooltip>
+					<Tooltip content="View table structure">
+						<Button
+							variant={viewMode === "structure" ? "default" : "outline"}
+							size="sm"
+							onClick={() =>
+								navigate({
+									search: (prev) => {
+										// Update the currently active tab with the same viewMode
+										const updatedTabs = (prev.tabs ?? []).map((tab) => {
+											if (tab.tabId === prev.activeTabId) {
+												return {
+													...tab,
+													viewMode: "structure" as const,
+												};
+											}
+											return tab;
+										});
+
+										return {
+											...prev,
+											viewMode: "structure" as const,
+											tabs: updatedTabs,
+										};
+									},
+								})
+							}
+						>
+							<LayoutGrid className="h-4 w-4" />
+						</Button>
+					</Tooltip>
+					{viewMode === "rows" && (
+						<Button
+							variant={
+								filterConditions.length > 0 && !filtersOpened
+									? "default"
+									: "outline"
+							}
+							size="sm"
+							onClick={() => {
+								if (queryBuilder.filter.conditions.length === 0) {
+									queryBuilder.addCondition();
+								} else {
+									navigate({
+										search: (prev) => {
+											// Update the currently active tab with the same filtersOpened state
+											const updatedTabs = (prev.tabs ?? []).map((tab) => {
+												if (tab.tabId === prev.activeTabId) {
+													return {
+														...tab,
+														filtersOpened: !prev.filtersOpened,
+													};
+												}
+												return tab;
+											});
+
+											return {
+												...prev,
+												filtersOpened: !prev.filtersOpened,
+												tabs: updatedTabs,
+											};
+										},
+									});
+								}
+							}}
+							disabled={isLoading}
+							className={filterConditions.length > 0 ? "gap-2" : ""}
+						>
+							<LucideListFilter className="h-3 w-3" />
+							{filterConditions.length > 0
+								? filtersOpened
+									? "Filters"
+									: "Open filters"
+								: "Add filter"}
+							{filterConditions.length > 0 && (
+								<span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-xs font-semibold bg-background/20">
+									{filterConditions.length || 0}
+								</span>
+							)}
+							{filterConditions.length > 0 ? (
+								filtersOpened ? (
+									<LucideChevronUp className="h-3 w-3" />
+								) : (
+									<LucideChevronDown className="h-3 w-3" />
+								)
+							) : null}
+						</Button>
+					)}
+				</div>
+				{viewMode === "rows" && (
+					<NaturalLanguageSearch
+						className="w-full"
+						availableColumns={columnList}
+						onApplyFilters={(parsed) => {
+							const { filters = [], orderBy, limit } = parsed;
+							console.log("onApplyFilters", filters);
+							// 	// Map NL operators to query filter operators
+							const operatorMap: Record<string, any> = {
+								eq: "equals",
+								gt: "greater_than",
+								lt: "less_than",
+								gte: "greater_than_or_equal",
+								lte: "less_than_or_equal",
+								contains: "contains",
+								in: "in",
+								not_eq: "not_equals",
+								not_contains: "not_contains",
+							};
+
+							if (filters.length) {
+								// Remove filters related to the NL query
+								if (parsed.clear) {
+									queryBuilder.updateManyConditions(
+										filterConditions.filter((current) => {
+											return filters.some(
+												(removed) =>
+													current.column === removed.field &&
+													current.operator === removed.operator &&
+													current.value === removed.value,
+											);
+										}),
+									);
+								} else {
+									// Or add new filters
+									queryBuilder.updateManyConditions(
+										filterConditions
+											.map((f) => ({
+												column: f.column,
+												operator: f.operator,
+												value: f.value as string,
+											}))
+											.concat(
+												filters.map((f) => ({
+													column: f.field,
+													operator: operatorMap[f.operator] || "equals",
+													value: f.value as string,
+												})),
+											),
+									);
+								}
+							}
+
+							if (orderBy) {
+								navigate({
+									search: (prev) => ({
+										...prev,
+										orderBy: orderBy.field,
+										orderDirection: orderBy.direction,
+									}),
+								});
+							}
+
+							if (limit) {
+								navigate({
+									search: (prev) => ({
+										...prev,
+										limit: limit,
+									}),
+								});
+							}
+						}}
+					/>
+				)}
+				{viewMode === "rows" && (
+					<ColumnVisibilityControls
+						// key={(search.hiddenColumnList ?? []).join(",")}
+						// key={JSON.stringify(columnVisibilityState)}
+						table={table}
+						columnList={columnList}
+						minimal={true}
+					/>
+				)}
+				{viewMode === "rows" && (
+					<OrderBySelect
+						columnList={columnList}
+						orderBy={orderBy}
+						orderDirection={orderDirection}
+						onOrderChange={(orderBy, direction) => {
+							navigate({
+								search: (prev) => {
+									// Update the currently active tab with the same order updates
+									const updatedTabs = (prev.tabs ?? []).map((tab) => {
+										if (tab.tabId === prev.activeTabId) {
+											return {
+												...tab,
+												orderBy,
+												orderDirection: direction || "asc",
+												offset: 0,
+											};
+										}
+										return tab;
+									});
+
+									return {
+										...prev,
+										orderBy,
+										orderDirection: direction || "asc",
+										offset: 0,
+										tabs: updatedTabs,
+									};
+								},
+							});
+						}}
+						getColumnLabel={(col) => col}
+						minimal
+					/>
+				)}
+			</HStack>
+		</div>
+	);
+};
+
+const ConnectionPageStatusBar = (props: {
+	isLoading: boolean;
+	refetch: () => void;
+	timeTaken: number;
+	ranAt: number;
+	totalRowCount: number;
+	rowsColumnsCount: number;
+}) => {
+	const { isLoading, refetch } = props;
+
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
+	const selectedSchema = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.schema,
+	});
+	const selectedTable = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.table,
+	});
+	const tableDisplayName = selectedTable
+		? `${selectedSchema}.${selectedTable}`
+		: "No table selected";
+
+	const offset = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.offset,
+	});
+	const limit = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.limit,
+	});
+
+	// TODO = limit?
+	const tableSize = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.tableSize,
+	});
+
+	return (
+		<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
+			<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-4">
+				{/* Left side - Table info */}
+				<HStack className="flex-1 min-w-0 whitespace-nowrap overflow-x-auto">
+					{isLoading ? (
+						<span className="text-muted-foreground/50">Loading...</span>
+					) : (
+						<>
+							<span className="truncate">
+								{tableDisplayName}
+								<span className="hidden sm:inline">
+									{" "}
+									({props.rowsColumnsCount} columns)
+								</span>
+							</span>
+							<span className="shrink-0">
+								{offset}-{Math.min(props.totalRowCount, offset + limit)}{" "}
+								<span className="hidden md:inline">out of </span>
+								<span className="hidden md:inline">{props.totalRowCount}</span>
+							</span>
+						</>
+					)}
+				</HStack>
+				{/* Middle - Query time info */}
+				<span className="hidden lg:inline text-muted-foreground text-xs">
+					{props.timeTaken > 0 && (
+						<HStack gap="1" align="center">
+							{`${props.timeTaken}ms`}
+							<span>•</span>
+							<Tooltip
+								content={DateTime.formatIso(DateTime.unsafeMake(props.ranAt))}
+							>
+								<span>Loaded {formatRelativeTime(props.ranAt)}</span>
+							</Tooltip>
+						</HStack>
+					)}
+				</span>
+				{/* Right side - Controls */}
+				<div className="flex flex-wrap items-center gap-2 lg:gap-3">
+					{/* Pagination Controls */}
+					<Pagination.Root
+						count={props.totalRowCount}
+						pageSize={limit}
+						siblingCount={1}
+						page={Math.floor(offset / limit) + 1}
+						onPageChange={(details) => {
+							navigate({
+								search: (prev) => {
+									// Update the currently active tab with the same offset
+									const updatedTabs = (prev.tabs ?? []).map((tab) => {
+										if (tab.tabId === prev.activeTabId) {
+											return {
+												...tab,
+												offset: (details.page - 1) * limit,
+											};
+										}
+										return tab;
+									});
+
+									return {
+										...prev,
+										offset: (details.page - 1) * limit,
+										tabs: updatedTabs,
+									};
+								},
+							});
+						}}
+					>
+						<Pagination.Context>
+							{(pagination) => (
+								<div className="flex items-center gap-1">
+									<Pagination.PrevTrigger asChild>
+										<Button variant="ghost" size="sm" className="h-6 px-1">
+											‹
+										</Button>
+									</Pagination.PrevTrigger>
+									<span className="text-xs mx-2">
+										{pagination.page} /{" "}
+										{pagination.totalPages === 0
+											? "..."
+											: pagination.totalPages}
+									</span>
+									<Pagination.NextTrigger asChild>
+										<Button variant="ghost" size="sm" className="h-6 px-1">
+											›
+										</Button>
+									</Pagination.NextTrigger>
+								</div>
+							)}
+						</Pagination.Context>
+					</Pagination.Root>
+
+					<div className="flex items-center gap-2 text-foreground">
+						<label className="font-medium uppercase tracking-wide whitespace-nowrap">
+							Limit:
+						</label>
+						<RowsPerPageSelector
+							value={limit}
+							onValueChange={(newLimit) => {
+								navigate({
+									search: (prev) => {
+										// Update the currently active tab with the same limit updates
+										const updatedTabs = (prev.tabs ?? []).map((tab) => {
+											if (tab.tabId === prev.activeTabId) {
+												return {
+													...tab,
+													limit: newLimit,
+													offset: 0,
+												};
+											}
+											return tab;
+										});
+
+										return {
+											...prev,
+											limit: newLimit,
+											offset: 0,
+											tabs: updatedTabs,
+										};
+									},
+								});
+							}}
+						/>
+					</div>
+					<div className="flex items-center gap-2 text-foreground">
+						<ArkSelect.Select
+							className="w-28"
+							// TODO ?
+							value={[tableSize]}
+							collection={TableSizeCollection}
+							positioning={{ sameWidth: true }}
+							onValueChange={(details: { value?: string[] }) => {
+								const newSize = (details.value?.[0] || "cozy") as
+									| "compact"
+									| "cozy"
+									| "comfortable";
+								navigate({
+									search: (prev) => {
+										// Update the currently active tab with the same tableSize
+										const updatedTabs = (prev.tabs ?? []).map((tab) => {
+											if (tab.tabId === prev.activeTabId) {
+												return {
+													...tab,
+													tableSize: newSize,
+												};
+											}
+											return tab;
+										});
+
+										return {
+											...prev,
+											tableSize: newSize,
+											tabs: updatedTabs,
+										};
+									},
+								});
+							}}
+						>
+							<ArkSelect.SelectControl>
+								<ArkSelect.SelectTrigger>
+									<ArkSelect.SelectValueText />
+									<ArkSelect.SelectIndicator />
+								</ArkSelect.SelectTrigger>
+							</ArkSelect.SelectControl>
+							<ArkSelect.SelectContent>
+								{TableSizeCollection.items.map((item) => (
+									<ArkSelect.SelectItem key={item.value} item={item}>
+										{item.label}
+									</ArkSelect.SelectItem>
+								))}
+							</ArkSelect.SelectContent>
+						</ArkSelect.Select>
+					</div>
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => refetch()}
+						className="h-6 px-2"
+					>
+						<RefreshCw className="h-3 w-3" />
+					</Button>
+				</div>
+			</div>
+		</div>
 	);
 };

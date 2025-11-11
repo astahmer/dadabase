@@ -78,3 +78,5 @@ export const useQueryBuilder = (
 		hasActiveFilters,
 	};
 };
+
+export type QueryFilterBuilderReturn = ReturnType<typeof useQueryBuilder>;
