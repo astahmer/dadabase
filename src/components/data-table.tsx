@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Fragment, memo, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { cn } from "../lib/utils.ts";
+import { getCommonPinningStyles } from "../lib/get-pinning-styles.ts";
 import {
 	tableCellStyles,
 	tableEmptyStateStyles,
@@ -147,7 +148,10 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											key={headerCell.id}
 											colSpan={headerCell.colSpan}
 											data-column-id={headerCell.column.id}
-											style={{ width: `${headerCell.getSize()}px` }}
+											style={{
+												width: `${headerCell.getSize()}px`,
+												...getCommonPinningStyles(column),
+											}}
 											className={tableHeaderCellStyles({
 												size,
 												showColumnBorder,
@@ -351,6 +355,7 @@ const TableCell = memo(function TableCell({
 			data-testid={`cell-${index}-${cell.column.id}`}
 			style={{
 				width: `${columnSize}px`,
+				...getCommonPinningStyles(cell.column),
 			}}
 		>
 			<ErrorBoundary fallbackRender={fallbackRender}>

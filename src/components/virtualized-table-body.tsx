@@ -6,6 +6,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { flexRender } from "@tanstack/react-table";
 import type { DataTableSize } from "./data-table";
 import { tableCellStyles, tableRowStyles } from "./data-table.styles";
+import { getCommonPinningStyles } from "../lib/get-pinning-styles.ts";
 import { RowContextMenu } from "./row-context-menu.tsx";
 
 const fallbackRender = () => "An error happened";
@@ -112,6 +113,7 @@ const TableCell = memo(function TableCell({
 			data-testid={`cell-${index}-${cell.column.id}`}
 			style={{
 				width: `${columnSize}px`,
+				...getCommonPinningStyles(cell.column),
 			}}
 		>
 			<ErrorBoundary fallbackRender={fallbackRender}>

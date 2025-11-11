@@ -43,16 +43,6 @@ export function ColumnHeaderContextMenu<TData>({
 	const isSorted = column.getIsSorted();
 	const isVisible = column.getIsVisible();
 
-	const handleSortAsc = () => {
-		// toggleSorting with desc=false gives ascending, isMulti=false clears other sorts
-		column.toggleSorting(false, false);
-	};
-
-	const handleSortDesc = () => {
-		// toggleSorting with desc=true gives descending, isMulti=false clears other sorts
-		column.toggleSorting(true, false);
-	};
-
 	const handleResizeToContent = () => {
 		// Get the header element and all visible cells in this column
 		const headerElement = document.querySelector(
@@ -78,26 +68,13 @@ export function ColumnHeaderContextMenu<TData>({
 		];
 
 		const maxWidth = Math.max(...measurements);
-		const newSize = maxWidth + 8; // Add padding
-
-		// Update column size via table state
 		table.setColumnSizing((prev) => ({
 			...prev,
-			[column.id]: newSize,
-		}));
-	};
-
-	const handleResizeToMinimum = () => {
-		// Reset to minimum via table state
-		const minSize = column.columnDef.minSize ?? 50;
-		table.setColumnSizing((prev) => ({
-			...prev,
-			[column.id]: minSize,
+			[column.id]: maxWidth + 8,
 		}));
 	};
 
 	const handleResizeAllToContent = () => {
-		// Resize all columns to fit their content
 		const newSizing: Record<string, number> = {};
 
 		for (const col of table.getAllColumns()) {
@@ -120,7 +97,8 @@ export function ColumnHeaderContextMenu<TData>({
 			];
 
 			const maxWidth = Math.max(...measurements);
-			newSizing[col.id] = maxWidth + 8; // Add padding
+			// Add padding + 8
+			newSizing[col.id] = maxWidth + 8;
 		}
 
 		if (Object.keys(newSizing).length > 0) {
@@ -128,39 +106,12 @@ export function ColumnHeaderContextMenu<TData>({
 		}
 	};
 
-	const handleResizeAllToMinimumDouble = () => {
-		// Resize all columns to minSize * 2
-		const baseMinSize = 50;
-		const targetSize = baseMinSize * 2;
-
-		const newSizing = table.getAllColumns().reduce(
-			(acc, col) => {
-				acc[col.id] = targetSize;
-				return acc;
-			},
-			{} as Record<string, number>,
-		);
-
-		table.setColumnSizing(newSizing);
-	};
-
-	const handleResetColumnSize = () => {
-		// Reset this column to its default size
-		column.resetSize();
-	};
-
-	const handleCopyColumnName = () => {
-		navigator.clipboard.writeText(column.id);
-	};
-
 	const handleCopyColumnValues = async () => {
-		// Get visible rows from the table and extract the column value
 		const rows = table.getRowModel().rows;
-		const columnId = column.id;
-
 		const values: string[] = [];
+
 		for (const row of rows) {
-			const value = row.getValue(columnId);
+			const value = row.getValue(column.id);
 			if (value !== null && value !== undefined) {
 				const stringValue = String(value).trim();
 				if (stringValue) {
@@ -169,31 +120,13 @@ export function ColumnHeaderContextMenu<TData>({
 			}
 		}
 
-		if (values.length === 0) return;
-
-		const text = values.join("\n");
-		await navigator.clipboard.writeText(text);
-	};
-
-	const handleResetAllColumnsSize = () => {
-		// Reset all columns to their default size
-		table.resetColumnSizing();
+		if (values.length > 0) {
+			await navigator.clipboard.writeText(values.join("\n"));
+		}
 	};
 
 	const canPin = column.getCanPin?.();
 	const isPinned = column.getIsPinned?.();
-
-	const handlePinLeft = () => {
-		column.pin?.("left");
-	};
-
-	const handlePinRight = () => {
-		column.pin?.("right");
-	};
-
-	const handleUnpin = () => {
-		column.pin?.(false);
-	};
 
 	return (
 		<Menu lazyMount>
@@ -204,7 +137,8 @@ export function ColumnHeaderContextMenu<TData>({
 						<>
 							<MenuItem
 								value="sort-asc"
-								onClick={handleSortAsc}
+								// toggleSorting with desc=false gives ascending, isMulti=false clears other sorts
+								onClick={() => column.toggleSorting(false, false)}
 								disabled={isSorted === "asc"}
 							>
 								<ArrowUp className="size-4" />
@@ -212,7 +146,8 @@ export function ColumnHeaderContextMenu<TData>({
 							</MenuItem>
 							<MenuItem
 								value="sort-desc"
-								onClick={handleSortDesc}
+								// // toggleSorting with desc=true gives descending, isMulti=false clears other sorts
+								onClick={() => column.toggleSorting(true, false)}
 								disabled={isSorted === "desc"}
 							>
 								<ArrowDown className="size-4" />
@@ -263,7 +198,7 @@ export function ColumnHeaderContextMenu<TData>({
 						<>
 							<MenuItem
 								value="pin-left"
-								onClick={handlePinLeft}
+								onClick={() => column.pin?.("left")}
 								disabled={isPinned === "left"}
 							>
 								<Pin className="size-4" />
@@ -271,17 +206,14 @@ export function ColumnHeaderContextMenu<TData>({
 							</MenuItem>
 							<MenuItem
 								value="pin-right"
-								onClick={handlePinRight}
+								onClick={() => column.pin?.("right")}
 								disabled={isPinned === "right"}
 							>
 								<Pin className="size-4" />
 								<MenuItemText>Pin to right</MenuItemText>
 							</MenuItem>
 							{isPinned && (
-								<MenuItem
-									value="unpin"
-									onClick={handleUnpin}
-								>
+								<MenuItem value="unpin" onClick={() => column.pin?.(false)}>
 									<PinOff className="size-4" />
 									<MenuItemText>Unpin</MenuItemText>
 								</MenuItem>
@@ -290,7 +222,10 @@ export function ColumnHeaderContextMenu<TData>({
 						</>
 					)}
 
-					<MenuItem value="copy-column-name" onClick={handleCopyColumnName}>
+					<MenuItem
+						value="copy-column-name"
+						onClick={() => navigator.clipboard.writeText(column.id)}
+					>
 						<Type className="size-4" />
 						<MenuItemText>Copy column name</MenuItemText>
 					</MenuItem>
@@ -322,7 +257,13 @@ export function ColumnHeaderContextMenu<TData>({
 										</MenuItem>
 										<MenuItem
 											value="resize-minimum"
-											onClick={handleResizeToMinimum}
+											onClick={() => {
+												const minSize = column.columnDef.minSize ?? 30;
+												table.setColumnSizing((prev) => ({
+													...prev,
+													[column.id]: minSize,
+												}));
+											}}
 										>
 											<Minimize2 className="size-4" />
 											<MenuItemText>Resize to minimum</MenuItemText>
@@ -337,7 +278,14 @@ export function ColumnHeaderContextMenu<TData>({
 										</MenuItem>
 										<MenuItem
 											value="resize-all-double"
-											onClick={handleResizeAllToMinimumDouble}
+											onClick={() => {
+												const newSizing: Record<string, number> = {};
+												for (const col of table.getAllColumns()) {
+													const minSize = col.columnDef.minSize ?? 30;
+													newSizing[col.id] = minSize * 2;
+												}
+												table.setColumnSizing(newSizing);
+											}}
 										>
 											<Columns className="size-4" />
 											<MenuItemText>Compact all columns</MenuItemText>
@@ -345,14 +293,14 @@ export function ColumnHeaderContextMenu<TData>({
 										<MenuSeparator />
 										<MenuItem
 											value="reset-size"
-											onClick={handleResetColumnSize}
+											onClick={() => column.resetSize()}
 										>
 											<RotateCcw className="size-4" />
 											<MenuItemText>Reset column size</MenuItemText>
 										</MenuItem>
 										<MenuItem
 											value="reset-all-sizes"
-											onClick={handleResetAllColumnsSize}
+											onClick={() => table.resetColumnSizing()}
 										>
 											<Columns className="size-4" />
 											<MenuItemText>Reset all to default</MenuItemText>

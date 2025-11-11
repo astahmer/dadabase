@@ -1,7 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AccessorKeyColumnDef, ColumnDef, ColumnPinningState } from "@tanstack/react-table";
+import type {
+	AccessorKeyColumnDef,
+	ColumnDef,
+	ColumnPinningState,
+} from "@tanstack/react-table";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils";
@@ -749,9 +753,7 @@ export const useConnectionPageState = ({
 		},
 		onColumnPinningChange: (updater) => {
 			const newPinning =
-				typeof updater === "function"
-					? updater(columnPinningState)
-					: updater;
+				typeof updater === "function" ? updater(columnPinningState) : updater;
 			navigate({
 				search: (prev) => {
 					const updatedTabs = (prev.tabs ?? []).map((tab) => {
