@@ -5,6 +5,7 @@ import { defineConfig } from "vite";
 import viteTsConfigPaths from "vite-tsconfig-paths";
 import { devtools } from "@tanstack/devtools-vite";
 import jsxSource from "unplugin-jsx-source/vite";
+import { nitro } from "nitro/vite";
 
 const defaultTransformFileName = (
 	id: string,
@@ -35,6 +36,7 @@ const config = defineConfig((env) => ({
 		}),
 		tailwindcss(),
 		tanstackStart({ spa: { enabled: true } }),
+		nitro({ preset: "node-server" }),
 		viteReact(),
 	],
 }));
