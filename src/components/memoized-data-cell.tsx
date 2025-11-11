@@ -53,8 +53,8 @@ const CellContent = ({
 	// Handle null/undefined with a neutral badge
 	if (value === null || value === undefined) {
 		return (
-			<Badge colorPalette="muted" size="xs">
-				{value === null ? "null" : "undefined"}
+			<Badge colorPalette="muted" size="xs" variant="subtle">
+				{value === null ? "NULL" : "undefined"}
 			</Badge>
 		);
 	}

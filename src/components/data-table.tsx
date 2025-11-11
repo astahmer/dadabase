@@ -1,6 +1,6 @@
 import type { Cell, Row, Table as TanstackTable } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsUpDown, Pin, PinOff } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, memo, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
@@ -20,6 +20,7 @@ import { RowContextMenu } from "./row-context-menu";
 import { runIfFn } from "./run-if-fn.ts";
 import { Button } from "./ui/button";
 import { VirtualizedTableBody } from "./virtualized-table-body";
+import { HStack } from "./ui/layout.tsx";
 
 const i18n = {
 	emptyText: "No results found.",
@@ -164,7 +165,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 													table={table}
 													onFilterClick={onColumnFilterClick}
 												>
-													<div className="flex-1 min-w-0">
+													<HStack className="flex-1 min-w-0" align="center">
 														{headerCell.isPlaceholder ? null : column.getCanSort() &&
 															column.columnDef.enableSorting ? (
 															<Button
@@ -194,8 +195,27 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 																)}
 															</span>
 														)}
-													</div>
+													</HStack>
 												</ColumnHeaderContextMenu>
+												{column.getIsPinned() ? (
+													<Button
+														variant="ghost"
+														size="xs"
+														withIcon={false}
+														onClick={() => column.pin(false)}
+													>
+														<PinOff className="mr-2 h-3 w-3" />
+													</Button>
+												) : (
+													<Button
+														variant="ghost"
+														size="xs"
+														withIcon={false}
+														onClick={() => column.pin("left")}
+													>
+														<Pin className="mr-2 h-3 w-3" />
+													</Button>
+												)}
 												{resizable &&
 													headerCell.column.columnDef.enableResizing !==
 														false && (

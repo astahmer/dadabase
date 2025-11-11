@@ -10,11 +10,17 @@ interface ButtonProps
 		Pick<ComponentProps<"button">, "type" | "disabled">,
 		VariantProps<typeof buttonVariants> {}
 
-const Button = ({ className, variant, size, ...props }: ButtonProps) => {
+const Button = ({
+	className,
+	variant,
+	size,
+	withIcon,
+	...props
+}: ButtonProps) => {
 	return (
 		<button
 			{...props}
-			className={cn(buttonVariants({ variant, size, className }))}
+			className={cn(buttonVariants({ variant, size, withIcon, className }))}
 		/>
 	);
 };
