@@ -141,6 +141,33 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	return <ConnectionPageInner connection={connection} />;
 };
 
+const createTabState = (
+	schema: string,
+	table: string,
+	options?: {
+		filters?: any;
+		offset?: number;
+		limit?: number;
+		filtersOpened?: boolean;
+		fkValue?: string;
+	},
+) => ({
+	tabId: `${schema}.${table}:${options?.fkValue ?? ""}`,
+	schema,
+	table,
+	tableFilter: undefined,
+	orderBy: undefined,
+	orderDirection: undefined,
+	limit: options?.limit ?? 50,
+	offset: options?.offset ?? 0,
+	viewMode: "rows" as const,
+	tableSize: "cozy" as const,
+	hiddenColumnList: undefined,
+	filters: options?.filters,
+	filtersOpened: options?.filtersOpened ?? false,
+	fkValue: options?.fkValue,
+});
+
 interface DbConnection {
 	id: string;
 	name: string;
@@ -216,38 +243,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		});
 	};
 
-	// Helper function to create a new tab state
-	const createTabState = (
-		schema: string,
-		table: string,
-		options?: {
-			filters?: any;
-			offset?: number;
-			limit?: number;
-			filtersOpened?: boolean;
-			fkValue?: string;
-		},
-	) => ({
-		tabId: `${schema}.${table}:${options?.fkValue ?? ""}`,
-		schema,
-		table,
-		tableFilter: undefined,
-		orderBy: undefined,
-		orderDirection: undefined,
-		limit: options?.limit ?? 50,
-		offset: options?.offset ?? 0,
-		viewMode: "rows" as const,
-		tableSize: "cozy" as const,
-		hiddenColumnList: undefined,
-		filters: options?.filters,
-		filtersOpened: options?.filtersOpened ?? false,
-		fkValue: options?.fkValue,
-	});
-
-	const { setSchema, setTable } = useConnectionStorage(connection.name);
-
-	// Use the selected database from search params, fall back to the default
-	const defaultDatabaseName = getDbNameFromConnectionUrl(connectionUrl);
 	const selectedDbName = search.dbName;
 
 	// Build the connection URL with the selected database
@@ -255,8 +250,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		? replaceDatabaseInConnectionUrl(connectionUrl, selectedDbName)
 		: connectionUrl;
 
-	// Helper function to prefetch table data - must be after activeConnectionUrl is defined
-	// Uses exact same params that will be used when switching to ensure cache hit
 	const prefetchTableData = (schema: string, table: string) => {
 		queryClient.prefetchQuery({
 			...queryTableDataQueryOptions({
@@ -287,12 +280,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		// First try to prefetch all tables' metadata
 		prefetchAllTablesColumns(schema);
 	};
-
-	const databaseListQuery = useQuery({
-		...listAvailableDatabase({ url: connectionUrl }),
-		enabled: !!connection?.url,
-		retry: 3,
-	});
 
 	const queryBuilder = useQueryBuilder(
 		search.filters ?? { conditions: [], logicalOperator: "and" },
@@ -337,12 +324,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const schemaListQuery = useQuery({
 		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
 		enabled: !!activeConnectionUrl,
-		retry: 3,
-	});
-
-	const tablesListQuery = useQuery({
-		...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
-		enabled: !!activeConnectionUrl && !!search.schema,
 		retry: 3,
 	});
 
@@ -415,48 +396,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			}),
 		});
 	};
-
-	const allSchemaList = schemaListQuery.data || [];
-	const tableList = tablesListQuery.data || [];
-	const schemaList = allSchemaList.filter((schema) =>
-		tableList.some((t) => t.schema === schema),
-	);
-
-	// Calculate counts for databases and schemas
-	const schemaTableCounts = useMemo(() => {
-		const counts = new Map<string, number>();
-		tableList.forEach((table) => {
-			if (table.schema) {
-				counts.set(table.schema, (counts.get(table.schema) || 0) + 1);
-			}
-		});
-		return counts;
-	}, [tableList]);
-
-	// Filter tables based on search term
-	const { contains } = useFilter({ sensitivity: "base" });
-
-	const filteredTables = useMemo(
-		() =>
-			tableList.filter(
-				(table) =>
-					(search.tableFilter
-						? contains(table.name, search.tableFilter)
-						: true) && search.schema === table.schema,
-			),
-		[tableList, search.tableFilter, search.schema, contains],
-	);
-
-	const tableCollection = useMemo(
-		() =>
-			createListCollection({
-				items: filteredTables.map((t) => ({
-					label: t.name,
-					value: t.name,
-				})),
-			}),
-		[filteredTables],
-	);
 
 	const queryResponse = rowsQuery.data || {
 		rows: [],
@@ -1008,16 +947,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		},
 	});
 
-	const schemaCollection = ArkSelect.createListCollection({
-		items: schemaList.map((s: string) => {
-			const tableCount = schemaTableCounts.get(s) || 0;
-			return {
-				label: `${s} (${tableCount} tables)`,
-				value: s,
-			};
-		}),
-	});
-
 	const filterConditions = search.filters?.conditions ?? [];
 
 	return (
@@ -1031,321 +960,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			{/* Main Layout */}
 			<div className="flex-1 flex h-full min-h-0">
 				{/* Collapsible Sidebar */}
-				<CollapsibleSidebar>
-					{/* Database Selector */}
-					<Stack className="px-4 pt-4 shrink-0" gap="2">
-						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
-							Database
-						</label>
-						{databaseListQuery.isError ? (
-							<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
-								<div className="text-xs font-semibold text-destructive mb-1">
-									Failed to load databases
-								</div>
-								<div className="text-xs text-destructive/80 font-mono wrap-break-word mb-2 max-h-24 overflow-y-auto">
-									{getErrorMessage(databaseListQuery.error)}
-								</div>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => databaseListQuery.refetch()}
-									className="w-full text-xs h-7"
-								>
-									Retry
-								</Button>
-							</div>
-						) : databaseListQuery.isLoading ? (
-							<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9 gap-2">
-								<Spinner />
-								<div className="text-xs text-muted-foreground">
-									{databaseListQuery.failureCount > 0 ? (
-										<>
-											Failed {databaseListQuery.failureCount} time
-											{databaseListQuery.failureCount > 1 ? "s" : ""},
-											retrying...
-										</>
-									) : (
-										"Loading databases..."
-									)}
-								</div>
-							</div>
-						) : (
-							<ArkSelect.Select
-								className="w-full"
-								value={
-									search.dbName
-										? [search.dbName]
-										: defaultDatabaseName
-											? [defaultDatabaseName]
-											: []
-								}
-								collection={ArkSelect.createListCollection({
-									items: (databaseListQuery.data || []).map((db) => ({
-										label: db.datname,
-										value: db.datname,
-									})),
-								})}
-								positioning={{ sameWidth: true }}
-								disabled={databaseListQuery.isLoading}
-								onValueChange={(details: { value?: string[] }) => {
-									const newDbName = details.value?.[0];
-									if (newDbName) {
-										navigate({
-											search: (prev) => ({
-												...prev,
-												dbName: newDbName,
-												schema: undefined,
-												table: undefined,
-												offset: 0,
-												filters: undefined,
-											}),
-										});
-									}
-								}}
-							>
-								<ArkSelect.SelectControl>
-									<ArkSelect.SelectTrigger>
-										<ArkSelect.SelectValueText placeholder="Select database" />
-										<ArkSelect.SelectIndicator />
-									</ArkSelect.SelectTrigger>
-								</ArkSelect.SelectControl>
-								<ArkSelect.SelectContent>
-									{(databaseListQuery.data || []).map((db) => (
-										<ArkSelect.SelectItem
-											key={db.datname}
-											item={{ label: db.datname, value: db.datname }}
-										>
-											{db.datname}
-										</ArkSelect.SelectItem>
-									))}
-								</ArkSelect.SelectContent>
-							</ArkSelect.Select>
-						)}
-					</Stack>
-					{/* Schema Selector */}
-					<Stack className="px-4 pt-4 shrink-0" gap="2">
-						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
-							Schema
-						</label>
-						{schemaListQuery.isError ? (
-							<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
-								<div className="text-xs font-semibold text-destructive mb-1">
-									Failed to load schemas
-								</div>
-								<div className="text-xs text-destructive/80 font-mono wrap-break-word mb-2 max-h-24 overflow-y-auto">
-									{getErrorMessage(schemaListQuery.error)}
-								</div>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => schemaListQuery.refetch()}
-									className="w-full text-xs h-7"
-								>
-									Retry
-								</Button>
-							</div>
-						) : schemaListQuery.isLoading ? (
-							<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9 gap-2">
-								<Spinner />
-								<div className="text-xs text-muted-foreground">
-									{schemaListQuery.failureCount > 0 ? (
-										<>
-											Failed {schemaListQuery.failureCount} time
-											{schemaListQuery.failureCount > 1 ? "s" : ""}, retrying...
-										</>
-									) : (
-										"Loading schemas..."
-									)}
-								</div>
-							</div>
-						) : (
-							<ArkSelect.Select
-								className="w-full"
-								value={search.schema ? [search.schema] : []}
-								collection={schemaCollection}
-								positioning={{ sameWidth: true }}
-								disabled={schemaListQuery.isLoading}
-								onValueChange={(details: { value?: string[] }) => {
-									const newSchema = details.value?.[0];
-									if (newSchema) {
-										setSchema(newSchema);
-										navigate({
-											search: (prev) => ({
-												...prev,
-												schema: newSchema,
-												table: undefined,
-												offset: 0,
-												filters: undefined,
-											}),
-										});
-									}
-								}}
-							>
-								<ArkSelect.SelectControl>
-									<ArkSelect.SelectTrigger>
-										<ArkSelect.SelectValueText placeholder="Select schema" />
-										<ArkSelect.SelectIndicator />
-									</ArkSelect.SelectTrigger>
-								</ArkSelect.SelectControl>
-								<ArkSelect.SelectContent>
-									{schemaCollection.items.map(
-										(item: { label: string; value: string }) => (
-											<ArkSelect.SelectItem key={item.value} item={item}>
-												{item.label}
-											</ArkSelect.SelectItem>
-										),
-									)}
-								</ArkSelect.SelectContent>
-							</ArkSelect.Select>
-						)}
-					</Stack>{" "}
-					{/* Tables List */}
-					<div
-						className="flex-1 h-full min-h-0 flex flex-col gap-2 overflow-hidden"
-						data-tables-list
-					>
-						<Stack className="flex-1 h-full" gap="2">
-							<div className="px-4">
-								<label className="text-xs font-medium text-foreground uppercase tracking-wide">
-									Tables
-								</label>
-							</div>
-							{tablesListQuery.isError ? (
-								<div className="p-4">
-									<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
-										<div className="text-xs font-semibold text-destructive mb-1">
-											Failed to load tables
-										</div>
-										<div className="text-xs text-destructive/80 font-mono wrap-break-word mb-2 max-h-24 overflow-y-auto">
-											{getErrorMessage(tablesListQuery.error)}
-										</div>
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() => tablesListQuery.refetch()}
-											className="w-full text-xs h-7"
-										>
-											Retry
-										</Button>
-									</div>
-								</div>
-							) : tablesListQuery.isLoading ? (
-								<div className="p-4 flex items-center justify-center gap-2">
-									<Spinner />
-									<div className="text-xs text-muted-foreground">
-										{tablesListQuery.failureCount > 0 ? (
-											<>
-												Failed {tablesListQuery.failureCount} time
-												{tablesListQuery.failureCount > 1 ? "s" : ""},
-												retrying...
-											</>
-										) : (
-											"Loading tables..."
-										)}
-									</div>
-								</div>
-							) : (
-								<div className="flex-1 overflow-hidden flex flex-col h-full">
-									<div className="px-4">
-										<input
-											placeholder="Filter tables..."
-											className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
-											defaultValue={search.tableFilter}
-											onChange={(e) =>
-												navigate({
-													replace: true,
-													search: (prev) => ({
-														...prev,
-														tableFilter: e.target.value,
-													}),
-												})
-											}
-										/>
-									</div>
-									<div className="mt-2 flex-1 overflow-y-auto mr-4">
-										{filteredTables.length === 0 ? (
-											<div className="p-4 text-center">
-												<span className="text-xs text-muted-foreground">
-													{tableList.length === 0
-														? "No tables found"
-														: "No tables match filter"}
-												</span>
-											</div>
-										) : (
-											<Listbox.Root collection={tableCollection}>
-												<Listbox.Content className="overflow-visible px-4">
-													<Listbox.ItemGroup>
-														{filteredTables.map((table) => (
-															<Listbox.Item
-																key={table.name}
-																item={{
-																	label: table.name,
-																	value: table.name,
-																}}
-																className={`flex items-center px-3 py-2 cursor-pointer text-sm transition-colors rounded-md truncate ${
-																	search.table === table.name
-																		? "bg-primary/10 text-primary font-medium"
-																		: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
-																}`}
-																title={table.name}
-																onMouseEnter={() => {
-																	const schema = search.schema || "public";
-																	prefetchTableData(schema, table.name);
-																}}
-																onClick={() => {
-																	const schema = search.schema || "public";
-																	setTable(table.name);
-																	const tabState = createTabState(
-																		schema,
-																		table.name,
-																	);
-																	navigate({
-																		search: (prev) => {
-																			// Check if a tab with this tabId already exists
-																			const existingTab = (
-																				prev.tabs ?? []
-																			).find((t) => t.tabId === tabState.tabId);
-
-																			// If tab exists, just switch to it, otherwise add it
-																			const updatedTabs = existingTab
-																				? (prev.tabs ?? [])
-																				: [...(prev.tabs ?? []), tabState];
-
-																			return {
-																				...prev,
-																				schema,
-																				table: table.name,
-																				activeTabId: tabState.tabId,
-																				tabs: updatedTabs,
-																				filters: undefined,
-																				filtersOpened: false,
-																				offset: 0,
-																				limit: 50,
-																				orderBy: undefined,
-																				orderDirection: undefined,
-																				quickReferencesOpen: false,
-																				quickReferencesColumnName: undefined,
-																				quickReferencesCellValue: undefined,
-																			};
-																		},
-																	});
-																}}
-															>
-																<Listbox.ItemText className="flex-1 truncate">
-																	{table.name}
-																</Listbox.ItemText>
-															</Listbox.Item>
-														))}
-													</Listbox.ItemGroup>
-												</Listbox.Content>
-											</Listbox.Root>
-										)}
-									</div>
-								</div>
-							)}
-						</Stack>
-					</div>
-				</CollapsibleSidebar>
+				<ConnectionPageSidebar connection={connection} />
 
 				{/* Content Area */}
 				<div className="flex-1 flex flex-col overflow-hidden">
@@ -2678,5 +2293,430 @@ const ConnectionPageHeader = (props: {
 				</div>
 			</div>
 		</div>
+	);
+};
+
+const ConnectionPageSidebar = (props: { connection: DbConnection }) => {
+	const { connection } = props;
+
+	const queryClient = useQueryClient();
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
+	const connectionUrl = connection.url;
+	const defaultDatabaseName = getDbNameFromConnectionUrl(connectionUrl);
+
+	const databaseListQuery = useQuery({
+		...listAvailableDatabase({ url: connectionUrl }),
+		enabled: !!connection?.url,
+		retry: 3,
+	});
+
+	const selectedDbName = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.dbName,
+	});
+
+	// Build the connection URL with the selected database
+	const activeConnectionUrl = selectedDbName
+		? replaceDatabaseInConnectionUrl(connectionUrl, selectedDbName)
+		: connectionUrl;
+
+	const schemaListQuery = useQuery({
+		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
+		enabled: !!activeConnectionUrl,
+		retry: 3,
+	});
+
+	const selectedSchema = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.schema,
+	});
+	const tablesListQuery = useQuery({
+		...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
+		enabled: !!activeConnectionUrl && !!selectedSchema,
+		retry: 3,
+	});
+
+	const allSchemaList = schemaListQuery.data || [];
+	const tableList = tablesListQuery.data || [];
+
+	const { contains } = useFilter({ sensitivity: "base" });
+
+	const tableFilter = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.tableFilter,
+	});
+	const selectedTable = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.table,
+	});
+	const filteredTables = useMemo(
+		() =>
+			tableList.filter(
+				(table) =>
+					(tableFilter ? contains(table.name, tableFilter) : true) &&
+					selectedSchema === table.schema,
+			),
+		[tableList, tableFilter, selectedSchema, contains],
+	);
+	const tableCollection = useMemo(
+		() =>
+			createListCollection({
+				items: filteredTables.map((t) => ({
+					label: t.name,
+					value: t.name,
+				})),
+			}),
+		[filteredTables],
+	);
+
+	// Calculate counts for databases and schemas
+	const schemaTableCounts = useMemo(() => {
+		const counts = new Map<string, number>();
+		tableList.forEach((table) => {
+			if (table.schema) {
+				counts.set(table.schema, (counts.get(table.schema) || 0) + 1);
+			}
+		});
+		return counts;
+	}, [tableList]);
+
+	const schemaCollection = ArkSelect.createListCollection({
+		items: allSchemaList
+			.filter((schema) => tableList.some((t) => t.schema === schema))
+			.map((s: string) => {
+				const tableCount = schemaTableCounts.get(s) || 0;
+				return {
+					label: `${s} (${tableCount} tables)`,
+					value: s,
+				};
+			}),
+	});
+
+	const prefetchTableData = (schema: string, table: string) => {
+		queryClient.prefetchQuery({
+			...queryTableDataQueryOptions({
+				url: activeConnectionUrl,
+				schema,
+				table,
+				limit: 50,
+				offset: 0,
+				orderBy: undefined,
+				orderDirection: undefined,
+				filters: { conditions: [], logicalOperator: "and" },
+			}),
+		});
+	};
+
+	return (
+		<CollapsibleSidebar>
+			{/* Database Selector */}
+			<Stack className="px-4 pt-4 shrink-0" gap="2">
+				<label className="text-xs font-medium text-foreground uppercase tracking-wide">
+					Database
+				</label>
+				{databaseListQuery.isError ? (
+					<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
+						<div className="text-xs font-semibold text-destructive mb-1">
+							Failed to load databases
+						</div>
+						<div className="text-xs text-destructive/80 font-mono wrap-break-word mb-2 max-h-24 overflow-y-auto">
+							{getErrorMessage(databaseListQuery.error)}
+						</div>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => databaseListQuery.refetch()}
+							className="w-full text-xs h-7"
+						>
+							Retry
+						</Button>
+					</div>
+				) : databaseListQuery.isLoading ? (
+					<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9 gap-2">
+						<Spinner />
+						<div className="text-xs text-muted-foreground">
+							{databaseListQuery.failureCount > 0 ? (
+								<>
+									Failed {databaseListQuery.failureCount} time
+									{databaseListQuery.failureCount > 1 ? "s" : ""}, retrying...
+								</>
+							) : (
+								"Loading databases..."
+							)}
+						</div>
+					</div>
+				) : (
+					<ArkSelect.Select
+						className="w-full"
+						value={
+							selectedDbName
+								? [selectedDbName]
+								: defaultDatabaseName
+									? [defaultDatabaseName]
+									: []
+						}
+						collection={ArkSelect.createListCollection({
+							items: (databaseListQuery.data || []).map((db) => ({
+								label: db.datname,
+								value: db.datname,
+							})),
+						})}
+						positioning={{ sameWidth: true }}
+						disabled={databaseListQuery.isLoading}
+						onValueChange={(details: { value?: string[] }) => {
+							const newDbName = details.value?.[0];
+							if (newDbName) {
+								navigate({
+									search: (prev) => ({
+										...prev,
+										dbName: newDbName,
+										schema: undefined,
+										table: undefined,
+										offset: 0,
+										filters: undefined,
+									}),
+								});
+							}
+						}}
+					>
+						<ArkSelect.SelectControl>
+							<ArkSelect.SelectTrigger>
+								<ArkSelect.SelectValueText placeholder="Select database" />
+								<ArkSelect.SelectIndicator />
+							</ArkSelect.SelectTrigger>
+						</ArkSelect.SelectControl>
+						<ArkSelect.SelectContent>
+							{(databaseListQuery.data || []).map((db) => (
+								<ArkSelect.SelectItem
+									key={db.datname}
+									item={{ label: db.datname, value: db.datname }}
+								>
+									{db.datname}
+								</ArkSelect.SelectItem>
+							))}
+						</ArkSelect.SelectContent>
+					</ArkSelect.Select>
+				)}
+			</Stack>
+			{/* Schema Selector */}
+			<Stack className="px-4 pt-4 shrink-0" gap="2">
+				<label className="text-xs font-medium text-foreground uppercase tracking-wide">
+					Schema
+				</label>
+				{schemaListQuery.isError ? (
+					<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
+						<div className="text-xs font-semibold text-destructive mb-1">
+							Failed to load schemas
+						</div>
+						<div className="text-xs text-destructive/80 font-mono wrap-break-word mb-2 max-h-24 overflow-y-auto">
+							{getErrorMessage(schemaListQuery.error)}
+						</div>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => schemaListQuery.refetch()}
+							className="w-full text-xs h-7"
+						>
+							Retry
+						</Button>
+					</div>
+				) : schemaListQuery.isLoading ? (
+					<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9 gap-2">
+						<Spinner />
+						<div className="text-xs text-muted-foreground">
+							{schemaListQuery.failureCount > 0 ? (
+								<>
+									Failed {schemaListQuery.failureCount} time
+									{schemaListQuery.failureCount > 1 ? "s" : ""}, retrying...
+								</>
+							) : (
+								"Loading schemas..."
+							)}
+						</div>
+					</div>
+				) : (
+					<ArkSelect.Select
+						className="w-full"
+						value={selectedSchema ? [selectedSchema] : []}
+						collection={schemaCollection}
+						positioning={{ sameWidth: true }}
+						disabled={schemaListQuery.isLoading}
+						onValueChange={(details: { value?: string[] }) => {
+							const newSchema = details.value?.[0];
+							if (newSchema) {
+								navigate({
+									search: (prev) => ({
+										...prev,
+										schema: newSchema,
+										table: undefined,
+										offset: 0,
+										filters: undefined,
+									}),
+								});
+							}
+						}}
+					>
+						<ArkSelect.SelectControl>
+							<ArkSelect.SelectTrigger>
+								<ArkSelect.SelectValueText placeholder="Select schema" />
+								<ArkSelect.SelectIndicator />
+							</ArkSelect.SelectTrigger>
+						</ArkSelect.SelectControl>
+						<ArkSelect.SelectContent>
+							{schemaCollection.items.map((item) => (
+								<ArkSelect.SelectItem key={item.value} item={item}>
+									{item.label}
+								</ArkSelect.SelectItem>
+							))}
+						</ArkSelect.SelectContent>
+					</ArkSelect.Select>
+				)}
+			</Stack>{" "}
+			{/* Tables List */}
+			<div
+				className="flex-1 h-full min-h-0 flex flex-col gap-2 overflow-hidden"
+				data-tables-list
+			>
+				<Stack className="flex-1 h-full" gap="2">
+					<div className="px-4">
+						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
+							Tables
+						</label>
+					</div>
+					{tablesListQuery.isError ? (
+						<div className="p-4">
+							<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
+								<div className="text-xs font-semibold text-destructive mb-1">
+									Failed to load tables
+								</div>
+								<div className="text-xs text-destructive/80 font-mono wrap-break-word mb-2 max-h-24 overflow-y-auto">
+									{getErrorMessage(tablesListQuery.error)}
+								</div>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => tablesListQuery.refetch()}
+									className="w-full text-xs h-7"
+								>
+									Retry
+								</Button>
+							</div>
+						</div>
+					) : tablesListQuery.isLoading ? (
+						<div className="p-4 flex items-center justify-center gap-2">
+							<Spinner />
+							<div className="text-xs text-muted-foreground">
+								{tablesListQuery.failureCount > 0 ? (
+									<>
+										Failed {tablesListQuery.failureCount} time
+										{tablesListQuery.failureCount > 1 ? "s" : ""}, retrying...
+									</>
+								) : (
+									"Loading tables..."
+								)}
+							</div>
+						</div>
+					) : (
+						<div className="flex-1 overflow-hidden flex flex-col h-full">
+							<div className="px-4">
+								<input
+									placeholder="Filter tables..."
+									className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
+									defaultValue={tableFilter}
+									onChange={(e) =>
+										navigate({
+											replace: true,
+											search: (prev) => ({
+												...prev,
+												tableFilter: e.target.value,
+											}),
+										})
+									}
+								/>
+							</div>
+							<div className="mt-2 flex-1 overflow-y-auto mr-4">
+								{filteredTables.length === 0 ? (
+									<div className="p-4 text-center">
+										<span className="text-xs text-muted-foreground">
+											{tableList.length === 0
+												? "No tables found"
+												: "No tables match filter"}
+										</span>
+									</div>
+								) : (
+									<Listbox.Root collection={tableCollection}>
+										<Listbox.Content className="overflow-visible px-4">
+											<Listbox.ItemGroup>
+												{filteredTables.map((table) => (
+													<Listbox.Item
+														key={table.name}
+														item={{
+															label: table.name,
+															value: table.name,
+														}}
+														className={`flex items-center px-3 py-2 cursor-pointer text-sm transition-colors rounded-md truncate ${
+															selectedTable === table.name
+																? "bg-primary/10 text-primary font-medium"
+																: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
+														}`}
+														title={table.name}
+														onMouseEnter={() => {
+															const schema = selectedSchema || "public";
+															prefetchTableData(schema, table.name);
+														}}
+														onClick={() => {
+															const schema = selectedSchema || "public";
+															const tabState = createTabState(
+																schema,
+																table.name,
+															);
+															navigate({
+																search: (prev) => {
+																	// Check if a tab with this tabId already exists
+																	const existingTab = (prev.tabs ?? []).find(
+																		(t) => t.tabId === tabState.tabId,
+																	);
+
+																	// If tab exists, just switch to it, otherwise add it
+																	const updatedTabs = existingTab
+																		? (prev.tabs ?? [])
+																		: [...(prev.tabs ?? []), tabState];
+
+																	return {
+																		...prev,
+																		schema,
+																		table: table.name,
+																		activeTabId: tabState.tabId,
+																		tabs: updatedTabs,
+																		filters: undefined,
+																		filtersOpened: false,
+																		offset: 0,
+																		limit: 50,
+																		orderBy: undefined,
+																		orderDirection: undefined,
+																		quickReferencesOpen: false,
+																		quickReferencesColumnName: undefined,
+																		quickReferencesCellValue: undefined,
+																	};
+																},
+															});
+														}}
+													>
+														<Listbox.ItemText className="flex-1 truncate">
+															{table.name}
+														</Listbox.ItemText>
+													</Listbox.Item>
+												))}
+											</Listbox.ItemGroup>
+										</Listbox.Content>
+									</Listbox.Root>
+								)}
+							</div>
+						</div>
+					)}
+				</Stack>
+			</div>
+		</CollapsibleSidebar>
 	);
 };
