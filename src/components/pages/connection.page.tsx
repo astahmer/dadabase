@@ -1,4 +1,3 @@
-import { useConnectionStorage } from "#src/hooks/use-connection-storage";
 import {
 	useQueryBuilder,
 	type QueryFilterBuilderReturn,
@@ -9,7 +8,6 @@ import { redactConnectionUrl } from "#src/lib/redact-connection-url";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
-import { getAllTablesColumnsQueryOptions } from "#src/server/pg/start-fns/get-all-tables-columns.start";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
@@ -23,7 +21,7 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import type { AccessorKeyColumnDef, ColumnDef } from "@tanstack/react-table";
 import {
 	ChevronDownIcon,
@@ -52,9 +50,7 @@ import { ColumnHeaderWithInfo } from "../ui/column-header-with-info";
 import { DarkModeToggle } from "../ui/dark-mode-toggle";
 import { DataTypeBadge } from "../ui/data-type-badge";
 import { ForeignKeyIcon } from "../ui/foreign-key-icon";
-import { QuickReferencesPanel } from "../quick-references-panel";
 import { JsonCell } from "../ui/json-cell";
-import { JsonViewerModal } from "../ui/json-viewer";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
 import { PrimaryKeyIcon } from "../ui/primary-key-icon";
@@ -77,74 +73,20 @@ import { RowActionsMenu } from "../ui/row-actions-menu";
 import { MemoizedDataCell } from "../memoized-data-cell";
 import type { ForeignKeyInfo } from "../cell-context-menu";
 import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start.ts";
-
-const formatRelativeTime = (timestamp: number): string => {
-	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-	const now = Date.now();
-	const seconds = Math.floor((now - timestamp) / 1000);
-
-	if (seconds < 60) return rtf.format(-seconds, "second");
-	const minutes = Math.floor(seconds / 60);
-	if (minutes < 60) return rtf.format(-minutes, "minute");
-	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return rtf.format(-hours, "hour");
-	const days = Math.floor(hours / 24);
-	return rtf.format(-days, "day");
-};
+import { ConnectionQuickReferencesDrawer } from "./connection-page/connection-quick-references.drawer.tsx";
+import { ConnectionRowJsonViewerDrawer } from "./connection-page/connection-row-json-viewer.drawer.tsx";
+import type { DbConnection } from "./connection.types";
+import { formatTableValue } from "./connection-page/format-table-value.ts";
+import {
+	getDbNameFromConnectionUrl,
+	replaceDatabaseInConnectionUrl,
+} from "#src/lib/replace-database-in-connection-url.ts";
+import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
+import { createTabState } from "./connection-page/create-tab-state.ts";
 
 interface ConnectionPageProps {
 	connectionName: string;
 }
-
-function getDbNameFromConnectionUrl(connectionUrl: string) {
-	try {
-		const url = new URL(connectionUrl);
-		const databaseName = url.pathname.replace("/", "");
-		return databaseName;
-	} catch {
-		return "";
-	}
-}
-
-function replaceDatabaseInConnectionUrl(
-	connectionUrl: string,
-	newDatabase: string,
-) {
-	try {
-		const url = new URL(connectionUrl);
-		url.pathname = `/${newDatabase}`;
-		return url.toString();
-	} catch {
-		return connectionUrl;
-	}
-}
-
-function safeJsonParse(value: string) {
-	try {
-		return JSON.parse(value);
-	} catch {
-		return value;
-	}
-}
-
-const formatTableValue = (value: unknown): unknown => {
-	if (value instanceof Date) {
-		return value.toISOString();
-	}
-	if (typeof value === "string") {
-		// Check if it looks like a date
-		const dateObj = new Date(value);
-		if (!isNaN(dateObj.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-			return dateObj.toISOString();
-		}
-
-		if (value.at(0) === "{" && value.at(-1) === "}") {
-			// Check if it looks like a JSON object
-			return safeJsonParse(value);
-		}
-	}
-	return value;
-};
 
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
@@ -164,42 +106,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
 	return <ConnectionPageInner connection={connection} />;
 };
-
-const createTabState = (
-	schema: string,
-	table: string,
-	options?: {
-		filters?: any;
-		offset?: number;
-		limit?: number;
-		filtersOpened?: boolean;
-		fkValue?: string;
-	},
-) => ({
-	tabId: `${schema}.${table}:${options?.fkValue ?? ""}`,
-	schema,
-	table,
-	tableFilter: undefined,
-	orderBy: undefined,
-	orderDirection: undefined,
-	limit: options?.limit ?? 50,
-	offset: options?.offset ?? 0,
-	viewMode: "rows" as const,
-	tableSize: "cozy" as const,
-	hiddenColumnList: undefined,
-	filters: options?.filters,
-	filtersOpened: options?.filtersOpened ?? false,
-	fkValue: options?.fkValue,
-});
-
-interface DbConnection {
-	id: string;
-	name: string;
-	url: string;
-	dialect: string;
-	created_at: number;
-	updated_at: number;
-}
 
 const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const queryClient = useQueryClient();
@@ -288,36 +194,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		table: search.table || "",
 	});
 
-	// Row JSON viewer state - stored in URL params
-	const rowJsonSheetOpen = search.rowJsonViewerOpen ?? false;
-	const primaryKeyColumn = columnMetadata.find((col) => col.primaryKey);
-
-	// Reconstruct row data from URL rowId by looking it up in current table data
-	const rowJsonData = useMemo(() => {
-		if (!search.rowJsonViewerRowId || !primaryKeyColumn || !rowsQuery.data) {
-			return null;
-		}
-		const rows = rowsQuery.data.rows || [];
-		const row = rows.find(
-			(r) => String(r[primaryKeyColumn.name]) === search.rowJsonViewerRowId,
-		);
-		return row || null;
-	}, [search.rowJsonViewerRowId, primaryKeyColumn, rowsQuery.data]);
-
-	const setRowJsonData = (data: Record<string, unknown> | null) => {
-		const rowId =
-			data && primaryKeyColumn
-				? String(data[primaryKeyColumn.name])
-				: undefined;
-		navigate({
-			search: (prev) => ({
-				...prev,
-				rowJsonViewerRowId: rowId,
-				rowJsonViewerOpen: !!rowId,
-			}),
-		});
-	};
-
 	const queryResponse = rowsQuery.data || {
 		rows: [],
 		rowCount: 0,
@@ -387,7 +263,19 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 					<RowActionsMenu
 						row={ctx.row.original}
 						onViewJson={() => {
-							setRowJsonData(ctx.row.original);
+							const primaryKeyColumn = columnMetadata.find(
+								(col) => col.primaryKey,
+							);
+							const rowId = primaryKeyColumn
+								? String(ctx.row.original[primaryKeyColumn.name])
+								: undefined;
+							navigate({
+								search: (prev) => ({
+									...prev,
+									rowJsonViewerRowId: rowId,
+									rowJsonViewerOpen: !!rowId,
+								}),
+							});
 						}}
 					/>
 				),
@@ -943,7 +831,19 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 														size={search.tableSize}
 														withContextMenu
 														onExpandRowJson={(row) => {
-															setRowJsonData(row);
+															const primaryKeyColumn = columnMetadata.find(
+																(col) => col.primaryKey,
+															);
+															const rowId = primaryKeyColumn
+																? String(row[primaryKeyColumn.name])
+																: undefined;
+															navigate({
+																search: (prev) => ({
+																	...prev,
+																	rowJsonViewerRowId: rowId,
+																	rowJsonViewerOpen: !!rowId,
+																}),
+															});
 														}}
 													/>
 													{!rowsQuery.isLoading && !isColumnMetadataLoading && (
@@ -1021,165 +921,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			</Sheet>
 
 			{/* Quick References Panel */}
-			{search.quickReferencesOpen && (
-				<Sheet
-					open={true}
-					onOpenChange={(details) => {
-						if (!details.open) {
-							navigate({
-								search: (prev) => ({
-									...prev,
-									quickReferencesOpen: false,
-									quickReferencesColumnName: undefined,
-									quickReferencesCellValue: undefined,
-								}),
-							});
-						}
-					}}
-				>
-					<SheetContent className="z-50 w-full sm:max-w-[500px] p-0 flex flex-col">
-						{search.quickReferencesColumnName &&
-						search.quickReferencesCellValue &&
-						search.schema &&
-						search.table &&
-						columnMetadata.length > 0 ? (
-							(() => {
-								const column = columnMetadata.find(
-									(c) => c.name === search.quickReferencesColumnName,
-								);
-								return column ? (
-									<QuickReferencesPanel
-										key={`${search.schema}.${search.table}.${search.quickReferencesColumnName}.${search.quickReferencesCellValue}`}
-										schema={search.schema}
-										table={search.table}
-										column={column}
-										cellValue={search.quickReferencesCellValue}
-										connectionUrl={activeConnectionUrl}
-										onNavigate={(schema, table, column, value) => {
-											const newTabState = createTabState(schema, table, {
-												filters: {
-													conditions: [
-														{
-															column,
-															operator: "equals",
-															value: String(value),
-														},
-													],
-													logicalOperator: "and",
-												},
-												filtersOpened: true,
-												fkValue: String(value),
-											});
-											navigate({
-												search: (prev) => ({
-													...prev,
-													schema,
-													table,
-													activeTabId: newTabState.tabId,
-													tabs: [...(prev.tabs ?? []), newTabState],
-													filters: {
-														conditions: [
-															{
-																column,
-																operator: "equals",
-																value: String(value),
-															},
-														],
-														logicalOperator: "and",
-													},
-													filtersOpened: true,
-													offset: 0,
-													limit: 50,
-													orderBy: undefined,
-													orderDirection: undefined,
-													quickReferencesOpen: false,
-													quickReferencesColumnName: undefined,
-													quickReferencesCellValue: undefined,
-												}),
-											});
-										}}
-									/>
-								) : null;
-							})()
-						) : (
-							<div className="w-full h-full flex flex-col">
-								{/* Skeleton Header */}
-								<div className="bg-linear-to-b from-background to-background/95 px-4 py-3 border-b shrink-0">
-									<div className="flex items-start justify-between gap-3 mb-2">
-										<div className="flex-1 min-w-0 space-y-2">
-											<div className="h-3 w-24 bg-muted/60 rounded animate-pulse" />
-											<div className="h-4 w-40 bg-muted/60 rounded animate-pulse" />
-											<div className="h-3 w-32 bg-muted/60 rounded animate-pulse mt-2" />
-										</div>
-									</div>
-									<div className="h-3 w-28 bg-muted/60 rounded animate-pulse" />
-								</div>
-								{/* Skeleton Content */}
-								<div className="overflow-y-auto flex-1 p-4 space-y-4">
-									{/* Skeleton Button */}
-									<div className="h-10 bg-muted/60 rounded animate-pulse" />
-									{/* Skeleton List Items */}
-									<div className="space-y-2">
-										{[1, 2, 3].map((i) => (
-											<div
-												key={i}
-												className="h-8 bg-muted/60 rounded animate-pulse"
-											/>
-										))}
-									</div>
-								</div>
-							</div>
-						)}
-					</SheetContent>
-				</Sheet>
-			)}
+			<ConnectionQuickReferencesDrawer connection={connection} />
 
 			{/* Row JSON Viewer Sheet (expanded) */}
-			{rowJsonSheetOpen && (
-				<Sheet
-					open={true}
-					onOpenChange={(details) => {
-						if (!details.open) {
-							setRowJsonData(null);
-						}
-					}}
-				>
-					<SheetContent className="z-50 w-full sm:max-w-[800px] p-0 flex flex-col">
-						<SheetHeader>
-							<SheetTitle>Row Data</SheetTitle>
-							<SheetDescription>Expanded JSON viewer</SheetDescription>
-						</SheetHeader>
-						<div className="p-4 flex-1 overflow-auto">
-							{rowJsonData ? (
-								<JsonViewerModal data={rowJsonData} className="h-full" />
-							) : !search.rowJsonViewerRowId ? (
-								<div className="text-sm text-muted-foreground">No data</div>
-							) : (
-								// Loading skeleton
-								<div className="w-full h-full flex flex-col gap-3">
-									{/* Header skeleton */}
-									<div className="space-y-2">
-										<div className="h-4 w-32 bg-muted/60 rounded animate-pulse" />
-										<div className="h-3 w-48 bg-muted/60 rounded animate-pulse" />
-									</div>
-									{/* Content skeleton - nested object structure */}
-									<div className="space-y-3">
-										{[1, 2, 3, 4, 5].map((i) => (
-											<div
-												key={i}
-												className="space-y-2 pl-4 border-l border-muted/40"
-											>
-												<div className="h-3 w-24 bg-muted/60 rounded animate-pulse" />
-												<div className="h-3 w-40 bg-muted/60 rounded animate-pulse" />
-											</div>
-										))}
-									</div>
-								</div>
-							)}
-						</div>
-					</SheetContent>
-				</Sheet>
-			)}
+			<ConnectionRowJsonViewerDrawer connection={connection} />
 		</div>
 	);
 };
