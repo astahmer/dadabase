@@ -46,7 +46,7 @@ export interface DataTableProps<TData> {
 	isLoading?: boolean;
 	hasError?: boolean;
 	onRowClick?: (row: Row<TData>) => void;
-	onColumnFilterClick?: (columnId: string) => void;
+	onColumnFilterClick?: (columnId: string, columnName: string) => void;
 	stickyHeader?: boolean;
 	interactive?: boolean;
 	striped?: boolean;

@@ -221,6 +221,25 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 														}
 														size={search.tableSize}
 														withContextMenu
+														onColumnFilterClick={(columnId, _columnName) => {
+															navigate({
+																search: (prev) => ({
+																	...prev,
+																	filtersOpened: true,
+																	filters: {
+																		conditions: [
+																			...(prev.filters?.conditions ?? []),
+																			{
+																				column: columnId,
+																				operator: "equals",
+																			},
+																		],
+																		logicalOperator:
+																			prev.filters?.logicalOperator ?? "and",
+																	},
+																}),
+															});
+														}}
 														onExpandRowJson={(row) => {
 															const primaryKeyColumn = columnMetadata.find(
 																(col) => col.primaryKey,
