@@ -1,28 +1,26 @@
-import {
-	useQueryBuilder,
-	type QueryFilterBuilderReturn,
-} from "#src/hooks/use-query-builder";
-import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
-import { getColumnTextAlignment } from "#src/lib/data-type-utils";
+import { useConnectionPageState } from "#src/hooks/use-connection-page-state.tsx";
+import { type QueryFilterBuilderReturn } from "#src/hooks/use-query-builder";
+import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url";
+import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-available-schemas.start";
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
+import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import { listAvailableDatabase } from "#src/server/pg/start-fns/get-available-database-list.start.ts";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import { useListCollection } from "@ark-ui/react";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { Pagination } from "@ark-ui/react/pagination";
-import type { Table as TanstackTable } from "@tanstack/react-table";
 import {
 	useQuery,
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import type { AccessorKeyColumnDef, ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, Table as TanstackTable } from "@tanstack/react-table";
+import { DateTime } from "effect";
 import {
 	ChevronDownIcon,
 	LayoutGrid,
@@ -33,28 +31,24 @@ import {
 	RefreshCw,
 	Rows,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { BulkActionBar } from "../bulk-action-bar";
 import { CollapsibleSidebar } from "../collapsible-sidebar";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
-import { ScrollToColumnButton } from "../scroll-to-column.button.tsx";
 import { NaturalLanguageSearch } from "../natural-language-search";
 import { OrderBySelect } from "../order-by-select";
 import { QueryFilterBuilder } from "../query-filter-builder";
-import { Button } from "../ui/button";
+import { ScrollToColumnButton } from "../scroll-to-column.button.tsx";
+import { TableTabsBar } from "../table-tabs-bar";
 import * as Breadcrumb from "../ui/breadcrumb";
-import { Checkbox, CheckboxControl } from "../ui/checkbox.tsx";
-import { ColumnHeaderWithInfo } from "../ui/column-header-with-info";
+import { Button } from "../ui/button";
 import { DarkModeToggle } from "../ui/dark-mode-toggle";
 import { DataTypeBadge } from "../ui/data-type-badge";
-import { ForeignKeyIcon } from "../ui/foreign-key-icon";
-import { JsonCell } from "../ui/json-cell";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ListboxMenu from "../ui/listbox-menu";
 import { PrimaryKeyIcon } from "../ui/primary-key-icon";
-import { UniqueConstraintIcon } from "../ui/unique-constraint-icon";
 import * as ArkSelect from "../ui/select";
 import {
 	Sheet,
@@ -65,24 +59,13 @@ import {
 } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
+import { UniqueConstraintIcon } from "../ui/unique-constraint-icon";
 import { useDataTable } from "../use-data-table";
-import { ConnectionForm } from "./connection.form.tsx";
-import { TableTabsBar } from "../table-tabs-bar";
-import { DateTime } from "effect";
-import { RowActionsMenu } from "../ui/row-actions-menu";
-import { MemoizedDataCell } from "../memoized-data-cell";
-import type { ForeignKeyInfo } from "../cell-context-menu";
-import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start.ts";
 import { ConnectionQuickReferencesDrawer } from "./connection-page/connection-quick-references.drawer.tsx";
 import { ConnectionRowJsonViewerDrawer } from "./connection-page/connection-row-json-viewer.drawer.tsx";
-import type { DbConnection } from "./connection.types";
-import { formatTableValue } from "./connection-page/format-table-value.ts";
-import {
-	getDbNameFromConnectionUrl,
-	replaceDatabaseInConnectionUrl,
-} from "#src/lib/replace-database-in-connection-url.ts";
-import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import { createTabState } from "./connection-page/create-tab-state.ts";
+import { ConnectionForm } from "./connection.form.tsx";
+import type { DbConnection } from "./connection.types";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -108,629 +91,34 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 };
 
 const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
-	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
+	const search = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => ({
+			dbName: s.dbName,
+			schema: s.schema,
+			table: s.table,
+			filtersOpened: s.filtersOpened,
+			viewMode: s.viewMode,
+			tableSize: s.tableSize,
+		}),
+	});
 
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
-	const tableContainerRef = useRef<HTMLDivElement>(null);
 
-	const connectionUrl = connection.url || "";
-
-	const search = useSearch({ from: "/connections/$connectionName" });
-	// console.log(search);
-
-	const selectedDbName = search.dbName;
-
-	// Build the connection URL with the selected database
-	const activeConnectionUrl = selectedDbName
-		? replaceDatabaseInConnectionUrl(connectionUrl, selectedDbName)
-		: connectionUrl;
-
-	const queryBuilder = useQueryBuilder(
-		search.filters ?? { conditions: [], logicalOperator: "and" },
-		(updatedFilter) => {
-			let shouldOpenFilters = search.filtersOpened;
-			if (
-				!search.filters?.conditions?.length &&
-				updatedFilter.conditions.length
-			) {
-				shouldOpenFilters = true;
-			}
-
-			navigate({
-				search: (prev) => {
-					// Update the currently active tab's filters in the tabs array
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								filters: updatedFilter,
-								filtersOpened: shouldOpenFilters,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
-						filters: updatedFilter || undefined,
-						filtersOpened: shouldOpenFilters,
-						offset: 0, // Reset to first page when filters change
-						limit: 50,
-						orderBy: undefined,
-						orderDirection: undefined,
-						tabs: updatedTabs,
-					};
-				},
-			});
-		},
-	);
-
-	const rowsQuery = useQuery({
-		...queryTableDataQueryOptions({
-			url: activeConnectionUrl,
-			schema: search.schema || "",
-			table: search.table || "",
-			limit: search.limit,
-			offset: search.offset,
-			orderBy: search.orderBy,
-			orderDirection: search.orderDirection,
-			filters: queryBuilder.getWhereClause() ?? {
-				conditions: [],
-				logicalOperator: "and",
-			},
-		}),
-		enabled: !!search.schema && !!search.table,
-	});
-
-	// Fetch table column metadata with hybrid strategy (fast initial + efficient navigation)
 	const {
+		tableContainerRef,
+		activeConnectionUrl,
+		queryBuilder,
+		rowsQuery,
 		columnMetadata,
 		columnList,
-		isLoading: isColumnMetadataLoading,
-	} = useTableColumnMetadata({
-		url: activeConnectionUrl,
-		schema: search.schema || "",
-		table: search.table || "",
-	});
-
-	const queryResponse = rowsQuery.data || {
-		rows: [],
-		rowCount: 0,
-		timeTaken: 0,
-		ranAt: 0,
-	};
-	const rowsList = queryResponse.rows;
-	const totalRowCount = queryResponse.rowCount;
-
-	const formattedTableRowsData = useMemo(
-		() =>
-			rowsList.map((row) => {
-				const formatted: Record<string, unknown> = {};
-				for (const [key, value] of Object.entries(row)) {
-					formatted[key] = formatTableValue(value);
-				}
-				return formatted;
-			}),
-		[rowsList],
-	);
-
-	// Static selection and actions columns (no dependencies)
-	const staticColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(
-		() => [
-			{
-				id: "__select",
-				header: (ctx) => {
-					const checkboxRef = useRef<HTMLInputElement>(null);
-					const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
-					useEffect(() => {
-						if (checkboxRef.current) {
-							checkboxRef.current.indeterminate = isSomeRowsSelected;
-						}
-					}, [isSomeRowsSelected]);
-					return (
-						<Checkbox
-							className="flex items-center gap-2 ml-2"
-							checked={ctx.table.getIsAllRowsSelected()}
-							onChange={ctx.table.getToggleAllRowsSelectedHandler()}
-							aria-label="Select all rows"
-						>
-							<CheckboxControl />
-						</Checkbox>
-					);
-				},
-				cell: (ctx) => (
-					<Checkbox
-						className="flex items-center gap-2 ml-2"
-						checked={ctx.row.getIsSelected()}
-						disabled={!ctx.row.getCanSelect()}
-						onChange={ctx.row.getToggleSelectedHandler()}
-						aria-label="Select row"
-					>
-						<CheckboxControl />
-					</Checkbox>
-				),
-				size: 40,
-				minSize: 40,
-				maxSize: 40,
-				enableResizing: false,
-				enableSorting: false,
-			} as ColumnDef<Record<string, unknown>>,
-			{
-				id: "__actions",
-				header: () => null,
-				cell: (ctx) => (
-					<RowActionsMenu
-						row={ctx.row.original}
-						onViewJson={() => {
-							const primaryKeyColumn = columnMetadata.find(
-								(col) => col.primaryKey,
-							);
-							const rowId = primaryKeyColumn
-								? String(ctx.row.original[primaryKeyColumn.name])
-								: undefined;
-							navigate({
-								search: (prev) => ({
-									...prev,
-									rowJsonViewerRowId: rowId,
-									rowJsonViewerOpen: !!rowId,
-								}),
-							});
-						}}
-					/>
-				),
-				size: 40,
-				minSize: 40,
-				maxSize: 40,
-				enableResizing: false,
-				enableSorting: false,
-			} as ColumnDef<Record<string, unknown>>,
-		],
-		[],
-	);
-
-	// Stable callbacks for cell actions - extracted to prevent recreation on every render
-	const handleFollowFK = useCallback(
-		(fkInfo: ForeignKeyInfo, cellValue: unknown) => {
-			const newTabState = createTabState(
-				fkInfo.referencedSchema,
-				fkInfo.referencedTable,
-				{
-					filters: {
-						conditions: [
-							{
-								column: fkInfo.referencedColumn,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					fkValue: String(cellValue),
-				},
-			);
-			navigate({
-				search: (prev) => ({
-					...prev,
-					schema: fkInfo.referencedSchema,
-					table: fkInfo.referencedTable,
-					activeTabId: newTabState.tabId,
-					tabs: [...(prev.tabs ?? []), newTabState],
-					filters: {
-						conditions: [
-							{
-								column: fkInfo.referencedColumn,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
-				}),
-			});
-		},
-		[navigate],
-	);
-
-	const handleFindReferences = useCallback(
-		(columnName: string, cellValue: unknown) => {
-			navigate({
-				search: (prev) => ({
-					...prev,
-					filtersOpened: true,
-					filters: {
-						conditions: [
-							{
-								column: columnName,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					offset: 0,
-				}),
-			});
-		},
-		[navigate],
-	);
-
-	const handleNavigateToReference = useCallback(
-		(
-			ref: { schema: string; table: string; column: string },
-			cellValue: unknown,
-		) => {
-			const newTabState = createTabState(ref.schema, ref.table, {
-				filters: {
-					conditions: [
-						{
-							column: ref.column,
-							operator: "equals",
-							value: String(cellValue),
-						},
-					],
-					logicalOperator: "and",
-				},
-				filtersOpened: true,
-				fkValue: String(cellValue),
-			});
-			navigate({
-				search: (prev) => ({
-					...prev,
-					schema: ref.schema,
-					table: ref.table,
-					activeTabId: newTabState.tabId,
-					tabs: [...(prev.tabs ?? []), newTabState],
-					filters: {
-						conditions: [
-							{
-								column: ref.column,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
-				}),
-			});
-		},
-		[navigate],
-	);
-
-	// Data columns that depend on columnMetadata and search
-	const dataColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(() => {
-		if (!columnMetadata.length) return [];
-		return columnMetadata.map(
-			(col) =>
-				({
-					accessorKey: col.name,
-					header: () => {
-						const sortOrder =
-							search.orderBy === col.name
-								? (search.orderDirection as "asc" | "desc")
-								: false;
-						return (
-							<ColumnHeaderWithInfo
-								columnName={col.name}
-								dataType={col.dataType}
-								showBadge
-								isPrimaryKey={col.primaryKey}
-								isUnique={col.unique}
-								isForeignKey={col.isForeignKey}
-								foreignKey={col.foreignKey}
-								sortOrder={sortOrder}
-							>
-								<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
-								<UniqueConstraintIcon isUnique={col.unique} />
-								<ForeignKeyIcon isForeignKey={col.isForeignKey ?? false} />
-							</ColumnHeaderWithInfo>
-						);
-					},
-					meta: {
-						textAlign: getColumnTextAlignment(col.dataType),
-					},
-					cell: col.dataType.toLowerCase().includes("json")
-						? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
-						: (ctx) => (
-								<MemoizedDataCell
-									ctx={ctx}
-									col={col}
-									schema={search.schema}
-									table={search.table}
-									activeConnectionUrl={activeConnectionUrl}
-									onFollowFK={handleFollowFK}
-									onFindReferences={handleFindReferences}
-									onShowQuickReferences={() => {
-										navigate({
-											search: (prev) => ({
-												...prev,
-												quickReferencesOpen: true,
-												quickReferencesColumnName: col.name,
-												quickReferencesCellValue: String(
-													ctx.row.original[col.name],
-												),
-											}),
-										});
-									}}
-									onPrefetchReferences={() => {
-										const referenceTarget = col.foreignKey
-											? {
-													referencedSchema: col.foreignKey.referencedSchema,
-													referencedTable: col.foreignKey.referencedTable,
-													referencedColumn: col.foreignKey.referencedColumn,
-												}
-											: {
-													referencedSchema: search.schema || "",
-													referencedTable: search.table || "",
-													referencedColumn: col.name,
-												};
-
-										queryClient.prefetchQuery(
-											findColumnReferencesWithCountsQueryOptions({
-												url: activeConnectionUrl,
-												referencedSchema: referenceTarget.referencedSchema,
-												referencedTable: referenceTarget.referencedTable,
-												referencedColumn: referenceTarget.referencedColumn,
-												cellValue: ctx.row.original[col.name],
-											}),
-										);
-									}}
-									onNavigateToFK={handleFollowFK}
-									onNavigateToReference={handleNavigateToReference}
-									onExpandToSheet={() => {
-										navigate({
-											search: (prev) => ({
-												...prev,
-												quickReferencesOpen: true,
-												quickReferencesColumnName: col.name,
-												quickReferencesCellValue: String(
-													ctx.row.original[col.name],
-												),
-											}),
-										});
-									}}
-									onMenuOpen={() => {
-										const cellValue = ctx.row.original[col.name];
-
-										const referenceTarget = col.foreignKey
-											? {
-													referencedSchema: col.foreignKey.referencedSchema,
-													referencedTable: col.foreignKey.referencedTable,
-													referencedColumn: col.foreignKey.referencedColumn,
-												}
-											: {
-													referencedSchema: search.schema || "",
-													referencedTable: search.table || "",
-													referencedColumn: col.name,
-												};
-
-										queryClient.prefetchQuery(
-											findColumnReferencesWithCountsQueryOptions({
-												url: activeConnectionUrl,
-												referencedSchema: referenceTarget.referencedSchema,
-												referencedTable: referenceTarget.referencedTable,
-												referencedColumn: referenceTarget.referencedColumn,
-												cellValue,
-											}),
-										);
-									}}
-								/>
-							),
-					enableResizing: true,
-					enableSorting: true,
-				}) as ColumnDef<any> as any,
-		);
-	}, [
-		columnMetadata,
-		search.schema,
-		search.table,
-		search.orderBy,
-		search.orderDirection,
-		activeConnectionUrl,
-		handleFollowFK,
-		handleFindReferences,
-		handleNavigateToReference,
-		navigate,
-		queryClient,
-	]);
-
-	// Combine static and data columns
-	const rowsColumns = useMemo(
-		() =>
-			dataColumns.length
-				? [...staticColumns, ...dataColumns]
-				: // For skeletons
-					[
-						...staticColumns,
-						...(Array.from(
-							{ length: 10 },
-							(_, i) => ({ id: `__skeleton-${i}` }) as ColumnDef<any>,
-						) as typeof staticColumns),
-					],
-		[staticColumns, dataColumns],
-	);
-
-	// Create sorting state from URL params
-	const sortingState = useMemo(
-		() =>
-			search.orderBy
-				? [
-						{
-							id: search.orderBy,
-							desc: search.orderDirection === "desc",
-						},
-					]
-				: [],
-		[search.orderBy, search.orderDirection],
-	);
-
-	// Create column visibility state from URL params
-	// Parse the comma-separated list of hidden columns
-	const columnVisibilityState = useMemo(() => {
-		const visibility: Record<string, boolean> = {};
-
-		// By default, all columns are visible
-		rowsColumns.forEach((col) => {
-			visibility[
-				col.id || ((col as AccessorKeyColumnDef<any>).accessorKey as string)
-			] = true;
-		});
-
-		// Hide columns specified in the URL (stored as hidden columns)
-		if (search.hiddenColumnList?.length) {
-			search.hiddenColumnList.forEach((col) => {
-				visibility[col.trim()] = false;
-			});
-		}
-
-		return visibility;
-	}, [search.hiddenColumnList, rowsColumns]);
-
-	// Manage row selection state
-	const [rowSelection, setRowSelection] = useState({});
-
-	let defaultColumnSize = columnMetadata.some((col) =>
-		col.dataType.includes("uuid"),
-	)
-		? 280
-		: 180;
-	if (search.tableSize === "excel") {
-		defaultColumnSize -= 50;
-	} else if (search.tableSize === "compact") {
-		defaultColumnSize += 20;
-	} else if (search.tableSize === "cozy") {
-		defaultColumnSize += 30;
-	} else if (search.tableSize === "comfortable") {
-		defaultColumnSize += 60;
-	}
-	const rowsDataTable = useDataTable({
-		data: formattedTableRowsData,
-		columns: rowsColumns,
-		state: {
-			pagination: {
-				pageIndex: Math.floor(search.offset / search.limit),
-				pageSize: search.limit,
-			},
-			sorting: sortingState,
-			columnVisibility: columnVisibilityState,
-			rowSelection,
-		},
-		manualPagination: true,
-		manualSorting: true,
-		enableRowSelection: true,
-		onRowSelectionChange: setRowSelection,
-		rowCount: totalRowCount,
-		defaultColumn: {
-			size: defaultColumnSize,
-			minSize: 100,
-			maxSize: 1000,
-		},
-		onSortingChange: (updater) => {
-			const newSorting =
-				typeof updater === "function" ? updater(sortingState) : updater;
-			const firstSort = newSorting[0];
-			navigate({
-				search: (prev) => {
-					// Update the currently active tab with the same sorting updates
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								orderBy: firstSort?.id || undefined,
-								orderDirection: (firstSort?.desc ? "desc" : "asc") as
-									| "asc"
-									| "desc",
-								offset: 0,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
-						orderBy: firstSort?.id || undefined,
-						orderDirection: (firstSort?.desc ? "desc" : "asc") as
-							| "asc"
-							| "desc",
-						offset: 0,
-						tabs: updatedTabs,
-					};
-				},
-			});
-		},
-		onPaginationChange: (updater) => {
-			const current = {
-				pageIndex: Math.floor(search.offset / search.limit),
-				pageSize: search.limit,
-			};
-			const newPagination =
-				typeof updater === "function" ? updater(current) : updater;
-			navigate({
-				search: (prev) => {
-					// Update the currently active tab with the same pagination updates
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								offset: newPagination.pageIndex * newPagination.pageSize,
-								limit: newPagination.pageSize,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
-						offset: newPagination.pageIndex * newPagination.pageSize,
-						limit: newPagination.pageSize,
-						tabs: updatedTabs,
-					};
-				},
-			});
-		},
-		onColumnVisibilityChange: (updater) => {
-			const newVisibility =
-				typeof updater === "function"
-					? updater(columnVisibilityState)
-					: updater;
-			// Store hidden columns as array in URL (inverse of visible)
-			const hiddenCols = Object.keys(newVisibility)
-				.filter((key) => !newVisibility[key])
-				.sort();
-			navigate({
-				search: (prev) => {
-					// Update the currently active tab with the same visibility updates
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								hiddenColumnList:
-									hiddenCols.length > 0 ? hiddenCols : undefined,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
-						hiddenColumnList: hiddenCols.length > 0 ? hiddenCols : undefined,
-						tabs: updatedTabs,
-					};
-				},
-			});
-		},
-	});
+		isColumnMetadataLoading,
+		queryResponse,
+		totalRowCount,
+		rowsDataTable,
+		rowsColumns,
+	} = useConnectionPageState({ connection });
 
 	return (
 		<div className="h-screen bg-background flex flex-col">
@@ -2328,7 +1716,6 @@ const ConnectionPageStatusBar = (props: {
 		select: (s) => s.limit,
 	});
 
-	// TODO = limit?
 	const tableSize = useSearch({
 		from: "/connections/$connectionName",
 		select: (s) => s.tableSize,
@@ -2462,7 +1849,6 @@ const ConnectionPageStatusBar = (props: {
 					<div className="flex items-center gap-2 text-foreground">
 						<ArkSelect.Select
 							className="w-28"
-							// TODO ?
 							value={[tableSize]}
 							collection={TableSizeCollection}
 							positioning={{ sameWidth: true }}
