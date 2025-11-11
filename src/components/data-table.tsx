@@ -17,6 +17,7 @@ import { PageLimitSelect } from "./page-limit.select.tsx";
 import { RowContextMenu } from "./row-context-menu";
 import { runIfFn } from "./run-if-fn.ts";
 import { Button } from "./ui/button";
+import { VirtualizedTableBody } from "./virtualized-table-body";
 
 const i18n = {
 	emptyText: "No results found.",
@@ -53,6 +54,9 @@ export interface DataTableProps<TData> {
 	ExpandedRow?: (props: { row: Row<TData> }) => ReactNode;
 	resizable?: boolean;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
+	virtualized?: boolean;
+	estimateItemSize?: number;
+	overscan?: number;
 }
 
 const fallbackRender = () => "An error happened";
@@ -78,6 +82,9 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		variant = "line",
 		size = "cozy",
 		ExpandedRow,
+		virtualized = false,
+		estimateItemSize,
+		overscan = 10,
 	} = props;
 
 	const state = table.getState();
@@ -85,13 +92,14 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 	const columns = table.getAllColumns();
 	const selectedRowsCount = table.getSelectedRowModel().rows.length;
 	const hasSelectedRows = selectedRowsCount > 0;
+	const rows = table.getRowModel().rows;
 
 	return (
 		<>
 			{runIfFn(top, table)}
 			{runIfFn(header, table)}
 			<div
-				className={`overflow-x-auto h-full ${className || ""}`}
+				className={`overflow-x-auto h-full ${virtualized ? "overflow-y-auto" : ""} ${className || ""}`}
 				ref={containerRef}
 			>
 				<table
@@ -207,26 +215,43 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									</tr>
 								))}
 						</tbody>
+					) : virtualized && rows.length ? (
+						<tbody>
+							<VirtualizedTableBody
+								rows={rows}
+								onRowClick={onRowClick}
+								size={size}
+								striped={striped}
+								interactive={interactive}
+								showColumnBorder={showColumnBorder}
+								withContextMenu={withContextMenu}
+								ExpandedRow={ExpandedRow}
+								onExpandRowJson={props.onExpandRowJson}
+								estimateItemSize={
+									estimateItemSize ?? estimateSizeByTableSize(size)
+								}
+								overscan={overscan}
+								parentRef={containerRef}
+							/>
+						</tbody>
 					) : (
 						<tbody>
-							{table.getRowModel().rows.length ? (
-								table
-									.getRowModel()
-									.rows.map((row, index) => (
-										<TableRow
-											key={row.id}
-											index={index}
-											getRow={() => row}
-											onRowClick={onRowClick}
-											size={size}
-											striped={striped}
-											interactive={interactive}
-											showColumnBorder={showColumnBorder}
-											withContextMenu={withContextMenu}
-											ExpandedRow={ExpandedRow}
-											onExpandRowJson={props.onExpandRowJson}
-										/>
-									))
+							{rows.length ? (
+								rows.map((row, index) => (
+									<TableRow
+										key={row.id}
+										index={index}
+										getRow={() => row}
+										onRowClick={onRowClick}
+										size={size}
+										striped={striped}
+										interactive={interactive}
+										showColumnBorder={showColumnBorder}
+										withContextMenu={withContextMenu}
+										ExpandedRow={ExpandedRow}
+										onExpandRowJson={props.onExpandRowJson}
+									/>
+								))
 							) : (
 								<tr>
 									{emptyState ? (
@@ -254,6 +279,21 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		</>
 	);
 }
+
+const estimateSizeByTableSize = (size: DataTableSize) => {
+	switch (size) {
+		case "excel":
+			return 25;
+		case "minimal":
+			return 27.5;
+		case "compact":
+			return 29;
+		case "cozy":
+			return 33;
+		case "comfortable":
+			return 38;
+	}
+};
 
 const TableCell = memo(function TableCell({
 	cell,
