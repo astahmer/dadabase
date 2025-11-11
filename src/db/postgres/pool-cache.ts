@@ -1,7 +1,6 @@
 import { Effect, Ref, Layer, Context, Schedule } from "effect";
 import { Pool } from "pg";
-
-class PoolCache extends Context.Tag("@dadabase/PoolCache")<
+export class PoolCache extends Context.Tag("@dadabase/PoolCache")<
 	PoolCache,
 	{
 		readonly getOrCreate: (url: string) => Effect.Effect<Pool, Error>;
@@ -13,16 +12,17 @@ class PoolCache extends Context.Tag("@dadabase/PoolCache")<
 >() {}
 
 type CacheEntry = { pool: Pool; lastUsed: number };
-const POOL_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const POOL_TTL_MS = 5 * 1000; // 5 minutes
 
 export const makePoolCacheLive = Layer.effect(
 	PoolCache,
 	Effect.gen(function* () {
 		const cacheRef = yield* Ref.make<Map<string, CacheEntry>>(new Map());
-		console.log("init makePoolCacheLive", cacheRef);
 
-		// Spawn cleanup fiber that runs every 60 seconds
+		// Spawn a single cleanup fiber that repeats every X seconds
+		// This fiber is part of the layer's scope, so it lives for the entire app lifetime
 		const cleanupRoutine = Effect.gen(function* () {
+			// console.log("PoolCache cleanupRoutine");
 			yield* Ref.modify(cacheRef, (cache) => {
 				const now = Date.now();
 				const newCache = new Map(cache);
@@ -32,16 +32,16 @@ export const makePoolCacheLive = Layer.effect(
 						// Fire and forget cleanup
 						pool.end().catch(() => {});
 						newCache.delete(url);
-						console.log(`[PoolCache] Evicted pool for ${url}`);
+						// console.log(`[PoolCache] Evicted pool for ${url}`);
 					}
 				}
 
 				return [undefined, newCache];
 			});
-		});
-		yield* Effect.fork(
-			cleanupRoutine.pipe(Effect.repeat(Schedule.spaced("60 seconds"))),
-		);
+		}).pipe(Effect.repeat(Schedule.spaced("3 seconds")));
+
+		// Fork as daemon so it runs in background, managed by app scope
+		yield* Effect.forkDaemon(cleanupRoutine);
 
 		return {
 			getOrCreate: (url: string) =>
@@ -79,5 +79,3 @@ export const makePoolCacheLive = Layer.effect(
 		};
 	}),
 );
-
-export { PoolCache };
