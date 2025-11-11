@@ -72,6 +72,7 @@ import { DateTime } from "effect";
 import { RowActionsMenu } from "../ui/row-actions-menu";
 import { MemoizedDataCell } from "../memoized-data-cell";
 import type { ForeignKeyInfo } from "../cell-context-menu";
+import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start.ts";
 
 const formatRelativeTime = (timestamp: number): string => {
 	const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
@@ -189,97 +190,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const search = useSearch({ from: "/connections/$connectionName" });
 	// console.log(search);
 
-	const tabs = search.tabs ?? [];
-	const activeTabId = search.activeTabId ?? null;
-
-	const addEmptyTab = () => {
-		// Create a placeholder empty tab with a unique ID
-		const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-		const emptyTabState = {
-			tabId,
-			schema: "",
-			table: "",
-			tableFilter: undefined,
-			orderBy: undefined,
-			orderDirection: undefined,
-			limit: 50,
-			offset: 0,
-			viewMode: "rows" as const,
-			tableSize: "cozy" as const,
-			hiddenColumnList: undefined,
-			filters: undefined,
-			filtersOpened: false,
-		};
-		navigate({
-			search: (prev) => ({
-				...prev,
-				tabs: [...(prev.tabs ?? []), emptyTabState],
-				activeTabId: tabId,
-			}),
-		});
-	};
-
-	const closeTab = (tabId: string) => {
-		navigate({
-			search: (prev) => {
-				const updatedTabs = (prev.tabs ?? []).filter((t) => t.tabId !== tabId);
-				let newActiveTabId = prev.activeTabId;
-
-				// If we closed the active tab, switch to another tab
-				if (prev.activeTabId === tabId) {
-					if (updatedTabs.length > 0) {
-						newActiveTabId = updatedTabs[updatedTabs.length - 1].tabId;
-					} else {
-						newActiveTabId = undefined;
-					}
-				}
-
-				return {
-					...prev,
-					tabs: updatedTabs,
-					activeTabId: newActiveTabId,
-				};
-			},
-		});
-	};
-
 	const selectedDbName = search.dbName;
 
 	// Build the connection URL with the selected database
 	const activeConnectionUrl = selectedDbName
 		? replaceDatabaseInConnectionUrl(connectionUrl, selectedDbName)
 		: connectionUrl;
-
-	const prefetchTableData = (schema: string, table: string) => {
-		queryClient.prefetchQuery({
-			...queryTableDataQueryOptions({
-				url: activeConnectionUrl,
-				schema,
-				table,
-				limit: 50,
-				offset: 0,
-				orderBy: undefined,
-				orderDirection: undefined,
-				filters: { conditions: [], logicalOperator: "and" },
-			}),
-		});
-	};
-
-	// Helper function to prefetch all tables' column metadata for a schema
-	const prefetchAllTablesColumns = (schema: string) => {
-		queryClient.prefetchQuery({
-			...getAllTablesColumnsQueryOptions({
-				url: activeConnectionUrl,
-				schema,
-			}),
-		});
-	};
-
-	// Helper function to prefetch column metadata (kept for backward compatibility)
-	const prefetchTableColumns = (schema: string) => {
-		// First try to prefetch all tables' metadata
-		prefetchAllTablesColumns(schema);
-	};
 
 	const queryBuilder = useQueryBuilder(
 		search.filters ?? { conditions: [], logicalOperator: "and" },
@@ -960,114 +876,15 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			{/* Main Layout */}
 			<div className="flex-1 flex h-full min-h-0">
 				{/* Collapsible Sidebar */}
-				<ConnectionPageSidebar connection={connection} />
+				<ConnectionPageSidebar
+					connection={connection}
+					activeConnectionUrl={activeConnectionUrl}
+				/>
 
 				{/* Content Area */}
 				<div className="flex-1 flex flex-col overflow-hidden">
 					{/* Table Tabs - Always visible when there are tabs */}
-					<TableTabsBar
-						tabs={tabs}
-						activeTabId={activeTabId}
-						onTabHover={(tab) => {
-							if (tab.schema && tab.table) {
-								prefetchTableData(tab.schema, tab.table);
-								prefetchTableColumns(tab.schema);
-							}
-						}}
-						onTabChange={(tabId) => {
-							const tab = tabs.find((t) => t.tabId === tabId);
-							if (tab) {
-								if (!tab.schema || !tab.table) {
-									// Empty tab - just switch to it without selecting a table
-									navigate({
-										search: (prev) => ({
-											...prev,
-											table: undefined,
-											schema: undefined,
-											activeTabId: tabId,
-										}),
-									});
-								} else {
-									// Named tab with schema/table - restore its state
-									navigate({
-										search: (prev) => ({
-											...prev,
-											schema: tab.schema,
-											table: tab.table,
-											offset: tab.offset ?? 0,
-											limit: tab.limit ?? 50,
-											orderBy: tab.orderBy,
-											orderDirection: tab.orderDirection,
-											filters: tab.filters,
-											filtersOpened: tab.filtersOpened ?? false,
-											viewMode: tab.viewMode ?? "rows",
-											tableSize: tab.tableSize ?? "cozy",
-											tableFilter: tab.tableFilter,
-											hiddenColumnList: tab.hiddenColumnList,
-											fkValue: tab.fkValue,
-											activeTabId: tabId,
-										}),
-									});
-								}
-							}
-						}}
-						onTabClose={(tabId) => {
-							closeTab(tabId);
-							// If there are remaining tabs, navigate to the last one
-							const remainingTabs = tabs.filter((t) => t.tabId !== tabId);
-							if (remainingTabs.length > 0) {
-								const lastTab = remainingTabs[remainingTabs.length - 1];
-								if (!lastTab.schema || !lastTab.table) {
-									navigate({
-										search: (prev) => ({
-											...prev,
-											table: undefined,
-											schema: undefined,
-											activeTabId: lastTab.tabId,
-										}),
-									});
-								} else {
-									navigate({
-										search: (prev) => ({
-											...prev,
-											schema: lastTab.schema,
-											table: lastTab.table,
-											offset: lastTab.offset ?? 0,
-											limit: lastTab.limit ?? 50,
-											orderBy: lastTab.orderBy,
-											orderDirection: lastTab.orderDirection,
-											filters: lastTab.filters,
-											filtersOpened: lastTab.filtersOpened ?? false,
-											viewMode: lastTab.viewMode ?? "rows",
-											tableSize: lastTab.tableSize ?? "cozy",
-											tableFilter: lastTab.tableFilter,
-											hiddenColumnList: lastTab.hiddenColumnList,
-											activeTabId: lastTab.tabId,
-										}),
-									});
-								}
-							} else {
-								// No more tabs, go back to no table selected
-								navigate({
-									search: (prev) => ({
-										...prev,
-										table: undefined,
-										schema: undefined,
-										activeTabId: undefined,
-									}),
-								});
-							}
-						}}
-						onAddTab={() => {
-							addEmptyTab();
-							navigate({
-								search: (prev) => ({
-									...prev,
-									table: undefined,
-								}),
-							});
-						}}
-					/>
+					<ConnectionPageTabs activeConnectionUrl={activeConnectionUrl} />
 
 					{search.table && search.schema ? (
 						<>
@@ -2296,8 +2113,11 @@ const ConnectionPageHeader = (props: {
 	);
 };
 
-const ConnectionPageSidebar = (props: { connection: DbConnection }) => {
-	const { connection } = props;
+const ConnectionPageSidebar = (props: {
+	connection: DbConnection;
+	activeConnectionUrl: string;
+}) => {
+	const { connection, activeConnectionUrl } = props;
 
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -2315,11 +2135,6 @@ const ConnectionPageSidebar = (props: { connection: DbConnection }) => {
 		from: "/connections/$connectionName",
 		select: (s) => s.dbName,
 	});
-
-	// Build the connection URL with the selected database
-	const activeConnectionUrl = selectedDbName
-		? replaceDatabaseInConnectionUrl(connectionUrl, selectedDbName)
-		: connectionUrl;
 
 	const schemaListQuery = useQuery({
 		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
@@ -2718,5 +2533,203 @@ const ConnectionPageSidebar = (props: { connection: DbConnection }) => {
 				</Stack>
 			</div>
 		</CollapsibleSidebar>
+	);
+};
+
+const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
+	const { activeConnectionUrl } = props;
+
+	const queryClient = useQueryClient();
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
+	const tabs = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.tabs ?? [],
+	});
+	const activeTabId = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.activeTabId ?? null,
+	});
+
+	const addEmptyTab = () => {
+		// Create a placeholder empty tab with a unique ID
+		const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+		const emptyTabState = {
+			tabId,
+			schema: "",
+			table: "",
+			tableFilter: undefined,
+			orderBy: undefined,
+			orderDirection: undefined,
+			limit: 50,
+			offset: 0,
+			viewMode: "rows" as const,
+			tableSize: "cozy" as const,
+			hiddenColumnList: undefined,
+			filters: undefined,
+			filtersOpened: false,
+		};
+		navigate({
+			search: (prev) => ({
+				...prev,
+				tabs: [...(prev.tabs ?? []), emptyTabState],
+				activeTabId: tabId,
+			}),
+		});
+	};
+
+	const closeTab = (tabId: string) => {
+		navigate({
+			search: (prev) => {
+				const updatedTabs = (prev.tabs ?? []).filter((t) => t.tabId !== tabId);
+				let newActiveTabId = prev.activeTabId;
+
+				// If we closed the active tab, switch to another tab
+				if (prev.activeTabId === tabId) {
+					if (updatedTabs.length > 0) {
+						newActiveTabId = updatedTabs[updatedTabs.length - 1].tabId;
+					} else {
+						newActiveTabId = undefined;
+					}
+				}
+
+				return {
+					...prev,
+					tabs: updatedTabs,
+					activeTabId: newActiveTabId,
+				};
+			},
+		});
+	};
+
+	const prefetchTableData = (schema: string, table: string) => {
+		queryClient.prefetchQuery({
+			...queryTableDataQueryOptions({
+				url: activeConnectionUrl,
+				schema,
+				table,
+				limit: 50,
+				offset: 0,
+				orderBy: undefined,
+				orderDirection: undefined,
+				filters: { conditions: [], logicalOperator: "and" },
+			}),
+		});
+	};
+
+	const prefetchTableColumns = (schema: string, table: string) => {
+		queryClient.prefetchQuery({
+			...getTableColumnsQueryOptions({
+				url: activeConnectionUrl,
+				schema,
+				table,
+			}),
+		});
+	};
+
+	return (
+		<TableTabsBar
+			tabs={tabs}
+			activeTabId={activeTabId}
+			onTabHover={(tab) => {
+				if (tab.schema && tab.table) {
+					prefetchTableData(tab.schema, tab.table);
+					prefetchTableColumns(tab.schema, tab.table);
+				}
+			}}
+			onTabChange={(tabId) => {
+				const tab = tabs.find((t) => t.tabId === tabId);
+				if (tab) {
+					if (!tab.schema || !tab.table) {
+						// Empty tab - just switch to it without selecting a table
+						navigate({
+							search: (prev) => ({
+								...prev,
+								table: undefined,
+								schema: undefined,
+								activeTabId: tabId,
+							}),
+						});
+					} else {
+						// Named tab with schema/table - restore its state
+						navigate({
+							search: (prev) => ({
+								...prev,
+								schema: tab.schema,
+								table: tab.table,
+								offset: tab.offset ?? 0,
+								limit: tab.limit ?? 50,
+								orderBy: tab.orderBy,
+								orderDirection: tab.orderDirection,
+								filters: tab.filters,
+								filtersOpened: tab.filtersOpened ?? false,
+								viewMode: tab.viewMode ?? "rows",
+								tableSize: tab.tableSize ?? "cozy",
+								tableFilter: tab.tableFilter,
+								hiddenColumnList: tab.hiddenColumnList,
+								fkValue: tab.fkValue,
+								activeTabId: tabId,
+							}),
+						});
+					}
+				}
+			}}
+			onTabClose={(tabId) => {
+				closeTab(tabId);
+				// If there are remaining tabs, navigate to the last one
+				const remainingTabs = tabs.filter((t) => t.tabId !== tabId);
+				if (remainingTabs.length > 0) {
+					const lastTab = remainingTabs[remainingTabs.length - 1];
+					if (!lastTab.schema || !lastTab.table) {
+						navigate({
+							search: (prev) => ({
+								...prev,
+								table: undefined,
+								schema: undefined,
+								activeTabId: lastTab.tabId,
+							}),
+						});
+					} else {
+						navigate({
+							search: (prev) => ({
+								...prev,
+								schema: lastTab.schema,
+								table: lastTab.table,
+								offset: lastTab.offset ?? 0,
+								limit: lastTab.limit ?? 50,
+								orderBy: lastTab.orderBy,
+								orderDirection: lastTab.orderDirection,
+								filters: lastTab.filters,
+								filtersOpened: lastTab.filtersOpened ?? false,
+								viewMode: lastTab.viewMode ?? "rows",
+								tableSize: lastTab.tableSize ?? "cozy",
+								tableFilter: lastTab.tableFilter,
+								hiddenColumnList: lastTab.hiddenColumnList,
+								activeTabId: lastTab.tabId,
+							}),
+						});
+					}
+				} else {
+					// No more tabs, go back to no table selected
+					navigate({
+						search: (prev) => ({
+							...prev,
+							table: undefined,
+							schema: undefined,
+							activeTabId: undefined,
+						}),
+					});
+				}
+			}}
+			onAddTab={() => {
+				addEmptyTab();
+				navigate({
+					search: (prev) => ({
+						...prev,
+						table: undefined,
+					}),
+				});
+			}}
+		/>
 	);
 };
