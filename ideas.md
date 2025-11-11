@@ -25,6 +25,7 @@
 - right click on column header to show context menu with options (sort asc/desc, filter, hide column, resize column to fit content/to minimum)
 - SQL button to quickly preview the generated SQL query from the current filters/order by/limit (and copy it)
 - virtualizing the datatable rows for performance
+- store limit (50 etc) in localstorage and use that as default instead of hardcoded 50
 
 - add a way to favorite/save queries
 - add a way to view query history

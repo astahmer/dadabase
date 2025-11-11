@@ -412,9 +412,16 @@ export const useConnectionPageState = ({
 				({
 					accessorKey: col.name,
 					header: () => {
+						const currentSearch = useSearch({
+							from: "/connections/$connectionName",
+							select: (s) => ({
+								orderBy: s.orderBy,
+								orderDirection: s.orderDirection,
+							}),
+						});
 						const sortOrder =
-							search.orderBy === col.name
-								? (search.orderDirection as "asc" | "desc")
+							currentSearch.orderBy === col.name
+								? (currentSearch.orderDirection as "asc" | "desc")
 								: false;
 						return (
 							<ColumnHeaderWithInfo
@@ -438,101 +445,106 @@ export const useConnectionPageState = ({
 					},
 					cell: col.dataType.toLowerCase().includes("json")
 						? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
-						: (ctx) => (
-								<MemoizedDataCell
-									ctx={ctx}
-									col={col}
-									schema={search.schema}
-									table={search.table}
-									activeConnectionUrl={activeConnectionUrl}
-									onFollowFK={handleFollowFK}
-									onFindReferences={handleFindReferences}
-									onShowQuickReferences={() => {
-										navigate({
-											search: (prev) => ({
-												...prev,
-												quickReferencesOpen: true,
-												quickReferencesColumnName: col.name,
-												quickReferencesCellValue: String(
-													ctx.row.original[col.name],
-												),
-											}),
-										});
-									}}
-									onPrefetchReferences={() => {
-										const referenceTarget = col.foreignKey
-											? {
-													referencedSchema: col.foreignKey.referencedSchema,
-													referencedTable: col.foreignKey.referencedTable,
-													referencedColumn: col.foreignKey.referencedColumn,
-												}
-											: {
-													referencedSchema: search.schema || "",
-													referencedTable: search.table || "",
-													referencedColumn: col.name,
-												};
+						: (ctx) => {
+								const currentSearch = useSearch({
+									from: "/connections/$connectionName",
+									select: (s) => ({
+										schema: s.schema,
+										table: s.table,
+									}),
+								});
+								return (
+									<MemoizedDataCell
+										ctx={ctx}
+										col={col}
+										schema={currentSearch.schema}
+										table={currentSearch.table}
+										activeConnectionUrl={activeConnectionUrl}
+										onFollowFK={handleFollowFK}
+										onFindReferences={handleFindReferences}
+										onShowQuickReferences={() => {
+											navigate({
+												search: (prev) => ({
+													...prev,
+													quickReferencesOpen: true,
+													quickReferencesColumnName: col.name,
+													quickReferencesCellValue: String(
+														ctx.row.original[col.name],
+													),
+												}),
+											});
+										}}
+										onPrefetchReferences={() => {
+											const referenceTarget = col.foreignKey
+												? {
+														referencedSchema: col.foreignKey.referencedSchema,
+														referencedTable: col.foreignKey.referencedTable,
+														referencedColumn: col.foreignKey.referencedColumn,
+													}
+												: {
+														referencedSchema: currentSearch.schema || "",
+														referencedTable: currentSearch.table || "",
+														referencedColumn: col.name,
+													};
 
-										queryClient.prefetchQuery(
-											findColumnReferencesWithCountsQueryOptions({
-												url: activeConnectionUrl,
-												referencedSchema: referenceTarget.referencedSchema,
-												referencedTable: referenceTarget.referencedTable,
-												referencedColumn: referenceTarget.referencedColumn,
-												cellValue: ctx.row.original[col.name],
-											}),
-										);
-									}}
-									onNavigateToFK={handleFollowFK}
-									onNavigateToReference={handleNavigateToReference}
-									onExpandToSheet={() => {
-										navigate({
-											search: (prev) => ({
-												...prev,
-												quickReferencesOpen: true,
-												quickReferencesColumnName: col.name,
-												quickReferencesCellValue: String(
-													ctx.row.original[col.name],
-												),
-											}),
-										});
-									}}
-									onMenuOpen={() => {
-										const cellValue = ctx.row.original[col.name];
+											queryClient.prefetchQuery(
+												findColumnReferencesWithCountsQueryOptions({
+													url: activeConnectionUrl,
+													referencedSchema: referenceTarget.referencedSchema,
+													referencedTable: referenceTarget.referencedTable,
+													referencedColumn: referenceTarget.referencedColumn,
+													cellValue: ctx.row.original[col.name],
+												}),
+											);
+										}}
+										onNavigateToFK={handleFollowFK}
+										onNavigateToReference={handleNavigateToReference}
+										onExpandToSheet={() => {
+											navigate({
+												search: (prev) => ({
+													...prev,
+													quickReferencesOpen: true,
+													quickReferencesColumnName: col.name,
+													quickReferencesCellValue: String(
+														ctx.row.original[col.name],
+													),
+												}),
+											});
+										}}
+										onMenuOpen={() => {
+											const cellValue = ctx.row.original[col.name];
 
-										const referenceTarget = col.foreignKey
-											? {
-													referencedSchema: col.foreignKey.referencedSchema,
-													referencedTable: col.foreignKey.referencedTable,
-													referencedColumn: col.foreignKey.referencedColumn,
-												}
-											: {
-													referencedSchema: search.schema || "",
-													referencedTable: search.table || "",
-													referencedColumn: col.name,
-												};
+											const referenceTarget = col.foreignKey
+												? {
+														referencedSchema: col.foreignKey.referencedSchema,
+														referencedTable: col.foreignKey.referencedTable,
+														referencedColumn: col.foreignKey.referencedColumn,
+													}
+												: {
+														referencedSchema: currentSearch.schema || "",
+														referencedTable: currentSearch.table || "",
+														referencedColumn: col.name,
+													};
 
-										queryClient.prefetchQuery(
-											findColumnReferencesWithCountsQueryOptions({
-												url: activeConnectionUrl,
-												referencedSchema: referenceTarget.referencedSchema,
-												referencedTable: referenceTarget.referencedTable,
-												referencedColumn: referenceTarget.referencedColumn,
-												cellValue,
-											}),
-										);
-									}}
-								/>
-							),
+											queryClient.prefetchQuery(
+												findColumnReferencesWithCountsQueryOptions({
+													url: activeConnectionUrl,
+													referencedSchema: referenceTarget.referencedSchema,
+													referencedTable: referenceTarget.referencedTable,
+													referencedColumn: referenceTarget.referencedColumn,
+													cellValue,
+												}),
+											);
+										}}
+									/>
+								);
+							},
 					enableResizing: true,
 					enableSorting: true,
 				}) as ColumnDef<any> as any,
 		);
 	}, [
 		columnMetadata,
-		search.schema,
-		search.table,
-		search.orderBy,
-		search.orderDirection,
 		activeConnectionUrl,
 		handleFollowFK,
 		handleFindReferences,
