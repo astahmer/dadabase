@@ -22,7 +22,7 @@ export interface VirtualizedTableBodyProps<TData> {
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
 	estimateItemSize?: number;
 	overscan?: number;
-	parentRef?: React.RefObject<HTMLDivElement | null>;
+	scrollElement: HTMLDivElement;
 }
 
 export function VirtualizedTableBody<TData>({
@@ -36,16 +36,15 @@ export function VirtualizedTableBody<TData>({
 	ExpandedRow,
 	onExpandRowJson,
 	estimateItemSize = 35,
-	overscan = 10,
-	parentRef,
+	overscan,
+	scrollElement,
 }: VirtualizedTableBodyProps<TData>) {
 	const virtualizer = useVirtualizer({
 		count: rows.length,
-		getScrollElement: () => parentRef?.current || null,
+		getScrollElement: () => scrollElement,
 		estimateSize: () => estimateItemSize,
 		overscan,
 	});
-	console.log("virtualizer", rows.length, virtualizer);
 
 	const virtualRows = virtualizer.getVirtualItems();
 	const totalSize = virtualizer.getTotalSize();

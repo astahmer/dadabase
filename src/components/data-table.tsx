@@ -2,7 +2,7 @@ import type { Cell, Row, Table as TanstackTable } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { Fragment, memo } from "react";
+import { Fragment, memo, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { cn } from "../lib/utils.ts";
 import {
@@ -36,6 +36,7 @@ export interface DataTableProps<TData> {
 	className?: string;
 	table: TanstackTable<TData>;
 	containerRef?: React.RefObject<HTMLDivElement | null>;
+	getTableContainer?: (el: HTMLDivElement) => void;
 	header?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
 	footer?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
 	top?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
@@ -66,6 +67,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		className,
 		table,
 		containerRef,
+		getTableContainer,
 		header,
 		top,
 		bottom,
@@ -94,13 +96,24 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 	const hasSelectedRows = selectedRowsCount > 0;
 	const rows = table.getRowModel().rows;
 
+	const tableContainerRef = useRef<HTMLDivElement>(null);
+
 	return (
 		<>
 			{runIfFn(top, table)}
 			{runIfFn(header, table)}
 			<div
 				className={`overflow-x-auto h-full ${virtualized ? "overflow-y-auto" : ""} ${className || ""}`}
-				ref={containerRef}
+				ref={(el) => {
+					if (containerRef) {
+						containerRef.current = el;
+					}
+
+					if (el) {
+						tableContainerRef.current = el;
+						getTableContainer?.(el);
+					}
+				}}
 			>
 				<table
 					className={tableStyles({ variant })}
@@ -215,7 +228,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									</tr>
 								))}
 						</tbody>
-					) : virtualized && rows.length ? (
+					) : virtualized && rows.length && tableContainerRef.current ? (
 						<tbody>
 							<VirtualizedTableBody
 								rows={rows}
@@ -231,7 +244,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									estimateItemSize ?? estimateSizeByTableSize(size)
 								}
 								overscan={overscan}
-								parentRef={containerRef}
+								scrollElement={tableContainerRef.current}
 							/>
 						</tbody>
 					) : (

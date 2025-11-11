@@ -95,7 +95,9 @@ interface UseConnectionPageStateProps {
 export const useConnectionPageState = ({
 	connection,
 }: UseConnectionPageStateProps) => {
+	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
 	const search = useSearch({
 		from: "/connections/$connectionName",
 		select: (s) => ({
@@ -112,8 +114,6 @@ export const useConnectionPageState = ({
 			tableSize: s.tableSize,
 		}),
 	});
-	const queryClient = useQueryClient();
-	const tableContainerRef = useRef<HTMLDivElement>(null);
 
 	const connectionUrl = connection.url || "";
 	const activeConnectionUrl = search.dbName
@@ -736,7 +736,6 @@ export const useConnectionPageState = ({
 	});
 
 	return {
-		tableContainerRef,
 		activeConnectionUrl,
 		queryBuilder,
 		rowsQuery,

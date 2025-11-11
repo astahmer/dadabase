@@ -105,9 +105,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	});
 
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
+	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
+		null,
+	);
 
 	const {
-		tableContainerRef,
 		activeConnectionUrl,
 		queryBuilder,
 		rowsQuery,
@@ -213,7 +215,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 													<DataTable
 														virtualized
 														table={rowsDataTable}
-														containerRef={tableContainerRef}
+														getTableContainer={setTableContainer}
 														isLoading={
 															rowsQuery.isLoading || isColumnMetadataLoading
 														}
@@ -238,7 +240,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 													{!rowsQuery.isLoading && !isColumnMetadataLoading && (
 														<ScrollToColumnButton
 															columnList={columnMetadata.map((col) => col.name)}
-															containerRef={tableContainerRef}
+															containerRef={{ current: tableContainer }}
 														/>
 													)}
 												</div>
