@@ -123,28 +123,48 @@ function safeJsonParse(value: string) {
 }
 
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
+	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
+	const connection = connectionList.data.find((c) => c.name === connectionName);
+
+	if (!connection) {
+		return (
+			<div className="h-screen bg-background py-8 px-4">
+				<div className="max-w-6xl mx-auto">
+					<h1 className="text-2xl font-bold text-foreground">
+						Connection not found
+					</h1>
+				</div>
+			</div>
+		);
+	}
+
+	return <ConnectionPageInner connection={connection} />;
+};
+
+interface DbConnection {
+	id: string;
+	name: string;
+	url: string;
+	dialect: string;
+	created_at: number;
+	updated_at: number;
+}
+
+const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
 	const tableContainerRef = useRef<HTMLDivElement>(null);
 
-	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
-	const connection = connectionList.data.find((c) => c.name === connectionName);
 	const connectionUrl = connection?.url || "";
 
 	const search = useSearch({ from: "/connections/$connectionName" });
 	// console.log(search);
 
-	// Use explicit tabIds from URL search params
-	const tabs = (search.tabs ?? []).map((tabState) => ({
-		...tabState,
-	}));
-
-	// Use explicit activeTabId from URL search params
+	const tabs = search.tabs ?? [];
 	const activeTabId = search.activeTabId ?? null;
 
-	// Helper functions to manage tabs via URL
 	const addEmptyTab = () => {
 		// Create a placeholder empty tab with a unique ID
 		const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -224,7 +244,7 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		fkValue: options?.fkValue,
 	});
 
-	const { setSchema, setTable } = useConnectionStorage(connectionName);
+	const { setSchema, setTable } = useConnectionStorage(connection.name);
 
 	// Use the selected database from search params, fall back to the default
 	const defaultDatabaseName = getDbNameFromConnectionUrl(connectionUrl);
@@ -988,20 +1008,6 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 		},
 	});
 
-	const redactedUrl = connection ? redactConnectionUrl(connection.url) : "";
-
-	if (!connection) {
-		return (
-			<div className="h-screen bg-background py-8 px-4">
-				<div className="max-w-6xl mx-auto">
-					<h1 className="text-2xl font-bold text-foreground">
-						Connection not found
-					</h1>
-				</div>
-			</div>
-		);
-	}
-
 	const schemaCollection = ArkSelect.createListCollection({
 		items: schemaList.map((s: string) => {
 			const tableCount = schemaTableCounts.get(s) || 0;
@@ -1017,140 +1023,10 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	return (
 		<div className="h-screen bg-background flex flex-col">
 			{/* Header */}
-			<div className="border-b bg-card px-4 py-2 sm:px-6 space-y-2">
-				<div className="flex items-center justify-between gap-4">
-					<div className="flex-1 min-w-0">
-						<Breadcrumb.BreadcrumbRoot>
-							<Breadcrumb.BreadcrumbList size="sm">
-								<Breadcrumb.BreadcrumbItem>
-									<Breadcrumb.BreadcrumbLink
-										href="#"
-										onClick={(e) => {
-											e.preventDefault();
-											navigate({ to: "/" });
-										}}
-									>
-										Connections
-									</Breadcrumb.BreadcrumbLink>
-								</Breadcrumb.BreadcrumbItem>
-								<Breadcrumb.BreadcrumbSeparator />
-								<Breadcrumb.BreadcrumbItem>
-									<ListboxMenu.ListboxMenuRoot>
-										<ListboxMenu.ListboxMenuTrigger
-											variant="unstyled"
-											size="unstyled"
-											asChild
-										>
-											<Button variant="ghost" size="sm">
-												<span className="text-foreground">
-													{connection.name}
-												</span>
-												<ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
-											</Button>
-										</ListboxMenu.ListboxMenuTrigger>
-										<ListboxMenu.ListboxMenuContent>
-											<ListboxMenu.ListboxRoot
-												collection={createListCollection({
-													items: connectionList.data.map((conn) => ({
-														label: conn.name,
-														value: conn.name,
-													})),
-												})}
-												onValueChange={(details) => {
-													if (
-														details.value &&
-														details.value[0] !== connectionName
-													) {
-														navigate({
-															to: "/connections/$connectionName",
-															params: { connectionName: details.value[0] },
-														});
-													}
-												}}
-											>
-												<ListboxMenu.ListboxMenuList>
-													{connectionList.data.map((conn) => (
-														<ListboxMenu.ListboxMenuItem
-															key={conn.name}
-															item={{ label: conn.name, value: conn.name }}
-															showIndicator={conn.name === connectionName}
-														>
-															{conn.name}
-														</ListboxMenu.ListboxMenuItem>
-													))}
-													<div className="border-t" />
-													<ListboxMenu.ListboxMenuItem
-														item={{
-															label: "Add new connection",
-															value: "__add",
-														}}
-														onClick={() => {
-															setShowAddConnectionDrawer(true);
-														}}
-													>
-														<HStack gap="1" align="center">
-															<LucidePlus className="h-3 w-3" />
-															<span>Add new connection</span>
-														</HStack>
-													</ListboxMenu.ListboxMenuItem>
-												</ListboxMenu.ListboxMenuList>
-											</ListboxMenu.ListboxRoot>
-										</ListboxMenu.ListboxMenuContent>
-									</ListboxMenu.ListboxMenuRoot>
-								</Breadcrumb.BreadcrumbItem>
-							</Breadcrumb.BreadcrumbList>
-						</Breadcrumb.BreadcrumbRoot>
-						<span className="text-xs text-muted-foreground truncate block">
-							{redactedUrl}
-						</span>
-					</div>
-					<div className="flex items-center gap-2 shrink-0">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() => {
-								navigate({
-									search: (prev) => ({
-										dbName: prev.dbName,
-										schema: prev.schema,
-										table: prev.table,
-										viewMode: prev.viewMode,
-										tableSize: prev.tableSize,
-										hiddenColumnList: [],
-										filters: undefined,
-										filtersOpened: false,
-										offset: 0, // Reset to first page when filters change
-										limit: 50,
-										orderBy: undefined,
-										orderDirection: undefined,
-										quickReferencesCellValue: undefined,
-										quickReferencesColumnName: undefined,
-										quickReferencesOpen: false,
-										tableFilter: prev.tableFilter,
-										tabs: [],
-										activeTabId: undefined,
-									}),
-								});
-							}}
-						>
-							Reset page
-						</Button>
-						<Tooltip content="Refetch all">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									queryClient.invalidateQueries();
-								}}
-								className="shrink-0"
-							>
-								<RefreshCw className="h-4 w-4" />
-							</Button>
-						</Tooltip>
-						<DarkModeToggle />
-					</div>
-				</div>
-			</div>
+			<ConnectionPageHeader
+				connection={connection}
+				onAddConnection={() => setShowAddConnectionDrawer(true)}
+			/>
 
 			{/* Main Layout */}
 			<div className="flex-1 flex h-full min-h-0">
@@ -2654,4 +2530,153 @@ const StructureTable = (props: {
 			/>
 		);
 	}
+};
+
+const ConnectionPageHeader = (props: {
+	connection: DbConnection;
+	onAddConnection: () => void;
+}) => {
+	const { connection } = props;
+
+	const queryClient = useQueryClient();
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
+	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
+	const connectionName = connection.name;
+	const redactedUrl = redactConnectionUrl(connection.url);
+
+	return (
+		<div className="border-b bg-card px-4 py-2 sm:px-6 space-y-2">
+			<div className="flex items-center justify-between gap-4">
+				<div className="flex-1 min-w-0">
+					<Breadcrumb.BreadcrumbRoot>
+						<Breadcrumb.BreadcrumbList size="sm">
+							<Breadcrumb.BreadcrumbItem>
+								<Breadcrumb.BreadcrumbLink
+									href="#"
+									onClick={(e) => {
+										e.preventDefault();
+										navigate({ to: "/" });
+									}}
+								>
+									Connections
+								</Breadcrumb.BreadcrumbLink>
+							</Breadcrumb.BreadcrumbItem>
+							<Breadcrumb.BreadcrumbSeparator />
+							<Breadcrumb.BreadcrumbItem>
+								<ListboxMenu.ListboxMenuRoot>
+									<ListboxMenu.ListboxMenuTrigger
+										variant="unstyled"
+										size="unstyled"
+										asChild
+									>
+										<Button variant="ghost" size="sm">
+											<span className="text-foreground">{connection.name}</span>
+											<ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
+										</Button>
+									</ListboxMenu.ListboxMenuTrigger>
+									<ListboxMenu.ListboxMenuContent>
+										<ListboxMenu.ListboxRoot
+											collection={createListCollection({
+												items: connectionList.data.map((conn) => ({
+													label: conn.name,
+													value: conn.name,
+												})),
+											})}
+											onValueChange={(details) => {
+												if (
+													details.value &&
+													details.value[0] !== connectionName
+												) {
+													navigate({
+														to: "/connections/$connectionName",
+														params: { connectionName: details.value[0] },
+													});
+												}
+											}}
+										>
+											<ListboxMenu.ListboxMenuList>
+												{connectionList.data.map((conn) => (
+													<ListboxMenu.ListboxMenuItem
+														key={conn.name}
+														item={{ label: conn.name, value: conn.name }}
+														showIndicator={conn.name === connectionName}
+													>
+														{conn.name}
+													</ListboxMenu.ListboxMenuItem>
+												))}
+												<div className="border-t" />
+												<ListboxMenu.ListboxMenuItem
+													item={{
+														label: "Add new connection",
+														value: "__add",
+													}}
+													onClick={() => {
+														props.onAddConnection();
+													}}
+												>
+													<HStack gap="1" align="center">
+														<LucidePlus className="h-3 w-3" />
+														<span>Add new connection</span>
+													</HStack>
+												</ListboxMenu.ListboxMenuItem>
+											</ListboxMenu.ListboxMenuList>
+										</ListboxMenu.ListboxRoot>
+									</ListboxMenu.ListboxMenuContent>
+								</ListboxMenu.ListboxMenuRoot>
+							</Breadcrumb.BreadcrumbItem>
+						</Breadcrumb.BreadcrumbList>
+					</Breadcrumb.BreadcrumbRoot>
+					<span className="text-xs text-muted-foreground truncate block">
+						{redactedUrl}
+					</span>
+				</div>
+				<div className="flex items-center gap-2 shrink-0">
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => {
+							navigate({
+								search: (prev) => ({
+									dbName: prev.dbName,
+									schema: prev.schema,
+									table: prev.table,
+									viewMode: prev.viewMode,
+									tableSize: prev.tableSize,
+									hiddenColumnList: [],
+									filters: undefined,
+									filtersOpened: false,
+									offset: 0, // Reset to first page when filters change
+									limit: 50,
+									orderBy: undefined,
+									orderDirection: undefined,
+									quickReferencesCellValue: undefined,
+									quickReferencesColumnName: undefined,
+									quickReferencesOpen: false,
+									tableFilter: prev.tableFilter,
+									tabs: [],
+									activeTabId: undefined,
+								}),
+							});
+						}}
+					>
+						Reset page
+					</Button>
+					<Tooltip content="Refetch all">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								queryClient.invalidateQueries();
+							}}
+							className="shrink-0"
+						>
+							<RefreshCw className="h-4 w-4" />
+						</Button>
+					</Tooltip>
+					<DarkModeToggle />
+				</div>
+			</div>
+		</div>
+	);
 };

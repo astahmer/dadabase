@@ -10,7 +10,7 @@ export interface TableTab {
 }
 
 interface TableTabsBarProps {
-	tabs: TableTab[];
+	tabs: Array<TableTab> | ReadonlyArray<TableTab>;
 	activeTabId: string | null;
 	onTabChange: (tabId: string) => void;
 	onTabClose: (tabId: string) => void;

@@ -16,4 +16,5 @@ const listDbConnectionServerFn = createServerFn().handler(async (_ctx) => {
 export const listDbConnectionQueryOptions = queryOptions({
 	queryKey: ["db", "list"],
 	queryFn: listDbConnectionServerFn,
+	staleTime: 60 * 1000 * 5, // 5 minutes
 });
