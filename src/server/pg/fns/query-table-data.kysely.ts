@@ -5,6 +5,7 @@ import { sql } from "kysely";
 import type {
 	FilterConditionExpression,
 	LogicalOperator,
+	QueryFilterType,
 } from "#src/lib/query-filter";
 
 export const queryTableData = (input: {
@@ -14,10 +15,7 @@ export const queryTableData = (input: {
 	offset?: number;
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
-	filters?: {
-		conditions: FilterConditionExpression[];
-		logicalOperator: LogicalOperator;
-	};
+	filters?: QueryFilterType;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -94,7 +92,7 @@ export const queryTableData = (input: {
 
 			const whereExpression = filterConfig
 				? buildWhereExpression(
-						filterConfig.conditions,
+						Array.from(filterConfig.conditions),
 						filterConfig.logicalOperator,
 					)
 				: undefined;
@@ -132,8 +130,10 @@ export const queryTableData = (input: {
 			// Add limit and offset for pagination
 			query = query.limit(limit).offset(offset);
 
-			console.log("Main SQL:", query.compile().sql);
+			console.log("--> Main SQL:", query.compile().sql);
+			console.time(`<-- Main SQL: ${query.compile().sql}`);
 			const rows = yield* db.execute(query as any);
+			console.timeEnd(`<-- Main SQL: ${query.compile().sql}`);
 			return { rows, rowCount };
 		} catch (e) {
 			return yield* Effect.fail(

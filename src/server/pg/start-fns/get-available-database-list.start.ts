@@ -4,13 +4,14 @@ import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 import { getAvailableDatabaseList } from "../fns/get-available-database-list.kysely.ts";
+import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
 const getAvailableDatabaseListServerFn = createServerFn()
 	.inputValidator(
 		Schema.Struct({ url: Schema.String }).pipe(Schema.standardSchemaV1),
 	)
 	.handler(async (ctx) => {
-		return await Effect.runPromise(
+		return await AppRuntime.runPromise(
 			getAvailableDatabaseList.pipe(
 				Effect.provide(makeKyselyPgDatabaseLayer(ctx.data.url)),
 			),

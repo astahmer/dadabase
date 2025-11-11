@@ -1,6 +1,7 @@
 import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import { getAvailableDatabaseList } from "#src/server/pg/fns/get-available-database-list.kysely.ts";
 import { getAvailableTableList } from "#src/server/pg/fns/get-available-table-list.kysely.ts";
+import { AppRuntime } from "#src/server/services/app.runtime.ts";
 import { PlatformConfigProvider } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
 import { Config, Effect } from "effect";
@@ -17,7 +18,7 @@ const runWithDb = Effect.gen(function* () {
 	yield* program.pipe(Effect.provide(makeKyselyPgDatabaseLayer(url)));
 });
 
-const res = await Effect.runPromise(
+const res = await AppRuntime.runPromise(
 	runWithDb.pipe(
 		Effect.scoped,
 		Effect.provide(PlatformConfigProvider.layerDotEnv(".env")),
