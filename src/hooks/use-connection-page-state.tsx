@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
 	AccessorKeyColumnDef,
 	ColumnDef,
+	ColumnOrderState,
 	ColumnPinningState,
 } from "@tanstack/react-table";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
@@ -117,6 +118,7 @@ export const useConnectionPageState = ({
 			hiddenColumnList: s.hiddenColumnList,
 			tableSize: s.tableSize,
 			columnPinning: s.columnPinning,
+			columnOrder: s.columnOrder,
 		}),
 	});
 
@@ -567,7 +569,13 @@ export const useConnectionPageState = ({
 						...staticColumns,
 						...(Array.from(
 							{ length: 10 },
-							(_, i) => ({ id: `__skeleton-${i}` }) as ColumnDef<any>,
+							(_, i) =>
+								({
+									id: `__skeleton-${i}`,
+									cell: () => (
+										<div className="h-3 bg-muted rounded animate-pulse" />
+									),
+								}) as ColumnDef<any>,
 						) as typeof staticColumns),
 					],
 		[staticColumns, dataColumns],
@@ -610,15 +618,19 @@ export const useConnectionPageState = ({
 	const [rowSelection, setRowSelection] = useState({});
 
 	// Column pinning state
-	const columnPinningState: ColumnPinningState = useMemo(() => {
-		try {
-			return search.columnPinning
-				? JSON.parse(search.columnPinning)
-				: { left: [], right: [] };
-		} catch {
-			return { left: [], right: [] };
-		}
-	}, [search.columnPinning]);
+	const columnPinningState: ColumnPinningState = useMemo(
+		() => ({
+			left: Array.from(search.columnPinning?.left ?? []),
+			right: Array.from(search.columnPinning?.right ?? []),
+		}),
+		[search.columnPinning],
+	);
+
+	// Column order state
+	const columnOrderState = useMemo(
+		() => Array.from(search.columnOrder ?? []),
+		[search.columnOrder],
+	);
 
 	// Default column size calculation
 	let defaultColumnSize = columnMetadata.some((col) =>
@@ -649,6 +661,7 @@ export const useConnectionPageState = ({
 			columnVisibility: columnVisibilityState,
 			rowSelection,
 			columnPinning: columnPinningState,
+			columnOrder: columnOrderState,
 		},
 		manualPagination: true,
 		manualSorting: true,
@@ -760,7 +773,7 @@ export const useConnectionPageState = ({
 						if (tab.tabId === prev.activeTabId) {
 							return {
 								...tab,
-								columnPinning: JSON.stringify(newPinning),
+								columnPinning: newPinning,
 							};
 						}
 						return tab;
@@ -768,7 +781,30 @@ export const useConnectionPageState = ({
 
 					return {
 						...prev,
-						columnPinning: JSON.stringify(newPinning),
+						columnPinning: newPinning,
+						tabs: updatedTabs,
+					};
+				},
+			});
+		},
+		onColumnOrderChange: (updater) => {
+			const newOrder =
+				typeof updater === "function" ? updater(columnOrderState) : updater;
+			navigate({
+				search: (prev) => {
+					const updatedTabs = (prev.tabs ?? []).map((tab) => {
+						if (tab.tabId === prev.activeTabId) {
+							return {
+								...tab,
+								columnOrder: newOrder,
+							};
+						}
+						return tab;
+					});
+
+					return {
+						...prev,
+						columnOrder: newOrder,
 						tabs: updatedTabs,
 					};
 				},

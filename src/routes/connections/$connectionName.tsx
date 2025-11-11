@@ -32,7 +32,11 @@ const tabStateSchema = Schema.Struct({
 	filtersOpened: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
-	columnPinning: Schema.String.pipe(Schema.optional), // Zipson-compressed column pinning config
+	columnPinning: Schema.Struct({
+		left: Schema.String.pipe(Schema.Array, Schema.optional),
+		right: Schema.String.pipe(Schema.Array, Schema.optional),
+	}).pipe(Schema.optional), // Zipson-compressed column pinning config
+	columnOrder: Schema.String.pipe(Schema.Array, Schema.optional), // JSON-stringified column order array
 	fkValue: Schema.String.pipe(Schema.optional), // FK value used when navigating to this tab
 });
 
@@ -57,7 +61,11 @@ const searchSchema = Schema.Struct({
 	filtersOpened: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
-	columnPinning: Schema.String.pipe(Schema.optional), // Zipson-compressed column pinning config
+	columnPinning: Schema.Struct({
+		left: Schema.String.pipe(Schema.Array, Schema.optional),
+		right: Schema.String.pipe(Schema.Array, Schema.optional),
+	}).pipe(Schema.optional), // Zipson-compressed column pinning config
+	columnOrder: Schema.String.pipe(Schema.Array, Schema.optional), // JSON-stringified column order array
 	quickReferencesOpen: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
