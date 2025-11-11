@@ -214,6 +214,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 												<div className="flex-1 overflow-auto flex flex-col h-full relative">
 													<DataTable
 														virtualized
+														enableColumnOrdering
 														table={rowsDataTable}
 														getTableContainer={setTableContainer}
 														isLoading={

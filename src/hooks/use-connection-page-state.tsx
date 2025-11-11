@@ -223,6 +223,7 @@ export const useConnectionPageState = ({
 		() => [
 			{
 				id: "__select",
+				meta: { enableColumnOrdering: false },
 				header: (ctx) => {
 					const checkboxRef = useRef<HTMLInputElement>(null);
 					const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
@@ -258,9 +259,11 @@ export const useConnectionPageState = ({
 				maxSize: 40,
 				enableResizing: false,
 				enableSorting: false,
+				enablePinning: false,
 			} as ColumnDef<Record<string, unknown>>,
 			{
 				id: "__actions",
+				meta: { enableColumnOrdering: false },
 				header: () => null,
 				cell: (ctx) => (
 					<RowActionsMenu
@@ -287,6 +290,7 @@ export const useConnectionPageState = ({
 				maxSize: 40,
 				enableResizing: false,
 				enableSorting: false,
+				enablePinning: false,
 			} as ColumnDef<Record<string, unknown>>,
 		],
 		[columnMetadata, navigate],
@@ -618,19 +622,34 @@ export const useConnectionPageState = ({
 	const [rowSelection, setRowSelection] = useState({});
 
 	// Column pinning state
-	const columnPinningState: ColumnPinningState = useMemo(
-		() => ({
+	const columnPinningState: ColumnPinningState = useMemo(() => {
+		const state = {
 			left: Array.from(search.columnPinning?.left ?? []),
 			right: Array.from(search.columnPinning?.right ?? []),
-		}),
-		[search.columnPinning],
-	);
+		};
+
+		// Add __select column if it doesn't exist
+		if (!state.left.some((col) => col === "__select")) {
+			state.left.push(
+				// ...(staticColumns.map((col) => col.id).filter(Boolean) as string[]),
+				"__select",
+			);
+		}
+		return state;
+	}, [search.columnPinning, staticColumns]);
 
 	// Column order state
-	const columnOrderState = useMemo(
-		() => Array.from(search.columnOrder ?? []),
-		[search.columnOrder],
-	);
+	const columnOrderState = useMemo(() => {
+		const fromSearch = Array.from(search.columnOrder ?? []);
+		if (fromSearch.length) {
+			return fromSearch;
+		}
+
+		return staticColumns
+			.map((col) => col.id)
+			.concat(columnList)
+			.filter(Boolean) as string[];
+	}, [search.columnOrder, staticColumns, columnList]);
 
 	// Default column size calculation
 	let defaultColumnSize = columnMetadata.some((col) =>

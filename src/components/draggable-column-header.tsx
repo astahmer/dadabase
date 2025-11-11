@@ -1,51 +1,50 @@
-import type { Column } from "@tanstack/react-table";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
-import { ReactNode } from "react";
-import { cn } from "../lib/utils";
+import type { Column } from "@tanstack/react-table";
+import { type CSSProperties, type JSX } from "react";
 
 interface DraggableColumnHeaderProps<TData> {
 	column: Column<TData>;
-	children: ReactNode;
+	children: (
+		props: Pick<
+			ReturnType<typeof useSortable>,
+			"attributes" | "listeners" | "setNodeRef" | "transform" | "isDragging"
+		> & { style: CSSProperties; isDragDisabled: boolean },
+	) => JSX.Element;
 	className?: string;
 }
 
 export function DraggableColumnHeader<TData>({
 	column,
 	children,
-	className,
 }: DraggableColumnHeaderProps<TData>) {
-	const { attributes, listeners, setNodeRef, transform, isDragging } =
-		useSortable({
-			id: column.id,
-		});
+	const isDragDisabled =
+		(column.columnDef.meta as any)?.enableColumnOrdering === false ||
+		Boolean(column.getIsPinned());
 
-	const style = {
-		transform: CSS.Transform.toString(transform),
-		opacity: isDragging ? 0.5 : 1,
-		transition: "opacity 0.2s",
+	const sortable = useSortable({
+		id: column.id,
+		disabled: isDragDisabled,
+	});
+	if (isDragDisabled) return;
+
+	const dragStyle: CSSProperties = {
+		opacity: sortable.isDragging ? 0.5 : 1,
+		position: "relative",
+		transform: CSS.Translate.toString(sortable.transform), // translate instead of transform to avoid squishing
+		transition: "width transform 0.2s ease-in-out",
+		whiteSpace: "nowrap",
+		width: column.getSize(),
+		zIndex: sortable.isDragging ? 1 : 0,
 	};
 
-	return (
-		<div
-			ref={setNodeRef}
-			style={style}
-			className={cn(
-				"flex items-center gap-2 cursor-grab active:cursor-grabbing",
-				className,
-			)}
-			{...attributes}
-		>
-			<button
-				{...listeners}
-				type="button"
-				className="p-1 hover:bg-muted rounded cursor-grab active:cursor-grabbing"
-				title="Drag to reorder columns"
-			>
-				<GripVertical className="size-4 text-muted-foreground" />
-			</button>
-			<div className="flex-1">{children}</div>
-		</div>
-	);
+	return children({
+		attributes: sortable.attributes,
+		listeners: sortable.listeners,
+		setNodeRef: sortable.setNodeRef,
+		transform: sortable.transform,
+		isDragging: sortable.isDragging,
+		style: dragStyle,
+		isDragDisabled,
+	});
 }

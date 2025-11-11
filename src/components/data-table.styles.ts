@@ -1,4 +1,4 @@
-import { cva } from "class-variance-authority";
+import { cva, type VariantProps } from "class-variance-authority";
 
 export const tableStyles = cva("w-full border-collapse table-fixed", {
 	variants: {
@@ -56,6 +56,9 @@ export const tableHeaderCellStyles = cva(
 		},
 	},
 );
+export type DataTableSize = NonNullable<
+	VariantProps<typeof tableCellStyles>["size"]
+>;
 
 export const tableBodyStyles = cva("", {
 	variants: {

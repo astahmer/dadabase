@@ -1,50 +1,54 @@
-import type { Cell, Row, Table as TanstackTable } from "@tanstack/react-table";
-import { flexRender } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ChevronsUpDown, Pin, PinOff } from "lucide-react";
-import type { ReactNode } from "react";
-import { Fragment, memo, useRef } from "react";
-import { ErrorBoundary } from "react-error-boundary";
 import {
+	closestCenter,
 	DndContext,
 	KeyboardSensor,
+	MouseSensor,
 	PointerSensor,
 	useSensor,
 	useSensors,
 } from "@dnd-kit/core";
 import {
-	SortableContext,
+	arrayMove,
 	horizontalListSortingStrategy,
+	SortableContext,
 } from "@dnd-kit/sortable";
-import { cn } from "../lib/utils.ts";
+import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
+import type { Row, Table as TanstackTable } from "@tanstack/react-table";
+import { flexRender } from "@tanstack/react-table";
+import {
+	ArrowDown,
+	ArrowUp,
+	ChevronsUpDown,
+	GripVertical,
+	Pin,
+	PinOff,
+} from "lucide-react";
+import type { ReactNode } from "react";
+import { Fragment, useRef } from "react";
 import { getCommonPinningStyles } from "../lib/get-pinning-styles.ts";
+import { cn } from "../lib/utils.ts";
+import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
+import { DataTableRow } from "./data-table.row.tsx";
 import {
 	tableCellStyles,
 	tableEmptyStateStyles,
 	tableHeaderCellStyles,
 	tableHeaderStyles,
-	tableRowStyles,
 	tableStyles,
+	type DataTableSize,
 } from "./data-table.styles.ts";
-import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
 import { DraggableColumnHeader } from "./draggable-column-header.tsx";
 import { PageLimitSelect } from "./page-limit.select.tsx";
-import { RowContextMenu } from "./row-context-menu";
 import { runIfFn } from "./run-if-fn.ts";
 import { Button } from "./ui/button";
-import { VirtualizedTableBody } from "./virtualized-table-body";
 import { HStack } from "./ui/layout.tsx";
+import { VirtualizedTableBody } from "./data-table.virtualized-table-body.tsx";
 
 const i18n = {
 	emptyText: "No results found.",
 	errorText: "An error occurred.",
 };
 
-export type DataTableSize =
-	| "excel"
-	| "minimal"
-	| "compact"
-	| "cozy"
-	| "comfortable";
 export type DataTableVariant = "line" | "outline";
 
 export interface DataTableProps<TData> {
@@ -74,9 +78,8 @@ export interface DataTableProps<TData> {
 	virtualized?: boolean;
 	estimateItemSize?: number;
 	overscan?: number;
+	enableColumnOrdering?: boolean;
 }
-
-const fallbackRender = () => "An error happened";
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
 	const {
@@ -104,6 +107,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		virtualized = false,
 		estimateItemSize,
 		overscan = 10,
+		enableColumnOrdering = false,
 	} = props;
 
 	const state = table.getState();
@@ -115,34 +119,33 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 
 	const tableContainerRef = useRef<HTMLDivElement>(null);
 
-	// DnD-Kit sensors setup
 	const sensors = useSensors(
 		useSensor(PointerSensor),
+		useSensor(MouseSensor),
 		useSensor(KeyboardSensor),
 	);
+
+	const DndContextProvider = enableColumnOrdering ? DndContext : Fragment;
+	const SortableContextProvider = enableColumnOrdering
+		? SortableContext
+		: Fragment;
 
 	return (
 		<>
 			{runIfFn(top, table)}
 			{runIfFn(header, table)}
-			<DndContext
+			<DndContextProvider
 				sensors={sensors}
-				onDragEnd={(event) => {
+				collisionDetection={closestCenter}
+				modifiers={[restrictToHorizontalAxis]}
+				onDragEnd={function handleDragEnd(event) {
 					const { active, over } = event;
-
-					if (!over || active.id === over.id) {
-						return;
-					}
-
-					const { columnOrder } = table.getState();
-					const oldIndex = columnOrder.indexOf(String(active.id));
-					const newIndex = columnOrder.indexOf(String(over.id));
-
-					if (oldIndex !== -1 && newIndex !== -1) {
-						const newOrder = [...columnOrder];
-						newOrder.splice(oldIndex, 1);
-						newOrder.splice(newIndex, 0, String(active.id));
-						table.setColumnOrder(newOrder);
+					if (active && over && active.id !== over.id) {
+						table.setColumnOrder((columnOrder) => {
+							const oldIndex = columnOrder.indexOf(active.id as string);
+							const newIndex = columnOrder.indexOf(over.id as string);
+							return arrayMove(columnOrder, oldIndex, newIndex);
+						});
 					}
 				}}
 			>
@@ -163,13 +166,13 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 						className={tableStyles({ variant })}
 						// style={{ width: table.getCenterTotalSize() }}
 					>
-						<SortableContext
-							items={table.getState().columnOrder}
-							strategy={horizontalListSortingStrategy}
-						>
-							<thead className={tableHeaderStyles({ stickyHeader, variant })}>
-								{table.getHeaderGroups().map((headerGroup) => (
-									<tr key={headerGroup.id}>
+						<thead className={tableHeaderStyles({ stickyHeader, variant })}>
+							{table.getHeaderGroups().map((headerGroup) => (
+								<tr key={headerGroup.id}>
+									<SortableContextProvider
+										items={state.columnOrder}
+										strategy={horizontalListSortingStrategy}
+									>
 										{headerGroup.headers.map((headerCell) => {
 											const hasBulkActions =
 												hasSelectedRows &&
@@ -186,6 +189,159 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 													| "right"
 													| "center"
 													| undefined) || "left";
+											const isDragDisabled =
+												meta?.enableColumnOrdering === false;
+
+											const CellHeaderContent = (
+												<div className="flex items-center justify-between overflow-hidden">
+													<ColumnHeaderContextMenu
+														column={column}
+														table={table}
+														onFilterClick={onColumnFilterClick}
+													>
+														<HStack className="flex-1 min-w-0" align="center">
+															{headerCell.isPlaceholder ? null : column.getCanSort() &&
+																column.columnDef.enableSorting ? (
+																<Button
+																	onClick={column.getToggleSortingHandler()}
+																	variant="ghost"
+																	size="sm"
+																	data-test-id={`table-sort-${column.id}`}
+																	className="h-5 px-1 gap-1"
+																>
+																	{flexRender(
+																		headerCell.column.columnDef.header,
+																		headerCell.getContext(),
+																	)}
+																	{isSorted === "desc" ? (
+																		<ArrowDown className="h-3 w-3 shrink-0" />
+																	) : isSorted === "asc" ? (
+																		<ArrowUp className="h-3 w-3 shrink-0" />
+																	) : (
+																		<ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+																	)}
+																</Button>
+															) : (
+																<span>
+																	{flexRender(
+																		headerCell.column.columnDef.header,
+																		headerCell.getContext(),
+																	)}
+																</span>
+															)}
+														</HStack>
+													</ColumnHeaderContextMenu>
+													{column.getCanPin() ? (
+														column.getIsPinned() ? (
+															<Button
+																variant="ghost"
+																size="xs"
+																withIcon={false}
+																onClick={() => column.pin(false)}
+															>
+																<PinOff className="mr-2 h-3 w-3" />
+															</Button>
+														) : (
+															<Button
+																variant="ghost"
+																size="xs"
+																withIcon={false}
+																onClick={() => column.pin("left")}
+															>
+																<Pin className="mr-2 h-3 w-3" />
+															</Button>
+														)
+													) : null}
+													{resizable &&
+														headerCell.column.columnDef.enableResizing !==
+															false && (
+															<div
+																{...{
+																	onDoubleClick: () =>
+																		headerCell.column.resetSize(),
+																	onMouseDown: headerCell.getResizeHandler(),
+																	onTouchStart: headerCell.getResizeHandler(),
+																	className: cn(
+																		table.options.columnResizeDirection,
+																		headerCell.column.getIsResizing() &&
+																			"isResizing",
+																		"select-none touch-none cursor-col-resize w-1.5 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md shrink-0 -mx-0.5",
+																	),
+																	title: "Drag to resize column",
+																	//   style: {
+																	//     transform:
+																	//       columnResizeMode === 'onEnd' &&
+																	//       headerCell.column.getIsResizing()
+																	//         ? `translateX(${
+																	//             (table.options.columnResizeDirection ===
+																	//             'rtl'
+																	//               ? -1
+																	//               : 1) *
+																	//             (table.getState().columnSizingInfo
+																	//               .deltaOffset ?? 0)
+																	//           }px)`
+																	//         : '',
+																	//   },
+																}}
+															/>
+														)}
+												</div>
+											);
+
+											if (enableColumnOrdering && !isDragDisabled) {
+												return (
+													<DraggableColumnHeader
+														key={headerCell.id}
+														column={column}
+													>
+														{(dragCtx) => {
+															return (
+																<th
+																	key={headerCell.id}
+																	colSpan={headerCell.colSpan}
+																	data-column-id={headerCell.column.id}
+																	ref={dragCtx.setNodeRef}
+																	style={{
+																		width: `${headerCell.getSize()}px`,
+																		...dragCtx.style,
+																	}}
+																	className={tableHeaderCellStyles({
+																		size,
+																		showColumnBorder,
+																		textAlign: hasBulkActions
+																			? "right"
+																			: textAlign,
+																	})}
+																>
+																	<div
+																		className={cn(
+																			"flex items-center gap-2",
+																			!dragCtx.isDragDisabled &&
+																				"cursor-grab active:cursor-grabbing",
+																			className,
+																		)}
+																	>
+																		{!dragCtx.isDragDisabled && (
+																			<button
+																				{...dragCtx.attributes}
+																				{...dragCtx.listeners}
+																				type="button"
+																				className="p-1 hover:bg-muted rounded cursor-grab active:cursor-grabbing"
+																				title="Drag to reorder columns"
+																			>
+																				<GripVertical className="size-4 text-muted-foreground" />
+																			</button>
+																		)}
+																		<div className="flex-1">
+																			{CellHeaderContent}
+																		</div>
+																	</div>
+																</th>
+															);
+														}}
+													</DraggableColumnHeader>
+												);
+											}
 
 											return (
 												<th
@@ -202,111 +358,14 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 														textAlign: hasBulkActions ? "right" : textAlign,
 													})}
 												>
-													<DraggableColumnHeader column={column}>
-														<div className="flex items-center justify-between overflow-hidden">
-															<ColumnHeaderContextMenu
-																column={column}
-																table={table}
-																onFilterClick={onColumnFilterClick}
-															>
-																<HStack
-																	className="flex-1 min-w-0"
-																	align="center"
-																>
-																	{headerCell.isPlaceholder ? null : column.getCanSort() &&
-																		column.columnDef.enableSorting ? (
-																		<Button
-																			onClick={column.getToggleSortingHandler()}
-																			variant="ghost"
-																			size="sm"
-																			data-test-id={`table-sort-${column.id}`}
-																			className="h-5 px-1 gap-1"
-																		>
-																			{flexRender(
-																				headerCell.column.columnDef.header,
-																				headerCell.getContext(),
-																			)}
-																			{isSorted === "desc" ? (
-																				<ArrowDown className="h-3 w-3 shrink-0" />
-																			) : isSorted === "asc" ? (
-																				<ArrowUp className="h-3 w-3 shrink-0" />
-																			) : (
-																				<ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-																			)}
-																		</Button>
-																	) : (
-																		<span>
-																			{flexRender(
-																				headerCell.column.columnDef.header,
-																				headerCell.getContext(),
-																			)}
-																		</span>
-																	)}
-																</HStack>
-															</ColumnHeaderContextMenu>
-															{column.getIsPinned() ? (
-																<Button
-																	variant="ghost"
-																	size="xs"
-																	withIcon={false}
-																	onClick={() => column.pin(false)}
-																>
-																	<PinOff className="mr-2 h-3 w-3" />
-																</Button>
-															) : (
-																<Button
-																	variant="ghost"
-																	size="xs"
-																	withIcon={false}
-																	onClick={() => column.pin("left")}
-																>
-																	<Pin className="mr-2 h-3 w-3" />
-																</Button>
-															)}
-															{resizable &&
-																headerCell.column.columnDef.enableResizing !==
-																	false && (
-																	<div
-																		{...{
-																			onDoubleClick: () =>
-																				headerCell.column.resetSize(),
-																			onMouseDown:
-																				headerCell.getResizeHandler(),
-																			onTouchStart:
-																				headerCell.getResizeHandler(),
-																			className: cn(
-																				table.options.columnResizeDirection,
-																				headerCell.column.getIsResizing() &&
-																					"isResizing",
-																				"select-none touch-none cursor-col-resize w-1.5 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md shrink-0 -mx-0.5",
-																			),
-																			title: "Drag to resize column",
-																			//   style: {
-																			//     transform:
-																			//       columnResizeMode === 'onEnd' &&
-																			//       headerCell.column.getIsResizing()
-																			//         ? `translateX(${
-																			//             (table.options.columnResizeDirection ===
-																			//             'rtl'
-																			//               ? -1
-																			//               : 1) *
-																			//             (table.getState().columnSizingInfo
-																			//               .deltaOffset ?? 0)
-																			//           }px)`
-																			//         : '',
-																			//   },
-																		}}
-																	/>
-																)}
-														</div>
-													</DraggableColumnHeader>
+													{CellHeaderContent}
 												</th>
 											);
 										})}
-									</tr>
-								))}
-							</thead>
-						</SortableContext>
+									</SortableContextProvider>
+								</tr>
+							))}
+						</thead>
 
 						{isLoading ? (
 							<tbody>
@@ -335,6 +394,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									striped={striped}
 									interactive={interactive}
 									showColumnBorder={showColumnBorder}
+									enableColumnOrdering={enableColumnOrdering}
+									columnOrder={state.columnOrder}
 									withContextMenu={withContextMenu}
 									ExpandedRow={ExpandedRow}
 									onExpandRowJson={props.onExpandRowJson}
@@ -349,7 +410,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 							<tbody>
 								{rows.length ? (
 									rows.map((row, index) => (
-										<TableRow
+										<DataTableRow
 											key={row.id}
 											index={index}
 											getRow={() => row}
@@ -358,6 +419,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											striped={striped}
 											interactive={interactive}
 											showColumnBorder={showColumnBorder}
+											enableColumnOrdering={enableColumnOrdering}
+											columnOrder={state.columnOrder}
 											withContextMenu={withContextMenu}
 											ExpandedRow={ExpandedRow}
 											onExpandRowJson={props.onExpandRowJson}
@@ -380,7 +443,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 						)}
 					</table>
 				</div>
-			</DndContext>
+			</DndContextProvider>
 
 			{table.options.manualPagination === false &&
 			(table.getRowModel().rows.length >= pagination.pageSize ||
@@ -406,141 +469,6 @@ const estimateSizeByTableSize = (size: DataTableSize) => {
 			return 38;
 	}
 };
-
-const TableCell = memo(function TableCell({
-	cell,
-	index,
-	size,
-	showColumnBorder,
-}: {
-	cell: Cell<any, any>;
-	index: number;
-	isExpanded: boolean;
-	size: DataTableSize;
-	showColumnBorder: boolean;
-}) {
-	const columnSize = cell.column.getSize();
-	const textAlign = (cell.column.columnDef.meta as any)?.textAlign || "left";
-
-	return (
-		<td
-			className={tableCellStyles({ size, showColumnBorder, textAlign })}
-			data-testid={`cell-${index}-${cell.column.id}`}
-			style={{
-				width: `${columnSize}px`,
-				...getCommonPinningStyles(cell.column),
-			}}
-		>
-			<ErrorBoundary fallbackRender={fallbackRender}>
-				{flexRender(cell.column.columnDef.cell, cell.getContext())}
-			</ErrorBoundary>
-		</td>
-	);
-});
-
-const TableRow = memo(function TableRow({
-	index,
-	getRow,
-	onRowClick,
-	size,
-	striped,
-	interactive,
-	showColumnBorder,
-	withContextMenu,
-	ExpandedRow,
-	onExpandRowJson,
-}: {
-	index: number;
-	getRow: () => Row<any>;
-	onRowClick?: (row: Row<any>) => void;
-	size: DataTableSize;
-	striped: boolean;
-	interactive: boolean;
-	showColumnBorder: boolean;
-	withContextMenu: boolean;
-	ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
-	onExpandRowJson?: (row: Record<string, unknown>) => void;
-}) {
-	const row = getRow();
-	const visibleCells = row.getVisibleCells();
-	const isSelected = row.getIsSelected();
-
-	const ContextMenu = withContextMenu ? RowContextMenu : Fragment;
-
-	return (
-		<Fragment>
-			<ContextMenu
-				row={row.original as Record<string, unknown>}
-				onExpandRowJson={onExpandRowJson}
-			>
-				<tr
-					className={tableRowStyles({
-						striped,
-						selected: isSelected,
-						interactive: interactive && !!onRowClick,
-					})}
-					data-testid={`row-${index}`}
-					data-state={isSelected && "selected"}
-					onClick={
-						onRowClick
-							? (e) => {
-									if (isDescendantOfButton(e, ["BUTTON", "A"])) return;
-									e.stopPropagation();
-									return onRowClick(row);
-								}
-							: undefined
-					}
-				>
-					{visibleCells.map((cell, cellIndex) => (
-						<TableCell
-							key={cell.id}
-							cell={cell}
-							index={cellIndex}
-							isExpanded={row.getIsExpanded()}
-							size={size}
-							showColumnBorder={showColumnBorder}
-						/>
-					))}
-				</tr>
-			</ContextMenu>
-			{row.getIsExpanded() && ExpandedRow && (
-				<tr
-					className={`border-b ${isSelected ? "bg-blue-50" : ""}`}
-					data-testid={`row-${index}-subrow`}
-					data-state={isSelected && "selected"}
-				>
-					<td
-						className={tableCellStyles({ size, showColumnBorder })}
-						colSpan={visibleCells.length}
-					>
-						<ErrorBoundary fallbackRender={fallbackRender}>
-							<ExpandedRow row={row} />
-						</ErrorBoundary>
-					</td>
-				</tr>
-			)}
-		</Fragment>
-	);
-});
-
-type TagName = "BUTTON" | "A";
-
-function isDescendantOfButton(
-	e: React.MouseEvent<HTMLElement>,
-	tags: TagName[],
-) {
-	let element = e.target as HTMLElement | null;
-
-	while (element && element !== e.currentTarget) {
-		if (tags.includes(element.tagName as TagName)) {
-			return true;
-		}
-
-		element = element.parentElement;
-	}
-
-	return false;
-}
 
 function DataTablePagination<TData>(props: { table: TanstackTable<TData> }) {
 	const { table } = props;
