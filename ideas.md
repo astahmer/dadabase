@@ -26,6 +26,9 @@
 - SQL button to quickly preview the generated SQL query from the current filters/order by/limit (and copy it)
 - virtualizing the datatable rows for performance
 - store limit (50 etc) in localstorage and use that as default instead of hardcoded 50
+- cmd+f in table
+- cmd+k
+- pin columns to the left
 
 - add a way to favorite/save queries
 - add a way to view query history

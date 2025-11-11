@@ -93,7 +93,10 @@ function MemoizedDataCellInner({
 	);
 
 	return (
-		<div className="group flex gap-1 items-center">
+		<div
+			className="group flex gap-1 items-center"
+			data-column-content={col.name}
+		>
 			{table &&
 			schema &&
 			ctx.row.original[col.name] &&

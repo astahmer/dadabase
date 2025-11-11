@@ -13,6 +13,7 @@ import {
 	tableRowStyles,
 	tableStyles,
 } from "./data-table.styles.ts";
+import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
 import { PageLimitSelect } from "./page-limit.select.tsx";
 import { RowContextMenu } from "./row-context-menu";
 import { runIfFn } from "./run-if-fn.ts";
@@ -45,6 +46,7 @@ export interface DataTableProps<TData> {
 	isLoading?: boolean;
 	hasError?: boolean;
 	onRowClick?: (row: Row<TData>) => void;
+	onColumnFilterClick?: (columnId: string) => void;
 	stickyHeader?: boolean;
 	interactive?: boolean;
 	striped?: boolean;
@@ -75,6 +77,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		hasError,
 		isLoading,
 		onRowClick,
+		onColumnFilterClick,
 		stickyHeader = true,
 		interactive = false,
 		striped = false,
@@ -122,21 +125,29 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 					<thead className={tableHeaderStyles({ stickyHeader, variant })}>
 						{table.getHeaderGroups().map((headerGroup) => (
 							<tr key={headerGroup.id}>
-								{headerGroup.headers.map((header) => {
+								{headerGroup.headers.map((headerCell) => {
 									const hasBulkActions =
-										hasSelectedRows && headerGroup.headers.at(-1) === header;
-									const column = header.column;
+										hasSelectedRows &&
+										headerGroup.headers.at(-1) === headerCell;
+									const column = headerCell.column;
 									const isSorted = column.getIsSorted();
 
+									const meta = headerCell.column.columnDef.meta as
+										| Record<string, unknown>
+										| undefined;
 									const textAlign =
-										(header.column.columnDef.meta as any)?.textAlign || "left";
+										(meta?.textAlign as
+											| "left"
+											| "right"
+											| "center"
+											| undefined) || "left";
 
 									return (
 										<th
-											key={header.id}
-											colSpan={header.colSpan}
-											data-column-id={header.column.id}
-											style={{ width: `${header.getSize()}px` }}
+											key={headerCell.id}
+											colSpan={headerCell.colSpan}
+											data-column-id={headerCell.column.id}
+											style={{ width: `${headerCell.getSize()}px` }}
 											className={tableHeaderCellStyles({
 												size,
 												showColumnBorder,
@@ -144,52 +155,63 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											})}
 										>
 											<div className="flex items-center justify-between overflow-hidden">
-												<div className="flex-1 min-w-0">
-													{header.isPlaceholder ? null : column.getCanSort() &&
-														column.columnDef.enableSorting ? (
-														<Button
-															onClick={column.getToggleSortingHandler()}
-															variant="ghost"
-															size="sm"
-															data-test-id={`table-sort-${column.id}`}
-															className="h-5 px-1 gap-1"
-														>
-															{flexRender(
-																header.column.columnDef.header,
-																header.getContext(),
-															)}
-															{isSorted === "desc" ? (
-																<ArrowDown className="h-3 w-3 shrink-0" />
-															) : isSorted === "asc" ? (
-																<ArrowUp className="h-3 w-3 shrink-0" />
-															) : (
-																<ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-															)}
-														</Button>
-													) : (
-														flexRender(
-															header.column.columnDef.header,
-															header.getContext(),
-														)
-													)}
-												</div>
+												<ColumnHeaderContextMenu
+													column={column}
+													table={table}
+													onFilterClick={onColumnFilterClick}
+												>
+													<div className="flex-1 min-w-0">
+														{headerCell.isPlaceholder ? null : column.getCanSort() &&
+															column.columnDef.enableSorting ? (
+															<Button
+																onClick={column.getToggleSortingHandler()}
+																variant="ghost"
+																size="sm"
+																data-test-id={`table-sort-${column.id}`}
+																className="h-5 px-1 gap-1"
+															>
+																{flexRender(
+																	headerCell.column.columnDef.header,
+																	headerCell.getContext(),
+																)}
+																{isSorted === "desc" ? (
+																	<ArrowDown className="h-3 w-3 shrink-0" />
+																) : isSorted === "asc" ? (
+																	<ArrowUp className="h-3 w-3 shrink-0" />
+																) : (
+																	<ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+																)}
+															</Button>
+														) : (
+															<span>
+																{flexRender(
+																	headerCell.column.columnDef.header,
+																	headerCell.getContext(),
+																)}
+															</span>
+														)}
+													</div>
+												</ColumnHeaderContextMenu>
 												{resizable &&
-													header.column.columnDef.enableResizing !== false && (
+													headerCell.column.columnDef.enableResizing !==
+														false && (
 														<div
 															{...{
-																onDoubleClick: () => header.column.resetSize(),
-																onMouseDown: header.getResizeHandler(),
-																onTouchStart: header.getResizeHandler(),
+																onDoubleClick: () =>
+																	headerCell.column.resetSize(),
+																onMouseDown: headerCell.getResizeHandler(),
+																onTouchStart: headerCell.getResizeHandler(),
 																className: cn(
 																	table.options.columnResizeDirection,
-																	header.column.getIsResizing() && "isResizing",
+																	headerCell.column.getIsResizing() &&
+																		"isResizing",
 																	"select-none touch-none cursor-col-resize w-1.5 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md shrink-0 -mx-0.5",
 																),
 																title: "Drag to resize column",
 																//   style: {
 																//     transform:
 																//       columnResizeMode === 'onEnd' &&
-																//       header.column.getIsResizing()
+																//       headerCell.column.getIsResizing()
 																//         ? `translateX(${
 																//             (table.options.columnResizeDirection ===
 																//             'rtl'
