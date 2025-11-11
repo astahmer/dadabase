@@ -32,6 +32,7 @@ const tabStateSchema = Schema.Struct({
 	filtersOpened: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
+	columnPinning: Schema.String.pipe(Schema.optional), // Zipson-compressed column pinning config
 	fkValue: Schema.String.pipe(Schema.optional), // FK value used when navigating to this tab
 });
 
@@ -56,6 +57,7 @@ const searchSchema = Schema.Struct({
 	filtersOpened: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
+	columnPinning: Schema.String.pipe(Schema.optional), // Zipson-compressed column pinning config
 	quickReferencesOpen: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),

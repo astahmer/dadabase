@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AccessorKeyColumnDef, ColumnDef } from "@tanstack/react-table";
+import type { AccessorKeyColumnDef, ColumnDef, ColumnPinningState } from "@tanstack/react-table";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils";
@@ -112,6 +112,7 @@ export const useConnectionPageState = ({
 			orderDirection: s.orderDirection,
 			hiddenColumnList: s.hiddenColumnList,
 			tableSize: s.tableSize,
+			columnPinning: s.columnPinning,
 		}),
 	});
 
@@ -604,6 +605,17 @@ export const useConnectionPageState = ({
 	// Row selection
 	const [rowSelection, setRowSelection] = useState({});
 
+	// Column pinning state
+	const columnPinningState: ColumnPinningState = useMemo(() => {
+		try {
+			return search.columnPinning
+				? JSON.parse(search.columnPinning)
+				: { left: [], right: [] };
+		} catch {
+			return { left: [], right: [] };
+		}
+	}, [search.columnPinning]);
+
 	// Default column size calculation
 	let defaultColumnSize = columnMetadata.some((col) =>
 		col.dataType.includes("uuid"),
@@ -632,10 +644,12 @@ export const useConnectionPageState = ({
 			sorting: sortingState,
 			columnVisibility: columnVisibilityState,
 			rowSelection,
+			columnPinning: columnPinningState,
 		},
 		manualPagination: true,
 		manualSorting: true,
 		enableRowSelection: true,
+		enableColumnPinning: true,
 		onRowSelectionChange: setRowSelection,
 		rowCount: totalRowCount,
 		defaultColumn: {
@@ -728,6 +742,31 @@ export const useConnectionPageState = ({
 					return {
 						...prev,
 						hiddenColumnList: hiddenCols.length > 0 ? hiddenCols : undefined,
+						tabs: updatedTabs,
+					};
+				},
+			});
+		},
+		onColumnPinningChange: (updater) => {
+			const newPinning =
+				typeof updater === "function"
+					? updater(columnPinningState)
+					: updater;
+			navigate({
+				search: (prev) => {
+					const updatedTabs = (prev.tabs ?? []).map((tab) => {
+						if (tab.tabId === prev.activeTabId) {
+							return {
+								...tab,
+								columnPinning: JSON.stringify(newPinning),
+							};
+						}
+						return tab;
+					});
+
+					return {
+						...prev,
+						columnPinning: JSON.stringify(newPinning),
 						tabs: updatedTabs,
 					};
 				},

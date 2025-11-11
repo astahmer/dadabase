@@ -12,6 +12,8 @@ import {
 	RotateCcw,
 	Type,
 	Columns,
+	Pin,
+	PinOff,
 } from "lucide-react";
 import { ReactNode } from "react";
 import {
@@ -178,6 +180,21 @@ export function ColumnHeaderContextMenu<TData>({
 		table.resetColumnSizing();
 	};
 
+	const canPin = column.getCanPin?.();
+	const isPinned = column.getIsPinned?.();
+
+	const handlePinLeft = () => {
+		column.pin?.("left");
+	};
+
+	const handlePinRight = () => {
+		column.pin?.("right");
+	};
+
+	const handleUnpin = () => {
+		column.pin?.(false);
+	};
+
 	return (
 		<Menu lazyMount>
 			<MenuContextTrigger asChild>{children}</MenuContextTrigger>
@@ -241,6 +258,37 @@ export function ColumnHeaderContextMenu<TData>({
 					</MenuItem>
 
 					<MenuSeparator />
+
+					{canPin && (
+						<>
+							<MenuItem
+								value="pin-left"
+								onClick={handlePinLeft}
+								disabled={isPinned === "left"}
+							>
+								<Pin className="size-4" />
+								<MenuItemText>Pin to left</MenuItemText>
+							</MenuItem>
+							<MenuItem
+								value="pin-right"
+								onClick={handlePinRight}
+								disabled={isPinned === "right"}
+							>
+								<Pin className="size-4" />
+								<MenuItemText>Pin to right</MenuItemText>
+							</MenuItem>
+							{isPinned && (
+								<MenuItem
+									value="unpin"
+									onClick={handleUnpin}
+								>
+									<PinOff className="size-4" />
+									<MenuItemText>Unpin</MenuItemText>
+								</MenuItem>
+							)}
+							<MenuSeparator />
+						</>
+					)}
 
 					<MenuItem value="copy-column-name" onClick={handleCopyColumnName}>
 						<Type className="size-4" />
