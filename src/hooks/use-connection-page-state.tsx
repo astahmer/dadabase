@@ -657,10 +657,6 @@ export const useConnectionPageState = ({
 		tableSize: search.tableSize,
 		hasUuid,
 	});
-	console.log(
-		{ defaultColumnSize, hasUuid, tableSize: search.tableSize },
-		columnMetadata,
-	);
 
 	// Data table setup
 	const rowsDataTable = useDataTable({

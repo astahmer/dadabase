@@ -603,6 +603,7 @@ const ConnectionPageHeader = (props: {
 	onAddConnection: () => void;
 }) => {
 	const { connection } = props;
+	const [connectionMenuOpen, setConnectionMenuOpen] = useState(false);
 
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -630,7 +631,12 @@ const ConnectionPageHeader = (props: {
 							</Breadcrumb.BreadcrumbItem>
 							<Breadcrumb.BreadcrumbSeparator />
 							<Breadcrumb.BreadcrumbItem>
-								<ListboxMenu.ListboxMenuRoot>
+								<ListboxMenu.ListboxMenuRoot
+									open={connectionMenuOpen}
+									onOpenChange={(details) => {
+										setConnectionMenuOpen(details.open);
+									}}
+								>
 									<ListboxMenu.ListboxMenuTrigger
 										variant="unstyled"
 										size="unstyled"
@@ -654,6 +660,7 @@ const ConnectionPageHeader = (props: {
 													details.value &&
 													details.value[0] !== connectionName
 												) {
+													setConnectionMenuOpen(false);
 													navigate({
 														to: "/connections/$connectionName",
 														params: { connectionName: details.value[0] },
@@ -667,6 +674,11 @@ const ConnectionPageHeader = (props: {
 														key={conn.name}
 														item={{ label: conn.name, value: conn.name }}
 														showIndicator={conn.name === connectionName}
+														className={
+															conn.name === connectionName
+																? "bg-primary/15 text-primary font-semibold hover:bg-primary/20"
+																: ""
+														}
 													>
 														{conn.name}
 													</ListboxMenu.ListboxMenuItem>
@@ -678,6 +690,7 @@ const ConnectionPageHeader = (props: {
 														value: "__add",
 													}}
 													onClick={() => {
+														setConnectionMenuOpen(false);
 														props.onAddConnection();
 													}}
 												>
