@@ -26,6 +26,7 @@ import {
 import type { ReactNode } from "react";
 import { Fragment, useRef } from "react";
 import { getCommonPinningStyles } from "../lib/get-pinning-styles.ts";
+import type { RelationshipMetadata } from "../types/relationships";
 import { cn } from "../lib/utils.ts";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
 import { DataTableRow } from "./data-table.row.tsx";
@@ -79,6 +80,12 @@ export interface DataTableProps<TData> {
 	estimateItemSize?: number;
 	overscan?: number;
 	enableColumnOrdering?: boolean;
+	expandedRelationships?: Set<string>; // For relationship subrows
+	relationships?: RelationshipMetadata[]; // For relationship subrows
+	RelationshipSubrowComponent?: (props: {
+		relationship: RelationshipMetadata;
+		parentRowValue: unknown;
+	}) => ReactNode; // For relationship subrows
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -108,6 +115,9 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		estimateItemSize,
 		overscan = 10,
 		enableColumnOrdering = false,
+		expandedRelationships,
+		relationships,
+		RelationshipSubrowComponent,
 	} = props;
 
 	const state = table.getState();
@@ -426,6 +436,9 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											withContextMenu={withContextMenu}
 											ExpandedRow={ExpandedRow}
 											onExpandRowJson={props.onExpandRowJson}
+											expandedRelationships={expandedRelationships}
+											relationships={relationships}
+											RelationshipSubrowComponent={RelationshipSubrowComponent}
 										/>
 									))
 								) : (

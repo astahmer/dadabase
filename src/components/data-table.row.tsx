@@ -6,6 +6,7 @@ import type { Row } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { Fragment, memo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
+import type { RelationshipMetadata } from "../types/relationships";
 import { DataTableCell } from "./data-table.cell.tsx";
 import {
 	tableCellStyles,
@@ -29,6 +30,9 @@ export const DataTableRow = memo(function TableRow({
 	onExpandRowJson,
 	enableColumnOrdering,
 	columnOrder = [],
+	expandedRelationships,
+	relationships,
+	RelationshipSubrowComponent,
 }: {
 	index: number;
 	getRow: () => Row<any>;
@@ -42,6 +46,12 @@ export const DataTableRow = memo(function TableRow({
 	columnOrder?: string[];
 	ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
+	expandedRelationships?: Set<string>; // Set of constraintNames that are expanded
+	relationships?: RelationshipMetadata[]; // Available relationships for this row
+	RelationshipSubrowComponent?: (props: {
+		relationship: RelationshipMetadata;
+		parentRowValue: unknown;
+	}) => ReactNode;
 }) {
 	const row = getRow();
 	const visibleCells = row.getVisibleCells();
@@ -114,6 +124,32 @@ export const DataTableRow = memo(function TableRow({
 					</td>
 				</tr>
 			)}
+			{/* Relationship subrows */}
+			{expandedRelationships &&
+				relationships?.map((rel) => {
+					if (!expandedRelationships.has(rel.constraintName)) {
+						return null;
+					}
+
+					return (
+						<tr
+							key={`${row.id}_rel_${rel.constraintName}`}
+							className="relationship-subrow bg-muted/20 border-b border-border"
+							data-relationship-id={rel.constraintName}
+						>
+							<td colSpan={visibleCells.length} className="p-0">
+								<ErrorBoundary fallbackRender={fallbackRender}>
+									{RelationshipSubrowComponent && (
+										<RelationshipSubrowComponent
+											relationship={rel}
+											parentRowValue={row.original[rel.referencedColumn]}
+										/>
+									)}
+								</ErrorBoundary>
+							</td>
+						</tr>
+					);
+				})}
 		</Fragment>
 	);
 });
