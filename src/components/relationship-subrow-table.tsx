@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { getErrorMessage } from "../lib/get-error-message";
 import type { RelationshipMetadata } from "../types/relationships";
+import { queryRelationshipSubrowDataQueryOptions } from "../server/pg/start-fns/get-relationship-subrow-data.start";
 import { DataTable } from "./data-table";
 import { useDataTable } from "./use-data-table";
 import { Spinner } from "./ui/spinner";
@@ -24,32 +27,39 @@ export const RelationshipSubrowTable = ({
 		relationship;
 
 	// Fetch rows from the referencing table filtered by parent value
-	const rowsQuery = useQuery({
-		queryKey: [
-			"relationship-subrow-data",
-			connection.url,
-			referencingSchema,
-			referencingTable,
-			referencingColumn,
-			parentRowValue,
-		],
-		queryFn: async () => {
-			// TODO: Implement API endpoint to fetch relationship rows
-			// Query structure: SELECT * FROM {schema}.{table} WHERE {column} = {value} LIMIT 50
-			return { rows: [], rowCount: 0 };
-		},
-	});
+	const rowsQuery = useQuery(
+		queryRelationshipSubrowDataQueryOptions({
+			url: connection.url,
+			schema: referencingSchema,
+			table: referencingTable,
+			filterColumn: referencingColumn,
+			filterValue: parentRowValue,
+			limit: 50,
+		}),
+	);
 
-	// TODO: Build proper column definitions from metadata
-	// For now, return a placeholder
-	// In full implementation, this would:
-	// 1. Get column metadata for the referencing table
-	// 2. Build ColumnDef objects with cell renderers
-	// 3. Pass to useDataTable
+	// Build dynamic columns from the first row's keys
+	const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
+		const firstRow = rowsQuery.data?.rows?.[0];
+		if (!firstRow) return [];
+
+		return Object.keys(firstRow).map((key) => ({
+			accessorKey: key,
+			header: key,
+			cell: (info) => {
+				const value = info.getValue();
+				return (
+					<span className="text-xs font-mono">
+						{value === null ? "-" : String(value)}
+					</span>
+				);
+			},
+		}));
+	}, [rowsQuery.data?.rows]);
 
 	const table = useDataTable({
-		data: rowsQuery.data?.rows ?? [],
-		columns: [],
+		data: (rowsQuery.data?.rows ?? []) as Record<string, unknown>[],
+		columns,
 		initialState: {
 			pagination: {
 				pageIndex: 0,
