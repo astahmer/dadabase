@@ -1,3 +1,4 @@
+import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { Effect, Ref, Layer, Context, Schedule } from "effect";
 import { Pool } from "pg";
 export class PoolCache extends Context.Tag("@dadabase/PoolCache")<
@@ -57,7 +58,9 @@ export const makePoolCacheLive = Layer.effect(
 						];
 					}
 
-					console.log(`[PoolCache] Creating new pool for ${url}`);
+					console.log(
+						`[PoolCache] Creating new pool for ${redactConnectionUrl(url)}`,
+					);
 					const pool = new Pool({
 						connectionString: url,
 						max: 20,
