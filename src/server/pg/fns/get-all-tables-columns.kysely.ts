@@ -7,6 +7,7 @@ export interface ForeignKeyInfo {
 	referencedSchema: string;
 	referencedTable: string;
 	referencedColumn: string;
+	constraintName: string;
 }
 
 export interface TableColumnsMetadata {
@@ -48,12 +49,14 @@ export const getAllTablesColumns = (input: { schema: string }) =>
 					referencedSchema: string;
 					referencedTable: string;
 					referencedColumn: string;
+					constraintName: string;
 				}>`
 					SELECT
 						a.attname AS "columnName",
 						nf.nspname AS "referencedSchema",
 						cf.relname AS "referencedTable",
-						af.attname AS "referencedColumn"
+						af.attname AS "referencedColumn",
+						con.conname AS "constraintName"
 					FROM
 						pg_attribute a
 						JOIN pg_class c ON a.attrelid = c.oid
@@ -77,6 +80,7 @@ export const getAllTablesColumns = (input: { schema: string }) =>
 						referencedSchema: string;
 						referencedTable: string;
 						referencedColumn: string;
+						constraintName: string;
 					}
 				>();
 				foreignKeys.forEach((fk) => {
@@ -84,6 +88,7 @@ export const getAllTablesColumns = (input: { schema: string }) =>
 						referencedSchema: fk.referencedSchema,
 						referencedTable: fk.referencedTable,
 						referencedColumn: fk.referencedColumn,
+						constraintName: fk.constraintName,
 					});
 				});
 

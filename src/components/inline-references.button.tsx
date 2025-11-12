@@ -1,4 +1,5 @@
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
+import type { ForeignKeyInfo } from "./cell-context-menu.tsx";
 import { Popover, Portal } from "@ark-ui/react";
 import { Link as LinkIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -17,14 +18,7 @@ interface InlineReferencesButton {
 	};
 	cellValue: unknown;
 	connectionUrl: string;
-	onNavigateToFK?: (
-		fkInfo: {
-			referencedSchema: string;
-			referencedTable: string;
-			referencedColumn: string;
-		},
-		cellValue: unknown,
-	) => void;
+	onNavigateToFK?: (fkInfo: ForeignKeyInfo, cellValue: unknown) => void;
 	onNavigateToReference?: (ref: ColumnReference, cellValue: unknown) => void;
 	onPrefetchReferences: () => void;
 	onExpandToSheet?: () => void;

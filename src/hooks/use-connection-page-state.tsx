@@ -576,7 +576,8 @@ export const useConnectionPageState = ({
 		table: search.table || "",
 	});
 
-	const { expandedState, toggleExpansion } = useRelationshipExpansionState();
+	const relationshipState = useRelationshipExpansionState();
+	const { expandedState, toggleExpansion } = relationshipState;
 
 	const relationshipColumns = useMemo(() => {
 		const allRelationships = [
@@ -596,6 +597,12 @@ export const useConnectionPageState = ({
 		expandedState,
 		toggleExpansion,
 	]);
+	console.log(
+		relationshipsQuery,
+		expandedState,
+		relationshipState,
+		relationshipColumns,
+	);
 
 	const RelationshipSubrowComponent = useMemo(
 		() => createRelationshipSubrowComponent({ url: activeConnectionUrl }),

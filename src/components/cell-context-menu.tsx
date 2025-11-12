@@ -15,6 +15,7 @@ export interface ForeignKeyInfo {
 	referencedSchema: string;
 	referencedTable: string;
 	referencedColumn: string;
+	constraintName: string;
 }
 
 export interface CellContextMenuProps {

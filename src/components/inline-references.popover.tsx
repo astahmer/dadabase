@@ -9,6 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
+import type { ForeignKeyInfo } from "./cell-context-menu.tsx";
 import { Stack } from "./ui/layout.tsx";
 
 interface InlineReferencesPopoverProps {
@@ -23,14 +24,7 @@ interface InlineReferencesPopoverProps {
 	};
 	cellValue: unknown;
 	connectionUrl: string;
-	onNavigateToFK?: (
-		fkInfo: {
-			referencedSchema: string;
-			referencedTable: string;
-			referencedColumn: string;
-		},
-		cellValue: unknown,
-	) => void;
+	onNavigateToFK?: (fkInfo: ForeignKeyInfo, cellValue: unknown) => void;
 	onNavigateToReference?: (ref: ColumnReference, cellValue: unknown) => void;
 	onExpandToSheet?: () => void;
 	onClose?: () => void;
@@ -123,7 +117,15 @@ export function InlineReferencesPopover({
 						<button
 							onClick={() => {
 								if (onNavigateToFK && reference && cellValue !== null) {
-									onNavigateToFK(reference, cellValue);
+									onNavigateToFK(
+										{
+											referencedSchema: reference.referencedSchema,
+											referencedTable: reference.referencedTable,
+											referencedColumn: reference.referencedColumn,
+											constraintName: "", // Empty for FK navigation
+										},
+										cellValue,
+									);
 								}
 							}}
 							className="w-full px-2 py-1.5 flex items-center justify-between gap-2 text-xs hover:bg-muted/70 rounded transition-colors text-left font-mono"

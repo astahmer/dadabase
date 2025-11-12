@@ -58,7 +58,7 @@ export const RelationshipCell = memo(function RelationshipCell({
 			className={`flex items-center gap-2 transition-all ${
 				isExpanded ? "bg-primary text-primary-foreground border-primary" : ""
 			}`}
-			disabled={isLoading || !isLoaded}
+			// disabled={isLoading || !isLoaded}
 		>
 			{isLoading ? (
 				<Loader2 className="h-3 w-3 animate-spin" />

@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import type { RelationshipMetadata } from "../types/relationships";
+import { getTableRelationshipsQueryOptions } from "../server/pg/start-fns/get-table-relationships.start.ts";
 
 interface UseTableRelationshipsOptions {
 	url: string;
 	schema: string;
 	table: string;
-	enabled?: boolean;
 }
 
 interface UseTableRelationshipsResult {
@@ -17,45 +17,58 @@ interface UseTableRelationshipsResult {
 }
 
 /**
- * Fetch all relationships for a table
- * - Incoming: tables that reference this table
- * - Outgoing: tables this table references
+ * Fetch all relationships for a table (both incoming and outgoing)
+ * Uses a single backend query that efficiently fetches both types of relationships
  */
 export const useTableRelationships = ({
 	url,
 	schema,
 	table,
-	enabled = true,
 }: UseTableRelationshipsOptions): UseTableRelationshipsResult => {
-	// Query incoming references (tables that have FK pointing to us)
-	const incomingQuery = useQuery({
-		queryKey: ["table-relationships", "incoming", url, schema, table],
-		queryFn: async () => {
-			// TODO: Implement API endpoint to fetch incoming references
-			// Using findColumnReferences() from server
-			return [] as RelationshipMetadata[];
-		},
-		enabled: enabled && !!url && !!schema && !!table,
-		staleTime: 5 * 60 * 1000, // 5 minutes
-	});
+	const relationshipsQuery = useQuery(
+		getTableRelationshipsQueryOptions({
+			url,
+			schema,
+			table,
+		}),
+	);
 
-	// Query outgoing foreign keys (tables we reference)
-	const outgoingQuery = useQuery({
-		queryKey: ["table-relationships", "outgoing", url, schema, table],
-		queryFn: async () => {
-			// TODO: Implement API endpoint to fetch outgoing FKs
-			// Using getTableForeignKeys() from server
-			return [] as RelationshipMetadata[];
-		},
-		enabled: enabled && !!url && !!schema && !!table,
-		staleTime: 5 * 60 * 1000,
-	});
+	// Transform backend results to RelationshipMetadata
+	const incomingReferences: RelationshipMetadata[] = (
+		relationshipsQuery.data ?? []
+	)
+		.filter((rel) => rel.type === "incoming")
+		.map((rel) => ({
+			referencingSchema: rel.referencingSchema,
+			referencingTable: rel.referencingTable,
+			referencingColumn: rel.referencingColumn,
+			referencedSchema: rel.referencedSchema,
+			referencedTable: rel.referencedTable,
+			referencedColumn: rel.referencedColumn,
+			constraintName: rel.constraintName,
+			displayLabel: rel.displayLabel,
+		}));
+
+	const outgoingForeignKeys: RelationshipMetadata[] = (
+		relationshipsQuery.data ?? []
+	)
+		.filter((rel) => rel.type === "outgoing")
+		.map((rel) => ({
+			referencingSchema: rel.referencingSchema,
+			referencingTable: rel.referencingTable,
+			referencingColumn: rel.referencingColumn,
+			referencedSchema: rel.referencedSchema,
+			referencedTable: rel.referencedTable,
+			referencedColumn: rel.referencedColumn,
+			constraintName: rel.constraintName,
+			displayLabel: rel.displayLabel,
+		}));
 
 	return {
-		incomingReferences: incomingQuery.data ?? [],
-		outgoingForeignKeys: outgoingQuery.data ?? [],
-		isLoading: incomingQuery.isLoading || outgoingQuery.isLoading,
-		isError: incomingQuery.isError || outgoingQuery.isError,
-		error: incomingQuery.error || outgoingQuery.error || null,
+		incomingReferences,
+		outgoingForeignKeys,
+		isLoading: relationshipsQuery.isLoading,
+		isError: relationshipsQuery.isError,
+		error: relationshipsQuery.error,
 	};
 };

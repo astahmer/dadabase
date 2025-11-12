@@ -37,6 +37,17 @@ export const RelationshipSubrowTable = ({
 			limit: 50,
 		}),
 	);
+	console.log(
+		{
+			url: connection.url,
+			schema: referencingSchema,
+			table: referencingTable,
+			filterColumn: referencingColumn,
+			filterValue: parentRowValue,
+			limit: 50,
+		},
+		rowsQuery.data,
+	);
 
 	// Build dynamic columns from the first row's keys
 	const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
