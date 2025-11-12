@@ -1,9 +1,9 @@
-import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
-import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { QuickReferencesPanel } from "../../quick-references-panel.tsx";
 import { Sheet, SheetContent } from "../../ui/sheet.tsx";
+import { QuickReferencesPanel } from "../../quick-references-panel.tsx";
+import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
 import type { DbConnection } from "../connection.types.ts";
+import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { createTabState } from "./create-tab-state.ts";
 
 export const ConnectionQuickReferencesDrawer = ({
@@ -16,18 +16,13 @@ export const ConnectionQuickReferencesDrawer = ({
 		from: "/connections/$connectionName",
 		select: (s) => ({
 			dbName: s.dbName,
+			schema: s.schema,
+			table: s.table,
 			quickReferencesOpen: s.quickReferencesOpen,
 			quickReferencesColumnName: s.quickReferencesColumnName,
 			quickReferencesCellValue: s.quickReferencesCellValue,
-			activeTabId: s.activeTabId,
-			tabs: s.tabs ?? [],
 		}),
 	});
-
-	// Get table state from active tab
-	const activeTab = search.tabs.find((tab) => tab.tabId === search.activeTabId);
-	const schema = activeTab?.schema || "";
-	const table = activeTab?.table || "";
 
 	const connectionUrl = connection.url || "";
 	const activeConnectionUrl = search.dbName
@@ -36,8 +31,8 @@ export const ConnectionQuickReferencesDrawer = ({
 
 	const { columnMetadata } = useTableColumnMetadata({
 		url: activeConnectionUrl,
-		schema: schema,
-		table: table,
+		schema: search.schema || "",
+		table: search.table || "",
 	});
 
 	const quickReferencesOpen = search.quickReferencesOpen ?? false;
@@ -71,44 +66,58 @@ export const ConnectionQuickReferencesDrawer = ({
 			<SheetContent className="z-50 w-full sm:max-w-[500px] p-0 flex flex-col">
 				{quickReferencesColumnName &&
 				quickReferencesCellValue &&
-				schema &&
-				table &&
+				search.schema &&
+				search.table &&
 				columnMetadata.length > 0 ? (
 					column ? (
 						<QuickReferencesPanel
-							key={`${schema}.${table}.${quickReferencesColumnName}.${quickReferencesCellValue}`}
-							schema={schema}
-							table={table}
+							key={`${search.schema}.${search.table}.${quickReferencesColumnName}.${quickReferencesCellValue}`}
+							schema={search.schema}
+							table={search.table}
 							column={column}
 							cellValue={quickReferencesCellValue}
 							connectionUrl={activeConnectionUrl}
 							onNavigate={(schema, table, column, value) => {
-								navigate({
-									search: (prev) => {
-										const newTabState = createTabState(schema, table, {
-											filters: {
-												conditions: [
-													{
-														column,
-														operator: "equals" as const,
-														value: String(value),
-													},
-												],
-												logicalOperator: "and" as const,
+								const newTabState = createTabState(schema, table, {
+									filters: {
+										conditions: [
+											{
+												column,
+												operator: "equals",
+												value: String(value),
 											},
-											filtersOpened: true,
-											fkValue: String(value),
-											tableSize: prev.tableSize,
-										});
-										return {
-											...prev,
-											activeTabId: newTabState.tabId,
-											tabs: [...(prev.tabs ?? []), newTabState],
-											quickReferencesOpen: false,
-											quickReferencesColumnName: undefined,
-											quickReferencesCellValue: undefined,
-										};
+										],
+										logicalOperator: "and",
 									},
+									filtersOpened: true,
+									fkValue: String(value),
+								});
+								navigate({
+									search: (prev) => ({
+										...prev,
+										schema,
+										table,
+										activeTabId: newTabState.tabId,
+										tabs: [...(prev.tabs ?? []), newTabState],
+										filters: {
+											conditions: [
+												{
+													column,
+													operator: "equals",
+													value: String(value),
+												},
+											],
+											logicalOperator: "and",
+										},
+										filtersOpened: true,
+										offset: 0,
+										limit: 50,
+										orderBy: undefined,
+										orderDirection: undefined,
+										quickReferencesOpen: false,
+										quickReferencesColumnName: undefined,
+										quickReferencesCellValue: undefined,
+									}),
 								});
 							}}
 						/>

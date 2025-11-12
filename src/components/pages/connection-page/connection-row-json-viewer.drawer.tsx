@@ -25,22 +25,17 @@ export const ConnectionRowJsonViewerDrawer = ({
 		from: "/connections/$connectionName",
 		select: (s) => ({
 			dbName: s.dbName,
+			schema: s.schema,
+			table: s.table,
 			rowJsonViewerOpen: s.rowJsonViewerOpen,
 			rowJsonViewerRowId: s.rowJsonViewerRowId,
-			activeTabId: s.activeTabId,
-			tabs: s.tabs ?? [],
+			limit: s.limit,
+			offset: s.offset,
+			orderBy: s.orderBy,
+			orderDirection: s.orderDirection,
+			filters: s.filters,
 		}),
 	});
-
-	// Get table state from active tab
-	const activeTab = search.tabs.find((tab) => tab.tabId === search.activeTabId);
-	const schema = activeTab?.schema || "";
-	const table = activeTab?.table || "";
-	const limit = activeTab?.limit ?? 50;
-	const offset = activeTab?.offset ?? 0;
-	const orderBy = activeTab?.orderBy;
-	const orderDirection = activeTab?.orderDirection;
-	const filters = activeTab?.filters;
 
 	const connectionUrl = connection.url || "";
 	const activeConnectionUrl = search.dbName
@@ -51,8 +46,8 @@ export const ConnectionRowJsonViewerDrawer = ({
 
 	const { columnMetadata } = useTableColumnMetadata({
 		url: activeConnectionUrl,
-		schema: schema,
-		table: table,
+		schema: search.schema || "",
+		table: search.table || "",
 	});
 
 	const primaryKeyColumn = columnMetadata.find((col) => col.primaryKey);
@@ -60,18 +55,18 @@ export const ConnectionRowJsonViewerDrawer = ({
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
 			url: activeConnectionUrl,
-			schema: schema,
-			table: table,
-			limit: limit,
-			offset: offset,
-			orderBy: orderBy,
-			orderDirection: orderDirection,
-			filters: filters ?? {
+			schema: search.schema || "",
+			table: search.table || "",
+			limit: search.limit,
+			offset: search.offset,
+			orderBy: search.orderBy,
+			orderDirection: search.orderDirection,
+			filters: search.filters ?? {
 				conditions: [],
 				logicalOperator: "and",
 			},
 		}),
-		enabled: !!schema && !!table,
+		enabled: !!search.schema && !!search.table,
 	});
 
 	// Reconstruct row data from URL rowId by looking it up in current table data
