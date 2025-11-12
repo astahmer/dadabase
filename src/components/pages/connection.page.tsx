@@ -98,13 +98,18 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		from: "/connections/$connectionName",
 		select: (s) => ({
 			dbName: s.dbName,
-			schema: s.schema,
-			table: s.table,
-			filtersOpened: s.filtersOpened,
-			viewMode: s.viewMode,
-			tableSize: s.tableSize,
+			activeTabId: s.activeTabId,
+			tabs: s.tabs ?? [],
 		}),
 	});
+
+	// Get the active tab from the tabs array
+	const activeTab = search.tabs.find((tab) => tab.tabId === search.activeTabId);
+	const schema = activeTab?.schema;
+	const table = activeTab?.table;
+	const filtersOpened = activeTab?.filtersOpened ?? false;
+	const viewMode = activeTab?.viewMode ?? "rows";
+	const tableSize = activeTab?.tableSize ?? "cozy";
 
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
 	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
@@ -147,7 +152,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 					{/* Table Tabs - Always visible when there are tabs */}
 					<ConnectionPageTabs activeConnectionUrl={activeConnectionUrl} />
 
-					{search.table && search.schema ? (
+					{table && schema ? (
 						<>
 							{/* View Toggle & Filter Controls */}
 							<ConnectionPageFilters
@@ -158,11 +163,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 							/>
 
 							{/* Query Filter Builder */}
-							{search.viewMode === "rows" &&
+							{viewMode === "rows" &&
 								rowsColumns.length > 0 &&
-								search.filtersOpened && (
+								filtersOpened && (
 									<QueryFilterBuilder
-										key={search.table}
+										key={table}
 										conditions={queryBuilder.filter.conditions}
 										onUpdateCondition={queryBuilder.updateCondition}
 										onRemoveCondition={queryBuilder.removeCondition}
@@ -177,12 +182,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 							{/* Content */}
 							<div className="flex-1 overflow-hidden flex flex-col h-full">
-								{search.viewMode === "structure" ? (
+								{viewMode === "structure" ? (
 									<div className="flex-1 p-2 pt-0 overflow-auto">
 										<StructureTable
 											columnMetadata={columnMetadata}
 											isLoading={isColumnMetadataLoading}
-											tableSize={search.tableSize}
+											tableSize={tableSize}
 										/>
 									</div>
 								) : (
@@ -224,25 +229,41 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 														isLoading={
 															rowsQuery.isLoading || isColumnMetadataLoading
 														}
-														size={search.tableSize}
+														size={tableSize}
 														withContextMenu
 														onColumnFilterClick={(columnId, _columnName) => {
 															navigate({
-																search: (prev) => ({
-																	...prev,
-																	filtersOpened: true,
-																	filters: {
-																		conditions: [
-																			...(prev.filters?.conditions ?? []),
-																			{
-																				column: columnId,
-																				operator: "equals",
-																			},
-																		],
-																		logicalOperator:
-																			prev.filters?.logicalOperator ?? "and",
-																	},
-																}),
+																search: (prev) => {
+																	const updatedTabs = (prev.tabs ?? []).map(
+																		(tab) => {
+																			if (tab.tabId === prev.activeTabId) {
+																				return {
+																					...tab,
+																					filtersOpened: true,
+																					filters: {
+																						conditions: [
+																							...(tab.filters?.conditions ??
+																								[]),
+																							{
+																								column: columnId,
+																								operator: "equals" as const,
+																							},
+																						],
+																						logicalOperator:
+																							tab.filters?.logicalOperator ??
+																							"and",
+																					},
+																				};
+																			}
+																			return tab;
+																		},
+																	);
+
+																	return {
+																		...prev,
+																		tabs: updatedTabs,
+																	};
+																},
 															});
 														}}
 														onExpandRowJson={(row) => {
@@ -705,23 +726,29 @@ const ConnectionPageHeader = (props: {
 							navigate({
 								search: (prev) => ({
 									dbName: prev.dbName,
-									schema: prev.schema,
-									table: prev.table,
-									viewMode: prev.viewMode,
-									tableSize: prev.tableSize,
-									hiddenColumnList: [],
-									filters: undefined,
-									filtersOpened: false,
-									offset: 0, // Reset to first page when filters change
-									limit: 50,
-									orderBy: undefined,
-									orderDirection: undefined,
 									quickReferencesCellValue: undefined,
 									quickReferencesColumnName: undefined,
 									quickReferencesOpen: false,
-									tableFilter: prev.tableFilter,
-									tabs: [],
-									activeTabId: undefined,
+									tabs:
+										prev.tabs?.map((tab) => {
+											if (tab.tabId === prev.activeTabId) {
+												return {
+													...tab,
+													hiddenColumnList: [],
+													filters: undefined,
+													filtersOpened: false,
+													offset: 0,
+													limit: 50,
+													orderBy: undefined,
+													orderDirection: undefined,
+												};
+											}
+											return tab;
+										}) ?? [],
+									activeTabId: prev.activeTabId,
+									rowJsonViewerOpen: false,
+									rowJsonViewerRowId: undefined,
+									sidebarCollapsed: prev.sidebarCollapsed,
 								}),
 							});
 						}}
@@ -776,10 +803,21 @@ const ConnectionPageSidebar = (props: {
 		retry: 3,
 	});
 
-	const selectedSchema = useSearch({
+	// Get schema and table from active tab
+	const search = useSearch({
 		from: "/connections/$connectionName",
-		select: (s) => s.schema,
+		select: (s) => ({
+			activeTabId: s.activeTabId,
+			tabs: s.tabs ?? [],
+			tableSize: s.tableSize,
+			tableFilter: s.tableFilter,
+		}),
 	});
+	const activeTab = search.tabs.find((tab) => tab.tabId === search.activeTabId);
+	const selectedSchema = activeTab?.schema;
+	const tableFilter = search.tableFilter;
+	const selectedTable = activeTab?.table;
+
 	const tablesListQuery = useQuery({
 		...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
 		enabled: !!selectedSchema,
@@ -791,14 +829,6 @@ const ConnectionPageSidebar = (props: {
 
 	const { contains } = useFilter({ sensitivity: "base" });
 
-	const tableFilter = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.tableFilter,
-	});
-	const selectedTable = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.table,
-	});
 	const filteredTables = useMemo(
 		() =>
 			tableList.filter(
@@ -1119,6 +1149,7 @@ const ConnectionPageSidebar = (props: {
 															const tabState = createTabState(
 																schema,
 																table.name,
+																{ tableSize: search.tableSize },
 															);
 															navigate({
 																search: (prev) => {
@@ -1186,29 +1217,31 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 	});
 
 	const addEmptyTab = () => {
-		// Create a placeholder empty tab with a unique ID
+		// Create a placeholder empty tab with a unique ID and inherit top-level tableSize
 		const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-		const emptyTabState = {
-			tabId,
-			schema: "",
-			table: "",
-			tableFilter: undefined,
-			orderBy: undefined,
-			orderDirection: undefined,
-			limit: 50,
-			offset: 0,
-			viewMode: "rows" as const,
-			tableSize: "cozy" as const,
-			hiddenColumnList: undefined,
-			filters: undefined,
-			filtersOpened: false,
-		};
 		navigate({
-			search: (prev) => ({
-				...prev,
-				tabs: [...(prev.tabs ?? []), emptyTabState],
-				activeTabId: tabId,
-			}),
+			search: (prev) => {
+				const emptyTabState = {
+					tabId,
+					schema: "",
+					table: "",
+					orderBy: undefined,
+					orderDirection: undefined,
+					limit: 50,
+					offset: 0,
+					viewMode: "rows" as const,
+					tableSize: (prev.tableSize as DataTableSize) ?? ("cozy" as const),
+					hiddenColumnList: undefined,
+					filters: undefined,
+					filtersOpened: false,
+				};
+
+				return {
+					...prev,
+					tabs: [...(prev.tabs ?? []), emptyTabState],
+					activeTabId: tabId,
+				};
+			},
 		});
 	};
 
@@ -1299,7 +1332,6 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 								filtersOpened: tab.filtersOpened ?? false,
 								viewMode: tab.viewMode ?? "rows",
 								tableSize: tab.tableSize ?? "cozy",
-								tableFilter: tab.tableFilter,
 								hiddenColumnList: tab.hiddenColumnList,
 								fkValue: tab.fkValue,
 								activeTabId: tabId,
@@ -1337,7 +1369,6 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 								filtersOpened: lastTab.filtersOpened ?? false,
 								viewMode: lastTab.viewMode ?? "rows",
 								tableSize: lastTab.tableSize ?? "cozy",
-								tableFilter: lastTab.tableFilter,
 								hiddenColumnList: lastTab.hiddenColumnList,
 								activeTabId: lastTab.tabId,
 							}),
@@ -1431,30 +1462,19 @@ const ConnectionPageFilters = (props: {
 	const { columnList, isLoading, table, queryBuilder } = props;
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
-	const viewMode = useSearch({
+	const search = useSearch({
 		from: "/connections/$connectionName",
-		select: (s) => s.viewMode,
+		select: (s) => ({
+			activeTabId: s.activeTabId,
+			tabs: s.tabs ?? [],
+		}),
 	});
-
-	const filtersOpened = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.filtersOpened,
-	});
-
-	const filterConditions = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.filters?.conditions ?? [],
-	});
-
-	const orderBy = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.orderBy,
-	});
-
-	const orderDirection = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.orderDirection,
-	});
+	const activeTab = search.tabs.find((tab) => tab.tabId === search.activeTabId);
+	const viewMode = activeTab?.viewMode ?? "rows";
+	const filtersOpened = activeTab?.filtersOpened ?? false;
+	const filterConditions = activeTab?.filters?.conditions ?? [];
+	const orderBy = activeTab?.orderBy;
+	const orderDirection = activeTab?.orderDirection ?? "asc";
 
 	return (
 		<div className="relative border-b bg-muted/50">
@@ -1550,7 +1570,7 @@ const ConnectionPageFilters = (props: {
 												if (tab.tabId === prev.activeTabId) {
 													return {
 														...tab,
-														filtersOpened: !prev.filtersOpened,
+														filtersOpened: !tab.filtersOpened,
 													};
 												}
 												return tab;
@@ -1558,7 +1578,6 @@ const ConnectionPageFilters = (props: {
 
 											return {
 												...prev,
-												filtersOpened: !prev.filtersOpened,
 												tabs: updatedTabs,
 											};
 										},
@@ -1726,31 +1745,23 @@ const ConnectionPageStatusBar = (props: {
 
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
-	const selectedSchema = useSearch({
+	const search = useSearch({
 		from: "/connections/$connectionName",
-		select: (s) => s.schema,
+		select: (s) => ({
+			activeTabId: s.activeTabId,
+			tabs: s.tabs ?? [],
+		}),
 	});
-	const selectedTable = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.table,
-	});
+	const activeTab = search.tabs.find((tab) => tab.tabId === search.activeTabId);
+	const selectedSchema = activeTab?.schema;
+	const selectedTable = activeTab?.table;
+	const offset = activeTab?.offset ?? 0;
+	const limit = activeTab?.limit ?? 50;
+	const tableSize = activeTab?.tableSize ?? "cozy";
+
 	const tableDisplayName = selectedTable
 		? `${selectedSchema}.${selectedTable}`
 		: "No table selected";
-
-	const offset = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.offset,
-	});
-	const limit = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.limit,
-	});
-
-	const tableSize = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.tableSize,
-	});
 
 	return (
 		<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">

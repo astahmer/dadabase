@@ -1,77 +1,27 @@
+import {
+	TableSizeSchema,
+	TabStateSchema,
+} from "#src/components/pages/connection-page/connection-page.tab.schema.ts";
 import { ConnectionPage } from "#src/components/pages/connection.page";
-import { QueryFilter } from "#src/lib/query-filter";
 import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 import { Suspense } from "react";
-import { Spinner } from "../../components/ui/spinner.tsx";
 import { FullCenter } from "../../components/ui/layout.tsx";
-
-// Schema for individual tab state
-const tableSize = Schema.Literal(
-	"excel",
-	"minimal",
-	"compact",
-	"cozy",
-	"comfortable",
-);
-const tabStateSchema = Schema.Struct({
-	tabId: Schema.String, // Explicit unique identifier for the tab
-	schema: Schema.String,
-	table: Schema.String,
-	tableFilter: Schema.String.pipe(Schema.optional),
-	orderBy: Schema.String.pipe(Schema.optional),
-	orderDirection: Schema.Literal("asc", "desc").pipe(Schema.optional),
-	limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
-	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
-	viewMode: Schema.Literal("rows", "structure").pipe(
-		Schema.optionalWith({ default: () => "rows" }),
-	),
-	tableSize: tableSize.pipe(Schema.optionalWith({ default: () => "cozy" })),
-	hiddenColumnList: Schema.String.pipe(Schema.Array, Schema.optional),
-	filters: QueryFilter.pipe(Schema.optional),
-	filtersOpened: Schema.Boolean.pipe(
-		Schema.optionalWith({ default: () => false }),
-	),
-	columnPinning: Schema.Struct({
-		left: Schema.String.pipe(Schema.Array, Schema.optional),
-		right: Schema.String.pipe(Schema.Array, Schema.optional),
-	}).pipe(Schema.optional), // Zipson-compressed column pinning config
-	columnOrder: Schema.String.pipe(Schema.Array, Schema.optional), // JSON-stringified column order array
-	fkValue: Schema.String.pipe(Schema.optional), // FK value used when navigating to this tab
-});
+import { Spinner } from "../../components/ui/spinner.tsx";
 
 const searchSchema = Schema.Struct({
 	dbName: Schema.String.pipe(Schema.optional),
-	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
-	table: Schema.String.pipe(Schema.optional),
-	activeTabId: Schema.String.pipe(Schema.optional), // Explicit active tab ID
+	tableSize: TableSizeSchema.pipe(
+		Schema.optionalWith({ default: () => "cozy" }),
+	),
 	tableFilter: Schema.String.pipe(Schema.optional),
-	orderBy: Schema.String.pipe(Schema.optional),
-	orderDirection: Schema.Literal("asc", "desc").pipe(
-		Schema.optionalWith({ default: () => "asc" }),
-	),
-	limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
-	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
-	viewMode: Schema.Literal("rows", "structure").pipe(
-		Schema.optionalWith({ default: () => "rows" }),
-	),
-	tableSize: tableSize.pipe(Schema.optionalWith({ default: () => "cozy" })),
-	hiddenColumnList: Schema.String.pipe(Schema.Array, Schema.optional), // Comma-separated list of hidden column names
-	filters: QueryFilter.pipe(Schema.optional), // Zipson-compressed filter config
-	filtersOpened: Schema.Boolean.pipe(
-		Schema.optionalWith({ default: () => false }),
-	),
-	columnPinning: Schema.Struct({
-		left: Schema.String.pipe(Schema.Array, Schema.optional),
-		right: Schema.String.pipe(Schema.Array, Schema.optional),
-	}).pipe(Schema.optional), // Zipson-compressed column pinning config
-	columnOrder: Schema.String.pipe(Schema.Array, Schema.optional), // JSON-stringified column order array
+	activeTabId: Schema.String.pipe(Schema.optional), // Explicit active tab ID
 	quickReferencesOpen: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
 	quickReferencesColumnName: Schema.String.pipe(Schema.optional),
 	quickReferencesCellValue: Schema.String.pipe(Schema.optional),
-	tabs: tabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
+	tabs: TabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
 	sidebarCollapsed: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),

@@ -1,20 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-	AccessorKeyColumnDef,
-	ColumnDef,
-	ColumnOrderState,
-	ColumnPinningState,
-} from "@tanstack/react-table";
-import { useQueryBuilder } from "#src/hooks/use-query-builder";
-import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
-import { getColumnTextAlignment } from "#src/lib/data-type-utils";
-import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
-import { useRef, useEffect } from "react";
 import type { ForeignKeyInfo } from "#src/components/cell-context-menu.tsx";
 import { MemoizedDataCell } from "#src/components/memoized-data-cell.tsx";
+import { createTabState } from "#src/components/pages/connection-page/create-tab-state.ts";
+import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { ColumnHeaderWithInfo } from "#src/components/ui/column-header-with-info.tsx";
 import { ForeignKeyIcon } from "#src/components/ui/foreign-key-icon.tsx";
 import { JsonCell } from "#src/components/ui/json-cell.tsx";
@@ -22,8 +9,20 @@ import { PrimaryKeyIcon } from "#src/components/ui/primary-key-icon.tsx";
 import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
 import { UniqueConstraintIcon } from "#src/components/ui/unique-constraint-icon.tsx";
 import { useDataTable } from "#src/components/use-data-table.ts";
-import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
+import { useQueryBuilder } from "#src/hooks/use-query-builder";
+import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
+import { getColumnTextAlignment } from "#src/lib/data-type-utils";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
+import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import type {
+	AccessorKeyColumnDef,
+	ColumnDef,
+	ColumnPinningState,
+} from "@tanstack/react-table";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function replaceDatabaseInConnectionUrl(
 	connectionUrl: string,
@@ -65,33 +64,6 @@ const formatTableValue = (value: unknown): unknown => {
 	return value;
 };
 
-const createTabState = (
-	schema: string,
-	table: string,
-	options?: {
-		filters?: any;
-		offset?: number;
-		limit?: number;
-		filtersOpened?: boolean;
-		fkValue?: string;
-	},
-) => ({
-	tabId: `${schema}.${table}:${options?.fkValue ?? ""}`,
-	schema,
-	table,
-	tableFilter: undefined,
-	orderBy: undefined,
-	orderDirection: undefined,
-	limit: options?.limit ?? 50,
-	offset: options?.offset ?? 0,
-	viewMode: "rows" as const,
-	tableSize: "cozy" as const,
-	hiddenColumnList: undefined,
-	filters: options?.filters,
-	filtersOpened: options?.filtersOpened ?? false,
-	fkValue: options?.fkValue,
-});
-
 interface UseConnectionPageStateProps {
 	connection: {
 		url: string;
@@ -108,20 +80,31 @@ export const useConnectionPageState = ({
 		from: "/connections/$connectionName",
 		select: (s) => ({
 			dbName: s.dbName,
-			schema: s.schema,
-			table: s.table,
-			filters: s.filters,
-			filtersOpened: s.filtersOpened,
-			limit: s.limit,
-			offset: s.offset,
-			orderBy: s.orderBy,
-			orderDirection: s.orderDirection,
-			hiddenColumnList: s.hiddenColumnList,
 			tableSize: s.tableSize,
-			columnPinning: s.columnPinning,
-			columnOrder: s.columnOrder,
+			activeTabId: s.activeTabId,
+			tabs: s.tabs ?? [],
 		}),
 	});
+
+	// Get the active tab from the tabs array
+	const activeTab = search.tabs.find((tab) => tab.tabId === search.activeTabId);
+
+	// Extract state from active tab with fallbacks
+	const schema = activeTab?.schema || "";
+	const table = activeTab?.table || "";
+	const filters = activeTab?.filters ?? {
+		conditions: [],
+		logicalOperator: "and",
+	};
+	const filtersOpened = activeTab?.filtersOpened ?? false;
+	const limit = activeTab?.limit ?? 50;
+	const offset = activeTab?.offset ?? 0;
+	const orderBy = activeTab?.orderBy;
+	const orderDirection = activeTab?.orderDirection ?? "asc";
+	const hiddenColumnList = activeTab?.hiddenColumnList;
+	const tableSize = activeTab?.tableSize ?? "cozy";
+	const columnPinning = activeTab?.columnPinning;
+	const columnOrder = activeTab?.columnOrder;
 
 	const connectionUrl = connection.url || "";
 	const activeConnectionUrl = search.dbName
@@ -129,61 +112,49 @@ export const useConnectionPageState = ({
 		: connectionUrl;
 
 	// Query builder setup
-	const queryBuilder = useQueryBuilder(
-		search.filters ?? { conditions: [], logicalOperator: "and" },
-		(updatedFilter) => {
-			let shouldOpenFilters = search.filtersOpened;
-			if (
-				!search.filters?.conditions?.length &&
-				updatedFilter.conditions.length
-			) {
-				shouldOpenFilters = true;
-			}
+	const queryBuilder = useQueryBuilder(filters, (updatedFilter) => {
+		let shouldOpenFilters = filtersOpened;
+		if (!filters?.conditions?.length && updatedFilter.conditions.length) {
+			shouldOpenFilters = true;
+		}
 
-			navigate({
-				search: (prev) => {
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								filters: updatedFilter,
-								filtersOpened: shouldOpenFilters,
-							};
-						}
-						return tab;
-					});
+		navigate({
+			search: (prev) => {
+				const updatedTabs = (prev.tabs ?? []).map((tab) => {
+					if (tab.tabId === prev.activeTabId) {
+						return {
+							...tab,
+							filters: updatedFilter,
+							filtersOpened: shouldOpenFilters,
+						};
+					}
+					return tab;
+				});
 
-					return {
-						...prev,
-						filters: updatedFilter || undefined,
-						filtersOpened: shouldOpenFilters,
-						offset: 0,
-						limit: 50,
-						orderBy: undefined,
-						orderDirection: undefined,
-						tabs: updatedTabs,
-					};
-				},
-			});
-		},
-	);
+				return {
+					...prev,
+					tabs: updatedTabs,
+				};
+			},
+		});
+	});
 
 	// Fetch rows data
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
 			url: activeConnectionUrl,
-			schema: search.schema || "",
-			table: search.table || "",
-			limit: search.limit,
-			offset: search.offset,
-			orderBy: search.orderBy,
-			orderDirection: search.orderDirection,
+			schema: schema,
+			table: table,
+			limit: limit,
+			offset: offset,
+			orderBy: orderBy,
+			orderDirection: orderDirection,
 			filters: queryBuilder.getWhereClause() ?? {
 				conditions: [],
 				logicalOperator: "and",
 			},
 		}),
-		enabled: !!search.schema && !!search.table,
+		enabled: !!schema && !!table,
 	});
 
 	// Fetch column metadata
@@ -193,8 +164,8 @@ export const useConnectionPageState = ({
 		isLoading: isColumnMetadataLoading,
 	} = useTableColumnMetadata({
 		url: activeConnectionUrl,
-		schema: search.schema || "",
-		table: search.table || "",
+		schema: schema,
+		table: table,
 	});
 
 	// Format row data
@@ -316,30 +287,14 @@ export const useConnectionPageState = ({
 					},
 					filtersOpened: true,
 					fkValue: String(cellValue),
+					tableSize: search.tableSize,
 				},
 			);
 			navigate({
 				search: (prev) => ({
 					...prev,
-					schema: fkInfo.referencedSchema,
-					table: fkInfo.referencedTable,
 					activeTabId: newTabState.tabId,
 					tabs: [...(prev.tabs ?? []), newTabState],
-					filters: {
-						conditions: [
-							{
-								column: fkInfo.referencedColumn,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
 				}),
 			});
 		},
@@ -349,21 +304,33 @@ export const useConnectionPageState = ({
 	const handleFindReferences = useCallback(
 		(columnName: string, cellValue: unknown) => {
 			navigate({
-				search: (prev) => ({
-					...prev,
-					filtersOpened: true,
-					filters: {
-						conditions: [
-							{
-								column: columnName,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					offset: 0,
-				}),
+				search: (prev) => {
+					const updatedTabs = (prev.tabs ?? []).map((tab) => {
+						if (tab.tabId === prev.activeTabId) {
+							return {
+								...tab,
+								filtersOpened: true,
+								filters: {
+									conditions: [
+										{
+											column: columnName,
+											operator: "equals" as const,
+											value: String(cellValue),
+										},
+									],
+									logicalOperator: "and" as const,
+								},
+								offset: 0,
+							};
+						}
+						return tab;
+					});
+
+					return {
+						...prev,
+						tabs: updatedTabs,
+					};
+				},
 			});
 		},
 		[navigate],
@@ -387,29 +354,13 @@ export const useConnectionPageState = ({
 				},
 				filtersOpened: true,
 				fkValue: String(cellValue),
+				tableSize: search.tableSize,
 			});
 			navigate({
 				search: (prev) => ({
 					...prev,
-					schema: ref.schema,
-					table: ref.table,
 					activeTabId: newTabState.tabId,
 					tabs: [...(prev.tabs ?? []), newTabState],
-					filters: {
-						conditions: [
-							{
-								column: ref.column,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
 				}),
 			});
 		},
@@ -424,17 +375,8 @@ export const useConnectionPageState = ({
 				({
 					accessorKey: col.name,
 					header: () => {
-						const currentSearch = useSearch({
-							from: "/connections/$connectionName",
-							select: (s) => ({
-								orderBy: s.orderBy,
-								orderDirection: s.orderDirection,
-							}),
-						});
 						const sortOrder =
-							currentSearch.orderBy === col.name
-								? (currentSearch.orderDirection as "asc" | "desc")
-								: false;
+							orderBy === col.name ? (orderDirection as "asc" | "desc") : false;
 						return (
 							<ColumnHeaderWithInfo
 								columnName={col.name}
@@ -458,19 +400,12 @@ export const useConnectionPageState = ({
 					cell: col.dataType.toLowerCase().includes("json")
 						? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
 						: (ctx) => {
-								const currentSearch = useSearch({
-									from: "/connections/$connectionName",
-									select: (s) => ({
-										schema: s.schema,
-										table: s.table,
-									}),
-								});
 								return (
 									<MemoizedDataCell
 										ctx={ctx}
 										col={col}
-										schema={currentSearch.schema}
-										table={currentSearch.table}
+										schema={schema}
+										table={table}
 										activeConnectionUrl={activeConnectionUrl}
 										onFollowFK={handleFollowFK}
 										onFindReferences={handleFindReferences}
@@ -494,8 +429,8 @@ export const useConnectionPageState = ({
 														referencedColumn: col.foreignKey.referencedColumn,
 													}
 												: {
-														referencedSchema: currentSearch.schema || "",
-														referencedTable: currentSearch.table || "",
+														referencedSchema: schema,
+														referencedTable: table,
 														referencedColumn: col.name,
 													};
 
@@ -533,8 +468,8 @@ export const useConnectionPageState = ({
 														referencedColumn: col.foreignKey.referencedColumn,
 													}
 												: {
-														referencedSchema: currentSearch.schema || "",
-														referencedTable: currentSearch.table || "",
+														referencedSchema: schema,
+														referencedTable: table,
 														referencedColumn: col.name,
 													};
 
@@ -563,6 +498,10 @@ export const useConnectionPageState = ({
 		handleNavigateToReference,
 		navigate,
 		queryClient,
+		schema,
+		table,
+		orderBy,
+		orderDirection,
 	]);
 
 	// Combine columns
@@ -589,15 +528,15 @@ export const useConnectionPageState = ({
 	// Sorting state
 	const sortingState = useMemo(
 		() =>
-			search.orderBy
+			orderBy
 				? [
 						{
-							id: search.orderBy,
-							desc: search.orderDirection === "desc",
+							id: orderBy,
+							desc: orderDirection === "desc",
 						},
 					]
 				: [],
-		[search.orderBy, search.orderDirection],
+		[orderBy, orderDirection],
 	);
 
 	// Column visibility state
@@ -610,14 +549,14 @@ export const useConnectionPageState = ({
 			] = true;
 		});
 
-		if (search.hiddenColumnList?.length) {
-			search.hiddenColumnList.forEach((col) => {
+		if (hiddenColumnList?.length) {
+			hiddenColumnList.forEach((col: string) => {
 				visibility[col.trim()] = false;
 			});
 		}
 
 		return visibility;
-	}, [search.hiddenColumnList, rowsColumns]);
+	}, [hiddenColumnList, rowsColumns]);
 
 	// Row selection
 	const [rowSelection, setRowSelection] = useState({});
@@ -625,8 +564,8 @@ export const useConnectionPageState = ({
 	// Column pinning state
 	const columnPinningState: ColumnPinningState = useMemo(() => {
 		const state = {
-			left: Array.from(search.columnPinning?.left ?? []),
-			right: Array.from(search.columnPinning?.right ?? []),
+			left: Array.from(columnPinning?.left ?? []) as string[],
+			right: Array.from(columnPinning?.right ?? []) as string[],
 		};
 
 		// Add __select column if it doesn't exist
@@ -637,30 +576,26 @@ export const useConnectionPageState = ({
 			);
 		}
 		return state;
-	}, [search.columnPinning, staticColumns]);
+	}, [columnPinning, staticColumns]);
 
 	// Column order state
 	const columnOrderState = useMemo(() => {
-		const fromSearch = Array.from(search.columnOrder ?? []);
-		if (fromSearch.length) {
-			return fromSearch;
+		const fromTab = Array.from(columnOrder ?? []);
+		if (fromTab.length) {
+			return fromTab;
 		}
 
 		return staticColumns
 			.map((col) => col.id)
 			.concat(columnList)
 			.filter(Boolean) as string[];
-	}, [search.columnOrder, staticColumns, columnList]);
+	}, [columnOrder, staticColumns, columnList]);
 
 	const hasUuid = columnMetadata.some((col) => col.dataType.includes("uuid"));
 	const defaultColumnSize = getDefaultColumnSize({
-		tableSize: search.tableSize,
+		tableSize: tableSize,
 		hasUuid,
 	});
-	console.log(
-		{ defaultColumnSize, hasUuid, tableSize: search.tableSize },
-		columnMetadata,
-	);
 
 	// Data table setup
 	const rowsDataTable = useDataTable({
@@ -668,8 +603,8 @@ export const useConnectionPageState = ({
 		columns: rowsColumns,
 		state: {
 			pagination: {
-				pageIndex: Math.floor(search.offset / search.limit),
-				pageSize: search.limit,
+				pageIndex: Math.floor(offset / limit),
+				pageSize: limit,
 			},
 			sorting: sortingState,
 			columnVisibility: columnVisibilityState,
@@ -710,11 +645,6 @@ export const useConnectionPageState = ({
 
 					return {
 						...prev,
-						orderBy: firstSort?.id || undefined,
-						orderDirection: (firstSort?.desc ? "desc" : "asc") as
-							| "asc"
-							| "desc",
-						offset: 0,
 						tabs: updatedTabs,
 					};
 				},
@@ -722,8 +652,8 @@ export const useConnectionPageState = ({
 		},
 		onPaginationChange: (updater) => {
 			const current = {
-				pageIndex: Math.floor(search.offset / search.limit),
-				pageSize: search.limit,
+				pageIndex: Math.floor(offset / limit),
+				pageSize: limit,
 			};
 			const newPagination =
 				typeof updater === "function" ? updater(current) : updater;
@@ -742,8 +672,6 @@ export const useConnectionPageState = ({
 
 					return {
 						...prev,
-						offset: newPagination.pageIndex * newPagination.pageSize,
-						limit: newPagination.pageSize,
 						tabs: updatedTabs,
 					};
 				},
