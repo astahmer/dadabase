@@ -8,8 +8,14 @@ import { PrimaryKeyIcon } from "#src/components/ui/primary-key-icon.tsx";
 import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
 import { UniqueConstraintIcon } from "#src/components/ui/unique-constraint-icon.tsx";
 import { useDataTable } from "#src/components/use-data-table.ts";
+import {
+	buildRelationshipColumns,
+	createRelationshipSubrowComponent,
+} from "#src/components/relationship-column";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
+import { useRelationshipExpansionState } from "#src/hooks/use-relationship-expansion-state";
+import { useTableRelationships } from "#src/hooks/use-table-relationships";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
@@ -563,26 +569,58 @@ export const useConnectionPageState = ({
 		queryClient,
 	]);
 
-	// Combine columns
-	const rowsColumns = useMemo(
-		() =>
-			dataColumns.length
-				? [...staticColumns, ...dataColumns]
-				: [
-						...staticColumns,
-						...(Array.from(
-							{ length: 10 },
-							(_, i) =>
-								({
-									id: `__skeleton-${i}`,
-									cell: () => (
-										<div className="h-3 bg-muted rounded animate-pulse" />
-									),
-								}) as ColumnDef<any>,
-						) as typeof staticColumns),
-					],
-		[staticColumns, dataColumns],
+	// Relationship integration
+	const relationshipsQuery = useTableRelationships({
+		url: activeConnectionUrl,
+		schema: search.schema || "",
+		table: search.table || "",
+	});
+
+	const { expandedState, toggleExpansion } = useRelationshipExpansionState();
+
+	const relationshipColumns = useMemo(() => {
+		const allRelationships = [
+			...relationshipsQuery.incomingReferences,
+			...relationshipsQuery.outgoingForeignKeys,
+		];
+		if (!allRelationships.length) return [];
+
+		return buildRelationshipColumns(
+			allRelationships,
+			expandedState,
+			(rowId, constraintName) => toggleExpansion(rowId, constraintName),
+		);
+	}, [
+		relationshipsQuery.incomingReferences,
+		relationshipsQuery.outgoingForeignKeys,
+		expandedState,
+		toggleExpansion,
+	]);
+
+	const RelationshipSubrowComponent = useMemo(
+		() => createRelationshipSubrowComponent({ url: activeConnectionUrl }),
+		[activeConnectionUrl],
 	);
+
+	// Combine columns
+	const rowsColumns = useMemo(() => {
+		const allDataColumns = [...dataColumns, ...relationshipColumns];
+		return dataColumns.length
+			? [...staticColumns, ...allDataColumns]
+			: [
+					...staticColumns,
+					...(Array.from(
+						{ length: 10 },
+						(_, i) =>
+							({
+								id: `__skeleton-${i}`,
+								cell: () => (
+									<div className="h-3 bg-muted rounded animate-pulse" />
+								),
+							}) as ColumnDef<any>,
+					) as typeof staticColumns),
+				];
+	}, [staticColumns, dataColumns, relationshipColumns]);
 
 	// Sorting state
 	const sortingState = useMemo(
@@ -832,5 +870,11 @@ export const useConnectionPageState = ({
 		rowsDataTable,
 		rowsColumns,
 		hasUuid,
+		expandedState,
+		relationships: [
+			...relationshipsQuery.incomingReferences,
+			...relationshipsQuery.outgoingForeignKeys,
+		],
+		RelationshipSubrowComponent,
 	};
 };

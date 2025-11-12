@@ -26,7 +26,10 @@ import {
 import type { ReactNode } from "react";
 import { Fragment, useRef } from "react";
 import { getCommonPinningStyles } from "../lib/get-pinning-styles.ts";
-import type { RelationshipMetadata } from "../types/relationships";
+import type {
+	RelationshipMetadata,
+	RowRelationshipExpansionState,
+} from "../types/relationships";
 import { cn } from "../lib/utils.ts";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
 import { DataTableRow } from "./data-table.row.tsx";
@@ -80,7 +83,7 @@ export interface DataTableProps<TData> {
 	estimateItemSize?: number;
 	overscan?: number;
 	enableColumnOrdering?: boolean;
-	expandedRelationships?: Set<string>; // For relationship subrows
+	expandedState?: RowRelationshipExpansionState; // For relationship subrows
 	relationships?: RelationshipMetadata[]; // For relationship subrows
 	RelationshipSubrowComponent?: (props: {
 		relationship: RelationshipMetadata;
@@ -115,7 +118,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		estimateItemSize,
 		overscan = 10,
 		enableColumnOrdering = false,
-		expandedRelationships,
+		expandedState,
 		relationships,
 		RelationshipSubrowComponent,
 	} = props;
@@ -416,6 +419,9 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									}
 									overscan={overscan}
 									scrollElement={tableContainerRef.current}
+									expandedState={expandedState}
+									relationships={relationships}
+									RelationshipSubrowComponent={RelationshipSubrowComponent}
 								/>
 							</tbody>
 						) : (
@@ -436,7 +442,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											withContextMenu={withContextMenu}
 											ExpandedRow={ExpandedRow}
 											onExpandRowJson={props.onExpandRowJson}
-											expandedRelationships={expandedRelationships}
+											expandedRelationships={expandedState?.[row.id]}
 											relationships={relationships}
 											RelationshipSubrowComponent={RelationshipSubrowComponent}
 										/>

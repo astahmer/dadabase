@@ -1,6 +1,10 @@
 import type { Row } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactNode } from "react";
+import type {
+	RelationshipMetadata,
+	RowRelationshipExpansionState,
+} from "../types/relationships";
 import { DataTableRow } from "./data-table.row.tsx";
 import type { DataTableSize } from "./data-table.styles.ts";
 
@@ -19,6 +23,12 @@ export interface VirtualizedTableBodyProps<TData> {
 	scrollElement: HTMLDivElement;
 	enableColumnOrdering: boolean;
 	columnOrder?: string[];
+	expandedState?: RowRelationshipExpansionState;
+	relationships?: RelationshipMetadata[];
+	RelationshipSubrowComponent?: (props: {
+		relationship: RelationshipMetadata;
+		parentRowValue: unknown;
+	}) => ReactNode;
 }
 
 export function VirtualizedTableBody<TData>({
@@ -36,6 +46,9 @@ export function VirtualizedTableBody<TData>({
 	overscan,
 	scrollElement,
 	columnOrder = [],
+	expandedState,
+	relationships,
+	RelationshipSubrowComponent,
 }: VirtualizedTableBodyProps<TData>) {
 	const virtualizer = useVirtualizer({
 		count: rows.length,
@@ -79,6 +92,9 @@ export function VirtualizedTableBody<TData>({
 						withContextMenu={withContextMenu}
 						ExpandedRow={ExpandedRow}
 						onExpandRowJson={onExpandRowJson}
+						expandedRelationships={expandedState?.[row.id]}
+						relationships={relationships}
+						RelationshipSubrowComponent={RelationshipSubrowComponent}
 					/>
 				);
 			})}

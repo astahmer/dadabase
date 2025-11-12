@@ -1,5 +1,8 @@
 import type { ColumnDef } from "@tanstack/react-table";
-import type { RelationshipMetadata } from "../types/relationships";
+import type {
+	RelationshipMetadata,
+	RowRelationshipExpansionState,
+} from "../types/relationships";
 import { RelationshipCell } from "./relationship-cell";
 import { RelationshipSubrowTable } from "./relationship-subrow-table";
 
@@ -12,7 +15,7 @@ import { RelationshipSubrowTable } from "./relationship-subrow-table";
  */
 export function buildRelationshipColumns(
 	relationships: RelationshipMetadata[],
-	expandedRelationships: Map<string, Set<string>>,
+	expandedRelationships: RowRelationshipExpansionState,
 	onToggleRelationship: (rowId: string, constraintName: string) => void,
 	rowCountsByRelationship?: Map<string, Map<string, number>>,
 ): ColumnDef<Record<string, unknown>>[] {
@@ -26,8 +29,7 @@ export function buildRelationshipColumns(
 		cell: (ctx) => {
 			const rowId = String(ctx.row.original.id ?? ctx.row.index);
 			const isExpanded =
-				expandedRelationships.get(rowId)?.has(relationship.constraintName) ??
-				false;
+				expandedRelationships[rowId]?.has(relationship.constraintName) ?? false;
 
 			const matchingRowCount =
 				rowCountsByRelationship?.get(relationship.constraintName)?.get(rowId) ??
