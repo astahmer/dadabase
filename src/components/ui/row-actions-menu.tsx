@@ -18,7 +18,6 @@ export function RowActionsMenu({ row, onViewJson }: RowActionsMenuProps) {
 		<Menu
 			open={open}
 			onOpenChange={(details) => {
-				console.trace();
 				return setOpen(details.open);
 			}}
 			lazyMount

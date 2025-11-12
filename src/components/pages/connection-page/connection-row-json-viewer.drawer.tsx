@@ -76,7 +76,8 @@ export const ConnectionRowJsonViewerDrawer = ({
 		}
 		const rows = rowsQuery.data.rows || [];
 		const row = rows.find(
-			(r) => String(r[primaryKeyColumn.name]) === search.rowJsonViewerRowId,
+			(r) =>
+				String(r[primaryKeyColumn.name]) === String(search.rowJsonViewerRowId),
 		);
 		return row ? formatTableValue(row) : null;
 	}, [search.rowJsonViewerRowId, primaryKeyColumn, rowsQuery.data]);

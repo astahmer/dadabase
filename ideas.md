@@ -20,7 +20,7 @@
 - value listbox > null / today
 - query logger on the bottom (collapsible), shows the current session queries with status (success/fail/running) / type (table and schemas / enums / constraints / rows for public.xxx / total for public.xxxx / columns for public.xxx) / execution time + query preview (slice it, then open the full details on click in a dialog with the query on the left (and parameters below) and the results on the right, or top/bottom) + rows returned/affected
 - query history (persisted across sessions; only saves successful queries that were made by a user action) with a Badge distinction for the saved/favorites queries
-- investigate using the lib that allows to move/reorder components in a gridlike manner with snap, like dashboard widgets, for full customization
+- investigate using the lib that allows to move/reorder components in a gridlike manner with snap, like dashboard widgets, for full customization -> https://dockview.dev/ ?
 - expandable table row with nested entity
 - SQL button to quickly preview the generated SQL query from the current filters/order by/limit (and copy it)
 - store limit (50 etc) in localstorage and use that as default instead of hardcoded 50
