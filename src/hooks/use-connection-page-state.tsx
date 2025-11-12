@@ -630,7 +630,7 @@ export const useConnectionPageState = ({
 
 		// Add __select column if it doesn't exist
 		if (!state.left.some((col) => col === "__select")) {
-			state.left.push(
+			state.left.unshift(
 				// ...(staticColumns.map((col) => col.id).filter(Boolean) as string[]),
 				"__select",
 			);

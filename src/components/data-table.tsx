@@ -190,7 +190,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 													| "center"
 													| undefined) || "left";
 											const isDragDisabled =
-												meta?.enableColumnOrdering === false;
+												meta?.enableColumnOrdering === false ||
+												Boolean(column.getIsPinned());
 
 											const CellHeaderContent = (
 												<div className="flex items-center justify-between overflow-hidden">
@@ -348,6 +349,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 													key={headerCell.id}
 													colSpan={headerCell.colSpan}
 													data-column-id={headerCell.column.id}
+													data-column-pinned={headerCell.column.getIsPinned()}
 													style={{
 														width: `${headerCell.getSize()}px`,
 														...getCommonPinningStyles(column),
