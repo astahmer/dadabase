@@ -1,20 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-	AccessorKeyColumnDef,
-	ColumnDef,
-	ColumnOrderState,
-	ColumnPinningState,
-} from "@tanstack/react-table";
-import { useQueryBuilder } from "#src/hooks/use-query-builder";
-import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
-import { getColumnTextAlignment } from "#src/lib/data-type-utils";
-import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
-import { useRef, useEffect } from "react";
 import type { ForeignKeyInfo } from "#src/components/cell-context-menu.tsx";
 import { MemoizedDataCell } from "#src/components/memoized-data-cell.tsx";
+import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { ColumnHeaderWithInfo } from "#src/components/ui/column-header-with-info.tsx";
 import { ForeignKeyIcon } from "#src/components/ui/foreign-key-icon.tsx";
 import { JsonCell } from "#src/components/ui/json-cell.tsx";
@@ -22,8 +8,20 @@ import { PrimaryKeyIcon } from "#src/components/ui/primary-key-icon.tsx";
 import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
 import { UniqueConstraintIcon } from "#src/components/ui/unique-constraint-icon.tsx";
 import { useDataTable } from "#src/components/use-data-table.ts";
-import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
+import { useQueryBuilder } from "#src/hooks/use-query-builder";
+import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
+import { getColumnTextAlignment } from "#src/lib/data-type-utils";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
+import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import type {
+	AccessorKeyColumnDef,
+	ColumnDef,
+	ColumnPinningState,
+} from "@tanstack/react-table";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 function replaceDatabaseInConnectionUrl(
 	connectionUrl: string,
