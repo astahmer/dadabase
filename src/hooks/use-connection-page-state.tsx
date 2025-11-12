@@ -23,6 +23,7 @@ import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
 import { UniqueConstraintIcon } from "#src/components/ui/unique-constraint-icon.tsx";
 import { useDataTable } from "#src/components/use-data-table.ts";
 import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
+import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 
 function replaceDatabaseInConnectionUrl(
 	connectionUrl: string,
@@ -651,21 +652,15 @@ export const useConnectionPageState = ({
 			.filter(Boolean) as string[];
 	}, [search.columnOrder, staticColumns, columnList]);
 
-	// Default column size calculation
-	let defaultColumnSize = columnMetadata.some((col) =>
-		col.dataType.includes("uuid"),
-	)
-		? 280
-		: 180;
-	if (search.tableSize === "excel") {
-		defaultColumnSize -= 50;
-	} else if (search.tableSize === "compact") {
-		defaultColumnSize += 20;
-	} else if (search.tableSize === "cozy") {
-		defaultColumnSize += 30;
-	} else if (search.tableSize === "comfortable") {
-		defaultColumnSize += 60;
-	}
+	const hasUuid = columnMetadata.some((col) => col.dataType.includes("uuid"));
+	const defaultColumnSize = getDefaultColumnSize({
+		tableSize: search.tableSize,
+		hasUuid,
+	});
+	console.log(
+		{ defaultColumnSize, hasUuid, tableSize: search.tableSize },
+		columnMetadata,
+	);
 
 	// Data table setup
 	const rowsDataTable = useDataTable({
@@ -842,5 +837,6 @@ export const useConnectionPageState = ({
 		totalRowCount,
 		rowsDataTable,
 		rowsColumns,
+		hasUuid,
 	};
 };

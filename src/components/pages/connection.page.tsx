@@ -66,6 +66,8 @@ import { ConnectionRowJsonViewerDrawer } from "./connection-page/connection-row-
 import { createTabState } from "./connection-page/create-tab-state.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
+import type { DataTableSize } from "../data-table.styles.ts";
+import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -109,6 +111,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		null,
 	);
 
+	const pageState = useConnectionPageState({ connection });
 	const {
 		activeConnectionUrl,
 		queryBuilder,
@@ -120,7 +123,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		totalRowCount,
 		rowsDataTable,
 		rowsColumns,
-	} = useConnectionPageState({ connection });
+		hasUuid,
+	} = pageState;
 
 	return (
 		<div className="h-screen bg-background flex flex-col">
@@ -282,6 +286,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 										)}
 										{/* Status Bar */}
 										<ConnectionPageStatusBar
+											table={rowsDataTable}
+											hasUuid={hasUuid}
 											isLoading={rowsQuery.isLoading}
 											refetch={rowsQuery.refetch}
 											timeTaken={queryResponse.timeTaken}
@@ -485,7 +491,7 @@ const StructureTable = (props: {
 		};
 	}>;
 	isLoading: boolean;
-	tableSize: "excel" | "minimal" | "compact" | "cozy" | "comfortable";
+	tableSize: DataTableSize;
 }) => {
 	{
 		const { columnMetadata } = props;
@@ -1707,6 +1713,8 @@ const ConnectionPageFilters = (props: {
 };
 
 const ConnectionPageStatusBar = (props: {
+	table: TanstackTable<any>;
+	hasUuid: boolean;
 	isLoading: boolean;
 	refetch: () => void;
 	timeTaken: number;
@@ -1875,11 +1883,8 @@ const ConnectionPageStatusBar = (props: {
 							value={[tableSize]}
 							collection={TableSizeCollection}
 							positioning={{ sameWidth: true }}
-							onValueChange={(details: { value?: string[] }) => {
-								const newSize = (details.value?.[0] || "cozy") as
-									| "compact"
-									| "cozy"
-									| "comfortable";
+							onValueChange={(details) => {
+								const newSize = (details.value?.[0] || "cozy") as DataTableSize;
 								navigate({
 									search: (prev) => {
 										// Update the currently active tab with the same tableSize
@@ -1900,6 +1905,17 @@ const ConnectionPageStatusBar = (props: {
 										};
 									},
 								});
+
+								const newSizing: Record<string, number> = {};
+								const defaultSIze = getDefaultColumnSize({
+									tableSize: newSize,
+									hasUuid: props.hasUuid,
+								});
+								for (const col of props.table.getAllColumns()) {
+									newSizing[col.id] = defaultSIze;
+								}
+
+								props.table.setColumnSizing(newSizing);
 							}}
 						>
 							<ArkSelect.SelectControl>
