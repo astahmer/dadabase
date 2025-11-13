@@ -14,13 +14,19 @@ Implemented a **bottom relationships panel** that displays below the main data t
 - Shows header with selected row identifier (first 2 column values, joined with " • ")
 - Displays schema.table context
 - Separated sections for "References (Outgoing)" and "Referenced By (Incoming)"
-- Each relationship shown as a collapsible button with:
+- Each relationship shown as a collapsible section with:
   - Chevron icon indicating expand/collapse state
   - Relationship display label
   - Referenced table name
   - Directional arrow ("→" for outgoing, "←" for incoming)
+  - Row count badge (when expanded and rows found)
+  - Loading spinner while fetching
+- Related rows displayed as mini-cards showing first 2 columns
+- Max 10 rows shown with "+N more" indicator
 - Close button (X) to dismiss the panel
-- Max height with scrolling for overflow relationships
+
+**Sub-components:**
+- `RelationshipSection`: Expandable relationship container with data fetching and display
 
 **Props:**
 ```typescript
@@ -36,9 +42,21 @@ interface RelationshipsPanelProps {
 
 **Dependencies:**
 - `getTableRelationshipsQueryOptions()` from server (efficient single query)
+- `queryRelationshipSubrowDataQueryOptions()` for fetching related rows with FK filter
 - `TableRelationship` type with: type, schema, table, columns, constraint name
 - React Query for data fetching
 - Lucide React icons (ChevronDown, ChevronRight, X)
+
+**Implementation Details:**
+- RelationshipSection fetches related rows on expansion using `queryRelationshipSubrowDataQueryOptions`
+- For outgoing relationships: filters by FK column with current row's value
+- For incoming relationships: filters by FK column in referencing table with current row's PK value
+- Displays loading state while fetching
+- Shows error message if query fails
+- Displays "No related rows" when no results found
+- Shows mini-cards with first 2 column values from each row
+- Row count displayed in badge on header
+- Scrollable list with max-height constraint
 
 ### Files Modified
 
@@ -131,46 +149,40 @@ Two sections per panel:
 - [x] Close functionality
 - [x] No TypeScript errors
 - [x] Build succeeds
+- [x] RelationshipSection component with expand/collapse
+- [x] Related row data fetching with FK filters
+- [x] Mini-display of related rows (first 2 columns)
+- [x] Row count badges
+- [x] Loading and error states
 
 ### ⏳ IN PROGRESS
 None currently
 
 ### 📋 PLANNED / NOT STARTED
 
-#### 1. RelationshipDataTable Component (HIGH PRIORITY)
-- **Purpose:** Display actual related rows when expanding a relationship
-- **Features:**
-  - Mini datatable showing rows from related table
-  - Filtered by foreign key relationship
-  - Show key columns from related table
-  - Row count display
-  - "[→ Open in full table]" button to navigate to related table
-- **Implementation:**
-  - Create `src/components/relationships-panel/relationship-data-table.tsx`
-  - Use `queryTableData` to fetch related rows with FK filter
-  - Handle pagination/limiting related rows displayed
+#### 1. Enhanced Related Row Display (MEDIUM PRIORITY)
+- **Current:** Shows first 2 column values from each related row
+- **Enhancement:**
+  - Show key columns (PK, FK, name-like columns)
+  - Clickable rows to navigate to related table
+  - Tooltip/expand to show full row data
+  - Sorting options
 
-#### 2. Row Counting (MEDIUM PRIORITY)
-- **Purpose:** Show count of related rows before expansion
-- **Current State:** Returns null/"N/A" for incoming relationships
-- **Needed:**
-  - For outgoing: Simple (show if FK is populated)
-  - For incoming: Query to count related rows
-  - Cache results with React Query
-
-#### 3. Navigation Integration (MEDIUM PRIORITY)
+#### 2. Navigation Integration (MEDIUM PRIORITY)
 - **Purpose:** Click related row to navigate to it in related table
 - **Features:**
   - Clicking related row ID opens full table view
   - Sets filters to show context
   - Maintains breadcrumb/context
 
-#### 4. Resize Capability (LOW PRIORITY)
+#### 3. Resize Capability (LOW PRIORITY)
 - **Purpose:** Allow users to resize panel height
 - **Current:** Fixed max-h-96
 - **Enhancement:** Resizable panel with height preference storage
 
-## Testing Checklist
+#### 4. Bulk Actions on Related Rows (LOW PRIORITY)
+- **Purpose:** Edit, delete, or export related rows in batch
+- **Future Enhancement**## Testing Checklist
 
 - [ ] Row selection works (click any row)
 - [ ] RelationshipsPanel appears below table

@@ -25,16 +25,29 @@ export const queryRelationshipSubrowDataQueryOptions = (input: {
 	} = input;
 
 	// Build a filter for the relationship column
-	const filter: QueryFilterType = {
-		conditions: [
-			{
-				column: filterColumn,
-				operator: "equals" as const,
-				value: String(filterValue),
-			},
-		],
-		logicalOperator: "and" as const,
-	};
+	// Handle null/undefined values appropriately by using is_null operator
+	const isNullValue = filterValue === null || filterValue === undefined;
+
+	const filter: QueryFilterType = isNullValue
+		? {
+				conditions: [
+					{
+						column: filterColumn,
+						operator: "is_null" as const,
+					},
+				],
+				logicalOperator: "and" as const,
+			}
+		: {
+				conditions: [
+					{
+						column: filterColumn,
+						operator: "equals" as const,
+						value: String(filterValue),
+					},
+				],
+				logicalOperator: "and" as const,
+			};
 
 	// Reuse the existing query table data function with the filter
 	return queryTableDataQueryOptions({

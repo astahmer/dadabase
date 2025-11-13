@@ -309,19 +309,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 														}}
 													/>
 												)}
-												{selectedRowId && selectedRowData && (
-													<RelationshipsPanel
-														connectionUrl={activeConnectionUrl}
-														schema={search.schema}
-														table={search.table}
-														selectedRowId={selectedRowId}
-														rowData={selectedRowData}
-														onClose={() => {
-															setSelectedRowId(null);
-															setSelectedRowData(null);
-														}}
-													/>
-												)}
 												<BulkActionBar
 													selectedCount={
 														rowsDataTable.getSelectedRowModel().rows.length

@@ -88,6 +88,6 @@ export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
 				input.filters ?? { conditions: [], logicalOperator: "and" },
 			),
 		],
-		queryFn: async () => queryTableDataServerFn({ data: input as any }),
+		queryFn: async () => queryTableDataServerFn({ data: input }),
 	});
 };

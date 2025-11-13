@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
+import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start";
 import { Button } from "./ui/button";
 import { Spinner } from "./ui/spinner";
 
@@ -102,12 +103,13 @@ export const RelationshipsPanel = ({
 							</h3>
 							<div className="space-y-2">
 								{outgoingRels.map((rel) => (
-									<RelationshipButton
+									<RelationshipSection
 										key={rel.constraintName}
 										relationship={rel}
 										rowData={rowData}
 										isExpanded={expandedRelationships.has(rel.constraintName)}
 										onToggle={() => toggleExpanded(rel.constraintName)}
+										connectionUrl={connectionUrl}
 									/>
 								))}
 							</div>
@@ -122,12 +124,13 @@ export const RelationshipsPanel = ({
 							</h3>
 							<div className="space-y-2">
 								{incomingRels.map((rel) => (
-									<RelationshipButton
+									<RelationshipSection
 										key={rel.constraintName}
 										relationship={rel}
 										rowData={rowData}
 										isExpanded={expandedRelationships.has(rel.constraintName)}
 										onToggle={() => toggleExpanded(rel.constraintName)}
+										connectionUrl={connectionUrl}
 									/>
 								))}
 							</div>
@@ -139,48 +142,139 @@ export const RelationshipsPanel = ({
 	);
 };
 
-interface RelationshipButtonProps {
+interface RelationshipSectionProps {
 	relationship: TableRelationship;
 	rowData: Record<string, unknown>;
 	isExpanded: boolean;
 	onToggle: () => void;
+	connectionUrl: string;
 }
 
-const RelationshipButton = ({
+const RelationshipSection = ({
 	relationship,
 	rowData,
 	isExpanded,
 	onToggle,
-}: RelationshipButtonProps) => {
+	connectionUrl,
+}: RelationshipSectionProps) => {
 	// For outgoing relationships, get the FK value from the row
 	const fkValue =
 		relationship.type === "outgoing"
 			? rowData[relationship.referencingColumn]
 			: null;
 
+	// For incoming relationships, we need the PK value from the current row
+	const pkValue =
+		relationship.type === "incoming"
+			? rowData[relationship.referencedColumn]
+			: null;
+
+	// Fetch related rows when expanded
+	const relatedRowsQuery = useQuery(
+		queryRelationshipSubrowDataQueryOptions({
+			url: connectionUrl,
+			schema:
+				relationship.type === "outgoing"
+					? relationship.referencedSchema
+					: relationship.referencingSchema,
+			table:
+				relationship.type === "outgoing"
+					? relationship.referencedTable
+					: relationship.referencingTable,
+			filterColumn:
+				relationship.type === "outgoing"
+					? relationship.referencedColumn
+					: relationship.referencingColumn,
+			filterValue: relationship.type === "outgoing" ? fkValue : pkValue,
+			limit: 25,
+		}),
+	);
+
+	const relatedRows = (relatedRowsQuery.data?.rows ?? []) as Array<
+		Record<string, unknown>
+	>;
+	const hasValue = relationship.type === "outgoing" ? fkValue : pkValue;
+	const hasRelatedRows = hasValue && relatedRows.length > 0;
+
 	return (
-		<button
-			onClick={onToggle}
-			className="w-full flex items-center gap-2 px-3 py-2 rounded border border-border/50 hover:bg-accent/50 transition-colors text-left text-sm"
-		>
-			{isExpanded ? (
-				<ChevronDown className="h-4 w-4 shrink-0" />
-			) : (
-				<ChevronRight className="h-4 w-4 shrink-0" />
-			)}
+		<div>
+			{/* Header Button */}
+			<button
+				onClick={onToggle}
+				className="w-full flex items-center gap-2 px-3 py-2 rounded border border-border/50 hover:bg-accent/50 transition-colors text-left text-sm"
+			>
+				{isExpanded ? (
+					<ChevronDown className="h-4 w-4 shrink-0" />
+				) : (
+					<ChevronRight className="h-4 w-4 shrink-0" />
+				)}
 
-			<div className="flex-1 min-w-0">
-				<span className="font-medium text-foreground">
-					{relationship.displayLabel}
-				</span>
-				<span className="text-xs text-muted-foreground ml-1">
-					({relationship.referencedTable})
-				</span>
-			</div>
+				<div className="flex-1 min-w-0">
+					<span className="font-medium text-foreground">
+						{relationship.displayLabel}
+					</span>
+					<span className="text-xs text-muted-foreground ml-1">
+						({relationship.referencedTable})
+					</span>
+				</div>
 
-			<span className="text-xs text-muted-foreground shrink-0">
-				{relationship.type === "outgoing" ? (fkValue ? "→" : "N/A") : "←"}
-			</span>
-		</button>
+				<div className="flex items-center gap-2 shrink-0">
+					{isExpanded && relatedRowsQuery.isPending && <Spinner size="sm" />}
+					{hasRelatedRows ? (
+						<span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
+							{String(relatedRows.length)}
+						</span>
+					) : null}
+					<span className="text-xs text-muted-foreground">
+						{relationship.type === "outgoing" ? (fkValue ? "→" : "N/A") : "←"}
+					</span>
+				</div>
+			</button>
+
+			{/* Expanded Content */}
+			{isExpanded && hasRelatedRows ? (
+				<div className="mt-2 ml-4 p-2 bg-muted/30 rounded border border-border/30">
+					{relatedRowsQuery.isPending ? (
+						<div className="flex items-center justify-center py-4">
+							<Spinner size="sm" />
+						</div>
+					) : relatedRowsQuery.isError ? (
+						<div className="text-xs text-destructive p-2">
+							Error loading related rows
+						</div>
+					) : (
+						<div className="text-xs space-y-1 max-h-48 overflow-y-auto">
+							{relatedRows.slice(0, 10).map((row, idx) => (
+								<div
+									key={idx}
+									className="p-2 bg-background rounded border border-border/50 hover:bg-accent/30 cursor-pointer transition-colors"
+									title={JSON.stringify(row, null, 2)}
+								>
+									<div className="font-mono text-xs truncate">
+										{String(Object.values(row)?.[0] ?? "—")}
+									</div>
+									{Object.values(row).length > 1 && (
+										<div className="text-muted-foreground truncate">
+											{String(Object.values(row)?.[1] ?? "")}
+										</div>
+									)}
+								</div>
+							))}
+							{relatedRows.length > 10 && (
+								<div className="text-center text-muted-foreground py-2">
+									+{relatedRows.length - 10} more
+								</div>
+							)}
+						</div>
+					)}
+				</div>
+			) : null}
+
+			{isExpanded && !hasRelatedRows && !relatedRowsQuery.isPending ? (
+				<div className="mt-2 ml-4 p-2 bg-muted/30 rounded border border-border/30 text-xs text-muted-foreground text-center">
+					No related rows
+				</div>
+			) : null}
+		</div>
 	);
 };
