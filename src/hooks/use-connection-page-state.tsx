@@ -1,5 +1,6 @@
 import type { ForeignKeyInfo } from "#src/components/cell-context-menu.tsx";
 import { MemoizedDataCell } from "#src/components/memoized-data-cell.tsx";
+import { RelationshipSubrowTable } from "#src/components/relationship-subrow-table.tsx";
 import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { ColumnHeaderWithInfo } from "#src/components/ui/column-header-with-info.tsx";
 import { ForeignKeyIcon } from "#src/components/ui/foreign-key-icon.tsx";
@@ -8,18 +9,14 @@ import { PrimaryKeyIcon } from "#src/components/ui/primary-key-icon.tsx";
 import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
 import { UniqueConstraintIcon } from "#src/components/ui/unique-constraint-icon.tsx";
 import { useDataTable } from "#src/components/use-data-table.ts";
-import {
-	buildRelationshipColumns,
-	createRelationshipSubrowComponent,
-} from "#src/components/relationship-column";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
-import { useRelationshipExpansionState } from "#src/hooks/use-relationship-expansion-state";
 import { useTableRelationships } from "#src/hooks/use-table-relationships";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
+import type { RelationshipMetadata } from "#src/types/relationships.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import type {
@@ -576,44 +573,24 @@ export const useConnectionPageState = ({
 		table: search.table || "",
 	});
 
-	const relationshipState = useRelationshipExpansionState();
-	const { expandedState, toggleExpansion } = relationshipState;
-
-	const relationshipColumns = useMemo(() => {
-		const allRelationships = [
-			...relationshipsQuery.incomingReferences,
-			...relationshipsQuery.outgoingForeignKeys,
-		];
-		if (!allRelationships.length) return [];
-
-		return buildRelationshipColumns(
-			allRelationships,
-			expandedState,
-			(rowId, constraintName) => toggleExpansion(rowId, constraintName),
-		);
-	}, [
-		relationshipsQuery.incomingReferences,
-		relationshipsQuery.outgoingForeignKeys,
-		expandedState,
-		toggleExpansion,
-	]);
-	console.log(
-		relationshipsQuery,
-		expandedState,
-		relationshipState,
-		relationshipColumns,
-	);
-
 	const RelationshipSubrowComponent = useMemo(
-		() => createRelationshipSubrowComponent({ url: activeConnectionUrl }),
+		() =>
+			(subProps: {
+				relationship: RelationshipMetadata;
+				parentRowValue: unknown;
+			}) => (
+				<RelationshipSubrowTable
+					{...subProps}
+					connection={{ url: activeConnectionUrl }}
+				/>
+			),
 		[activeConnectionUrl],
 	);
 
 	// Combine columns
 	const rowsColumns = useMemo(() => {
-		const allDataColumns = [...dataColumns, ...relationshipColumns];
 		return dataColumns.length
-			? [...staticColumns, ...allDataColumns]
+			? [...staticColumns, ...dataColumns]
 			: [
 					...staticColumns,
 					...(Array.from(
@@ -627,7 +604,7 @@ export const useConnectionPageState = ({
 							}) as ColumnDef<any>,
 					) as typeof staticColumns),
 				];
-	}, [staticColumns, dataColumns, relationshipColumns]);
+	}, [staticColumns, dataColumns]);
 
 	// Sorting state
 	const sortingState = useMemo(
@@ -877,7 +854,6 @@ export const useConnectionPageState = ({
 		rowsDataTable,
 		rowsColumns,
 		hasUuid,
-		expandedState,
 		relationships: [
 			...relationshipsQuery.incomingReferences,
 			...relationshipsQuery.outgoingForeignKeys,

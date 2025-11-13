@@ -23,7 +23,6 @@ export interface VirtualizedTableBodyProps<TData> {
 	scrollElement: HTMLDivElement;
 	enableColumnOrdering: boolean;
 	columnOrder?: string[];
-	expandedState?: RowRelationshipExpansionState;
 	relationships?: RelationshipMetadata[];
 	RelationshipSubrowComponent?: (props: {
 		relationship: RelationshipMetadata;
@@ -46,7 +45,6 @@ export function VirtualizedTableBody<TData>({
 	overscan,
 	scrollElement,
 	columnOrder = [],
-	expandedState,
 	relationships,
 	RelationshipSubrowComponent,
 }: VirtualizedTableBodyProps<TData>) {
@@ -92,7 +90,6 @@ export function VirtualizedTableBody<TData>({
 						withContextMenu={withContextMenu}
 						ExpandedRow={ExpandedRow}
 						onExpandRowJson={onExpandRowJson}
-						expandedRelationships={expandedState?.[row.id]}
 						relationships={relationships}
 						RelationshipSubrowComponent={RelationshipSubrowComponent}
 					/>

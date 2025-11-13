@@ -130,7 +130,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		rowsDataTable,
 		rowsColumns,
 		hasUuid,
-		expandedState,
 		relationships,
 		RelationshipSubrowComponent,
 	} = pageState;
@@ -255,7 +254,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															}
 															size={search.tableSize}
 															withContextMenu
-															expandedState={expandedState}
 															relationships={relationships}
 															RelationshipSubrowComponent={
 																RelationshipSubrowComponent

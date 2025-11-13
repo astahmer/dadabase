@@ -83,7 +83,6 @@ export interface DataTableProps<TData> {
 	estimateItemSize?: number;
 	overscan?: number;
 	enableColumnOrdering?: boolean;
-	expandedState?: RowRelationshipExpansionState; // For relationship subrows
 	relationships?: RelationshipMetadata[]; // For relationship subrows
 	RelationshipSubrowComponent?: (props: {
 		relationship: RelationshipMetadata;
@@ -118,7 +117,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		estimateItemSize,
 		overscan = 30,
 		enableColumnOrdering = false,
-		expandedState,
 		relationships,
 		RelationshipSubrowComponent,
 	} = props;
@@ -419,7 +417,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									}
 									overscan={overscan}
 									scrollElement={tableContainerRef.current}
-									expandedState={expandedState}
 									relationships={relationships}
 									RelationshipSubrowComponent={RelationshipSubrowComponent}
 								/>
@@ -442,7 +439,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											withContextMenu={withContextMenu}
 											ExpandedRow={ExpandedRow}
 											onExpandRowJson={props.onExpandRowJson}
-											expandedRelationships={expandedState?.[row.id]}
 											relationships={relationships}
 											RelationshipSubrowComponent={RelationshipSubrowComponent}
 										/>
