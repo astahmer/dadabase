@@ -227,17 +227,17 @@ export const useConnectionPageState = ({
 				id: "__select",
 				meta: { enableColumnOrdering: false },
 				header: (ctx) => {
-					const checkboxRef = useRef<HTMLInputElement>(null);
 					const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
-					useEffect(() => {
-						if (checkboxRef.current) {
-							checkboxRef.current.indeterminate = isSomeRowsSelected;
-						}
-					}, [isSomeRowsSelected]);
 					return (
 						<Checkbox
 							className="flex items-center gap-2 ml-2"
-							checked={ctx.table.getIsAllRowsSelected()}
+							checked={
+								ctx.table.getIsAllRowsSelected()
+									? true
+									: isSomeRowsSelected
+										? "indeterminate"
+										: false
+							}
 							onChange={ctx.table.getToggleAllRowsSelectedHandler()}
 							aria-label="Select all rows"
 						>
@@ -245,17 +245,18 @@ export const useConnectionPageState = ({
 						</Checkbox>
 					);
 				},
-				cell: (ctx) => (
-					<Checkbox
-						className="flex items-center gap-2 ml-2"
-						checked={ctx.row.getIsSelected()}
-						disabled={!ctx.row.getCanSelect()}
-						onChange={ctx.row.getToggleSelectedHandler()}
-						aria-label="Select row"
-					>
-						<CheckboxControl />
-					</Checkbox>
-				),
+				cell: (ctx) => {
+					return (
+						<Checkbox
+							className="flex items-center gap-2 ml-2"
+							disabled={!ctx.row.getCanSelect()}
+							onChange={ctx.row.getToggleSelectedHandler()}
+							aria-label="Select row"
+						>
+							<CheckboxControl />
+						</Checkbox>
+					);
+				},
 				size: 40,
 				minSize: 40,
 				maxSize: 40,
