@@ -12,7 +12,7 @@ const runWithDb = Effect.gen(function* () {
 	yield* repository.insert({
 		id: id,
 		dialect: "postgres",
-		name: "emisoup",
+		name: "database",
 		url: "postgres://dbUser:secretPasswordDontWorry@localhost:5432/backend",
 		created_at: now.getTime(),
 		updated_at: now.getTime(),

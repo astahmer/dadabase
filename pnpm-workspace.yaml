@@ -1,0 +1,40 @@
+packages:
+  - .
+  - packages/*
+  - sandbox/**
+
+autoInstallPeers: true
+
+catalog:
+  "@effect/experimental": 0.57.1
+  "@effect/language-service": 0.55.4
+  "@effect/opentelemetry": 0.56.6
+  "@effect/platform": 0.93.1
+  "@effect/platform-browser": 0.70.0
+  "@effect/platform-node": 0.100.0
+  "@effect/rpc": 0.69.2
+  "@effect/sql": 0.48.0
+  "@effect/sql-kysely": 0.40.1
+  "@effect/sql-libsql": 0.32.0
+  "@effect/sql-pg": 0.49.4
+  "@effect/sql-sqlite-node": 0.43.0
+  "@effect/workflow": 0.9.5
+  "@electric-sql/pglite": 0.3.14
+  "@electric-sql/pglite-tools": 0.2.19
+  drizzle-orm: 0.44.7
+  effect: 3.19.3
+
+enableGlobalVirtualStore: false
+
+enablePrePostScripts: true
+
+injectWorkspacePackages: false
+
+linkWorkspacePackages: true
+
+preferWorkspacePackages: true
+
+resolvePeersFromWorkspaceRoot: true
+
+strictPeerDependencies: true
+ignoreWorkspaceRootCheck: true
