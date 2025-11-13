@@ -330,37 +330,43 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																className="overflow-hidden flex flex-col"
 															>
 																<Splitter.Context>
-																	{(ctx) => (
-																		<RelationshipsPanel
-																			connectionUrl={activeConnectionUrl}
-																			schema={search.schema}
-																			table={search.table!}
-																			selectedRowId={selectedRowId}
-																			rowData={selectedRowData}
-																			isPanelExpanded={ctx.isPanelExpanded(
-																				"relationships",
-																			)}
-																			onPanelHidden={() => {
-																				ctx.collapsePanel("relationships");
-																			}}
-																			onPanelExpanded={() => {
-																				ctx.expandPanel("relationships");
-																			}}
-																			selectedRowCount={
-																				rowsDataTable.getSelectedRowModel().rows
-																					.length
-																			}
-																			onDelete={() => {
-																				// Placeholder - implement deletion logic
-																				console.log("Delete selected rows");
-																			}}
-																			onExport={() => {
-																				// Placeholder - implement export logic
-																				console.log("Export selected rows");
-																			}}
-																			isActionLoading={rowsQuery.isLoading}
-																		/>
-																	)}
+																	{(ctx) => {
+																		let isPanelExpanded = false;
+																		try {
+																			isPanelExpanded =
+																				ctx.isPanelExpanded("relationships");
+																		} catch {}
+
+																		return (
+																			<RelationshipsPanel
+																				connectionUrl={activeConnectionUrl}
+																				schema={search.schema}
+																				table={search.table!}
+																				selectedRowId={selectedRowId}
+																				rowData={selectedRowData}
+																				isPanelExpanded={isPanelExpanded}
+																				onPanelHidden={() => {
+																					ctx.collapsePanel("relationships");
+																				}}
+																				onPanelExpanded={() => {
+																					ctx.expandPanel("relationships");
+																				}}
+																				selectedRowCount={
+																					rowsDataTable.getSelectedRowModel()
+																						.rows.length
+																				}
+																				onDelete={() => {
+																					// Placeholder - implement deletion logic
+																					console.log("Delete selected rows");
+																				}}
+																				onExport={() => {
+																					// Placeholder - implement export logic
+																					console.log("Export selected rows");
+																				}}
+																				isActionLoading={rowsQuery.isLoading}
+																			/>
+																		);
+																	}}
 																</Splitter.Context>
 															</Splitter.Panel>
 														</>
