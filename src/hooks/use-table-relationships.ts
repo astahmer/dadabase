@@ -36,31 +36,11 @@ export const useTableRelationships = ({
 	// Transform backend results to RelationshipMetadata
 	const incomingReferences: RelationshipMetadata[] = (
 		relationshipsQuery.data ?? []
-	)
-		.filter((rel) => rel.type === "incoming")
-		.map((rel) => ({
-			referencingSchema: rel.referencingSchema,
-			referencingTable: rel.referencingTable,
-			referencingColumn: rel.referencingColumn,
-			referencedSchema: rel.referencedSchema,
-			referencedTable: rel.referencedTable,
-			referencedColumn: rel.referencedColumn,
-			constraintName: rel.constraintName,
-		}));
+	).filter((rel) => rel.type === "incoming");
 
 	const outgoingForeignKeys: RelationshipMetadata[] = (
 		relationshipsQuery.data ?? []
-	)
-		.filter((rel) => rel.type === "outgoing")
-		.map((rel) => ({
-			referencingSchema: rel.referencingSchema,
-			referencingTable: rel.referencingTable,
-			referencingColumn: rel.referencingColumn,
-			referencedSchema: rel.referencedSchema,
-			referencedTable: rel.referencedTable,
-			referencedColumn: rel.referencedColumn,
-			constraintName: rel.constraintName,
-		}));
+	).filter((rel) => rel.type === "outgoing");
 
 	return {
 		incomingReferences,

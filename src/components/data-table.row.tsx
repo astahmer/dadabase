@@ -134,7 +134,7 @@ export const DataTableRow = memo(function TableRow({
 					return (
 						<tr
 							key={`${row.id}_rel_${rel.constraintName}`}
-							className="relationship-subrow bg-muted/20 border-b border-border"
+							className="bg-muted/20 border-b border-border"
 							data-relationship-id={rel.constraintName}
 						>
 							<td colSpan={visibleCells.length} className="p-0">

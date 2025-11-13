@@ -99,7 +99,7 @@ export const RelationshipsPanel = ({
 
 				{allRelationshipTables.length > 0 ? (
 					<div className="flex items-center gap-1 flex-1 min-w-0">
-						{allRelationshipTables.map((relTable) => (
+						{allRelationshipTables.slice(0, 4).map((relTable) => (
 							<button
 								key={relTable}
 								onClick={() => {
@@ -112,6 +112,17 @@ export const RelationshipsPanel = ({
 								{relTable}
 							</button>
 						))}
+						{allRelationshipTables.length > 4 && (
+							<button
+								onClick={() => {
+									// TODO also expand the relation in the panel
+									onPanelExpanded();
+								}}
+								className="px-2 py-0.5 text-xs bg-background border border-border/50 rounded hover:bg-accent/50 hover:border-border transition-colors whitespace-nowrap shrink-0"
+							>
+								{allRelationshipTables.length - 4} more
+							</button>
+						)}
 					</div>
 				) : (
 					<span className="text-xs text-muted-foreground italic">
@@ -120,7 +131,8 @@ export const RelationshipsPanel = ({
 				)}
 
 				{/* Bulk Actions */}
-				{selectedRowCount > 0 && (
+				{/* TODO */}
+				{selectedRowCount > 0 && false && (
 					<div className="ml-auto flex items-center gap-1 shrink-0">
 						{onExport && (
 							<Button
@@ -177,7 +189,8 @@ export const RelationshipsPanel = ({
 				</div>
 
 				{/* Bulk Actions in Expanded State */}
-				{selectedRowCount > 0 && (
+				{/* TODO */}
+				{selectedRowCount > 0 && false && (
 					<div className="flex items-center gap-1 shrink-0">
 						{onExport && (
 							<Button
@@ -291,7 +304,6 @@ const RelationshipSection = ({
 	onToggle,
 	connectionUrl,
 }: RelationshipSectionProps) => {
-	console.log(relationship, rowData);
 	// For outgoing relationships, get the FK value from the row
 	const fkValue =
 		relationship.type === "outgoing"
