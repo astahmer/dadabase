@@ -203,4 +203,24 @@ describe("getRelationshipCardinality", () => {
 			}).pipe(Effect.provide(InMemoryLayer));
 		},
 	);
+
+	it.effect(
+		"detects one-to-many cardinality for incoming relationships (authors with incoming posts)",
+		() => {
+			return Effect.gen(function* () {
+				yield* setupTables;
+
+				// When querying from the "many" side's perspective as an incoming relationship,
+				// it should correctly return "one-to-many"
+				const result = yield* getRelationshipCardinality({
+					schema: "public",
+					table: "posts",
+					columns: ["author_id"],
+					isIncomingRelationship: true,
+				});
+
+				expect(result.cardinality).toBe("one-to-many");
+			}).pipe(Effect.provide(InMemoryLayer));
+		},
+	);
 });

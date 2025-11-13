@@ -16,7 +16,7 @@ export interface CardinalityResult {
  * Detect the cardinality of a foreign key relationship.
  *
  * Checks:
- * 1. If the referencing columns have a UNIQUE/PRIMARY KEY constraint → potentially 1:1 or 1:N
+ * 1. If the referencing columns have a UNIQUE/PRIMARY KEY constraint → potentially 1:1
  * 2. If the referenced columns are unique (PK of referenced table) → indicates 1:N or 1:1
  * 3. If neither side is unique → M:N (many-to-many)
  *
@@ -30,6 +30,7 @@ export const getRelationshipCardinality = (input: {
 	schema: string;
 	table: string;
 	columns: string[];
+	isIncomingRelationship?: boolean;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -95,12 +96,32 @@ export const getRelationshipCardinality = (input: {
 				LIMIT 1
 			`);
 
+			let cardinality: Cardinality;
+
 			if (result.length === 0) {
-				// If no result, default to many-to-one (most common)
+				// If no FK found on this table, we need to check for incoming relationships
+				// when isIncomingRelationship is true
+				if (input.isIncomingRelationship) {
+					return { cardinality: "one-to-many" as const };
+				}
+				// If no result on outgoing and not specified as incoming, default to many-to-one
 				return { cardinality: "many-to-one" as const };
 			}
 
-			return result[0];
+			cardinality = result[0].cardinality;
+
+			// If this is an incoming relationship, invert the cardinality
+			// many-to-one becomes one-to-many and vice versa
+			if (input.isIncomingRelationship) {
+				if (cardinality === "many-to-one") {
+					cardinality = "one-to-many";
+				} else if (cardinality === "one-to-many") {
+					cardinality = "many-to-one";
+				}
+				// one-to-one and many-to-many remain the same
+			}
+
+			return { cardinality };
 		} catch (error) {
 			// If there's any error during detection, default to many-to-one
 			console.error(

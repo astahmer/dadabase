@@ -17,6 +17,7 @@ const getRelationshipCardinalityServerFn = createServerFn()
 			schema: Schema.String,
 			table: Schema.String,
 			columns: Schema.Array(Schema.String),
+			isIncomingRelationship: Schema.optional(Schema.Boolean),
 		}).pipe(Schema.standardSchemaV1),
 	)
 	.handler(async (ctx): Promise<CardinalityResult> => {
@@ -33,6 +34,7 @@ const getRelationshipCardinalityServerFn = createServerFn()
 					schema: ctx.data.schema,
 					table: ctx.data.table,
 					columns: Array.from(ctx.data.columns),
+					isIncomingRelationship: ctx.data.isIncomingRelationship,
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 			}),
 		);

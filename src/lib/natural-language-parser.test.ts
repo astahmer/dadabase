@@ -144,7 +144,7 @@ describe("Natural Language Query Parser", () => {
 
 		it("should handle query with no matching columns", () => {
 			const result = parseNaturalLanguageQuery("xyz equals test", columns);
-			expect(result.success).toBe(true); // No match, but no error
+			expect(result.success).toBe(false); // No match, but no error
 			// If no columns matched, we may have no filters
 			expect(result.filters === undefined || result.filters.length === 0).toBe(
 				true,

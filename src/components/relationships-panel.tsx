@@ -341,19 +341,10 @@ const RelationshipSection = ({
 	const cardinalityQuery = useQuery(
 		getRelationshipCardinalityQueryOptions({
 			url: connectionUrl,
-			schema:
-				relationship.type === "outgoing"
-					? relationship.referencingSchema
-					: relationship.referencingSchema,
-			table:
-				relationship.type === "outgoing"
-					? relationship.referencingTable
-					: relationship.referencingTable,
-			columns: [
-				relationship.type === "outgoing"
-					? relationship.referencingColumn
-					: relationship.referencingColumn,
-			],
+			schema: relationship.referencingSchema,
+			table: relationship.referencingTable,
+			columns: [relationship.referencingColumn],
+			isIncomingRelationship: relationship.type === "incoming",
 		}),
 	);
 
@@ -364,7 +355,11 @@ const RelationshipSection = ({
 	const hasRelatedRows = hasValue && relatedRows.length > 0;
 
 	return (
-		<div>
+		<div
+			onClick={() => {
+				console.log(relationship, cardinalityQuery.data);
+			}}
+		>
 			{/* Header Button */}
 			<button
 				onClick={onToggle}
