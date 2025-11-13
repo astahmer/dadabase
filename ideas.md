@@ -63,6 +63,7 @@ Phase 4: Polish & Advanced Features (optional)
 
 ---
 
+<!-- TODO rm -->
 the content you described in the right sidebar is something we already kinda have, even tho currently it is specific to a single column rather than the whole row. maybe it would be nice to have what you describe. but thats not the main focus! for now i mostly want to display ROWS rather than names/counts of the relationship tables. e.g if I have a youtube_channel table i want to easiliy see the youtube_video with a matching youtube_video.channel_id from the row im currently interested in
 
 i think i know where i want to display the relation rows: below the main table; so that it still "in context" as in "in the current page" but not "in context" like "disturbing the main table rows visualization"

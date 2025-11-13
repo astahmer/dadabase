@@ -26,10 +26,7 @@ import {
 import type { ReactNode } from "react";
 import { Fragment, useRef } from "react";
 import { getCommonPinningStyles } from "../lib/get-pinning-styles.ts";
-import type {
-	RelationshipMetadata,
-	RowRelationshipExpansionState,
-} from "../types/relationships";
+import type { RelationshipMetadata } from "../types/relationships";
 import { cn } from "../lib/utils.ts";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
 import { DataTableRow } from "./data-table.row.tsx";
@@ -83,11 +80,12 @@ export interface DataTableProps<TData> {
 	estimateItemSize?: number;
 	overscan?: number;
 	enableColumnOrdering?: boolean;
-	relationships?: RelationshipMetadata[]; // For relationship subrows
+	// TODO rm
+	relationships?: RelationshipMetadata[];
 	RelationshipSubrowComponent?: (props: {
 		relationship: RelationshipMetadata;
 		parentRowValue: unknown;
-	}) => ReactNode; // For relationship subrows
+	}) => ReactNode;
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {

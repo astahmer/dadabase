@@ -1,10 +1,7 @@
 import type { Row } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactNode } from "react";
-import type {
-	RelationshipMetadata,
-	RowRelationshipExpansionState,
-} from "../types/relationships";
+import type { RelationshipMetadata } from "../types/relationships";
 import { DataTableRow } from "./data-table.row.tsx";
 import type { DataTableSize } from "./data-table.styles.ts";
 
@@ -23,6 +20,7 @@ export interface VirtualizedTableBodyProps<TData> {
 	scrollElement: HTMLDivElement;
 	enableColumnOrdering: boolean;
 	columnOrder?: string[];
+	// TODO rm
 	relationships?: RelationshipMetadata[];
 	RelationshipSubrowComponent?: (props: {
 		relationship: RelationshipMetadata;

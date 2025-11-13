@@ -574,6 +574,7 @@ export const useConnectionPageState = ({
 		table: search.table || "",
 	});
 
+	// TODO rm?
 	const RelationshipSubrowComponent = useMemo(
 		() =>
 			(subProps: {

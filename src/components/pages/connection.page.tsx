@@ -111,6 +111,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
 		null,
 	);
+
+	// TODO rm
 	const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 	const [selectedRowData, setSelectedRowData] = useState<Record<
 		string,
@@ -259,6 +261,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																RelationshipSubrowComponent
 															}
 															onRowClick={(row) => {
+																console.log(row);
+																// TODO rm?
 																const primaryKeyColumn = columnMetadata.find(
 																	(col) => col.primaryKey,
 																);

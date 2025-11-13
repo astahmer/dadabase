@@ -24,18 +24,3 @@ export interface RelationshipMetadata {
 	/** Constraint name for uniqueness */
 	constraintName: string;
 }
-
-/** Tracks which relationships are expanded for each row */
-export type RowRelationshipExpansionState = {
-	[rowId: string]: Set<string>; // Set of constraintNames
-};
-
-/** Parameters for querying related rows */
-export interface RelationshipSubrowQuery {
-	schema: string;
-	table: string;
-	column: string;
-	parentValue: unknown;
-	limit?: number;
-	offset?: number;
-}

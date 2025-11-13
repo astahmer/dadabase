@@ -46,6 +46,7 @@ export const DataTableRow = memo(function TableRow({
 	columnOrder?: string[];
 	ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
+	// TODO rm
 	expandedRelationships?: Set<string>; // Set of constraintNames that are expanded
 	relationships?: RelationshipMetadata[]; // Available relationships for this row
 	RelationshipSubrowComponent?: (props: {
@@ -124,6 +125,7 @@ export const DataTableRow = memo(function TableRow({
 					</td>
 				</tr>
 			)}
+			{/* TODO rm */}
 			{/* Relationship subrows */}
 			{expandedRelationships &&
 				relationships?.map((rel) => {
