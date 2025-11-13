@@ -55,3 +55,16 @@ Phase 4: Polish & Advanced Features (optional)
 ├─ Keyboard shortcuts
 ├─ Performance optimization for large datasets
 └─ Graph visualization (if useful)
+
+---
+
+the content you described in the right sidebar is something we already kinda have, even tho currently it is specific to a single column rather than the whole row. maybe it would be nice to have what you describe. but thats not the main focus! for now i mostly want to display ROWS rather than names/counts of the relationship tables. e.g if I have a youtube_channel table i want to easiliy see the youtube_video with a matching youtube_video.channel_id from the row im currently interested in
+
+i think i know where i want to display the relation rows: below the main table; so that it still "in context" as in "in the current page" but not "in context" like "disturbing the main table rows visualization"
+
+so that we can keep a similar wide datatable as in the screenshot i share but instead of being as a subrow it could just be something that is BELOW the (main) rows datatable; it could even be collapsed. then when collapsed it could show buttons for easily opening a given relationship datatable rows. ex: if im mainly looking at the youtube_channel table then on the bottom collapsed bar i could see a button to open the youtube_video rows but also another that would show another table linked to the selected (main table) youtube_channel row; like for example maybe there could be a youtube_playlist table showing all of the channel's playlist.
+
+how to select a row? that probably be either: as simple as using the existing Checkbox that allows for row selection (that displays an ActionBar at the bottom) or by using a dedicated icon/menu item (in the action column and in the right click context menu)
+
+
+-> select a row -> there's a button in the ActionBar to display the right sidebar appears with tabs: 1 to show the relationship tables from the selected row; another to show the JSON data of the selected row (with expandable relationship nodes that you can lazy-load) and that you can copy/export

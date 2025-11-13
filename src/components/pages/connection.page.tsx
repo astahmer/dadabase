@@ -39,6 +39,7 @@ import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
 import { NaturalLanguageSearch } from "../natural-language-search";
 import { OrderBySelect } from "../order-by-select";
+import { RelationshipsPanel } from "../relationships-panel";
 import { QueryFilterBuilder } from "../query-filter-builder";
 import { ScrollToColumnButton } from "../scroll-to-column.button.tsx";
 import { TableTabsBar } from "../table-tabs-bar";
@@ -110,6 +111,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
 		null,
 	);
+	const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+	const [selectedRowData, setSelectedRowData] = useState<Record<
+		string,
+		unknown
+	> | null>(null);
 
 	const pageState = useConnectionPageState({ connection });
 	const {
@@ -234,6 +240,20 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 														RelationshipSubrowComponent={
 															RelationshipSubrowComponent
 														}
+														onRowClick={(row) => {
+															const primaryKeyColumn = columnMetadata.find(
+																(col) => col.primaryKey,
+															);
+															const rowId = primaryKeyColumn
+																? String(row.original[primaryKeyColumn.name])
+																: undefined;
+															if (rowId) {
+																setSelectedRowId(rowId);
+																setSelectedRowData(
+																	row.original as Record<string, unknown>,
+																);
+															}
+														}}
 														onColumnFilterClick={(columnId, _columnName) => {
 															navigate({
 																search: (prev) => ({
@@ -276,6 +296,32 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 														/>
 													)}
 												</div>
+												{selectedRowId && selectedRowData && (
+													<RelationshipsPanel
+														connectionUrl={activeConnectionUrl}
+														schema={search.schema}
+														table={search.table}
+														selectedRowId={selectedRowId}
+														rowData={selectedRowData}
+														onClose={() => {
+															setSelectedRowId(null);
+															setSelectedRowData(null);
+														}}
+													/>
+												)}
+												{selectedRowId && selectedRowData && (
+													<RelationshipsPanel
+														connectionUrl={activeConnectionUrl}
+														schema={search.schema}
+														table={search.table}
+														selectedRowId={selectedRowId}
+														rowData={selectedRowData}
+														onClose={() => {
+															setSelectedRowId(null);
+															setSelectedRowData(null);
+														}}
+													/>
+												)}
 												<BulkActionBar
 													selectedCount={
 														rowsDataTable.getSelectedRowModel().rows.length
