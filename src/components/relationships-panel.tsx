@@ -13,6 +13,7 @@ import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fn
 import { getRelationshipCardinalityQueryOptions } from "#src/server/pg/start-fns/get-relationship-cardinality.start.ts";
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
+import { HStack } from "./ui/layout.tsx";
 
 interface RelationshipsPanelProps {
 	connectionUrl: string;
@@ -102,6 +103,7 @@ export const RelationshipsPanel = ({
 							<button
 								key={relTable}
 								onClick={() => {
+									// TODO also expand the relation in the panel
 									onPanelExpanded();
 								}}
 								className="px-2 py-0.5 text-xs bg-background border border-border/50 rounded hover:bg-accent/50 hover:border-border transition-colors whitespace-nowrap shrink-0"
@@ -289,6 +291,7 @@ const RelationshipSection = ({
 	onToggle,
 	connectionUrl,
 }: RelationshipSectionProps) => {
+	console.log(relationship, rowData);
 	// For outgoing relationships, get the FK value from the row
 	const fkValue =
 		relationship.type === "outgoing"
@@ -361,12 +364,23 @@ const RelationshipSection = ({
 					<ChevronRight className="h-4 w-4 shrink-0" />
 				)}
 
-				<div className="flex-1 min-w-0">
-					<span className="font-medium text-foreground">
-						{relationship.type === "outgoing"
-							? relationship.referencedTable
-							: relationship.referencingTable}
+				<HStack className="flex-1 min-w-0 text-xs font-medium" align="center">
+					<span>
+						{relationship.referencingTable}
+						<span className="text-xs text-muted-foreground">
+							.{`${relationship.referencingColumn}`}
+						</span>
 					</span>
+
+					<ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
+
+					<span>
+						{relationship.referencedTable}
+						<span className="text-xs text-muted-foreground">
+							.{`${relationship.referencedColumn}`}
+						</span>
+					</span>
+
 					{cardinalityQuery.data && (
 						<span className="ml-2 text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded">
 							{cardinalityQuery.data.cardinality === "one-to-one"
@@ -378,7 +392,7 @@ const RelationshipSection = ({
 										: "M:N"}
 						</span>
 					)}
-				</div>
+				</HStack>
 
 				<div className="flex items-center gap-2 shrink-0">
 					{isExpanded && relatedRowsQuery.isPending && <Spinner size="sm" />}

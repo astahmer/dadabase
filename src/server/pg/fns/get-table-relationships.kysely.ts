@@ -31,9 +31,6 @@ export interface TableRelationship {
 
 	/** Constraint name for uniqueness */
 	constraintName: string;
-
-	/** Display label for the relationship */
-	displayLabel: string;
 }
 
 /**
@@ -58,8 +55,7 @@ export const getTableRelationships = (input: {
 					nf.nspname::text as "referencedSchema",
 					cf.relname::text as "referencedTable",
 					af.attname::text as "referencedColumn",
-					con.conname::text as "constraintName",
-					cf.relname::text as "displayLabel"
+					con.conname::text as "constraintName"
 				FROM
 					pg_attribute a
 					JOIN pg_class c ON a.attrelid = c.oid
@@ -86,8 +82,7 @@ export const getTableRelationships = (input: {
 					${input.schema}::text as "referencedSchema",
 					${input.table}::text as "referencedTable",
 					kcu2.column_name::text as "referencedColumn",
-					kcu1.constraint_name::text as "constraintName",
-					kcu1.table_name::text as "displayLabel"
+					kcu1.constraint_name::text as "constraintName"
 				FROM
 					information_schema.key_column_usage kcu1
 					LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name

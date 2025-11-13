@@ -235,8 +235,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 														{
 															id: "relationships",
 															collapsible: true,
-															collapsedSize: 7,
-															minSize: 7,
+															collapsedSize: 8,
+															minSize: 8,
 														},
 													]}
 												>

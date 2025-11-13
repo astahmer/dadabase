@@ -23,9 +23,6 @@ export interface RelationshipMetadata {
 
 	/** Constraint name for uniqueness */
 	constraintName: string;
-
-	/** Human-readable label for the relationship */
-	displayLabel: string;
 }
 
 /** Tracks which relationships are expanded for each row */

@@ -46,7 +46,6 @@ export const useTableRelationships = ({
 			referencedTable: rel.referencedTable,
 			referencedColumn: rel.referencedColumn,
 			constraintName: rel.constraintName,
-			displayLabel: rel.displayLabel,
 		}));
 
 	const outgoingForeignKeys: RelationshipMetadata[] = (
@@ -61,7 +60,6 @@ export const useTableRelationships = ({
 			referencedTable: rel.referencedTable,
 			referencedColumn: rel.referencedColumn,
 			constraintName: rel.constraintName,
-			displayLabel: rel.displayLabel,
 		}));
 
 	return {

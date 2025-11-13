@@ -15,6 +15,13 @@ interface RelationshipSubrowTableProps {
 }
 
 /**
+ * Create a unique ID for a relationship (for expansion state)
+ */
+function getRelationshipId(rel: RelationshipMetadata): string {
+	return `${rel.referencingSchema}.${rel.referencingTable}.${rel.constraintName}`;
+}
+
+/**
  * Renders a nested DataTable in a subrow containing related records
  * Queries the referencing table filtered by parent row's primary key
  */
@@ -36,17 +43,6 @@ export const RelationshipSubrowTable = ({
 			filterValue: parentRowValue,
 			limit: 50,
 		}),
-	);
-	console.log(
-		{
-			url: connection.url,
-			schema: referencingSchema,
-			table: referencingTable,
-			filterColumn: referencingColumn,
-			filterValue: parentRowValue,
-			limit: 50,
-		},
-		rowsQuery.data,
 	);
 
 	// Build dynamic columns from the first row's keys
@@ -79,12 +75,14 @@ export const RelationshipSubrowTable = ({
 		},
 	});
 
+	const displayLabel = getRelationshipId(relationship);
+
 	if (rowsQuery.isLoading) {
 		return (
 			<div className="flex items-center justify-center p-8 gap-2">
 				<Spinner />
 				<span className="text-sm text-muted-foreground">
-					Loading {relationship.displayLabel}...
+					Loading {displayLabel}...
 				</span>
 			</div>
 		);
@@ -94,7 +92,7 @@ export const RelationshipSubrowTable = ({
 		return (
 			<div className="p-4 bg-destructive/5 rounded border border-destructive/20">
 				<p className="text-sm text-destructive">
-					Failed to load {relationship.displayLabel}
+					Failed to load {displayLabel}
 				</p>
 				<p className="text-xs text-muted-foreground mt-1">
 					{getErrorMessage(rowsQuery.error)}
@@ -107,7 +105,7 @@ export const RelationshipSubrowTable = ({
 		<div className="bg-muted/20 rounded border border-border/50">
 			<div className="px-4 py-2 bg-muted/40 border-b">
 				<h4 className="text-sm font-medium text-foreground">
-					{relationship.displayLabel} (
+					{displayLabel} (
 					{rowsQuery.data?.rowCount ?? rowsQuery.data?.rows?.length ?? 0} rows)
 				</h4>
 			</div>
