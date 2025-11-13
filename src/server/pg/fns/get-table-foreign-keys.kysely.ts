@@ -25,7 +25,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 					kcu2.table_schema AS "referencedSchema",
 					kcu2.table_name AS "referencedTable",
 					kcu2.column_name AS "referencedColumn",
-					constraint_name AS "constraintName"
+					kcu1.constraint_name AS "constraintName"
 				FROM
 					information_schema.key_column_usage kcu1
 					LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
@@ -33,7 +33,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 				WHERE
 					kcu1.table_schema = ${input.schema}
 					AND kcu1.table_name = ${input.table}
-					AND constraint_name IN (
+					AND kcu1.constraint_name IN (
 						SELECT constraint_name
 						FROM information_schema.table_constraints
 						WHERE constraint_type = 'FOREIGN KEY'
