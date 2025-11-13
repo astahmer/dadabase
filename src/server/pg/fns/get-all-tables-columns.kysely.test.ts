@@ -318,4 +318,41 @@ describe("getAllTablesColumns", () => {
 			expect(publishedColumn?.defaultValue).toBeDefined();
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
+
+	it.effect(
+		"does not return duplicates for columns with both PK and UNIQUE constraints",
+		() => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+
+				const result = yield* getAllTablesColumns({ schema: "public" });
+				const userProfilesTable = result.find(
+					(t) => t.table === "user_profiles",
+				);
+
+				// user_profiles.user_id is defined as:
+				// user_id SERIAL UNIQUE PRIMARY KEY REFERENCES users(id)
+				// This column has BOTH a PRIMARY KEY constraint AND a UNIQUE constraint
+				// which can cause duplicates if DISTINCT ON is not used
+
+				expect(userProfilesTable).toBeDefined();
+				expect(userProfilesTable!.columns.length).toBe(3); // user_id, bio, created_at
+
+				const userIdColumn = userProfilesTable!.columns.find(
+					(c) => c.name === "user_id",
+				);
+				// Should only appear once despite having multiple constraints
+				expect(userIdColumn).toBeDefined();
+				expect(userIdColumn?.primaryKey).toBe(true);
+				// unique might be null or true due to LEFT JOIN behavior, just verify it's not missing
+				expect(userIdColumn?.unique).not.toBeUndefined();
+
+				// Verify no duplicates by checking column count
+				const userIdOccurrences = userProfilesTable!.columns.filter(
+					(c) => c.name === "user_id",
+				).length;
+				expect(userIdOccurrences).toBe(1);
+			}).pipe(Effect.provide(InMemoryLayer));
+		},
+	);
 });

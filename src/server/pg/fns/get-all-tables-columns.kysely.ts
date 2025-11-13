@@ -100,30 +100,28 @@ export const getAllTablesColumns = (input: { schema: string }) =>
 					unique: boolean;
 					defaultValue: string | null;
 				}>`
-					SELECT
-						a.attname as name,
-						format_type(a.atttypid, a.atttypmod) as "dataType",
-						NOT a.attnotnull as nullable,
-						(t.contype = 'p') as "primaryKey",
-						(u.contype = 'u') as "unique",
-						pg_get_expr(d.adbin, d.adrelid) as "defaultValue"
-					FROM
-						pg_attribute a
-						LEFT JOIN pg_constraint t ON a.attrelid = t.conrelid AND a.attnum = ANY(t.conkey) AND t.contype = 'p'
-						LEFT JOIN pg_constraint u ON a.attrelid = u.conrelid AND a.attnum = ANY(u.conkey) AND u.contype = 'u'
-						LEFT JOIN pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
-						JOIN pg_class c ON a.attrelid = c.oid
-						JOIN pg_namespace n ON c.relnamespace = n.oid
-					WHERE
-						n.nspname = ${input.schema}
-						AND c.relname = ${tableName}
-						AND a.attnum > 0
-						AND NOT a.attisdropped
-					ORDER BY
-						a.attnum
-				`);
-
-				// Merge FK info with column metadata
+				SELECT DISTINCT ON (a.attnum)
+					a.attname as name,
+					format_type(a.atttypid, a.atttypmod) as "dataType",
+					NOT a.attnotnull as nullable,
+					(t.contype = 'p') as "primaryKey",
+					(u.contype = 'u') as "unique",
+					pg_get_expr(d.adbin, d.adrelid) as "defaultValue"
+				FROM
+					pg_attribute a
+					LEFT JOIN pg_constraint t ON a.attrelid = t.conrelid AND a.attnum = ANY(t.conkey) AND t.contype = 'p'
+					LEFT JOIN pg_constraint u ON a.attrelid = u.conrelid AND a.attnum = ANY(u.conkey) AND u.contype = 'u'
+					LEFT JOIN pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+					JOIN pg_class c ON a.attrelid = c.oid
+					JOIN pg_namespace n ON c.relnamespace = n.oid
+				WHERE
+					n.nspname = ${input.schema}
+					AND c.relname = ${tableName}
+					AND a.attnum > 0
+					AND NOT a.attisdropped
+				ORDER BY
+					a.attnum
+			`); // Merge FK info with column metadata
 				const columnsWithFK = columns.map((col) => ({
 					...col,
 					isForeignKey: fkMap.has(col.name),
