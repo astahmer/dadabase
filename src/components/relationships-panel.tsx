@@ -1,11 +1,18 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
+import {
+	ChevronDown,
+	ChevronRight,
+	ChevronUp,
+	Trash2,
+	Download,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
 import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start";
 import { getRelationshipCardinalityQueryOptions } from "#src/server/pg/start-fns/get-relationship-cardinality.start.ts";
 import { Spinner } from "./ui/spinner";
+import { Button } from "./ui/button";
 
 interface RelationshipsPanelProps {
 	connectionUrl: string;
@@ -16,6 +23,10 @@ interface RelationshipsPanelProps {
 	isPanelExpanded: boolean;
 	onPanelHidden: () => void;
 	onPanelExpanded: () => void;
+	selectedRowCount?: number;
+	onDelete?: () => void;
+	onExport?: () => void;
+	isActionLoading?: boolean;
 }
 
 export const RelationshipsPanel = ({
@@ -27,6 +38,10 @@ export const RelationshipsPanel = ({
 	isPanelExpanded,
 	onPanelHidden,
 	onPanelExpanded,
+	selectedRowCount = 1,
+	onDelete,
+	onExport,
+	isActionLoading = false,
 }: RelationshipsPanelProps) => {
 	const [expandedRelationships, setExpandedRelationships] = useState<
 		Set<string>
@@ -108,26 +123,91 @@ export const RelationshipsPanel = ({
 						No relationships
 					</span>
 				)}
+
+				{/* Bulk Actions */}
+				{selectedRowCount > 0 && (
+					<div className="ml-auto flex items-center gap-1 shrink-0">
+						{onExport && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onExport}
+								disabled={isActionLoading}
+								className="h-6 px-2 text-xs"
+								title="Export selected rows"
+							>
+								<Download className="h-3 w-3 mr-1" />
+								Export
+							</Button>
+						)}
+						{onDelete && (
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={onDelete}
+								disabled={isActionLoading}
+								className="h-6 px-2 text-xs"
+								title="Delete selected rows"
+							>
+								<Trash2 className="h-3 w-3 mr-1" />
+								Delete
+							</Button>
+						)}
+					</div>
+				)}
 			</div>
 		);
 	}
 
 	return (
 		<div className="border-t bg-card flex flex-col h-full overflow-hidden">
-			<div className="px-4 py-3 border-b flex items-center justify-between shrink-0">
-				<div className="flex items-center gap-2">
-					<span className="text-sm font-semibold text-foreground">
+			<div className="px-4 py-3 border-b flex items-center justify-between shrink-0 gap-2">
+				<div className="flex items-center gap-2 min-w-0 flex-1">
+					<span className="text-sm font-semibold text-foreground truncate">
 						{getRowIdentifier()}
 					</span>
-					<span className="text-xs text-muted-foreground">
+					<span className="text-xs text-muted-foreground whitespace-nowrap">
 						({schema}.{table})
 					</span>
 				</div>
+
+				{/* Bulk Actions in Expanded State */}
+				{selectedRowCount > 0 && (
+					<div className="flex items-center gap-1 shrink-0">
+						{onExport && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onExport}
+								disabled={isActionLoading}
+								className="h-7 px-2 text-xs"
+								title="Export selected rows"
+							>
+								<Download className="h-3 w-3 mr-1" />
+								Export
+							</Button>
+						)}
+						{onDelete && (
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={onDelete}
+								disabled={isActionLoading}
+								className="h-7 px-2 text-xs"
+								title="Delete selected rows"
+							>
+								<Trash2 className="h-3 w-3 mr-1" />
+								Delete
+							</Button>
+						)}
+					</div>
+				)}
+
 				<button
 					onClick={() => {
 						onPanelHidden();
 					}}
-					className="p-1 hover:bg-accent/50 rounded transition-colors"
+					className="p-1 hover:bg-accent/50 rounded transition-colors shrink-0"
 					title="Collapse relationships panel"
 				>
 					<ChevronUp className="h-4 w-4" />

@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
-import { BulkActionBar } from "../bulk-action-bar";
 import { CollapsibleSidebar } from "../collapsible-sidebar";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
@@ -347,6 +346,19 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																			onPanelExpanded={() => {
 																				ctx.expandPanel("relationships");
 																			}}
+																			selectedRowCount={
+																				rowsDataTable.getSelectedRowModel().rows
+																					.length
+																			}
+																			onDelete={() => {
+																				// Placeholder - implement deletion logic
+																				console.log("Delete selected rows");
+																			}}
+																			onExport={() => {
+																				// Placeholder - implement export logic
+																				console.log("Export selected rows");
+																			}}
+																			isActionLoading={rowsQuery.isLoading}
 																		/>
 																	)}
 																</Splitter.Context>
@@ -356,22 +368,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 												</Splitter.Root>
 											</>
 										)}
-										{/* Footer Bar - Bulk Actions & Status */}
-										<div className="flex-shrink-0 border-t flex flex-col gap-0">
-											<BulkActionBar
-												selectedCount={
-													rowsDataTable.getSelectedRowModel().rows.length
-												}
-												onDelete={() => {
-													// Placeholder - implement deletion logic
-													console.log("Delete selected rows");
-												}}
-												onExport={() => {
-													// Placeholder - implement export logic
-													console.log("Export selected rows");
-												}}
-												isLoading={rowsQuery.isLoading}
-											/>
+										{/* Footer Bar - Status Only */}
+										<div className="shrink-0 border-t">
 											<ConnectionPageStatusBar
 												table={rowsDataTable}
 												hasUuid={hasUuid}
