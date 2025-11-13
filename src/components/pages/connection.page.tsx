@@ -9,7 +9,7 @@ import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-a
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
 import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import { useListCollection } from "@ark-ui/react";
+import { Splitter, useListCollection } from "@ark-ui/react";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { Pagination } from "@ark-ui/react/pagination";
@@ -224,91 +224,111 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											</div>
 										) : (
 											<>
-												<div className="flex-1 overflow-auto flex flex-col h-full relative">
-													<DataTable
-														virtualized
-														enableColumnOrdering
-														table={rowsDataTable}
-														getTableContainer={setTableContainer}
-														isLoading={
-															rowsQuery.isLoading || isColumnMetadataLoading
-														}
-														size={search.tableSize}
-														withContextMenu
-														expandedState={expandedState}
-														relationships={relationships}
-														RelationshipSubrowComponent={
-															RelationshipSubrowComponent
-														}
-														onRowClick={(row) => {
-															const primaryKeyColumn = columnMetadata.find(
-																(col) => col.primaryKey,
-															);
-															const rowId = primaryKeyColumn
-																? String(row.original[primaryKeyColumn.name])
-																: undefined;
-															if (rowId) {
-																setSelectedRowId(rowId);
-																setSelectedRowData(
-																	row.original as Record<string, unknown>,
-																);
+												<Splitter.Root
+													orientation="vertical"
+													className="flex-1 flex flex-col h-full overflow-hidden"
+													panels={[{ id: "table" }, { id: "relationships" }]}
+												>
+													<Splitter.Panel
+														id="table"
+														className="flex-1 overflow-auto flex flex-col relative"
+													>
+														<DataTable
+															virtualized
+															enableColumnOrdering
+															table={rowsDataTable}
+															getTableContainer={setTableContainer}
+															isLoading={
+																rowsQuery.isLoading || isColumnMetadataLoading
 															}
-														}}
-														onColumnFilterClick={(columnId, _columnName) => {
-															navigate({
-																search: (prev) => ({
-																	...prev,
-																	filtersOpened: true,
-																	filters: {
-																		conditions: [
-																			...(prev.filters?.conditions ?? []),
-																			{
-																				column: columnId,
-																				operator: "equals",
-																			},
-																		],
-																		logicalOperator:
-																			prev.filters?.logicalOperator ?? "and",
-																	},
-																}),
-															});
-														}}
-														onExpandRowJson={(row) => {
-															const primaryKeyColumn = columnMetadata.find(
-																(col) => col.primaryKey,
-															);
-															const rowId = primaryKeyColumn
-																? String(row[primaryKeyColumn.name])
-																: undefined;
-															navigate({
-																search: (prev) => ({
-																	...prev,
-																	rowJsonViewerRowId: rowId,
-																	rowJsonViewerOpen: !!rowId,
-																}),
-															});
-														}}
-													/>
-													{!rowsQuery.isLoading && !isColumnMetadataLoading && (
-														<ScrollToColumnButton
-															columnList={columnMetadata.map((col) => col.name)}
-															containerRef={{ current: tableContainer }}
+															size={search.tableSize}
+															withContextMenu
+															expandedState={expandedState}
+															relationships={relationships}
+															RelationshipSubrowComponent={
+																RelationshipSubrowComponent
+															}
+															onRowClick={(row) => {
+																const primaryKeyColumn = columnMetadata.find(
+																	(col) => col.primaryKey,
+																);
+																const rowId = primaryKeyColumn
+																	? String(row.original[primaryKeyColumn.name])
+																	: undefined;
+																if (rowId) {
+																	setSelectedRowId(rowId);
+																	setSelectedRowData(
+																		row.original as Record<string, unknown>,
+																	);
+																}
+															}}
+															onColumnFilterClick={(columnId, _columnName) => {
+																navigate({
+																	search: (prev) => ({
+																		...prev,
+																		filtersOpened: true,
+																		filters: {
+																			conditions: [
+																				...(prev.filters?.conditions ?? []),
+																				{
+																					column: columnId,
+																					operator: "equals",
+																				},
+																			],
+																			logicalOperator:
+																				prev.filters?.logicalOperator ?? "and",
+																		},
+																	}),
+																});
+															}}
+															onExpandRowJson={(row) => {
+																const primaryKeyColumn = columnMetadata.find(
+																	(col) => col.primaryKey,
+																);
+																const rowId = primaryKeyColumn
+																	? String(row[primaryKeyColumn.name])
+																	: undefined;
+																navigate({
+																	search: (prev) => ({
+																		...prev,
+																		rowJsonViewerRowId: rowId,
+																		rowJsonViewerOpen: !!rowId,
+																	}),
+																});
+															}}
 														/>
+														{!rowsQuery.isLoading &&
+															!isColumnMetadataLoading && (
+																<ScrollToColumnButton
+																	columnList={columnMetadata.map(
+																		(col) => col.name,
+																	)}
+																	containerRef={{ current: tableContainer }}
+																/>
+															)}
+													</Splitter.Panel>
+
+													{selectedRowId && selectedRowData && (
+														<>
+															<Splitter.ResizeTrigger
+																id="table:relationships"
+																className="h-1 bg-border hover:bg-primary/50 cursor-row-resize transition-colors"
+															/>
+															<Splitter.Panel
+																id="relationships"
+																className="overflow-hidden"
+															>
+																<RelationshipsPanel
+																	connectionUrl={activeConnectionUrl}
+																	schema={search.schema}
+																	table={search.table}
+																	selectedRowId={selectedRowId}
+																	rowData={selectedRowData}
+																/>
+															</Splitter.Panel>
+														</>
 													)}
-												</div>
-												{selectedRowId && selectedRowData && (
-													<RelationshipsPanel
-														connectionUrl={activeConnectionUrl}
-														schema={search.schema}
-														table={search.table}
-														selectedRowId={selectedRowId}
-														rowData={selectedRowData}
-														onClose={() => {
-															setSelectedRowId(null);
-															setSelectedRowData(null);
-														}}
-													/>
-												)}
+												</Splitter.Root>
 												<BulkActionBar
 													selectedCount={
 														rowsDataTable.getSelectedRowModel().rows.length

@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
 import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start";
-import { Button } from "./ui/button";
 import { Spinner } from "./ui/spinner";
 
 interface RelationshipsPanelProps {
@@ -13,7 +12,6 @@ interface RelationshipsPanelProps {
 	table: string;
 	selectedRowId: string | null;
 	rowData: Record<string, unknown> | null;
-	onClose: () => void;
 }
 
 export const RelationshipsPanel = ({
@@ -22,11 +20,11 @@ export const RelationshipsPanel = ({
 	table,
 	selectedRowId,
 	rowData,
-	onClose,
 }: RelationshipsPanelProps) => {
 	const [expandedRelationships, setExpandedRelationships] = useState<
 		Set<string>
 	>(new Set());
+	const [isPanelExpanded, setIsPanelExpanded] = useState(true);
 
 	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
@@ -64,25 +62,38 @@ export const RelationshipsPanel = ({
 		return values.join(" • ");
 	};
 
+	if (!isPanelExpanded) {
+		return (
+			<div className="border-t bg-card h-8 flex items-center px-4">
+				<button
+					onClick={() => setIsPanelExpanded(true)}
+					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+				>
+					<ChevronDown className="h-3 w-3" />
+					<span>Relationships</span>
+				</button>
+			</div>
+		);
+	}
+
 	return (
-		<div className="border-t bg-card">
-			<div className="px-4 py-3 border-b flex items-center justify-between">
-				<div className="flex items-center gap-2 flex-1">
+		<div className="border-t bg-card flex flex-col">
+			<div className="px-4 py-3 border-b flex items-center justify-between shrink-0">
+				<div className="flex items-center gap-2">
 					<span className="text-sm font-semibold text-foreground">
-						RELATIONSHIPS FOR: {getRowIdentifier()}
+						{getRowIdentifier()}
 					</span>
 					<span className="text-xs text-muted-foreground">
 						({schema}.{table})
 					</span>
 				</div>
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={onClose}
-					className="h-6 w-6 p-0"
+				<button
+					onClick={() => setIsPanelExpanded(false)}
+					className="p-1 hover:bg-accent/50 rounded transition-colors"
+					title="Collapse relationships panel"
 				>
-					<X className="h-4 w-4" />
-				</Button>
+					<ChevronUp className="h-4 w-4" />
+				</button>
 			</div>
 
 			{relationshipsQuery.isLoading ? (
@@ -211,10 +222,9 @@ const RelationshipSection = ({
 
 				<div className="flex-1 min-w-0">
 					<span className="font-medium text-foreground">
-						{relationship.displayLabel}
-					</span>
-					<span className="text-xs text-muted-foreground ml-1">
-						({relationship.referencedTable})
+						{relationship.type === "outgoing"
+							? relationship.referencedTable
+							: relationship.referencingTable}
 					</span>
 				</div>
 
