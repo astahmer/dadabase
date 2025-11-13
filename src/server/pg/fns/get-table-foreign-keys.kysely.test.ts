@@ -250,8 +250,7 @@ describe("getTableForeignKeys", () => {
 				});
 
 				const userProfileRef = refs.find(
-					(ref) =>
-						ref.table === "user_profiles" && ref.column === "user_id",
+					(ref) => ref.table === "user_profiles" && ref.column === "user_id",
 				);
 				expect(userProfileRef).toBeDefined();
 				expect(userProfileRef?.referencedColumn).toBe("id");
@@ -305,8 +304,7 @@ describe("getTableForeignKeys", () => {
 				});
 
 				const postTagRef = refs.find(
-					(ref) =>
-						ref.table === "post_tags" && ref.column === "post_id",
+					(ref) => ref.table === "post_tags" && ref.column === "post_id",
 				);
 				expect(postTagRef).toBeDefined();
 			}).pipe(Effect.provide(InMemoryLayer));
@@ -363,8 +361,7 @@ describe("getTableForeignKeys", () => {
 				expect(postRef?.matchingRowCount).toBe(1);
 
 				const commentRef = refs.find(
-					(ref) =>
-						ref.table === "comments" && ref.column === "user_id",
+					(ref) => ref.table === "comments" && ref.column === "user_id",
 				);
 				expect(commentRef?.matchingRowCount).toBe(1);
 			}).pipe(Effect.provide(InMemoryLayer));
@@ -460,7 +457,7 @@ describe("getTableForeignKeys", () => {
 				`);
 
 				yield* db.executeRaw(sql`
-					INSERT INTO posts (user_id, title) VALUES 
+					INSERT INTO posts (user_id, title) VALUES
 					(1, 'Post 1'),
 					(1, 'Post 2'),
 					(1, 'Post 3')
