@@ -371,7 +371,11 @@ const RelationshipSection = ({
 						<span className="ml-2 text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded">
 							{cardinalityQuery.data.cardinality === "one-to-one"
 								? "1:1"
-								: "1:N"}
+								: cardinalityQuery.data.cardinality === "one-to-many"
+									? "1:N"
+									: cardinalityQuery.data.cardinality === "many-to-one"
+										? "N:1"
+										: "M:N"}
 						</span>
 					)}
 				</div>

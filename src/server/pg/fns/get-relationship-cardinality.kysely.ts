@@ -43,59 +43,50 @@ export const getRelationshipCardinality = (input: {
 					WHERE relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = ${input.schema})
 						AND relname = ${input.table}
 				),
-				fk_constraints AS (
+				fk_info AS (
 					SELECT
 						con.oid,
+						con.conrelid,
 						con.confrelid,
-						array_agg(a.attname ORDER BY a.attnum)::text[] as fk_columns,
-						array_agg(af.attname ORDER BY af.attnum)::text[] as referenced_columns
+						con.conkey,
+						con.confkey
 					FROM pg_constraint con
-					JOIN pg_class c ON con.conrelid = c.oid
-					JOIN pg_namespace n ON c.relnamespace = n.oid
-					JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = ANY(con.conkey)
-					JOIN pg_attribute af ON af.attrelid = con.confrelid AND af.attnum = ANY(con.confkey)
-					WHERE c.oid = (SELECT oid FROM table_oid)
+					WHERE con.conrelid = (SELECT oid FROM table_oid)
 						AND con.contype = 'f'  -- FOREIGN KEY
-						AND a.attnum > 0
-						AND NOT a.attisdropped
-					GROUP BY con.oid, con.confrelid
 				),
 				fk_side_unique AS (
 					SELECT
 						fk.oid,
-						EXISTS (
-							SELECT 1 FROM pg_constraint con2
-							WHERE con2.conrelid = (SELECT oid FROM table_oid)
-								AND con2.contype IN ('p', 'u')
-								AND array_agg(a2.attname ORDER BY a2.attnum)::text[] = fk.fk_columns
-							FROM pg_attribute a2
-							WHERE a2.attrelid = con2.conrelid AND a2.attnum = ANY(con2.conkey)
-						) as fk_is_unique
-					FROM fk_constraints fk
+						COUNT(*) = 0 OR MAX(CASE WHEN con2.contype IN ('p', 'u') THEN 1 ELSE 0 END) > 0 as fk_is_unique
+					FROM fk_info fk
+					LEFT JOIN pg_constraint con2 ON
+						con2.conrelid = fk.conrelid
+						AND con2.contype IN ('p', 'u')
+						AND con2.conkey = fk.conkey
+					GROUP BY fk.oid
 				),
 				referenced_side_unique AS (
 					SELECT
 						fk.oid,
-						EXISTS (
-							SELECT 1 FROM pg_constraint con3
-							WHERE con3.conrelid = fk.confrelid
-								AND con3.contype = 'p'  -- PRIMARY KEY
-								AND array_agg(a3.attname ORDER BY a3.attnum)::text[] = fk.referenced_columns
-							FROM pg_attribute a3
-							WHERE a3.attrelid = con3.conrelid AND a3.attnum = ANY(con3.conkey)
-						) as referenced_is_pk
-					FROM fk_constraints fk
+						COUNT(*) = 0 OR MAX(CASE WHEN con3.contype = 'p' THEN 1 ELSE 0 END) > 0 as referenced_is_pk
+					FROM fk_info fk
+					LEFT JOIN pg_constraint con3 ON
+						con3.conrelid = fk.confrelid
+						AND con3.contype = 'p'
+						AND con3.conkey = fk.confkey
+					GROUP BY fk.oid
 				)
 				SELECT
 					CASE
-						WHEN fk_side_unique AND referenced_is_pk THEN 'one-to-one'
-						WHEN NOT fk_side_unique AND referenced_is_pk THEN 'many-to-one'
-						WHEN fk_side_unique AND NOT referenced_is_pk THEN 'one-to-many'
+						WHEN fk_u.fk_is_unique AND ref_u.referenced_is_pk THEN 'one-to-one'
+						WHEN NOT fk_u.fk_is_unique AND ref_u.referenced_is_pk THEN 'many-to-one'
+						WHEN fk_u.fk_is_unique AND NOT ref_u.referenced_is_pk THEN 'one-to-many'
 						ELSE 'many-to-many'
 					END as cardinality
-				FROM fk_constraints fk
+				FROM fk_info fk
 				JOIN fk_side_unique fk_u ON fk.oid = fk_u.oid
 				JOIN referenced_side_unique ref_u ON fk.oid = ref_u.oid
+				LIMIT 1
 			`);
 
 			if (result.length === 0) {
