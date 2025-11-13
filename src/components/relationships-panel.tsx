@@ -76,13 +76,6 @@ export const RelationshipsPanel = ({
 		});
 	};
 
-	const getRowIdentifier = () => {
-		const values = Object.values(rowData)
-			.slice(0, 2)
-			.filter((v) => v !== null && v !== undefined);
-		return values.join(" • ");
-	};
-
 	if (!isPanelExpanded) {
 		const allRelationshipTables = relationships
 			.map((r) =>
@@ -99,7 +92,7 @@ export const RelationshipsPanel = ({
 					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
 					title="Expand relationships panel"
 				>
-					<ChevronDown className="h-3 w-3" />
+					<ChevronUp className="h-3 w-3" />
 					<span className="font-medium">Relations:</span>
 				</button>
 
@@ -153,6 +146,15 @@ export const RelationshipsPanel = ({
 								Delete
 							</Button>
 						)}
+						<button
+							onClick={() => {
+								onPanelExpanded();
+							}}
+							className="p-1 hover:bg-accent/50 rounded transition-colors shrink-0"
+							title="Expand relationships panel"
+						>
+							<ChevronUp className="h-4 w-4" />
+						</button>
 					</div>
 				)}
 			</div>
@@ -163,11 +165,12 @@ export const RelationshipsPanel = ({
 		<div className="border-t bg-card flex flex-col h-full overflow-hidden">
 			<div className="px-4 py-3 border-b flex items-center justify-between shrink-0 gap-2">
 				<div className="flex items-center gap-2 min-w-0 flex-1">
-					<span className="text-sm font-semibold text-foreground truncate">
-						{getRowIdentifier()}
+					<span className="text-sm text-foreground font-medium whitespace-nowrap">
+						{schema}.{table}
 					</span>
-					<span className="text-xs text-muted-foreground whitespace-nowrap">
-						({schema}.{table})
+					<span className="text-xs text-muted-foreground">=</span>
+					<span className="text-sm text-muted-foreground font-medium whitespace-nowrap">
+						{selectedRowId}
 					</span>
 				</div>
 
@@ -210,7 +213,7 @@ export const RelationshipsPanel = ({
 					className="p-1 hover:bg-accent/50 rounded transition-colors shrink-0"
 					title="Collapse relationships panel"
 				>
-					<ChevronUp className="h-4 w-4" />
+					<ChevronDown className="h-4 w-4" />
 				</button>
 			</div>
 
