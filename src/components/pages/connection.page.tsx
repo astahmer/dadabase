@@ -103,6 +103,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			filtersOpened: s.filtersOpened,
 			viewMode: s.viewMode,
 			tableSize: s.tableSize,
+			limit: s.limit,
 		}),
 	});
 
@@ -245,7 +246,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 														className="flex-1 overflow-auto flex flex-col relative"
 													>
 														<DataTable
-															virtualized
+															virtualized={search.limit > 100}
 															enableColumnOrdering
 															table={rowsDataTable}
 															getTableContainer={setTableContainer}
