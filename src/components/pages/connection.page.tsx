@@ -195,7 +195,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 										/>
 									</div>
 								) : (
-									<div className="flex-1 overflow-auto flex flex-col h-full px-2">
+									<div className="flex-1 flex flex-col h-full min-h-0 px-2">
 										{rowsQuery.isLoading ? (
 											<Stack className="flex-1 flex items-center justify-center">
 												<Spinner />
@@ -227,7 +227,19 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 												<Splitter.Root
 													orientation="vertical"
 													className="flex-1 flex flex-col h-full overflow-hidden"
-													panels={[{ id: "table" }, { id: "relationships" }]}
+													panels={[
+														{
+															id: "table",
+															collapsible: false,
+															minSize: 30,
+														},
+														{
+															id: "relationships",
+															collapsible: true,
+															collapsedSize: 7,
+															minSize: 7,
+														},
+													]}
 												>
 													<Splitter.Panel
 														id="table"
@@ -316,46 +328,61 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															/>
 															<Splitter.Panel
 																id="relationships"
-																className="overflow-hidden"
+																className="overflow-hidden flex flex-col"
 															>
-																<RelationshipsPanel
-																	connectionUrl={activeConnectionUrl}
-																	schema={search.schema}
-																	table={search.table}
-																	selectedRowId={selectedRowId}
-																	rowData={selectedRowData}
-																/>
+																<Splitter.Context>
+																	{(ctx) => (
+																		<RelationshipsPanel
+																			connectionUrl={activeConnectionUrl}
+																			schema={search.schema}
+																			table={search.table!}
+																			selectedRowId={selectedRowId}
+																			rowData={selectedRowData}
+																			isPanelExpanded={ctx.isPanelExpanded(
+																				"relationships",
+																			)}
+																			onPanelHidden={() => {
+																				ctx.collapsePanel("relationships");
+																			}}
+																			onPanelExpanded={() => {
+																				ctx.expandPanel("relationships");
+																			}}
+																		/>
+																	)}
+																</Splitter.Context>
 															</Splitter.Panel>
 														</>
 													)}
 												</Splitter.Root>
-												<BulkActionBar
-													selectedCount={
-														rowsDataTable.getSelectedRowModel().rows.length
-													}
-													onDelete={() => {
-														// Placeholder - implement deletion logic
-														console.log("Delete selected rows");
-													}}
-													onExport={() => {
-														// Placeholder - implement export logic
-														console.log("Export selected rows");
-													}}
-													isLoading={rowsQuery.isLoading}
-												/>
 											</>
 										)}
-										{/* Status Bar */}
-										<ConnectionPageStatusBar
-											table={rowsDataTable}
-											hasUuid={hasUuid}
-											isLoading={rowsQuery.isLoading}
-											refetch={rowsQuery.refetch}
-											timeTaken={queryResponse.timeTaken}
-											ranAt={queryResponse.ranAt}
-											totalRowCount={totalRowCount}
-											rowsColumnsCount={rowsColumns.length}
-										/>
+										{/* Footer Bar - Bulk Actions & Status */}
+										<div className="flex-shrink-0 border-t flex flex-col gap-0">
+											<BulkActionBar
+												selectedCount={
+													rowsDataTable.getSelectedRowModel().rows.length
+												}
+												onDelete={() => {
+													// Placeholder - implement deletion logic
+													console.log("Delete selected rows");
+												}}
+												onExport={() => {
+													// Placeholder - implement export logic
+													console.log("Export selected rows");
+												}}
+												isLoading={rowsQuery.isLoading}
+											/>
+											<ConnectionPageStatusBar
+												table={rowsDataTable}
+												hasUuid={hasUuid}
+												isLoading={rowsQuery.isLoading}
+												refetch={rowsQuery.refetch}
+												timeTaken={queryResponse.timeTaken}
+												ranAt={queryResponse.ranAt}
+												totalRowCount={totalRowCount}
+												rowsColumnsCount={rowsColumns.length}
+											/>
+										</div>
 									</div>
 								)}
 							</div>

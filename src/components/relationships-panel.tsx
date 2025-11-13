@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
 import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start";
+import { getRelationshipCardinalityQueryOptions } from "#src/server/pg/start-fns/get-relationship-cardinality.start.ts";
 import { Spinner } from "./ui/spinner";
 
 interface RelationshipsPanelProps {
@@ -12,6 +13,9 @@ interface RelationshipsPanelProps {
 	table: string;
 	selectedRowId: string | null;
 	rowData: Record<string, unknown> | null;
+	isPanelExpanded: boolean;
+	onPanelHidden: () => void;
+	onPanelExpanded: () => void;
 }
 
 export const RelationshipsPanel = ({
@@ -20,11 +24,13 @@ export const RelationshipsPanel = ({
 	table,
 	selectedRowId,
 	rowData,
+	isPanelExpanded,
+	onPanelHidden,
+	onPanelExpanded,
 }: RelationshipsPanelProps) => {
 	const [expandedRelationships, setExpandedRelationships] = useState<
 		Set<string>
 	>(new Set());
-	const [isPanelExpanded, setIsPanelExpanded] = useState(true);
 
 	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
@@ -63,21 +69,51 @@ export const RelationshipsPanel = ({
 	};
 
 	if (!isPanelExpanded) {
+		const allRelationshipTables = relationships
+			.map((r) =>
+				r.type === "outgoing" ? r.referencedTable : r.referencingTable,
+			)
+			.filter((table, idx, arr) => arr.indexOf(table) === idx); // Deduplicate
+
 		return (
-			<div className="border-t bg-card h-8 flex items-center px-4">
+			<div className="border-t bg-muted/40 h-10 flex items-center px-3 shrink-0 min-h-10 gap-2 overflow-x-auto">
 				<button
-					onClick={() => setIsPanelExpanded(true)}
-					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+					onClick={() => {
+						onPanelExpanded();
+					}}
+					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+					title="Expand relationships panel"
 				>
 					<ChevronDown className="h-3 w-3" />
-					<span>Relationships</span>
+					<span className="font-medium">Relations:</span>
 				</button>
+
+				{allRelationshipTables.length > 0 ? (
+					<div className="flex items-center gap-1 flex-1 min-w-0">
+						{allRelationshipTables.map((relTable) => (
+							<button
+								key={relTable}
+								onClick={() => {
+									onPanelExpanded();
+								}}
+								className="px-2 py-0.5 text-xs bg-background border border-border/50 rounded hover:bg-accent/50 hover:border-border transition-colors whitespace-nowrap shrink-0"
+								title={`Click to expand and view ${relTable}`}
+							>
+								{relTable}
+							</button>
+						))}
+					</div>
+				) : (
+					<span className="text-xs text-muted-foreground italic">
+						No relationships
+					</span>
+				)}
 			</div>
 		);
 	}
 
 	return (
-		<div className="border-t bg-card flex flex-col">
+		<div className="border-t bg-card flex flex-col h-full overflow-hidden">
 			<div className="px-4 py-3 border-b flex items-center justify-between shrink-0">
 				<div className="flex items-center gap-2">
 					<span className="text-sm font-semibold text-foreground">
@@ -88,7 +124,9 @@ export const RelationshipsPanel = ({
 					</span>
 				</div>
 				<button
-					onClick={() => setIsPanelExpanded(false)}
+					onClick={() => {
+						onPanelHidden();
+					}}
 					className="p-1 hover:bg-accent/50 rounded transition-colors"
 					title="Collapse relationships panel"
 				>
@@ -97,15 +135,15 @@ export const RelationshipsPanel = ({
 			</div>
 
 			{relationshipsQuery.isLoading ? (
-				<div className="flex items-center justify-center py-8">
+				<div className="flex items-center justify-center py-8 flex-1">
 					<Spinner />
 				</div>
 			) : relationships.length === 0 ? (
-				<div className="py-8 text-center text-sm text-muted-foreground">
+				<div className="py-8 text-center text-sm text-muted-foreground flex-1 flex items-center justify-center">
 					No relationships found for this row
 				</div>
 			) : (
-				<div className="p-4 space-y-4 max-h-96 overflow-y-auto">
+				<div className="p-4 space-y-4 flex-1 overflow-y-auto">
 					{/* Outgoing Relationships */}
 					{outgoingRels.length > 0 && (
 						<div>
@@ -201,6 +239,26 @@ const RelationshipSection = ({
 		}),
 	);
 
+	// Fetch cardinality detection
+	const cardinalityQuery = useQuery(
+		getRelationshipCardinalityQueryOptions({
+			url: connectionUrl,
+			schema:
+				relationship.type === "outgoing"
+					? relationship.referencingSchema
+					: relationship.referencingSchema,
+			table:
+				relationship.type === "outgoing"
+					? relationship.referencingTable
+					: relationship.referencingTable,
+			columns: [
+				relationship.type === "outgoing"
+					? relationship.referencingColumn
+					: relationship.referencingColumn,
+			],
+		}),
+	);
+
 	const relatedRows = (relatedRowsQuery.data?.rows ?? []) as Array<
 		Record<string, unknown>
 	>;
@@ -226,6 +284,13 @@ const RelationshipSection = ({
 							? relationship.referencedTable
 							: relationship.referencingTable}
 					</span>
+					{cardinalityQuery.data && (
+						<span className="ml-2 text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded">
+							{cardinalityQuery.data.cardinality === "one-to-one"
+								? "1:1"
+								: "1:N"}
+						</span>
+					)}
 				</div>
 
 				<div className="flex items-center gap-2 shrink-0">
