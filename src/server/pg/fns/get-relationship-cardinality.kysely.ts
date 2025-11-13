@@ -57,24 +57,30 @@ export const getRelationshipCardinality = (input: {
 				fk_side_unique AS (
 					SELECT
 						fk.oid,
-						COUNT(*) = 0 OR MAX(CASE WHEN con2.contype IN ('p', 'u') THEN 1 ELSE 0 END) > 0 as fk_is_unique
+						COALESCE(
+							EXISTS (
+								SELECT 1 FROM pg_constraint con2
+								WHERE con2.conrelid = fk.conrelid
+									AND con2.contype IN ('p', 'u')
+									AND con2.conkey = fk.conkey
+							),
+							false
+						) as fk_is_unique
 					FROM fk_info fk
-					LEFT JOIN pg_constraint con2 ON
-						con2.conrelid = fk.conrelid
-						AND con2.contype IN ('p', 'u')
-						AND con2.conkey = fk.conkey
-					GROUP BY fk.oid
 				),
 				referenced_side_unique AS (
 					SELECT
 						fk.oid,
-						COUNT(*) = 0 OR MAX(CASE WHEN con3.contype = 'p' THEN 1 ELSE 0 END) > 0 as referenced_is_pk
+						COALESCE(
+							EXISTS (
+								SELECT 1 FROM pg_constraint con3
+								WHERE con3.conrelid = fk.confrelid
+									AND con3.contype = 'p'
+									AND con3.conkey = fk.confkey
+							),
+							false
+						) as referenced_is_pk
 					FROM fk_info fk
-					LEFT JOIN pg_constraint con3 ON
-						con3.conrelid = fk.confrelid
-						AND con3.contype = 'p'
-						AND con3.conkey = fk.confkey
-					GROUP BY fk.oid
 				)
 				SELECT
 					CASE
