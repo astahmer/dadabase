@@ -116,7 +116,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		ExpandedRow,
 		virtualized = false,
 		estimateItemSize,
-		overscan = 10,
+		overscan = 30,
 		enableColumnOrdering = false,
 		expandedState,
 		relationships,

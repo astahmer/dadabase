@@ -54,7 +54,7 @@ export function VirtualizedTableBody<TData>({
 		count: rows.length,
 		getScrollElement: () => scrollElement,
 		estimateSize: () => estimateItemSize,
-		overscan,
+		overscan: overscan ?? 30,
 	});
 
 	const virtualRows = virtualizer.getVirtualItems();
