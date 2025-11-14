@@ -13,7 +13,7 @@ export class PoolCache extends Context.Tag("@dadabase/PoolCache")<
 >() {}
 
 type CacheEntry = { pool: Pool; lastUsed: number };
-const POOL_TTL_MS = 5 * 1000; // 5 minutes
+const POOL_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 export const makePoolCacheLive = Layer.effect(
 	PoolCache,

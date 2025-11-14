@@ -1,13 +1,10 @@
 import { useState } from "react";
-import { X, Maximize2, ChevronUp, ChevronDown } from "lucide-react";
+import { X, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
-import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start";
-import { getRelationshipCardinalityQueryOptions } from "#src/server/pg/start-fns/get-relationship-cardinality.start.ts";
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 import { RelationshipSubrowTable } from "./relationship-subrow-table";
 
 interface RelationshipsPanelProps {
@@ -163,21 +160,20 @@ export const RelationshipsPanel = ({
 			) : (
 				<div className="flex h-full overflow-hidden">
 					{/* Left Sidebar - Relationship List */}
-					<div className="w-64 border-r bg-muted/30 flex flex-col shrink-0 overflow-hidden">
-						{/* Sidebar Header */}
-						<div className="px-3 py-2 border-b shrink-0">
-							<p className="text-xs font-medium text-muted-foreground">
-								Relationships ({selectedRelationships.size})
-							</p>
-						</div>
-
+					<div className="w-72 border-r bg-muted/30 flex flex-col shrink-0 overflow-hidden">
 						{/* Relationships List */}
 						<div className="flex-1 overflow-y-auto">
 							{/* References (Outgoing) */}
 							{outgoingRels.length > 0 && (
 								<div>
 									<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted/50">
-										References
+										References (
+										{
+											outgoingRels.filter((r) =>
+												selectedRelationships.has(r.constraintName),
+											).length
+										}
+										)
 									</div>
 									<div className="space-y-0">
 										{outgoingRels.map((rel) => (
@@ -195,10 +191,10 @@ export const RelationshipsPanel = ({
 												<div className="flex items-start justify-between gap-2">
 													<div className="flex-1 min-w-0">
 														<div className="font-medium truncate">
-															{rel.referencingColumn}
+															{rel.referencingTable}.{rel.referencingColumn}
 														</div>
 														<div className="text-muted-foreground truncate text-xs">
-															→ {rel.referencedTable}
+															{rel.referencedTable}.{rel.referencedColumn}
 														</div>
 													</div>
 													<input
@@ -238,7 +234,13 @@ export const RelationshipsPanel = ({
 								<div>
 									{outgoingRels.length > 0 && <div className="border-t my-1" />}
 									<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted/50">
-										Referenced By
+										Referenced By (
+										{
+											incomingRels.filter((r) =>
+												selectedRelationships.has(r.constraintName),
+											).length
+										}
+										)
 									</div>
 									<div className="space-y-0">
 										{incomingRels.map((rel) => (
@@ -256,10 +258,12 @@ export const RelationshipsPanel = ({
 												<div className="flex items-start justify-between gap-2">
 													<div className="flex-1 min-w-0">
 														<div className="font-medium truncate">
-															{rel.referencingTable}
+															{rel.referencingSchema}.{rel.referencingTable}.
+															{rel.referencingColumn}
 														</div>
 														<div className="text-muted-foreground truncate text-xs">
-															← {rel.referencingColumn}
+															› {rel.referencedSchema}.{rel.referencedTable}.
+															{rel.referencedColumn}
 														</div>
 													</div>
 													<input
@@ -343,7 +347,6 @@ const RelationshipCard = ({
 	isPanelExpanded,
 	onRemove,
 }: RelationshipCardProps) => {
-	const [isMaximizeSheetOpen, setIsMaximizeSheetOpen] = useState(false);
 	// For outgoing relationships, get the FK value from the row
 	const fkValue =
 		relationship.type === "outgoing"
@@ -356,166 +359,15 @@ const RelationshipCard = ({
 			? rowData[relationship.referencedColumn]
 			: null;
 
-	// Fetch related rows
-	const relatedRowsQuery = useQuery(
-		queryRelationshipSubrowDataQueryOptions({
-			url: connectionUrl,
-			schema:
-				relationship.type === "outgoing"
-					? relationship.referencedSchema
-					: relationship.referencingSchema,
-			table:
-				relationship.type === "outgoing"
-					? relationship.referencedTable
-					: relationship.referencingTable,
-			filterColumn:
-				relationship.type === "outgoing"
-					? relationship.referencedColumn
-					: relationship.referencingColumn,
-			filterValue: relationship.type === "outgoing" ? fkValue : pkValue,
-			limit: 50,
-		}),
-	);
-
-	// Fetch cardinality detection
-	const cardinalityQuery = useQuery(
-		getRelationshipCardinalityQueryOptions({
-			url: connectionUrl,
-			schema: relationship.referencingSchema,
-			table: relationship.referencingTable,
-			columns: [relationship.referencingColumn],
-			isIncomingRelationship: relationship.type === "incoming",
-		}),
-	);
-
-	const relatedRows = (relatedRowsQuery.data?.rows ?? []) as Array<
-		Record<string, unknown>
-	>;
-	const hasValue = relationship.type === "outgoing" ? fkValue : pkValue;
-	const hasRelatedRows =
-		hasValue !== null && hasValue !== undefined && relatedRows.length > 0;
-	const rowCount = relatedRows.length as number;
-
 	return (
-		<>
-			{/* Info Bar */}
-			<div className="px-4 py-2 border-b bg-muted/20 flex items-center justify-between shrink-0 text-xs gap-2">
-				<div className="flex items-center gap-2 min-w-0">
-					<span className="text-muted-foreground truncate">
-						{relationship.referencingTable}
-						<span className="text-muted-foreground">
-							.{relationship.referencingColumn}
-						</span>
-					</span>
-					<span className="text-muted-foreground shrink-0">›</span>
-					<span className="font-medium truncate">
-						{relationship.referencedTable}
-						<span className="text-muted-foreground">
-							.{relationship.referencedColumn}
-						</span>
-					</span>
-
-					{cardinalityQuery.data && (
-						<span className="text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded shrink-0">
-							{cardinalityQuery.data.cardinality === "one-to-one"
-								? "1:1"
-								: cardinalityQuery.data.cardinality === "one-to-many"
-									? "1:N"
-									: cardinalityQuery.data.cardinality === "many-to-one"
-										? "N:1"
-										: "M:N"}
-						</span>
-					)}
-
-					{hasRelatedRows && (
-						<span className="text-muted-foreground shrink-0">
-							{rowCount} row{rowCount !== 1 ? "s" : ""}
-						</span>
-					)}
-				</div>
-
-				<div className="flex items-center gap-1 shrink-0">
-					{isPanelExpanded && hasRelatedRows && (
-						<Button
-							size="xs"
-							variant="ghost"
-							onClick={() => setIsMaximizeSheetOpen(true)}
-							title="Expand to full view"
-							className="h-6 px-2 gap-1"
-						>
-							<Maximize2 className="h-3 w-3" />
-							<span className="text-xs">Full Screen</span>
-						</Button>
-					)}
-					<Button
-						size="xs"
-						variant="ghost"
-						onClick={onRemove}
-						title="Remove from view"
-						className="h-6 px-2"
-					>
-						<X className="h-3 w-3" />
-					</Button>
-				</div>
-			</div>
-
-			{/* Data Table Area */}
-			<div className="flex-1 overflow-hidden flex flex-col">
-				{relatedRowsQuery.isPending ? (
-					<div className="flex items-center justify-center py-8 flex-1">
-						<Spinner />
-					</div>
-				) : relatedRowsQuery.isError ? (
-					<div className="p-4 text-sm text-destructive">
-						Error loading related rows
-					</div>
-				) : hasRelatedRows ? (
-					<div className="flex-1 overflow-hidden">
-						<RelationshipSubrowTable
-							relationship={relationship}
-							parentRowValue={
-								relationship.type === "outgoing" ? fkValue : pkValue
-							}
-							connection={{ url: connectionUrl }}
-						/>
-					</div>
-				) : (
-					<div className="flex items-center justify-center flex-1 text-sm text-muted-foreground">
-						No related rows
-					</div>
-				)}
-			</div>
-
-			{/* Maximize Sheet */}
-			<Sheet
-				open={isMaximizeSheetOpen}
-				onOpenChange={(details) => setIsMaximizeSheetOpen(details.open)}
-			>
-				<SheetContent side="bottom" className="h-[90vh] flex flex-col">
-					<SheetHeader>
-						<SheetTitle className="text-base">
-							{relationship.referencingTable}
-							<span className="text-muted-foreground text-sm ml-2">
-								.{relationship.referencingColumn}
-							</span>
-							<span className="text-muted-foreground mx-2">›</span>
-							{relationship.referencedTable}
-							<span className="text-muted-foreground text-sm ml-2">
-								.{relationship.referencedColumn}
-							</span>
-						</SheetTitle>
-					</SheetHeader>
-					<div className="flex-1 overflow-hidden">
-						<RelationshipSubrowTable
-							relationship={relationship}
-							parentRowValue={
-								relationship.type === "outgoing" ? fkValue : pkValue
-							}
-							connection={{ url: connectionUrl }}
-						/>
-					</div>
-				</SheetContent>
-			</Sheet>
-		</>
+		<div className="flex flex-col h-full overflow-hidden">
+			<RelationshipSubrowTable
+				relationship={relationship}
+				parentRowValue={relationship.type === "outgoing" ? fkValue : pkValue}
+				connection={{ url: connectionUrl }}
+				isPanelExpanded={isPanelExpanded}
+				onRemove={onRemove}
+			/>
+		</div>
 	);
 };

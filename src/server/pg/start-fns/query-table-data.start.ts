@@ -1,7 +1,7 @@
 import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { Effect, Schema } from "effect";
+import { DateTime, Duration, Effect, Schema } from "effect";
 import { queryTableData } from "../fns/query-table-data.kysely.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
@@ -25,10 +25,10 @@ const InputSchema = Schema.Struct({
 const queryTableDataServerFn = createServerFn()
 	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
 	.handler(async (ctx) => {
-		console.time("queryTableDataServerFn");
 		const input = ctx.data;
 
 		const startTime = Date.now();
+		console.log("---> queryTableDataServerFn");
 		const { rows, rowCount } = (await AppRuntime.runPromise(
 			Effect.gen(function* () {
 				const repo = yield* DatabaseConnectionRepository;
@@ -50,7 +50,10 @@ const queryTableDataServerFn = createServerFn()
 			}),
 		)) as { rows: Record<string, any>[]; rowCount: number };
 		const endTime = Date.now();
-		console.timeEnd("queryTableDataServerFn");
+		console.log(
+			"<--- queryTableDataServerFn",
+			Duration.format(Duration.toMillis(endTime - startTime)),
+		);
 
 		return {
 			rows,
