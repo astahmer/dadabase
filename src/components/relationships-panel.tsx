@@ -1,7 +1,6 @@
-import { useState, useMemo } from "react";
-import { ChevronDown, ChevronUp, X, Maximize2 } from "lucide-react";
+import { useState } from "react";
+import { X, Maximize2, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { createListCollection } from "@ark-ui/react";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
 import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start";
@@ -9,7 +8,6 @@ import { getRelationshipCardinalityQueryOptions } from "#src/server/pg/start-fns
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
-import * as ArkSelect from "./ui/select";
 import { RelationshipSubrowTable } from "./relationship-subrow-table";
 
 interface RelationshipsPanelProps {
@@ -38,6 +36,9 @@ export const RelationshipsPanel = ({
 	const [selectedRelationships, setSelectedRelationships] = useState<
 		Set<string>
 	>(new Set());
+	const [activeRelationship, setActiveRelationship] = useState<string | null>(
+		null,
+	);
 
 	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
@@ -59,46 +60,34 @@ export const RelationshipsPanel = ({
 		const firstOutgoing = relationships.find((r) => r.type === "outgoing");
 		const firstIncoming = relationships.find((r) => r.type === "incoming");
 		const defaults = new Set<string>();
-		if (firstOutgoing) defaults.add(firstOutgoing.constraintName);
-		if (firstIncoming) defaults.add(firstIncoming.constraintName);
+		let firstToShow: string | null = null;
+
+		if (firstOutgoing) {
+			defaults.add(firstOutgoing.constraintName);
+			if (!firstToShow) firstToShow = firstOutgoing.constraintName;
+		}
+		if (firstIncoming) {
+			defaults.add(firstIncoming.constraintName);
+			if (!firstToShow) firstToShow = firstIncoming.constraintName;
+		}
 		if (defaults.size === 0 && relationships.length > 0) {
 			defaults.add(relationships[0].constraintName);
+			firstToShow = relationships[0].constraintName;
 		}
+
 		setSelectedRelationships(defaults);
+		setActiveRelationship(firstToShow);
+	}
+
+	// Set active to first if no active set
+	if (!activeRelationship && selectedRelationships.size > 0) {
+		const firstSelected = Array.from(selectedRelationships)[0];
+		setActiveRelationship(firstSelected);
 	}
 
 	// Separate relationships by type
 	const outgoingRels = relationships.filter((r) => r.type === "outgoing");
 	const incomingRels = relationships.filter((r) => r.type === "incoming");
-
-	// Create grouped collection for dropdown
-	const relationshipCollection = useMemo(() => {
-		const items: Array<{ label: string; value: string; group?: string }> = [];
-
-		// Add outgoing relationships
-		outgoingRels.forEach((rel) => {
-			items.push({
-				label: `${rel.referencingTable}.${rel.referencingColumn} › ${rel.referencedTable}.${rel.referencedColumn}`,
-				value: rel.constraintName,
-				group: "References (Outgoing)",
-			});
-		});
-
-		// Add incoming relationships
-		incomingRels.forEach((rel) => {
-			items.push({
-				label: `${rel.referencingTable}.${rel.referencingColumn} › ${rel.referencedTable}.${rel.referencedColumn}`,
-				value: rel.constraintName,
-				group: "Referenced By (Incoming)",
-			});
-		});
-
-		return createListCollection({ items });
-	}, [outgoingRels, incomingRels]);
-
-	const selectedRels = relationships.filter((r) =>
-		selectedRelationships.has(r.constraintName),
-	);
 
 	if (!isPanelExpanded) {
 		return (
@@ -172,129 +161,167 @@ export const RelationshipsPanel = ({
 					No relationships found
 				</div>
 			) : (
-				<div className="flex flex-col h-full overflow-hidden">
-					{/* Selector Bar */}
-					<div className="px-4 py-3 border-b shrink-0">
-						<div className="flex items-center gap-2">
-							<label className="text-xs font-medium text-muted-foreground">
-								Relationship showns:
-							</label>
-							<ArkSelect.Select
-								collection={relationshipCollection}
-								value={Array.from(selectedRelationships)}
-								onValueChange={(details) => {
-									if (details.value) {
-										setSelectedRelationships(
-											new Set(details.value.map((v) => String(v))),
-										);
-									}
-								}}
-								positioning={{ sameWidth: true }}
-								multiple
-							>
-								<ArkSelect.SelectControl size="sm">
-									<ArkSelect.SelectTrigger>
-										<ArkSelect.SelectValueText placeholder="Select relationships..." />
-										<ArkSelect.SelectIndicator />
-									</ArkSelect.SelectTrigger>
-								</ArkSelect.SelectControl>
-								<ArkSelect.SelectContent>
-									<ArkSelect.SelectList>
-										{/* References (Outgoing) Group */}
-										{outgoingRels.length > 0 && (
-											<ArkSelect.SelectItemGroup>
-												<ArkSelect.SelectItemGroupLabel>
-													References (Outgoing)
-												</ArkSelect.SelectItemGroupLabel>
-												{outgoingRels.map((rel) => (
-													<ArkSelect.SelectItem
-														key={rel.constraintName}
-														item={{
-															label: `${rel.referencingTable}.${rel.referencingColumn} › ${rel.referencedTable}.${rel.referencedColumn}`,
-															value: rel.constraintName,
-														}}
-													>
-														<div className="flex items-center gap-2 text-sm">
-															<span>
-																{rel.referencingTable}
-																<span className="text-muted-foreground text-xs">
-																	.{rel.referencingColumn}
-																</span>
-															</span>
-															<span className="text-muted-foreground">›</span>
-															<span>
-																{rel.referencedTable}
-																<span className="text-muted-foreground text-xs">
-																	.{rel.referencedColumn}
-																</span>
-															</span>
-														</div>
-													</ArkSelect.SelectItem>
-												))}
-											</ArkSelect.SelectItemGroup>
-										)}
+				<div className="flex h-full overflow-hidden">
+					{/* Left Sidebar - Relationship List */}
+					<div className="w-64 border-r bg-muted/30 flex flex-col shrink-0 overflow-hidden">
+						{/* Sidebar Header */}
+						<div className="px-3 py-2 border-b shrink-0">
+							<p className="text-xs font-medium text-muted-foreground">
+								Relationships ({selectedRelationships.size})
+							</p>
+						</div>
 
-										{/* Referenced By (Incoming) Group */}
-										{incomingRels.length > 0 && (
-											<>
-												{outgoingRels.length > 0 && (
-													<ArkSelect.SelectSeparator />
-												)}
-												<ArkSelect.SelectItemGroup>
-													<ArkSelect.SelectItemGroupLabel>
-														Referenced By (Incoming)
-													</ArkSelect.SelectItemGroupLabel>
-													{incomingRels.map((rel) => (
-														<ArkSelect.SelectItem
-															key={rel.constraintName}
-															item={{
-																label: `${rel.referencingTable}.${rel.referencingColumn} › ${rel.referencedTable}.${rel.referencedColumn}`,
-																value: rel.constraintName,
-															}}
-														>
-															<div className="flex items-center gap-2 text-sm">
-																<span>
-																	{rel.referencingTable}
-																	<span className="text-muted-foreground text-xs">
-																		.{rel.referencingColumn}
-																	</span>
-																</span>
-																<span className="text-muted-foreground">›</span>
-																<span>
-																	{rel.referencedTable}
-																	<span className="text-muted-foreground text-xs">
-																		.{rel.referencedColumn}
-																	</span>
-																</span>
-															</div>
-														</ArkSelect.SelectItem>
-													))}
-												</ArkSelect.SelectItemGroup>
-											</>
-										)}
-									</ArkSelect.SelectList>
-								</ArkSelect.SelectContent>
-							</ArkSelect.Select>
+						{/* Relationships List */}
+						<div className="flex-1 overflow-y-auto">
+							{/* References (Outgoing) */}
+							{outgoingRels.length > 0 && (
+								<div>
+									<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted/50">
+										References
+									</div>
+									<div className="space-y-0">
+										{outgoingRels.map((rel) => (
+											<button
+												key={rel.constraintName}
+												onClick={() =>
+													setActiveRelationship(rel.constraintName)
+												}
+												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
+													activeRelationship === rel.constraintName
+														? "bg-accent border-l-2 border-primary"
+														: ""
+												}`}
+											>
+												<div className="flex items-start justify-between gap-2">
+													<div className="flex-1 min-w-0">
+														<div className="font-medium truncate">
+															{rel.referencingColumn}
+														</div>
+														<div className="text-muted-foreground truncate text-xs">
+															→ {rel.referencedTable}
+														</div>
+													</div>
+													<input
+														type="checkbox"
+														checked={selectedRelationships.has(
+															rel.constraintName,
+														)}
+														onChange={(e) => {
+															e.stopPropagation();
+															const next = new Set(selectedRelationships);
+															if (e.target.checked) {
+																next.add(rel.constraintName);
+																if (!activeRelationship) {
+																	setActiveRelationship(rel.constraintName);
+																}
+															} else {
+																next.delete(rel.constraintName);
+																if (activeRelationship === rel.constraintName) {
+																	// Switch to another selected rel or first if none selected
+																	const remaining = Array.from(next);
+																	setActiveRelationship(remaining[0] ?? null);
+																}
+															}
+															setSelectedRelationships(next);
+														}}
+														className="mt-0.5 shrink-0 cursor-pointer"
+													/>
+												</div>
+											</button>
+										))}
+									</div>
+								</div>
+							)}
+
+							{/* Referenced By (Incoming) */}
+							{incomingRels.length > 0 && (
+								<div>
+									{outgoingRels.length > 0 && <div className="border-t my-1" />}
+									<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted/50">
+										Referenced By
+									</div>
+									<div className="space-y-0">
+										{incomingRels.map((rel) => (
+											<button
+												key={rel.constraintName}
+												onClick={() =>
+													setActiveRelationship(rel.constraintName)
+												}
+												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
+													activeRelationship === rel.constraintName
+														? "bg-accent border-l-2 border-primary"
+														: ""
+												}`}
+											>
+												<div className="flex items-start justify-between gap-2">
+													<div className="flex-1 min-w-0">
+														<div className="font-medium truncate">
+															{rel.referencingTable}
+														</div>
+														<div className="text-muted-foreground truncate text-xs">
+															← {rel.referencingColumn}
+														</div>
+													</div>
+													<input
+														type="checkbox"
+														checked={selectedRelationships.has(
+															rel.constraintName,
+														)}
+														onChange={(e) => {
+															e.stopPropagation();
+															const next = new Set(selectedRelationships);
+															if (e.target.checked) {
+																next.add(rel.constraintName);
+																if (!activeRelationship) {
+																	setActiveRelationship(rel.constraintName);
+																}
+															} else {
+																next.delete(rel.constraintName);
+																if (activeRelationship === rel.constraintName) {
+																	// Switch to another selected rel or first if none selected
+																	const remaining = Array.from(next);
+																	setActiveRelationship(remaining[0] ?? null);
+																}
+															}
+															setSelectedRelationships(next);
+														}}
+														className="mt-0.5 shrink-0 cursor-pointer"
+													/>
+												</div>
+											</button>
+										))}
+									</div>
+								</div>
+							)}
 						</div>
 					</div>
 
-					{/* Relationships List */}
-					<div className="flex-1 overflow-y-auto divide-y divide-border/50">
-						{selectedRels.map((rel) => (
-							<RelationshipCard
-								key={rel.constraintName}
-								relationship={rel}
-								rowData={rowData}
-								connectionUrl={connectionUrl}
-								isPanelExpanded={isPanelExpanded}
-								onRemove={() => {
-									const next = new Set(selectedRelationships);
-									next.delete(rel.constraintName);
-									setSelectedRelationships(next);
-								}}
-							/>
-						))}
-					</div>
+					{/* Right Panel - Data Display */}
+					{activeRelationship &&
+					selectedRelationships.has(activeRelationship) ? (
+						<RelationshipCard
+							relationship={
+								relationships.find(
+									(r) => r.constraintName === activeRelationship,
+								)!
+							}
+							rowData={rowData}
+							connectionUrl={connectionUrl}
+							isPanelExpanded={isPanelExpanded}
+							onRemove={() => {
+								const next = new Set(selectedRelationships);
+								next.delete(activeRelationship);
+								setSelectedRelationships(next);
+								// Switch to another selected rel or clear active
+								const remaining = Array.from(next);
+								setActiveRelationship(remaining[0] ?? null);
+							}}
+						/>
+					) : (
+						<div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+							Select a relationship to view details
+						</div>
+					)}
 				</div>
 			)}
 		</div>
