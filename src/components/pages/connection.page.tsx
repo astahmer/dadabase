@@ -328,9 +328,13 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																					pageState.relationshipRowId
 																				}
 																				rowData={
-																					rowsDataTable.getRow(
-																						pageState.relationshipRowId!,
-																					)?.original ?? {}
+																					rowsDataTable
+																						.getRowModel()
+																						.rows.find(
+																							(row) =>
+																								row.id ===
+																								pageState.relationshipRowId,
+																						)?.original ?? {}
 																				}
 																				isPanelExpanded={isPanelExpanded}
 																				onCollapse={() => {
