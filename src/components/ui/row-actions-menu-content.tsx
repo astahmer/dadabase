@@ -1,4 +1,4 @@
-import { Code, Copy, Eye } from "lucide-react";
+import { Code, Copy, Eye, Link } from "lucide-react";
 import { Clipboard, useClipboard } from "@ark-ui/react";
 import { MenuItem, MenuItemText } from "./menu";
 
@@ -6,12 +6,14 @@ export interface RowActionsMenuContentProps {
 	row: Record<string, unknown>;
 	onViewJson?: () => void;
 	onClose?: () => void;
+	onExpandRelationships?: () => void;
 }
 
 export function RowActionsMenuContent({
 	row,
 	onViewJson,
 	onClose,
+	onExpandRelationships,
 }: RowActionsMenuContentProps) {
 	const handleLogRow = () => {
 		console.log("Row data:", row);
@@ -47,6 +49,15 @@ export function RowActionsMenuContent({
 						<MenuItemText>Copy row as JSON</MenuItemText>
 					</Clipboard.Trigger>
 				</MenuItem>
+				{onExpandRelationships && (
+					<MenuItem
+						value="expand-relationships"
+						onClick={onExpandRelationships}
+					>
+						<Link className="size-4" />
+						<MenuItemText>Expand relationships</MenuItemText>
+					</MenuItem>
+				)}
 			</Clipboard.RootProvider>
 		</>
 	);

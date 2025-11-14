@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, useRef } from "react";
-import { getCommonPinningStyles } from "../lib/get-pinning-styles.ts";
+import { getColumnPinningStyles } from "../lib/get-pinning-styles.ts";
 import type { RelationshipMetadata } from "../types/relationships";
 import { cn } from "../lib/utils.ts";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
@@ -361,7 +361,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 													data-column-pinned={headerCell.column.getIsPinned()}
 													style={{
 														width: `${headerCell.getSize()}px`,
-														...getCommonPinningStyles(column),
+														...getColumnPinningStyles(column),
 													}}
 													className={tableHeaderCellStyles({
 														size,

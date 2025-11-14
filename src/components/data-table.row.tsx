@@ -2,9 +2,9 @@ import {
 	horizontalListSortingStrategy,
 	SortableContext,
 } from "@dnd-kit/sortable";
-import type { Row } from "@tanstack/react-table";
+import { flexRender, type Row } from "@tanstack/react-table";
 import type { ReactNode } from "react";
-import { Fragment, memo } from "react";
+import { Fragment, memo, useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import type { RelationshipMetadata } from "../types/relationships";
 import { DataTableCell } from "./data-table.cell.tsx";
@@ -14,6 +14,7 @@ import {
 	type DataTableSize,
 } from "./data-table.styles.ts";
 import { RowContextMenu } from "./row-context-menu";
+import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
 
 const fallbackRender = () => "An error happened";
 
@@ -57,20 +58,38 @@ export const DataTableRow = memo(function TableRow({
 	const row = getRow();
 	const visibleCells = row.getVisibleCells();
 	const isSelected = row.getIsSelected();
+	const isExpanded = row.getIsExpanded();
 
 	const ContextMenu = withContextMenu ? RowContextMenu : Fragment;
 
-	const CellsList = visibleCells.map((cell, cellIndex) => (
-		<DataTableCell
-			key={cell.id}
-			cell={cell}
-			index={cellIndex}
-			isExpanded={row.getIsExpanded()}
-			size={size}
-			showColumnBorder={showColumnBorder}
-			enableColumnOrdering={enableColumnOrdering}
-		/>
-	));
+	const CellsList = useMemo(() => {
+		return visibleCells.map((cell, cellIndex) => {
+			const isPinned = Boolean(cell.column.getIsPinned());
+			const isDragDisabled =
+				(cell.column.columnDef.meta as any)?.enableColumnOrdering === false ||
+				isPinned;
+			const textAlign =
+				(cell.column.columnDef.meta as any)?.textAlign || "left";
+
+			return (
+				<DataTableCell
+					key={cell.id}
+					columnId={cell.column.id}
+					columnSize={cell.column.getSize()}
+					isDragDisabled={isDragDisabled}
+					textAlign={textAlign}
+					index={cellIndex}
+					isExpanded={isExpanded}
+					size={size}
+					showColumnBorder={showColumnBorder}
+					enableColumnOrdering={enableColumnOrdering}
+					style={isPinned ? getColumnPinningStyles(cell.column) : undefined}
+				>
+					{flexRender(cell.column.columnDef.cell, cell.getContext())}
+				</DataTableCell>
+			);
+		});
+	}, [visibleCells, isSelected, isExpanded]);
 
 	return (
 		<Fragment>
@@ -109,7 +128,7 @@ export const DataTableRow = memo(function TableRow({
 					)}
 				</tr>
 			</ContextMenu>
-			{row.getIsExpanded() && ExpandedRow && (
+			{isExpanded && ExpandedRow && (
 				<tr
 					className={`border-b ${isSelected ? "bg-blue-50" : ""}`}
 					data-testid={`row-${index}-subrow`}

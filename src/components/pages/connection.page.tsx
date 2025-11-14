@@ -73,6 +73,20 @@ interface ConnectionPageProps {
 	connectionName: string;
 }
 
+const panels = [
+	{
+		id: "table",
+		collapsible: false,
+		minSize: 30,
+	},
+	{
+		id: "relationships",
+		collapsible: true,
+		collapsedSize: 8,
+		minSize: 8,
+	},
+];
+
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const connection = connectionList.data.find((c) => c.name === connectionName);
@@ -111,13 +125,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
 		null,
 	);
-
-	// TODO rm
-	const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
-	const [selectedRowData, setSelectedRowData] = useState<Record<
-		string,
-		unknown
-	> | null>(null);
 
 	const pageState = useConnectionPageState({ connection });
 	const {
@@ -228,19 +235,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 												<Splitter.Root
 													orientation="vertical"
 													className="flex-1 flex flex-col h-full overflow-hidden"
-													panels={[
-														{
-															id: "table",
-															collapsible: false,
-															minSize: 30,
-														},
-														{
-															id: "relationships",
-															collapsible: true,
-															collapsedSize: 8,
-															minSize: 8,
-														},
-													]}
+													panels={panels}
 												>
 													<Splitter.Panel
 														id="table"
@@ -260,22 +255,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															RelationshipSubrowComponent={
 																RelationshipSubrowComponent
 															}
-															onRowClick={(row) => {
-																console.log(row);
-																// TODO rm?
-																const primaryKeyColumn = columnMetadata.find(
-																	(col) => col.primaryKey,
-																);
-																const rowId = primaryKeyColumn
-																	? String(row.original[primaryKeyColumn.name])
-																	: undefined;
-																if (rowId) {
-																	setSelectedRowId(rowId);
-																	setSelectedRowData(
-																		row.original as Record<string, unknown>,
-																	);
-																}
-															}}
 															onColumnFilterClick={(columnId, _columnName) => {
 																navigate({
 																	search: (prev) => ({
@@ -322,7 +301,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															)}
 													</Splitter.Panel>
 
-													{selectedRowId && selectedRowData && (
+													{pageState.relationshipRowId && (
 														<>
 															<Splitter.ResizeTrigger
 																id="table:relationships"
@@ -345,14 +324,23 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																				connectionUrl={activeConnectionUrl}
 																				schema={search.schema}
 																				table={search.table!}
-																				selectedRowId={selectedRowId}
-																				rowData={selectedRowData}
+																				selectedRowId={
+																					pageState.relationshipRowId
+																				}
+																				rowData={
+																					rowsDataTable.getRow(
+																						pageState.relationshipRowId!,
+																					)?.original ?? {}
+																				}
 																				isPanelExpanded={isPanelExpanded}
-																				onPanelHidden={() => {
+																				onCollapse={() => {
 																					ctx.collapsePanel("relationships");
 																				}}
-																				onPanelExpanded={() => {
+																				onExpand={() => {
 																					ctx.expandPanel("relationships");
+																				}}
+																				onClose={() => {
+																					pageState.setRelationshipRowId(null);
 																				}}
 																				selectedRowCount={
 																					rowsDataTable.getSelectedRowModel()

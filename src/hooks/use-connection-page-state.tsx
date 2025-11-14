@@ -24,7 +24,7 @@ import type {
 	ColumnDef,
 	ColumnPinningState,
 } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 function replaceDatabaseInConnectionUrl(
 	connectionUrl: string,
@@ -220,6 +220,10 @@ export const useConnectionPageState = ({
 		[rowsList],
 	);
 
+	const [relationshipRowId, setRelationshipRowId] = useState<string | null>(
+		null,
+	);
+
 	// Static columns
 	const staticColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(
 		() => [
@@ -228,11 +232,12 @@ export const useConnectionPageState = ({
 				meta: { enableColumnOrdering: false },
 				header: (ctx) => {
 					const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
+					const isAllSelected = ctx.table.getIsAllRowsSelected();
 					return (
 						<Checkbox
 							className="flex items-center gap-2 ml-2"
 							checked={
-								ctx.table.getIsAllRowsSelected()
+								isAllSelected
 									? true
 									: isSomeRowsSelected
 										? "indeterminate"
@@ -246,9 +251,11 @@ export const useConnectionPageState = ({
 					);
 				},
 				cell: (ctx) => {
+					const isSelected = ctx.row.getIsSelected();
 					return (
 						<Checkbox
 							className="flex items-center gap-2 ml-2"
+							checked={isSelected}
 							disabled={!ctx.row.getCanSelect()}
 							onChange={ctx.row.getToggleSelectedHandler()}
 							aria-label="Select row"
@@ -286,6 +293,7 @@ export const useConnectionPageState = ({
 								}),
 							});
 						}}
+						onExpandRelationships={() => setRelationshipRowId(ctx.row.id)}
 					/>
 				),
 				size: 40,
@@ -659,7 +667,7 @@ export const useConnectionPageState = ({
 			);
 		}
 		return state;
-	}, [search.columnPinning, staticColumns]);
+	}, [search.columnPinning]);
 
 	// Column order state
 	const columnOrderState = useMemo(() => {
@@ -856,6 +864,8 @@ export const useConnectionPageState = ({
 		rowsDataTable,
 		rowsColumns,
 		hasUuid,
+		relationshipRowId,
+		setRelationshipRowId,
 		relationships: [
 			...relationshipsQuery.incomingReferences,
 			...relationshipsQuery.outgoingForeignKeys,

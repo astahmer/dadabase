@@ -5,6 +5,7 @@ import {
 	ChevronUp,
 	Trash2,
 	Download,
+	X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
@@ -22,8 +23,9 @@ interface RelationshipsPanelProps {
 	selectedRowId: string | null;
 	rowData: Record<string, unknown> | null;
 	isPanelExpanded: boolean;
-	onPanelHidden: () => void;
-	onPanelExpanded: () => void;
+	onCollapse: () => void;
+	onExpand: () => void;
+	onClose: () => void;
 	selectedRowCount?: number;
 	onDelete?: () => void;
 	onExport?: () => void;
@@ -37,9 +39,10 @@ export const RelationshipsPanel = ({
 	selectedRowId,
 	rowData,
 	isPanelExpanded,
-	onPanelHidden,
-	onPanelExpanded,
-	selectedRowCount = 1,
+	onCollapse: onCollapse,
+	onExpand: onExpand,
+	onClose: onClose,
+	selectedRowCount = 0,
 	onDelete,
 	onExport,
 	isActionLoading = false,
@@ -78,99 +81,66 @@ export const RelationshipsPanel = ({
 	};
 
 	if (!isPanelExpanded) {
-		const allRelationshipTables = relationships
-			.map((r) =>
-				r.type === "outgoing" ? r.referencedTable : r.referencingTable,
-			)
-			.filter((table, idx, arr) => arr.indexOf(table) === idx); // Deduplicate
-
 		return (
 			<div className="border-t bg-muted/40 h-10 flex items-center px-3 shrink-0 min-h-10 gap-2 overflow-x-auto">
 				<button
-					onClick={() => {
-						onPanelExpanded();
-					}}
+					onClick={onExpand}
 					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
 					title="Expand relationships panel"
 				>
 					<ChevronUp className="h-3 w-3" />
-					<span className="font-medium">Relations:</span>
-				</button>
-
-				{allRelationshipTables.length > 0 ? (
-					<div className="flex items-center gap-1 flex-1 min-w-0">
-						{allRelationshipTables.slice(0, 4).map((relTable) => (
-							<button
-								key={relTable}
-								onClick={() => {
-									// TODO also expand the relation in the panel
-									onPanelExpanded();
-								}}
-								className="px-2 py-0.5 text-xs bg-background border border-border/50 rounded hover:bg-accent/50 hover:border-border transition-colors whitespace-nowrap shrink-0"
-								title={`Click to expand and view ${relTable}`}
-							>
-								{relTable}
-							</button>
-						))}
-						{allRelationshipTables.length > 4 && (
-							<button
-								onClick={() => {
-									// TODO also expand the relation in the panel
-									onPanelExpanded();
-								}}
-								className="px-2 py-0.5 text-xs bg-background border border-border/50 rounded hover:bg-accent/50 hover:border-border transition-colors whitespace-nowrap shrink-0"
-							>
-								{allRelationshipTables.length - 4} more
-							</button>
-						)}
+					<span className="font-medium">Click to expand relations for:</span>
+					<div className="flex items-center gap-2 min-w-0 flex-1 text-sm font-medium whitespace-nowrap">
+						<span>
+							{schema}.{table}
+						</span>
+						<span>=</span>
+						<span>{selectedRowId}</span>
 					</div>
-				) : (
-					<span className="text-xs text-muted-foreground italic">
-						No relationships
-					</span>
-				)}
+				</button>
 
 				{/* Bulk Actions */}
 				{/* TODO */}
-				{selectedRowCount > 0 && false && (
-					<div className="ml-auto flex items-center gap-1 shrink-0">
-						{onExport && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={onExport}
-								disabled={isActionLoading}
-								className="h-6 px-2 text-xs"
-								title="Export selected rows"
-							>
-								<Download className="h-3 w-3 mr-1" />
-								Export
-							</Button>
-						)}
-						{onDelete && (
-							<Button
-								variant="destructive"
-								size="sm"
-								onClick={onDelete}
-								disabled={isActionLoading}
-								className="h-6 px-2 text-xs"
-								title="Delete selected rows"
-							>
-								<Trash2 className="h-3 w-3 mr-1" />
-								Delete
-							</Button>
-						)}
-						<button
-							onClick={() => {
-								onPanelExpanded();
-							}}
-							className="p-1 hover:bg-accent/50 rounded transition-colors shrink-0"
-							title="Expand relationships panel"
-						>
-							<ChevronUp className="h-4 w-4" />
-						</button>
-					</div>
-				)}
+				<div className="ml-auto flex items-center gap-1 shrink-0">
+					{selectedRowCount > 0 && false && (
+						<>
+							{onExport && (
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={onExport}
+									disabled={isActionLoading}
+									className="h-6 px-2 text-xs"
+									title="Export selected rows"
+								>
+									<Download className="h-3 w-3 mr-1" />
+									Export
+								</Button>
+							)}
+							{onDelete && (
+								<Button
+									variant="destructive"
+									size="sm"
+									onClick={onDelete}
+									disabled={isActionLoading}
+									className="h-6 px-2 text-xs"
+									title="Delete selected rows"
+								>
+									<Trash2 className="h-3 w-3 mr-1" />
+									Delete
+								</Button>
+							)}
+						</>
+					)}
+					<Button
+						onClick={onClose}
+						size="xs"
+						variant="ghost"
+						title="Close relationships panel"
+					>
+						<X className="h-4 w-4" />
+					</Button>
+				</div>
 			</div>
 		);
 	}
@@ -178,15 +148,21 @@ export const RelationshipsPanel = ({
 	return (
 		<div className="border-t bg-card flex flex-col h-full overflow-hidden">
 			<div className="px-4 py-3 border-b flex items-center justify-between shrink-0 gap-2">
-				<div className="flex items-center gap-2 min-w-0 flex-1">
-					<span className="text-sm text-foreground font-medium whitespace-nowrap">
-						{schema}.{table}
-					</span>
-					<span className="text-xs text-muted-foreground">=</span>
-					<span className="text-sm text-muted-foreground font-medium whitespace-nowrap">
-						{selectedRowId}
-					</span>
-				</div>
+				<button
+					onClick={onCollapse}
+					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+					title="Expand relationships panel"
+				>
+					<ChevronDown className="h-3 w-3" />
+					<span className="font-medium">Click to hide relations for:</span>
+					<div className="flex items-center gap-2 min-w-0 flex-1 text-sm font-medium whitespace-nowrap">
+						<span>
+							{schema}.{table}
+						</span>
+						<span>=</span>
+						<span>{selectedRowId}</span>
+					</div>
+				</button>
 
 				{/* Bulk Actions in Expanded State */}
 				{/* TODO */}
@@ -221,15 +197,14 @@ export const RelationshipsPanel = ({
 					</div>
 				)}
 
-				<button
-					onClick={() => {
-						onPanelHidden();
-					}}
-					className="p-1 hover:bg-accent/50 rounded transition-colors shrink-0"
-					title="Collapse relationships panel"
+				<Button
+					onClick={onClose}
+					size="xs"
+					variant="ghost"
+					title="Close relationships panel"
 				>
-					<ChevronDown className="h-4 w-4" />
-				</button>
+					<X className="h-4 w-4" />
+				</Button>
 			</div>
 
 			{relationshipsQuery.isLoading ? (
@@ -355,11 +330,7 @@ const RelationshipSection = ({
 	const hasRelatedRows = hasValue && relatedRows.length > 0;
 
 	return (
-		<div
-			onClick={() => {
-				console.log(relationship, cardinalityQuery.data);
-			}}
-		>
+		<div>
 			{/* Header Button */}
 			<button
 				onClick={onToggle}
