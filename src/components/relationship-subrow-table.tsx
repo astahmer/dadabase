@@ -3,13 +3,14 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { getErrorMessage } from "../lib/get-error-message";
 import type { RelationshipMetadata } from "../types/relationships";
+import type { TableRelationship } from "../server/pg/fns/get-table-relationships.kysely";
 import { queryRelationshipSubrowDataQueryOptions } from "../server/pg/start-fns/get-relationship-subrow-data.start";
 import { DataTable } from "./data-table";
 import { useDataTable } from "./use-data-table";
 import { Spinner } from "./ui/spinner";
 
 interface RelationshipSubrowTableProps {
-	relationship: RelationshipMetadata;
+	relationship: RelationshipMetadata | TableRelationship;
 	parentRowValue: unknown;
 	connection: { url: string };
 }
@@ -17,7 +18,9 @@ interface RelationshipSubrowTableProps {
 /**
  * Create a unique ID for a relationship (for expansion state)
  */
-function getRelationshipId(rel: RelationshipMetadata): string {
+function getRelationshipId(
+	rel: RelationshipMetadata | TableRelationship,
+): string {
 	return `${rel.referencingSchema}.${rel.referencingTable}.${rel.constraintName}`;
 }
 

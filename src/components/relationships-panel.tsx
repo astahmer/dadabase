@@ -6,6 +6,7 @@ import {
 	Trash2,
 	Download,
 	X,
+	Maximize2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
@@ -15,6 +16,8 @@ import { getRelationshipCardinalityQueryOptions } from "#src/server/pg/start-fns
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
 import { HStack } from "./ui/layout.tsx";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
+import { RelationshipSubrowTable } from "./relationship-subrow-table";
 
 interface RelationshipsPanelProps {
 	connectionUrl: string;
@@ -232,6 +235,7 @@ export const RelationshipsPanel = ({
 										isExpanded={expandedRelationships.has(rel.constraintName)}
 										onToggle={() => toggleExpanded(rel.constraintName)}
 										connectionUrl={connectionUrl}
+										isPanelExpanded={isPanelExpanded}
 									/>
 								))}
 							</div>
@@ -253,6 +257,7 @@ export const RelationshipsPanel = ({
 										isExpanded={expandedRelationships.has(rel.constraintName)}
 										onToggle={() => toggleExpanded(rel.constraintName)}
 										connectionUrl={connectionUrl}
+										isPanelExpanded={isPanelExpanded}
 									/>
 								))}
 							</div>
@@ -270,6 +275,7 @@ interface RelationshipSectionProps {
 	isExpanded: boolean;
 	onToggle: () => void;
 	connectionUrl: string;
+	isPanelExpanded: boolean;
 }
 
 const RelationshipSection = ({
@@ -278,7 +284,9 @@ const RelationshipSection = ({
 	isExpanded,
 	onToggle,
 	connectionUrl,
+	isPanelExpanded,
 }: RelationshipSectionProps) => {
+	const [isMaximizeSheetOpen, setIsMaximizeSheetOpen] = useState(false);
 	// For outgoing relationships, get the FK value from the row
 	const fkValue =
 		relationship.type === "outgoing"
@@ -387,7 +395,7 @@ const RelationshipSection = ({
 
 			{/* Expanded Content */}
 			{isExpanded && hasRelatedRows ? (
-				<div className="mt-2 ml-4 p-2 bg-muted/30 rounded border border-border/30">
+				<div className="mt-2 ml-4 bg-muted/30 rounded border border-border/30 overflow-hidden">
 					{relatedRowsQuery.isPending ? (
 						<div className="flex items-center justify-center py-4">
 							<Spinner size="sm" />
@@ -397,28 +405,33 @@ const RelationshipSection = ({
 							Error loading related rows
 						</div>
 					) : (
-						<div className="text-xs space-y-1 max-h-48 overflow-y-auto">
-							{relatedRows.slice(0, 10).map((row, idx) => (
-								<div
-									key={idx}
-									className="p-2 bg-background rounded border border-border/50 hover:bg-accent/30 cursor-pointer transition-colors"
-									title={JSON.stringify(row, null, 2)}
-								>
-									<div className="font-mono text-xs truncate">
-										{String(Object.values(row)?.[0] ?? "—")}
-									</div>
-									{Object.values(row).length > 1 && (
-										<div className="text-muted-foreground truncate">
-											{String(Object.values(row)?.[1] ?? "")}
-										</div>
-									)}
+						<div className="flex flex-col">
+							<div className="px-3 py-2 bg-muted/50 border-b border-border/30 flex items-center justify-between">
+								<div className="text-xs font-medium text-muted-foreground">
+									{relatedRows.length} related row
+									{relatedRows.length !== 1 ? "s" : ""}
 								</div>
-							))}
-							{relatedRows.length > 10 && (
-								<div className="text-center text-muted-foreground py-2">
-									+{relatedRows.length - 10} more
-								</div>
-							)}
+								{isPanelExpanded && (
+									<Button
+										size="xs"
+										variant="ghost"
+										onClick={() => setIsMaximizeSheetOpen(true)}
+										title="Expand to full view"
+										className="h-5 px-1"
+									>
+										<Maximize2 className="h-3 w-3" />
+									</Button>
+								)}
+							</div>
+							<div className="overflow-hidden max-h-48 overflow-y-auto">
+								<RelationshipSubrowTable
+									relationship={relationship}
+									parentRowValue={
+										relationship.type === "outgoing" ? fkValue : pkValue
+									}
+									connection={{ url: connectionUrl }}
+								/>
+							</div>
 						</div>
 					)}
 				</div>
@@ -429,6 +442,32 @@ const RelationshipSection = ({
 					No related rows
 				</div>
 			) : null}
+
+			{/* Maximize Sheet */}
+			<Sheet
+				open={isMaximizeSheetOpen}
+				onOpenChange={(details) => setIsMaximizeSheetOpen(details.open)}
+			>
+				<SheetContent side="bottom" className="h-[90vh] flex flex-col">
+					<SheetHeader>
+						<SheetTitle className="text-base">
+							{relationship.referencingTable}
+							<span className="text-muted-foreground text-sm ml-2">
+								→ {relationship.referencedTable}
+							</span>
+						</SheetTitle>
+					</SheetHeader>
+					<div className="flex-1 overflow-hidden">
+						<RelationshipSubrowTable
+							relationship={relationship}
+							parentRowValue={
+								relationship.type === "outgoing" ? fkValue : pkValue
+							}
+							connection={{ url: connectionUrl }}
+						/>
+					</div>
+				</SheetContent>
+			</Sheet>
 		</div>
 	);
 };
