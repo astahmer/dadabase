@@ -346,19 +346,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																				onClose={() => {
 																					pageState.setRelationshipRowId(null);
 																				}}
-																				selectedRowCount={
-																					rowsDataTable.getSelectedRowModel()
-																						.rows.length
-																				}
-																				onDelete={() => {
-																					// Placeholder - implement deletion logic
-																					console.log("Delete selected rows");
-																				}}
-																				onExport={() => {
-																					// Placeholder - implement export logic
-																					console.log("Export selected rows");
-																				}}
-																				isActionLoading={rowsQuery.isLoading}
 																			/>
 																		);
 																	}}

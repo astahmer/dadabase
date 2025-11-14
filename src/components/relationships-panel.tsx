@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { Splitter } from "@ark-ui/react/splitter";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
 import { Spinner } from "./ui/spinner";
@@ -36,34 +37,6 @@ export const RelationshipsPanel = ({
 	const [displayedRelationships, setDisplayedRelationships] = useState<
 		Set<string>
 	>(new Set());
-	const [sidebarWidth, setSidebarWidth] = useState(288); // w-72 = 18rem = 288px
-	const [isResizing, setIsResizing] = useState(false);
-
-	// Handle sidebar resize
-	useEffect(() => {
-		if (!isResizing) return;
-
-		const handleMouseMove = (e: MouseEvent) => {
-			const newWidth = Math.max(200, Math.min(e.clientX, 500)); // Min 200px, max 500px
-			setSidebarWidth(newWidth);
-		};
-
-		const handleMouseUp = () => {
-			setIsResizing(false);
-		};
-
-		window.addEventListener("mousemove", handleMouseMove);
-		window.addEventListener("mouseup", handleMouseUp);
-
-		return () => {
-			window.removeEventListener("mousemove", handleMouseMove);
-			window.removeEventListener("mouseup", handleMouseUp);
-		};
-	}, [isResizing]);
-
-	const handleResizeStart = () => {
-		setIsResizing(true);
-	};
 
 	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
@@ -180,11 +153,27 @@ export const RelationshipsPanel = ({
 					No relationships found
 				</div>
 			) : (
-				<div className="flex h-full overflow-hidden">
+				<Splitter.Root
+					orientation="horizontal"
+					panels={[
+						{
+							id: "sidebar",
+							collapsible: true,
+							collapsedSize: 10,
+							minSize: 10,
+						},
+						{
+							id: "content",
+							collapsible: false,
+							minSize: 50,
+						},
+					]}
+					className="h-full flex overflow-hidden"
+				>
 					{/* Left Sidebar - Relationship List */}
-					<div
-						style={{ width: `${sidebarWidth}px` }}
-						className="border-r bg-muted/30 flex flex-col shrink-0 overflow-hidden transition-all duration-100"
+					<Splitter.Panel
+						id="sidebar"
+						className="border-r bg-muted/30 flex flex-col overflow-hidden"
 					>
 						{/* Relationships List */}
 						<div className="flex-1 overflow-y-auto">
@@ -345,50 +334,52 @@ export const RelationshipsPanel = ({
 								</div>
 							)}
 						</div>
-					</div>
+					</Splitter.Panel>
 
-					{/* Resize Handle */}
-					<div
-						onMouseDown={handleResizeStart}
-						className={`w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors ${
-							isResizing ? "bg-primary/50" : ""
-						}`}
+					<Splitter.ResizeTrigger
+						id="sidebar:content"
+						className="w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors"
 					/>
 
 					{/* Right Panel - Data Display */}
-					{displayedRelationships.size > 0 ? (
-						<div className="flex-1 overflow-y-auto space-y-4 p-4">
-							{Array.from(displayedRelationships).map((constraintName) => {
-								const rel = relationships.find(
-									(r) => r.constraintName === constraintName,
-								);
-								if (!rel) return null;
-								return (
-									<div
-										key={constraintName}
-										className="border rounded-lg overflow-hidden bg-card"
-									>
-										<RelationshipCard
-											relationship={rel}
-											rowData={rowData}
-											connectionUrl={connectionUrl}
-											isPanelExpanded={isPanelExpanded}
-											onRemove={() => {
-												const next = new Set(displayedRelationships);
-												next.delete(constraintName);
-												setDisplayedRelationships(next);
-											}}
-										/>
-									</div>
-								);
-							})}
-						</div>
-					) : (
-						<div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-							Select a relationship to view details
-						</div>
-					)}
-				</div>
+					<Splitter.Panel
+						id="content"
+						className="flex flex-col overflow-hidden"
+					>
+						{displayedRelationships.size > 0 ? (
+							<div className="flex-1 overflow-y-auto space-y-4 p-4">
+								{Array.from(displayedRelationships).map((constraintName) => {
+									const rel = relationships.find(
+										(r) => r.constraintName === constraintName,
+									);
+									if (!rel) return null;
+									return (
+										<div
+											key={constraintName}
+											className="border rounded-lg overflow-hidden bg-card"
+										>
+											<RelationshipCard
+												relationship={rel}
+												rowData={rowData}
+												connectionUrl={connectionUrl}
+												isPanelExpanded={isPanelExpanded}
+												onRemove={() => {
+													const next = new Set(displayedRelationships);
+													next.delete(constraintName);
+													setDisplayedRelationships(next);
+												}}
+											/>
+										</div>
+									);
+								})}
+							</div>
+						) : (
+							<div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+								Select a relationship to view details
+							</div>
+						)}
+					</Splitter.Panel>
+				</Splitter.Root>
 			)}
 		</div>
 	);
