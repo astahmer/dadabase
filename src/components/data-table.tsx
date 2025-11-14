@@ -461,8 +461,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 			</DndContextProvider>
 
 			{table.options.manualPagination === false &&
-			(table.getRowModel().rows.length >= pagination.pageSize ||
-				pagination.pageSize > 100) ? (
+			(rows.length >= pagination.pageSize || pagination.pageSize > 100) ? (
 				<DataTablePagination table={table} />
 			) : null}
 			{runIfFn(bottom, table)}
