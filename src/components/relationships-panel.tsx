@@ -1,12 +1,7 @@
-import { useState } from "react";
-import {
-	ChevronDown,
-	ChevronRight,
-	ChevronUp,
-	X,
-	Maximize2,
-} from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronDown, ChevronUp, X, Maximize2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { createListCollection } from "@ark-ui/react";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
 import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start";
@@ -14,6 +9,7 @@ import { getRelationshipCardinalityQueryOptions } from "#src/server/pg/start-fns
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
+import * as ArkSelect from "./ui/select";
 import { RelationshipSubrowTable } from "./relationship-subrow-table";
 
 interface RelationshipsPanelProps {
@@ -39,9 +35,10 @@ export const RelationshipsPanel = ({
 	onExpand,
 	onClose,
 }: RelationshipsPanelProps) => {
-	const [expandedRelationships, setExpandedRelationships] = useState<
-		Set<string>
-	>(new Set());
+	const [selectedRelationship, setSelectedRelationship] = useState<
+		string | null
+	>(null);
+	const [isMaximizeSheetOpen, setIsMaximizeSheetOpen] = useState(false);
 
 	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
@@ -58,17 +55,26 @@ export const RelationshipsPanel = ({
 
 	const relationships = relationshipsQuery.data ?? [];
 
-	const toggleExpanded = (constraintName: string) => {
-		setExpandedRelationships((prev) => {
-			const next = new Set(prev);
-			if (next.has(constraintName)) {
-				next.delete(constraintName);
-			} else {
-				next.add(constraintName);
-			}
-			return next;
-		});
-	};
+	// Set default selected relationship
+	if (!selectedRelationship && relationships.length > 0) {
+		setSelectedRelationship(relationships[0].constraintName);
+	}
+
+	const selectedRel = relationships.find(
+		(r) => r.constraintName === selectedRelationship,
+	);
+
+	// Create collection for dropdown
+	const relationshipCollection = useMemo(
+		() =>
+			createListCollection({
+				items: relationships.map((rel) => ({
+					label: `${rel.referencingTable}.${rel.referencingColumn} › ${rel.referencedTable}.${rel.referencedColumn}`,
+					value: rel.constraintName,
+				})),
+			}),
+		[relationships],
+	);
 
 	if (!isPanelExpanded) {
 		return (
@@ -80,7 +86,8 @@ export const RelationshipsPanel = ({
 				>
 					<ChevronUp className="h-3 w-3 shrink-0" />
 					<span className="truncate">
-						<span className="font-medium">
+						<span>Click to show relations for:</span>
+						<span className="font-medium ml-1">
 							{schema}.{table}
 						</span>
 						<span className="text-muted-foreground mx-1">=</span>
@@ -103,7 +110,8 @@ export const RelationshipsPanel = ({
 
 	return (
 		<div className="border-t bg-card flex flex-col h-full overflow-hidden">
-			<div className="px-4 py-2 border-b flex items-center justify-between shrink-0 gap-2">
+			{/* Header */}
+			<div className="px-4 py-3 border-b flex items-center justify-between shrink-0 gap-3">
 				<button
 					onClick={onCollapse}
 					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -111,7 +119,8 @@ export const RelationshipsPanel = ({
 				>
 					<ChevronDown className="h-3 w-3 shrink-0" />
 					<span className="truncate">
-						<span className="font-medium">
+						<span>Click to hide relations for:</span>
+						<span className="font-medium ml-1">
 							{schema}.{table}
 						</span>
 						<span className="text-muted-foreground mx-1">=</span>
@@ -129,6 +138,7 @@ export const RelationshipsPanel = ({
 				</Button>
 			</div>
 
+			{/* Content */}
 			{relationshipsQuery.isLoading ? (
 				<div className="flex items-center justify-center py-8 flex-1">
 					<Spinner />
@@ -138,42 +148,117 @@ export const RelationshipsPanel = ({
 					No relationships found
 				</div>
 			) : (
-				<div className="flex-1 overflow-y-auto divide-y divide-border/50">
-					{relationships.map((rel) => (
-						<RelationshipSection
-							key={rel.constraintName}
-							relationship={rel}
+				<div className="flex flex-col h-full overflow-hidden">
+					{/* Selector Bar */}
+					<div className="px-4 py-3 border-b shrink-0">
+						<div className="flex items-center gap-2">
+							<label className="text-xs font-medium text-muted-foreground">
+								Relationship:
+							</label>
+							<ArkSelect.Select
+								collection={relationshipCollection}
+								value={selectedRelationship ? [selectedRelationship] : []}
+								onValueChange={(details) => {
+									if (details.value && details.value.length > 0) {
+										setSelectedRelationship(String(details.value[0]));
+									}
+								}}
+								positioning={{ sameWidth: true }}
+							>
+								<ArkSelect.SelectControl size="sm">
+									<ArkSelect.SelectTrigger>
+										<ArkSelect.SelectValueText placeholder="Choose a relationship..." />
+										<ArkSelect.SelectIndicator />
+									</ArkSelect.SelectTrigger>
+								</ArkSelect.SelectControl>
+								<ArkSelect.SelectContent>
+									<ArkSelect.SelectList>
+										{relationshipCollection.items.map((item) => (
+											<ArkSelect.SelectItem key={item.value} item={item}>
+												<div className="flex items-center gap-2 text-sm">
+													{relationships.find(
+														(r) => r.constraintName === item.value,
+													)?.referencingTable && (
+														<>
+															<span>
+																{
+																	relationships.find(
+																		(r) => r.constraintName === item.value,
+																	)?.referencingTable
+																}
+																<span className="text-muted-foreground text-xs">
+																	.
+																	{
+																		relationships.find(
+																			(r) => r.constraintName === item.value,
+																		)?.referencingColumn
+																	}
+																</span>
+															</span>
+															<span className="text-muted-foreground">›</span>
+															<span>
+																{
+																	relationships.find(
+																		(r) => r.constraintName === item.value,
+																	)?.referencedTable
+																}
+																<span className="text-muted-foreground text-xs">
+																	.
+																	{
+																		relationships.find(
+																			(r) => r.constraintName === item.value,
+																		)?.referencedColumn
+																	}
+																</span>
+															</span>
+														</>
+													)}
+												</div>
+											</ArkSelect.SelectItem>
+										))}
+									</ArkSelect.SelectList>
+								</ArkSelect.SelectContent>
+							</ArkSelect.Select>
+						</div>
+					</div>
+
+					{/* Data Display */}
+					{selectedRel ? (
+						<RelationshipDisplay
+							relationship={selectedRel}
 							rowData={rowData}
-							isExpanded={expandedRelationships.has(rel.constraintName)}
-							onToggle={() => toggleExpanded(rel.constraintName)}
 							connectionUrl={connectionUrl}
 							isPanelExpanded={isPanelExpanded}
+							onOpenMaximize={() => setIsMaximizeSheetOpen(true)}
+							isMaximizeSheetOpen={isMaximizeSheetOpen}
+							onCloseMaximize={() => setIsMaximizeSheetOpen(false)}
 						/>
-					))}
+					) : null}
 				</div>
 			)}
 		</div>
 	);
 };
 
-interface RelationshipSectionProps {
+interface RelationshipDisplayProps {
 	relationship: TableRelationship;
 	rowData: Record<string, unknown>;
-	isExpanded: boolean;
-	onToggle: () => void;
 	connectionUrl: string;
 	isPanelExpanded: boolean;
+	onOpenMaximize: () => void;
+	isMaximizeSheetOpen: boolean;
+	onCloseMaximize: () => void;
 }
 
-const RelationshipSection = ({
+const RelationshipDisplay = ({
 	relationship,
 	rowData,
-	isExpanded,
-	onToggle,
 	connectionUrl,
 	isPanelExpanded,
-}: RelationshipSectionProps) => {
-	const [isMaximizeSheetOpen, setIsMaximizeSheetOpen] = useState(false);
+	onOpenMaximize,
+	isMaximizeSheetOpen,
+	onCloseMaximize,
+}: RelationshipDisplayProps) => {
 	// For outgoing relationships, get the FK value from the row
 	const fkValue =
 		relationship.type === "outgoing"
@@ -186,7 +271,7 @@ const RelationshipSection = ({
 			? rowData[relationship.referencedColumn]
 			: null;
 
-	// Fetch related rows when expanded
+	// Fetch related rows
 	const relatedRowsQuery = useQuery(
 		queryRelationshipSubrowDataQueryOptions({
 			url: connectionUrl,
@@ -203,7 +288,7 @@ const RelationshipSection = ({
 					? relationship.referencedColumn
 					: relationship.referencingColumn,
 			filterValue: relationship.type === "outgoing" ? fkValue : pkValue,
-			limit: 25,
+			limit: 50,
 		}),
 	);
 
@@ -222,35 +307,28 @@ const RelationshipSection = ({
 		Record<string, unknown>
 	>;
 	const hasValue = relationship.type === "outgoing" ? fkValue : pkValue;
-	const hasRelatedRows = hasValue && relatedRows.length > 0;
+	const hasRelatedRows =
+		hasValue !== null && hasValue !== undefined && relatedRows.length > 0;
+	const rowCount = relatedRows.length as number;
 
 	return (
-		<div className="p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors">
-			{/* Header Button */}
-			<button
-				onClick={onToggle}
-				className="w-full flex items-center gap-2 text-left group"
-			>
-				<div className="flex items-center gap-1 flex-1 min-w-0">
-					<ChevronRight
-						className={`h-4 w-4 shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-					/>
-
-					<div className="flex items-center gap-1 min-w-0 flex-1 text-sm">
-						<span className="font-medium truncate">
-							{relationship.referencingTable}
-						</span>
-						<span className="text-muted-foreground shrink-0">
+		<>
+			{/* Info Bar */}
+			<div className="px-4 py-2 border-b bg-muted/20 flex items-center justify-between shrink-0 text-xs gap-2">
+				<div className="flex items-center gap-2 min-w-0">
+					<span className="text-muted-foreground truncate">
+						{relationship.referencingTable}
+						<span className="text-muted-foreground">
 							.{relationship.referencingColumn}
 						</span>
-						<ChevronRight className="h-3 w-3 shrink-0 opacity-30" />
-						<span className="font-medium truncate">
-							{relationship.referencedTable}
-						</span>
-						<span className="text-muted-foreground shrink-0">
+					</span>
+					<span className="text-muted-foreground shrink-0">›</span>
+					<span className="font-medium truncate">
+						{relationship.referencedTable}
+						<span className="text-muted-foreground">
 							.{relationship.referencedColumn}
 						</span>
-					</div>
+					</span>
 
 					{cardinalityQuery.data && (
 						<span className="text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded shrink-0">
@@ -263,74 +341,68 @@ const RelationshipSection = ({
 										: "M:N"}
 						</span>
 					)}
+
+					{hasRelatedRows && (
+						<span className="text-muted-foreground shrink-0">
+							{rowCount} row{rowCount !== 1 ? "s" : ""}
+						</span>
+					)}
 				</div>
 
-				<div className="flex items-center gap-1 shrink-0">
-					{isExpanded && relatedRowsQuery.isPending && <Spinner size="sm" />}
-					{hasRelatedRows ? (
-						<span className="text-xs text-muted-foreground">
-							{String(relatedRows.length)}
-						</span>
-					) : null}
-				</div>
-			</button>
+				{isPanelExpanded && hasRelatedRows && (
+					<Button
+						size="xs"
+						variant="ghost"
+						onClick={onOpenMaximize}
+						title="Expand to full view"
+						className="h-6 px-2 gap-1 shrink-0"
+					>
+						<Maximize2 className="h-3 w-3" />
+						<span className="text-xs">Full Screen</span>
+					</Button>
+				)}
+			</div>
 
-			{/* Expanded Content */}
-			{isExpanded && hasRelatedRows ? (
-				<div className="mt-3 flex flex-col gap-2">
-					<div className="flex items-center justify-between">
-						<span className="text-xs text-muted-foreground">
-							{relatedRows.length} related
-						</span>
-						{isPanelExpanded && (
-							<Button
-								size="xs"
-								variant="ghost"
-								onClick={() => setIsMaximizeSheetOpen(true)}
-								title="Expand to full view"
-								className="h-5 px-1"
-							>
-								<Maximize2 className="h-3 w-3" />
-							</Button>
-						)}
+			{/* Data Table Area */}
+			<div className="flex-1 overflow-hidden flex flex-col">
+				{relatedRowsQuery.isPending ? (
+					<div className="flex items-center justify-center py-8 flex-1">
+						<Spinner />
 					</div>
-					<div className="border rounded bg-muted/20 overflow-hidden max-h-48 overflow-y-auto">
-						{relatedRowsQuery.isPending ? (
-							<div className="flex items-center justify-center py-4">
-								<Spinner size="sm" />
-							</div>
-						) : relatedRowsQuery.isError ? (
-							<div className="text-xs text-destructive p-3">
-								Error loading related rows
-							</div>
-						) : (
-							<RelationshipSubrowTable
-								relationship={relationship}
-								parentRowValue={
-									relationship.type === "outgoing" ? fkValue : pkValue
-								}
-								connection={{ url: connectionUrl }}
-							/>
-						)}
+				) : relatedRowsQuery.isError ? (
+					<div className="p-4 text-sm text-destructive">
+						Error loading related rows
 					</div>
-				</div>
-			) : isExpanded && !hasRelatedRows && !relatedRowsQuery.isPending ? (
-				<div className="mt-3 p-3 text-xs text-muted-foreground text-center rounded bg-muted/20 border border-border/50">
-					No related rows
-				</div>
-			) : null}
+				) : hasRelatedRows ? (
+					<div className="flex-1 overflow-hidden">
+						<RelationshipSubrowTable
+							relationship={relationship}
+							parentRowValue={
+								relationship.type === "outgoing" ? fkValue : pkValue
+							}
+							connection={{ url: connectionUrl }}
+						/>
+					</div>
+				) : (
+					<div className="flex items-center justify-center flex-1 text-sm text-muted-foreground">
+						No related rows
+					</div>
+				)}
+			</div>
 
 			{/* Maximize Sheet */}
-			<Sheet
-				open={isMaximizeSheetOpen}
-				onOpenChange={(details) => setIsMaximizeSheetOpen(details.open)}
-			>
+			<Sheet open={isMaximizeSheetOpen} onOpenChange={onCloseMaximize}>
 				<SheetContent side="bottom" className="h-[90vh] flex flex-col">
 					<SheetHeader>
 						<SheetTitle className="text-base">
 							{relationship.referencingTable}
 							<span className="text-muted-foreground text-sm ml-2">
-								→ {relationship.referencedTable}
+								.{relationship.referencingColumn}
+							</span>
+							<span className="text-muted-foreground mx-2">›</span>
+							{relationship.referencedTable}
+							<span className="text-muted-foreground text-sm ml-2">
+								.{relationship.referencedColumn}
 							</span>
 						</SheetTitle>
 					</SheetHeader>
@@ -345,6 +417,6 @@ const RelationshipSection = ({
 					</div>
 				</SheetContent>
 			</Sheet>
-		</div>
+		</>
 	);
 };
