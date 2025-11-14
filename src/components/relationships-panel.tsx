@@ -3,8 +3,6 @@ import {
 	ChevronDown,
 	ChevronRight,
 	ChevronUp,
-	Trash2,
-	Download,
 	X,
 	Maximize2,
 } from "lucide-react";
@@ -15,7 +13,6 @@ import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fn
 import { getRelationshipCardinalityQueryOptions } from "#src/server/pg/start-fns/get-relationship-cardinality.start.ts";
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
-import { HStack } from "./ui/layout.tsx";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 import { RelationshipSubrowTable } from "./relationship-subrow-table";
 
@@ -29,10 +26,6 @@ interface RelationshipsPanelProps {
 	onCollapse: () => void;
 	onExpand: () => void;
 	onClose: () => void;
-	selectedRowCount?: number;
-	onDelete?: () => void;
-	onExport?: () => void;
-	isActionLoading?: boolean;
 }
 
 export const RelationshipsPanel = ({
@@ -42,13 +35,9 @@ export const RelationshipsPanel = ({
 	selectedRowId,
 	rowData,
 	isPanelExpanded,
-	onCollapse: onCollapse,
-	onExpand: onExpand,
-	onClose: onClose,
-	selectedRowCount = 0,
-	onDelete,
-	onExport,
-	isActionLoading = false,
+	onCollapse,
+	onExpand,
+	onClose,
 }: RelationshipsPanelProps) => {
 	const [expandedRelationships, setExpandedRelationships] = useState<
 		Set<string>
@@ -68,8 +57,6 @@ export const RelationshipsPanel = ({
 	}
 
 	const relationships = relationshipsQuery.data ?? [];
-	const outgoingRels = relationships.filter((r) => r.type === "outgoing");
-	const incomingRels = relationships.filter((r) => r.type === "incoming");
 
 	const toggleExpanded = (constraintName: string) => {
 		setExpandedRelationships((prev) => {
@@ -85,120 +72,52 @@ export const RelationshipsPanel = ({
 
 	if (!isPanelExpanded) {
 		return (
-			<div className="border-t bg-muted/40 h-10 flex items-center px-3 shrink-0 min-h-10 gap-2 overflow-x-auto">
+			<div className="border-t bg-muted/40 h-10 flex items-center px-3 shrink-0 min-h-10 gap-3">
 				<button
 					onClick={onExpand}
-					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
 					title="Expand relationships panel"
 				>
-					<ChevronUp className="h-3 w-3" />
-					<span className="font-medium">Click to expand relations for:</span>
-					<div className="flex items-center gap-2 min-w-0 flex-1 text-sm font-medium whitespace-nowrap">
-						<span>
+					<ChevronUp className="h-3 w-3 shrink-0" />
+					<span className="truncate">
+						<span className="font-medium">
 							{schema}.{table}
 						</span>
-						<span>=</span>
-						<span>{selectedRowId}</span>
-					</div>
+						<span className="text-muted-foreground mx-1">=</span>
+						<span className="font-mono text-xs">{selectedRowId}</span>
+					</span>
 				</button>
 
-				{/* Bulk Actions */}
-				{/* TODO */}
-				<div className="ml-auto flex items-center gap-1 shrink-0">
-					{selectedRowCount > 0 && false && (
-						<>
-							{onExport && (
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={onExport}
-									disabled={isActionLoading}
-									className="h-6 px-2 text-xs"
-									title="Export selected rows"
-								>
-									<Download className="h-3 w-3 mr-1" />
-									Export
-								</Button>
-							)}
-							{onDelete && (
-								<Button
-									variant="destructive"
-									size="sm"
-									onClick={onDelete}
-									disabled={isActionLoading}
-									className="h-6 px-2 text-xs"
-									title="Delete selected rows"
-								>
-									<Trash2 className="h-3 w-3 mr-1" />
-									Delete
-								</Button>
-							)}
-						</>
-					)}
-					<Button
-						onClick={onClose}
-						size="xs"
-						variant="ghost"
-						title="Close relationships panel"
-					>
-						<X className="h-4 w-4" />
-					</Button>
-				</div>
+				<Button
+					onClick={onClose}
+					size="xs"
+					variant="ghost"
+					title="Close relationships panel"
+					className="ml-auto shrink-0"
+				>
+					<X className="h-4 w-4" />
+				</Button>
 			</div>
 		);
 	}
 
 	return (
 		<div className="border-t bg-card flex flex-col h-full overflow-hidden">
-			<div className="px-4 py-3 border-b flex items-center justify-between shrink-0 gap-2">
+			<div className="px-4 py-2 border-b flex items-center justify-between shrink-0 gap-2">
 				<button
 					onClick={onCollapse}
-					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
-					title="Expand relationships panel"
+					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+					title="Collapse relationships panel"
 				>
-					<ChevronDown className="h-3 w-3" />
-					<span className="font-medium">Click to hide relations for:</span>
-					<div className="flex items-center gap-2 min-w-0 flex-1 text-sm font-medium whitespace-nowrap">
-						<span>
+					<ChevronDown className="h-3 w-3 shrink-0" />
+					<span className="truncate">
+						<span className="font-medium">
 							{schema}.{table}
 						</span>
-						<span>=</span>
-						<span>{selectedRowId}</span>
-					</div>
+						<span className="text-muted-foreground mx-1">=</span>
+						<span className="font-mono text-xs">{selectedRowId}</span>
+					</span>
 				</button>
-
-				{/* Bulk Actions in Expanded State */}
-				{/* TODO */}
-				{selectedRowCount > 0 && false && (
-					<div className="flex items-center gap-1 shrink-0">
-						{onExport && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={onExport}
-								disabled={isActionLoading}
-								className="h-7 px-2 text-xs"
-								title="Export selected rows"
-							>
-								<Download className="h-3 w-3 mr-1" />
-								Export
-							</Button>
-						)}
-						{onDelete && (
-							<Button
-								variant="destructive"
-								size="sm"
-								onClick={onDelete}
-								disabled={isActionLoading}
-								className="h-7 px-2 text-xs"
-								title="Delete selected rows"
-							>
-								<Trash2 className="h-3 w-3 mr-1" />
-								Delete
-							</Button>
-						)}
-					</div>
-				)}
 
 				<Button
 					onClick={onClose}
@@ -216,53 +135,21 @@ export const RelationshipsPanel = ({
 				</div>
 			) : relationships.length === 0 ? (
 				<div className="py-8 text-center text-sm text-muted-foreground flex-1 flex items-center justify-center">
-					No relationships found for this row
+					No relationships found
 				</div>
 			) : (
-				<div className="p-4 space-y-4 flex-1 overflow-y-auto">
-					{/* Outgoing Relationships */}
-					{outgoingRels.length > 0 && (
-						<div>
-							<h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-								References (Outgoing)
-							</h3>
-							<div className="space-y-2">
-								{outgoingRels.map((rel) => (
-									<RelationshipSection
-										key={rel.constraintName}
-										relationship={rel}
-										rowData={rowData}
-										isExpanded={expandedRelationships.has(rel.constraintName)}
-										onToggle={() => toggleExpanded(rel.constraintName)}
-										connectionUrl={connectionUrl}
-										isPanelExpanded={isPanelExpanded}
-									/>
-								))}
-							</div>
-						</div>
-					)}
-
-					{/* Incoming Relationships */}
-					{incomingRels.length > 0 && (
-						<div>
-							<h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-								Referenced By (Incoming)
-							</h3>
-							<div className="space-y-2">
-								{incomingRels.map((rel) => (
-									<RelationshipSection
-										key={rel.constraintName}
-										relationship={rel}
-										rowData={rowData}
-										isExpanded={expandedRelationships.has(rel.constraintName)}
-										onToggle={() => toggleExpanded(rel.constraintName)}
-										connectionUrl={connectionUrl}
-										isPanelExpanded={isPanelExpanded}
-									/>
-								))}
-							</div>
-						</div>
-					)}
+				<div className="flex-1 overflow-y-auto divide-y divide-border/50">
+					{relationships.map((rel) => (
+						<RelationshipSection
+							key={rel.constraintName}
+							relationship={rel}
+							rowData={rowData}
+							isExpanded={expandedRelationships.has(rel.constraintName)}
+							onToggle={() => toggleExpanded(rel.constraintName)}
+							connectionUrl={connectionUrl}
+							isPanelExpanded={isPanelExpanded}
+						/>
+					))}
 				</div>
 			)}
 		</div>
@@ -338,37 +225,35 @@ const RelationshipSection = ({
 	const hasRelatedRows = hasValue && relatedRows.length > 0;
 
 	return (
-		<div>
+		<div className="p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors">
 			{/* Header Button */}
 			<button
 				onClick={onToggle}
-				className="w-full flex items-center gap-2 px-3 py-2 rounded border border-border/50 hover:bg-accent/50 transition-colors text-left text-sm"
+				className="w-full flex items-center gap-2 text-left group"
 			>
-				{isExpanded ? (
-					<ChevronDown className="h-4 w-4 shrink-0" />
-				) : (
-					<ChevronRight className="h-4 w-4 shrink-0" />
-				)}
+				<div className="flex items-center gap-1 flex-1 min-w-0">
+					<ChevronRight
+						className={`h-4 w-4 shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+					/>
 
-				<HStack className="flex-1 min-w-0 text-xs font-medium" align="center">
-					<span>
-						{relationship.referencingTable}
-						<span className="text-xs text-muted-foreground">
-							.{`${relationship.referencingColumn}`}
+					<div className="flex items-center gap-1 min-w-0 flex-1 text-sm">
+						<span className="font-medium truncate">
+							{relationship.referencingTable}
 						</span>
-					</span>
-
-					<ChevronRight className="h-3 w-3 shrink-0 opacity-50" />
-
-					<span>
-						{relationship.referencedTable}
-						<span className="text-xs text-muted-foreground">
-							.{`${relationship.referencedColumn}`}
+						<span className="text-muted-foreground shrink-0">
+							.{relationship.referencingColumn}
 						</span>
-					</span>
+						<ChevronRight className="h-3 w-3 shrink-0 opacity-30" />
+						<span className="font-medium truncate">
+							{relationship.referencedTable}
+						</span>
+						<span className="text-muted-foreground shrink-0">
+							.{relationship.referencedColumn}
+						</span>
+					</div>
 
 					{cardinalityQuery.data && (
-						<span className="ml-2 text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded">
+						<span className="text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded shrink-0">
 							{cardinalityQuery.data.cardinality === "one-to-one"
 								? "1:1"
 								: cardinalityQuery.data.cardinality === "one-to-many"
@@ -378,67 +263,59 @@ const RelationshipSection = ({
 										: "M:N"}
 						</span>
 					)}
-				</HStack>
+				</div>
 
-				<div className="flex items-center gap-2 shrink-0">
+				<div className="flex items-center gap-1 shrink-0">
 					{isExpanded && relatedRowsQuery.isPending && <Spinner size="sm" />}
 					{hasRelatedRows ? (
-						<span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
+						<span className="text-xs text-muted-foreground">
 							{String(relatedRows.length)}
 						</span>
 					) : null}
-					<span className="text-xs text-muted-foreground">
-						{relationship.type === "outgoing" ? (fkValue ? "→" : "N/A") : "←"}
-					</span>
 				</div>
 			</button>
 
 			{/* Expanded Content */}
 			{isExpanded && hasRelatedRows ? (
-				<div className="mt-2 ml-4 bg-muted/30 rounded border border-border/30 overflow-hidden">
-					{relatedRowsQuery.isPending ? (
-						<div className="flex items-center justify-center py-4">
-							<Spinner size="sm" />
-						</div>
-					) : relatedRowsQuery.isError ? (
-						<div className="text-xs text-destructive p-2">
-							Error loading related rows
-						</div>
-					) : (
-						<div className="flex flex-col">
-							<div className="px-3 py-2 bg-muted/50 border-b border-border/30 flex items-center justify-between">
-								<div className="text-xs font-medium text-muted-foreground">
-									{relatedRows.length} related row
-									{relatedRows.length !== 1 ? "s" : ""}
-								</div>
-								{isPanelExpanded && (
-									<Button
-										size="xs"
-										variant="ghost"
-										onClick={() => setIsMaximizeSheetOpen(true)}
-										title="Expand to full view"
-										className="h-5 px-1"
-									>
-										<Maximize2 className="h-3 w-3" />
-									</Button>
-								)}
+				<div className="mt-3 flex flex-col gap-2">
+					<div className="flex items-center justify-between">
+						<span className="text-xs text-muted-foreground">
+							{relatedRows.length} related
+						</span>
+						{isPanelExpanded && (
+							<Button
+								size="xs"
+								variant="ghost"
+								onClick={() => setIsMaximizeSheetOpen(true)}
+								title="Expand to full view"
+								className="h-5 px-1"
+							>
+								<Maximize2 className="h-3 w-3" />
+							</Button>
+						)}
+					</div>
+					<div className="border rounded bg-muted/20 overflow-hidden max-h-48 overflow-y-auto">
+						{relatedRowsQuery.isPending ? (
+							<div className="flex items-center justify-center py-4">
+								<Spinner size="sm" />
 							</div>
-							<div className="overflow-hidden max-h-48 overflow-y-auto">
-								<RelationshipSubrowTable
-									relationship={relationship}
-									parentRowValue={
-										relationship.type === "outgoing" ? fkValue : pkValue
-									}
-									connection={{ url: connectionUrl }}
-								/>
+						) : relatedRowsQuery.isError ? (
+							<div className="text-xs text-destructive p-3">
+								Error loading related rows
 							</div>
-						</div>
-					)}
+						) : (
+							<RelationshipSubrowTable
+								relationship={relationship}
+								parentRowValue={
+									relationship.type === "outgoing" ? fkValue : pkValue
+								}
+								connection={{ url: connectionUrl }}
+							/>
+						)}
+					</div>
 				</div>
-			) : null}
-
-			{isExpanded && !hasRelatedRows && !relatedRowsQuery.isPending ? (
-				<div className="mt-2 ml-4 p-2 bg-muted/30 rounded border border-border/30 text-xs text-muted-foreground text-center">
+			) : isExpanded && !hasRelatedRows && !relatedRowsQuery.isPending ? (
+				<div className="mt-3 p-3 text-xs text-muted-foreground text-center rounded bg-muted/20 border border-border/50">
 					No related rows
 				</div>
 			) : null}
