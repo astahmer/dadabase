@@ -33,9 +33,9 @@ export const RelationshipsPanel = ({
 	const [selectedRelationships, setSelectedRelationships] = useState<
 		Set<string>
 	>(new Set());
-	const [activeRelationship, setActiveRelationship] = useState<string | null>(
-		null,
-	);
+	const [displayedRelationships, setDisplayedRelationships] = useState<
+		Set<string>
+	>(new Set());
 	const [sidebarWidth, setSidebarWidth] = useState(288); // w-72 = 18rem = 288px
 	const [isResizing, setIsResizing] = useState(false);
 
@@ -85,29 +85,23 @@ export const RelationshipsPanel = ({
 		const firstOutgoing = relationships.find((r) => r.type === "outgoing");
 		const firstIncoming = relationships.find((r) => r.type === "incoming");
 		const defaults = new Set<string>();
-		let firstToShow: string | null = null;
+		const displayed = new Set<string>();
 
 		if (firstOutgoing) {
 			defaults.add(firstOutgoing.constraintName);
-			if (!firstToShow) firstToShow = firstOutgoing.constraintName;
+			displayed.add(firstOutgoing.constraintName);
 		}
 		if (firstIncoming) {
 			defaults.add(firstIncoming.constraintName);
-			if (!firstToShow) firstToShow = firstIncoming.constraintName;
+			displayed.add(firstIncoming.constraintName);
 		}
 		if (defaults.size === 0 && relationships.length > 0) {
 			defaults.add(relationships[0].constraintName);
-			firstToShow = relationships[0].constraintName;
+			displayed.add(relationships[0].constraintName);
 		}
 
 		setSelectedRelationships(defaults);
-		setActiveRelationship(firstToShow);
-	}
-
-	// Set active to first if no active set
-	if (!activeRelationship && selectedRelationships.size > 0) {
-		const firstSelected = Array.from(selectedRelationships)[0];
-		setActiveRelationship(firstSelected);
+		setDisplayedRelationships(displayed);
 	}
 
 	// Separate relationships by type
@@ -215,12 +209,14 @@ export const RelationshipsPanel = ({
 													if (!selectedRelationships.has(rel.constraintName)) {
 														const next = new Set(selectedRelationships);
 														next.add(rel.constraintName);
+														const displayed = new Set(displayedRelationships);
+														displayed.add(rel.constraintName);
 														setSelectedRelationships(next);
-														setActiveRelationship(rel.constraintName);
+														setDisplayedRelationships(displayed);
 													}
 												}}
 												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
-													activeRelationship === rel.constraintName
+													displayedRelationships.has(rel.constraintName)
 														? "bg-accent border-l-2 border-primary"
 														: ""
 												}`}
@@ -244,17 +240,21 @@ export const RelationshipsPanel = ({
 															const next = new Set(selectedRelationships);
 															if (e.target.checked) {
 																next.add(rel.constraintName);
-																if (!activeRelationship) {
-																	setActiveRelationship(rel.constraintName);
-																}
+																const displayed = new Set(
+																	displayedRelationships,
+																);
+																displayed.add(rel.constraintName);
+																setSelectedRelationships(next);
+																setDisplayedRelationships(displayed);
 															} else {
 																next.delete(rel.constraintName);
-																if (activeRelationship === rel.constraintName) {
-																	const remaining = Array.from(next);
-																	setActiveRelationship(remaining[0] ?? null);
-																}
+																const displayed = new Set(
+																	displayedRelationships,
+																);
+																displayed.delete(rel.constraintName);
+																setSelectedRelationships(next);
+																setDisplayedRelationships(displayed);
 															}
-															setSelectedRelationships(next);
 														}}
 														className="mt-0.5 shrink-0 cursor-pointer"
 													/>
@@ -287,12 +287,14 @@ export const RelationshipsPanel = ({
 													if (!selectedRelationships.has(rel.constraintName)) {
 														const next = new Set(selectedRelationships);
 														next.add(rel.constraintName);
+														const displayed = new Set(displayedRelationships);
+														displayed.add(rel.constraintName);
 														setSelectedRelationships(next);
-														setActiveRelationship(rel.constraintName);
+														setDisplayedRelationships(displayed);
 													}
 												}}
 												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
-													activeRelationship === rel.constraintName
+													displayedRelationships.has(rel.constraintName)
 														? "bg-accent border-l-2 border-primary"
 														: ""
 												}`}
@@ -318,17 +320,21 @@ export const RelationshipsPanel = ({
 															const next = new Set(selectedRelationships);
 															if (e.target.checked) {
 																next.add(rel.constraintName);
-																if (!activeRelationship) {
-																	setActiveRelationship(rel.constraintName);
-																}
+																const displayed = new Set(
+																	displayedRelationships,
+																);
+																displayed.add(rel.constraintName);
+																setSelectedRelationships(next);
+																setDisplayedRelationships(displayed);
 															} else {
 																next.delete(rel.constraintName);
-																if (activeRelationship === rel.constraintName) {
-																	const remaining = Array.from(next);
-																	setActiveRelationship(remaining[0] ?? null);
-																}
+																const displayed = new Set(
+																	displayedRelationships,
+																);
+																displayed.delete(rel.constraintName);
+																setSelectedRelationships(next);
+																setDisplayedRelationships(displayed);
 															}
-															setSelectedRelationships(next);
 														}}
 														className="mt-0.5 shrink-0 cursor-pointer"
 													/>
@@ -350,26 +356,33 @@ export const RelationshipsPanel = ({
 					/>
 
 					{/* Right Panel - Data Display */}
-					{activeRelationship &&
-					selectedRelationships.has(activeRelationship) ? (
-						<RelationshipCard
-							relationship={
-								relationships.find(
-									(r) => r.constraintName === activeRelationship,
-								)!
-							}
-							rowData={rowData}
-							connectionUrl={connectionUrl}
-							isPanelExpanded={isPanelExpanded}
-							onRemove={() => {
-								const next = new Set(selectedRelationships);
-								next.delete(activeRelationship);
-								setSelectedRelationships(next);
-								// Switch to another selected rel or clear active
-								const remaining = Array.from(next);
-								setActiveRelationship(remaining[0] ?? null);
-							}}
-						/>
+					{displayedRelationships.size > 0 ? (
+						<div className="flex-1 overflow-y-auto space-y-4 p-4">
+							{Array.from(displayedRelationships).map((constraintName) => {
+								const rel = relationships.find(
+									(r) => r.constraintName === constraintName,
+								);
+								if (!rel) return null;
+								return (
+									<div
+										key={constraintName}
+										className="border rounded-lg overflow-hidden bg-card"
+									>
+										<RelationshipCard
+											relationship={rel}
+											rowData={rowData}
+											connectionUrl={connectionUrl}
+											isPanelExpanded={isPanelExpanded}
+											onRemove={() => {
+												const next = new Set(displayedRelationships);
+												next.delete(constraintName);
+												setDisplayedRelationships(next);
+											}}
+										/>
+									</div>
+								);
+							})}
+						</div>
 					) : (
 						<div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
 							Select a relationship to view details
