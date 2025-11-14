@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
@@ -36,6 +36,34 @@ export const RelationshipsPanel = ({
 	const [activeRelationship, setActiveRelationship] = useState<string | null>(
 		null,
 	);
+	const [sidebarWidth, setSidebarWidth] = useState(288); // w-72 = 18rem = 288px
+	const [isResizing, setIsResizing] = useState(false);
+
+	// Handle sidebar resize
+	useEffect(() => {
+		if (!isResizing) return;
+
+		const handleMouseMove = (e: MouseEvent) => {
+			const newWidth = Math.max(200, Math.min(e.clientX, 500)); // Min 200px, max 500px
+			setSidebarWidth(newWidth);
+		};
+
+		const handleMouseUp = () => {
+			setIsResizing(false);
+		};
+
+		window.addEventListener("mousemove", handleMouseMove);
+		window.addEventListener("mouseup", handleMouseUp);
+
+		return () => {
+			window.removeEventListener("mousemove", handleMouseMove);
+			window.removeEventListener("mouseup", handleMouseUp);
+		};
+	}, [isResizing]);
+
+	const handleResizeStart = () => {
+		setIsResizing(true);
+	};
 
 	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
@@ -160,13 +188,16 @@ export const RelationshipsPanel = ({
 			) : (
 				<div className="flex h-full overflow-hidden">
 					{/* Left Sidebar - Relationship List */}
-					<div className="w-72 border-r bg-muted/30 flex flex-col shrink-0 overflow-hidden">
+					<div
+						style={{ width: `${sidebarWidth}px` }}
+						className="border-r bg-muted/30 flex flex-col shrink-0 overflow-hidden transition-all duration-100"
+					>
 						{/* Relationships List */}
 						<div className="flex-1 overflow-y-auto">
 							{/* References (Outgoing) */}
 							{outgoingRels.length > 0 && (
 								<div>
-									<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted/50">
+									<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted z-10">
 										References (
 										{
 											outgoingRels.filter((r) =>
@@ -179,9 +210,15 @@ export const RelationshipsPanel = ({
 										{outgoingRels.map((rel) => (
 											<button
 												key={rel.constraintName}
-												onClick={() =>
-													setActiveRelationship(rel.constraintName)
-												}
+												onClick={() => {
+													// Only select if not already selected
+													if (!selectedRelationships.has(rel.constraintName)) {
+														const next = new Set(selectedRelationships);
+														next.add(rel.constraintName);
+														setSelectedRelationships(next);
+														setActiveRelationship(rel.constraintName);
+													}
+												}}
 												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
 													activeRelationship === rel.constraintName
 														? "bg-accent border-l-2 border-primary"
@@ -213,7 +250,6 @@ export const RelationshipsPanel = ({
 															} else {
 																next.delete(rel.constraintName);
 																if (activeRelationship === rel.constraintName) {
-																	// Switch to another selected rel or first if none selected
 																	const remaining = Array.from(next);
 																	setActiveRelationship(remaining[0] ?? null);
 																}
@@ -233,7 +269,7 @@ export const RelationshipsPanel = ({
 							{incomingRels.length > 0 && (
 								<div>
 									{outgoingRels.length > 0 && <div className="border-t my-1" />}
-									<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted/50">
+									<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted z-10">
 										Referenced By (
 										{
 											incomingRels.filter((r) =>
@@ -246,9 +282,15 @@ export const RelationshipsPanel = ({
 										{incomingRels.map((rel) => (
 											<button
 												key={rel.constraintName}
-												onClick={() =>
-													setActiveRelationship(rel.constraintName)
-												}
+												onClick={() => {
+													// Only select if not already selected
+													if (!selectedRelationships.has(rel.constraintName)) {
+														const next = new Set(selectedRelationships);
+														next.add(rel.constraintName);
+														setSelectedRelationships(next);
+														setActiveRelationship(rel.constraintName);
+													}
+												}}
 												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
 													activeRelationship === rel.constraintName
 														? "bg-accent border-l-2 border-primary"
@@ -282,7 +324,6 @@ export const RelationshipsPanel = ({
 															} else {
 																next.delete(rel.constraintName);
 																if (activeRelationship === rel.constraintName) {
-																	// Switch to another selected rel or first if none selected
 																	const remaining = Array.from(next);
 																	setActiveRelationship(remaining[0] ?? null);
 																}
@@ -299,6 +340,14 @@ export const RelationshipsPanel = ({
 							)}
 						</div>
 					</div>
+
+					{/* Resize Handle */}
+					<div
+						onMouseDown={handleResizeStart}
+						className={`w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors ${
+							isResizing ? "bg-primary/50" : ""
+						}`}
+					/>
 
 					{/* Right Panel - Data Display */}
 					{activeRelationship &&

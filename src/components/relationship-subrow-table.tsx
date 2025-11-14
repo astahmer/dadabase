@@ -166,7 +166,7 @@ export const RelationshipSubrowTable = ({
 							className="h-6 px-2 gap-1"
 						>
 							<Maximize2 className="h-3 w-3" />
-							<span className="text-xs">Full Screen</span>
+							<span className="text-xs">Maximize</span>
 						</Button>
 					)}
 					{onRemove && (
