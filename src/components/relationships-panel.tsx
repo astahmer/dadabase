@@ -46,46 +46,6 @@ export const RelationshipsPanel = ({
 	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const rightPanelRef = useRef<HTMLDivElement | null>(null);
 
-	// Track which relationship is currently visible in the viewport
-	useEffect(() => {
-		if (!rightPanelRef.current) return;
-
-		const observer = new IntersectionObserver(
-			(entries) => {
-				// Find the card closest to the top (smallest boundingClientRect.top)
-				let topmost = entries[0];
-				for (const entry of entries) {
-					if (entry.isIntersecting) {
-						const entryTop = entry.boundingClientRect.top;
-						const topmostTop = topmost.boundingClientRect.top;
-						// Find the one closest to top (smallest positive top value)
-						if (entryTop >= 0 && (topmostTop < 0 || entryTop < topmostTop)) {
-							topmost = entry;
-						}
-					}
-				}
-
-				if (topmost.isIntersecting) {
-					const constraintName = topmost.target.getAttribute("data-constraint");
-					if (constraintName) {
-						setStickyRelationship(constraintName);
-					}
-				}
-			},
-			{
-				root: rightPanelRef.current,
-				threshold: 0.01,
-			},
-		);
-
-		// Observe all card elements
-		Object.values(cardRefs.current).forEach((el) => {
-			if (el) observer.observe(el);
-		});
-
-		return () => observer.disconnect();
-	}, [displayedRelationships]);
-
 	// Scroll to focused relationship
 	useEffect(() => {
 		if (focusedRelationship && cardRefs.current[focusedRelationship]) {
@@ -106,39 +66,89 @@ export const RelationshipsPanel = ({
 		}),
 	);
 
-	if (!selectedRowId || !rowData) {
-		return null;
-	}
-
 	const relationships = relationshipsQuery.data ?? [];
-
-	// Set default selected relationships (first of each type)
-	if (selectedRelationships.size === 0 && relationships.length > 0) {
-		const firstOutgoing = relationships.find((r) => r.type === "outgoing");
-		const firstIncoming = relationships.find((r) => r.type === "incoming");
-		const defaults = new Set<string>();
-		const displayed = new Set<string>();
-
-		if (firstOutgoing) {
-			defaults.add(firstOutgoing.constraintName);
-			displayed.add(firstOutgoing.constraintName);
-		}
-		if (firstIncoming) {
-			defaults.add(firstIncoming.constraintName);
-			displayed.add(firstIncoming.constraintName);
-		}
-		if (defaults.size === 0 && relationships.length > 0) {
-			defaults.add(relationships[0].constraintName);
-			displayed.add(relationships[0].constraintName);
-		}
-
-		setSelectedRelationships(defaults);
-		setDisplayedRelationships(displayed);
-	}
 
 	// Separate relationships by type
 	const outgoingRels = relationships.filter((r) => r.type === "outgoing");
 	const incomingRels = relationships.filter((r) => r.type === "incoming");
+
+	// Track which relationship header we've scrolled past
+	useEffect(() => {
+		const container = rightPanelRef.current;
+		if (!container) return;
+
+		// Get the sorted list of displayed relationships (same order as rendering)
+		const sortedRels = relationships
+			.filter((r) => displayedRelationships.has(r.constraintName))
+			.sort((a, b) => {
+				if (a.type === "outgoing" && b.type === "incoming") return -1;
+				if (a.type === "incoming" && b.type === "outgoing") return 1;
+				return 0;
+			});
+
+		// Track the order of cards as they enter/exit the top of the viewport
+		const visibleCards = new Map<string, number>(); // constraintName -> position
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					const constraintName = entry.target.getAttribute("data-constraint");
+					if (!constraintName) return;
+
+					if (entry.isIntersecting) {
+						// Card is visible - track its vertical position
+						visibleCards.set(
+							constraintName,
+							entry.boundingClientRect.top -
+								container.getBoundingClientRect().top,
+						);
+					} else {
+						// Card is no longer visible - remove from tracking
+						visibleCards.delete(constraintName);
+					}
+				});
+
+				// Find which card is closest to or above the top
+				let topmostCard: string | null = null;
+				let smallestTop = Infinity;
+
+				for (const [name, top] of visibleCards) {
+					// We want the card closest to 0 (at the top), including negative values
+					// A negative value means it's above the viewport (scrolled past)
+					if (top <= smallestTop) {
+						smallestTop = top;
+						topmostCard = name;
+					}
+				}
+
+				// If no visible cards but we have sorted ones, use the first
+				if (!topmostCard && sortedRels.length > 0) {
+					topmostCard = sortedRels[0].constraintName;
+				}
+
+				if (topmostCard) {
+					setStickyRelationship(topmostCard);
+				}
+			},
+			{
+				root: container,
+				threshold: 0,
+			},
+		);
+
+		// Observe all displayed card elements
+		Object.entries(cardRefs.current).forEach(([constraintName, el]) => {
+			if (el && displayedRelationships.has(constraintName)) {
+				observer.observe(el);
+			}
+		});
+
+		return () => observer.disconnect();
+	}, [displayedRelationships, relationships]);
+
+	if (!selectedRowId || !rowData) {
+		return null;
+	}
 
 	if (!isPanelExpanded) {
 		return (
