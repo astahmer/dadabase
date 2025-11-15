@@ -31,7 +31,7 @@ import {
 	RefreshCw,
 	Rows,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { CollapsibleSidebar } from "../collapsible-sidebar";
 import { ColumnVisibilityControls } from "../column-visibility";
@@ -68,24 +68,11 @@ import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
 import type { DataTableSize } from "../data-table.styles.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
+import { calculateSplitterRelationshipPanelSize } from "#src/lib/calculate-percentage-from-pixels.ts";
 
 interface ConnectionPageProps {
 	connectionName: string;
 }
-
-const panels = [
-	{
-		id: "table",
-		collapsible: false,
-		minSize: 30,
-	},
-	{
-		id: "relationships",
-		collapsible: true,
-		collapsedSize: 8,
-		minSize: 8,
-	},
-];
 
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
@@ -128,6 +115,19 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
 		null,
 	);
+	const [relationshipPanelSize, setRelationshipPanelSize] = useState(
+		calculateSplitterRelationshipPanelSize(50),
+	);
+
+	// Recalculate relationship panel size on window resize
+	useEffect(() => {
+		const handleResize = () => {
+			setRelationshipPanelSize(calculateSplitterRelationshipPanelSize(50));
+		};
+
+		window.addEventListener("resize", handleResize);
+		return () => window.removeEventListener("resize", handleResize);
+	}, []);
 
 	const pageState = useConnectionPageState({ connection });
 	const {
@@ -238,7 +238,19 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 												<Splitter.Root
 													orientation="vertical"
 													className="flex-1 flex flex-col h-full overflow-hidden"
-													panels={panels}
+													panels={[
+														{
+															id: "table",
+															collapsible: false,
+															minSize: 30,
+														},
+														{
+															id: "relationships",
+															collapsible: true,
+															collapsedSize: relationshipPanelSize,
+															minSize: relationshipPanelSize,
+														},
+													]}
 												>
 													<Splitter.Panel
 														id="table"
@@ -312,7 +324,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															/>
 															<Splitter.Panel
 																id="relationships"
-																className="overflow-hidden flex flex-col"
+																className="overflow-hidden flex flex-col mb-2.5"
 															>
 																<Splitter.Context>
 																	{(ctx) => {
