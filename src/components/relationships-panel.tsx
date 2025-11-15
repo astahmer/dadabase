@@ -211,6 +211,7 @@ export const RelationshipsPanel = ({
 			) : (
 				<Splitter.Root
 					orientation="horizontal"
+					defaultSize={[30, 70]}
 					panels={[
 						{
 							id: "sidebar",
