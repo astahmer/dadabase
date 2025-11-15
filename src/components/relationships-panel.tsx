@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { X, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Splitter } from "@ark-ui/react/splitter";
@@ -37,6 +37,22 @@ export const RelationshipsPanel = ({
 	const [displayedRelationships, setDisplayedRelationships] = useState<
 		Set<string>
 	>(new Set());
+	const [focusedRelationship, setFocusedRelationship] = useState<string | null>(
+		null,
+	);
+	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+	const rightPanelRef = useRef<HTMLDivElement | null>(null);
+
+	// Scroll to focused relationship
+	useEffect(() => {
+		if (focusedRelationship && cardRefs.current[focusedRelationship]) {
+			cardRefs.current[focusedRelationship]?.scrollIntoView({
+				behavior: "smooth",
+				block: "start",
+				inline: "start",
+			});
+		}
+	}, [focusedRelationship]);
 
 	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
@@ -203,10 +219,11 @@ export const RelationshipsPanel = ({
 														setSelectedRelationships(next);
 														setDisplayedRelationships(displayed);
 													}
+													setFocusedRelationship(rel.constraintName);
 												}}
 												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
-													displayedRelationships.has(rel.constraintName)
-														? "bg-accent border-l-2 border-primary"
+													focusedRelationship === rel.constraintName
+														? "bg-accent border-l-[1px] border-muted"
 														: ""
 												}`}
 											>
@@ -281,9 +298,10 @@ export const RelationshipsPanel = ({
 														setSelectedRelationships(next);
 														setDisplayedRelationships(displayed);
 													}
+													setFocusedRelationship(rel.constraintName);
 												}}
 												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
-													displayedRelationships.has(rel.constraintName)
+													focusedRelationship === rel.constraintName
 														? "bg-accent border-l-2 border-primary"
 														: ""
 												}`}
@@ -345,6 +363,7 @@ export const RelationshipsPanel = ({
 					<Splitter.Panel
 						id="content"
 						className="flex flex-col overflow-hidden"
+						ref={rightPanelRef}
 					>
 						{displayedRelationships.size > 0 ? (
 							<div className="flex-1 overflow-y-auto space-y-4 p-4">
@@ -356,7 +375,16 @@ export const RelationshipsPanel = ({
 									return (
 										<div
 											key={constraintName}
-											className="border rounded-lg overflow-hidden bg-card"
+											ref={(el) => {
+												if (el) {
+													cardRefs.current[constraintName] = el;
+												}
+											}}
+											className={`border rounded-md overflow-hidden bg-card transition-colors ${
+												focusedRelationship === constraintName
+													? "ring-2 ring-blue-400"
+													: ""
+											}`}
 										>
 											<RelationshipCard
 												relationship={rel}
