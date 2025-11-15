@@ -39,6 +39,7 @@ export const RelationshipsPanel = ({
 	>(new Set());
 	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const rightPanelRef = useRef<HTMLDivElement | null>(null);
+	const groupCheckboxRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
 	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
@@ -99,6 +100,60 @@ export const RelationshipsPanel = ({
 		incoming: relationships.filter((r) => r.type === "incoming"),
 	};
 
+	const handleSelectAllGroup = (type: "outgoing" | "incoming") => {
+		const groupRels = relsByType[type];
+		const next = new Set(selectedRelationships);
+		const displayed = new Set(displayedRelationships);
+
+		groupRels.forEach((rel) => {
+			next.add(rel.constraintName);
+			displayed.add(rel.constraintName);
+		});
+
+		setSelectedRelationships(next);
+		setDisplayedRelationships(displayed);
+	};
+
+	const handleDeselectAllGroup = (type: "outgoing" | "incoming") => {
+		const groupRels = relsByType[type];
+		const next = new Set(selectedRelationships);
+		const displayed = new Set(displayedRelationships);
+
+		groupRels.forEach((rel) => {
+			next.delete(rel.constraintName);
+			displayed.delete(rel.constraintName);
+		});
+
+		setSelectedRelationships(next);
+		setDisplayedRelationships(displayed);
+	};
+
+	const isGroupFullySelected = (type: "outgoing" | "incoming") => {
+		const groupRels = relsByType[type];
+		return (
+			groupRels.length > 0 &&
+			groupRels.every((r) => selectedRelationships.has(r.constraintName))
+		);
+	};
+
+	const isGroupPartiallySelected = (type: "outgoing" | "incoming") => {
+		const groupRels = relsByType[type];
+		const selectedCount = groupRels.filter((r) =>
+			selectedRelationships.has(r.constraintName),
+		).length;
+		return selectedCount > 0 && selectedCount < groupRels.length;
+	};
+
+	// Update indeterminate state for group checkboxes
+	useEffect(() => {
+		(["outgoing", "incoming"] as const).forEach((type) => {
+			const checkbox = groupCheckboxRefs.current[type];
+			if (checkbox) {
+				checkbox.indeterminate = isGroupPartiallySelected(type);
+			}
+		});
+	}, [selectedRelationships]);
+
 	const handleRelationshipClick = (constraintName: string) => {
 		if (!selectedRelationships.has(constraintName)) {
 			const next = new Set(selectedRelationships);
@@ -133,21 +188,63 @@ export const RelationshipsPanel = ({
 		<div className="border-t bg-card flex flex-col h-full overflow-hidden">
 			{/* Header */}
 			<div className="px-4 py-3 border-b flex items-center justify-between shrink-0 gap-3">
-				<button
-					onClick={onCollapse}
-					className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-					title="Collapse relationships panel"
-				>
-					<ChevronDown className="h-3 w-3 shrink-0" />
-					<span className="truncate">
-						<span>Click to hide relations for:</span>
-						<span className="font-medium ml-1">
-							{schema}.{table}
+				<div className="flex items-center gap-2 min-w-0 flex-1">
+					<button
+						onClick={onCollapse}
+						className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+						title="Collapse relationships panel"
+					>
+						<ChevronDown className="h-3 w-3 shrink-0" />
+						<span className="truncate">
+							<span>Click to hide relations for:</span>
+							<span className="font-medium ml-1">
+								{schema}.{table}
+							</span>
+							<span className="text-muted-foreground mx-1">=</span>
+							<span className="font-mono text-xs">{selectedRowId}</span>
 						</span>
-						<span className="text-muted-foreground mx-1">=</span>
-						<span className="font-mono text-xs">{selectedRowId}</span>
-					</span>
-				</button>
+					</button>
+				</div>
+
+				{/* Sticky Relationship Display */}
+				{stickyRelationship &&
+					(() => {
+						const rel = relationships.find(
+							(r) => r.constraintName === stickyRelationship,
+						);
+						return rel ? (
+							<span className="text-xs text-muted-foreground flex items-center gap-2 truncate">
+								<span className="text-muted-foreground">›</span>
+								<span className="truncate">
+									{rel.type === "outgoing" ? (
+										<>
+											<span className="font-medium text-foreground">
+												{rel.referencingSchema}.{rel.referencingTable}.
+												{rel.referencingColumn}
+											</span>
+											<span className="mx-1">›</span>
+											<span>
+												{rel.referencedSchema}.{rel.referencedTable}.
+												{rel.referencedColumn}
+											</span>
+										</>
+									) : (
+										<>
+											<span className="font-medium text-foreground">
+												{rel.referencingSchema}.{rel.referencingTable}.
+												{rel.referencingColumn}
+											</span>
+											<span className="mx-1">›</span>
+											<span>
+												{rel.referencedSchema}.{rel.referencedTable}.
+												{rel.referencedColumn}
+											</span>
+										</>
+									)}
+								</span>
+							</span>
+						) : null;
+					})()}
 
 				<Button
 					onClick={onClose}
@@ -198,18 +295,44 @@ export const RelationshipsPanel = ({
 								const typeLabel =
 									type === "outgoing" ? "References" : "Referenced By";
 								const isFocused = type === "outgoing";
+								const isFullySelected = isGroupFullySelected(type);
 
 								return rels.length > 0 ? (
 									<div key={type}>
 										{idx > 0 && <div className="border-t my-1" />}
-										<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted z-10">
-											{typeLabel} (
-											{
-												rels.filter((r) =>
-													selectedRelationships.has(r.constraintName),
-												).length
-											}
-											)
+										<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted z-10 flex items-center justify-between gap-2">
+											<span>
+												{typeLabel} (
+												{
+													rels.filter((r) =>
+														selectedRelationships.has(r.constraintName),
+													).length
+												}
+												)
+											</span>
+											<input
+												ref={(el) => {
+													if (el) {
+														groupCheckboxRefs.current[type] = el;
+													}
+												}}
+												type="checkbox"
+												checked={isFullySelected}
+												onChange={() => {
+													if (isFullySelected) {
+														handleDeselectAllGroup(type);
+													} else {
+														handleSelectAllGroup(type);
+													}
+												}}
+												onClick={(e) => e.stopPropagation()}
+												className="shrink-0 cursor-pointer"
+												title={
+													isFullySelected
+														? `Deselect all ${typeLabel.toLowerCase()}`
+														: `Select all ${typeLabel.toLowerCase()}`
+												}
+											/>
 										</div>
 										<div className="space-y-0">
 											{rels.map((rel) => (
@@ -275,85 +398,45 @@ export const RelationshipsPanel = ({
 						ref={rightPanelRef}
 					>
 						{displayedRelationships.size > 0 ? (
-							<>
-								{/* Current Relationship Header */}
-								{stickyRelationship &&
-									(() => {
-										const rel = relationships.find(
-											(r) => r.constraintName === stickyRelationship,
-										);
-										return rel ? (
-											<div className="sticky top-0 z-20 bg-card border-b px-4 py-2 text-xs text-muted-foreground flex items-center gap-2">
-												<span>
-													{rel.type === "outgoing" ? (
-														<>
-															<span className="font-medium text-foreground">
-																{rel.referencingSchema}.{rel.referencingTable}.
-																{rel.referencingColumn}
-															</span>
-															<span className="mx-1">›</span>
-															<span>
-																{rel.referencedSchema}.{rel.referencedTable}.
-																{rel.referencedColumn}
-															</span>
-														</>
-													) : (
-														<>
-															<span className="font-medium text-foreground">
-																{rel.referencingSchema}.{rel.referencingTable}.
-																{rel.referencingColumn}
-															</span>
-															<span className="mx-1">›</span>
-															<span>
-																{rel.referencedSchema}.{rel.referencedTable}.
-																{rel.referencedColumn}
-															</span>
-														</>
-													)}
-												</span>
-											</div>
-										) : null;
-									})()}
-								<div className="flex-1 overflow-y-auto space-y-4 p-4">
-									{relationships
-										.filter((r) => displayedRelationships.has(r.constraintName))
-										.sort((a, b) => {
-											// Outgoing (References) first, then incoming (Referenced By)
-											if (a.type === "outgoing" && b.type === "incoming")
-												return -1;
-											if (a.type === "incoming" && b.type === "outgoing")
-												return 1;
-											return 0;
-										})
-										.map((rel) => {
-											const constraintName = rel.constraintName;
-											return (
-												<div
-													key={constraintName}
-													data-constraint={constraintName}
-													ref={(el) => {
-														if (el) {
-															cardRefs.current[constraintName] = el;
-														}
+							<div className="flex-1 overflow-y-auto space-y-4 p-4">
+								{relationships
+									.filter((r) => displayedRelationships.has(r.constraintName))
+									.sort((a, b) => {
+										// Outgoing (References) first, then incoming (Referenced By)
+										if (a.type === "outgoing" && b.type === "incoming")
+											return -1;
+										if (a.type === "incoming" && b.type === "outgoing")
+											return 1;
+										return 0;
+									})
+									.map((rel) => {
+										const constraintName = rel.constraintName;
+										return (
+											<div
+												key={constraintName}
+												data-constraint={constraintName}
+												ref={(el) => {
+													if (el) {
+														cardRefs.current[constraintName] = el;
+													}
+												}}
+												className="border rounded-md overflow-hidden bg-card transition-colors"
+											>
+												<RelationshipCard
+													relationship={rel}
+													rowData={rowData}
+													connectionUrl={connectionUrl}
+													isPanelExpanded={isPanelExpanded}
+													onRemove={() => {
+														const next = new Set(displayedRelationships);
+														next.delete(constraintName);
+														setDisplayedRelationships(next);
 													}}
-													className="border rounded-md overflow-hidden bg-card transition-colors"
-												>
-													<RelationshipCard
-														relationship={rel}
-														rowData={rowData}
-														connectionUrl={connectionUrl}
-														isPanelExpanded={isPanelExpanded}
-														onRemove={() => {
-															const next = new Set(displayedRelationships);
-															next.delete(constraintName);
-															setDisplayedRelationships(next);
-														}}
-													/>
-												</div>
-											);
-										})}
-								</div>
-							</>
+												/>
+											</div>
+										);
+									})}
+							</div>
 						) : (
 							<div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
 								Select a relationship to view details
