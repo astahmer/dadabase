@@ -214,7 +214,7 @@ export const RelationshipsPanel = ({
 						{
 							id: "sidebar",
 							collapsible: true,
-							collapsedSize: 10,
+							collapsedSize: 0,
 							minSize: 10,
 						},
 						{
@@ -228,7 +228,7 @@ export const RelationshipsPanel = ({
 					{/* Left Sidebar - Relationship List */}
 					<Splitter.Panel
 						id="sidebar"
-						className="border-r bg-muted/30 flex flex-col overflow-hidden"
+						className="border-r bg-muted/30 flex flex-col overflow-hidden ml-2"
 					>
 						{/* Relationships List */}
 						<div className="flex-1 overflow-y-auto">
