@@ -45,6 +45,7 @@ export const getRouter = () => {
 	const router = createRouter({
 		routeTree,
 		context: { ...rqContext },
+		defaultStructuralSharing: true,
 		defaultPreload: "intent",
 		defaultPendingComponent: () => (
 			<FullCenter>
