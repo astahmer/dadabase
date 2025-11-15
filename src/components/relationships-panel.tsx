@@ -7,6 +7,8 @@ import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
 import { RelationshipSubrowTable } from "./relationship-subrow-table";
+import { HStack } from "./ui/layout.tsx";
+import { Checkbox, CheckboxControl } from "./ui/checkbox";
 
 interface RelationshipsPanelProps {
 	connectionUrl: string;
@@ -39,7 +41,6 @@ export const RelationshipsPanel = ({
 	>(new Set());
 	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const rightPanelRef = useRef<HTMLDivElement | null>(null);
-	const groupCheckboxRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
 	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
@@ -136,24 +137,6 @@ export const RelationshipsPanel = ({
 		);
 	};
 
-	const isGroupPartiallySelected = (type: "outgoing" | "incoming") => {
-		const groupRels = relsByType[type];
-		const selectedCount = groupRels.filter((r) =>
-			selectedRelationships.has(r.constraintName),
-		).length;
-		return selectedCount > 0 && selectedCount < groupRels.length;
-	};
-
-	// Update indeterminate state for group checkboxes
-	useEffect(() => {
-		(["outgoing", "incoming"] as const).forEach((type) => {
-			const checkbox = groupCheckboxRefs.current[type];
-			if (checkbox) {
-				checkbox.indeterminate = isGroupPartiallySelected(type);
-			}
-		});
-	}, [selectedRelationships]);
-
 	const handleRelationshipClick = (constraintName: string) => {
 		if (!selectedRelationships.has(constraintName)) {
 			const next = new Set(selectedRelationships);
@@ -216,31 +199,13 @@ export const RelationshipsPanel = ({
 							<span className="text-xs text-muted-foreground flex items-center gap-2 truncate">
 								<span className="text-muted-foreground">›</span>
 								<span className="truncate">
-									{rel.type === "outgoing" ? (
-										<>
-											<span className="font-medium text-foreground">
-												{rel.referencingSchema}.{rel.referencingTable}.
-												{rel.referencingColumn}
-											</span>
-											<span className="mx-1">›</span>
-											<span>
-												{rel.referencedSchema}.{rel.referencedTable}.
-												{rel.referencedColumn}
-											</span>
-										</>
-									) : (
-										<>
-											<span className="font-medium text-foreground">
-												{rel.referencingSchema}.{rel.referencingTable}.
-												{rel.referencingColumn}
-											</span>
-											<span className="mx-1">›</span>
-											<span>
-												{rel.referencedSchema}.{rel.referencedTable}.
-												{rel.referencedColumn}
-											</span>
-										</>
-									)}
+									<span className="font-medium text-foreground">
+										{rel.referencingTable}.{rel.referencingColumn}
+									</span>
+									<span className="mx-1">›</span>
+									<span>
+										{rel.referencedTable}.{rel.referencedColumn}
+									</span>
 								</span>
 							</span>
 						) : null;
@@ -300,7 +265,16 @@ export const RelationshipsPanel = ({
 								return rels.length > 0 ? (
 									<div key={type}>
 										{idx > 0 && <div className="border-t my-1" />}
-										<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted z-10 flex items-center justify-between gap-2">
+										<div
+											className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted z-10 flex items-center justify-between gap-2"
+											onClick={() => {
+												if (isFullySelected) {
+													handleDeselectAllGroup(type);
+												} else {
+													handleSelectAllGroup(type);
+												}
+											}}
+										>
 											<span>
 												{typeLabel} (
 												{
@@ -310,15 +284,9 @@ export const RelationshipsPanel = ({
 												}
 												)
 											</span>
-											<input
-												ref={(el) => {
-													if (el) {
-														groupCheckboxRefs.current[type] = el;
-													}
-												}}
-												type="checkbox"
+											<Checkbox
 												checked={isFullySelected}
-												onChange={() => {
+												onCheckedChange={() => {
 													if (isFullySelected) {
 														handleDeselectAllGroup(type);
 													} else {
@@ -326,13 +294,14 @@ export const RelationshipsPanel = ({
 													}
 												}}
 												onClick={(e) => e.stopPropagation()}
-												className="shrink-0 cursor-pointer"
 												title={
 													isFullySelected
 														? `Deselect all ${typeLabel.toLowerCase()}`
 														: `Select all ${typeLabel.toLowerCase()}`
 												}
-											/>
+											>
+												<CheckboxControl />
+											</Checkbox>
 										</div>
 										<div className="space-y-0">
 											{rels.map((rel) => (
@@ -350,32 +319,32 @@ export const RelationshipsPanel = ({
 													}`}
 												>
 													<div className="flex items-start justify-between gap-2">
-														<div className="flex-1 min-w-0">
+														<HStack className="flex-1 min-w-0">
 															<div className="font-medium truncate">
 																{type === "outgoing"
 																	? `${rel.referencingTable}.${rel.referencingColumn}`
-																	: `${rel.referencingSchema}.${rel.referencingTable}.${rel.referencingColumn}`}
+																	: `${rel.referencingTable}.${rel.referencingColumn}`}
 															</div>
 															<div className="text-muted-foreground truncate text-xs">
 																{type === "outgoing"
-																	? `${rel.referencedTable}.${rel.referencedColumn}`
-																	: `› ${rel.referencedSchema}.${rel.referencedTable}.${rel.referencedColumn}`}
+																	? `› ${rel.referencedTable}.${rel.referencedColumn}`
+																	: `› ${rel.referencedTable}.${rel.referencedColumn}`}
 															</div>
-														</div>
-														<input
-															type="checkbox"
+														</HStack>
+														<Checkbox
 															checked={selectedRelationships.has(
 																rel.constraintName,
 															)}
-															onChange={(e) => {
-																e.stopPropagation();
+															onCheckedChange={(details) => {
 																handleRelationshipCheckChange(
 																	rel.constraintName,
-																	e.target.checked,
+																	details.checked === true,
 																);
 															}}
-															className="mt-0.5 shrink-0 cursor-pointer"
-														/>
+															onClick={(e) => e.stopPropagation()}
+														>
+															<CheckboxControl />
+														</Checkbox>
 													</div>
 												</button>
 											))}
