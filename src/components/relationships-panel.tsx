@@ -40,8 +40,49 @@ export const RelationshipsPanel = ({
 	const [focusedRelationship, setFocusedRelationship] = useState<string | null>(
 		null,
 	);
+	const [visibleRelationship, setVisibleRelationship] = useState<string | null>(
+		null,
+	);
 	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const rightPanelRef = useRef<HTMLDivElement | null>(null);
+	console.log(visibleRelationship);
+
+	// Track which relationship is currently visible in the viewport
+	useEffect(() => {
+		if (!rightPanelRef.current) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				// Find the entry that is most visible (highest intersection ratio)
+				let mostVisible = entries[0];
+				console.log(entries);
+				for (const entry of entries) {
+					if (entry.intersectionRatio > mostVisible.intersectionRatio) {
+						mostVisible = entry;
+					}
+				}
+
+				if (mostVisible.isIntersecting) {
+					const constraintName =
+						mostVisible.target.getAttribute("data-constraint");
+					if (constraintName) {
+						setVisibleRelationship(constraintName);
+					}
+				}
+			},
+			{
+				root: rightPanelRef.current,
+				threshold: 0.1,
+			},
+		);
+
+		// Observe all card elements
+		Object.values(cardRefs.current).forEach((el) => {
+			if (el) observer.observe(el);
+		});
+
+		return () => observer.disconnect();
+	}, [displayedRelationships]);
 
 	// Scroll to focused relationship
 	useEffect(() => {
@@ -223,7 +264,7 @@ export const RelationshipsPanel = ({
 												}}
 												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
 													focusedRelationship === rel.constraintName
-														? "bg-accent border-l-[1px] border-muted"
+														? "bg-accent border-l border-muted"
 														: ""
 												}`}
 											>
@@ -366,41 +407,89 @@ export const RelationshipsPanel = ({
 						ref={rightPanelRef}
 					>
 						{displayedRelationships.size > 0 ? (
-							<div className="flex-1 overflow-y-auto space-y-4 p-4">
-								{Array.from(displayedRelationships).map((constraintName) => {
-									const rel = relationships.find(
-										(r) => r.constraintName === constraintName,
-									);
-									if (!rel) return null;
-									return (
-										<div
-											key={constraintName}
-											ref={(el) => {
-												if (el) {
-													cardRefs.current[constraintName] = el;
-												}
-											}}
-											className={`border rounded-md overflow-hidden bg-card transition-colors ${
-												focusedRelationship === constraintName
-													? "ring-2 ring-blue-400"
-													: ""
-											}`}
-										>
-											<RelationshipCard
-												relationship={rel}
-												rowData={rowData}
-												connectionUrl={connectionUrl}
-												isPanelExpanded={isPanelExpanded}
-												onRemove={() => {
-													const next = new Set(displayedRelationships);
-													next.delete(constraintName);
-													setDisplayedRelationships(next);
-												}}
-											/>
-										</div>
-									);
-								})}
-							</div>
+							<>
+								{/* Current Relationship Header */}
+								{visibleRelationship &&
+									(() => {
+										const rel = relationships.find(
+											(r) => r.constraintName === visibleRelationship,
+										);
+										return rel ? (
+											<div className="sticky top-0 z-20 bg-card border-b px-4 py-2 text-xs text-muted-foreground flex items-center gap-2">
+												<span>
+													{rel.type === "outgoing" ? (
+														<>
+															<span className="font-medium text-foreground">
+																{rel.referencingSchema}.{rel.referencingTable}.
+																{rel.referencingColumn}
+															</span>
+															<span className="mx-1">›</span>
+															<span>
+																{rel.referencedSchema}.{rel.referencedTable}.
+																{rel.referencedColumn}
+															</span>
+														</>
+													) : (
+														<>
+															<span className="font-medium text-foreground">
+																{rel.referencingSchema}.{rel.referencingTable}.
+																{rel.referencingColumn}
+															</span>
+															<span className="mx-1">›</span>
+															<span>
+																{rel.referencedSchema}.{rel.referencedTable}.
+																{rel.referencedColumn}
+															</span>
+														</>
+													)}
+												</span>
+											</div>
+										) : null;
+									})()}
+								<div className="flex-1 overflow-y-auto space-y-4 p-4">
+									{relationships
+										.filter((r) => displayedRelationships.has(r.constraintName))
+										.sort((a, b) => {
+											// Outgoing (References) first, then incoming (Referenced By)
+											if (a.type === "outgoing" && b.type === "incoming")
+												return -1;
+											if (a.type === "incoming" && b.type === "outgoing")
+												return 1;
+											return 0;
+										})
+										.map((rel) => {
+											const constraintName = rel.constraintName;
+											return (
+												<div
+													key={constraintName}
+													data-constraint={constraintName}
+													ref={(el) => {
+														if (el) {
+															cardRefs.current[constraintName] = el;
+														}
+													}}
+													className={`border rounded-md overflow-hidden bg-card transition-colors ${
+														focusedRelationship === constraintName
+															? "ring-2 ring-blue-400"
+															: ""
+													}`}
+												>
+													<RelationshipCard
+														relationship={rel}
+														rowData={rowData}
+														connectionUrl={connectionUrl}
+														isPanelExpanded={isPanelExpanded}
+														onRemove={() => {
+															const next = new Set(displayedRelationships);
+															next.delete(constraintName);
+															setDisplayedRelationships(next);
+														}}
+													/>
+												</div>
+											);
+										})}
+								</div>
+							</>
 						) : (
 							<div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
 								Select a relationship to view details

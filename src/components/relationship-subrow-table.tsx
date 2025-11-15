@@ -190,7 +190,7 @@ export const RelationshipSubrowTable = ({
 						table={table}
 						size="compact"
 						striped
-						stickyHeader={false}
+						stickyHeader={true}
 						isLoading={rowsQuery.isLoading}
 						hasError={rowsQuery.isError}
 					/>
@@ -221,7 +221,7 @@ export const RelationshipSubrowTable = ({
 							table={table}
 							size="compact"
 							striped
-							stickyHeader={false}
+							stickyHeader={true}
 							isLoading={rowsQuery.isLoading}
 							hasError={rowsQuery.isError}
 						/>
