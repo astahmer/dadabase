@@ -1,9 +1,10 @@
+import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
 import {
 	horizontalListSortingStrategy,
 	SortableContext,
 } from "@dnd-kit/sortable";
 import { flexRender, type Row } from "@tanstack/react-table";
-import type { PropsWithChildren, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Fragment, memo, useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import type { RelationshipMetadata } from "../types/relationships";
@@ -14,7 +15,6 @@ import {
 	type DataTableSize,
 } from "./data-table.styles.ts";
 import { RowContextMenu } from "./row-context-menu";
-import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
 
 const fallbackRender = () => "An error happened";
 
@@ -60,12 +60,6 @@ export const DataTableRow = memo(function TableRow({
 	const isSelected = row.getIsSelected();
 	const isExpanded = row.getIsExpanded();
 
-	const ContextMenu = withContextMenu
-		? RowContextMenu
-		: (props: PropsWithChildren) => (
-				<div className="contents">{props.children}</div>
-			);
-
 	const CellsList = useMemo(() => {
 		return visibleCells.map((cell, cellIndex) => {
 			const isPinned = Boolean(cell.column.getIsPinned());
@@ -95,43 +89,51 @@ export const DataTableRow = memo(function TableRow({
 		});
 	}, [visibleCells, isSelected, isExpanded]);
 
+	const MainRow = (
+		<tr
+			className={tableRowStyles({
+				striped,
+				selected: isSelected,
+				interactive: interactive && !!onRowClick,
+			})}
+			data-testid={`row-${index}`}
+			data-state={isSelected && "selected"}
+			onClick={
+				onRowClick
+					? (e) => {
+							if (isDescendantOfButton(e, ["BUTTON", "A"])) return;
+							e.stopPropagation();
+							return onRowClick(row);
+						}
+					: undefined
+			}
+		>
+			{enableColumnOrdering ? (
+				// the sortable context needs to be ABOVE the useSortable usage (inside the DataTableCell)
+				<SortableContext
+					items={columnOrder}
+					strategy={horizontalListSortingStrategy}
+				>
+					{CellsList}
+				</SortableContext>
+			) : (
+				CellsList
+			)}
+		</tr>
+	);
+
 	return (
 		<Fragment>
-			<ContextMenu
-				row={row.original as Record<string, unknown>}
-				onExpandRowJson={onExpandRowJson}
-			>
-				<tr
-					className={tableRowStyles({
-						striped,
-						selected: isSelected,
-						interactive: interactive && !!onRowClick,
-					})}
-					data-testid={`row-${index}`}
-					data-state={isSelected && "selected"}
-					onClick={
-						onRowClick
-							? (e) => {
-									if (isDescendantOfButton(e, ["BUTTON", "A"])) return;
-									e.stopPropagation();
-									return onRowClick(row);
-								}
-							: undefined
-					}
+			{withContextMenu ? (
+				<RowContextMenu
+					row={row.original as Record<string, unknown>}
+					onExpandRowJson={onExpandRowJson}
 				>
-					{enableColumnOrdering ? (
-						// the sortable context needs to be ABOVE the useSortable usage (inside the DataTableCell)
-						<SortableContext
-							items={columnOrder}
-							strategy={horizontalListSortingStrategy}
-						>
-							{CellsList}
-						</SortableContext>
-					) : (
-						CellsList
-					)}
-				</tr>
-			</ContextMenu>
+					{MainRow}
+				</RowContextMenu>
+			) : (
+				MainRow
+			)}
 			{isExpanded && ExpandedRow && (
 				<tr
 					className={`border-b ${isSelected ? "bg-blue-50" : ""}`}
