@@ -37,25 +37,8 @@ export const RelationshipsPanel = ({
 	const [displayedRelationships, setDisplayedRelationships] = useState<
 		Set<string>
 	>(new Set());
-	const [focusedRelationship, setFocusedRelationship] = useState<string | null>(
-		null,
-	);
-	const [stickyRelationship, setStickyRelationship] = useState<string | null>(
-		null,
-	);
 	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const rightPanelRef = useRef<HTMLDivElement | null>(null);
-
-	// Scroll to focused relationship
-	useEffect(() => {
-		if (focusedRelationship && cardRefs.current[focusedRelationship]) {
-			cardRefs.current[focusedRelationship]?.scrollIntoView({
-				behavior: "smooth",
-				block: "start",
-				inline: "start",
-			});
-		}
-	}, [focusedRelationship]);
 
 	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
@@ -67,84 +50,12 @@ export const RelationshipsPanel = ({
 	);
 
 	const relationships = relationshipsQuery.data ?? [];
-
-	// Separate relationships by type
-	const outgoingRels = relationships.filter((r) => r.type === "outgoing");
-	const incomingRels = relationships.filter((r) => r.type === "incoming");
-
-	// Track which relationship header we've scrolled past
-	useEffect(() => {
-		const container = rightPanelRef.current;
-		if (!container) return;
-
-		// Get the sorted list of displayed relationships (same order as rendering)
-		const sortedRels = relationships
-			.filter((r) => displayedRelationships.has(r.constraintName))
-			.sort((a, b) => {
-				if (a.type === "outgoing" && b.type === "incoming") return -1;
-				if (a.type === "incoming" && b.type === "outgoing") return 1;
-				return 0;
-			});
-
-		// Track the order of cards as they enter/exit the top of the viewport
-		const visibleCards = new Map<string, number>(); // constraintName -> position
-
-		const observer = new IntersectionObserver(
-			(entries) => {
-				entries.forEach((entry) => {
-					const constraintName = entry.target.getAttribute("data-constraint");
-					if (!constraintName) return;
-
-					if (entry.isIntersecting) {
-						// Card is visible - track its vertical position
-						visibleCards.set(
-							constraintName,
-							entry.boundingClientRect.top -
-								container.getBoundingClientRect().top,
-						);
-					} else {
-						// Card is no longer visible - remove from tracking
-						visibleCards.delete(constraintName);
-					}
-				});
-
-				// Find which card is closest to or above the top
-				let topmostCard: string | null = null;
-				let smallestTop = Infinity;
-
-				for (const [name, top] of visibleCards) {
-					// We want the card closest to 0 (at the top), including negative values
-					// A negative value means it's above the viewport (scrolled past)
-					if (top <= smallestTop) {
-						smallestTop = top;
-						topmostCard = name;
-					}
-				}
-
-				// If no visible cards but we have sorted ones, use the first
-				if (!topmostCard && sortedRels.length > 0) {
-					topmostCard = sortedRels[0].constraintName;
-				}
-
-				if (topmostCard) {
-					setStickyRelationship(topmostCard);
-				}
-			},
-			{
-				root: container,
-				threshold: 0,
-			},
-		);
-
-		// Observe all displayed card elements
-		Object.entries(cardRefs.current).forEach(([constraintName, el]) => {
-			if (el && displayedRelationships.has(constraintName)) {
-				observer.observe(el);
-			}
-		});
-
-		return () => observer.disconnect();
-	}, [displayedRelationships, relationships]);
+	const stickyRelationship = useStickyRelationshipTracking(
+		rightPanelRef,
+		cardRefs,
+		displayedRelationships,
+		relationships,
+	);
 
 	if (!selectedRowId || !rowData) {
 		return null;
@@ -181,6 +92,42 @@ export const RelationshipsPanel = ({
 			</div>
 		);
 	}
+
+	// Group relationships by type for rendering
+	const relsByType = {
+		outgoing: relationships.filter((r) => r.type === "outgoing"),
+		incoming: relationships.filter((r) => r.type === "incoming"),
+	};
+
+	const handleRelationshipClick = (constraintName: string) => {
+		if (!selectedRelationships.has(constraintName)) {
+			const next = new Set(selectedRelationships);
+			next.add(constraintName);
+			const displayed = new Set(displayedRelationships);
+			displayed.add(constraintName);
+			setSelectedRelationships(next);
+			setDisplayedRelationships(displayed);
+		}
+	};
+
+	const handleRelationshipCheckChange = (
+		constraintName: string,
+		checked: boolean,
+	) => {
+		const next = new Set(selectedRelationships);
+		const displayed = new Set(displayedRelationships);
+
+		if (checked) {
+			next.add(constraintName);
+			displayed.add(constraintName);
+		} else {
+			next.delete(constraintName);
+			displayed.delete(constraintName);
+		}
+
+		setSelectedRelationships(next);
+		setDisplayedRelationships(displayed);
+	};
 
 	return (
 		<div className="border-t bg-card flex flex-col h-full overflow-hidden">
@@ -246,166 +193,73 @@ export const RelationshipsPanel = ({
 					>
 						{/* Relationships List */}
 						<div className="flex-1 overflow-y-auto">
-							{/* References (Outgoing) */}
-							{outgoingRels.length > 0 && (
-								<div>
-									<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted z-10">
-										References (
-										{
-											outgoingRels.filter((r) =>
-												selectedRelationships.has(r.constraintName),
-											).length
-										}
-										)
-									</div>
-									<div className="space-y-0">
-										{outgoingRels.map((rel) => (
-											<button
-												key={rel.constraintName}
-												onClick={() => {
-													// Only select if not already selected
-													if (!selectedRelationships.has(rel.constraintName)) {
-														const next = new Set(selectedRelationships);
-														next.add(rel.constraintName);
-														const displayed = new Set(displayedRelationships);
-														displayed.add(rel.constraintName);
-														setSelectedRelationships(next);
-														setDisplayedRelationships(displayed);
-													}
-													setFocusedRelationship(rel.constraintName);
-												}}
-												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
-													focusedRelationship === rel.constraintName ||
-													stickyRelationship === rel.constraintName
-														? "bg-accent border-l border-muted"
-														: ""
-												}`}
-											>
-												<div className="flex items-start justify-between gap-2">
-													<div className="flex-1 min-w-0">
-														<div className="font-medium truncate">
-															{rel.referencingTable}.{rel.referencingColumn}
-														</div>
-														<div className="text-muted-foreground truncate text-xs">
-															{rel.referencedTable}.{rel.referencedColumn}
-														</div>
-													</div>
-													<input
-														type="checkbox"
-														checked={selectedRelationships.has(
-															rel.constraintName,
-														)}
-														onChange={(e) => {
-															e.stopPropagation();
-															const next = new Set(selectedRelationships);
-															if (e.target.checked) {
-																next.add(rel.constraintName);
-																const displayed = new Set(
-																	displayedRelationships,
-																);
-																displayed.add(rel.constraintName);
-																setSelectedRelationships(next);
-																setDisplayedRelationships(displayed);
-															} else {
-																next.delete(rel.constraintName);
-																const displayed = new Set(
-																	displayedRelationships,
-																);
-																displayed.delete(rel.constraintName);
-																setSelectedRelationships(next);
-																setDisplayedRelationships(displayed);
-															}
-														}}
-														className="mt-0.5 shrink-0 cursor-pointer"
-													/>
-												</div>
-											</button>
-										))}
-									</div>
-								</div>
-							)}
+							{(["outgoing", "incoming"] as const).map((type, idx) => {
+								const rels = relsByType[type];
+								const typeLabel =
+									type === "outgoing" ? "References" : "Referenced By";
+								const isFocused = type === "outgoing";
 
-							{/* Referenced By (Incoming) */}
-							{incomingRels.length > 0 && (
-								<div>
-									{outgoingRels.length > 0 && <div className="border-t my-1" />}
-									<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted z-10">
-										Referenced By (
-										{
-											incomingRels.filter((r) =>
-												selectedRelationships.has(r.constraintName),
-											).length
-										}
-										)
-									</div>
-									<div className="space-y-0">
-										{incomingRels.map((rel) => (
-											<button
-												key={rel.constraintName}
-												onClick={() => {
-													// Only select if not already selected
-													if (!selectedRelationships.has(rel.constraintName)) {
-														const next = new Set(selectedRelationships);
-														next.add(rel.constraintName);
-														const displayed = new Set(displayedRelationships);
-														displayed.add(rel.constraintName);
-														setSelectedRelationships(next);
-														setDisplayedRelationships(displayed);
+								return rels.length > 0 ? (
+									<div key={type}>
+										{idx > 0 && <div className="border-t my-1" />}
+										<div className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted z-10">
+											{typeLabel} (
+											{
+												rels.filter((r) =>
+													selectedRelationships.has(r.constraintName),
+												).length
+											}
+											)
+										</div>
+										<div className="space-y-0">
+											{rels.map((rel) => (
+												<button
+													key={rel.constraintName}
+													onClick={() =>
+														handleRelationshipClick(rel.constraintName)
 													}
-													setFocusedRelationship(rel.constraintName);
-												}}
-												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
-													focusedRelationship === rel.constraintName ||
-													stickyRelationship === rel.constraintName
-														? "bg-accent border-l-2 border-primary"
-														: ""
-												}`}
-											>
-												<div className="flex items-start justify-between gap-2">
-													<div className="flex-1 min-w-0">
-														<div className="font-medium truncate">
-															{rel.referencingSchema}.{rel.referencingTable}.
-															{rel.referencingColumn}
+													className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
+														stickyRelationship === rel.constraintName
+															? isFocused
+																? "bg-accent border-l border-muted"
+																: "bg-accent border-l-2 border-primary"
+															: ""
+													}`}
+												>
+													<div className="flex items-start justify-between gap-2">
+														<div className="flex-1 min-w-0">
+															<div className="font-medium truncate">
+																{type === "outgoing"
+																	? `${rel.referencingTable}.${rel.referencingColumn}`
+																	: `${rel.referencingSchema}.${rel.referencingTable}.${rel.referencingColumn}`}
+															</div>
+															<div className="text-muted-foreground truncate text-xs">
+																{type === "outgoing"
+																	? `${rel.referencedTable}.${rel.referencedColumn}`
+																	: `› ${rel.referencedSchema}.${rel.referencedTable}.${rel.referencedColumn}`}
+															</div>
 														</div>
-														<div className="text-muted-foreground truncate text-xs">
-															› {rel.referencedSchema}.{rel.referencedTable}.
-															{rel.referencedColumn}
-														</div>
+														<input
+															type="checkbox"
+															checked={selectedRelationships.has(
+																rel.constraintName,
+															)}
+															onChange={(e) => {
+																e.stopPropagation();
+																handleRelationshipCheckChange(
+																	rel.constraintName,
+																	e.target.checked,
+																);
+															}}
+															className="mt-0.5 shrink-0 cursor-pointer"
+														/>
 													</div>
-													<input
-														type="checkbox"
-														checked={selectedRelationships.has(
-															rel.constraintName,
-														)}
-														onChange={(e) => {
-															e.stopPropagation();
-															const next = new Set(selectedRelationships);
-															if (e.target.checked) {
-																next.add(rel.constraintName);
-																const displayed = new Set(
-																	displayedRelationships,
-																);
-																displayed.add(rel.constraintName);
-																setSelectedRelationships(next);
-																setDisplayedRelationships(displayed);
-															} else {
-																next.delete(rel.constraintName);
-																const displayed = new Set(
-																	displayedRelationships,
-																);
-																displayed.delete(rel.constraintName);
-																setSelectedRelationships(next);
-																setDisplayedRelationships(displayed);
-															}
-														}}
-														className="mt-0.5 shrink-0 cursor-pointer"
-													/>
-												</div>
-											</button>
-										))}
+												</button>
+											))}
+										</div>
 									</div>
-								</div>
-							)}
+								) : null;
+							})}
 						</div>
 					</Splitter.Panel>
 
@@ -482,11 +336,7 @@ export const RelationshipsPanel = ({
 															cardRefs.current[constraintName] = el;
 														}
 													}}
-													className={`border rounded-md overflow-hidden bg-card transition-colors ${
-														focusedRelationship === constraintName
-															? "ring-2 ring-blue-400"
-															: ""
-													}`}
+													className="border rounded-md overflow-hidden bg-card transition-colors"
 												>
 													<RelationshipCard
 														relationship={rel}
@@ -515,6 +365,83 @@ export const RelationshipsPanel = ({
 		</div>
 	);
 };
+
+function useStickyRelationshipTracking(
+	containerRef: React.RefObject<HTMLDivElement | null>,
+	cardRefs: React.RefObject<Record<string, HTMLDivElement | null>>,
+	displayedRelationships: Set<string>,
+	relationships: TableRelationship[],
+) {
+	const [stickyRelationship, setStickyRelationship] = useState<string | null>(
+		null,
+	);
+
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const sortedRels = relationships
+			.filter((r) => displayedRelationships.has(r.constraintName))
+			.sort((a, b) => {
+				if (a.type === "outgoing" && b.type === "incoming") return -1;
+				if (a.type === "incoming" && b.type === "outgoing") return 1;
+				return 0;
+			});
+
+		const visibleCards = new Map<string, number>();
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					const constraintName = entry.target.getAttribute("data-constraint");
+					if (!constraintName) return;
+
+					if (entry.isIntersecting) {
+						visibleCards.set(
+							constraintName,
+							entry.boundingClientRect.top -
+								container.getBoundingClientRect().top,
+						);
+					} else {
+						visibleCards.delete(constraintName);
+					}
+				});
+
+				let topmostCard: string | null = null;
+				let smallestTop = Infinity;
+
+				for (const [name, top] of visibleCards) {
+					if (top <= smallestTop) {
+						smallestTop = top;
+						topmostCard = name;
+					}
+				}
+
+				if (!topmostCard && sortedRels.length > 0) {
+					topmostCard = sortedRels[0].constraintName;
+				}
+
+				if (topmostCard) {
+					setStickyRelationship(topmostCard);
+				}
+			},
+			{
+				root: container,
+				threshold: 0,
+			},
+		);
+
+		Object.entries(cardRefs.current).forEach(([constraintName, el]) => {
+			if (el && displayedRelationships.has(constraintName)) {
+				observer.observe(el);
+			}
+		});
+
+		return () => observer.disconnect();
+	}, [displayedRelationships, relationships, containerRef, cardRefs]);
+
+	return stickyRelationship;
+}
 
 interface RelationshipCardProps {
 	relationship: TableRelationship;
