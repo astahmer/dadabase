@@ -40,12 +40,11 @@ export const RelationshipsPanel = ({
 	const [focusedRelationship, setFocusedRelationship] = useState<string | null>(
 		null,
 	);
-	const [visibleRelationship, setVisibleRelationship] = useState<string | null>(
+	const [stickyRelationship, setStickyRelationship] = useState<string | null>(
 		null,
 	);
 	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const rightPanelRef = useRef<HTMLDivElement | null>(null);
-	console.log(visibleRelationship);
 
 	// Track which relationship is currently visible in the viewport
 	useEffect(() => {
@@ -53,26 +52,29 @@ export const RelationshipsPanel = ({
 
 		const observer = new IntersectionObserver(
 			(entries) => {
-				// Find the entry that is most visible (highest intersection ratio)
-				let mostVisible = entries[0];
-				console.log(entries);
+				// Find the card closest to the top (smallest boundingClientRect.top)
+				let topmost = entries[0];
 				for (const entry of entries) {
-					if (entry.intersectionRatio > mostVisible.intersectionRatio) {
-						mostVisible = entry;
+					if (entry.isIntersecting) {
+						const entryTop = entry.boundingClientRect.top;
+						const topmostTop = topmost.boundingClientRect.top;
+						// Find the one closest to top (smallest positive top value)
+						if (entryTop >= 0 && (topmostTop < 0 || entryTop < topmostTop)) {
+							topmost = entry;
+						}
 					}
 				}
 
-				if (mostVisible.isIntersecting) {
-					const constraintName =
-						mostVisible.target.getAttribute("data-constraint");
+				if (topmost.isIntersecting) {
+					const constraintName = topmost.target.getAttribute("data-constraint");
 					if (constraintName) {
-						setVisibleRelationship(constraintName);
+						setStickyRelationship(constraintName);
 					}
 				}
 			},
 			{
 				root: rightPanelRef.current,
-				threshold: 0.1,
+				threshold: 0.01,
 			},
 		);
 
@@ -263,7 +265,8 @@ export const RelationshipsPanel = ({
 													setFocusedRelationship(rel.constraintName);
 												}}
 												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
-													focusedRelationship === rel.constraintName
+													focusedRelationship === rel.constraintName ||
+													stickyRelationship === rel.constraintName
 														? "bg-accent border-l border-muted"
 														: ""
 												}`}
@@ -342,7 +345,8 @@ export const RelationshipsPanel = ({
 													setFocusedRelationship(rel.constraintName);
 												}}
 												className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
-													focusedRelationship === rel.constraintName
+													focusedRelationship === rel.constraintName ||
+													stickyRelationship === rel.constraintName
 														? "bg-accent border-l-2 border-primary"
 														: ""
 												}`}
@@ -409,10 +413,10 @@ export const RelationshipsPanel = ({
 						{displayedRelationships.size > 0 ? (
 							<>
 								{/* Current Relationship Header */}
-								{visibleRelationship &&
+								{stickyRelationship &&
 									(() => {
 										const rel = relationships.find(
-											(r) => r.constraintName === visibleRelationship,
+											(r) => r.constraintName === stickyRelationship,
 										);
 										return rel ? (
 											<div className="sticky top-0 z-20 bg-card border-b px-4 py-2 text-xs text-muted-foreground flex items-center gap-2">
