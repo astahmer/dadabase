@@ -1275,33 +1275,6 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 		select: (s) => s.activeTabId ?? null,
 	});
 
-	const addEmptyTab = () => {
-		// Create a placeholder empty tab with a unique ID
-		const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-		const emptyTabState = {
-			tabId,
-			schema: "",
-			table: "",
-			tableFilter: undefined,
-			orderBy: undefined,
-			orderDirection: undefined,
-			limit: 50,
-			offset: 0,
-			viewMode: "rows" as const,
-			tableSize: "cozy" as const,
-			hiddenColumnList: undefined,
-			filters: undefined,
-			filtersOpened: false,
-		};
-		navigate({
-			search: (prev) => ({
-				...prev,
-				tabs: [...(prev.tabs ?? []), emptyTabState],
-				activeTabId: tabId,
-			}),
-		});
-	};
-
 	const prefetchTableData = (schema: string, table: string) => {
 		queryClient.prefetchQuery({
 			...queryTableDataQueryOptions({
@@ -1441,11 +1414,28 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 				});
 			}}
 			onAddTab={() => {
-				// TODO
-				addEmptyTab();
+				// Create a placeholder empty tab with a unique ID
+				const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+				const emptyTabState = {
+					tabId,
+					schema: "",
+					table: "",
+					tableFilter: undefined,
+					orderBy: undefined,
+					orderDirection: undefined,
+					limit: 50,
+					offset: 0,
+					viewMode: "rows" as const,
+					tableSize: "cozy" as const,
+					hiddenColumnList: undefined,
+					filters: undefined,
+					filtersOpened: false,
+				};
 				navigate({
 					search: (prev) => ({
 						...prev,
+						tabs: [...(prev.tabs ?? []), emptyTabState],
+						activeTabId: tabId,
 						table: undefined,
 					}),
 				});
