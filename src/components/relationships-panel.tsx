@@ -189,28 +189,6 @@ export const RelationshipsPanel = ({
 					</button>
 				</div>
 
-				{/* Sticky Relationship Display */}
-				{stickyRelationship &&
-					(() => {
-						const rel = relationships.find(
-							(r) => r.constraintName === stickyRelationship,
-						);
-						return rel ? (
-							<span className="text-xs text-muted-foreground flex items-center gap-2 truncate">
-								<span className="text-muted-foreground">›</span>
-								<span className="truncate">
-									<span className="font-medium text-foreground">
-										{rel.referencingTable}.{rel.referencingColumn}
-									</span>
-									<span className="mx-1">›</span>
-									<span>
-										{rel.referencedTable}.{rel.referencedColumn}
-									</span>
-								</span>
-							</span>
-						) : null;
-					})()}
-
 				<Button
 					onClick={onClose}
 					size="xs"
@@ -366,6 +344,43 @@ export const RelationshipsPanel = ({
 						className="flex flex-col overflow-hidden"
 						ref={rightPanelRef}
 					>
+						{stickyRelationship &&
+							(() => {
+								const rel = relationships.find(
+									(r) => r.constraintName === stickyRelationship,
+								);
+								return rel ? (
+									<div className="sticky top-0 z-20 bg-card border-b px-4 py-2 text-xs text-muted-foreground flex items-center gap-2">
+										<span>
+											{rel.type === "outgoing" ? (
+												<>
+													<span className="font-medium text-foreground">
+														{rel.referencingSchema}.{rel.referencingTable}.
+														{rel.referencingColumn}
+													</span>
+													<span className="mx-1">›</span>
+													<span>
+														{rel.referencedSchema}.{rel.referencedTable}.
+														{rel.referencedColumn}
+													</span>
+												</>
+											) : (
+												<>
+													<span className="font-medium text-foreground">
+														{rel.referencingSchema}.{rel.referencingTable}.
+														{rel.referencingColumn}
+													</span>
+													<span className="mx-1">›</span>
+													<span>
+														{rel.referencedSchema}.{rel.referencedTable}.
+														{rel.referencedColumn}
+													</span>
+												</>
+											)}
+										</span>
+									</div>
+								) : null;
+							})()}
 						{displayedRelationships.size > 0 ? (
 							<div className="flex-1 overflow-y-auto space-y-4 p-4">
 								{relationships
