@@ -142,8 +142,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		rowsDataTable,
 		rowsColumns,
 		hasUuid,
-		relationships,
-		RelationshipSubrowComponent,
+		renderSubrows,
 	} = pageState;
 
 	return (
@@ -266,10 +265,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															}
 															size={search.tableSize}
 															withContextMenu
-															relationships={relationships}
-															RelationshipSubrowComponent={
-																RelationshipSubrowComponent
-															}
+															renderSubrows={renderSubrows}
 															onColumnFilterClick={(columnId, _columnName) => {
 																navigate({
 																	search: (prev) => ({

@@ -27,9 +27,8 @@ import type { ReactNode } from "react";
 import { useRef } from "react";
 import { getColumnPinningStyles } from "../lib/get-pinning-styles.ts";
 import { cn } from "../lib/utils.ts";
-import type { TableRelationship } from "../types/relationships";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
-import { DataTableRow } from "./data-table.row.tsx";
+import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import {
 	tableCellStyles,
 	tableEmptyStateStyles,
@@ -80,12 +79,7 @@ export interface DataTableProps<TData> {
 	estimateItemSize?: number;
 	overscan?: number;
 	enableColumnOrdering?: boolean;
-	// TODO rm
-	relationships?: TableRelationship[];
-	RelationshipSubrowComponent?: (props: {
-		relationship: TableRelationship;
-		parentRowValue: unknown;
-	}) => ReactNode;
+	renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -115,8 +109,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		estimateItemSize,
 		overscan = 30,
 		enableColumnOrdering = false,
-		relationships,
-		RelationshipSubrowComponent,
+		renderSubrows,
 	} = props;
 
 	const state = table.getState();
@@ -386,8 +379,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 							}
 							overscan={overscan}
 							scrollElement={tableContainerRef.current}
-							relationships={relationships}
-							RelationshipSubrowComponent={RelationshipSubrowComponent}
+							renderSubrows={renderSubrows}
 						/>
 					</tbody>
 				) : (
@@ -408,8 +400,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									withContextMenu={withContextMenu}
 									ExpandedRow={ExpandedRow}
 									onExpandRowJson={props.onExpandRowJson}
-									relationships={relationships}
-									RelationshipSubrowComponent={RelationshipSubrowComponent}
+									renderSubrows={renderSubrows}
 								/>
 							))
 						) : (

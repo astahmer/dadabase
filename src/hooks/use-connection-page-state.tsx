@@ -9,6 +9,7 @@ import { PrimaryKeyIcon } from "#src/components/ui/primary-key-icon.tsx";
 import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
 import { UniqueConstraintIcon } from "#src/components/ui/unique-constraint-icon.tsx";
 import { useDataTable } from "#src/components/use-data-table.ts";
+import type { DataTableRowSubrow } from "#src/components/data-table.row.tsx";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
 import { useTableRelationships } from "#src/hooks/use-table-relationships";
@@ -23,6 +24,7 @@ import type {
 	AccessorKeyColumnDef,
 	ColumnDef,
 	ColumnPinningState,
+	Row,
 } from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
 
@@ -582,19 +584,36 @@ export const useConnectionPageState = ({
 		table: search.table || "",
 	});
 
-	// TODO rm?
-	const RelationshipSubrowComponent = useMemo(
-		() =>
-			(subProps: {
-				relationship: TableRelationship;
-				parentRowValue: unknown;
-			}) => (
-				<RelationshipSubrowTable
-					{...subProps}
-					connection={{ url: activeConnectionUrl }}
-				/>
-			),
-		[activeConnectionUrl],
+	const relationships = useMemo(
+		() => [
+			...relationshipsQuery.incomingReferences,
+			...relationshipsQuery.outgoingForeignKeys,
+		],
+		[
+			relationshipsQuery.incomingReferences,
+			relationshipsQuery.outgoingForeignKeys,
+		],
+	);
+
+	const renderSubrows = useCallback(
+		(row: Row<Record<string, unknown>>): DataTableRowSubrow[] => {
+			// Only render if we have an expanded relationship row set
+			if (relationshipRowId !== row.id) {
+				return [];
+			}
+
+			return relationships.map((rel) => ({
+				id: `rel_${rel.constraintName}`,
+				content: (
+					<RelationshipSubrowTable
+						relationship={rel}
+						parentRowValue={row.original[rel.referencedColumn]}
+						connection={{ url: activeConnectionUrl }}
+					/>
+				),
+			}));
+		},
+		[relationships, relationshipRowId, activeConnectionUrl],
 	);
 
 	// Combine columns
@@ -866,10 +885,7 @@ export const useConnectionPageState = ({
 		hasUuid,
 		relationshipRowId,
 		setRelationshipRowId,
-		relationships: [
-			...relationshipsQuery.incomingReferences,
-			...relationshipsQuery.outgoingForeignKeys,
-		],
-		RelationshipSubrowComponent,
+		relationships,
+		renderSubrows,
 	};
 };
