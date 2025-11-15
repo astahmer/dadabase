@@ -27,7 +27,7 @@ import type { ReactNode } from "react";
 import { useRef } from "react";
 import { getColumnPinningStyles } from "../lib/get-pinning-styles.ts";
 import { cn } from "../lib/utils.ts";
-import type { RelationshipMetadata } from "../types/relationships";
+import type { TableRelationship } from "../types/relationships";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
 import { DataTableRow } from "./data-table.row.tsx";
 import {
@@ -81,9 +81,9 @@ export interface DataTableProps<TData> {
 	overscan?: number;
 	enableColumnOrdering?: boolean;
 	// TODO rm
-	relationships?: RelationshipMetadata[];
+	relationships?: TableRelationship[];
 	RelationshipSubrowComponent?: (props: {
-		relationship: RelationshipMetadata;
+		relationship: TableRelationship;
 		parentRowValue: unknown;
 	}) => ReactNode;
 }

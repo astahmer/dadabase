@@ -2,13 +2,13 @@ import { useState, useRef, useEffect } from "react";
 import { X, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Splitter } from "@ark-ui/react/splitter";
-import type { TableRelationship } from "#src/server/pg/fns/get-table-relationships.kysely.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
 import { RelationshipSubrowTable } from "./relationship-subrow-table";
 import { HStack } from "./ui/layout.tsx";
 import { Checkbox, CheckboxControl } from "./ui/checkbox";
+import type { TableRelationship } from "#src/types/relationships.ts";
 
 interface RelationshipsPanelProps {
 	connectionUrl: string;

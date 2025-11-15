@@ -7,7 +7,7 @@ import { flexRender, type Row } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { Fragment, memo, useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import type { RelationshipMetadata } from "../types/relationships";
+import type { TableRelationship } from "../types/relationships";
 import { DataTableCell } from "./data-table.cell.tsx";
 import {
 	tableCellStyles,
@@ -49,9 +49,9 @@ export const DataTableRow = memo(function TableRow({
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
 	// TODO rm
 	expandedRelationships?: Set<string>; // Set of constraintNames that are expanded
-	relationships?: RelationshipMetadata[]; // Available relationships for this row
+	relationships?: TableRelationship[]; // Available relationships for this row
 	RelationshipSubrowComponent?: (props: {
-		relationship: RelationshipMetadata;
+		relationship: TableRelationship;
 		parentRowValue: unknown;
 	}) => ReactNode;
 }) {

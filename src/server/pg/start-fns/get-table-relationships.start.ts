@@ -3,12 +3,10 @@ import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
-import {
-	getTableRelationships,
-	type TableRelationship,
-} from "../fns/get-table-relationships.kysely.ts";
+import { getTableRelationships } from "../fns/get-table-relationships.kysely.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import type { TableRelationship } from "#src/types/relationships.ts";
 
 const getTableRelationshipsServerFn = createServerFn()
 	.inputValidator(

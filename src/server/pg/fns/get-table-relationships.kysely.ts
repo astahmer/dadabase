@@ -1,37 +1,8 @@
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
+import type { TableRelationship } from "#src/types/relationships.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
-
-export interface TableRelationship {
-	/**
-	 * Type of relationship:
-	 * "outgoing" - this table references another table (has FK)
-	 * "incoming" - another table references this table
-	 */
-	type: "outgoing" | "incoming";
-
-	/** The schema of the referencing table (has the FK column) */
-	referencingSchema: string;
-
-	/** The table that has the FK (references the other table) */
-	referencingTable: string;
-
-	/** The FK column in the referencing table */
-	referencingColumn: string;
-
-	/** The schema of the referenced table */
-	referencedSchema: string;
-
-	/** The table being referenced */
-	referencedTable: string;
-
-	/** The column being referenced (usually PK) */
-	referencedColumn: string;
-
-	/** Constraint name for uniqueness */
-	constraintName: string;
-}
 
 /**
  * Get all relationships for a table (both incoming and outgoing)

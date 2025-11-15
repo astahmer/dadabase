@@ -5,7 +5,7 @@ import * as Reactivity from "@effect/experimental/Reactivity";
 import * as Client from "@effect/sql/SqlClient";
 import type { Connection } from "@effect/sql/SqlConnection";
 import { SqlError } from "@effect/sql/SqlError";
-import type { Custom, Fragment, Primitive } from "@effect/sql/Statement";
+import type { Custom, Fragment } from "@effect/sql/Statement";
 import * as Statement from "@effect/sql/Statement";
 import type {
 	Extensions,
@@ -21,6 +21,17 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
+
+type Primitive =
+	| string
+	| number
+	| bigint
+	| boolean
+	| Date
+	| Int8Array<ArrayBufferLike>
+	| Uint8Array<ArrayBufferLike>
+	| null
+	| unknown;
 
 /**
  * @category type ids

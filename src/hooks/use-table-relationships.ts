@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { RelationshipMetadata } from "../types/relationships";
+import type { TableRelationship } from "../types/relationships";
 import { getTableRelationshipsQueryOptions } from "../server/pg/start-fns/get-table-relationships.start.ts";
 
 interface UseTableRelationshipsOptions {
@@ -9,8 +9,8 @@ interface UseTableRelationshipsOptions {
 }
 
 interface UseTableRelationshipsResult {
-	incomingReferences: RelationshipMetadata[];
-	outgoingForeignKeys: RelationshipMetadata[];
+	incomingReferences: TableRelationship[];
+	outgoingForeignKeys: TableRelationship[];
 	isLoading: boolean;
 	isError: boolean;
 	error: Error | null;
@@ -34,11 +34,11 @@ export const useTableRelationships = ({
 	);
 
 	// Transform backend results to RelationshipMetadata
-	const incomingReferences: RelationshipMetadata[] = (
+	const incomingReferences: TableRelationship[] = (
 		relationshipsQuery.data ?? []
 	).filter((rel) => rel.type === "incoming");
 
-	const outgoingForeignKeys: RelationshipMetadata[] = (
+	const outgoingForeignKeys: TableRelationship[] = (
 		relationshipsQuery.data ?? []
 	).filter((rel) => rel.type === "outgoing");
 

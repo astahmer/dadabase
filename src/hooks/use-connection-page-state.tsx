@@ -16,7 +16,7 @@ import { getColumnTextAlignment } from "#src/lib/data-type-utils";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import type { RelationshipMetadata } from "#src/types/relationships.ts";
+import type { TableRelationship } from "#src/types/relationships.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import type {
@@ -586,7 +586,7 @@ export const useConnectionPageState = ({
 	const RelationshipSubrowComponent = useMemo(
 		() =>
 			(subProps: {
-				relationship: RelationshipMetadata;
+				relationship: TableRelationship;
 				parentRowValue: unknown;
 			}) => (
 				<RelationshipSubrowTable

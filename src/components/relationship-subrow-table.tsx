@@ -3,7 +3,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import { getErrorMessage } from "../lib/get-error-message";
-import type { TableRelationship } from "../server/pg/fns/get-table-relationships.kysely";
 import { queryRelationshipSubrowDataQueryOptions } from "../server/pg/start-fns/get-relationship-subrow-data.start";
 import { getRelationshipCardinalityQueryOptions } from "../server/pg/start-fns/get-relationship-cardinality.start.ts";
 import { DataTable } from "./data-table";
@@ -11,6 +10,7 @@ import { useDataTable } from "./use-data-table";
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
+import type { TableRelationship } from "#src/types/relationships.ts";
 
 interface RelationshipSubrowTableProps {
 	relationship: TableRelationship;
@@ -85,6 +85,7 @@ export const RelationshipSubrowTable = ({
 	}, [rowsQuery.data?.rows]);
 
 	const table = useDataTable({
+		enableColumnPinning: false,
 		data: (rowsQuery.data?.rows ?? []) as Record<string, unknown>[],
 		columns,
 		initialState: {
@@ -189,8 +190,6 @@ export const RelationshipSubrowTable = ({
 					<DataTable
 						table={table}
 						size="compact"
-						striped
-						stickyHeader={true}
 						isLoading={rowsQuery.isLoading}
 						hasError={rowsQuery.isError}
 					/>

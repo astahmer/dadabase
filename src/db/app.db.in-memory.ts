@@ -21,6 +21,6 @@ const pgliteLayer = PgLiteClient.layer({
 	// transformQueryNames: String.camelToSnake,
 	// transformResultNames: String.snakeToCamel,
 });
-export const AppDbInMemoryLayer = pgliteKyselyLayer.pipe(
-	Layer.provideMerge(pgliteLayer),
-);
+// export const AppDbInMemoryLayer = pgliteKyselyLayer.pipe(
+// 	Layer.provideMerge(pgliteLayer),
+// );
