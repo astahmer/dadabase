@@ -87,7 +87,7 @@ export const DataTableRow = memo(function TableRow({
 				</DataTableCell>
 			);
 		});
-	}, [visibleCells, isSelected, isExpanded]);
+	}, [visibleCells, isSelected, isExpanded, size]);
 
 	const MainRow = (
 		<tr

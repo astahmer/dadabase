@@ -1,11 +1,8 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Cell } from "@tanstack/react-table";
-import { flexRender } from "@tanstack/react-table";
 import type { CSSProperties, PropsWithChildren } from "react";
 import { memo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { getColumnPinningStyles } from "../lib/get-pinning-styles.ts";
 import { tableCellStyles, type DataTableSize } from "./data-table.styles.ts";
 
 const fallbackRender = () => "An error happened";

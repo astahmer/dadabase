@@ -116,7 +116,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			table: s.table,
 			filtersOpened: s.filtersOpened,
 			viewMode: s.viewMode,
-			tableSize: s.tableSize,
+			tableSize:
+				(s.tabs ?? []).find((t) => t.tabId === s.activeTabId)?.tableSize ??
+				s.tableSize ??
+				"cozy",
 			limit: s.limit,
 		}),
 	});
@@ -1994,12 +1997,12 @@ const ConnectionPageStatusBar = (props: {
 								});
 
 								const newSizing: Record<string, number> = {};
-								const defaultSIze = getDefaultColumnSize({
+								const defaultSize = getDefaultColumnSize({
 									tableSize: newSize,
 									hasUuid: props.hasUuid,
 								});
 								for (const col of props.table.getAllColumns()) {
-									newSizing[col.id] = defaultSIze;
+									newSizing[col.id] = defaultSize;
 								}
 
 								props.table.setColumnSizing(newSizing);
