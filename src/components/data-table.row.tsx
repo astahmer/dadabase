@@ -3,7 +3,7 @@ import {
 	SortableContext,
 } from "@dnd-kit/sortable";
 import { flexRender, type Row } from "@tanstack/react-table";
-import type { ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { Fragment, memo, useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import type { RelationshipMetadata } from "../types/relationships";
@@ -60,7 +60,11 @@ export const DataTableRow = memo(function TableRow({
 	const isSelected = row.getIsSelected();
 	const isExpanded = row.getIsExpanded();
 
-	const ContextMenu = withContextMenu ? RowContextMenu : Fragment;
+	const ContextMenu = withContextMenu
+		? RowContextMenu
+		: (props: PropsWithChildren) => (
+				<div className="contents">{props.children}</div>
+			);
 
 	const CellsList = useMemo(() => {
 		return visibleCells.map((cell, cellIndex) => {

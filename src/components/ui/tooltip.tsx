@@ -1,9 +1,8 @@
-import { Fragment } from "react";
 import { Tooltip as TooltipPrimitive } from "@ark-ui/react/tooltip";
 
 import { cn } from "#src/lib/utils";
-import type { ExposedComponentProps } from "./component-props.ts";
 import { Portal } from "@ark-ui/react";
+import type { ExposedComponentProps } from "./component-props.ts";
 
 export interface TooltipProps
 	extends TooltipPrimitive.RootBaseProps,
@@ -21,12 +20,10 @@ export const Tooltip = (props: TooltipProps) => {
 
 	if (disabled || !content) return children;
 
-	const Portallish = props.portalled ? Portal : Fragment;
-
 	return (
 		<TooltipPrimitive.Root openDelay={0} closeDelay={0} lazyMount {...rest}>
 			<TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
-			<Portallish>
+			<Portal disabled={!props.portalled}>
 				<TooltipPrimitive.Positioner>
 					<TooltipPrimitive.Content
 						className={cn(
@@ -47,7 +44,7 @@ export const Tooltip = (props: TooltipProps) => {
 						{content}
 					</TooltipPrimitive.Content>
 				</TooltipPrimitive.Positioner>
-			</Portallish>
+			</Portal>
 		</TooltipPrimitive.Root>
 	);
 };
