@@ -128,12 +128,12 @@ export const RelationshipSubrowTable = ({
 			<div className="px-4 py-2 border-b bg-muted/20 flex items-center justify-between shrink-0 text-xs gap-2">
 				<div className="flex items-center gap-2 min-w-0">
 					<span className="text-muted-foreground truncate">
-						{referencingSchema}.{referencingTable}
+						{referencingTable}
 						<span className="text-muted-foreground">.{referencingColumn}</span>
 					</span>
 					<span className="text-muted-foreground shrink-0">›</span>
 					<span className="font-medium truncate">
-						{referencedSchema}.{referencedTable}
+						{referencedTable}
 						<span className="text-muted-foreground">.{referencedColumn}</span>
 					</span>
 
@@ -202,7 +202,11 @@ export const RelationshipSubrowTable = ({
 				open={isMaximizeSheetOpen}
 				onOpenChange={(details) => setIsMaximizeSheetOpen(details.open)}
 			>
-				<SheetContent side="bottom" className="h-[90vh] flex flex-col">
+				<SheetContent
+					side="bottom"
+					className="h-[90vh] flex flex-col"
+					positionerProps={{ className: "relative z-1" }}
+				>
 					<SheetHeader>
 						<SheetTitle className="text-base">
 							{referencingSchema}.{referencingTable}
@@ -216,7 +220,7 @@ export const RelationshipSubrowTable = ({
 							</span>
 						</SheetTitle>
 					</SheetHeader>
-					<div className="flex-1 overflow-hidden">
+					<div className="flex-1 overflow-hidden z-1">
 						<DataTable
 							table={table}
 							size="compact"

@@ -74,9 +74,7 @@ export const RelationshipsPanel = ({
 					<ChevronUp className="h-3 w-3 shrink-0" />
 					<span className="truncate">
 						<span>Click to show relations for:</span>
-						<span className="font-medium ml-1">
-							{schema}.{table}
-						</span>
+						<span className="font-medium ml-1">{table}</span>
 						<span className="text-muted-foreground mx-1">=</span>
 						<span className="font-mono text-xs">{selectedRowId}</span>
 					</span>
@@ -245,7 +243,7 @@ export const RelationshipsPanel = ({
 									<div key={type}>
 										{idx > 0 && <div className="border-t my-1" />}
 										<div
-											className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted z-10 flex items-center justify-between gap-2"
+											className="px-3 py-2 text-xs font-semibold text-muted-foreground sticky top-0 bg-muted flex items-center justify-between gap-2"
 											onClick={() => {
 												if (isFullySelected) {
 													handleDeselectAllGroup(type);
@@ -351,33 +349,15 @@ export const RelationshipsPanel = ({
 									(r) => r.constraintName === stickyRelationship,
 								);
 								return rel ? (
-									<div className="sticky top-0 z-20 bg-card border-b px-4 py-2 text-xs text-muted-foreground flex items-center gap-2">
+									<div className="sticky top-0 bg-card border-b px-4 py-2 text-xs text-muted-foreground flex items-center gap-2">
 										<span>
-											{rel.type === "outgoing" ? (
-												<>
-													<span className="font-medium text-foreground">
-														{rel.referencingSchema}.{rel.referencingTable}.
-														{rel.referencingColumn}
-													</span>
-													<span className="mx-1">›</span>
-													<span>
-														{rel.referencedSchema}.{rel.referencedTable}.
-														{rel.referencedColumn}
-													</span>
-												</>
-											) : (
-												<>
-													<span className="font-medium text-foreground">
-														{rel.referencingSchema}.{rel.referencingTable}.
-														{rel.referencingColumn}
-													</span>
-													<span className="mx-1">›</span>
-													<span>
-														{rel.referencedSchema}.{rel.referencedTable}.
-														{rel.referencedColumn}
-													</span>
-												</>
-											)}
+											<span className="font-medium text-foreground">
+												{rel.referencingTable}.{rel.referencingColumn}
+											</span>
+											<span className="mx-1">›</span>
+											<span>
+												{rel.referencedTable}.{rel.referencedColumn}
+											</span>
 										</span>
 									</div>
 								) : null;

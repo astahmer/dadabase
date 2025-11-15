@@ -42,13 +42,15 @@ const SheetContent = ({
 	className,
 	children,
 	side = "right",
+	positionerProps,
 	...props
 }: SheetPrimitive.ContentProps & {
 	side?: "top" | "right" | "bottom" | "left";
+	positionerProps?: SheetPrimitive.PositionerProps;
 }) => (
 	<Portal>
 		<SheetBackdrop {...parts.backdrop.attrs} />
-		<SheetPrimitive.Positioner {...parts.positioner.attrs}>
+		<SheetPrimitive.Positioner {...parts.positioner.attrs} {...positionerProps}>
 			<SheetPrimitive.Content
 				{...parts.content.attrs}
 				className={cn(
