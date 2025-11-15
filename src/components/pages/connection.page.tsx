@@ -1302,30 +1302,6 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 		});
 	};
 
-	const closeTab = (tabId: string) => {
-		navigate({
-			search: (prev) => {
-				const updatedTabs = (prev.tabs ?? []).filter((t) => t.tabId !== tabId);
-				let newActiveTabId = prev.activeTabId;
-
-				// If we closed the active tab, switch to another tab
-				if (prev.activeTabId === tabId) {
-					if (updatedTabs.length > 0) {
-						newActiveTabId = updatedTabs[updatedTabs.length - 1].tabId;
-					} else {
-						newActiveTabId = undefined;
-					}
-				}
-
-				return {
-					...prev,
-					tabs: updatedTabs,
-					activeTabId: newActiveTabId,
-				};
-			},
-		});
-	};
-
 	const prefetchTableData = (schema: string, table: string) => {
 		queryClient.prefetchQuery({
 			...queryTableDataQueryOptions({
@@ -1399,53 +1375,73 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 				}
 			}}
 			onTabClose={(tabId) => {
-				closeTab(tabId);
-				// If there are remaining tabs, navigate to the last one
-				const remainingTabs = tabs.filter((t) => t.tabId !== tabId);
-				if (remainingTabs.length > 0) {
-					const lastTab = remainingTabs[remainingTabs.length - 1];
-					if (!lastTab.schema || !lastTab.table) {
-						navigate({
-							search: (prev) => ({
-								...prev,
+				navigate({
+					search: (prev) => {
+						const updatedTabs = (prev.tabs ?? []).filter(
+							(t) => t.tabId !== tabId,
+						);
+						let newActiveTabId = prev.activeTabId;
+
+						// If we closed the active tab, switch to another tab
+						if (prev.activeTabId === tabId) {
+							if (updatedTabs.length > 0) {
+								newActiveTabId = updatedTabs[updatedTabs.length - 1].tabId;
+							} else {
+								newActiveTabId = undefined;
+							}
+						}
+
+						// Build the navigation state based on the new active tab
+						const baseState = {
+							...prev,
+							tabs: updatedTabs,
+							activeTabId: newActiveTabId,
+						};
+
+						// If no remaining tabs, clear table selection
+						if (updatedTabs.length === 0) {
+							return {
+								...baseState,
 								table: undefined,
 								schema: undefined,
-								activeTabId: lastTab.tabId,
-							}),
-						});
-					} else {
-						navigate({
-							search: (prev) => ({
-								...prev,
-								schema: lastTab.schema,
-								table: lastTab.table,
-								offset: lastTab.offset ?? 0,
-								limit: lastTab.limit ?? 50,
-								orderBy: lastTab.orderBy,
-								orderDirection: lastTab.orderDirection,
-								filters: lastTab.filters,
-								filtersOpened: lastTab.filtersOpened ?? false,
-								viewMode: lastTab.viewMode ?? "rows",
-								tableSize: lastTab.tableSize ?? "cozy",
-								tableFilter: lastTab.tableFilter,
-								hiddenColumnList: lastTab.hiddenColumnList,
-								activeTabId: lastTab.tabId,
-							}),
-						});
-					}
-				} else {
-					// No more tabs, go back to no table selected
-					navigate({
-						search: (prev) => ({
-							...prev,
-							table: undefined,
-							schema: undefined,
-							activeTabId: undefined,
-						}),
-					});
-				}
+							};
+						}
+
+						// If new active tab exists, restore its state
+						const newActiveTab = updatedTabs.find(
+							(t) => t.tabId === newActiveTabId,
+						);
+						if (newActiveTab) {
+							if (!newActiveTab.schema || !newActiveTab.table) {
+								return {
+									...baseState,
+									table: undefined,
+									schema: undefined,
+								};
+							}
+							return {
+								...baseState,
+								schema: newActiveTab.schema,
+								table: newActiveTab.table,
+								offset: newActiveTab.offset ?? 0,
+								limit: newActiveTab.limit ?? 50,
+								orderBy: newActiveTab.orderBy,
+								orderDirection: newActiveTab.orderDirection,
+								filters: newActiveTab.filters,
+								filtersOpened: newActiveTab.filtersOpened ?? false,
+								viewMode: newActiveTab.viewMode ?? "rows",
+								tableSize: newActiveTab.tableSize ?? "cozy",
+								tableFilter: newActiveTab.tableFilter,
+								hiddenColumnList: newActiveTab.hiddenColumnList,
+							};
+						}
+
+						return baseState;
+					},
+				});
 			}}
 			onAddTab={() => {
+				// TODO
 				addEmptyTab();
 				navigate({
 					search: (prev) => ({
