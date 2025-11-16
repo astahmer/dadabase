@@ -15,7 +15,7 @@ export const tableStyles = cva("w-full border-collapse table-fixed", {
 export const tableHeaderStyles = cva("", {
 	variants: {
 		stickyHeader: {
-			true: "sticky top-0 bg-card z-1",
+			true: "sticky top-0 bg-card z-2",
 			false: "",
 		},
 		variant: {

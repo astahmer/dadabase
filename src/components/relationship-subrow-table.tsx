@@ -228,7 +228,7 @@ export const RelationshipSubrowTable = ({
 				<SheetContent
 					side="bottom"
 					className="h-[90vh] flex flex-col px-6"
-					positionerProps={{ className: "relative z-1" }}
+					positionerProps={{ className: "relative z-2" }}
 				>
 					<SheetHeader>
 						<SheetTitle className="text-base">
