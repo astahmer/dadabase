@@ -20,7 +20,7 @@ import { useDataTable } from "./use-data-table";
 
 interface RelationshipSubrowTableProps {
 	relationship: TableRelationship;
-	parentRowValue: unknown;
+	parentRowValue: string;
 	connection: { url: string };
 	isPanelExpanded?: boolean;
 	withHeader?: boolean;
@@ -184,6 +184,13 @@ export const RelationshipSubrowTable = ({
 							{referencedTable}
 							<span className="text-muted-foreground">.{referencedColumn}</span>
 						</span>
+
+						{relationship.type === "outgoing" && (
+							<>
+								<span className="text-muted-foreground shrink-0">=</span>
+								<span className="font-medium truncate">{parentRowValue}</span>
+							</>
+						)}
 
 						{cardinalityQuery.data && (
 							<span className="text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded shrink-0">

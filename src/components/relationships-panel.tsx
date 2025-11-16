@@ -358,6 +358,14 @@ export const RelationshipsPanel = ({
 								const rel = relationships.find(
 									(r) => r.constraintName === stickyRelationship,
 								);
+								const parentRowValue =
+									rel &&
+									(rel.type === "outgoing"
+										? // For outgoing relationships, get the FK value from the row
+											rowData[rel.referencingColumn]
+										: // For incoming relationships, we need the PK value from the current row
+											rowData[rel.referencedColumn]);
+
 								return rel ? (
 									<div className="sticky top-0 bg-card border-b px-4 py-2 text-xs text-muted-foreground flex items-center gap-2">
 										<span>
@@ -368,6 +376,16 @@ export const RelationshipsPanel = ({
 											<span>
 												{rel.referencedTable}.{rel.referencedColumn}
 											</span>
+											{rel.type === "outgoing" && (
+												<>
+													<span className="text-muted-foreground shrink-0 mx-1">
+														=
+													</span>
+													<span className="text-foreground font-medium truncate">
+														{parentRowValue as string}
+													</span>
+												</>
+											)}
 										</span>
 									</div>
 								) : null;
@@ -519,23 +537,18 @@ const RelationshipCard = ({
 	withHeader,
 	onRemove,
 }: RelationshipCardProps) => {
-	// For outgoing relationships, get the FK value from the row
-	const fkValue =
+	const parentRowValue =
 		relationship.type === "outgoing"
-			? rowData[relationship.referencingColumn]
-			: null;
-
-	// For incoming relationships, we need the PK value from the current row
-	const pkValue =
-		relationship.type === "incoming"
-			? rowData[relationship.referencedColumn]
-			: null;
+			? // For outgoing relationships, get the FK value from the row
+				rowData[relationship.referencingColumn]
+			: // For incoming relationships, we need the PK value from the current row
+				rowData[relationship.referencedColumn];
 
 	return (
 		<div className="flex flex-col h-full overflow-hidden">
 			<RelationshipSubrowTable
 				relationship={relationship}
-				parentRowValue={relationship.type === "outgoing" ? fkValue : pkValue}
+				parentRowValue={String(parentRowValue)}
 				connection={{ url: connectionUrl }}
 				isPanelExpanded={isPanelExpanded}
 				withHeader={withHeader}

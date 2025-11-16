@@ -98,7 +98,7 @@ export const tableCellStyles = cva(
 	{
 		variants: {
 			size: {
-				excel: "px-0.5 text-3xs",
+				excel: "px-0.5 text-2xs",
 				minimal: "px-1 py-0.25 text-2xs",
 				compact: "px-1.5 py-0.5 text-xs",
 				cozy: "px-2 py-1 text-xs",
