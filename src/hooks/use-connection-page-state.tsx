@@ -239,6 +239,7 @@ export const useConnectionPageState = ({
 						>
 							<RowContextMenu
 								row={ctx.row.original as Record<string, unknown>}
+								onExpandRelationships={() => setRelationshipRowId(ctx.row.id)}
 								onExpandRowJson={(row) => {
 									const primaryKeyColumn = tableMetadata.columnMetadata.find(
 										(col) => col.primaryKey,

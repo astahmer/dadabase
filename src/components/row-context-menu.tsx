@@ -2,20 +2,17 @@ import { Popover, Portal } from "@ark-ui/react";
 import { useState } from "react";
 import { RowJsonViewer } from "./row-json-viewer.tsx";
 import { Menu, MenuContent, MenuContextTrigger } from "./ui/menu";
-import { RowActionsMenuContent } from "./ui/row-actions-menu-content";
+import {
+	RowActionsMenuContent,
+	type RowActionsMenuContentProps,
+} from "./ui/row-actions-menu-content";
 
-export interface RowContextMenuProps {
-	row: Record<string, unknown>;
+export interface RowContextMenuProps extends RowActionsMenuContentProps {
 	children: React.ReactNode;
-	onViewJson?: () => void;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
 }
 
-export function RowContextMenu({
-	row,
-	children,
-	onExpandRowJson,
-}: RowContextMenuProps) {
+export function RowContextMenu(props: RowContextMenuProps) {
 	const [isJsonViewerOpen, setIsJsonViewerOpen] = useState(false);
 
 	return (
@@ -27,13 +24,15 @@ export function RowContextMenu({
 		>
 			<Menu lazyMount>
 				<Popover.Anchor>
-					<MenuContextTrigger asChild>{children}</MenuContextTrigger>
+					<MenuContextTrigger asChild>{props.children}</MenuContextTrigger>
 				</Popover.Anchor>
 				<Portal>
 					<MenuContent className="z-1" data-row-context-menu>
 						<RowActionsMenuContent
-							row={row}
+							row={props.row}
 							onViewJson={() => setIsJsonViewerOpen(true)}
+							onExpandRelationships={props.onExpandRelationships}
+							onClose={props.onClose}
 						/>
 					</MenuContent>
 				</Portal>
@@ -42,9 +41,9 @@ export function RowContextMenu({
 				<Popover.Positioner>
 					<Popover.Content className="z-50">
 						<RowJsonViewer
-							row={row}
+							row={props.row}
 							onClose={() => setIsJsonViewerOpen(false)}
-							onExpandToDialog={() => onExpandRowJson?.(row)}
+							onExpandToDialog={() => props.onExpandRowJson?.(props.row)}
 						/>
 					</Popover.Content>
 				</Popover.Positioner>
