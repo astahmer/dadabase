@@ -12,13 +12,30 @@ export interface TooltipProps
 	contentProps?: React.ComponentProps<typeof TooltipPrimitive.Content>;
 	disabled?: boolean;
 	portalled?: boolean;
+	colorPalette?: "default" | "inverted";
 }
 
 export const Tooltip = (props: TooltipProps) => {
-	const { showArrow, children, disabled, content, contentProps, ...rest } =
-		props;
+	const {
+		showArrow,
+		children,
+		disabled,
+		content,
+		contentProps,
+		colorPalette = "default",
+		...rest
+	} = props;
 
 	if (disabled || !content) return children;
+
+	const isInverted = colorPalette === "inverted";
+	const contentClassName = cn(
+		"p-2 fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 animate-in rounded-md border text-sm data-[state=closed]:animate-out",
+		isInverted
+			? "bg-foreground text-background"
+			: "bg-popover text-popover-foreground",
+		contentProps?.className,
+	);
 
 	return (
 		<TooltipPrimitive.Root openDelay={0} closeDelay={0} lazyMount {...rest}>
@@ -26,16 +43,16 @@ export const Tooltip = (props: TooltipProps) => {
 			<Portal disabled={!props.portalled}>
 				<TooltipPrimitive.Positioner>
 					<TooltipPrimitive.Content
-						className={cn(
-							"fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50  animate-in rounded-md border bg-popover px-3 py-1.5 text-popover-foreground text-sm data-[state=closed]:animate-out",
-							contentProps?.className,
-						)}
+						className={contentClassName}
 						{...contentProps}
 					>
 						{showArrow && (
 							<TooltipPrimitive.Arrow
 								className={cn(
-									"[--arrow-background:var(--popover)] [--arrow-size:calc(var(--spacing)*2)]",
+									isInverted
+										? "[--arrow-background:var(--foreground)]"
+										: "[--arrow-background:var(--popover)]",
+									"[--arrow-size:calc(var(--spacing)*2)]",
 								)}
 							>
 								<TooltipPrimitive.ArrowTip className="border-t border-l" />
