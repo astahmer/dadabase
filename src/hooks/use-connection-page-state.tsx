@@ -194,16 +194,75 @@ export const useConnectionPageState = ({
 	const staticColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(
 		() => [
 			{
-				id: "__rowIndex",
+				id: "__select",
 				meta: { enableColumnOrdering: false },
-				header: () => <div className="text-center w-full">#</div>,
+				header: (ctx) => {
+					const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
+					const isAllSelected = ctx.table.getIsAllRowsSelected();
+					const hasAnySelection = isSomeRowsSelected || isAllSelected;
+
+					return (
+						<div className="flex items-center justify-center h-full">
+							{hasAnySelection ? (
+								<Checkbox
+									className="flex items-center gap-2"
+									checked={
+										isAllSelected
+											? true
+											: isSomeRowsSelected
+												? "indeterminate"
+												: false
+									}
+									onChange={ctx.table.getToggleAllRowsSelectedHandler()}
+									aria-label="Select all rows"
+								>
+									<CheckboxControl />
+								</Checkbox>
+							) : (
+								<span className="text-xs text-muted-foreground font-medium">
+									#
+								</span>
+							)}
+						</div>
+					);
+				},
 				cell: (ctx) => {
+					const isSelected = ctx.row.getIsSelected();
+					const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
+					const isAllSelected = ctx.table.getIsAllRowsSelected();
+					const hasAnySelection = isSomeRowsSelected || isAllSelected;
 					const rowIndex = ctx.row.index;
 					const pageIndex = Math.floor(search.offset / search.limit);
 					const pageSize = search.limit;
 					const displayNumber = pageIndex * pageSize + rowIndex + 1;
+
+					if (hasAnySelection) {
+						return (
+							<Checkbox
+								className="flex items-center gap-2"
+								checked={isSelected}
+								disabled={!ctx.row.getCanSelect()}
+								onChange={ctx.row.getToggleSelectedHandler()}
+								aria-label="Select row"
+							>
+								<CheckboxControl />
+							</Checkbox>
+						);
+					}
+
 					return (
-						<div className="flex items-center justify-center text-xs text-muted-foreground font-medium">
+						<div
+							className="flex items-center justify-center text-xs text-muted-foreground font-medium cursor-pointer hover:text-foreground transition-colors"
+							onClick={ctx.row.getToggleSelectedHandler()}
+							role="button"
+							tabIndex={0}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									ctx.row.getToggleSelectedHandler()?.(e as any);
+								}
+							}}
+						>
 							{displayNumber}
 						</div>
 					);
@@ -211,50 +270,6 @@ export const useConnectionPageState = ({
 				size: 50,
 				minSize: 50,
 				maxSize: 50,
-				enableResizing: false,
-				enableSorting: false,
-				enablePinning: false,
-			} as ColumnDef<Record<string, unknown>>,
-			{
-				id: "__select",
-				meta: { enableColumnOrdering: false },
-				header: (ctx) => {
-					const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
-					const isAllSelected = ctx.table.getIsAllRowsSelected();
-					return (
-						<Checkbox
-							className="flex items-center gap-2 ml-2"
-							checked={
-								isAllSelected
-									? true
-									: isSomeRowsSelected
-										? "indeterminate"
-										: false
-							}
-							onChange={ctx.table.getToggleAllRowsSelectedHandler()}
-							aria-label="Select all rows"
-						>
-							<CheckboxControl />
-						</Checkbox>
-					);
-				},
-				cell: (ctx) => {
-					const isSelected = ctx.row.getIsSelected();
-					return (
-						<Checkbox
-							className="flex items-center gap-2 ml-2"
-							checked={isSelected}
-							disabled={!ctx.row.getCanSelect()}
-							onChange={ctx.row.getToggleSelectedHandler()}
-							aria-label="Select row"
-						>
-							<CheckboxControl />
-						</Checkbox>
-					);
-				},
-				size: 40,
-				minSize: 40,
-				maxSize: 40,
 				enableResizing: false,
 				enableSorting: false,
 				enablePinning: false,
