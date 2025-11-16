@@ -414,7 +414,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									showColumnBorder={showColumnBorder}
 									enableColumnOrdering={enableColumnOrdering}
 									columnOrder={state.columnOrder}
-									withContextMenu={withContextMenu}
 									ExpandedRow={ExpandedRow}
 									onExpandRowJson={props.onExpandRowJson}
 									renderSubrows={renderSubrows}

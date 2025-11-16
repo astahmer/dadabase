@@ -30,7 +30,7 @@ export const DataTableRow = memo(function TableRow({
 	striped,
 	interactive,
 	showColumnBorder,
-	withContextMenu,
+	withRowContextMenu,
 	ExpandedRow,
 	onExpandRowJson,
 	enableColumnOrdering,
@@ -44,7 +44,7 @@ export const DataTableRow = memo(function TableRow({
 	striped: boolean;
 	interactive: boolean;
 	showColumnBorder: boolean;
-	withContextMenu: boolean;
+	withRowContextMenu?: boolean;
 	enableColumnOrdering: boolean;
 	columnOrder?: string[];
 	ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
@@ -120,7 +120,7 @@ export const DataTableRow = memo(function TableRow({
 
 	return (
 		<Fragment>
-			{withContextMenu ? (
+			{withRowContextMenu ? (
 				<RowContextMenu
 					row={row.original as Record<string, unknown>}
 					onExpandRowJson={onExpandRowJson}

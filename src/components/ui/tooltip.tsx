@@ -33,7 +33,7 @@ export const Tooltip = (props: TooltipProps) => {
 
 	const isInverted = colorPalette === "inverted";
 	const contentClassName = cn(
-		"p-2 fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 animate-in rounded-md border text-sm data-[state=closed]:animate-out",
+		"py-1 px-2 fade-in-0 zoom-in-95 data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 animate-in rounded-md border text-sm data-[state=closed]:animate-out",
 		isInverted
 			? "bg-foreground text-background"
 			: "bg-popover text-popover-foreground",

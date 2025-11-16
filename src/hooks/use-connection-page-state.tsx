@@ -1,17 +1,16 @@
 import type { DataTableRowSubrow } from "#src/components/data-table.row.tsx";
+import { formatTableValue } from "#src/components/pages/connection-page/format-table-value.ts";
 import { RelationshipSubrowTable } from "#src/components/relationship-subrow-table.tsx";
-import {
-	Checkbox,
-	CheckboxControl,
-	CheckboxLabel,
-} from "#src/components/ui/checkbox.tsx";
-import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
+import { Button } from "#src/components/ui/button.tsx";
+import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { useDataTable } from "#src/components/use-data-table.ts";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
 import { useRowsColumns } from "#src/hooks/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
 import { useTableRelationships } from "#src/hooks/use-table-relationships";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
+import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -23,48 +22,7 @@ import type {
 } from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
-import { Tooltip } from "#src/components/ui/tooltip.tsx";
-import { Button } from "#src/components/ui/button.tsx";
-
-function replaceDatabaseInConnectionUrl(
-	connectionUrl: string,
-	newDatabase: string,
-) {
-	try {
-		const url = new URL(connectionUrl);
-		url.pathname = `/${newDatabase}`;
-		return url.toString();
-	} catch {
-		return connectionUrl;
-	}
-}
-
-function safeJsonParse(value: string) {
-	try {
-		return JSON.parse(value);
-	} catch {
-		return value;
-	}
-}
-
-const formatTableValue = (value: unknown): unknown => {
-	if (value instanceof Date) {
-		return value.toISOString();
-	}
-	if (typeof value === "string") {
-		// Check if it looks like a date
-		const dateObj = new Date(value);
-		if (!isNaN(dateObj.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-			return dateObj.toISOString();
-		}
-
-		if (value.at(0) === "{" && value.at(-1) === "}") {
-			// Check if it looks like a JSON object
-			return safeJsonParse(value);
-		}
-	}
-	return value;
-};
+import { RowContextMenu } from "#src/components/row-context-menu.tsx";
 
 interface UseConnectionPageStateProps {
 	connection: {
@@ -160,11 +118,7 @@ export const useConnectionPageState = ({
 	});
 
 	// Fetch column metadata
-	const {
-		columnMetadata,
-		columnList,
-		isLoading: isColumnMetadataLoading,
-	} = useTableColumnMetadata({
+	const tableMetadata = useTableColumnMetadata({
 		url: activeConnectionUrl,
 		schema: search.schema || "",
 		table: search.table || "",
@@ -275,18 +229,37 @@ export const useConnectionPageState = ({
 
 					return (
 						<Tooltip
-							content="Click to select row"
+							content="Click to select row, right click to open context menu"
 							colorPalette="inverted"
 							positioning={{ placement: "right", strategy: "fixed" }}
 						>
-							<Button
-								size="xs"
-								className="w-full text-xs text-center"
-								variant="ghost"
-								onClick={ctx.row.getToggleSelectedHandler()}
+							<RowContextMenu
+								row={ctx.row.original as Record<string, unknown>}
+								onExpandRowJson={(row) => {
+									const primaryKeyColumn = tableMetadata.columnMetadata.find(
+										(col) => col.primaryKey,
+									);
+									const rowId = primaryKeyColumn
+										? String(row[primaryKeyColumn.name])
+										: undefined;
+									navigate({
+										search: (prev) => ({
+											...prev,
+											rowJsonViewerRowId: rowId,
+											rowJsonViewerOpen: !!rowId,
+										}),
+									});
+								}}
 							>
-								{displayNumber}
-							</Button>
+								<Button
+									size="xs"
+									className="w-full text-xs text-center"
+									variant="ghost"
+									onClick={ctx.row.getToggleSelectedHandler()}
+								>
+									{displayNumber}
+								</Button>
+							</RowContextMenu>
 						</Tooltip>
 					);
 				},
@@ -297,50 +270,50 @@ export const useConnectionPageState = ({
 				enableSorting: false,
 				enablePinning: false,
 			} as ColumnDef<Record<string, unknown>>,
-			{
-				id: "__actions",
-				meta: { enableColumnOrdering: false },
-				header: () => null,
-				cell: (ctx) => (
-					<RowActionsMenu
-						row={ctx.row.original}
-						onViewJson={() => {
-							const primaryKeyColumn = columnMetadata.find(
-								(col) => col.primaryKey,
-							);
-							const rowId = primaryKeyColumn
-								? String(ctx.row.original[primaryKeyColumn.name])
-								: undefined;
-							navigate({
-								search: (prev) => ({
-									...prev,
-									rowJsonViewerRowId: rowId,
-									rowJsonViewerOpen: !!rowId,
-								}),
-							});
-						}}
-						onExpandRelationships={() => setRelationshipRowId(ctx.row.id)}
-					/>
-				),
-				size: 40,
-				minSize: 40,
-				maxSize: 40,
-				enableResizing: false,
-				enableSorting: false,
-				enablePinning: false,
-			} as ColumnDef<Record<string, unknown>>,
+			// {
+			// 	id: "__actions",
+			// 	meta: { enableColumnOrdering: false },
+			// 	header: () => null,
+			// 	cell: (ctx) => (
+			// 		<RowActionsMenu
+			// 			row={ctx.row.original}
+			// 			onViewJson={() => {
+			// 				const primaryKeyColumn = columnMetadata.find(
+			// 					(col) => col.primaryKey,
+			// 				);
+			// 				const rowId = primaryKeyColumn
+			// 					? String(ctx.row.original[primaryKeyColumn.name])
+			// 					: undefined;
+			// 				navigate({
+			// 					search: (prev) => ({
+			// 						...prev,
+			// 						rowJsonViewerRowId: rowId,
+			// 						rowJsonViewerOpen: !!rowId,
+			// 					}),
+			// 				});
+			// 			}}
+			// 			onExpandRelationships={() => setRelationshipRowId(ctx.row.id)}
+			// 		/>
+			// 	),
+			// 	size: 40,
+			// 	minSize: 40,
+			// 	maxSize: 40,
+			// 	enableResizing: false,
+			// 	enableSorting: false,
+			// 	enablePinning: false,
+			// } as ColumnDef<Record<string, unknown>>,
 		],
-		[columnMetadata, navigate, search.offset, search.limit],
+		[tableMetadata.columnMetadata, navigate, search.offset, search.limit],
 	);
 
 	const rowActions = useRowsColumnsAction({
-		columnMetadata,
+		columnMetadata: tableMetadata.columnMetadata,
 		selectedSchema: search.schema || "",
 		selectedTable: search.table || "",
 		activeConnectionUrl,
 	});
 	const dataColumns = useRowsColumns({
-		columnMetadata,
+		columnMetadata: tableMetadata.columnMetadata,
 		schema: search.schema || "",
 		table: search.table || "",
 		activeConnectionUrl,
@@ -476,11 +449,13 @@ export const useConnectionPageState = ({
 
 		return staticColumns
 			.map((col) => col.id)
-			.concat(columnList)
+			.concat(tableMetadata.columnList)
 			.filter(Boolean) as string[];
-	}, [search.columnOrder, staticColumns, columnList]);
+	}, [search.columnOrder, staticColumns, tableMetadata.columnList]);
 
-	const hasUuid = columnMetadata.some((col) => col.dataType.includes("uuid"));
+	const hasUuid = tableMetadata.columnMetadata.some((col) =>
+		col.dataType.includes("uuid"),
+	);
 	const defaultColumnSize = getDefaultColumnSize({
 		tableSize: search.tableSize,
 		hasUuid,
@@ -654,9 +629,9 @@ export const useConnectionPageState = ({
 		activeConnectionUrl,
 		queryBuilder,
 		rowsQuery,
-		columnMetadata,
-		columnList,
-		isColumnMetadataLoading,
+		columnMetadata: tableMetadata.columnMetadata,
+		columnList: tableMetadata.columnList,
+		isColumnMetadataLoading: tableMetadata.isLoading,
 		queryResponse,
 		totalRowCount,
 		rowsDataTable,

@@ -23,18 +23,19 @@ export function RowContextMenu({
 			lazyMount
 			open={isJsonViewerOpen}
 			onOpenChange={(details) => setIsJsonViewerOpen(details.open)}
+			positioning={{ placement: "right" }}
 		>
 			<Menu lazyMount>
-				<MenuContextTrigger asChild>{children}</MenuContextTrigger>
+				<Popover.Anchor>
+					<MenuContextTrigger asChild>{children}</MenuContextTrigger>
+				</Popover.Anchor>
 				<Portal>
-					<Popover.Anchor>
-						<MenuContent className="z-1" data-row-context-menu>
-							<RowActionsMenuContent
-								row={row}
-								onViewJson={() => setIsJsonViewerOpen(true)}
-							/>
-						</MenuContent>
-					</Popover.Anchor>
+					<MenuContent className="z-1" data-row-context-menu>
+						<RowActionsMenuContent
+							row={row}
+							onViewJson={() => setIsJsonViewerOpen(true)}
+						/>
+					</MenuContent>
 				</Portal>
 			</Menu>
 			<Portal>

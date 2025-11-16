@@ -78,7 +78,6 @@ export function VirtualizedTableBody<TData>({
 						showColumnBorder={showColumnBorder}
 						enableColumnOrdering={enableColumnOrdering}
 						columnOrder={columnOrder}
-						withContextMenu={withContextMenu}
 						ExpandedRow={ExpandedRow}
 						onExpandRowJson={onExpandRowJson}
 						renderSubrows={renderSubrows}
