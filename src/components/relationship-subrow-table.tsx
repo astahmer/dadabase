@@ -1,20 +1,22 @@
+import { useRowsColumnsAction } from "#src/hooks/use-rows-columns.actions.ts";
+import type { TableRelationship } from "#src/types/relationships.ts";
+import { Popover, Portal } from "@ark-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
 import { Maximize2, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRowsColumns } from "../hooks/use-rows-columns.tsx";
+import { useTableColumnMetadata } from "../hooks/use-table-column-metadata";
 import { getErrorMessage } from "../lib/get-error-message";
-import { queryRelationshipSubrowDataQueryOptions } from "../server/pg/start-fns/get-relationship-subrow-data.start";
 import { getRelationshipCardinalityQueryOptions } from "../server/pg/start-fns/get-relationship-cardinality.start.ts";
+import { queryRelationshipSubrowDataQueryOptions } from "../server/pg/start-fns/get-relationship-subrow-data.start";
 import { DataTable } from "./data-table";
-import { useDataTable } from "./use-data-table";
-import { Spinner } from "./ui/spinner";
+import { PaginationPopoverContent } from "./pagination.popover-content.tsx";
+import { ScrollToColumnButton } from "./scroll-to-column.button.tsx";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
-import { useTableColumnMetadata } from "../hooks/use-table-column-metadata";
-import { useRowsColumns } from "../hooks/use-rows-columns.tsx";
-import type { TableRelationship } from "#src/types/relationships.ts";
-import { useRowsColumnsAction } from "#src/hooks/use-rows-columns.actions.ts";
-import { ScrollToColumnButton } from "./scroll-to-column.button.tsx";
+import { Spinner } from "./ui/spinner";
+import { useDataTable } from "./use-data-table";
 
 interface RelationshipSubrowTableProps {
 	relationship: TableRelationship;
@@ -37,12 +39,10 @@ export const RelationshipSubrowTable = ({
 	withHeader = true,
 	onRemove,
 }: RelationshipSubrowTableProps) => {
-	const [isMaximizeSheetOpen, setIsMaximizeSheetOpen] = useState(false);
 	const {
 		referencingSchema,
 		referencingTable,
 		referencingColumn,
-		referencedSchema,
 		referencedTable,
 		referencedColumn,
 	} = relationship;
@@ -137,9 +137,11 @@ export const RelationshipSubrowTable = ({
 	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
 		null,
 	);
+	const [isMaximizeSheetOpen, setIsMaximizeSheetOpen] = useState(false);
 
 	const rowCount = rowsQuery.data?.rows?.length ?? 0;
 	const hasData = rowCount > 0;
+	const pageSize = table.getState().pagination.pageSize;
 
 	if (rowsQuery.isLoading) {
 		return (
@@ -232,14 +234,72 @@ export const RelationshipSubrowTable = ({
 
 			{/* Data Table - Only render when there's data */}
 			{hasData && (
-				<div className="flex-1 overflow-hidden">
-					<DataTable
-						hideColumnPinIconUnlessHovered
-						table={table}
-						size="compact"
-						isLoading={rowsQuery.isLoading}
-						hasError={rowsQuery.isError}
-					/>
+				<div className="flex-1 overflow-hidden flex flex-col">
+					<div className="flex-1 overflow-hidden">
+						<DataTable
+							hideColumnPinIconUnlessHovered
+							table={table}
+							size="compact"
+							isLoading={rowsQuery.isLoading}
+							hasError={rowsQuery.isError}
+						/>
+					</div>
+
+					{/* Pagination Controls */}
+					<div className="border-t bg-muted/20 px-4 py-2 flex items-center justify-between shrink-0 text-xs gap-2 w-full hover:bg-muted/30 transition-colors">
+						<div className="flex items-center gap-1">
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => table.previousPage()}
+								disabled={!table.getCanPreviousPage()}
+								className="h-6 px-2"
+							>
+								‹
+							</Button>
+							<Popover.Root
+								// open={open}
+								// onOpenChange={(details) => onOpenChange(details.open)}
+								lazyMount
+								positioning={{ placement: "top" }}
+							>
+								<Popover.Trigger asChild>
+									<span className="text-sm text-foreground mx-1 cursor-pointer">
+										{table.getState().pagination.pageIndex * pageSize + 1}–
+										{Math.min(
+											(table.getState().pagination.pageIndex + 1) * pageSize,
+											rowCount,
+										)}{" "}
+										rows
+									</span>
+								</Popover.Trigger>
+								<Portal>
+									<Popover.Positioner>
+										<Popover.Content className="z-50 rounded-md border border-border bg-background p-3 shadow-md">
+											<PaginationPopoverContent
+												pageSize={pageSize}
+												totalRowCount={rowCount}
+												onPageSizeChange={(limit) => table.setPageSize(limit)}
+												onConfirm={(pageIndex) => {
+													table.setPageIndex(pageIndex);
+												}}
+												isLoading={rowsQuery.isLoading}
+											/>
+										</Popover.Content>
+									</Popover.Positioner>
+								</Portal>
+							</Popover.Root>
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => table.nextPage()}
+								disabled={!table.getCanNextPage()}
+								className="h-6 px-2"
+							>
+								›
+							</Button>
+						</div>
+					</div>
 				</div>
 			)}
 
