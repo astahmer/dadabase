@@ -56,7 +56,6 @@ export interface DataTableProps<TData> {
 	table: TanstackTable<TData>;
 	containerRef?: React.RefObject<HTMLDivElement | null>;
 	getTableContainer?: (el: HTMLDivElement) => void;
-	header?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
 	footer?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
 	top?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
 	bottom?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
@@ -89,7 +88,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		table,
 		containerRef,
 		getTableContainer,
-		header,
 		top,
 		bottom,
 		emptyState = true,
@@ -444,7 +442,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 	return (
 		<>
 			{runIfFn(top, table)}
-			{runIfFn(header, table)}
 			{enableColumnOrdering ? (
 				<DndContext
 					sensors={sensors}

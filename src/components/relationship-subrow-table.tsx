@@ -14,6 +14,7 @@ import { useTableColumnMetadata } from "../hooks/use-table-column-metadata";
 import { useRowsColumns } from "../hooks/use-rows-columns.tsx";
 import type { TableRelationship } from "#src/types/relationships.ts";
 import { useRowsColumnsAction } from "#src/hooks/use-rows-columns.actions.ts";
+import { ScrollToColumnButton } from "./scroll-to-column.button.tsx";
 
 interface RelationshipSubrowTableProps {
 	relationship: TableRelationship;
@@ -70,20 +71,20 @@ export const RelationshipSubrowTable = ({
 		}),
 	);
 
-	const { columnMetadata } = useTableColumnMetadata({
+	const tableMetadata = useTableColumnMetadata({
 		url: connection.url,
 		schema: referencingSchema,
 		table: referencingTable,
 	});
 
 	const rowActions = useRowsColumnsAction({
-		columnMetadata,
+		columnMetadata: tableMetadata.columnMetadata,
 		selectedSchema: referencingSchema,
 		selectedTable: referencingTable,
 		activeConnectionUrl: connection.url,
 	});
 	const dataColumns = useRowsColumns({
-		columnMetadata,
+		columnMetadata: tableMetadata.columnMetadata,
 		schema: referencingSchema,
 		table: referencingTable,
 		activeConnectionUrl: connection.url,
@@ -109,6 +110,10 @@ export const RelationshipSubrowTable = ({
 			},
 		},
 	});
+
+	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
+		null,
+	);
 
 	const rowCount = rowsQuery.data?.rows?.length ?? 0;
 	const hasData = rowCount > 0;
@@ -222,7 +227,7 @@ export const RelationshipSubrowTable = ({
 			>
 				<SheetContent
 					side="bottom"
-					className="h-[90vh] flex flex-col"
+					className="h-[90vh] flex flex-col px-6"
 					positionerProps={{ className: "relative z-1" }}
 				>
 					<SheetHeader>
@@ -238,15 +243,23 @@ export const RelationshipSubrowTable = ({
 							</span>
 						</SheetTitle>
 					</SheetHeader>
-					<div className="flex-1 overflow-hidden z-1">
+					<div className="flex-1 relative overflow-hidden">
 						<DataTable
 							table={table}
+							getTableContainer={setTableContainer}
+							className="relative"
 							size="compact"
 							striped
 							stickyHeader={true}
 							isLoading={rowsQuery.isLoading}
 							hasError={rowsQuery.isError}
 						/>
+						{!rowsQuery.isLoading && !tableMetadata.isLoading && (
+							<ScrollToColumnButton
+								columnList={tableMetadata.columnList}
+								containerRef={{ current: tableContainer }}
+							/>
+						)}
 					</div>
 				</SheetContent>
 			</Sheet>
