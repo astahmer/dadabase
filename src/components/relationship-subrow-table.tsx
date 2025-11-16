@@ -232,15 +232,17 @@ export const RelationshipSubrowTable = ({
 				>
 					<SheetHeader>
 						<SheetTitle className="text-base">
-							{referencingSchema}.{referencingTable}
-							<span className="text-muted-foreground text-sm ml-2">
-								.{referencingColumn}
-							</span>
-							<span className="text-muted-foreground mx-2">›</span>
-							{referencedSchema}.{referencedTable}
-							<span className="text-muted-foreground text-sm ml-2">
-								.{referencedColumn}
-							</span>
+							<div className="flex items-center">
+								{referencingTable}.
+								<span className="text-muted-foreground">
+									{referencingColumn}
+								</span>
+								<span className="text-muted-foreground mx-2">›</span>
+								{referencedTable}.
+								<span className="text-muted-foreground">
+									{referencedColumn}
+								</span>
+							</div>
 						</SheetTitle>
 					</SheetHeader>
 					<div className="flex-1 relative overflow-hidden">

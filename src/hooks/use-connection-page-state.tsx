@@ -194,6 +194,28 @@ export const useConnectionPageState = ({
 	const staticColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(
 		() => [
 			{
+				id: "__rowIndex",
+				meta: { enableColumnOrdering: false },
+				header: () => <div className="text-center w-full">#</div>,
+				cell: (ctx) => {
+					const rowIndex = ctx.row.index;
+					const pageIndex = Math.floor(search.offset / search.limit);
+					const pageSize = search.limit;
+					const displayNumber = pageIndex * pageSize + rowIndex + 1;
+					return (
+						<div className="flex items-center justify-center text-xs text-muted-foreground font-medium">
+							{displayNumber}
+						</div>
+					);
+				},
+				size: 50,
+				minSize: 50,
+				maxSize: 50,
+				enableResizing: false,
+				enableSorting: false,
+				enablePinning: false,
+			} as ColumnDef<Record<string, unknown>>,
+			{
 				id: "__select",
 				meta: { enableColumnOrdering: false },
 				header: (ctx) => {
@@ -270,7 +292,7 @@ export const useConnectionPageState = ({
 				enablePinning: false,
 			} as ColumnDef<Record<string, unknown>>,
 		],
-		[columnMetadata, navigate],
+		[columnMetadata, navigate, search.offset, search.limit],
 	);
 
 	const rowActions = useRowsColumnsAction({
@@ -400,6 +422,7 @@ export const useConnectionPageState = ({
 		if (!state.left.some((col) => col === "__select")) {
 			state.left.unshift(
 				// ...(staticColumns.map((col) => col.id).filter(Boolean) as string[]),
+				"__rowIndex",
 				"__select",
 			);
 		}

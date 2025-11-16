@@ -175,7 +175,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 										table={table}
 										onFilterClick={onColumnFilterClick}
 									>
-										<HStack className="flex-1 min-w-0" align="center">
+										<HStack className="flex-1 min-w-0" align="center" w="full">
 											{headerCell.isPlaceholder ? null : column.getCanSort() &&
 												column.columnDef.enableSorting ? (
 												<Button
@@ -198,12 +198,10 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 													)}
 												</Button>
 											) : (
-												<span>
-													{flexRender(
-														headerCell.column.columnDef.header,
-														headerCell.getContext(),
-													)}
-												</span>
+												flexRender(
+													headerCell.column.columnDef.header,
+													headerCell.getContext(),
+												)
 											)}
 										</HStack>
 									</ColumnHeaderContextMenu>

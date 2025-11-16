@@ -90,7 +90,7 @@ export function CellContextMenu({
 					</MenuItem>
 					<Clipboard.Root value={text}>
 						<MenuItem value="copy" asChild>
-							<Clipboard.Trigger>
+							<Clipboard.Trigger className="w-full">
 								<Copy className="size-4" />
 								<MenuItemText>Copy value</MenuItemText>
 							</Clipboard.Trigger>
