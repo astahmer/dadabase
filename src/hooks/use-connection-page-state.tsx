@@ -1,6 +1,10 @@
 import type { DataTableRowSubrow } from "#src/components/data-table.row.tsx";
 import { RelationshipSubrowTable } from "#src/components/relationship-subrow-table.tsx";
-import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
+import {
+	Checkbox,
+	CheckboxControl,
+	CheckboxLabel,
+} from "#src/components/ui/checkbox.tsx";
 import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
 import { useDataTable } from "#src/components/use-data-table.ts";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
@@ -19,6 +23,8 @@ import type {
 } from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
+import { Button } from "#src/components/ui/button.tsx";
 
 function replaceDatabaseInConnectionUrl(
 	connectionUrl: string,
@@ -202,7 +208,7 @@ export const useConnectionPageState = ({
 					const hasAnySelection = isSomeRowsSelected || isAllSelected;
 
 					return (
-						<div className="flex items-center justify-center h-full">
+						<div className="flex items-center justify-center h-full w-full text-center">
 							{hasAnySelection ? (
 								<Checkbox
 									className="flex items-center gap-2"
@@ -215,13 +221,20 @@ export const useConnectionPageState = ({
 									}
 									onChange={ctx.table.getToggleAllRowsSelectedHandler()}
 									aria-label="Select all rows"
+									title="Select all rows"
 								>
 									<CheckboxControl />
 								</Checkbox>
 							) : (
-								<span className="text-xs text-muted-foreground font-medium">
-									#
-								</span>
+								<Tooltip
+									content="Click to select all rows"
+									colorPalette="inverted"
+									positioning={{ placement: "right", strategy: "fixed" }}
+								>
+									<Button size="xs" className="text-xs" variant="ghost">
+										#
+									</Button>
+								</Tooltip>
 							)}
 						</div>
 					);
@@ -231,6 +244,7 @@ export const useConnectionPageState = ({
 					const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
 					const isAllSelected = ctx.table.getIsAllRowsSelected();
 					const hasAnySelection = isSomeRowsSelected || isAllSelected;
+
 					const rowIndex = ctx.row.index;
 					const pageIndex = Math.floor(search.offset / search.limit);
 					const pageSize = search.limit;
@@ -238,33 +252,42 @@ export const useConnectionPageState = ({
 
 					if (hasAnySelection) {
 						return (
-							<Checkbox
-								className="flex items-center gap-2"
-								checked={isSelected}
-								disabled={!ctx.row.getCanSelect()}
-								onChange={ctx.row.getToggleSelectedHandler()}
-								aria-label="Select row"
+							<Tooltip
+								content={`#${displayNumber}`}
+								colorPalette="inverted"
+								portalled={false}
+								positioning={{ placement: "right", strategy: "fixed" }}
 							>
-								<CheckboxControl />
-							</Checkbox>
+								<div>
+									<Checkbox
+										className="flex items-center gap-2 justify-self-center"
+										checked={isSelected}
+										disabled={!ctx.row.getCanSelect()}
+										onChange={ctx.row.getToggleSelectedHandler()}
+										aria-label={`Select row ${displayNumber}`}
+									>
+										<CheckboxControl />
+									</Checkbox>
+								</div>
+							</Tooltip>
 						);
 					}
 
 					return (
-						<div
-							className="flex items-center justify-center text-xs text-muted-foreground font-medium cursor-pointer hover:text-foreground transition-colors"
-							onClick={ctx.row.getToggleSelectedHandler()}
-							role="button"
-							tabIndex={0}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" || e.key === " ") {
-									e.preventDefault();
-									ctx.row.getToggleSelectedHandler()?.(e as any);
-								}
-							}}
+						<Tooltip
+							content="Click to select row"
+							colorPalette="inverted"
+							positioning={{ placement: "right", strategy: "fixed" }}
 						>
-							{displayNumber}
-						</div>
+							<Button
+								size="xs"
+								className="w-full text-xs text-center"
+								variant="ghost"
+								onClick={ctx.row.getToggleSelectedHandler()}
+							>
+								{displayNumber}
+							</Button>
+						</Tooltip>
 					);
 				},
 				size: 50,

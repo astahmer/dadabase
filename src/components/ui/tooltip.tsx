@@ -1,7 +1,7 @@
 import { Tooltip as TooltipPrimitive } from "@ark-ui/react/tooltip";
 
 import { cn } from "#src/lib/utils";
-import { Portal } from "@ark-ui/react";
+import { Portal, type PortalProps } from "@ark-ui/react";
 import type { ExposedComponentProps } from "./component-props.ts";
 
 export interface TooltipProps
@@ -12,6 +12,7 @@ export interface TooltipProps
 	contentProps?: React.ComponentProps<typeof TooltipPrimitive.Content>;
 	disabled?: boolean;
 	portalled?: boolean;
+	portalProps?: PortalProps;
 	colorPalette?: "default" | "inverted";
 }
 
@@ -22,7 +23,9 @@ export const Tooltip = (props: TooltipProps) => {
 		disabled,
 		content,
 		contentProps,
-		colorPalette = "default",
+		colorPalette = "inverted",
+		portalled,
+		portalProps,
 		...rest
 	} = props;
 
@@ -40,7 +43,7 @@ export const Tooltip = (props: TooltipProps) => {
 	return (
 		<TooltipPrimitive.Root openDelay={0} closeDelay={0} lazyMount {...rest}>
 			<TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
-			<Portal disabled={!props.portalled}>
+			<Portal disabled={!portalled} {...portalProps}>
 				<TooltipPrimitive.Positioner>
 					<TooltipPrimitive.Content
 						className={contentClassName}
