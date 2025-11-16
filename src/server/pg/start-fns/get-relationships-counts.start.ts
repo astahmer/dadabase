@@ -8,13 +8,24 @@ import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import type { TableRelationship } from "#src/types/relationships.ts";
 
-// Using Record type with any for rowData to avoid schema validation issues
+const TableRelationshipSchema = Schema.Struct({
+	constraintName: Schema.String,
+	referencingSchema: Schema.String,
+	referencingTable: Schema.String,
+	referencingColumn: Schema.String,
+	referencedSchema: Schema.String,
+	referencedTable: Schema.String,
+	referencedColumn: Schema.String,
+	type: Schema.Literal("incoming", "outgoing"),
+});
+TableRelationshipSchema.Type satisfies TableRelationship;
+
 const InputSchema = Schema.Struct({
 	url: Schema.String,
 	schema: Schema.String,
 	table: Schema.String,
-	relationships: Schema.Any,
-	rowData: Schema.Any,
+	relationships: TableRelationshipSchema.pipe(Schema.Array, Schema.mutable),
+	rowData: Schema.Record({ key: Schema.String, value: Schema.Any }),
 });
 
 const getRelationshipsCountsServerFn = createServerFn()
@@ -33,8 +44,8 @@ const getRelationshipsCountsServerFn = createServerFn()
 				return yield* getRelationshipsCounts({
 					schema: input.schema,
 					table: input.table,
-					relationships: input.relationships as TableRelationship[],
-					rowData: input.rowData as Record<string, unknown>,
+					relationships: input.relationships,
+					rowData: input.rowData,
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 			}),
 		);
