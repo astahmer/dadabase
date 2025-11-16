@@ -332,10 +332,20 @@ export const RelationshipsPanel = ({
 						</div>
 					</Splitter.Panel>
 
-					<Splitter.ResizeTrigger
-						id="sidebar:content"
-						className="w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors"
-					/>
+					<Splitter.Context>
+						{(ctx) => (
+							<Splitter.ResizeTrigger
+								id="sidebar:content"
+								className="w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors"
+								title="Drag to resize column, double click to collapse/expand"
+								onDoubleClick={() =>
+									ctx.isPanelExpanded("sidebar")
+										? ctx.collapsePanel("sidebar")
+										: ctx.expandPanel("sidebar")
+								}
+							/>
+						)}
+					</Splitter.Context>
 
 					{/* Right Panel - Data Display */}
 					<Splitter.Panel
@@ -344,6 +354,7 @@ export const RelationshipsPanel = ({
 						ref={rightPanelRef}
 					>
 						{stickyRelationship &&
+							displayedRelationships.size > 1 &&
 							(() => {
 								const rel = relationships.find(
 									(r) => r.constraintName === stickyRelationship,
@@ -392,6 +403,7 @@ export const RelationshipsPanel = ({
 													rowData={rowData}
 													connectionUrl={connectionUrl}
 													isPanelExpanded={isPanelExpanded}
+													withHeader={true}
 													onRemove={() => {
 														const next = new Set(displayedRelationships);
 														next.delete(constraintName);
@@ -496,6 +508,7 @@ interface RelationshipCardProps {
 	rowData: Record<string, unknown>;
 	connectionUrl: string;
 	isPanelExpanded: boolean;
+	withHeader: boolean;
 	onRemove: () => void;
 }
 
@@ -504,6 +517,7 @@ const RelationshipCard = ({
 	rowData,
 	connectionUrl,
 	isPanelExpanded,
+	withHeader,
 	onRemove,
 }: RelationshipCardProps) => {
 	// For outgoing relationships, get the FK value from the row
@@ -525,6 +539,7 @@ const RelationshipCard = ({
 				parentRowValue={relationship.type === "outgoing" ? fkValue : pkValue}
 				connection={{ url: connectionUrl }}
 				isPanelExpanded={isPanelExpanded}
+				withHeader={withHeader}
 				onRemove={onRemove}
 			/>
 		</div>

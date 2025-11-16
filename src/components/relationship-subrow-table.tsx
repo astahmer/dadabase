@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import { getErrorMessage } from "../lib/get-error-message";
 import { queryRelationshipSubrowDataQueryOptions } from "../server/pg/start-fns/get-relationship-subrow-data.start";
@@ -10,13 +10,17 @@ import { useDataTable } from "./use-data-table";
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
+import { useTableColumnMetadata } from "../hooks/use-table-column-metadata";
+import { useRowsColumns } from "../hooks/use-rows-columns.tsx";
 import type { TableRelationship } from "#src/types/relationships.ts";
+import { useRowsColumnsAction } from "#src/hooks/use-rows-columns.actions.ts";
 
 interface RelationshipSubrowTableProps {
 	relationship: TableRelationship;
 	parentRowValue: unknown;
 	connection: { url: string };
 	isPanelExpanded?: boolean;
+	withHeader?: boolean;
 	onRemove?: () => void;
 }
 
@@ -29,6 +33,7 @@ export const RelationshipSubrowTable = ({
 	parentRowValue,
 	connection,
 	isPanelExpanded = false,
+	withHeader = true,
 	onRemove,
 }: RelationshipSubrowTableProps) => {
 	const [isMaximizeSheetOpen, setIsMaximizeSheetOpen] = useState(false);
@@ -65,29 +70,38 @@ export const RelationshipSubrowTable = ({
 		}),
 	);
 
-	// Build dynamic columns from the first row's keys
-	const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
-		const firstRow = rowsQuery.data?.rows?.[0];
-		if (!firstRow) return [];
+	const { columnMetadata } = useTableColumnMetadata({
+		url: connection.url,
+		schema: referencingSchema,
+		table: referencingTable,
+	});
 
-		return Object.keys(firstRow).map((key) => ({
-			accessorKey: key,
-			header: key,
-			cell: (info) => {
-				const value = info.getValue();
-				return (
-					<span className="text-xs font-mono">
-						{value === null ? "-" : String(value)}
-					</span>
-				);
-			},
-		}));
-	}, [rowsQuery.data?.rows]);
+	const rowActions = useRowsColumnsAction({
+		columnMetadata,
+		selectedSchema: referencingSchema,
+		selectedTable: referencingTable,
+		activeConnectionUrl: connection.url,
+	});
+	const dataColumns = useRowsColumns({
+		columnMetadata,
+		schema: referencingSchema,
+		table: referencingTable,
+		activeConnectionUrl: connection.url,
+		enableSorting: true,
+		onFollowFK: rowActions.onFollowFK,
+		onFindReferences: rowActions.onFindReferences,
+		onShowQuickReferences: rowActions.onShowQuickReferences,
+		onPrefetchReferences: rowActions.onPrefetchReferences,
+		onNavigateToFK: rowActions.onNavigateToFK,
+		onNavigateToReference: rowActions.onNavigateToReference,
+		onExpandToSheet: rowActions.onExpandToSheet,
+		onMenuOpen: rowActions.onMenuOpen,
+	});
 
 	const table = useDataTable({
-		enableColumnPinning: false,
+		// enableColumnPinning: false,
 		data: (rowsQuery.data?.rows ?? []) as Record<string, unknown>[],
-		columns,
+		columns: dataColumns,
 		initialState: {
 			pagination: {
 				pageIndex: 0,
@@ -126,63 +140,67 @@ export const RelationshipSubrowTable = ({
 	return (
 		<>
 			{/* Info Bar */}
-			<div className="px-4 py-2 border-b bg-muted/20 flex items-center justify-between shrink-0 text-xs gap-2">
-				<div className="flex items-center gap-2 min-w-0">
-					<span className="text-muted-foreground truncate">
-						{referencingTable}
-						<span className="text-muted-foreground">.{referencingColumn}</span>
-					</span>
-					<span className="text-muted-foreground shrink-0">›</span>
-					<span className="font-medium truncate">
-						{referencedTable}
-						<span className="text-muted-foreground">.{referencedColumn}</span>
-					</span>
-
-					{cardinalityQuery.data && (
-						<span className="text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded shrink-0">
-							{cardinalityQuery.data.cardinality === "one-to-one"
-								? "1:1"
-								: cardinalityQuery.data.cardinality === "one-to-many"
-									? "1:N"
-									: cardinalityQuery.data.cardinality === "many-to-one"
-										? "N:1"
-										: "M:N"}
+			{withHeader && (
+				<div className="px-4 py-2 border-b bg-muted/20 flex items-center justify-between shrink-0 text-xs gap-2">
+					<div className="flex items-center gap-2 min-w-0">
+						<span className="text-muted-foreground truncate">
+							{referencingTable}
+							<span className="text-muted-foreground">
+								.{referencingColumn}
+							</span>
 						</span>
-					)}
-
-					{hasData && (
-						<span className="text-muted-foreground shrink-0">
-							{rowCount} row{rowCount !== 1 ? "s" : ""}
+						<span className="text-muted-foreground shrink-0">›</span>
+						<span className="font-medium truncate">
+							{referencedTable}
+							<span className="text-muted-foreground">.{referencedColumn}</span>
 						</span>
-					)}
-				</div>
 
-				<div className="flex items-center gap-1 shrink-0">
-					{isPanelExpanded && hasData && (
-						<Button
-							size="xs"
-							variant="ghost"
-							onClick={() => setIsMaximizeSheetOpen(true)}
-							title="Expand to full view"
-							className="h-6 px-2 gap-1"
-						>
-							<Maximize2 className="h-3 w-3" />
-							<span className="text-xs">Maximize</span>
-						</Button>
-					)}
-					{onRemove && (
-						<Button
-							size="xs"
-							variant="ghost"
-							onClick={onRemove}
-							title="Remove from view"
-							className="h-6 px-2"
-						>
-							<X className="h-3 w-3" />
-						</Button>
-					)}
+						{cardinalityQuery.data && (
+							<span className="text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded shrink-0">
+								{cardinalityQuery.data.cardinality === "one-to-one"
+									? "1:1"
+									: cardinalityQuery.data.cardinality === "one-to-many"
+										? "1:N"
+										: cardinalityQuery.data.cardinality === "many-to-one"
+											? "N:1"
+											: "M:N"}
+							</span>
+						)}
+
+						{hasData && (
+							<span className="text-muted-foreground shrink-0">
+								{rowCount} row{rowCount !== 1 ? "s" : ""}
+							</span>
+						)}
+					</div>
+
+					<div className="flex items-center gap-1 shrink-0">
+						{isPanelExpanded && hasData && (
+							<Button
+								size="xs"
+								variant="ghost"
+								onClick={() => setIsMaximizeSheetOpen(true)}
+								title="Expand to full view"
+								className="h-6 px-2 gap-1"
+							>
+								<Maximize2 className="h-3 w-3" />
+								<span className="text-xs">Maximize</span>
+							</Button>
+						)}
+						{onRemove && (
+							<Button
+								size="xs"
+								variant="ghost"
+								onClick={onRemove}
+								title="Remove from view"
+								className="h-6 px-2"
+							>
+								<X className="h-3 w-3" />
+							</Button>
+						)}
+					</div>
 				</div>
-			</div>
+			)}
 
 			{/* Data Table - Only render when there's data */}
 			{hasData && (

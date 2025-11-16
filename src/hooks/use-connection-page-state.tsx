@@ -1,23 +1,19 @@
 import type { ForeignKeyInfo } from "#src/components/cell-context-menu.tsx";
-import { MemoizedDataCell } from "#src/components/memoized-data-cell.tsx";
+import type { DataTableRowSubrow } from "#src/components/data-table.row.tsx";
 import { RelationshipSubrowTable } from "#src/components/relationship-subrow-table.tsx";
 import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
-import { ColumnHeaderWithInfo } from "#src/components/ui/column-header-with-info.tsx";
-import { ForeignKeyIcon } from "#src/components/ui/foreign-key-icon.tsx";
-import { JsonCell } from "#src/components/ui/json-cell.tsx";
-import { PrimaryKeyIcon } from "#src/components/ui/primary-key-icon.tsx";
 import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
-import { UniqueConstraintIcon } from "#src/components/ui/unique-constraint-icon.tsx";
 import { useDataTable } from "#src/components/use-data-table.ts";
-import type { DataTableRowSubrow } from "#src/components/data-table.row.tsx";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
+import {
+	useRowsColumns,
+	type UseRowsColumnsOptions,
+} from "#src/hooks/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
 import { useTableRelationships } from "#src/hooks/use-table-relationships";
-import { getColumnTextAlignment } from "#src/lib/data-type-utils";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import type { TableRelationship } from "#src/types/relationships.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import type {
@@ -27,6 +23,7 @@ import type {
 	Row,
 } from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
+import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
 
 function replaceDatabaseInConnectionUrl(
 	connectionUrl: string,
@@ -68,33 +65,6 @@ const formatTableValue = (value: unknown): unknown => {
 	return value;
 };
 
-const createTabState = (
-	schema: string,
-	table: string,
-	options?: {
-		filters?: any;
-		offset?: number;
-		limit?: number;
-		filtersOpened?: boolean;
-		fkValue?: string;
-	},
-) => ({
-	tabId: `${schema}.${table}:${options?.fkValue ?? ""}`,
-	schema,
-	table,
-	tableFilter: undefined,
-	orderBy: undefined,
-	orderDirection: undefined,
-	limit: options?.limit ?? 50,
-	offset: options?.offset ?? 0,
-	viewMode: "rows" as const,
-	tableSize: "cozy" as const,
-	hiddenColumnList: undefined,
-	filters: options?.filters,
-	filtersOpened: options?.filtersOpened ?? false,
-	fkValue: options?.fkValue,
-});
-
 interface UseConnectionPageStateProps {
 	connection: {
 		url: string;
@@ -104,7 +74,6 @@ interface UseConnectionPageStateProps {
 export const useConnectionPageState = ({
 	connection,
 }: UseConnectionPageStateProps) => {
-	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
 	const search = useSearch({
@@ -309,273 +278,27 @@ export const useConnectionPageState = ({
 		[columnMetadata, navigate],
 	);
 
-	// Navigation callbacks
-	const handleFollowFK = useCallback(
-		(fkInfo: ForeignKeyInfo, cellValue: unknown) => {
-			const newTabState = createTabState(
-				fkInfo.referencedSchema,
-				fkInfo.referencedTable,
-				{
-					filters: {
-						conditions: [
-							{
-								column: fkInfo.referencedColumn,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					fkValue: String(cellValue),
-				},
-			);
-			navigate({
-				search: (prev) => ({
-					...prev,
-					schema: fkInfo.referencedSchema,
-					table: fkInfo.referencedTable,
-					activeTabId: newTabState.tabId,
-					tabs: [...(prev.tabs ?? []), newTabState],
-					filters: {
-						conditions: [
-							{
-								column: fkInfo.referencedColumn,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
-				}),
-			});
-		},
-		[navigate],
-	);
-
-	const handleFindReferences = useCallback(
-		(columnName: string, cellValue: unknown) => {
-			navigate({
-				search: (prev) => ({
-					...prev,
-					filtersOpened: true,
-					filters: {
-						conditions: [
-							{
-								column: columnName,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					offset: 0,
-				}),
-			});
-		},
-		[navigate],
-	);
-
-	const handleNavigateToReference = useCallback(
-		(
-			ref: { schema: string; table: string; column: string },
-			cellValue: unknown,
-		) => {
-			const newTabState = createTabState(ref.schema, ref.table, {
-				filters: {
-					conditions: [
-						{
-							column: ref.column,
-							operator: "equals",
-							value: String(cellValue),
-						},
-					],
-					logicalOperator: "and",
-				},
-				filtersOpened: true,
-				fkValue: String(cellValue),
-			});
-			navigate({
-				search: (prev) => ({
-					...prev,
-					schema: ref.schema,
-					table: ref.table,
-					activeTabId: newTabState.tabId,
-					tabs: [...(prev.tabs ?? []), newTabState],
-					filters: {
-						conditions: [
-							{
-								column: ref.column,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
-				}),
-			});
-		},
-		[navigate],
-	);
-
-	// Data columns
-	const dataColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(() => {
-		if (!columnMetadata.length) return [];
-		return columnMetadata.map(
-			(col) =>
-				({
-					accessorKey: col.name,
-					header: () => {
-						const currentSearch = useSearch({
-							from: "/connections/$connectionName",
-							select: (s) => ({
-								orderBy: s.orderBy,
-								orderDirection: s.orderDirection,
-							}),
-						});
-						const sortOrder =
-							currentSearch.orderBy === col.name
-								? (currentSearch.orderDirection as "asc" | "desc")
-								: false;
-						return (
-							<ColumnHeaderWithInfo
-								columnName={col.name}
-								dataType={col.dataType}
-								showBadge
-								isPrimaryKey={col.primaryKey}
-								isUnique={col.unique}
-								isForeignKey={col.isForeignKey}
-								foreignKey={col.foreignKey}
-								sortOrder={sortOrder}
-							>
-								<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
-								<UniqueConstraintIcon isUnique={col.unique} />
-								<ForeignKeyIcon isForeignKey={col.isForeignKey ?? false} />
-							</ColumnHeaderWithInfo>
-						);
-					},
-					meta: {
-						textAlign: getColumnTextAlignment(col.dataType),
-					},
-					cell: col.dataType.toLowerCase().includes("json")
-						? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
-						: (ctx) => {
-								const currentSearch = useSearch({
-									from: "/connections/$connectionName",
-									select: (s) => ({
-										schema: s.schema,
-										table: s.table,
-									}),
-								});
-								return (
-									<MemoizedDataCell
-										ctx={ctx}
-										col={col}
-										schema={currentSearch.schema}
-										table={currentSearch.table}
-										activeConnectionUrl={activeConnectionUrl}
-										onFollowFK={handleFollowFK}
-										onFindReferences={handleFindReferences}
-										onShowQuickReferences={() => {
-											navigate({
-												search: (prev) => ({
-													...prev,
-													quickReferencesOpen: true,
-													quickReferencesColumnName: col.name,
-													quickReferencesCellValue: String(
-														ctx.row.original[col.name],
-													),
-												}),
-											});
-										}}
-										onPrefetchReferences={() => {
-											const referenceTarget = col.foreignKey
-												? {
-														referencedSchema: col.foreignKey.referencedSchema,
-														referencedTable: col.foreignKey.referencedTable,
-														referencedColumn: col.foreignKey.referencedColumn,
-													}
-												: {
-														referencedSchema: currentSearch.schema || "",
-														referencedTable: currentSearch.table || "",
-														referencedColumn: col.name,
-													};
-
-											queryClient.prefetchQuery(
-												findColumnReferencesWithCountsQueryOptions({
-													url: activeConnectionUrl,
-													referencedSchema: referenceTarget.referencedSchema,
-													referencedTable: referenceTarget.referencedTable,
-													referencedColumn: referenceTarget.referencedColumn,
-													cellValue: ctx.row.original[col.name],
-												}),
-											);
-										}}
-										onNavigateToFK={handleFollowFK}
-										onNavigateToReference={handleNavigateToReference}
-										onExpandToSheet={() => {
-											navigate({
-												search: (prev) => ({
-													...prev,
-													quickReferencesOpen: true,
-													quickReferencesColumnName: col.name,
-													quickReferencesCellValue: String(
-														ctx.row.original[col.name],
-													),
-												}),
-											});
-										}}
-										onMenuOpen={() => {
-											const cellValue = ctx.row.original[col.name];
-
-											const referenceTarget = col.foreignKey
-												? {
-														referencedSchema: col.foreignKey.referencedSchema,
-														referencedTable: col.foreignKey.referencedTable,
-														referencedColumn: col.foreignKey.referencedColumn,
-													}
-												: {
-														referencedSchema: currentSearch.schema || "",
-														referencedTable: currentSearch.table || "",
-														referencedColumn: col.name,
-													};
-
-											queryClient.prefetchQuery(
-												findColumnReferencesWithCountsQueryOptions({
-													url: activeConnectionUrl,
-													referencedSchema: referenceTarget.referencedSchema,
-													referencedTable: referenceTarget.referencedTable,
-													referencedColumn: referenceTarget.referencedColumn,
-													cellValue,
-												}),
-											);
-										}}
-									/>
-								);
-							},
-					enableResizing: true,
-					enableSorting: true,
-				}) as ColumnDef<any> as any,
-		);
-	}, [
+	const rowActions = useRowsColumnsAction({
 		columnMetadata,
+		selectedSchema: search.schema || "",
+		selectedTable: search.table || "",
 		activeConnectionUrl,
-		handleFollowFK,
-		handleFindReferences,
-		handleNavigateToReference,
-		navigate,
-		queryClient,
-	]);
+	});
+	const dataColumns = useRowsColumns({
+		columnMetadata,
+		schema: search.schema || "",
+		table: search.table || "",
+		activeConnectionUrl,
+		enableSorting: true,
+		onFollowFK: rowActions.onFollowFK,
+		onFindReferences: rowActions.onFindReferences,
+		onShowQuickReferences: rowActions.onShowQuickReferences,
+		onPrefetchReferences: rowActions.onPrefetchReferences,
+		onNavigateToFK: rowActions.onNavigateToFK,
+		onNavigateToReference: rowActions.onNavigateToReference,
+		onExpandToSheet: rowActions.onExpandToSheet,
+		onMenuOpen: rowActions.onMenuOpen,
+	});
 
 	// Relationship integration
 	const relationshipsQuery = useTableRelationships({

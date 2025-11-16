@@ -26,6 +26,9 @@
 - store limit (50 etc) in localstorage and use that as default instead of hardcoded 50
 - cmd+f in table
 - cmd+k
+- inline JSON / json cell showing for dates in relationship panel
+- resize trigger is not showing if column header is too small
+- hide pin icon before hovering column header
 
 - https://x.com/mac_hour/status/1988953549305442655
 - font-variant: numeric-tabs; sur toutes tes cellules, pour améliorer le rendu

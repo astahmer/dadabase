@@ -10,7 +10,7 @@ export interface ForeignKeyInfo {
 	constraintName: string;
 }
 
-export interface ColumnMetadata {
+export interface TableColumnMetadata {
 	name: string;
 	dataType: string;
 	nullable: boolean;
@@ -75,7 +75,7 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 				});
 			});
 
-			const columns = yield* db.execute(sql<ColumnMetadata>`
+			const columns = yield* db.execute(sql<TableColumnMetadata>`
 			SELECT DISTINCT ON (a.attnum)
 				a.attname as name,
 				format_type(a.atttypid, a.atttypmod) as "dataType",

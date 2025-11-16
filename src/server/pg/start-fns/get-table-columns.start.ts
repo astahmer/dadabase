@@ -5,7 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 import {
 	getTableColumns,
-	type ColumnMetadata,
+	type TableColumnMetadata,
 } from "../fns/get-table-columns.kysely.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
@@ -18,7 +18,7 @@ const getTableColumnsServerFn = createServerFn()
 			table: Schema.String,
 		}).pipe(Schema.standardSchemaV1),
 	)
-	.handler(async (ctx): Promise<ColumnMetadata[]> => {
+	.handler(async (ctx): Promise<TableColumnMetadata[]> => {
 		return await AppRuntime.runPromise(
 			Effect.gen(function* () {
 				const repo = yield* DatabaseConnectionRepository;
