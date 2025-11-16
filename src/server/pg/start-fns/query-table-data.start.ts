@@ -22,7 +22,7 @@ const InputSchema = Schema.Struct({
 	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
 	filters: QueryFilter.pipe(Schema.optional),
 });
-const queryTableDataServerFn = createServerFn()
+const queryTableDataServerFn = createServerFn({ method: "POST" })
 	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
 	.handler(async (ctx) => {
 		const input = ctx.data;

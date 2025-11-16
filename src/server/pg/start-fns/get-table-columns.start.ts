@@ -10,7 +10,7 @@ import {
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 
-const getTableColumnsServerFn = createServerFn()
+const getTableColumnsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
 		Schema.Struct({
 			url: Schema.String,

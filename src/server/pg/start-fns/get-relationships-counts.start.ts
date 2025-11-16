@@ -28,7 +28,7 @@ const InputSchema = Schema.Struct({
 	rowData: Schema.Record({ key: Schema.String, value: Schema.Any }),
 });
 
-const getRelationshipsCountsServerFn = createServerFn()
+const getRelationshipsCountsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
 	.handler(async (ctx) => {
 		const input = ctx.data;

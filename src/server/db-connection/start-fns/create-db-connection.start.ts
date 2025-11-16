@@ -4,7 +4,7 @@ import { AppRuntime } from "../../services/app.runtime.ts";
 import { createDbConnection } from "#src/server/db-connection/fns/create-db-connection.ts";
 import { mutationOptions } from "@tanstack/react-query";
 
-const createDbConnectionServerFn = createServerFn()
+const createDbConnectionServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
 		Schema.Struct({
 			name: Schema.String,

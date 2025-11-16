@@ -4,14 +4,16 @@ import { Effect } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { queryOptions } from "@tanstack/react-query";
 
-const listDbConnectionServerFn = createServerFn().handler(async (_ctx) => {
-	const getSavedConnections = Effect.gen(function* () {
-		const repository = yield* DatabaseConnectionRepository;
-		const list = yield* repository.findAll();
-		return list;
-	});
-	return await AppRuntime.runPromise(getSavedConnections);
-});
+const listDbConnectionServerFn = createServerFn({ method: "POST" }).handler(
+	async (_ctx) => {
+		const getSavedConnections = Effect.gen(function* () {
+			const repository = yield* DatabaseConnectionRepository;
+			const list = yield* repository.findAll();
+			return list;
+		});
+		return await AppRuntime.runPromise(getSavedConnections);
+	},
+);
 
 export const listDbConnectionQueryOptions = queryOptions({
 	queryKey: ["db", "list"],

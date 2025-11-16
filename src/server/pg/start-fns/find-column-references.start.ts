@@ -15,7 +15,7 @@ import { DatabaseConnectionRepository } from "#src/db/database-connection.reposi
  * Find all tables and columns that reference a specific column (reverse FK lookup)
  * This is lazy-loaded to avoid N+1 queries
  */
-const findColumnReferencesServerFn = createServerFn()
+const findColumnReferencesServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
 		Schema.Struct({
 			url: Schema.String,
@@ -47,7 +47,9 @@ const findColumnReferencesServerFn = createServerFn()
  * Find all tables and columns that reference a specific column with row counts
  * Includes count of matching rows in each referencing table for the given cell value
  */
-const findColumnReferencesWithCountsServerFn = createServerFn()
+const findColumnReferencesWithCountsServerFn = createServerFn({
+	method: "POST",
+})
 	.inputValidator(
 		Schema.Struct({
 			url: Schema.String,

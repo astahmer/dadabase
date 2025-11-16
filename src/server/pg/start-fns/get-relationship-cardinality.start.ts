@@ -10,7 +10,7 @@ import {
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 
-const getRelationshipCardinalityServerFn = createServerFn()
+const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
 		Schema.Struct({
 			url: Schema.String,

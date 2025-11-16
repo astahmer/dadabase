@@ -6,7 +6,7 @@ import { Effect, Schema } from "effect";
 import { getAvailableTableList } from "../fns/get-available-tables.kysely.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
-const getAvailableTablesServerFn = createServerFn()
+const getAvailableTablesServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
 		Schema.Struct({
 			url: Schema.String,

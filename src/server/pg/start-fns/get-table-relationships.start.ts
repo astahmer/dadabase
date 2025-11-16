@@ -8,7 +8,7 @@ import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import type { TableRelationship } from "#src/types/relationships.ts";
 
-const getTableRelationshipsServerFn = createServerFn()
+const getTableRelationshipsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
 		Schema.Struct({
 			url: Schema.String,
