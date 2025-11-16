@@ -164,12 +164,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 								Boolean(column.getIsPinned());
 
 							const CellHeaderContent = (
-								<div
-									className={cn(
-										"flex items-center justify-between min-w-0",
-										hideColumnPinIconUnlessHovered && "group",
-									)}
-								>
+								<div className={"flex items-center justify-between min-w-0"}>
 									<ColumnHeaderContextMenu
 										column={column}
 										table={table}
@@ -271,7 +266,10 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 													)}
 												>
 													<div
-														className={cn("flex items-center gap-2 truncate")}
+														className={cn(
+															"flex items-center gap-2 truncate",
+															hideColumnPinIconUnlessHovered && "group",
+														)}
 													>
 														{!dragCtx.isDragDisabled && (
 															<button
@@ -325,6 +323,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											textAlign: hasBulkActions ? "right" : textAlign,
 										}),
 										"relative",
+										hideColumnPinIconUnlessHovered && "group",
 									)}
 								>
 									{CellHeaderContent}
