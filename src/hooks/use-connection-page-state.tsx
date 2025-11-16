@@ -1,20 +1,15 @@
-import type { ForeignKeyInfo } from "#src/components/cell-context-menu.tsx";
 import type { DataTableRowSubrow } from "#src/components/data-table.row.tsx";
 import { RelationshipSubrowTable } from "#src/components/relationship-subrow-table.tsx";
 import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
 import { useDataTable } from "#src/components/use-data-table.ts";
 import { useQueryBuilder } from "#src/hooks/use-query-builder";
-import {
-	useRowsColumns,
-	type UseRowsColumnsOptions,
-} from "#src/hooks/use-rows-columns.tsx";
+import { useRowsColumns } from "#src/hooks/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
 import { useTableRelationships } from "#src/hooks/use-table-relationships";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import type {
 	AccessorKeyColumnDef,
