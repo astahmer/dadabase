@@ -3,6 +3,7 @@ import { X, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Splitter } from "@ark-ui/react/splitter";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
+import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start.ts";
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
 import { RelationshipSubrowTable } from "./relationship-subrow-table";
@@ -20,6 +21,27 @@ interface RelationshipsPanelProps {
 	onCollapse: () => void;
 	onExpand: () => void;
 	onClose: () => void;
+}
+
+/**
+ * Hook to fetch row counts for a relationship
+ */
+function useRelationshipRowCount(
+	relationship: TableRelationship,
+	parentRowValue: unknown,
+	connectionUrl: string,
+) {
+	return useQuery(
+		queryRelationshipSubrowDataQueryOptions({
+			url: connectionUrl,
+			schema: relationship.referencingSchema,
+			table: relationship.referencingTable,
+			filterColumn: relationship.referencingColumn,
+			filterValue: parentRowValue,
+			limit: 1,
+			offset: 0,
+		}),
+	);
 }
 
 export const RelationshipsPanel = ({
@@ -282,48 +304,30 @@ export const RelationshipsPanel = ({
 										</div>
 										<div className="space-y-0">
 											{rels.map((rel) => (
-												<button
+												<RelationshipListItem
 													key={rel.constraintName}
-													onClick={() =>
+													rel={rel}
+													rowData={rowData}
+													connectionUrl={connectionUrl}
+													isSelected={selectedRelationships.has(
+														rel.constraintName,
+													)}
+													isSticky={
+														stickyRelationship === rel.constraintName && isFocused
+													}
+													isStickyOther={
+														stickyRelationship === rel.constraintName && !isFocused
+													}
+													onSelect={() =>
 														handleRelationshipClick(rel.constraintName)
 													}
-													className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
-														stickyRelationship === rel.constraintName
-															? isFocused
-																? "bg-accent border-l border-muted"
-																: "bg-accent border-l-2 border-primary"
-															: ""
-													}`}
-												>
-													<div className="flex items-start justify-between gap-2">
-														<HStack className="flex-1 min-w-0">
-															<div className="font-medium truncate">
-																{type === "outgoing"
-																	? `${rel.referencingTable}.${rel.referencingColumn}`
-																	: `${rel.referencingTable}.${rel.referencingColumn}`}
-															</div>
-															<div className="text-muted-foreground truncate text-xs">
-																{type === "outgoing"
-																	? `› ${rel.referencedTable}.${rel.referencedColumn}`
-																	: `› ${rel.referencedTable}.${rel.referencedColumn}`}
-															</div>
-														</HStack>
-														<Checkbox
-															checked={selectedRelationships.has(
-																rel.constraintName,
-															)}
-															onCheckedChange={(details) => {
-																handleRelationshipCheckChange(
-																	rel.constraintName,
-																	details.checked === true,
-																);
-															}}
-															onClick={(e) => e.stopPropagation()}
-														>
-															<CheckboxControl />
-														</Checkbox>
-													</div>
-												</button>
+													onCheckChange={(checked) =>
+														handleRelationshipCheckChange(
+															rel.constraintName,
+															checked,
+														)
+													}
+												/>
 											))}
 										</div>
 									</div>
@@ -543,5 +547,81 @@ const RelationshipCard = ({
 				onRemove={onRemove}
 			/>
 		</div>
+	);
+};
+
+interface RelationshipListItemProps {
+	rel: TableRelationship;
+	rowData: Record<string, unknown>;
+	connectionUrl: string;
+	isSelected: boolean;
+	isSticky: boolean;
+	isStickyOther: boolean;
+	onSelect: () => void;
+	onCheckChange: (checked: boolean) => void;
+}
+
+const RelationshipListItem = ({
+	rel,
+	rowData,
+	connectionUrl,
+	isSelected,
+	isSticky,
+	isStickyOther,
+	onSelect,
+	onCheckChange,
+}: RelationshipListItemProps) => {
+	// Get the parent row value based on relationship type
+	const parentRowValue =
+		rel.type === "outgoing"
+			? rowData[rel.referencingColumn]
+			: rowData[rel.referencedColumn];
+
+	// Fetch the count for this relationship
+	const countQuery = useRelationshipRowCount(rel, parentRowValue, connectionUrl);
+	const rowCount = countQuery.data?.rowCount ?? 0;
+
+	return (
+		<button
+			onClick={onSelect}
+			className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
+				isSticky
+					? "bg-accent border-l border-muted"
+					: isStickyOther
+						? "bg-accent border-l-2 border-primary"
+						: ""
+			}`}
+		>
+			<div className="flex items-start justify-between gap-2">
+				<HStack className="flex-1 min-w-0">
+					<div className="font-medium truncate">
+						<span className="inline-block mr-1 text-muted-foreground">
+							{countQuery.isLoading ? (
+								<span className="text-xs">…</span>
+							) : (
+								<span>{rowCount}</span>
+							)}
+						</span>
+						{rel.type === "outgoing"
+							? `${rel.referencingTable}.${rel.referencingColumn}`
+							: `${rel.referencingTable}.${rel.referencingColumn}`}
+					</div>
+					<div className="text-muted-foreground truncate text-xs">
+						{rel.type === "outgoing"
+							? `› ${rel.referencedTable}.${rel.referencedColumn}`
+							: `› ${rel.referencedTable}.${rel.referencedColumn}`}
+					</div>
+				</HStack>
+				<Checkbox
+					checked={isSelected}
+					onCheckedChange={(details) => {
+						onCheckChange(details.checked === true);
+					}}
+					onClick={(e) => e.stopPropagation()}
+				>
+					<CheckboxControl />
+				</Checkbox>
+			</div>
+		</button>
 	);
 };
