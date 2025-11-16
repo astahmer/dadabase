@@ -578,25 +578,27 @@ const RelationshipListItem = ({
 			}`}
 		>
 			<div className="flex items-start justify-between gap-2">
-				<HStack className="flex-1 min-w-0">
-					<div className="font-medium truncate">
-						<span className="inline-block mr-1 text-muted-foreground">
-							{isCountLoading ? (
-								<span className="text-xs">…</span>
-							) : (
-								<span>{rowCount}</span>
-							)}
-						</span>
-						{rel.type === "outgoing"
-							? `${rel.referencingTable}.${rel.referencingColumn}`
-							: `${rel.referencingTable}.${rel.referencingColumn}`}
-					</div>
-					<div className="text-muted-foreground truncate text-xs">
-						{rel.type === "outgoing"
-							? `› ${rel.referencedTable}.${rel.referencedColumn}`
-							: `› ${rel.referencedTable}.${rel.referencedColumn}`}
-					</div>
-				</HStack>
+				<div className="flex items-start gap-1 flex-1 min-w-0">
+					<span className="text-muted-foreground inline-block w-12 text-left shrink-0">
+						{isCountLoading ? (
+							<span className="text-xs">…</span>
+						) : (
+							<span>{rowCount}</span>
+						)}
+					</span>
+					<HStack className="flex-1 min-w-0">
+						<div className="font-medium truncate">
+							{rel.type === "outgoing"
+								? `${rel.referencingTable}.${rel.referencingColumn}`
+								: `${rel.referencingTable}.${rel.referencingColumn}`}
+						</div>
+						<div className="text-muted-foreground truncate text-xs">
+							{rel.type === "outgoing"
+								? `› ${rel.referencedTable}.${rel.referencedColumn}`
+								: `› ${rel.referencedTable}.${rel.referencedColumn}`}
+						</div>
+					</HStack>
+				</div>
 				<Checkbox
 					checked={isSelected}
 					onCheckedChange={(details) => {
