@@ -185,7 +185,11 @@ export const useConnectionPageState = ({
 									colorPalette="inverted"
 									positioning={{ placement: "right", strategy: "fixed" }}
 								>
-									<Button size="xs" className="text-xs" variant="ghost">
+									<Button
+										size="xs"
+										className="w-full text-xs text-center"
+										variant="ghost"
+									>
 										#
 									</Button>
 								</Tooltip>

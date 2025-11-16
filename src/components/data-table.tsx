@@ -166,7 +166,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 							const CellHeaderContent = (
 								<div
 									className={cn(
-										"flex items-center justify-between overflow-hidden",
+										"flex items-center justify-between min-w-0",
 										hideColumnPinIconUnlessHovered && "group",
 									)}
 								>
@@ -175,7 +175,11 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 										table={table}
 										onFilterClick={onColumnFilterClick}
 									>
-										<HStack className="flex-1 min-w-0" align="center" w="full">
+										<HStack
+											className="flex-1 min-w-0 truncate"
+											align="center"
+											w="full"
+										>
 											{headerCell.isPlaceholder ? null : column.getCanSort() &&
 												column.columnDef.enableSorting ? (
 												<Button
@@ -240,36 +244,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 											</Button>
 										)
 									) : null}
-									{resizable &&
-										headerCell.column.columnDef.enableResizing !== false && (
-											<div
-												{...{
-													onDoubleClick: () => headerCell.column.resetSize(),
-													onMouseDown: headerCell.getResizeHandler(),
-													onTouchStart: headerCell.getResizeHandler(),
-													className: cn(
-														table.options.columnResizeDirection,
-														headerCell.column.getIsResizing() && "isResizing",
-														"select-none touch-none cursor-col-resize w-1.5 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md shrink-0 -mx-0.5",
-													),
-													title: "Drag to resize column",
-													//   style: {
-													//     transform:
-													//       columnResizeMode === 'onEnd' &&
-													//       headerCell.column.getIsResizing()
-													//         ? `translateX(${
-													//             (table.options.columnResizeDirection ===
-													//             'rtl'
-													//               ? -1
-													//               : 1) *
-													//             (table.getState().columnSizingInfo
-													//               .deltaOffset ?? 0)
-													//           }px)`
-													//         : '',
-													//   },
-												}}
-											/>
-										)}
 								</div>
 							);
 
@@ -287,33 +261,46 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 														width: `${headerCell.getSize()}px`,
 														...dragCtx.style,
 													}}
-													className={tableHeaderCellStyles({
-														size,
-														showColumnBorder,
-														textAlign: hasBulkActions ? "right" : textAlign,
-													})}
+													className={cn(
+														tableHeaderCellStyles({
+															size,
+															showColumnBorder,
+															textAlign: hasBulkActions ? "right" : textAlign,
+														}),
+														"relative",
+													)}
 												>
 													<div
-														className={cn(
-															"flex items-center gap-2",
-															!dragCtx.isDragDisabled &&
-																"cursor-grab active:cursor-grabbing",
-															className,
-														)}
+														className={cn("flex items-center gap-2 truncate")}
 													>
 														{!dragCtx.isDragDisabled && (
 															<button
 																{...dragCtx.attributes}
 																{...dragCtx.listeners}
 																type="button"
-																className="p-1 hover:bg-muted rounded cursor-grab active:cursor-grabbing"
+																className="p-1 hover:bg-muted rounded cursor-grab active:cursor-grabbing shrink-0"
 																title="Drag to reorder columns"
 															>
 																<GripVertical className="size-4 text-muted-foreground" />
 															</button>
 														)}
-														<div className="flex-1">{CellHeaderContent}</div>
+														{CellHeaderContent}
 													</div>
+													{resizable &&
+														headerCell.column.columnDef.enableResizing !==
+															false && (
+															<ResizeHandle
+																onDoubleClick={() =>
+																	headerCell.column.resetSize()
+																}
+																onMouseDown={headerCell.getResizeHandler()}
+																onTouchStart={headerCell.getResizeHandler()}
+																isResizing={headerCell.column.getIsResizing()}
+																columnResizeDirection={
+																	table.options.columnResizeDirection
+																}
+															/>
+														)}
 												</th>
 											);
 										}}
@@ -331,13 +318,28 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 										width: `${headerCell.getSize()}px`,
 										...getColumnPinningStyles(column),
 									}}
-									className={tableHeaderCellStyles({
-										size,
-										showColumnBorder,
-										textAlign: hasBulkActions ? "right" : textAlign,
-									})}
+									className={cn(
+										tableHeaderCellStyles({
+											size,
+											showColumnBorder,
+											textAlign: hasBulkActions ? "right" : textAlign,
+										}),
+										"relative",
+									)}
 								>
 									{CellHeaderContent}
+									{resizable &&
+										headerCell.column.columnDef.enableResizing !== false && (
+											<ResizeHandle
+												onDoubleClick={() => headerCell.column.resetSize()}
+												onMouseDown={headerCell.getResizeHandler()}
+												onTouchStart={headerCell.getResizeHandler()}
+												isResizing={headerCell.column.getIsResizing()}
+												columnResizeDirection={
+													table.options.columnResizeDirection
+												}
+											/>
+										)}
 								</th>
 							);
 						});
@@ -469,6 +471,30 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		</>
 	);
 }
+
+const ResizeHandle = (props: {
+	onDoubleClick: () => void;
+	onMouseDown: (e: React.MouseEvent) => void;
+	onTouchStart: (e: React.TouchEvent) => void;
+	isResizing: boolean;
+	columnResizeDirection?: string;
+}) => {
+	return (
+		<div
+			{...{
+				onDoubleClick: props.onDoubleClick,
+				onMouseDown: props.onMouseDown,
+				onTouchStart: props.onTouchStart,
+				className: cn(
+					props.columnResizeDirection,
+					props.isResizing && "isResizing",
+					"absolute top-0 right-0 bottom-0 select-none touch-none cursor-col-resize w-1.5 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md",
+				),
+				title: "Drag to resize column",
+			}}
+		/>
+	);
+};
 
 const estimateSizeByTableSize = (size: DataTableSize) => {
 	switch (size) {
