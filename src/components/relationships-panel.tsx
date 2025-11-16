@@ -3,7 +3,7 @@ import { X, ChevronUp, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Splitter } from "@ark-ui/react/splitter";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
-import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start.ts";
+import { getRelationshipsCountsQueryOptions } from "#src/server/pg/start-fns/get-relationships-counts.start.ts";
 import { Spinner } from "./ui/spinner";
 import { Button } from "./ui/button";
 import { RelationshipSubrowTable } from "./relationship-subrow-table";
@@ -21,27 +21,6 @@ interface RelationshipsPanelProps {
 	onCollapse: () => void;
 	onExpand: () => void;
 	onClose: () => void;
-}
-
-/**
- * Hook to fetch row counts for a relationship
- */
-function useRelationshipRowCount(
-	relationship: TableRelationship,
-	parentRowValue: unknown,
-	connectionUrl: string,
-) {
-	return useQuery(
-		queryRelationshipSubrowDataQueryOptions({
-			url: connectionUrl,
-			schema: relationship.referencingSchema,
-			table: relationship.referencingTable,
-			filterColumn: relationship.referencingColumn,
-			filterValue: parentRowValue,
-			limit: 1,
-			offset: 0,
-		}),
-	);
 }
 
 export const RelationshipsPanel = ({
@@ -74,6 +53,20 @@ export const RelationshipsPanel = ({
 	);
 
 	const relationships = relationshipsQuery.data ?? [];
+
+	// Fetch all relationship counts in a single batch query
+	const countsQuery = useQuery({
+		...getRelationshipsCountsQueryOptions({
+			url: connectionUrl,
+			schema,
+			table,
+			relationships,
+			rowData: rowData ?? {},
+		}),
+		enabled: relationships.length > 0 && Boolean(rowData),
+	});
+
+	const counts = countsQuery.data ?? {};
 	const stickyRelationship = useStickyRelationshipTracking(
 		rightPanelRef,
 		cardRefs,
@@ -307,16 +300,18 @@ export const RelationshipsPanel = ({
 												<RelationshipListItem
 													key={rel.constraintName}
 													rel={rel}
-													rowData={rowData}
-													connectionUrl={connectionUrl}
+													rowCount={counts[rel.constraintName] ?? 0}
+													isCountLoading={countsQuery.isLoading}
 													isSelected={selectedRelationships.has(
 														rel.constraintName,
 													)}
 													isSticky={
-														stickyRelationship === rel.constraintName && isFocused
+														stickyRelationship === rel.constraintName &&
+														isFocused
 													}
 													isStickyOther={
-														stickyRelationship === rel.constraintName && !isFocused
+														stickyRelationship === rel.constraintName &&
+														!isFocused
 													}
 													onSelect={() =>
 														handleRelationshipClick(rel.constraintName)
@@ -552,8 +547,8 @@ const RelationshipCard = ({
 
 interface RelationshipListItemProps {
 	rel: TableRelationship;
-	rowData: Record<string, unknown>;
-	connectionUrl: string;
+	rowCount: number;
+	isCountLoading: boolean;
 	isSelected: boolean;
 	isSticky: boolean;
 	isStickyOther: boolean;
@@ -563,24 +558,14 @@ interface RelationshipListItemProps {
 
 const RelationshipListItem = ({
 	rel,
-	rowData,
-	connectionUrl,
+	rowCount,
+	isCountLoading,
 	isSelected,
 	isSticky,
 	isStickyOther,
 	onSelect,
 	onCheckChange,
 }: RelationshipListItemProps) => {
-	// Get the parent row value based on relationship type
-	const parentRowValue =
-		rel.type === "outgoing"
-			? rowData[rel.referencingColumn]
-			: rowData[rel.referencedColumn];
-
-	// Fetch the count for this relationship
-	const countQuery = useRelationshipRowCount(rel, parentRowValue, connectionUrl);
-	const rowCount = countQuery.data?.rowCount ?? 0;
-
 	return (
 		<button
 			onClick={onSelect}
@@ -596,7 +581,7 @@ const RelationshipListItem = ({
 				<HStack className="flex-1 min-w-0">
 					<div className="font-medium truncate">
 						<span className="inline-block mr-1 text-muted-foreground">
-							{countQuery.isLoading ? (
+							{isCountLoading ? (
 								<span className="text-xs">…</span>
 							) : (
 								<span>{rowCount}</span>
