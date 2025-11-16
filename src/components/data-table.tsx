@@ -16,8 +16,8 @@ import {
 import type { Row, Table as TanstackTable } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
 import {
-	ArrowDown,
-	ArrowUp,
+	ArrowDownNarrowWide,
+	ArrowUpNarrowWide,
 	ChevronsUpDown,
 	GripVertical,
 	Pin,
@@ -194,9 +194,9 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 														headerCell.getContext(),
 													)}
 													{isSorted === "desc" ? (
-														<ArrowDown className="h-3 w-3 shrink-0" />
+														<ArrowDownNarrowWide className="h-3 w-3 shrink-0" />
 													) : isSorted === "asc" ? (
-														<ArrowUp className="h-3 w-3 shrink-0" />
+														<ArrowUpNarrowWide className="h-3 w-3 shrink-0" />
 													) : (
 														<ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
 													)}
