@@ -30,56 +30,62 @@ export const getRelationshipsCounts = (input: {
 
 		try {
 			// Execute COUNT queries sequentially with Effect
-			const results = yield* Effect.forEach(relationships, (rel) => {
-				return Effect.gen(function* () {
-					const isNullValue =
-						rowData[rel.referencingColumn] === null ||
-						rowData[rel.referencingColumn] === undefined;
+			const results = yield* Effect.forEach(
+				relationships,
+				(rel) => {
+					return Effect.gen(function* () {
+						// Get the value from rowData using the referencedColumn
+						// (the column in the current row we're interested in)
+						const filterValue = rowData[rel.referencedColumn];
+						const isNullValue =
+							filterValue === null || filterValue === undefined;
 
-					const filter: QueryFilterType = isNullValue
-						? {
-								conditions: [
-									{
-										column: rel.referencingColumn,
-										operator: "is_null" as const,
-									},
-								],
-								logicalOperator: "and" as const,
-							}
-						: {
-								conditions: [
-									{
-										column: rel.referencingColumn,
-										operator: "equals" as const,
-										value: String(rowData[rel.referencingColumn]),
-									},
-								],
-								logicalOperator: "and" as const,
-							};
+						const filter: QueryFilterType = isNullValue
+							? {
+									conditions: [
+										{
+											column: rel.referencingColumn,
+											operator: "is_null" as const,
+										},
+									],
+									logicalOperator: "and" as const,
+								}
+							: {
+									conditions: [
+										{
+											column: rel.referencingColumn,
+											operator: "equals" as const,
+											value: String(filterValue),
+										},
+									],
+									logicalOperator: "and" as const,
+								};
 
-					const whereExpression = buildWhereExpression(
-						Array.from(filter.conditions),
-						filter.logicalOperator,
-					);
+						const whereExpression = buildWhereExpression(
+							Array.from(filter.conditions),
+							filter.logicalOperator,
+						);
 
-					let countQuery = db
-						.selectFrom(
-							`${rel.referencingSchema}.${rel.referencingTable}` as any,
-						)
-						.select(sql`COUNT(*)::bigint`.as("count"));
+						let countQuery = db
+							.selectFrom(
+								`${rel.referencingSchema}.${rel.referencingTable}` as any,
+							)
+							.select(sql`COUNT(*)::bigint`.as("count"));
 
-					if (whereExpression) {
-						countQuery = countQuery.where(whereExpression as any);
-					}
+						if (whereExpression) {
+							countQuery = countQuery.where(whereExpression as any);
+						}
 
-					const result = yield* db.execute(countQuery as any);
+						const result = yield* db.execute(countQuery as any);
 
-					return {
-						constraintName: rel.constraintName,
-						count: (result[0] as any)?.count ?? 0,
-					};
-				});
-			});
+						return {
+							constraintName: rel.constraintName,
+							count: (result[0] as any)?.count ?? 0,
+						};
+					});
+				},
+				{ concurrency: "unbounded" },
+			);
 
 			const counts = results;
 

@@ -97,44 +97,47 @@ describe("getRelationshipsCounts", () => {
 		const db = yield* KyselyPgDatabase;
 
 		// Insert apps
-		yield* db.insertInto("apps").values([
-			{ id: "app-1", name: "App 1" },
-			{ id: "app-2", name: "App 2" },
-		]);
+		yield* db.executeRaw(sql`
+			INSERT INTO apps (id, name) VALUES ('app-1', 'App 1'), ('app-2', 'App 2')
+		`);
 
 		// Insert activity_rooms for app-1 (parent row we'll query from)
-		yield* db.insertInto("activity_rooms").values([
-			{ id: "room-1", app_id: "app-1", name: "Room 1" },
-			{ id: "room-2", app_id: "app-1", name: "Room 2" },
-			{ id: "room-3", app_id: "app-1", name: "Room 3" },
-			{ id: "room-4", app_id: "app-2", name: "Room 4" },
-		]);
+		yield* db.executeRaw(sql`
+			INSERT INTO activity_rooms (id, app_id, name) VALUES
+			('room-1', 'app-1', 'Room 1'),
+			('room-2', 'app-1', 'Room 2'),
+			('room-3', 'app-1', 'Room 3'),
+			('room-4', 'app-2', 'Room 4')
+		`);
 
 		// Insert activity_logs
-		yield* db.insertInto("activity_logs").values([
-			{ id: "log-1", room_id: "room-1", action: "open" },
-			{ id: "log-2", room_id: "room-1", action: "close" },
-			{ id: "log-3", room_id: "room-2", action: "open" },
-			{ id: "log-4", room_id: null, action: "unknown" }, // null room_id
-			{ id: "log-5", room_id: null, action: "unknown" },
-		]);
+		yield* db.executeRaw(sql`
+			INSERT INTO activity_logs (id, room_id, action) VALUES
+			('log-1', 'room-1', 'open'),
+			('log-2', 'room-1', 'close'),
+			('log-3', 'room-2', 'open'),
+			('log-4', NULL, 'unknown'),
+			('log-5', NULL, 'unknown')
+		`);
 
 		// Insert users
-		yield* db.insertInto("users").values([
-			{ id: "user-1", name: "User 1", app_id: "app-1" },
-			{ id: "user-2", name: "User 2", app_id: "app-1" },
-			{ id: "user-3", name: "User 3", app_id: "app-2" },
-			{ id: "user-4", name: "User 4", app_id: null }, // null app_id
-		]);
+		yield* db.executeRaw(sql`
+			INSERT INTO users (id, name, app_id) VALUES
+			('user-1', 'User 1', 'app-1'),
+			('user-2', 'User 2', 'app-1'),
+			('user-3', 'User 3', 'app-2'),
+			('user-4', 'User 4', NULL)
+		`);
 
 		// Insert comments
-		yield* db.insertInto("comments").values([
-			{ id: "c1", room_id: "room-1", user_id: "user-1", text: "Comment 1" },
-			{ id: "c2", room_id: "room-1", user_id: "user-2", text: "Comment 2" },
-			{ id: "c3", room_id: "room-1", user_id: "user-3", text: "Comment 3" },
-			{ id: "c4", room_id: "room-2", user_id: "user-1", text: "Comment 4" },
-			{ id: "c5", room_id: "room-4", user_id: "user-3", text: "Comment 5" },
-		]);
+		yield* db.executeRaw(sql`
+			INSERT INTO comments (id, room_id, user_id, text) VALUES
+			('c1', 'room-1', 'user-1', 'Comment 1'),
+			('c2', 'room-1', 'user-2', 'Comment 2'),
+			('c3', 'room-1', 'user-3', 'Comment 3'),
+			('c4', 'room-2', 'user-1', 'Comment 4'),
+			('c5', 'room-4', 'user-3', 'Comment 5')
+		`);
 	});
 
 	it.effect(
@@ -338,40 +341,37 @@ describe("getRelationshipsCounts", () => {
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
 
-	it.effect(
-		"counts relationships with numeric FK values correctly",
-		() => {
-			return Effect.gen(function* () {
-				yield* setupSchema;
-				yield* insertTestData;
+	it.effect("counts relationships with numeric FK values correctly", () => {
+		return Effect.gen(function* () {
+			yield* setupSchema;
+			yield* insertTestData;
 
-				const relationships: TableRelationship[] = [
-					{
-						constraintName: "comments_user_id_fkey",
-						referencingSchema: "public",
-						referencingTable: "comments",
-						referencingColumn: "user_id",
-						referencedSchema: "public",
-						referencedTable: "users",
-						referencedColumn: "id",
-						type: "incoming",
-					},
-				];
+			const relationships: TableRelationship[] = [
+				{
+					constraintName: "comments_user_id_fkey",
+					referencingSchema: "public",
+					referencingTable: "comments",
+					referencingColumn: "user_id",
+					referencedSchema: "public",
+					referencedTable: "users",
+					referencedColumn: "id",
+					type: "incoming",
+				},
+			];
 
-				// user-1 has 2 comments
-				const rowData = { id: "user-1", name: "User 1", app_id: "app-1" };
+			// user-1 has 2 comments
+			const rowData = { id: "user-1", name: "User 1", app_id: "app-1" };
 
-				const counts = yield* getRelationshipsCounts({
-					schema: "public",
-					table: "users",
-					relationships,
-					rowData,
-				});
+			const counts = yield* getRelationshipsCounts({
+				schema: "public",
+				table: "users",
+				relationships,
+				rowData,
+			});
 
-				expect(counts["comments_user_id_fkey"]).toBe(2);
-			}).pipe(Effect.provide(InMemoryLayer));
-		},
-	);
+			expect(counts["comments_user_id_fkey"]).toBe(2);
+		}).pipe(Effect.provide(InMemoryLayer));
+	});
 
 	it.effect("correctly handles nullable foreign key columns", () => {
 		return Effect.gen(function* () {
