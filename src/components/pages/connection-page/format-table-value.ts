@@ -2,6 +2,7 @@ export const formatTableValue = (value: unknown): unknown => {
 	if (value instanceof Date) {
 		return value.toISOString();
 	}
+
 	if (typeof value === "string") {
 		// Check if it looks like a date
 		const dateObj = new Date(value);
@@ -18,5 +19,6 @@ export const formatTableValue = (value: unknown): unknown => {
 			}
 		}
 	}
+
 	return value;
 };

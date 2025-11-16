@@ -27,9 +27,8 @@
 - cmd+f in table
 - cmd+k
 - inline JSON / json cell showing for dates in relationship panel
-- resize trigger is not showing if column header is too small
-- #row index
 - persistent relationship?
+- (vertical) reorder drag handle inside of visible column dropdown
 
 
 - https://x.com/mac_hour/status/1988953549305442655
