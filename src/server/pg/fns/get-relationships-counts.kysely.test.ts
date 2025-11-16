@@ -141,7 +141,7 @@ describe("getRelationshipsCounts", () => {
 	});
 
 	it.effect(
-		"counts rows for outgoing relationship (activity_rooms -> apps)",
+		"counts rows for incoming relationship (activity_rooms -> apps)",
 		() => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
@@ -156,7 +156,7 @@ describe("getRelationshipsCounts", () => {
 						referencedSchema: "public",
 						referencedTable: "apps",
 						referencedColumn: "id",
-						type: "outgoing",
+						type: "incoming",
 					},
 				];
 
@@ -252,6 +252,43 @@ describe("getRelationshipsCounts", () => {
 			expect(counts["comments_room_id_fkey"]).toBe(3);
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
+
+	it.effect(
+		"counts rows for outgoing relationship (activity_rooms.app_id -> apps)",
+		() => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const relationships: TableRelationship[] = [
+					{
+						constraintName: "activity_rooms_app_id_fkey",
+						referencingSchema: "public",
+						referencingTable: "activity_rooms",
+						referencingColumn: "app_id",
+						referencedSchema: "public",
+						referencedTable: "apps",
+						referencedColumn: "id",
+						type: "outgoing",
+					},
+				];
+
+				// We're in activity_rooms table with app_id: "app-1"
+				// This outgoing relationship counts other activity_rooms with the same app_id
+				const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
+
+				const counts = yield* getRelationshipsCounts({
+					schema: "public",
+					table: "activity_rooms",
+					relationships,
+					rowData,
+				});
+
+				// Count activity_rooms WHERE app_id = "app-1" (which includes room-1, room-2, room-3 = 3)
+				expect(counts["activity_rooms_app_id_fkey"]).toBe(3);
+			}).pipe(Effect.provide(InMemoryLayer));
+		},
+	);
 
 	it.effect("handles null filter values correctly", () => {
 		return Effect.gen(function* () {

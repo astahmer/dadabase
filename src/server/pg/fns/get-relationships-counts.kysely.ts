@@ -34,9 +34,12 @@ export const getRelationshipsCounts = (input: {
 				relationships,
 				(rel) => {
 					return Effect.gen(function* () {
-						// Get the value from rowData using the referencedColumn
-						// (the column in the current row we're interested in)
-						const filterValue = rowData[rel.referencedColumn];
+						const filterValue =
+							rowData[
+								rel.type === "incoming"
+									? rel.referencedColumn
+									: rel.referencingColumn
+							];
 						const isNullValue =
 							filterValue === null || filterValue === undefined;
 
