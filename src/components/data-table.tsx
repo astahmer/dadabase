@@ -80,6 +80,7 @@ export interface DataTableProps<TData> {
 	overscan?: number;
 	enableColumnOrdering?: boolean;
 	renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
+	hideColumnPinIconUnlessHovered?: boolean;
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -110,6 +111,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		overscan = 30,
 		enableColumnOrdering = false,
 		renderSubrows,
+		hideColumnPinIconUnlessHovered = true,
 	} = props;
 
 	const state = table.getState();
@@ -164,7 +166,12 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 								Boolean(column.getIsPinned());
 
 							const CellHeaderContent = (
-								<div className="flex items-center justify-between overflow-hidden">
+								<div
+									className={cn(
+										"flex items-center justify-between overflow-hidden",
+										hideColumnPinIconUnlessHovered && "group",
+									)}
+								>
 									<ColumnHeaderContextMenu
 										column={column}
 										table={table}
@@ -205,21 +212,35 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									{column.getCanPin() ? (
 										column.getIsPinned() ? (
 											<Button
-												variant="ghost"
+												variant={
+													hideColumnPinIconUnlessHovered ? "outline" : "ghost"
+												}
 												size="xs"
 												withIcon={false}
 												onClick={() => column.pin(false)}
+												className={
+													hideColumnPinIconUnlessHovered
+														? "absolute right-3 group-hover:opacity-100 opacity-0 transition-opacity"
+														: "mr-2"
+												}
 											>
-												<PinOff className="mr-2 h-3 w-3" />
+												<PinOff className="h-3 w-3" />
 											</Button>
 										) : (
 											<Button
-												variant="ghost"
+												variant={
+													hideColumnPinIconUnlessHovered ? "outline" : "ghost"
+												}
 												size="xs"
 												withIcon={false}
 												onClick={() => column.pin("left")}
+												className={
+													hideColumnPinIconUnlessHovered
+														? "absolute right-3 group-hover:opacity-100 opacity-0 transition-opacity"
+														: "mr-2"
+												}
 											>
-												<Pin className="mr-2 h-3 w-3" />
+												<Pin className="h-3 w-3" />
 											</Button>
 										)
 									) : null}

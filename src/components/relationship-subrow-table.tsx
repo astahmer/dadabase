@@ -206,6 +206,7 @@ export const RelationshipSubrowTable = ({
 			{hasData && (
 				<div className="flex-1 overflow-hidden">
 					<DataTable
+						hideColumnPinIconUnlessHovered
 						table={table}
 						size="compact"
 						isLoading={rowsQuery.isLoading}
