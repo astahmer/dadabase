@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import { getErrorMessage } from "../lib/get-error-message";
 import { queryRelationshipSubrowDataQueryOptions } from "../server/pg/start-fns/get-relationship-subrow-data.start";
@@ -98,12 +98,35 @@ export const RelationshipSubrowTable = ({
 		onExpandToSheet: rowActions.onExpandToSheet,
 		onMenuOpen: rowActions.onMenuOpen,
 	});
+	const tableColumns = useMemo(() => {
+		return [
+			{
+				id: "__rowIndex",
+				meta: { enableColumnOrdering: false },
+				header: () => <div className="text-center w-full">#</div>,
+				cell: (ctx) => {
+					return (
+						<div className="flex items-center justify-center text-xs text-muted-foreground font-medium">
+							{ctx.row.index}
+						</div>
+					);
+				},
+				size: 50,
+				minSize: 50,
+				maxSize: 50,
+				enableResizing: false,
+				enableSorting: false,
+				enablePinning: false,
+			} as ColumnDef<Record<string, unknown>>,
+		].concat(dataColumns);
+	}, [dataColumns]);
 
 	const table = useDataTable({
 		// enableColumnPinning: false,
 		data: (rowsQuery.data?.rows ?? []) as Record<string, unknown>[],
-		columns: dataColumns,
+		columns: tableColumns,
 		initialState: {
+			// TODO local/server pagination?
 			pagination: {
 				pageIndex: 0,
 				pageSize: 20,
