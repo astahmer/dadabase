@@ -773,4 +773,159 @@ describe("queryTableData", () => {
 			expect(page1.rows[0].id).not.toBe(page2.rows[0].id);
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
+
+	it.effect("ignores filter conditions with undefined values", () => {
+		return Effect.gen(function* () {
+			yield* setupSchema;
+			yield* insertTestData;
+
+			const filters: QueryFilterType = {
+				conditions: [
+					{
+						column: "name",
+						operator: "equals",
+						value: undefined,
+					},
+				],
+				logicalOperator: "and",
+			};
+
+			const result = yield* queryTableData<User>({
+				schema: "public",
+				table: "users",
+				filters,
+			});
+
+			// When filter value is undefined, it should be ignored and return all users
+			expect(result.rows.length).toBe(5);
+			expect(result.rowCount).toBe(5);
+		}).pipe(Effect.provide(InMemoryLayer));
+	});
+
+	it.effect("ignores filter conditions with null values", () => {
+		return Effect.gen(function* () {
+			yield* setupSchema;
+			yield* insertTestData;
+
+			const filters: QueryFilterType = {
+				conditions: [
+					{
+						column: "name",
+						operator: "equals",
+						value: null,
+					},
+				],
+				logicalOperator: "and",
+			};
+
+			const result = yield* queryTableData<User>({
+				schema: "public",
+				table: "users",
+				filters,
+			});
+
+			// When filter value is null, it should be ignored and return all users
+			expect(result.rows.length).toBe(5);
+			expect(result.rowCount).toBe(5);
+		}).pipe(Effect.provide(InMemoryLayer));
+	});
+
+	it.effect("handles mixed valid and invalid filter conditions", () => {
+		return Effect.gen(function* () {
+			yield* setupSchema;
+			yield* insertTestData;
+
+			const filters: QueryFilterType = {
+				conditions: [
+					{
+						column: "age",
+						operator: "greater_than",
+						value: 25,
+					},
+					{
+						column: "name",
+						operator: "equals",
+						value: undefined, // This should be ignored
+					},
+				],
+				logicalOperator: "and",
+			};
+
+			const result = yield* queryTableData<User>({
+				schema: "public",
+				table: "users",
+				filters,
+			});
+
+			// Should only apply the age filter, ignoring the undefined name filter
+			expect(result.rows.length).toBe(4); // Age > 25: 28, 30, 32, 35
+			expect(result.rowCount).toBe(4);
+		}).pipe(Effect.provide(InMemoryLayer));
+	});
+
+	it.effect(
+		"handles all filter conditions being invalid (undefined/null)",
+		() => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const filters: QueryFilterType = {
+					conditions: [
+						{
+							column: "name",
+							operator: "equals",
+							value: undefined,
+						},
+						{
+							column: "age",
+							operator: "equals",
+							value: null,
+						},
+					],
+					logicalOperator: "and",
+				};
+
+				const result = yield* queryTableData<User>({
+					schema: "public",
+					table: "users",
+					filters,
+				});
+
+				// When all filter values are invalid, no filters should be applied
+				expect(result.rows.length).toBe(5);
+				expect(result.rowCount).toBe(5);
+			}).pipe(Effect.provide(InMemoryLayer));
+		},
+	);
+
+	it.effect(
+		"preserves is_null and is_not_null operators without requiring a value",
+		() => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const filters: QueryFilterType = {
+					conditions: [
+						{
+							column: "content",
+							operator: "is_null",
+						},
+					],
+					logicalOperator: "and",
+				};
+
+				const result = yield* queryTableData({
+					schema: "public",
+					table: "posts",
+					filters,
+				});
+
+				// is_null should work without a value
+				expect(result.rowCount).toBe(1);
+				expect((result.rows as any)[0].content).toBeNull();
+			}).pipe(Effect.provide(InMemoryLayer));
+		},
+	);
 });

@@ -41,7 +41,9 @@ export const getRelationshipsCounts = (input: {
 									: rel.referencingColumn
 							];
 						const isNullValue =
-							filterValue === null || filterValue === undefined;
+							filterValue === null ||
+							filterValue === undefined ||
+							filterValue === "null";
 
 						const filter: QueryFilterType = isNullValue
 							? {

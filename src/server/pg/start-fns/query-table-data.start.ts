@@ -1,6 +1,10 @@
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
-import { QueryFilter, type QueryFilterType } from "#src/lib/query-filter";
+import {
+	QueryFilter,
+	filterQueryValidConditions,
+	type QueryFilterType,
+} from "#src/lib/query-filter";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Duration, Effect, Schema } from "effect";
@@ -29,6 +33,12 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 
 		const startTime = Date.now();
 		console.log("---> queryTableDataServerFn");
+
+		// Filter out conditions with null/undefined values (apply validation on server side too)
+		const validatedFilters = input.filters
+			? filterQueryValidConditions(input.filters)
+			: null;
+
 		const { rows, rowCount } = (await AppRuntime.runPromise(
 			Effect.gen(function* () {
 				const repo = yield* DatabaseConnectionRepository;
@@ -45,7 +55,10 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 					offset: input.offset ?? 0,
 					orderBy: input.orderBy,
 					orderDirection: input.orderDirection,
-					filters: input.filters ?? { conditions: [], logicalOperator: "and" },
+					filters: validatedFilters ?? {
+						conditions: [],
+						logicalOperator: "and",
+					},
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 			}),
 		)) as { rows: Record<string, any>[]; rowCount: number };

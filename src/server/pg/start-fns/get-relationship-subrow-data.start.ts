@@ -26,7 +26,8 @@ export const queryRelationshipSubrowDataQueryOptions = (input: {
 
 	// Build a filter for the relationship column
 	// Handle null/undefined values appropriately by using is_null operator
-	const isNullValue = filterValue === null || filterValue === undefined;
+	const isNullValue =
+		filterValue === null || filterValue === undefined || filterValue === "null";
 
 	const filter: QueryFilterType = isNullValue
 		? {

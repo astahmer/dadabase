@@ -14,7 +14,22 @@ export const buildWhereExpression = (
 ): any => {
 	if (conditions.length === 0) return undefined;
 
-	const expressions = conditions.map((condition) => {
+	// Filter out conditions with undefined or null values (except for is_null/is_not_null operators)
+	const validConditions = conditions.filter((condition) => {
+		// is_null and is_not_null don't require a value
+		if (
+			condition.operator === "is_null" ||
+			condition.operator === "is_not_null"
+		) {
+			return true;
+		}
+		// All other operators require a defined, non-null value
+		return condition.value !== undefined && condition.value !== null;
+	});
+
+	if (validConditions.length === 0) return undefined;
+
+	const expressions = validConditions.map((condition) => {
 		const colRef = sql.ref(condition.column);
 
 		switch (condition.operator) {
