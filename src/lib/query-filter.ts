@@ -33,6 +33,7 @@ export const FilterCondition = Schema.Struct({
 	value: Schema.Union(
 		Schema.String,
 		Schema.Number,
+		Schema.Boolean,
 		Schema.Array(Schema.String),
 	).pipe(Schema.optional),
 	// Not serializable, but used for UI state

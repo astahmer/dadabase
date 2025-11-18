@@ -5,7 +5,9 @@ import { sql } from "kysely";
 import type { QueryFilterType } from "#src/lib/query-filter";
 import { buildWhereExpression } from "./build-where-expression";
 
-export const queryTableData = (input: {
+export const queryTableData = <
+	T extends Record<string, any> = Record<string, any>,
+>(input: {
 	schema: string;
 	table: string;
 	limit?: number;
@@ -67,7 +69,7 @@ export const queryTableData = (input: {
 			console.time(`<-- Main SQL: ${query.compile().sql}`);
 			const rows = yield* db.execute(query as any);
 			console.timeEnd(`<-- Main SQL: ${query.compile().sql}`);
-			return { rows, rowCount };
+			return { rows: rows as T[], rowCount };
 		} catch (e) {
 			return yield* Effect.fail(
 				new SqlError.SqlError({
