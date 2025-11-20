@@ -312,7 +312,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															)}
 													</Splitter.Panel>
 
-													{pageState.relationshipRowId && (
+													{pageState.relationshipRowId && search.table && (
 														<>
 															<Splitter.Context>
 																{(ctx) => (
@@ -342,6 +342,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 																		return (
 																			<RelationshipsPanel
+																				key={
+																					activeConnectionUrl +
+																					search.table +
+																					pageState.relationshipRowId
+																				}
 																				connectionUrl={activeConnectionUrl}
 																				schema={search.schema}
 																				table={search.table!}
@@ -1339,6 +1344,7 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 						tabs: [...(prev.tabs ?? []), emptyTabState],
 						activeTabId: tabId,
 						table: undefined,
+						relationshipRowId: undefined,
 					}),
 				});
 			}}
