@@ -292,7 +292,7 @@ export const RelationshipsPanel = ({
 														selectedRelationships.has(r.constraintName),
 													).length
 												}
-												)
+												/{rels.length})
 											</span>
 											<Checkbox
 												checked={isFullySelected}
