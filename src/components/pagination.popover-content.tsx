@@ -26,7 +26,7 @@ export function PaginationPopoverContent(props: PaginationPopoverContentProps) {
 	} = props;
 
 	const totalPages = Math.ceil(totalRowCount / pageSize);
-	const [pageIndex, setPageIndex] = useState(initialPageIndex);
+	const [pageNum, setPageNum] = useState(initialPageIndex + 1); // Convert to 1-indexed for display
 
 	const handleJump = () => {
 		if (Number.isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) {
@@ -42,7 +42,6 @@ export function PaginationPopoverContent(props: PaginationPopoverContentProps) {
 		}
 	};
 
-	const pageNum = Math.min(Math.max(pageIndex || 1, 1), totalPages);
 	const startRow = (pageNum - 1) * pageSize + 1;
 	const endRow = Math.min(pageNum * pageSize, totalRowCount);
 
@@ -59,7 +58,6 @@ export function PaginationPopoverContent(props: PaginationPopoverContentProps) {
 						onPageSizeChange(newLimit);
 					}}
 				/>
-
 				{/* Page Input */}
 				<label
 					htmlFor="page-input"
@@ -70,16 +68,15 @@ export function PaginationPopoverContent(props: PaginationPopoverContentProps) {
 				<input
 					id="page-input"
 					type="number"
-					value={pageIndex}
-					onChange={(e) => setPageIndex(e.target.valueAsNumber)}
+					value={pageNum}
+					onChange={(e) => setPageNum(e.target.valueAsNumber)}
 					onKeyDown={handleKeyDown}
 					autoFocus
 					disabled={isLoading}
 					min={1}
 					max={Math.ceil(totalRowCount / pageSize)}
 					className="mt-1 h-8 rounded-md border border-input bg-transparent px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 w-full"
-				/>
-
+				/>{" "}
 				{/* Row Range Display */}
 				<label className="text-xs font-medium text-muted-foreground">
 					Rows
@@ -111,7 +108,7 @@ export function PaginationPopoverContent(props: PaginationPopoverContentProps) {
 					size="sm"
 					onClick={() => {
 						const newPage = Math.max(1, pageNum - 1);
-						setPageIndex(newPage);
+						setPageNum(newPage);
 					}}
 					disabled={pageNum <= 1 || isLoading}
 					className="h-7 text-xs"
@@ -126,7 +123,7 @@ export function PaginationPopoverContent(props: PaginationPopoverContentProps) {
 					size="sm"
 					onClick={() => {
 						const newPage = Math.min(totalPages, pageNum + 1);
-						setPageIndex(newPage);
+						setPageNum(newPage);
 					}}
 					disabled={pageNum >= totalPages || isLoading}
 					className="h-7 text-xs"
