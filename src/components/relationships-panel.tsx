@@ -54,24 +54,42 @@ export const RelationshipsPanel = ({
 
 	const relationships = relationshipsQuery.data ?? [];
 
+	// Filter out relationships where the FK value is null
+	const validRelationships = rowData
+		? relationships.filter((rel) => {
+				const filterValue =
+					rowData[
+						rel.type === "incoming"
+							? rel.referencedColumn
+							: rel.referencingColumn
+					];
+				const isNullValue =
+					filterValue === null ||
+					filterValue === undefined ||
+					filterValue === "null";
+				return !isNullValue;
+			})
+		: relationships;
+
 	// Fetch all relationship counts in a single batch query
 	const countsQuery = useQuery({
 		...getRelationshipsCountsQueryOptions({
 			url: connectionUrl,
 			schema,
 			table,
-			relationships,
+			relationships: validRelationships,
 			rowData: rowData ?? {},
 		}),
-		enabled: relationships.length > 0 && Boolean(rowData),
+		enabled: validRelationships.length > 0 && Boolean(rowData),
 	});
 
 	const counts = countsQuery.data ?? {};
+
 	const stickyRelationship = useStickyRelationshipTracking(
 		rightPanelRef,
 		cardRefs,
 		displayedRelationships,
-		relationships,
+		validRelationships,
 	);
 
 	if (!selectedRowId || !rowData) {
@@ -110,8 +128,8 @@ export const RelationshipsPanel = ({
 
 	// Group relationships by type for rendering
 	const relsByType = {
-		outgoing: relationships.filter((r) => r.type === "outgoing"),
-		incoming: relationships.filter((r) => r.type === "incoming"),
+		outgoing: validRelationships.filter((r) => r.type === "outgoing"),
+		incoming: validRelationships.filter((r) => r.type === "incoming"),
 	};
 
 	const handleSelectAllGroup = (type: "outgoing" | "incoming") => {
@@ -217,7 +235,7 @@ export const RelationshipsPanel = ({
 				<div className="flex items-center justify-center py-8 flex-1">
 					<Spinner />
 				</div>
-			) : relationships.length === 0 ? (
+			) : validRelationships.length === 0 ? (
 				<div className="py-8 text-center text-sm text-muted-foreground flex-1 flex items-center justify-center">
 					No relationships found
 				</div>
@@ -355,7 +373,7 @@ export const RelationshipsPanel = ({
 						{stickyRelationship &&
 							displayedRelationships.size > 1 &&
 							(() => {
-								const rel = relationships.find(
+								const rel = validRelationships.find(
 									(r) => r.constraintName === stickyRelationship,
 								);
 								const parentRowValue =
@@ -392,7 +410,7 @@ export const RelationshipsPanel = ({
 							})()}
 						{displayedRelationships.size > 0 ? (
 							<div className="flex-1 overflow-y-auto space-y-4 p-4">
-								{relationships
+								{validRelationships
 									.filter((r) => displayedRelationships.has(r.constraintName))
 									.sort((a, b) => {
 										// Outgoing (References) first, then incoming (Referenced By)

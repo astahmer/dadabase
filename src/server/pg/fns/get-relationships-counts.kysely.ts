@@ -29,9 +29,24 @@ export const getRelationshipsCounts = (input: {
 		}
 
 		try {
+			// Filter out relationships where the FK value is null
+			const validRelationships = relationships.filter((rel) => {
+				const filterValue =
+					rowData[
+						rel.type === "incoming"
+							? rel.referencedColumn
+							: rel.referencingColumn
+					];
+				const isNullValue =
+					filterValue === null ||
+					filterValue === undefined ||
+					filterValue === "null";
+				return !isNullValue;
+			});
+
 			// Execute COUNT queries sequentially with Effect
 			const results = yield* Effect.forEach(
-				relationships,
+				validRelationships,
 				(rel) => {
 					return Effect.gen(function* () {
 						const filterValue =
@@ -40,31 +55,17 @@ export const getRelationshipsCounts = (input: {
 									? rel.referencedColumn
 									: rel.referencingColumn
 							];
-						const isNullValue =
-							filterValue === null ||
-							filterValue === undefined ||
-							filterValue === "null";
 
-						const filter: QueryFilterType = isNullValue
-							? {
-									conditions: [
-										{
-											column: rel.referencingColumn,
-											operator: "is_null" as const,
-										},
-									],
-									logicalOperator: "and" as const,
-								}
-							: {
-									conditions: [
-										{
-											column: rel.referencingColumn,
-											operator: "equals" as const,
-											value: String(filterValue),
-										},
-									],
-									logicalOperator: "and" as const,
-								};
+						const filter: QueryFilterType = {
+							conditions: [
+								{
+									column: rel.referencingColumn,
+									operator: "equals" as const,
+									value: String(filterValue),
+								},
+							],
+							logicalOperator: "and" as const,
+						};
 
 						const whereExpression = buildWhereExpression(
 							Array.from(filter.conditions),
