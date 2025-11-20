@@ -109,7 +109,7 @@ export const CollapsibleSidebar = ({
 			{/* Close button & resize handle - absolutely positioned on right edge */}
 			<div
 				className={cn(
-					"absolute top-0 bottom-0 right-0 translate-x-1/2 w-8 h-full bg-card/50 z-30 group",
+					"absolute top-0 bottom-0 right-0 translate-x-1/2 w-8 h-full bg-card/50 group",
 					isResizing
 						? "cursor-grabbing"
 						: "cursor-col-resize hover:bg-muted/50",

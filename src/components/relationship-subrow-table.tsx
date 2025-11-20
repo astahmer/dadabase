@@ -282,7 +282,7 @@ export const RelationshipSubrowTable = ({
 							>
 								<Popover.Trigger asChild>
 									<span className="cursor-pointer">
-										<span className="text-sm text-foreground">
+										<span className="text-xs text-foreground">
 											{pageIndex + 1} / {Math.ceil(rowCount / limit)}
 										</span>
 										<span className="text-xs text-muted-foreground mx-1">
