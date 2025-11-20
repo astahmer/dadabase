@@ -39,6 +39,8 @@ export const RelationshipSubrowTable = ({
 	withHeader = true,
 	onRemove,
 }: RelationshipSubrowTableProps) => {
+	const [limit, setLimit] = useState(50);
+
 	const {
 		referencingSchema,
 		referencingTable,
@@ -55,7 +57,7 @@ export const RelationshipSubrowTable = ({
 			table: referencingTable,
 			filterColumn: referencingColumn,
 			filterValue: parentRowValue,
-			limit: 50,
+			limit,
 		}),
 	);
 
@@ -139,7 +141,7 @@ export const RelationshipSubrowTable = ({
 	);
 	const [isMaximizeSheetOpen, setIsMaximizeSheetOpen] = useState(false);
 
-	const rowCount = rowsQuery.data?.rows?.length ?? 0;
+	const rowCount = rowsQuery.data?.rowCount ?? 0;
 	const hasData = rowCount > 0;
 	const pageSize = table.getState().pagination.pageSize;
 
@@ -286,7 +288,10 @@ export const RelationshipSubrowTable = ({
 											<PaginationPopoverContent
 												pageSize={pageSize}
 												totalRowCount={rowCount}
-												onPageSizeChange={(limit) => table.setPageSize(limit)}
+												onPageSizeChange={(newLimit) => {
+													setLimit(newLimit);
+													table.setPageSize(newLimit);
+												}}
 												onConfirm={(pageIndex) => {
 													table.setPageIndex(pageIndex);
 												}}
