@@ -327,20 +327,24 @@ export const RelationshipSubrowTable = ({
 						</div>
 
 						{/* Show More Button - only show if not all rows are displayed */}
-						{limit < rowCount && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									setLimit(limit + initialLimit);
-									setPageIndex(0);
-								}}
-								className="h-6 px-2 text-xs"
-								title={`Load ${Math.min(initialLimit, rowCount - limit)} more rows`}
-							>
-								Show {initialLimit} more rows ({rowCount - limit} remaining)
-							</Button>
-						)}
+						<div className="flex items-center gap-2">
+							{rowsQuery.isFetching && <Spinner className="h-4 w-4" />}
+							{limit < rowCount && (
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										setLimit(limit + initialLimit);
+										setPageIndex(0);
+									}}
+									className="h-6 px-2 text-xs"
+									title={`Load ${Math.min(initialLimit, rowCount - limit)} more rows`}
+									disabled={rowsQuery.isLoading}
+								>
+									Show {initialLimit} more rows ({rowCount - limit} remaining)
+								</Button>
+							)}
+						</div>
 					</div>
 				</div>
 			)}
