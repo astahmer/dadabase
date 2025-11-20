@@ -42,7 +42,7 @@ export const RelationshipSubrowTable = ({
 	onRemove,
 }: RelationshipSubrowTableProps) => {
 	const [limit, setLimit] = useState(initialLimit);
-	const [pageIndex, setPageIndex] = useState(1);
+	const [pageIndex, setPageIndex] = useState(0);
 
 	const {
 		referencingSchema,
