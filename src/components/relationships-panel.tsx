@@ -579,6 +579,14 @@ const RelationshipListItem = ({
 	onSelect,
 	onCheckChange,
 }: RelationshipListItemProps) => {
+	const firstLabel =
+		rel.type === "outgoing"
+			? `${rel.referencingTable}.${rel.referencingColumn}`
+			: `${rel.referencingTable}.${rel.referencingColumn}`;
+	const secondLabel =
+		rel.type === "outgoing"
+			? `› ${rel.referencedTable}.${rel.referencedColumn}`
+			: `› ${rel.referencedTable}.${rel.referencedColumn}`;
 	return (
 		<button
 			onClick={onSelect}
@@ -599,16 +607,13 @@ const RelationshipListItem = ({
 							<span>{rowCount}</span>
 						)}
 					</span>
-					<HStack className="flex-1 min-w-0">
-						<div className="font-medium truncate">
-							{rel.type === "outgoing"
-								? `${rel.referencingTable}.${rel.referencingColumn}`
-								: `${rel.referencingTable}.${rel.referencingColumn}`}
-						</div>
+					<HStack
+						className="flex-1 min-w-0"
+						title={`${firstLabel} ${secondLabel}`}
+					>
+						<div className="font-medium truncate">{firstLabel}</div>
 						<div className="text-muted-foreground truncate text-xs">
-							{rel.type === "outgoing"
-								? `› ${rel.referencedTable}.${rel.referencedColumn}`
-								: `› ${rel.referencedTable}.${rel.referencedColumn}`}
+							{secondLabel}
 						</div>
 					</HStack>
 				</div>
