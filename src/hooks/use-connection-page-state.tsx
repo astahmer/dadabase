@@ -206,12 +206,12 @@ export const useConnectionPageState = ({
 					const rowIndex = ctx.row.index;
 					const pageIndex = Math.floor(search.offset / search.limit);
 					const pageSize = search.limit;
-					const displayNumber = pageIndex * pageSize + rowIndex + 1;
+					const displayedNumber = pageIndex * pageSize + rowIndex + 1;
 
 					if (hasAnySelection) {
 						return (
 							<Tooltip
-								content={`#${displayNumber}`}
+								content={`#${displayedNumber}`}
 								colorPalette="inverted"
 								portalled={false}
 								positioning={{ placement: "right", strategy: "fixed" }}
@@ -222,7 +222,7 @@ export const useConnectionPageState = ({
 										checked={isSelected}
 										disabled={!ctx.row.getCanSelect()}
 										onChange={ctx.row.getToggleSelectedHandler()}
-										aria-label={`Select row ${displayNumber}`}
+										aria-label={`Select row ${displayedNumber}`}
 									>
 										<CheckboxControl />
 									</Checkbox>
@@ -262,7 +262,7 @@ export const useConnectionPageState = ({
 									variant="ghost"
 									onClick={ctx.row.getToggleSelectedHandler()}
 								>
-									{displayNumber}
+									{displayedNumber}
 								</Button>
 							</RowContextMenu>
 						</Tooltip>
@@ -363,7 +363,7 @@ export const useConnectionPageState = ({
 				content: (
 					<RelationshipSubrowTable
 						relationship={rel}
-						parentRowValue={row.original[rel.referencedColumn]}
+						parentRowValue={row.original[rel.referencedColumn] as string}
 						connection={{ url: activeConnectionUrl }}
 					/>
 				),

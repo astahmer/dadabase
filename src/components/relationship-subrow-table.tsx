@@ -1,7 +1,7 @@
 import { useRowsColumnsAction } from "#src/hooks/use-rows-columns.actions.ts";
 import type { TableRelationship } from "#src/types/relationships.ts";
 import { Popover, Portal } from "@ark-ui/react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Maximize2, X } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -27,6 +27,8 @@ interface RelationshipSubrowTableProps {
 	onRemove?: () => void;
 }
 
+const initialLimit = 50;
+
 /**
  * Renders a nested DataTable in a subrow containing related records
  * Queries the referencing table filtered by parent row's primary key
@@ -39,7 +41,8 @@ export const RelationshipSubrowTable = ({
 	withHeader = true,
 	onRemove,
 }: RelationshipSubrowTableProps) => {
-	const [limit, setLimit] = useState(50);
+	const [limit, setLimit] = useState(initialLimit);
+	const [pageIndex, setPageIndex] = useState(0);
 
 	const {
 		referencingSchema,
@@ -49,17 +52,22 @@ export const RelationshipSubrowTable = ({
 		referencedColumn,
 	} = relationship;
 
+	// Calculate offset based on page index and limit
+	const offset = pageIndex * limit;
+
 	// Fetch rows from the referencing table filtered by parent value
-	const rowsQuery = useQuery(
-		queryRelationshipSubrowDataQueryOptions({
+	const rowsQuery = useQuery({
+		...queryRelationshipSubrowDataQueryOptions({
 			url: connection.url,
 			schema: referencingSchema,
 			table: referencingTable,
 			filterColumn: referencingColumn,
 			filterValue: parentRowValue,
 			limit,
+			offset,
 		}),
-	);
+		placeholderData: keepPreviousData,
+	});
 
 	// Fetch cardinality detection
 	const cardinalityQuery = useQuery(
@@ -107,9 +115,10 @@ export const RelationshipSubrowTable = ({
 				meta: { enableColumnOrdering: false },
 				header: () => <div className="text-center w-full">#</div>,
 				cell: (ctx) => {
+					const displayedNumber = pageIndex * limit + ctx.row.index + 1;
 					return (
 						<div className="flex items-center justify-center text-xs text-muted-foreground font-medium">
-							{ctx.row.index}
+							{displayedNumber}
 						</div>
 					);
 				},
@@ -127,11 +136,11 @@ export const RelationshipSubrowTable = ({
 		// enableColumnPinning: false,
 		data: (rowsQuery.data?.rows ?? []) as Record<string, unknown>[],
 		columns: tableColumns,
-		initialState: {
-			// TODO local/server pagination?
+		manualPagination: true,
+		state: {
 			pagination: {
-				pageIndex: 0,
-				pageSize: 20,
+				pageIndex: pageIndex,
+				pageSize: limit,
 			},
 		},
 	});
@@ -143,7 +152,6 @@ export const RelationshipSubrowTable = ({
 
 	const rowCount = rowsQuery.data?.rowCount ?? 0;
 	const hasData = rowCount > 0;
-	const pageSize = table.getState().pagination.pageSize;
 
 	if (rowsQuery.isLoading) {
 		return (
@@ -260,8 +268,8 @@ export const RelationshipSubrowTable = ({
 							<Button
 								variant="ghost"
 								size="sm"
-								onClick={() => table.previousPage()}
-								disabled={!table.getCanPreviousPage()}
+								onClick={() => setPageIndex(Math.max(0, pageIndex - 1))}
+								disabled={pageIndex === 0}
 								className="h-6 px-2"
 							>
 								‹
@@ -273,27 +281,28 @@ export const RelationshipSubrowTable = ({
 								positioning={{ placement: "top" }}
 							>
 								<Popover.Trigger asChild>
-									<span className="text-sm text-foreground mx-1 cursor-pointer">
-										{table.getState().pagination.pageIndex * pageSize + 1}–
-										{Math.min(
-											(table.getState().pagination.pageIndex + 1) * pageSize,
-											rowCount,
-										)}{" "}
-										rows
+									<span className="cursor-pointer">
+										<span className="text-sm text-foreground">
+											{pageIndex + 1} / {Math.ceil(rowCount / limit)}
+										</span>
+										<span className="text-xs text-muted-foreground mx-1">
+											(showing {pageIndex * limit + 1}–
+											{Math.min((pageIndex + 1) * limit, rowCount)} rows)
+										</span>
 									</span>
 								</Popover.Trigger>
 								<Portal>
 									<Popover.Positioner>
 										<Popover.Content className="z-50 rounded-md border border-border bg-background p-3 shadow-md">
 											<PaginationPopoverContent
-												pageSize={pageSize}
+												pageSize={limit}
 												totalRowCount={rowCount}
 												onPageSizeChange={(newLimit) => {
 													setLimit(newLimit);
-													table.setPageSize(newLimit);
+													setPageIndex(0);
 												}}
-												onConfirm={(pageIndex) => {
-													table.setPageIndex(pageIndex);
+												onConfirm={(newPageIndex) => {
+													setPageIndex(newPageIndex);
 												}}
 												isLoading={rowsQuery.isLoading}
 											/>
@@ -304,13 +313,32 @@ export const RelationshipSubrowTable = ({
 							<Button
 								variant="ghost"
 								size="sm"
-								onClick={() => table.nextPage()}
-								disabled={!table.getCanNextPage()}
+								onClick={() => {
+									const maxPageIndex = Math.ceil(rowCount / limit) - 1;
+									setPageIndex(Math.min(pageIndex + 1, maxPageIndex));
+								}}
+								disabled={pageIndex >= Math.ceil(rowCount / limit) - 1}
 								className="h-6 px-2"
 							>
 								›
 							</Button>
 						</div>
+
+						{/* Show More Button - only show if not all rows are displayed */}
+						{limit < rowCount && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									setLimit(limit + initialLimit);
+									setPageIndex(0);
+								}}
+								className="h-6 px-2 text-xs"
+								title={`Load ${Math.min(initialLimit, rowCount - limit)} more rows`}
+							>
+								Show more ({rowCount - limit} remaining)
+							</Button>
+						)}
 					</div>
 				</div>
 			)}
