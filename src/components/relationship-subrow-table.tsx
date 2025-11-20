@@ -3,7 +3,7 @@ import type { TableRelationship } from "#src/types/relationships.ts";
 import { Popover, Portal } from "@ark-ui/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Maximize2, X } from "lucide-react";
+import { LogOut, Maximize2, Minimize, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRowsColumns } from "../hooks/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "../hooks/use-table-column-metadata";
@@ -344,6 +344,17 @@ export const RelationshipSubrowTable = ({
 									Show {initialLimit} more rows ({rowCount - limit} remaining)
 								</Button>
 							)}
+							{isPanelExpanded && (
+								<Button
+									size="xs"
+									variant="ghost"
+									onClick={() => setIsMaximizeSheetOpen(true)}
+									title="Expand to full view"
+									className="h-6 px-2 gap-1"
+								>
+									<Maximize2 className="h-3 w-3" />
+								</Button>
+							)}
 						</div>
 					</div>
 				</div>
@@ -471,6 +482,15 @@ export const RelationshipSubrowTable = ({
 										Show {initialLimit} more rows ({rowCount - limit} remaining)
 									</Button>
 								)}
+								<Button
+									size="xs"
+									variant="ghost"
+									onClick={() => setIsMaximizeSheetOpen(false)}
+									title="Close maximized view"
+									className="h-6 px-2"
+								>
+									<LogOut className="h-3 w-3" />
+								</Button>
 							</div>
 						</div>
 					</div>
