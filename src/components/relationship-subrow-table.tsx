@@ -374,23 +374,105 @@ export const RelationshipSubrowTable = ({
 							</div>
 						</SheetTitle>
 					</SheetHeader>
-					<div className="flex-1 relative overflow-hidden">
-						<DataTable
-							table={table}
-							getTableContainer={setTableContainer}
-							className="relative"
-							size="compact"
-							striped
-							stickyHeader={true}
-							isLoading={rowsQuery.isLoading}
-							hasError={rowsQuery.isError}
-						/>
-						{!rowsQuery.isLoading && !tableMetadata.isLoading && (
-							<ScrollToColumnButton
-								columnList={tableMetadata.columnList}
-								containerRef={{ current: tableContainer }}
+					<div className="flex-1 relative overflow-hidden flex flex-col">
+						<div className="flex-1 overflow-hidden">
+							<DataTable
+								table={table}
+								getTableContainer={setTableContainer}
+								className="relative"
+								size="compact"
+								striped
+								stickyHeader={true}
+								isLoading={rowsQuery.isLoading}
+								hasError={rowsQuery.isError}
 							/>
-						)}
+							{!rowsQuery.isLoading && !tableMetadata.isLoading && (
+								<ScrollToColumnButton
+									columnList={tableMetadata.columnList}
+									containerRef={{ current: tableContainer }}
+								/>
+							)}
+						</div>
+
+						{/* Pagination Controls */}
+						<div className="border-t bg-muted/20 px-4 py-2 flex items-center justify-between shrink-0 text-xs gap-2 w-full hover:bg-muted/30 transition-colors">
+							<div className="flex items-center gap-1">
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => setPageIndex(Math.max(0, pageIndex - 1))}
+									disabled={pageIndex === 0}
+									className="h-6 px-2"
+								>
+									‹
+								</Button>
+								<Popover.Root lazyMount positioning={{ placement: "top" }}>
+									<Popover.Trigger asChild>
+										<span className="cursor-pointer">
+											<span className="text-xs text-foreground">
+												{pageIndex + 1} / {Math.ceil(rowCount / limit)}
+											</span>
+											<span className="text-xs text-muted-foreground mx-1">
+												(showing {pageIndex * limit + 1}–
+												{Math.min((pageIndex + 1) * limit, rowCount)} rows of{" "}
+												{rowCount})
+											</span>
+										</span>
+									</Popover.Trigger>
+									<Portal>
+										<Popover.Positioner>
+											<Popover.Content className="z-50 rounded-md border border-border bg-background p-3 shadow-md">
+												<PaginationPopoverContent
+													initialPageIndex={pageIndex}
+													pageSize={limit}
+													totalRowCount={rowCount}
+													onPageSizeChange={(newLimit) => {
+														setLimit(newLimit);
+														setPageIndex(0);
+													}}
+													onConfirm={(newPageIndex) => {
+														setPageIndex(newPageIndex);
+													}}
+													isLoading={rowsQuery.isLoading}
+												/>
+											</Popover.Content>
+										</Popover.Positioner>
+									</Portal>
+								</Popover.Root>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => {
+										const maxPageIndex = Math.ceil(rowCount / limit) - 1;
+										setPageIndex(Math.min(pageIndex + 1, maxPageIndex));
+									}}
+									disabled={pageIndex >= Math.ceil(rowCount / limit) - 1}
+									className="h-6 px-2"
+								>
+									›
+								</Button>
+							</div>
+
+							{/* Show More Button - only show if not all rows are displayed */}
+							<div className="flex items-center gap-2">
+								{rowsQuery.isFetching && <Spinner className="h-4 w-4" />}
+								{limit < rowCount && (
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => {
+											setLimit(limit + initialLimit);
+											setPageIndex(0);
+										}}
+										className="h-6 px-2 text-xs"
+										title={`Load ${Math.min(initialLimit, rowCount - limit)} more rows`}
+										disabled={rowsQuery.isLoading}
+									>
+										Show {initialLimit} more rows ({rowCount - limit} remaining)
+									</Button>
+								)}
+							</div>
+						</div>
 					</div>
 				</SheetContent>
 			</Sheet>
