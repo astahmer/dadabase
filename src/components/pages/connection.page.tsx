@@ -239,9 +239,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 													className="flex-1 flex flex-col h-full overflow-hidden"
 													panels={[
 														{
-															id: "table",
-															collapsible: false,
-															minSize: 30,
+															id: "rows-table",
+															collapsible: true,
+															minSize: 0,
 														},
 														{
 															id: "relationships",
@@ -252,7 +252,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 													]}
 												>
 													<Splitter.Panel
-														id="table"
+														id="rows-table"
 														className="flex-1 overflow-auto flex flex-col relative"
 													>
 														<DataTable
@@ -314,10 +314,20 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 													{pageState.relationshipRowId && (
 														<>
-															<Splitter.ResizeTrigger
-																id="table:relationships"
-																className="h-1 bg-border hover:bg-primary/50 cursor-row-resize transition-colors"
-															/>
+															<Splitter.Context>
+																{(ctx) => (
+																	<Splitter.ResizeTrigger
+																		id="table:relationships"
+																		className="h-1 bg-border hover:bg-primary/50 cursor-row-resize transition-colors"
+																		title="Drag to resize, double click to collapse/expand rows table"
+																		onDoubleClick={() =>
+																			ctx.isPanelExpanded("rows-table")
+																				? ctx.collapsePanel("rows-table")
+																				: ctx.expandPanel("rows-table")
+																		}
+																	/>
+																)}
+															</Splitter.Context>
 															<Splitter.Panel
 																id="relationships"
 																className="overflow-hidden flex flex-col mb-2.5"
