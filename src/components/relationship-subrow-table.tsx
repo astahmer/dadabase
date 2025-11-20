@@ -42,7 +42,7 @@ export const RelationshipSubrowTable = ({
 	onRemove,
 }: RelationshipSubrowTableProps) => {
 	const [limit, setLimit] = useState(initialLimit);
-	const [pageIndex, setPageIndex] = useState(0);
+	const [pageIndex, setPageIndex] = useState(1);
 
 	const {
 		referencingSchema,
@@ -287,7 +287,8 @@ export const RelationshipSubrowTable = ({
 										</span>
 										<span className="text-xs text-muted-foreground mx-1">
 											(showing {pageIndex * limit + 1}–
-											{Math.min((pageIndex + 1) * limit, rowCount)} rows)
+											{Math.min((pageIndex + 1) * limit, rowCount)} rows of{" "}
+											{rowCount})
 										</span>
 									</span>
 								</Popover.Trigger>
@@ -295,6 +296,7 @@ export const RelationshipSubrowTable = ({
 									<Popover.Positioner>
 										<Popover.Content className="z-50 rounded-md border border-border bg-background p-3 shadow-md">
 											<PaginationPopoverContent
+												initialPageIndex={pageIndex}
 												pageSize={limit}
 												totalRowCount={rowCount}
 												onPageSizeChange={(newLimit) => {
@@ -336,7 +338,7 @@ export const RelationshipSubrowTable = ({
 								className="h-6 px-2 text-xs"
 								title={`Load ${Math.min(initialLimit, rowCount - limit)} more rows`}
 							>
-								Show more ({rowCount - limit} remaining)
+								Show {initialLimit} more rows ({rowCount - limit} remaining)
 							</Button>
 						)}
 					</div>

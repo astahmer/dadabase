@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Button } from "./ui/button.tsx";
 import { RowsPerPageSelector } from "./pages/connection-page/rows-per-page.selector.tsx";
 
-interface PaginationJumpPopoverProps {
+interface PaginationPopoverContentProps {
 	pageSize: number;
+	initialPageIndex: number;
 	totalRowCount: number;
 	onPageSizeChange: (pageSize: number) => void;
 	onConfirm: (pageIndex: number) => void;
@@ -14,9 +15,10 @@ interface PaginationJumpPopoverProps {
  * A popover that allows users to jump to a specific page
  * Shows limit, page input, and row range info
  */
-export function PaginationPopoverContent(props: PaginationJumpPopoverProps) {
+export function PaginationPopoverContent(props: PaginationPopoverContentProps) {
 	const {
 		pageSize,
+		initialPageIndex,
 		totalRowCount,
 		onPageSizeChange,
 		onConfirm,
@@ -24,7 +26,7 @@ export function PaginationPopoverContent(props: PaginationJumpPopoverProps) {
 	} = props;
 
 	const totalPages = Math.ceil(totalRowCount / pageSize);
-	const [inputValue, setInputValue] = useState(1);
+	const [pageIndex, setPageIndex] = useState(initialPageIndex);
 
 	const handleJump = () => {
 		if (Number.isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) {
@@ -40,7 +42,7 @@ export function PaginationPopoverContent(props: PaginationJumpPopoverProps) {
 		}
 	};
 
-	const pageNum = Math.min(Math.max(inputValue || 1, 1), totalPages);
+	const pageNum = Math.min(Math.max(pageIndex || 1, 1), totalPages);
 	const startRow = (pageNum - 1) * pageSize + 1;
 	const endRow = Math.min(pageNum * pageSize, totalRowCount);
 
@@ -68,8 +70,8 @@ export function PaginationPopoverContent(props: PaginationJumpPopoverProps) {
 				<input
 					id="page-input"
 					type="number"
-					value={inputValue}
-					onChange={(e) => setInputValue(e.target.valueAsNumber)}
+					value={pageIndex}
+					onChange={(e) => setPageIndex(e.target.valueAsNumber)}
 					onKeyDown={handleKeyDown}
 					autoFocus
 					disabled={isLoading}
@@ -109,7 +111,7 @@ export function PaginationPopoverContent(props: PaginationJumpPopoverProps) {
 					size="sm"
 					onClick={() => {
 						const newPage = Math.max(1, pageNum - 1);
-						setInputValue(newPage);
+						setPageIndex(newPage);
 					}}
 					disabled={pageNum <= 1 || isLoading}
 					className="h-7 text-xs"
@@ -124,7 +126,7 @@ export function PaginationPopoverContent(props: PaginationJumpPopoverProps) {
 					size="sm"
 					onClick={() => {
 						const newPage = Math.min(totalPages, pageNum + 1);
-						setInputValue(newPage);
+						setPageIndex(newPage);
 					}}
 					disabled={pageNum >= totalPages || isLoading}
 					className="h-7 text-xs"
