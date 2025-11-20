@@ -317,7 +317,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															<Splitter.Context>
 																{(ctx) => (
 																	<Splitter.ResizeTrigger
-																		id="table:relationships"
+																		id="rows-table:relationships"
 																		className="h-1 bg-border hover:bg-primary/50 cursor-row-resize transition-colors"
 																		title="Drag to resize, double click to collapse/expand rows table"
 																		onDoubleClick={() =>
