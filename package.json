@@ -26,7 +26,7 @@
 		"push": "pnpm drizzle-kit push",
 		"studio": "pnpm drizzle-kit studio",
 		"----docker----": "----------",
-		"docker:build": "docker build ../.. -f ./Dockerfile --build-arg ENTRYPOINT=main -t dadabase",
+		"docker:build": "docker build . -f ./Dockerfile --build-arg ENTRYPOINT=main -t dadabase",
 		"docker:run": "docker run -p 3006:3006 --env-file .env dadabase",
 		"docker:sh": "docker run -it --entrypoint sh dadabase"
 	},
