@@ -24,7 +24,11 @@
 		"migrate": "pnpm drizzle-kit migrate",
 		"migrate:gen": "pnpm drizzle-kit generate",
 		"push": "pnpm drizzle-kit push",
-		"studio": "pnpm drizzle-kit studio"
+		"studio": "pnpm drizzle-kit studio",
+		"----docker----": "----------",
+		"docker:build": "docker build ../.. -f ./Dockerfile --build-arg ENTRYPOINT=main -t dadabase",
+		"docker:run": "docker run -p 3006:3006 --env-file .env dadabase",
+		"docker:sh": "docker run -it --entrypoint sh dadabase"
 	},
 	"dependencies": {
 		"@ai-sdk/anthropic": "2.0.44",
