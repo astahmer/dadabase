@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+.github
+
+# Dependencies
+node_modules
+pnpm-store
+
+# Build outputs
+dist
+build
+.output
+coverage
+
+# Development
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+.env.local
+.env.*.local
+
+# Testing
+.vitest
+
+# Documentation
+docs
+README.md
+CHANGELOG.md
+
+# Misc
+temp.local
+.turbo
+.next
+.eslintcache
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+
+# Migration files - these are generated during db push
+migrations
