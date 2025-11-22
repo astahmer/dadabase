@@ -20,7 +20,32 @@ export function isNumericDataType(dataType: string): boolean {
 		"money",
 	];
 
-	return numericTypes.some((type) => normalized === type || normalized.includes(type));
+	return numericTypes.some(
+		(type) => normalized === type || normalized.includes(type),
+	);
+}
+
+/**
+ * Determines if a data type is a date/time type
+ * Date/time types should NOT be treated as relationships
+ */
+export function isDateTimeDataType(dataType: string): boolean {
+	const normalized = dataType.toLowerCase().trim();
+
+	const dateTimeTypes = [
+		"date",
+		"time",
+		"timestamp",
+		"timestamp without time zone",
+		"timestamp with time zone",
+		"timestamptz",
+		"datetime",
+		"datetime2",
+	];
+
+	return dateTimeTypes.some(
+		(type) => normalized === type || normalized.startsWith(type),
+	);
 }
 
 /**
