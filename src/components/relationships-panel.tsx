@@ -46,7 +46,6 @@ export const RelationshipsPanel = ({
 	const [relationshipViewMode, setRelationshipViewMode] = useState<
 		Record<string, RelationshipViewMode>
 	>({});
-	console.log(relationshipViewMode);
 	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const rightPanelRef = useRef<HTMLDivElement | null>(null);
 

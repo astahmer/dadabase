@@ -2,17 +2,30 @@ import { Code, X, Copy, Check } from "lucide-react";
 import { Clipboard, useClipboard } from "@ark-ui/react";
 import { JsonViewerModal } from "./ui/json-viewer";
 import { Stack } from "./ui/layout.tsx";
+import { RelationshipExplorer } from "#src/components/relationship-explorer";
 
 interface InlineJsonPopoverProps {
 	value: unknown;
 	onExpandToDialog?: () => void;
 	onClose?: () => void;
+	/** Optional: Enable relationship explorer mode */
+	showRelationships?: boolean;
+	/** Optional: Current schema for relationship queries */
+	schema?: string;
+	/** Optional: Current table for relationship queries */
+	table?: string;
+	/** Optional: Connection URL for relationship queries */
+	connectionUrl?: string;
 }
 
 export function InlineJsonPopover({
 	value,
 	onExpandToDialog,
 	onClose,
+	showRelationships = false,
+	schema,
+	table,
+	connectionUrl,
 }: InlineJsonPopoverProps) {
 	function generatePreview(val: unknown): string {
 		try {
@@ -29,6 +42,15 @@ export function InlineJsonPopover({
 	const preview = generatePreview(value);
 	const clipboard = useClipboard();
 
+	// Use relationship explorer if requested and we have required data and value is an object
+	const useRelationshipExplorer =
+		showRelationships &&
+		schema &&
+		table &&
+		connectionUrl &&
+		typeof value === "object" &&
+		value !== null;
+
 	return (
 		<div className="min-w-96 max-w-2xl bg-background border border-border rounded-lg shadow-lg overflow-hidden">
 			{/* Header */}
@@ -36,7 +58,7 @@ export function InlineJsonPopover({
 				<div className="flex items-center gap-2 min-w-0">
 					<Code className="h-3 w-3 text-muted-foreground shrink-0" />
 					<span className="text-xs font-semibold text-muted-foreground">
-						JSON Data
+						{useRelationshipExplorer ? "Data with Relations" : "JSON Data"}
 					</span>
 				</div>
 				<div className="flex items-center gap-1">
@@ -76,7 +98,22 @@ export function InlineJsonPopover({
 			{/* Content */}
 			<Stack className="max-h-72 w-full overflow-y-auto p-3">
 				<div className="text-sm">
-					<JsonViewerModal data={value} />
+					{useRelationshipExplorer && typeof value === "object" ? (
+						<div className="flex flex-col gap-3 min-h-0 h-full">
+							<div className="bg-muted p-3 rounded border border-border overflow-auto min-h-0 h-full">
+								<RelationshipExplorer
+									row={value as Record<string, unknown>}
+									schema={schema}
+									table={table}
+									connectionUrl={connectionUrl}
+									maxDepth={3}
+									showRelationships={true}
+								/>
+							</div>
+						</div>
+					) : (
+						<JsonViewerModal data={value} />
+					)}
 				</div>
 			</Stack>
 
