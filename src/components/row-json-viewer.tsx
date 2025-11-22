@@ -18,6 +18,18 @@ interface RowJsonViewerProps {
 	connectionUrl?: string;
 }
 
+function generatePreview(val: unknown): string {
+	try {
+		const str = JSON.stringify(val);
+		if (str.length > 100) {
+			return str.substring(0, 100).replace(/\s+/g, " ") + "…";
+		}
+		return str.replace(/\s+/g, " ");
+	} catch {
+		return String(val);
+	}
+}
+
 export function RowJsonViewer({
 	row,
 	onExpandToDialog,
@@ -27,18 +39,6 @@ export function RowJsonViewer({
 	table,
 	connectionUrl,
 }: RowJsonViewerProps) {
-	function generatePreview(val: unknown): string {
-		try {
-			const str = JSON.stringify(val);
-			if (str.length > 100) {
-				return str.substring(0, 100).replace(/\s+/g, " ") + "…";
-			}
-			return str.replace(/\s+/g, " ");
-		} catch {
-			return String(val);
-		}
-	}
-
 	const preview = generatePreview(row);
 	const clipboard = useClipboard();
 

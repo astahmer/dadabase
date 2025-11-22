@@ -6,7 +6,7 @@ import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-
 import type { TableRelationship } from "#src/types/relationships.ts";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useId, useMemo, useState } from "react";
 
 interface RelationshipExplorerProps {
 	/** The current row data to display and explore relations for */
@@ -176,31 +176,35 @@ const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
 
 	if (Array.isArray(value)) {
 		return (
-			<JsonArray
-				array={value}
-				depth={depth}
-				maxDepth={maxDepth}
-				isExpanded={isExpanded}
-				onToggle={() => setIsExpanded(!isExpanded)}
-			/>
+			<div data-explorer-key={`array-${depth}`} className="inline">
+				<JsonArray
+					array={value}
+					depth={depth}
+					maxDepth={maxDepth}
+					isExpanded={isExpanded}
+					onToggle={() => setIsExpanded(!isExpanded)}
+				/>
+			</div>
 		);
 	}
 
 	if (typeof value === "object") {
 		return (
-			<RelationshipExplorerObject
-				object={value as Record<string, unknown>}
-				relationships={relationships}
-				counts={counts}
-				expandedRelationships={expandedRelationships}
-				onToggleRelationship={onToggleRelationship}
-				depth={depth}
-				maxDepth={maxDepth}
-				connectionUrl={connectionUrl}
-				schema={schema}
-				table={table}
-				relationshipsLoading={relationshipsLoading}
-			/>
+			<div data-explorer-key={`object-${depth}`} className="inline">
+				<RelationshipExplorerObject
+					object={value as Record<string, unknown>}
+					relationships={relationships}
+					counts={counts}
+					expandedRelationships={expandedRelationships}
+					onToggleRelationship={onToggleRelationship}
+					depth={depth}
+					maxDepth={maxDepth}
+					connectionUrl={connectionUrl}
+					schema={schema}
+					table={table}
+					relationshipsLoading={relationshipsLoading}
+				/>
+			</div>
 		);
 	}
 
@@ -239,11 +243,13 @@ const RelationshipExplorerObject = memo(function RelationshipExplorerObject({
 	const keys = Object.keys(object);
 	const isEmpty = keys.length === 0 && relationships.length === 0;
 
+	const id = useId();
+
 	return (
 		<>
 			<span className="text-gray-800 dark:text-gray-200">{`{`}</span>
 			{!isEmpty && (
-				<div className="ml-4 border-l border-muted">
+				<div className="ml-4 border-l border-muted" id={id}>
 					{/* Regular data fields */}
 					{keys.map((key) => {
 						const value = object[key];
@@ -251,7 +257,22 @@ const RelationshipExplorerObject = memo(function RelationshipExplorerObject({
 						return (
 							<div key={key} className="py-0.5">
 								{isExpandable ? (
-									<button className="text-blue-600 dark:text-blue-400 hover:opacity-70 transition-opacity">
+									<button
+										onClick={(e) => {
+											e.preventDefault();
+											const jsonValue = document.querySelector(
+												`#${id} [data-explorer-key="${key}-${depth}"]`,
+											);
+											if (jsonValue && jsonValue !== e.currentTarget) {
+												// Find the nested RelationshipExplorerValue and toggle it
+												const toggleBtn = jsonValue.querySelector("button");
+												if (toggleBtn) {
+													toggleBtn.click();
+												}
+											}
+										}}
+										className="text-blue-600 dark:text-blue-400 hover:opacity-70 transition-opacity"
+									>
 										"{key}"
 									</button>
 								) : (
@@ -260,19 +281,21 @@ const RelationshipExplorerObject = memo(function RelationshipExplorerObject({
 									</span>
 								)}
 								<span className="text-gray-800 dark:text-gray-200">{`: `}</span>
-								<RelationshipExplorerValue
-									value={value}
-									relationships={[]}
-									counts={{}}
-									expandedRelationships={expandedRelationships}
-									onToggleRelationship={onToggleRelationship}
-									depth={depth + 1}
-									maxDepth={maxDepth}
-									connectionUrl={connectionUrl}
-									schema={schema}
-									table={table}
-									relationshipsLoading={relationshipsLoading}
-								/>
+								<div data-explorer-key={`${key}-${depth}`} className="inline">
+									<RelationshipExplorerValue
+										value={value}
+										relationships={[]}
+										counts={{}}
+										expandedRelationships={expandedRelationships}
+										onToggleRelationship={onToggleRelationship}
+										depth={depth + 1}
+										maxDepth={maxDepth}
+										connectionUrl={connectionUrl}
+										schema={schema}
+										table={table}
+										relationshipsLoading={relationshipsLoading}
+									/>
+								</div>
 								<span className="text-gray-800 dark:text-gray-200">,</span>
 							</div>
 						);
