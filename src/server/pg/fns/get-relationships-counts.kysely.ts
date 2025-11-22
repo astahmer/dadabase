@@ -84,9 +84,10 @@ export const getRelationshipsCounts = (input: {
 
 						const result = yield* db.execute(countQuery as any);
 
+						const count = (result[0] as any)?.count ?? 0;
 						return {
 							constraintName: rel.constraintName,
-							count: (result[0] as any)?.count ?? 0,
+							count: typeof count === "string" ? Number(count) : count,
 						};
 					});
 				},

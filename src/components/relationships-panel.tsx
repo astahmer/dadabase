@@ -138,8 +138,12 @@ export const RelationshipsPanel = ({
 		const displayed = new Set(displayedRelationships);
 
 		groupRels.forEach((rel) => {
-			next.add(rel.constraintName);
-			displayed.add(rel.constraintName);
+			// Only select relationships with rows > 0
+			const rowCount = Number(counts[rel.constraintName]) ?? 0;
+			if (rowCount > 0) {
+				next.add(rel.constraintName);
+				displayed.add(rel.constraintName);
+			}
 		});
 
 		setSelectedRelationships(next);
@@ -162,13 +166,21 @@ export const RelationshipsPanel = ({
 
 	const isGroupFullySelected = (type: "outgoing" | "incoming") => {
 		const groupRels = relsByType[type];
+		const selectableRels = groupRels.filter(
+			(r) => Number(counts[r.constraintName] ?? 0) > 0,
+		);
 		return (
-			groupRels.length > 0 &&
-			groupRels.every((r) => selectedRelationships.has(r.constraintName))
+			selectableRels.length > 0 &&
+			selectableRels.every((r) => selectedRelationships.has(r.constraintName))
 		);
 	};
 
 	const handleRelationshipClick = (constraintName: string) => {
+		const rowCount = counts[constraintName] ?? 0;
+
+		// Don't allow selection if rowCount is 0
+		if (rowCount === 0) return;
+
 		if (!selectedRelationships.has(constraintName)) {
 			const next = new Set(selectedRelationships);
 			next.add(constraintName);
@@ -183,6 +195,11 @@ export const RelationshipsPanel = ({
 		constraintName: string,
 		checked: boolean,
 	) => {
+		const rowCount = counts[constraintName] ?? 0;
+
+		// Don't allow selection if rowCount is 0
+		if (checked && rowCount === 0) return;
+
 		const next = new Set(selectedRelationships);
 		const displayed = new Set(displayedRelationships);
 
@@ -318,7 +335,7 @@ export const RelationshipsPanel = ({
 												<RelationshipListItem
 													key={rel.constraintName}
 													rel={rel}
-													rowCount={counts[rel.constraintName] ?? 0}
+													rowCount={Number(counts[rel.constraintName]) ?? 0}
 													isCountLoading={countsQuery.isLoading}
 													isSelected={selectedRelationships.has(
 														rel.constraintName,
@@ -605,10 +622,54 @@ const RelationshipListItem = ({
 		rel.type === "outgoing"
 			? `› ${rel.referencedTable}.${rel.referencedColumn}`
 			: `› ${rel.referencedTable}.${rel.referencedColumn}`;
+	const isDisabled = !isCountLoading && rowCount === 0;
+
+	if (isDisabled) {
+		return (
+			<div
+				className={`w-full px-3 py-2 text-left text-xs opacity-40 cursor-not-allowed ${
+					isSticky
+						? "bg-accent border-l border-muted"
+						: isStickyOther
+							? "bg-accent border-l-2 border-primary"
+							: ""
+				}`}
+			>
+				<div className="flex items-start justify-between gap-2">
+					<div className="flex items-start gap-1 flex-1 min-w-0">
+						<span className="text-muted-foreground inline-block w-12 text-left shrink-0">
+							{isCountLoading ? (
+								<span className="text-xs">…</span>
+							) : (
+								<span>{rowCount}</span>
+							)}
+						</span>
+						<HStack
+							className="flex-1 min-w-0"
+							title={`${firstLabel} ${secondLabel}`}
+						>
+							<div className="font-medium truncate">{firstLabel}</div>
+							<div className="text-muted-foreground truncate text-xs">
+								{secondLabel}
+							</div>
+						</HStack>
+					</div>
+					<Checkbox
+						checked={false}
+						disabled={true}
+						onClick={(e) => e.stopPropagation()}
+					>
+						<CheckboxControl />
+					</Checkbox>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<button
 			onClick={onSelect}
-			className={`w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors ${
+			className={`w-full px-3 py-2 text-left text-xs transition-colors hover:bg-accent ${
 				isSticky
 					? "bg-accent border-l border-muted"
 					: isStickyOther
