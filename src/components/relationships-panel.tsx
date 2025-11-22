@@ -1,15 +1,17 @@
-import { useState, useRef, useEffect } from "react";
-import { X, ChevronUp, ChevronDown } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { Splitter } from "@ark-ui/react/splitter";
-import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { getRelationshipsCountsQueryOptions } from "#src/server/pg/start-fns/get-relationships-counts.start.ts";
-import { Spinner } from "./ui/spinner";
-import { Button } from "./ui/button";
-import { RelationshipSubrowTable } from "./relationship-subrow-table";
-import { HStack } from "./ui/layout.tsx";
-import { Checkbox, CheckboxControl } from "./ui/checkbox";
+import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
 import type { TableRelationship } from "#src/types/relationships.ts";
+import { RelationshipViewMode } from "#src/types/relationship-view-mode.ts";
+import { RelatedDataSubrowTable } from "./related-data-subrow-table";
+import { RelationshipSubrowTable } from "./relationship-subrow-table";
+import { Button } from "./ui/button";
+import { Checkbox, CheckboxControl } from "./ui/checkbox";
+import { HStack } from "./ui/layout.tsx";
+import { Spinner } from "./ui/spinner";
 
 interface RelationshipsPanelProps {
 	connectionUrl: string;
@@ -40,6 +42,11 @@ export const RelationshipsPanel = ({
 	const [displayedRelationships, setDisplayedRelationships] = useState<
 		Set<string>
 	>(new Set());
+	// Track which relationship view mode is active (for outgoing: RelatedData is default)
+	const [relationshipViewMode, setRelationshipViewMode] = useState<
+		Record<string, RelationshipViewMode>
+	>({});
+	console.log(relationshipViewMode);
 	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const rightPanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -132,6 +139,11 @@ export const RelationshipsPanel = ({
 		incoming: validRelationships.filter((r) => r.type === "incoming"),
 	};
 
+	const relationshipTypeLabels = {
+		outgoing: "Reverse Lookup",
+		incoming: "Referenced By",
+	};
+
 	const handleSelectAllGroup = (type: "outgoing" | "incoming") => {
 		const groupRels = relsByType[type];
 		const next = new Set(selectedRelationships);
@@ -214,7 +226,6 @@ export const RelationshipsPanel = ({
 		setSelectedRelationships(next);
 		setDisplayedRelationships(displayed);
 	};
-
 	return (
 		<div className="border-t bg-card flex flex-col h-full overflow-hidden">
 			{/* Header */}
@@ -284,8 +295,7 @@ export const RelationshipsPanel = ({
 						<div className="flex-1 overflow-y-auto">
 							{(["outgoing", "incoming"] as const).map((type, idx) => {
 								const rels = relsByType[type];
-								const typeLabel =
-									type === "outgoing" ? "References" : "Referenced By";
+								const typeLabel = relationshipTypeLabels[type];
 								const isFocused = type === "outgoing";
 								const isFullySelected = isGroupFullySelected(type);
 
@@ -348,6 +358,10 @@ export const RelationshipsPanel = ({
 														stickyRelationship === rel.constraintName &&
 														!isFocused
 													}
+													viewMode={
+														relationshipViewMode[rel.constraintName] ??
+														RelationshipViewMode.RelatedData
+													}
 													onSelect={() =>
 														handleRelationshipClick(rel.constraintName)
 													}
@@ -357,6 +371,12 @@ export const RelationshipsPanel = ({
 															checked,
 														)
 													}
+													onViewModeChange={(mode) => {
+														setRelationshipViewMode((prev) => ({
+															...prev,
+															[rel.constraintName]: mode,
+														}));
+													}}
 												/>
 											))}
 										</div>
@@ -456,6 +476,10 @@ export const RelationshipsPanel = ({
 													connectionUrl={connectionUrl}
 													isPanelExpanded={isPanelExpanded}
 													withHeader={true}
+													viewMode={
+														relationshipViewMode[constraintName] ??
+														RelationshipViewMode.RelatedData
+													}
 													onRemove={() => {
 														const next = new Set(displayedRelationships);
 														next.delete(constraintName);
@@ -562,6 +586,7 @@ interface RelationshipCardProps {
 	isPanelExpanded: boolean;
 	withHeader: boolean;
 	onRemove: () => void;
+	viewMode?: RelationshipViewMode;
 }
 
 const RelationshipCard = ({
@@ -571,6 +596,7 @@ const RelationshipCard = ({
 	isPanelExpanded,
 	withHeader,
 	onRemove,
+	viewMode = RelationshipViewMode.RelatedData,
 }: RelationshipCardProps) => {
 	const parentRowValue =
 		relationship.type === "outgoing"
@@ -579,6 +605,26 @@ const RelationshipCard = ({
 			: // For incoming relationships, we need the PK value from the current row
 				rowData[relationship.referencedColumn];
 
+	// For "related_data" view mode with outgoing relationships, show the FK target record
+	if (
+		viewMode === RelationshipViewMode.RelatedData &&
+		relationship.type === "outgoing"
+	) {
+		return (
+			<div className="flex flex-col h-full overflow-hidden">
+				<RelatedDataSubrowTable
+					relationship={relationship}
+					parentRowValue={String(parentRowValue)}
+					connection={{ url: connectionUrl }}
+					isPanelExpanded={isPanelExpanded}
+					withHeader={withHeader}
+					onRemove={onRemove}
+				/>
+			</div>
+		);
+	}
+
+	// Default: show reverse lookup (rows with matching FK column value)
 	return (
 		<div className="flex flex-col h-full overflow-hidden">
 			<RelationshipSubrowTable
@@ -600,8 +646,10 @@ interface RelationshipListItemProps {
 	isSelected: boolean;
 	isSticky: boolean;
 	isStickyOther: boolean;
+	viewMode?: RelationshipViewMode;
 	onSelect: () => void;
 	onCheckChange: (checked: boolean) => void;
+	onViewModeChange?: (mode: RelationshipViewMode) => void;
 }
 
 const RelationshipListItem = ({
@@ -611,8 +659,10 @@ const RelationshipListItem = ({
 	isSelected,
 	isSticky,
 	isStickyOther,
+	viewMode = RelationshipViewMode.RelatedData,
 	onSelect,
 	onCheckChange,
+	onViewModeChange,
 }: RelationshipListItemProps) => {
 	const firstLabel =
 		rel.type === "outgoing"
@@ -667,45 +717,80 @@ const RelationshipListItem = ({
 	}
 
 	return (
-		<button
-			onClick={onSelect}
-			className={`w-full px-3 py-2 text-left text-xs transition-colors hover:bg-accent ${
-				isSticky
-					? "bg-accent border-l border-muted"
-					: isStickyOther
-						? "bg-accent border-l-2 border-primary"
-						: ""
-			}`}
-		>
-			<div className="flex items-start justify-between gap-2">
-				<div className="flex items-start gap-1 flex-1 min-w-0">
-					<span className="text-muted-foreground inline-block w-12 text-left shrink-0">
-						{isCountLoading ? (
-							<span className="text-xs">…</span>
-						) : (
-							<span>{rowCount}</span>
-						)}
-					</span>
-					<HStack
-						className="flex-1 min-w-0"
-						title={`${firstLabel} ${secondLabel}`}
+		<div className="w-full flex flex-col">
+			<button
+				onClick={onSelect}
+				className={`w-full px-3 py-2 text-left text-xs transition-colors hover:bg-accent ${
+					isSticky
+						? "bg-accent border-l border-muted"
+						: isStickyOther
+							? "bg-accent border-l-2 border-primary"
+							: ""
+				}`}
+			>
+				<div className="flex items-start justify-between gap-2">
+					<div className="flex items-start gap-1 flex-1 min-w-0">
+						<span className="text-muted-foreground inline-block w-12 text-left shrink-0">
+							{isCountLoading ? (
+								<span className="text-xs">…</span>
+							) : (
+								<span>{rowCount}</span>
+							)}
+						</span>
+						<HStack
+							className="flex-1 min-w-0"
+							title={`${firstLabel} ${secondLabel}`}
+						>
+							<div className="font-medium truncate">{firstLabel}</div>
+							<div className="text-muted-foreground truncate text-xs">
+								{secondLabel}
+							</div>
+						</HStack>
+					</div>
+					<Checkbox
+						checked={isSelected}
+						onCheckedChange={(details) => {
+							onCheckChange(details.checked === true);
+						}}
+						onClick={(e) => e.stopPropagation()}
 					>
-						<div className="font-medium truncate">{firstLabel}</div>
-						<div className="text-muted-foreground truncate text-xs">
-							{secondLabel}
-						</div>
-					</HStack>
+						<CheckboxControl />
+					</Checkbox>
 				</div>
-				<Checkbox
-					checked={isSelected}
-					onCheckedChange={(details) => {
-						onCheckChange(details.checked === true);
-					}}
-					onClick={(e) => e.stopPropagation()}
-				>
-					<CheckboxControl />
-				</Checkbox>
-			</div>
-		</button>
+			</button>
+			{/* View mode toggle for outgoing relationships */}
+			{isSelected && rel.type === "outgoing" && (
+				<div className="px-3 py-1 bg-muted/20 border-t flex gap-1 text-xs">
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							onViewModeChange?.(RelationshipViewMode.RelatedData);
+						}}
+						className={`flex-1 px-2 py-1 rounded transition-colors ${
+							viewMode === RelationshipViewMode.RelatedData
+								? "bg-primary text-primary-foreground"
+								: "bg-muted hover:bg-muted/80 text-muted-foreground"
+						}`}
+						title="Show the record pointed to by the FK"
+					>
+						Related Data
+					</button>
+					<button
+						onClick={(e) => {
+							e.stopPropagation();
+							onViewModeChange?.(RelationshipViewMode.ReverseLookup);
+						}}
+						className={`flex-1 px-2 py-1 rounded transition-colors ${
+							viewMode === RelationshipViewMode.ReverseLookup
+								? "bg-primary text-primary-foreground"
+								: "bg-muted hover:bg-muted/80 text-muted-foreground"
+						}`}
+						title="Show rows with matching FK column value"
+					>
+						Reverse Lookup
+					</button>
+				</div>
+			)}
+		</div>
 	);
 };
