@@ -184,23 +184,15 @@ export const RelationshipSubrowTable = ({
 				<div className="px-4 py-2 border-b bg-muted/20 flex items-center justify-between shrink-0 text-xs gap-2">
 					<div className="flex items-center gap-2 min-w-0">
 						<span className="text-muted-foreground truncate">
-							{referencingTable}
+							<span className="text-foreground font-medium">
+								{referencingTable}
+							</span>
 							<span className="text-muted-foreground">
 								.{referencingColumn}
 							</span>
 						</span>
-						<span className="text-muted-foreground shrink-0">›</span>
-						<span className="font-medium truncate">
-							{referencedTable}
-							<span className="text-muted-foreground">.{referencedColumn}</span>
-						</span>
-
-						{relationship.type === "outgoing" && (
-							<>
-								<span className="text-muted-foreground shrink-0">=</span>
-								<span className="font-medium truncate">{parentRowValue}</span>
-							</>
-						)}
+						<span className="text-muted-foreground shrink-0">=</span>
+						<span className="font-medium truncate">{parentRowValue}</span>
 
 						{cardinalityQuery.data && (
 							<span className="text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded shrink-0">

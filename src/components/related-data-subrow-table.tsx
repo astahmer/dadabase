@@ -141,7 +141,9 @@ export const RelatedDataSubrowTable = ({
 				<div className="px-4 py-2 border-b bg-muted/20 flex items-center justify-between shrink-0 text-xs gap-2">
 					<div className="flex items-center gap-2 min-w-0">
 						<span className="text-muted-foreground truncate">
-							{referencedTable}
+							<span className="text-foreground font-medium">
+								{referencedTable}
+							</span>
 							<span className="text-muted-foreground">.{referencedColumn}</span>
 						</span>
 						<span className="text-muted-foreground shrink-0">=</span>

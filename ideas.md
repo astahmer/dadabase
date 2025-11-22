@@ -26,8 +26,6 @@
 - store limit (50 etc) in localstorage and use that as default instead of hardcoded 50
 - cmd+f in table
 - cmd+k
-- inline JSON / json cell showing for dates in relationship panel
-- persistent relationship?
 - (vertical) reorder drag handle inside of visible column dropdown
 
 

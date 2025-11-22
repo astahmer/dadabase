@@ -140,8 +140,8 @@ export const RelationshipsPanel = ({
 	};
 
 	const relationshipTypeLabels = {
-		outgoing: "Reverse Lookup",
-		incoming: "Referenced By",
+		outgoing: "Outgoing: Foreign keys",
+		incoming: "Incoming: Referenced By",
 	};
 
 	const handleSelectAllGroup = (type: "outgoing" | "incoming") => {
