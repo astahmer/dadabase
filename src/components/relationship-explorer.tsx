@@ -1,4 +1,5 @@
 import { JsonArray } from "#src/components/ui/json-viewer.tsx";
+import { renderPrimitiveValue } from "#src/components/ui/json-viewer.render-primitive-value.tsx";
 import { cn } from "#src/lib/utils";
 import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start.ts";
 import { getRelationshipsCountsQueryOptions } from "#src/server/pg/start-fns/get-relationships-counts.start.ts";
@@ -27,8 +28,7 @@ interface RelationshipExplorerProps {
 
 /**
  * RelationshipExplorer displays a row as JSON with nested related data.
- * Outgoing relationships are merged into the row structure as nested objects/arrays.
- * Only shows outgoing relationships (where this table has the FK).
+ * Relationships are merged into the row structure as nested objects/arrays.
  */
 export const RelationshipExplorer = memo(function RelationshipExplorer({
 	row,
@@ -55,8 +55,6 @@ export const RelationshipExplorer = memo(function RelationshipExplorer({
 	const allRelationships = relationshipsQuery.data ?? [];
 
 	// Filter valid relationships (both outgoing and incoming)
-	// Outgoing: this table has the FK
-	// Incoming: another table references this table
 	const validRelationships = useMemo(() => {
 		return showRelationships
 			? allRelationships.filter((rel) => {
@@ -97,7 +95,7 @@ export const RelationshipExplorer = memo(function RelationshipExplorer({
 
 	return (
 		<div className={cn("font-mono text-sm", className)}>
-			<RelationshipExplorerValue
+			<RenderRelationshipValue
 				value={row}
 				relationships={validRelationships}
 				counts={countsQuery.data ?? {}}
@@ -106,15 +104,13 @@ export const RelationshipExplorer = memo(function RelationshipExplorer({
 				depth={0}
 				maxDepth={maxDepth}
 				connectionUrl={connectionUrl}
-				schema={schema}
-				table={table}
 				relationshipsLoading={relationshipsQuery.isLoading}
 			/>
 		</div>
 	);
 });
 
-interface RelationshipExplorerValueProps {
+interface RenderRelationshipValueProps {
 	value: unknown;
 	relationships: TableRelationship[];
 	counts: Record<string, number>;
@@ -123,12 +119,15 @@ interface RelationshipExplorerValueProps {
 	depth: number;
 	maxDepth: number;
 	connectionUrl: string;
-	schema: string;
-	table: string;
 	relationshipsLoading: boolean;
 }
 
-const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
+/**
+ * Renders a value with relationship fields merged into objects.
+ * Primitives and arrays use standard JSON rendering.
+ * Objects render data fields and inject relationship fields inline.
+ */
+const RenderRelationshipValue = memo(function RenderRelationshipValue({
 	value,
 	relationships,
 	counts,
@@ -137,43 +136,17 @@ const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
 	depth,
 	maxDepth,
 	connectionUrl,
-	schema,
-	table,
 	relationshipsLoading,
-}: RelationshipExplorerValueProps) {
+}: RenderRelationshipValueProps) {
 	const [isExpanded, setIsExpanded] = useState(depth <= 1);
 
-	if (value === null) {
-		return <span className="text-yellow-600 dark:text-yellow-500">null</span>;
+	// Handle primitives
+	const primitiveRender = renderPrimitiveValue(value);
+	if (primitiveRender !== null) {
+		return primitiveRender;
 	}
 
-	if (typeof value === "boolean") {
-		return (
-			<span className="text-yellow-600 dark:text-yellow-500">
-				{String(value)}
-			</span>
-		);
-	}
-
-	if (typeof value === "number") {
-		return <span className="text-cyan-600 dark:text-cyan-400">{value}</span>;
-	}
-
-	if (typeof value === "string") {
-		return (
-			<span className="text-green-600 dark:text-green-400">"{value}"</span>
-		);
-	}
-
-	// Handle Date objects - display as ISO string
-	if (value instanceof Date) {
-		return (
-			<span className="text-green-600 dark:text-green-400">
-				"{value.toISOString()}"
-			</span>
-		);
-	}
-
+	// Handle arrays
 	if (Array.isArray(value)) {
 		return (
 			<div data-explorer-key={`array-${depth}`} className="inline">
@@ -188,138 +161,93 @@ const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
 		);
 	}
 
-	if (typeof value === "object") {
+	// Handle objects with relationships
+	if (typeof value === "object" && value !== null) {
+		const obj = value as Record<string, unknown>;
+		const keys = Object.keys(obj);
+		const isEmpty = keys.length === 0 && relationships.length === 0;
+		const id = useId();
+
 		return (
-			<div data-explorer-key={`object-${depth}`} className="inline">
-				<RelationshipExplorerObject
-					object={value as Record<string, unknown>}
-					relationships={relationships}
-					counts={counts}
-					expandedRelationships={expandedRelationships}
-					onToggleRelationship={onToggleRelationship}
-					depth={depth}
-					maxDepth={maxDepth}
-					connectionUrl={connectionUrl}
-					schema={schema}
-					table={table}
-					relationshipsLoading={relationshipsLoading}
-				/>
-			</div>
+			<>
+				<span className="text-gray-800 dark:text-gray-200">{`{`}</span>
+				{!isEmpty && (
+					<div className="ml-4 border-l border-muted" id={id}>
+						{/* Regular data fields */}
+						{keys.map((key) => {
+							const fieldValue = obj[key];
+							const isExpandable =
+								typeof fieldValue === "object" && fieldValue !== null;
+							return (
+								<div key={key} className="py-0.5">
+									{isExpandable ? (
+										<button
+											onClick={(e) => {
+												e.preventDefault();
+												const jsonValue = document.querySelector(
+													`#${id} [data-explorer-key="${key}-${depth}"]`,
+												);
+												if (jsonValue && jsonValue !== e.currentTarget) {
+													const toggleBtn = jsonValue.querySelector("button");
+													if (toggleBtn) {
+														toggleBtn.click();
+													}
+												}
+											}}
+											className="text-blue-600 dark:text-blue-400 hover:opacity-70 transition-opacity"
+										>
+											"{key}"
+										</button>
+									) : (
+										<span className="text-blue-600 dark:text-blue-400">
+											"{key}"
+										</span>
+									)}
+									<span className="text-gray-800 dark:text-gray-200">
+										{`: `}
+									</span>
+									<div data-explorer-key={`${key}-${depth}`} className="inline">
+										<RenderRelationshipValue
+											value={fieldValue}
+											relationships={[]}
+											counts={{}}
+											expandedRelationships={expandedRelationships}
+											onToggleRelationship={onToggleRelationship}
+											depth={depth + 1}
+											maxDepth={maxDepth}
+											connectionUrl={connectionUrl}
+											relationshipsLoading={relationshipsLoading}
+										/>
+									</div>
+									<span className="text-gray-800 dark:text-gray-200">,</span>
+								</div>
+							);
+						})}
+
+						{/* Inline relationships - merged into the object */}
+						{relationships.map((rel) => (
+							<RelationshipField
+								key={rel.constraintName}
+								relationship={rel}
+								rowData={obj}
+								count={counts[rel.constraintName] ?? 0}
+								isExpanded={expandedRelationships.has(rel.constraintName)}
+								onToggle={() => onToggleRelationship(rel.constraintName)}
+								connectionUrl={connectionUrl}
+								depth={depth}
+								maxDepth={maxDepth}
+								relationshipsLoading={relationshipsLoading}
+							/>
+						))}
+					</div>
+				)}
+				<span className="text-gray-800 dark:text-gray-200">{`}`}</span>
+			</>
 		);
 	}
 
 	return (
 		<span className="text-gray-600 dark:text-gray-400">{String(value)}</span>
-	);
-});
-
-interface RelationshipExplorerObjectProps {
-	object: Record<string, unknown>;
-	relationships: TableRelationship[];
-	counts: Record<string, number>;
-	expandedRelationships: Set<string>;
-	onToggleRelationship: (constraintName: string) => void;
-	depth: number;
-	maxDepth: number;
-	connectionUrl: string;
-	schema: string;
-	table: string;
-	relationshipsLoading: boolean;
-}
-
-const RelationshipExplorerObject = memo(function RelationshipExplorerObject({
-	object,
-	relationships,
-	counts,
-	expandedRelationships,
-	onToggleRelationship,
-	depth,
-	maxDepth,
-	connectionUrl,
-	schema,
-	table,
-	relationshipsLoading,
-}: RelationshipExplorerObjectProps) {
-	const keys = Object.keys(object);
-	const isEmpty = keys.length === 0 && relationships.length === 0;
-
-	const id = useId();
-
-	return (
-		<>
-			<span className="text-gray-800 dark:text-gray-200">{`{`}</span>
-			{!isEmpty && (
-				<div className="ml-4 border-l border-muted" id={id}>
-					{/* Regular data fields */}
-					{keys.map((key) => {
-						const value = object[key];
-						const isExpandable = typeof value === "object" && value !== null;
-						return (
-							<div key={key} className="py-0.5">
-								{isExpandable ? (
-									<button
-										onClick={(e) => {
-											e.preventDefault();
-											const jsonValue = document.querySelector(
-												`#${id} [data-explorer-key="${key}-${depth}"]`,
-											);
-											if (jsonValue && jsonValue !== e.currentTarget) {
-												// Find the nested RelationshipExplorerValue and toggle it
-												const toggleBtn = jsonValue.querySelector("button");
-												if (toggleBtn) {
-													toggleBtn.click();
-												}
-											}
-										}}
-										className="text-blue-600 dark:text-blue-400 hover:opacity-70 transition-opacity"
-									>
-										"{key}"
-									</button>
-								) : (
-									<span className="text-blue-600 dark:text-blue-400">
-										"{key}"
-									</span>
-								)}
-								<span className="text-gray-800 dark:text-gray-200">{`: `}</span>
-								<div data-explorer-key={`${key}-${depth}`} className="inline">
-									<RelationshipExplorerValue
-										value={value}
-										relationships={[]}
-										counts={{}}
-										expandedRelationships={expandedRelationships}
-										onToggleRelationship={onToggleRelationship}
-										depth={depth + 1}
-										maxDepth={maxDepth}
-										connectionUrl={connectionUrl}
-										schema={schema}
-										table={table}
-										relationshipsLoading={relationshipsLoading}
-									/>
-								</div>
-								<span className="text-gray-800 dark:text-gray-200">,</span>
-							</div>
-						);
-					})}
-
-					{/* Inline relationships - merged into the object */}
-					{relationships.map((rel) => (
-						<RelationshipField
-							key={rel.constraintName}
-							relationship={rel}
-							rowData={object}
-							count={counts[rel.constraintName] ?? 0}
-							isExpanded={expandedRelationships.has(rel.constraintName)}
-							onToggle={() => onToggleRelationship(rel.constraintName)}
-							connectionUrl={connectionUrl}
-							depth={depth}
-							maxDepth={maxDepth}
-							relationshipsLoading={relationshipsLoading}
-						/>
-					))}
-				</div>
-			)}
-			<span className="text-gray-800 dark:text-gray-200">{`}`}</span>
-		</>
 	);
 });
 
@@ -392,7 +320,6 @@ const RelationshipField = memo(function RelationshipField({
 	// Use simple names like the relationships panel
 	// For outgoing (foreign keys): show just the FK column name
 	// For incoming (referenced by): show just the referenced table name
-	// Add constraint name as tiebreaker to prevent duplicates when multiple relationships exist
 	const fieldName =
 		relationship.type === "outgoing"
 			? `${relationship.referencingColumn}`
@@ -435,7 +362,7 @@ const RelationshipField = memo(function RelationshipField({
 						<>
 							{relationship.type === "outgoing" ? (
 								// Outgoing (FK): Always single parent record, show as object
-								<RelationshipExplorerValue
+								<RenderRelationshipValue
 									value={allRelatedData[0]}
 									relationships={[]}
 									counts={{}}
@@ -444,14 +371,12 @@ const RelationshipField = memo(function RelationshipField({
 									depth={depth + 1}
 									maxDepth={maxDepth}
 									connectionUrl={connectionUrl}
-									schema={querySchema}
-									table={queryTable}
 									relationshipsLoading={relationshipsLoading}
 								/>
 							) : (
 								// Incoming (referenced by): Multiple child rows, show as array
 								// Pass depth={0} so array bracket and items auto-expand
-								<RelationshipExplorerValue
+								<RenderRelationshipValue
 									value={allRelatedData}
 									relationships={[]}
 									counts={{}}
@@ -460,8 +385,6 @@ const RelationshipField = memo(function RelationshipField({
 									depth={0}
 									maxDepth={maxDepth}
 									connectionUrl={connectionUrl}
-									schema={querySchema}
-									table={queryTable}
 									relationshipsLoading={relationshipsLoading}
 								/>
 							)}

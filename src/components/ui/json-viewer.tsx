@@ -1,6 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { memo, useState } from "react";
 import { cn } from "../../lib/utils";
+import { renderPrimitiveValue } from "./json-viewer.render-primitive-value";
 
 interface JsonViewerProps {
 	data: unknown;
@@ -44,35 +45,9 @@ export const JsonValue = memo(function JsonValue({
 }: JsonValueProps) {
 	const [isExpanded, setIsExpanded] = useState(defaultExpanded || depth <= 1);
 
-	if (value === null) {
-		return <span className="text-yellow-600 dark:text-yellow-500">null</span>;
-	}
-
-	if (typeof value === "boolean") {
-		return (
-			<span className="text-yellow-600 dark:text-yellow-500">
-				{String(value)}
-			</span>
-		);
-	}
-
-	if (typeof value === "number") {
-		return <span className="text-cyan-600 dark:text-cyan-400">{value}</span>;
-	}
-
-	if (typeof value === "string") {
-		return (
-			<span className="text-green-600 dark:text-green-400">"{value}"</span>
-		);
-	}
-
-	// Handle Date objects - display as ISO string
-	if (value instanceof Date) {
-		return (
-			<span className="text-green-600 dark:text-green-400">
-				"{value.toISOString()}"
-			</span>
-		);
+	const primitiveRender = renderPrimitiveValue(value);
+	if (primitiveRender !== null) {
+		return primitiveRender;
 	}
 
 	if (Array.isArray(value)) {
