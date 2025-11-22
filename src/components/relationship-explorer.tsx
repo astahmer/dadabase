@@ -308,6 +308,7 @@ const RelationshipField = memo(function RelationshipField({
 			? rowData[relationship.referencedColumn]
 			: rowData[relationship.referencingColumn];
 
+	// Fetch all related rows (not just 1) to show as array
 	const relatedDataQuery = useQuery(
 		queryRelationshipSubrowDataQueryOptions({
 			url: connectionUrl,
@@ -315,35 +316,39 @@ const RelationshipField = memo(function RelationshipField({
 			table: relationship.referencingTable,
 			filterColumn: relationship.referencingColumn,
 			filterValue,
-			limit: 1,
+			limit: count > 0 ? Math.min(count, 100) : 1,
 			offset: 0,
 		}),
 	);
 
-	const relatedData = relatedDataQuery.data?.rows?.[0];
+	const allRelatedData = relatedDataQuery.data?.rows ?? [];
 	const isLoading = relatedDataQuery.isLoading && isExpanded;
 
-	// Use the table name as the field name in the JSON
-	const fieldName = relationship.referencingTable;
+	// Use table.column format for better clarity (like the relationships panel)
+	// For incoming: show table.fk_column > referenced.pk_column
+	// For outgoing: show table.fk_column > referenced.pk_column
+	// Add constraint name as tiebreaker to ensure uniqueness when multiple relationships to same table exist
+	const fieldName =
+		relationship.type === "incoming"
+			? `${relationship.referencedTable}.${relationship.referencedColumn} (${relationship.constraintName})`
+			: `${relationship.referencingTable}.${relationship.referencingColumn} (${relationship.constraintName})`;
 	const displayCount = count > 0 ? ` (${count})` : "";
 
 	return (
 		<div className="py-0.5">
-			<div className="flex items-center gap-1">
-				<button
-					onClick={onToggle}
-					disabled={count === 0}
-					className="inline-flex items-center p-0 h-4 w-4 hover:bg-muted rounded disabled:opacity-50 disabled:cursor-not-allowed"
-					aria-label={isExpanded ? "Collapse" : "Expand"}
-				>
-					<ChevronDown
-						size={16}
-						className={cn(
-							"transition-transform",
-							isExpanded ? "" : "-rotate-90",
-						)}
-					/>
-				</button>
+			<button
+				onClick={onToggle}
+				disabled={count === 0}
+				className="flex items-center gap-1 w-full text-left hover:opacity-70 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+				aria-label={isExpanded ? "Collapse" : "Expand"}
+			>
+				<ChevronDown
+					size={16}
+					className={cn(
+						"transition-transform shrink-0",
+						isExpanded ? "" : "-rotate-90",
+					)}
+				/>
 				<span className="text-blue-600 dark:text-blue-400">"{fieldName}"</span>
 				<span className="text-gray-600 dark:text-gray-400 text-xs">
 					{displayCount}
@@ -352,7 +357,7 @@ const RelationshipField = memo(function RelationshipField({
 				{!isExpanded && (
 					<span className="text-gray-600 dark:text-gray-400">…</span>
 				)}
-			</div>
+			</button>
 
 			{isExpanded && (
 				<div className="ml-4">
@@ -360,21 +365,40 @@ const RelationshipField = memo(function RelationshipField({
 						<span className="text-gray-500 dark:text-gray-500 italic">
 							loading…
 						</span>
-					) : relatedData ? (
+					) : allRelatedData.length > 0 ? (
 						<>
+							{allRelatedData.length === 1 ? (
+								// Single row: show as object
+								<RelationshipExplorerValue
+									value={allRelatedData[0]}
+									relationships={[]}
+									counts={{}}
+									expandedRelationships={new Set()}
+									onToggleRelationship={() => {}}
+									depth={depth + 1}
+									maxDepth={maxDepth}
+									connectionUrl={connectionUrl}
+									schema={relationship.referencingSchema}
+									table={relationship.referencingTable}
+									relationshipsLoading={relationshipsLoading}
+								/>
+						) : (
+							// Multiple rows: show as array
+							// Pass depth=0 so array items expand when user clicks on relationship
 							<RelationshipExplorerValue
-								value={relatedData}
+								value={allRelatedData}
 								relationships={[]}
 								counts={{}}
 								expandedRelationships={new Set()}
 								onToggleRelationship={() => {}}
-								depth={depth + 1}
+								depth={0}
 								maxDepth={maxDepth}
 								connectionUrl={connectionUrl}
 								schema={relationship.referencingSchema}
 								table={relationship.referencingTable}
 								relationshipsLoading={relationshipsLoading}
 							/>
+							)}
 						</>
 					) : (
 						<span className="text-yellow-600 dark:text-yellow-500">null</span>
