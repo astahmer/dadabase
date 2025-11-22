@@ -1,12 +1,12 @@
-import { ChevronDown } from "lucide-react";
-import { memo, useMemo, useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
-import type { TableRelationship } from "#src/types/relationships.ts";
-import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
-import { getRelationshipsCountsQueryOptions } from "#src/server/pg/start-fns/get-relationships-counts.start.ts";
+import { JsonArray } from "#src/components/ui/json-viewer.tsx";
 import { cn } from "#src/lib/utils";
 import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start.ts";
-import { isDateTimeDataType } from "#src/lib/data-type-utils.ts";
+import { getRelationshipsCountsQueryOptions } from "#src/server/pg/start-fns/get-relationships-counts.start.ts";
+import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
+import type { TableRelationship } from "#src/types/relationships.ts";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 interface RelationshipExplorerProps {
 	/** The current row data to display and explore relations for */
@@ -141,6 +141,8 @@ const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
 	table,
 	relationshipsLoading,
 }: RelationshipExplorerValueProps) {
+	const [isExpanded, setIsExpanded] = useState(depth <= 1);
+
 	if (value === null) {
 		return <span className="text-yellow-600 dark:text-yellow-500">null</span>;
 	}
@@ -173,7 +175,15 @@ const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
 	}
 
 	if (Array.isArray(value)) {
-		return <JsonArray array={value} depth={depth} maxDepth={maxDepth} />;
+		return (
+			<JsonArray
+				array={value}
+				depth={depth}
+				maxDepth={maxDepth}
+				isExpanded={isExpanded}
+				onToggle={() => setIsExpanded(!isExpanded)}
+			/>
+		);
 	}
 
 	if (typeof value === "object") {
@@ -235,26 +245,38 @@ const RelationshipExplorerObject = memo(function RelationshipExplorerObject({
 			{!isEmpty && (
 				<div className="ml-4 border-l border-muted">
 					{/* Regular data fields */}
-					{keys.map((key) => (
-						<div key={key} className="py-0.5">
-							<span className="text-blue-600 dark:text-blue-400">"{key}"</span>
-							<span className="text-gray-800 dark:text-gray-200">{`: `}</span>
-							<RelationshipExplorerValue
-								value={object[key]}
-								relationships={[]}
-								counts={{}}
-								expandedRelationships={expandedRelationships}
-								onToggleRelationship={onToggleRelationship}
-								depth={depth + 1}
-								maxDepth={maxDepth}
-								connectionUrl={connectionUrl}
-								schema={schema}
-								table={table}
-								relationshipsLoading={relationshipsLoading}
-							/>
-							<span className="text-gray-800 dark:text-gray-200">,</span>
-						</div>
-					))}
+					{keys.map((key) => {
+						const value = object[key];
+						const isExpandable = typeof value === "object" && value !== null;
+						return (
+							<div key={key} className="py-0.5">
+								{isExpandable ? (
+									<button className="text-blue-600 dark:text-blue-400 hover:opacity-70 transition-opacity">
+										"{key}"
+									</button>
+								) : (
+									<span className="text-blue-600 dark:text-blue-400">
+										"{key}"
+									</span>
+								)}
+								<span className="text-gray-800 dark:text-gray-200">{`: `}</span>
+								<RelationshipExplorerValue
+									value={value}
+									relationships={[]}
+									counts={{}}
+									expandedRelationships={expandedRelationships}
+									onToggleRelationship={onToggleRelationship}
+									depth={depth + 1}
+									maxDepth={maxDepth}
+									connectionUrl={connectionUrl}
+									schema={schema}
+									table={table}
+									relationshipsLoading={relationshipsLoading}
+								/>
+								<span className="text-gray-800 dark:text-gray-200">,</span>
+							</div>
+						);
+					})}
 
 					{/* Inline relationships - merged into the object */}
 					{relationships.map((rel) => (
@@ -427,200 +449,5 @@ const RelationshipField = memo(function RelationshipField({
 				</div>
 			)}
 		</div>
-	);
-});
-
-interface JsonArrayProps {
-	array: unknown[];
-	depth: number;
-	maxDepth: number;
-}
-
-const JsonArray = memo(function JsonArray({
-	array,
-	depth,
-	maxDepth,
-}: JsonArrayProps) {
-	const [isExpanded, setIsExpanded] = useState(depth === 0);
-	const isEmpty = array.length === 0;
-	const canExpand = !isEmpty && depth < maxDepth;
-
-	return (
-		<>
-			<span className="text-gray-800 dark:text-gray-200">{`[`}</span>
-			{!isEmpty && (
-				<>
-					{canExpand && (
-						<button
-							onClick={() => setIsExpanded(!isExpanded)}
-							className="inline-flex items-center ml-1 p-0 h-4 w-4 hover:bg-muted rounded"
-							aria-label={isExpanded ? "Collapse" : "Expand"}
-						>
-							<ChevronDown
-								size={16}
-								className={cn(
-									"transition-transform",
-									isExpanded ? "" : "-rotate-90",
-								)}
-							/>
-						</button>
-					)}
-					{isExpanded ? (
-						<div className="ml-4 border-l border-muted">
-							{array.map((item, index) => (
-								<div key={index} className="py-0.5">
-									<JsonValue
-										value={item}
-										depth={depth + 1}
-										maxDepth={maxDepth}
-									/>
-									{index < array.length - 1 && (
-										<span className="text-gray-800 dark:text-gray-200">,</span>
-									)}
-								</div>
-							))}
-						</div>
-					) : (
-						<span className="text-gray-600 dark:text-gray-400 ml-1">…</span>
-					)}
-				</>
-			)}
-			<span className="text-gray-800 dark:text-gray-200">{`]`}</span>
-		</>
-	);
-});
-
-interface JsonValueProps {
-	value: unknown;
-	depth: number;
-	maxDepth: number;
-}
-
-const JsonValue = memo(function JsonValue({
-	value,
-	depth,
-	maxDepth,
-}: JsonValueProps) {
-	const [isExpanded, setIsExpanded] = useState(depth <= 1);
-
-	if (value === null) {
-		return <span className="text-yellow-600 dark:text-yellow-500">null</span>;
-	}
-
-	if (typeof value === "boolean") {
-		return (
-			<span className="text-yellow-600 dark:text-yellow-500">
-				{String(value)}
-			</span>
-		);
-	}
-
-	if (typeof value === "number") {
-		return <span className="text-cyan-600 dark:text-cyan-400">{value}</span>;
-	}
-
-	if (typeof value === "string") {
-		return (
-			<span className="text-green-600 dark:text-green-400">"{value}"</span>
-		);
-	}
-
-	// Handle Date objects - display as ISO string
-	if (value instanceof Date) {
-		return (
-			<span className="text-green-600 dark:text-green-400">
-				"{value.toISOString()}"
-			</span>
-		);
-	}
-
-	if (Array.isArray(value)) {
-		return <JsonArray array={value} depth={depth} maxDepth={maxDepth} />;
-	}
-
-	if (typeof value === "object") {
-		return (
-			<SimpleJsonObject
-				object={value as Record<string, unknown>}
-				depth={depth}
-				maxDepth={maxDepth}
-				isExpanded={isExpanded}
-				onToggle={() => setIsExpanded(!isExpanded)}
-			/>
-		);
-	}
-
-	return (
-		<span className="text-gray-600 dark:text-gray-400">{String(value)}</span>
-	);
-});
-
-interface SimpleJsonObjectProps {
-	object: Record<string, unknown>;
-	depth: number;
-	maxDepth: number;
-	isExpanded: boolean;
-	onToggle: () => void;
-}
-
-const SimpleJsonObject = memo(function SimpleJsonObject({
-	object,
-	depth,
-	maxDepth,
-	isExpanded,
-	onToggle,
-}: SimpleJsonObjectProps) {
-	const keys = Object.keys(object);
-	const isEmpty = keys.length === 0;
-	const canExpand = !isEmpty && depth < maxDepth;
-
-	return (
-		<>
-			<span className="text-gray-800 dark:text-gray-200">{`{`}</span>
-			{!isEmpty && (
-				<>
-					{canExpand && (
-						<button
-							onClick={onToggle}
-							className="inline-flex items-center ml-1 p-0 h-4 w-4 hover:bg-muted rounded"
-							aria-label={isExpanded ? "Collapse" : "Expand"}
-						>
-							<ChevronDown
-								size={16}
-								className={cn(
-									"transition-transform",
-									isExpanded ? "" : "-rotate-90",
-								)}
-							/>
-						</button>
-					)}
-					{isExpanded ? (
-						<div className="ml-4 border-l border-muted">
-							{keys.map((key, index) => (
-								<div key={key} className="py-0.5">
-									<span className="text-blue-600 dark:text-blue-400">
-										"{key}"
-									</span>
-									<span className="text-gray-800 dark:text-gray-200">
-										{`: `}
-									</span>
-									<JsonValue
-										value={object[key]}
-										depth={depth + 1}
-										maxDepth={maxDepth}
-									/>
-									{index < keys.length - 1 && (
-										<span className="text-gray-800 dark:text-gray-200">,</span>
-									)}
-								</div>
-							))}
-						</div>
-					) : (
-						<span className="text-gray-600 dark:text-gray-400 ml-1">…</span>
-					)}
-				</>
-			)}
-			<span className="text-gray-800 dark:text-gray-200">{`}`}</span>
-		</>
 	);
 });

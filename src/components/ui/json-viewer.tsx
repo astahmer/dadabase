@@ -9,7 +9,7 @@ interface JsonViewerProps {
 	className?: string;
 }
 
-const JsonViewer = memo(function JsonViewer({
+export const JsonViewer = memo(function JsonViewer({
 	data,
 	defaultExpanded = false,
 	maxDepth = 10,
@@ -35,14 +35,14 @@ interface JsonValueProps {
 	dataKey?: string;
 }
 
-const JsonValue = memo(function JsonValue({
+export const JsonValue = memo(function JsonValue({
 	value,
 	depth,
 	maxDepth,
 	defaultExpanded = false,
 	dataKey,
 }: JsonValueProps) {
-	const [isExpanded, setIsExpanded] = useState(defaultExpanded || depth === 0);
+	const [isExpanded, setIsExpanded] = useState(defaultExpanded || depth <= 1);
 
 	if (value === null) {
 		return <span className="text-yellow-600 dark:text-yellow-500">null</span>;
@@ -63,6 +63,15 @@ const JsonValue = memo(function JsonValue({
 	if (typeof value === "string") {
 		return (
 			<span className="text-green-600 dark:text-green-400">"{value}"</span>
+		);
+	}
+
+	// Handle Date objects - display as ISO string
+	if (value instanceof Date) {
+		return (
+			<span className="text-green-600 dark:text-green-400">
+				"{value.toISOString()}"
+			</span>
 		);
 	}
 
@@ -109,7 +118,7 @@ interface JsonObjectProps {
 	dataKey?: string;
 }
 
-const JsonObject = memo(function JsonObject({
+export const JsonObject = memo(function JsonObject({
 	object,
 	depth,
 	maxDepth,
@@ -146,20 +155,21 @@ const JsonObject = memo(function JsonObject({
 						<div className="ml-4 border-l border-muted">
 							{keys.map((key, index) => {
 								const value = object[key];
-								const isNested = typeof value === "object" && value !== null;
+								const isExpandable =
+									typeof value === "object" && value !== null;
 								const keyId = `${dataKey}-${key}-${index}`;
 								return (
 									<div key={key} className="py-0.5">
-										{isNested ? (
+										{isExpandable ? (
 											<button
 												onClick={(e) => {
 													e.preventDefault();
 													const jsonValue = document.querySelector(
-														`[data-json-key="${keyId}"]`
+														`[data-json-key="${keyId}"]`,
 													);
 													if (jsonValue && jsonValue !== e.currentTarget) {
 														// Find the nested JsonValue/JsonObject and toggle it
-														const toggleBtn = jsonValue.querySelector('button');
+														const toggleBtn = jsonValue.querySelector("button");
 														if (toggleBtn) {
 															toggleBtn.click();
 														}
@@ -183,7 +193,9 @@ const JsonObject = memo(function JsonObject({
 											dataKey={keyId}
 										/>
 										{index < keys.length - 1 && (
-											<span className="text-gray-800 dark:text-gray-200">,</span>
+											<span className="text-gray-800 dark:text-gray-200">
+												,
+											</span>
 										)}
 									</div>
 								);
@@ -209,7 +221,7 @@ interface JsonArrayProps {
 	dataKey?: string;
 }
 
-const JsonArray = memo(function JsonArray({
+export const JsonArray = memo(function JsonArray({
 	array,
 	depth,
 	maxDepth,
@@ -285,5 +297,3 @@ export const JsonViewerModal = memo(function JsonViewerModal({
 		</div>
 	);
 });
-
-export { JsonViewer };
