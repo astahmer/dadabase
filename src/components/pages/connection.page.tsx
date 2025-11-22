@@ -351,7 +351,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																				schema={search.schema}
 																				table={search.table!}
 																				selectedRowId={
-																					pageState.relationshipRowId
+																					pageState.relationshipRowId ?? null
 																				}
 																				rowData={
 																					rowsDataTable
@@ -370,7 +370,30 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																					ctx.expandPanel("relationships");
 																				}}
 																				onClose={() => {
-																					pageState.setRelationshipRowId(null);
+																					navigate({
+																						search: (prev) => {
+																							const updatedTabs = (
+																								prev.tabs ?? []
+																							).map((tab) => {
+																								if (
+																									tab.tabId === prev.activeTabId
+																								) {
+																									return {
+																										...tab,
+																										relationshipRowId:
+																											undefined,
+																									};
+																								}
+																								return tab;
+																							});
+
+																							return {
+																								...prev,
+																								relationshipRowId: undefined,
+																								tabs: updatedTabs,
+																							};
+																						},
+																					});
 																				}}
 																			/>
 																		);
@@ -713,6 +736,7 @@ const ConnectionPageHeader = (props: {
 									limit: 50,
 									orderBy: undefined,
 									orderDirection: undefined,
+									relationshipRowId: undefined,
 									quickReferencesCellValue: undefined,
 									quickReferencesColumnName: undefined,
 									quickReferencesOpen: false,
@@ -1140,6 +1164,8 @@ const ConnectionPageSidebar = (props: {
 																		offset: 0,
 																		limit: 50,
 																		orderBy: undefined,
+																		relationshipRowId:
+																			existingTab?.relationshipRowId,
 																		orderDirection: undefined,
 																		quickReferencesOpen: false,
 																		quickReferencesColumnName: undefined,
@@ -1228,6 +1254,7 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 								table: undefined,
 								schema: undefined,
 								activeTabId: tabId,
+								relationshipRowId: undefined,
 							}),
 						});
 					} else {
@@ -1249,6 +1276,7 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 								hiddenColumnList: tab.hiddenColumnList,
 								fkValue: tab.fkValue,
 								activeTabId: tabId,
+								relationshipRowId: tab.relationshipRowId,
 							}),
 						});
 					}
@@ -1284,6 +1312,7 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 								...baseState,
 								table: undefined,
 								schema: undefined,
+								relationshipRowId: undefined,
 							};
 						}
 
@@ -1297,6 +1326,7 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 									...baseState,
 									table: undefined,
 									schema: undefined,
+									relationshipRowId: undefined,
 								};
 							}
 							return {
@@ -1313,6 +1343,7 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 								tableSize: newActiveTab.tableSize ?? "cozy",
 								tableFilter: newActiveTab.tableFilter,
 								hiddenColumnList: newActiveTab.hiddenColumnList,
+								relationshipRowId: newActiveTab.relationshipRowId,
 							};
 						}
 
@@ -1337,6 +1368,7 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 					hiddenColumnList: undefined,
 					filters: undefined,
 					filtersOpened: false,
+					relationshipRowId: undefined,
 				};
 				navigate({
 					search: (prev) => ({

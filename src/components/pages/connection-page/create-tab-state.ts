@@ -15,6 +15,7 @@ export const createTabState = (
 	tableFilter: undefined,
 	orderBy: undefined,
 	orderDirection: undefined,
+	relationshipRowId: undefined,
 	limit: options?.limit ?? 50,
 	offset: options?.offset ?? 0,
 	viewMode: "rows" as const,

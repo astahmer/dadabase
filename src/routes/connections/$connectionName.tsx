@@ -38,6 +38,7 @@ const tabStateSchema = Schema.Struct({
 	}).pipe(Schema.optional), // Zipson-compressed column pinning config
 	columnOrder: Schema.String.pipe(Schema.Array, Schema.optional), // JSON-stringified column order array
 	fkValue: Schema.String.pipe(Schema.optional), // FK value used when navigating to this tab
+	relationshipRowId: Schema.String.pipe(Schema.optional), // Row ID for expanded relationships panel
 });
 
 const searchSchema = Schema.Struct({
@@ -83,6 +84,7 @@ const searchSchema = Schema.Struct({
 	rowJsonViewerRowId: Schema.Union(Schema.String, Schema.Number).pipe(
 		Schema.optional,
 	), // Primary key value to identify which row to display
+	relationshipRowId: Schema.String.pipe(Schema.optional), // Row ID for expanded relationships panel
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({

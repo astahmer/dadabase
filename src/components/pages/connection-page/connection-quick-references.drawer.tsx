@@ -114,6 +114,7 @@ export const ConnectionQuickReferencesDrawer = ({
 										limit: 50,
 										orderBy: undefined,
 										orderDirection: undefined,
+										relationshipRowId: undefined,
 										quickReferencesOpen: false,
 										quickReferencesColumnName: undefined,
 										quickReferencesCellValue: undefined,

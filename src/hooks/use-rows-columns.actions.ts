@@ -64,6 +64,7 @@ export const useRowsColumnsAction = (props: UseRowsColumnsActionOptions) => {
 					limit: 50,
 					orderBy: undefined,
 					orderDirection: undefined,
+					relationshipRowId: undefined,
 				}),
 			});
 		},
@@ -134,6 +135,7 @@ export const useRowsColumnsAction = (props: UseRowsColumnsActionOptions) => {
 					limit: 50,
 					orderBy: undefined,
 					orderDirection: undefined,
+					relationshipRowId: undefined,
 				}),
 			});
 		},

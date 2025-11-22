@@ -51,6 +51,7 @@ export const useConnectionPageState = ({
 			tableSize: s.tableSize,
 			columnPinning: s.columnPinning,
 			columnOrder: s.columnOrder,
+			relationshipRowId: s.relationshipRowId,
 		}),
 	});
 
@@ -146,10 +147,6 @@ export const useConnectionPageState = ({
 		[rowsList],
 	);
 
-	const [relationshipRowId, setRelationshipRowId] = useState<string | null>(
-		null,
-	);
-
 	// Static columns
 	const staticColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(
 		() => [
@@ -239,7 +236,27 @@ export const useConnectionPageState = ({
 						>
 							<RowContextMenu
 								row={ctx.row.original as Record<string, unknown>}
-								onExpandRelationships={() => setRelationshipRowId(ctx.row.id)}
+								onExpandRelationships={() => {
+									navigate({
+										search: (prev) => {
+											const updatedTabs = (prev.tabs ?? []).map((tab) => {
+												if (tab.tabId === prev.activeTabId) {
+													return {
+														...tab,
+														relationshipRowId: ctx.row.id,
+													};
+												}
+												return tab;
+											});
+
+											return {
+												...prev,
+												relationshipRowId: ctx.row.id,
+												tabs: updatedTabs,
+											};
+										},
+									});
+								}}
 								onExpandRowJson={(row) => {
 									const primaryKeyColumn = tableMetadata.columnMetadata.find(
 										(col) => col.primaryKey,
@@ -354,7 +371,7 @@ export const useConnectionPageState = ({
 	const renderSubrows = useCallback(
 		(row: Row<Record<string, unknown>>): DataTableRowSubrow[] => {
 			// Only render if we have an expanded relationship row set
-			if (relationshipRowId !== row.id) {
+			if (search.relationshipRowId !== row.id) {
 				return [];
 			}
 
@@ -369,7 +386,7 @@ export const useConnectionPageState = ({
 				),
 			}));
 		},
-		[relationships, relationshipRowId, activeConnectionUrl],
+		[relationships, search.relationshipRowId, activeConnectionUrl],
 	);
 
 	// Combine columns
@@ -642,8 +659,7 @@ export const useConnectionPageState = ({
 		rowsDataTable,
 		rowsColumns,
 		hasUuid,
-		relationshipRowId,
-		setRelationshipRowId,
+		relationshipRowId: search.relationshipRowId,
 		relationships,
 		renderSubrows,
 	};
