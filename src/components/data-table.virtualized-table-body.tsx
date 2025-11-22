@@ -20,6 +20,8 @@ export interface VirtualizedTableBodyProps<TData> {
 	enableColumnOrdering: boolean;
 	columnOrder?: string[];
 	renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
+	tableMetadata?: { schema: string; table: string };
+	connectionUrl?: string;
 }
 
 export function VirtualizedTableBody<TData>({
@@ -38,6 +40,8 @@ export function VirtualizedTableBody<TData>({
 	scrollElement,
 	columnOrder = [],
 	renderSubrows,
+	tableMetadata,
+	connectionUrl,
 }: VirtualizedTableBodyProps<TData>) {
 	const virtualizer = useVirtualizer({
 		count: rows.length,
@@ -81,6 +85,8 @@ export function VirtualizedTableBody<TData>({
 						ExpandedRow={ExpandedRow}
 						onExpandRowJson={onExpandRowJson}
 						renderSubrows={renderSubrows}
+						tableMetadata={tableMetadata}
+						connectionUrl={connectionUrl}
 					/>
 				);
 			})}

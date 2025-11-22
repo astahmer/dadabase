@@ -236,6 +236,11 @@ export const useConnectionPageState = ({
 						>
 							<RowContextMenu
 								row={ctx.row.original as Record<string, unknown>}
+								tableMetadata={{
+									schema: search.schema,
+									table: search.table,
+								}}
+								connectionUrl={activeConnectionUrl}
 								onExpandRelationships={() => {
 									navigate({
 										search: (prev) => {

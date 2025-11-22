@@ -36,6 +36,8 @@ export const DataTableRow = memo(function TableRow({
 	enableColumnOrdering,
 	columnOrder = [],
 	renderSubrows,
+	tableMetadata,
+	connectionUrl,
 }: {
 	index: number;
 	getRow: () => Row<any>;
@@ -50,6 +52,8 @@ export const DataTableRow = memo(function TableRow({
 	ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
 	renderSubrows?: (row: Row<any>) => DataTableRowSubrow[];
+	tableMetadata?: { schema?: string; table?: string };
+	connectionUrl?: string;
 }) {
 	const row = getRow();
 	const visibleCells = row.getVisibleCells();
@@ -124,6 +128,8 @@ export const DataTableRow = memo(function TableRow({
 				<RowContextMenu
 					row={row.original as Record<string, unknown>}
 					onExpandRowJson={onExpandRowJson}
+					tableMetadata={tableMetadata}
+					connectionUrl={connectionUrl}
 				>
 					{MainRow}
 				</RowContextMenu>

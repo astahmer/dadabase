@@ -7,7 +7,7 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "../../ui/sheet.tsx";
-import { JsonViewerModal } from "../../ui/json-viewer.tsx";
+import { EnhancedJsonViewer } from "../../ui/enhanced-json-viewer.tsx";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
 import { useMemo } from "react";
@@ -108,7 +108,15 @@ export const ConnectionRowJsonViewerDrawer = ({
 				</SheetHeader>
 				<div className="p-4 flex-1 overflow-auto">
 					{rowJsonData ? (
-						<JsonViewerModal data={rowJsonData} className="h-full" />
+						<EnhancedJsonViewer
+							data={rowJsonData}
+							className="h-full"
+							showRelationships={true}
+							schema={search.schema}
+							table={search.table}
+							connectionUrl={activeConnectionUrl}
+							maxDepth={5}
+						/>
 					) : !search.rowJsonViewerRowId ? (
 						<div className="text-sm text-muted-foreground">No data</div>
 					) : (
