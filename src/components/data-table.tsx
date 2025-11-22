@@ -80,6 +80,8 @@ export interface DataTableProps<TData> {
 	enableColumnOrdering?: boolean;
 	renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
 	hideColumnPinIconUnlessHovered?: boolean;
+	tableMetadata?: { schema: string; table: string };
+	connectionUrl?: string;
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -110,6 +112,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		enableColumnOrdering = false,
 		renderSubrows,
 		hideColumnPinIconUnlessHovered = true,
+		tableMetadata,
+		connectionUrl,
 	} = props;
 
 	const state = table.getState();
@@ -398,6 +402,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 							overscan={overscan}
 							scrollElement={tableContainerRef.current}
 							renderSubrows={renderSubrows}
+							tableMetadata={tableMetadata}
+							connectionUrl={connectionUrl}
 						/>
 					</tbody>
 				) : (
@@ -418,6 +424,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									ExpandedRow={ExpandedRow}
 									onExpandRowJson={props.onExpandRowJson}
 									renderSubrows={renderSubrows}
+									tableMetadata={tableMetadata}
+									connectionUrl={connectionUrl}
 								/>
 							))
 						) : (

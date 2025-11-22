@@ -10,6 +10,8 @@ import {
 export interface RowContextMenuProps extends RowActionsMenuContentProps {
 	children: React.ReactNode;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
+	tableMetadata?: { schema?: string; table?: string };
+	connectionUrl?: string;
 }
 
 export function RowContextMenu(props: RowContextMenuProps) {
@@ -44,6 +46,10 @@ export function RowContextMenu(props: RowContextMenuProps) {
 							row={props.row}
 							onClose={() => setIsJsonViewerOpen(false)}
 							onExpandToDialog={() => props.onExpandRowJson?.(props.row)}
+							showRelationships={true}
+							schema={props.tableMetadata?.schema}
+							table={props.tableMetadata?.table}
+							connectionUrl={props.connectionUrl}
 						/>
 					</Popover.Content>
 				</Popover.Positioner>

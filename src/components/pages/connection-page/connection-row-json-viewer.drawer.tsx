@@ -7,7 +7,8 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "../../ui/sheet.tsx";
-import { JsonViewerModal } from "../../ui/json-viewer.tsx";
+import { RelationshipExplorer } from "#src/components/relationship-explorer.tsx";
+import { JsonViewer } from "../../ui/json-viewer.tsx";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
 import { useMemo } from "react";
@@ -86,6 +87,13 @@ export const ConnectionRowJsonViewerDrawer = ({
 		return null;
 	}
 
+	const useRelationshipExplorer =
+		search.schema &&
+		search.table &&
+		connectionUrl &&
+		typeof rowJsonData === "object" &&
+		rowJsonData !== null;
+
 	return (
 		<Sheet
 			open={true}
@@ -108,7 +116,24 @@ export const ConnectionRowJsonViewerDrawer = ({
 				</SheetHeader>
 				<div className="p-4 flex-1 overflow-auto">
 					{rowJsonData ? (
-						<JsonViewerModal data={rowJsonData} className="h-full" />
+						useRelationshipExplorer ? (
+							<RelationshipExplorer
+								row={rowJsonData as Record<string, unknown>}
+								schema={search.schema!}
+								table={search.table!}
+								connectionUrl={activeConnectionUrl}
+								className="h-full"
+								maxDepth={5}
+								showRelationships={true}
+							/>
+						) : (
+							<JsonViewer
+								data={rowJsonData}
+								defaultExpanded={true}
+								maxDepth={5}
+								className="h-full"
+							/>
+						)
 					) : !search.rowJsonViewerRowId ? (
 						<div className="text-sm text-muted-foreground">No data</div>
 					) : (
