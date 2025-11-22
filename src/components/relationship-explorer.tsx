@@ -301,22 +301,42 @@ const RelationshipField = memo(function RelationshipField({
 	maxDepth,
 	relationshipsLoading,
 }: RelationshipFieldProps) {
-	// For outgoing: use FK value from current row
-	// For incoming: use PK value from current row to find references
+	// For outgoing (FK): fetch the referenced parent record
+	// - current table has the FK pointing to parent
+	// - query the parent table where parent PK = our FK value
+	// For incoming (referenced by): fetch all child records
+	// - another table references this table's PK
+	// - query the other table where their FK = our PK value
+	const querySchema =
+		relationship.type === "outgoing"
+			? relationship.referencedSchema
+			: relationship.referencingSchema;
+	const queryTable =
+		relationship.type === "outgoing"
+			? relationship.referencedTable
+			: relationship.referencingTable;
+	const queryFilterColumn =
+		relationship.type === "outgoing"
+			? relationship.referencedColumn
+			: relationship.referencingColumn;
 	const filterValue =
-		relationship.type === "incoming"
-			? rowData[relationship.referencedColumn]
-			: rowData[relationship.referencingColumn];
+		relationship.type === "outgoing"
+			? rowData[relationship.referencingColumn]
+			: rowData[relationship.referencedColumn];
 
-	// Fetch all related rows (not just 1) to show as array
+	// For outgoing (FK): fetch 1 parent record
+	// For incoming (referenced by): fetch all child rows (up to 100)
+	const limit =
+		relationship.type === "outgoing" ? 1 : count > 0 ? Math.min(count, 100) : 1;
+
 	const relatedDataQuery = useQuery(
 		queryRelationshipSubrowDataQueryOptions({
 			url: connectionUrl,
-			schema: relationship.referencingSchema,
-			table: relationship.referencingTable,
-			filterColumn: relationship.referencingColumn,
+			schema: querySchema,
+			table: queryTable,
+			filterColumn: queryFilterColumn,
 			filterValue,
-			limit: count > 0 ? Math.min(count, 100) : 1,
+			limit,
 			offset: 0,
 		}),
 	);
@@ -324,15 +344,16 @@ const RelationshipField = memo(function RelationshipField({
 	const allRelatedData = relatedDataQuery.data?.rows ?? [];
 	const isLoading = relatedDataQuery.isLoading && isExpanded;
 
-	// Use table.column format for better clarity (like the relationships panel)
-	// For incoming: show table.fk_column > referenced.pk_column
-	// For outgoing: show table.fk_column > referenced.pk_column
-	// Add constraint name as tiebreaker to ensure uniqueness when multiple relationships to same table exist
+	// Use simple names like the relationships panel
+	// For outgoing (foreign keys): show just the FK column name
+	// For incoming (referenced by): show just the referenced table name
+	// Add constraint name as tiebreaker to prevent duplicates when multiple relationships exist
 	const fieldName =
-		relationship.type === "incoming"
-			? `${relationship.referencedTable}.${relationship.referencedColumn} (${relationship.constraintName})`
-			: `${relationship.referencingTable}.${relationship.referencingColumn} (${relationship.constraintName})`;
-	const displayCount = count > 0 ? ` (${count})` : "";
+		relationship.type === "outgoing"
+			? `${relationship.referencingColumn}`
+			: `${relationship.referencingTable}.${relationship.referencingColumn}`;
+	const displayCount =
+		relationship.type === "incoming" && count > 0 ? ` (${count})` : "";
 
 	return (
 		<div className="py-0.5">
@@ -367,8 +388,8 @@ const RelationshipField = memo(function RelationshipField({
 						</span>
 					) : allRelatedData.length > 0 ? (
 						<>
-							{allRelatedData.length === 1 ? (
-								// Single row: show as object
+							{relationship.type === "outgoing" ? (
+								// Outgoing (FK): Always single parent record, show as object
 								<RelationshipExplorerValue
 									value={allRelatedData[0]}
 									relationships={[]}
@@ -378,26 +399,26 @@ const RelationshipField = memo(function RelationshipField({
 									depth={depth + 1}
 									maxDepth={maxDepth}
 									connectionUrl={connectionUrl}
-									schema={relationship.referencingSchema}
-									table={relationship.referencingTable}
+									schema={querySchema}
+									table={queryTable}
 									relationshipsLoading={relationshipsLoading}
 								/>
-						) : (
-							// Multiple rows: show as array
-							// Pass depth=0 so array items expand when user clicks on relationship
-							<RelationshipExplorerValue
-								value={allRelatedData}
-								relationships={[]}
-								counts={{}}
-								expandedRelationships={new Set()}
-								onToggleRelationship={() => {}}
-								depth={0}
-								maxDepth={maxDepth}
-								connectionUrl={connectionUrl}
-								schema={relationship.referencingSchema}
-								table={relationship.referencingTable}
-								relationshipsLoading={relationshipsLoading}
-							/>
+							) : (
+								// Incoming (referenced by): Multiple child rows, show as array
+								// Pass depth={0} so array bracket and items auto-expand
+								<RelationshipExplorerValue
+									value={allRelatedData}
+									relationships={[]}
+									counts={{}}
+									expandedRelationships={new Set()}
+									onToggleRelationship={() => {}}
+									depth={0}
+									maxDepth={maxDepth}
+									connectionUrl={connectionUrl}
+									schema={querySchema}
+									table={queryTable}
+									relationshipsLoading={relationshipsLoading}
+								/>
 							)}
 						</>
 					) : (
