@@ -501,7 +501,7 @@ const JsonValue = memo(function JsonValue({
 	depth,
 	maxDepth,
 }: JsonValueProps) {
-	const [isExpanded, setIsExpanded] = useState(depth === 0);
+	const [isExpanded, setIsExpanded] = useState(depth <= 1);
 
 	if (value === null) {
 		return <span className="text-yellow-600 dark:text-yellow-500">null</span>;
