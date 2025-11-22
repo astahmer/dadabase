@@ -1,11 +1,10 @@
 import { ChevronDown } from "lucide-react";
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { TableRelationship } from "#src/types/relationships.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
-import { getRelationshipsCountsQueryOptions } from "#src/server/pg/start-fns/get-relationships-counts.start.ts";
 import { cn } from "#src/lib/utils";
-import { RelationshipExplorerKey } from "#src/components/relationship-explorer.key";
+import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start.ts";
 
 interface RelationshipExplorerProps {
 	/** The current row data to display and explore relations for */
@@ -25,9 +24,9 @@ interface RelationshipExplorerProps {
 }
 
 /**
- * RelationshipExplorer displays a row as JSON with collapsible relationship keys.
- * Relationships are shown with row counts when collapsed, and lazy-load data on expand.
- * This unified interface makes it easy to visualize a row and its relations without switching tables.
+ * RelationshipExplorer displays a row as JSON with nested related data.
+ * Outgoing relationships are merged into the row structure as nested objects/arrays.
+ * Only shows outgoing relationships (where this table has the FK).
  */
 export const RelationshipExplorer = memo(function RelationshipExplorer({
 	row,
@@ -53,53 +52,25 @@ export const RelationshipExplorer = memo(function RelationshipExplorer({
 
 	const allRelationships = relationshipsQuery.data ?? [];
 
-	// Filter relationships where the FK/PK value is not null
-	const validRelationships = showRelationships
-		? allRelationships.filter((rel) => {
-				const filterValue =
-					row[
-						rel.type === "incoming"
-							? rel.referencedColumn
-							: rel.referencingColumn
-					];
-				return (
-					filterValue !== null &&
-					filterValue !== undefined &&
-					filterValue !== "null"
-				);
-			})
-		: [];
+	// Filter to only OUTGOING relationships (this table has the FK)
+	// and where the FK value is not null
+	const outgoingRelationships = useMemo(() => {
+		return showRelationships
+			? allRelationships.filter((rel) => {
+					// Only outgoing relationships
+					if (rel.type !== "outgoing") {
+						return false;
+					}
 
-	// Fetch counts for all relationships
-	const countsQuery = useQuery({
-		...getRelationshipsCountsQueryOptions({
-			url: connectionUrl,
-			schema,
-			table,
-			relationships: validRelationships,
-			rowData: row,
-		}),
-		enabled: validRelationships.length > 0,
-	});
+					const fkValue = row[rel.referencingColumn];
+					return (
+						fkValue !== null && fkValue !== undefined && fkValue !== "null"
+					);
+				})
+			: [];
+	}, [allRelationships, showRelationships, row]);
 
-	const counts = countsQuery.data ?? {};
-
-	// Separate relationship data by type
-	const relationshipsByType = useMemo(() => {
-		return {
-			outgoing: validRelationships.filter((r) => r.type === "outgoing"),
-			incoming: validRelationships.filter((r) => r.type === "incoming"),
-		};
-	}, [validRelationships]);
-
-	// Extract regular data (non-relationship columns)
-	const regularData = useMemo(() => {
-		const result = { ...row };
-		// Keep all data - relationships will be handled separately
-		return result;
-	}, [row]);
-
-	const handleToggleRelationship = (constraintName: string) => {
+	const handleToggleRelationship = useCallback((constraintName: string) => {
 		setExpandedRelationships((prev) => {
 			const next = new Set(prev);
 			if (next.has(constraintName)) {
@@ -109,15 +80,13 @@ export const RelationshipExplorer = memo(function RelationshipExplorer({
 			}
 			return next;
 		});
-	};
+	}, []);
 
 	return (
 		<div className={cn("font-mono text-sm", className)}>
 			<RelationshipExplorerValue
-				value={regularData}
-				relationships={validRelationships}
-				relationshipsByType={relationshipsByType}
-				counts={counts}
+				value={row}
+				relationships={outgoingRelationships}
 				expandedRelationships={expandedRelationships}
 				onToggleRelationship={handleToggleRelationship}
 				depth={0}
@@ -125,9 +94,7 @@ export const RelationshipExplorer = memo(function RelationshipExplorer({
 				connectionUrl={connectionUrl}
 				schema={schema}
 				table={table}
-				row={row}
 				relationshipsLoading={relationshipsQuery.isLoading}
-				countsLoading={countsQuery.isLoading}
 			/>
 		</div>
 	);
@@ -136,11 +103,6 @@ export const RelationshipExplorer = memo(function RelationshipExplorer({
 interface RelationshipExplorerValueProps {
 	value: unknown;
 	relationships: TableRelationship[];
-	relationshipsByType: {
-		outgoing: TableRelationship[];
-		incoming: TableRelationship[];
-	};
-	counts: Record<string, number>;
 	expandedRelationships: Set<string>;
 	onToggleRelationship: (constraintName: string) => void;
 	depth: number;
@@ -148,16 +110,12 @@ interface RelationshipExplorerValueProps {
 	connectionUrl: string;
 	schema: string;
 	table: string;
-	row: Record<string, unknown>;
 	relationshipsLoading: boolean;
-	countsLoading: boolean;
 }
 
 const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
 	value,
 	relationships,
-	relationshipsByType,
-	counts,
 	expandedRelationships,
 	onToggleRelationship,
 	depth,
@@ -165,9 +123,7 @@ const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
 	connectionUrl,
 	schema,
 	table,
-	row,
 	relationshipsLoading,
-	countsLoading,
 }: RelationshipExplorerValueProps) {
 	if (value === null) {
 		return <span className="text-yellow-600 dark:text-yellow-500">null</span>;
@@ -200,8 +156,6 @@ const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
 			<RelationshipExplorerObject
 				object={value as Record<string, unknown>}
 				relationships={relationships}
-				relationshipsByType={relationshipsByType}
-				counts={counts}
 				expandedRelationships={expandedRelationships}
 				onToggleRelationship={onToggleRelationship}
 				depth={depth}
@@ -209,9 +163,7 @@ const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
 				connectionUrl={connectionUrl}
 				schema={schema}
 				table={table}
-				row={row}
 				relationshipsLoading={relationshipsLoading}
-				countsLoading={countsLoading}
 			/>
 		);
 	}
@@ -224,11 +176,6 @@ const RelationshipExplorerValue = memo(function RelationshipExplorerValue({
 interface RelationshipExplorerObjectProps {
 	object: Record<string, unknown>;
 	relationships: TableRelationship[];
-	relationshipsByType: {
-		outgoing: TableRelationship[];
-		incoming: TableRelationship[];
-	};
-	counts: Record<string, number>;
 	expandedRelationships: Set<string>;
 	onToggleRelationship: (constraintName: string) => void;
 	depth: number;
@@ -236,16 +183,12 @@ interface RelationshipExplorerObjectProps {
 	connectionUrl: string;
 	schema: string;
 	table: string;
-	row: Record<string, unknown>;
 	relationshipsLoading: boolean;
-	countsLoading: boolean;
 }
 
 const RelationshipExplorerObject = memo(function RelationshipExplorerObject({
 	object,
 	relationships,
-	relationshipsByType,
-	counts,
 	expandedRelationships,
 	onToggleRelationship,
 	depth,
@@ -253,9 +196,7 @@ const RelationshipExplorerObject = memo(function RelationshipExplorerObject({
 	connectionUrl,
 	schema,
 	table,
-	row,
 	relationshipsLoading,
-	countsLoading,
 }: RelationshipExplorerObjectProps) {
 	const keys = Object.keys(object);
 	const isEmpty = keys.length === 0 && relationships.length === 0;
@@ -266,15 +207,13 @@ const RelationshipExplorerObject = memo(function RelationshipExplorerObject({
 			{!isEmpty && (
 				<div className="ml-4 border-l border-muted">
 					{/* Regular data fields */}
-					{keys.map((key, index) => (
+					{keys.map((key) => (
 						<div key={key} className="py-0.5">
 							<span className="text-blue-600 dark:text-blue-400">"{key}"</span>
 							<span className="text-gray-800 dark:text-gray-200">{`: `}</span>
 							<RelationshipExplorerValue
 								value={object[key]}
-								relationships={relationships}
-								relationshipsByType={relationshipsByType}
-								counts={counts}
+								relationships={[]}
 								expandedRelationships={expandedRelationships}
 								onToggleRelationship={onToggleRelationship}
 								depth={depth + 1}
@@ -282,48 +221,122 @@ const RelationshipExplorerObject = memo(function RelationshipExplorerObject({
 								connectionUrl={connectionUrl}
 								schema={schema}
 								table={table}
-								row={row}
 								relationshipsLoading={relationshipsLoading}
-								countsLoading={countsLoading}
 							/>
 							<span className="text-gray-800 dark:text-gray-200">,</span>
 						</div>
 					))}
 
-					{/* Relationship sections */}
-					{(["outgoing", "incoming"] as const).map((type) => {
-						const rels = relationshipsByType[type];
-						if (rels.length === 0) return null;
-
-						return (
-							<div key={type} className="py-0.5">
-								<div className="text-blue-600 dark:text-blue-400">
-									{type === "outgoing" ? `"__outgoing"` : `"__incoming"`}
-								</div>
-								<span className="text-gray-800 dark:text-gray-200">{`: {`}</span>
-								<div className="ml-4 border-l border-muted">
-									{rels.map((rel) => (
-										<RelationshipExplorerKey
-											key={rel.constraintName}
-											relationship={rel}
-											count={counts[rel.constraintName] ?? 0}
-											isExpanded={expandedRelationships.has(rel.constraintName)}
-											onToggle={() => onToggleRelationship(rel.constraintName)}
-											connectionUrl={connectionUrl}
-											row={row}
-											relationshipsLoading={relationshipsLoading}
-											countsLoading={countsLoading}
-										/>
-									))}
-								</div>
-								<span className="text-gray-800 dark:text-gray-200">{`},`}</span>
-							</div>
-						);
-					})}
+					{/* Inline relationships - merged into the object */}
+					{relationships.map((rel) => (
+						<RelationshipField
+							key={rel.constraintName}
+							relationship={rel}
+							rowData={object}
+							isExpanded={expandedRelationships.has(rel.constraintName)}
+							onToggle={() => onToggleRelationship(rel.constraintName)}
+							connectionUrl={connectionUrl}
+							depth={depth}
+							maxDepth={maxDepth}
+							relationshipsLoading={relationshipsLoading}
+						/>
+					))}
 				</div>
 			)}
 			<span className="text-gray-800 dark:text-gray-200">{`}`}</span>
 		</>
+	);
+});
+
+interface RelationshipFieldProps {
+	relationship: TableRelationship;
+	rowData: Record<string, unknown>;
+	isExpanded: boolean;
+	onToggle: () => void;
+	connectionUrl: string;
+	depth: number;
+	maxDepth: number;
+	relationshipsLoading: boolean;
+}
+
+const RelationshipField = memo(function RelationshipField({
+	relationship,
+	rowData,
+	isExpanded,
+	onToggle,
+	connectionUrl,
+	depth,
+	maxDepth,
+	relationshipsLoading,
+}: RelationshipFieldProps) {
+	const fkValue = rowData[relationship.referencingColumn];
+
+	const relatedDataQuery = useQuery(
+		queryRelationshipSubrowDataQueryOptions({
+			url: connectionUrl,
+			schema: relationship.referencingSchema,
+			table: relationship.referencingTable,
+			filterColumn: relationship.referencingColumn,
+			filterValue: fkValue,
+			limit: 1,
+			offset: 0,
+		}),
+	);
+
+	const relatedData = relatedDataQuery.data?.rows?.[0];
+	const isLoading = relatedDataQuery.isLoading && isExpanded;
+
+	// Use the referenced table name as the field name in the JSON
+	const fieldName = relationship.referencedTable;
+
+	return (
+		<div className="py-0.5">
+			<div className="flex items-center gap-1">
+				<button
+					onClick={onToggle}
+					className="inline-flex items-center p-0 h-4 w-4 hover:bg-muted rounded"
+					aria-label={isExpanded ? "Collapse" : "Expand"}
+				>
+					<ChevronDown
+						size={16}
+						className={cn(
+							"transition-transform",
+							isExpanded ? "" : "-rotate-90",
+						)}
+					/>
+				</button>
+				<span className="text-blue-600 dark:text-blue-400">"{fieldName}"</span>
+				<span className="text-gray-800 dark:text-gray-200">{`: `}</span>
+			</div>
+
+			{isExpanded ? (
+				<div className="ml-4">
+					{isLoading ? (
+						<span className="text-gray-500 dark:text-gray-500 italic">
+							loading…
+						</span>
+					) : relatedData ? (
+						<RelationshipExplorerValue
+							value={relatedData}
+							relationships={[]}
+							expandedRelationships={new Set()}
+							onToggleRelationship={() => {}}
+							depth={depth + 1}
+							maxDepth={maxDepth}
+							connectionUrl={connectionUrl}
+							schema={relationship.referencedSchema}
+							table={relationship.referencedTable}
+							relationshipsLoading={relationshipsLoading}
+						/>
+					) : (
+						<span className="text-yellow-600 dark:text-yellow-500">null</span>
+					)}
+				</div>
+			) : (
+				<span className="text-gray-600 dark:text-gray-400 ml-2">…</span>
+			)}
+			<span className="text-gray-800 dark:text-gray-200">,</span>
+		</div>
 	);
 });
 
@@ -489,7 +502,9 @@ const SimpleJsonObject = memo(function SimpleJsonObject({
 									<span className="text-blue-600 dark:text-blue-400">
 										"{key}"
 									</span>
-									<span className="text-gray-800 dark:text-gray-200">{`: `}</span>
+									<span className="text-gray-800 dark:text-gray-200">
+										{`: `}
+									</span>
 									<JsonValue
 										value={object[key]}
 										depth={depth + 1}
