@@ -32,6 +32,7 @@ interface JsonValueProps {
 	depth: number;
 	maxDepth: number;
 	defaultExpanded?: boolean;
+	dataKey?: string;
 }
 
 const JsonValue = memo(function JsonValue({
@@ -39,6 +40,7 @@ const JsonValue = memo(function JsonValue({
 	depth,
 	maxDepth,
 	defaultExpanded = false,
+	dataKey,
 }: JsonValueProps) {
 	const [isExpanded, setIsExpanded] = useState(defaultExpanded || depth === 0);
 
@@ -73,6 +75,7 @@ const JsonValue = memo(function JsonValue({
 				isExpanded={isExpanded}
 				onToggle={() => setIsExpanded(!isExpanded)}
 				defaultExpanded={defaultExpanded}
+				dataKey={dataKey}
 			/>
 		);
 	}
@@ -86,6 +89,7 @@ const JsonValue = memo(function JsonValue({
 				isExpanded={isExpanded}
 				onToggle={() => setIsExpanded(!isExpanded)}
 				defaultExpanded={defaultExpanded}
+				dataKey={dataKey}
 			/>
 		);
 	}
@@ -102,6 +106,7 @@ interface JsonObjectProps {
 	isExpanded: boolean;
 	onToggle: () => void;
 	defaultExpanded?: boolean;
+	dataKey?: string;
 }
 
 const JsonObject = memo(function JsonObject({
@@ -111,13 +116,14 @@ const JsonObject = memo(function JsonObject({
 	isExpanded,
 	onToggle,
 	defaultExpanded,
+	dataKey,
 }: JsonObjectProps) {
 	const keys = Object.keys(object);
 	const isEmpty = keys.length === 0;
 	const canExpand = !isEmpty && depth < maxDepth;
 
 	return (
-		<>
+		<div data-json-key={dataKey} className="inline">
 			<span className="text-gray-800 dark:text-gray-200">{`{`}</span>
 			{!isEmpty && (
 				<>
@@ -138,23 +144,50 @@ const JsonObject = memo(function JsonObject({
 					)}
 					{isExpanded ? (
 						<div className="ml-4 border-l border-muted">
-							{keys.map((key, index) => (
-								<div key={key} className="py-0.5">
-									<span className="text-blue-600 dark:text-blue-400">
-										"{key}"
-									</span>
-									<span className="text-gray-800 dark:text-gray-200">{`: `}</span>
-									<JsonValue
-										value={object[key]}
-										depth={depth + 1}
-										maxDepth={maxDepth}
-										defaultExpanded={defaultExpanded}
-									/>
-									{index < keys.length - 1 && (
-										<span className="text-gray-800 dark:text-gray-200">,</span>
-									)}
-								</div>
-							))}
+							{keys.map((key, index) => {
+								const value = object[key];
+								const isNested = typeof value === "object" && value !== null;
+								const keyId = `${dataKey}-${key}-${index}`;
+								return (
+									<div key={key} className="py-0.5">
+										{isNested ? (
+											<button
+												onClick={(e) => {
+													e.preventDefault();
+													const jsonValue = document.querySelector(
+														`[data-json-key="${keyId}"]`
+													);
+													if (jsonValue && jsonValue !== e.currentTarget) {
+														// Find the nested JsonValue/JsonObject and toggle it
+														const toggleBtn = jsonValue.querySelector('button');
+														if (toggleBtn) {
+															toggleBtn.click();
+														}
+													}
+												}}
+												className="text-blue-600 dark:text-blue-400 hover:opacity-70 transition-opacity"
+											>
+												"{key}"
+											</button>
+										) : (
+											<span className="text-blue-600 dark:text-blue-400">
+												"{key}"
+											</span>
+										)}
+										<span className="text-gray-800 dark:text-gray-200">{`: `}</span>
+										<JsonValue
+											value={value}
+											depth={depth + 1}
+											maxDepth={maxDepth}
+											defaultExpanded={defaultExpanded}
+											dataKey={keyId}
+										/>
+										{index < keys.length - 1 && (
+											<span className="text-gray-800 dark:text-gray-200">,</span>
+										)}
+									</div>
+								);
+							})}
 						</div>
 					) : (
 						<span className="text-gray-600 dark:text-gray-400 ml-1">…</span>
@@ -162,7 +195,7 @@ const JsonObject = memo(function JsonObject({
 				</>
 			)}
 			<span className="text-gray-800 dark:text-gray-200">{`}`}</span>
-		</>
+		</div>
 	);
 });
 
@@ -173,6 +206,7 @@ interface JsonArrayProps {
 	isExpanded: boolean;
 	onToggle: () => void;
 	defaultExpanded?: boolean;
+	dataKey?: string;
 }
 
 const JsonArray = memo(function JsonArray({
@@ -182,12 +216,13 @@ const JsonArray = memo(function JsonArray({
 	isExpanded,
 	onToggle,
 	defaultExpanded,
+	dataKey,
 }: JsonArrayProps) {
 	const isEmpty = array.length === 0;
 	const canExpand = !isEmpty && depth < maxDepth;
 
 	return (
-		<>
+		<div data-json-key={dataKey} className="inline">
 			<span className="text-gray-800 dark:text-gray-200">{`[`}</span>
 			{!isEmpty && (
 				<>
@@ -215,6 +250,7 @@ const JsonArray = memo(function JsonArray({
 										depth={depth + 1}
 										maxDepth={maxDepth}
 										defaultExpanded={defaultExpanded}
+										dataKey={`${dataKey}-${index}`}
 									/>
 									{index < array.length - 1 && (
 										<span className="text-gray-800 dark:text-gray-200">,</span>
@@ -228,7 +264,7 @@ const JsonArray = memo(function JsonArray({
 				</>
 			)}
 			<span className="text-gray-800 dark:text-gray-200">{`]`}</span>
-		</>
+		</div>
 	);
 });
 
