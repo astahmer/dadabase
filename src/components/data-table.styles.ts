@@ -15,7 +15,7 @@ export const tableStyles = cva("w-full border-collapse table-fixed", {
 export const tableHeaderStyles = cva("", {
 	variants: {
 		stickyHeader: {
-			true: "sticky top-0 bg-card z-1",
+			true: "sticky top-0 bg-card z-2",
 			false: "",
 		},
 		variant: {
@@ -30,7 +30,7 @@ export const tableHeaderStyles = cva("", {
 });
 
 export const tableHeaderCellStyles = cva(
-	"font-medium text-foreground align-top truncate relative",
+	"font-medium text-foreground align-top relative",
 	{
 		variants: {
 			size: {
@@ -98,7 +98,7 @@ export const tableCellStyles = cva(
 	{
 		variants: {
 			size: {
-				excel: "px-0.5 text-3xs",
+				excel: "px-0.5 text-2xs",
 				minimal: "px-1 py-0.25 text-2xs",
 				compact: "px-1.5 py-0.5 text-xs",
 				cozy: "px-2 py-1 text-xs",

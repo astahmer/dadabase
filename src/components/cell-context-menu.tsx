@@ -1,20 +1,24 @@
+import {
+	Clipboard,
+	Portal,
+	useDialogContext as useArkDialogContext,
+} from "@ark-ui/react";
 import { Copy, Eye, Link, Link2, Search } from "lucide-react";
-import type { ReactNode } from "react";
-import { Clipboard } from "@ark-ui/react";
+import { useRef, type ReactNode } from "react";
 import {
 	Menu,
-	MenuContextTrigger,
 	MenuContent,
+	MenuContextTrigger,
 	MenuItem,
 	MenuItemText,
 	MenuSeparator,
 } from "./ui/menu";
-import { Portal } from "@ark-ui/react";
 
 export interface ForeignKeyInfo {
 	referencedSchema: string;
 	referencedTable: string;
 	referencedColumn: string;
+	constraintName: string;
 }
 
 export interface CellContextMenuProps {
@@ -29,6 +33,14 @@ export interface CellContextMenuProps {
 	children: ReactNode;
 }
 
+const useDialogContext = () => {
+	try {
+		return useArkDialogContext();
+	} catch {
+		return;
+	}
+};
+
 export function CellContextMenu({
 	cellValue,
 	columnName,
@@ -41,6 +53,15 @@ export function CellContextMenu({
 	children,
 }: CellContextMenuProps) {
 	const text = cellValue === null ? "null" : String(cellValue);
+	const ctx = useDialogContext();
+	const containerRef = useRef<HTMLElement | null>(null);
+
+	if (ctx) {
+		const contentProps = ctx.getContentProps();
+		if (!containerRef.current && contentProps.id) {
+			containerRef.current = document.getElementById(contentProps.id);
+		}
+	}
 
 	return (
 		<Menu
@@ -56,7 +77,7 @@ export function CellContextMenu({
 					{children}
 				</span>
 			</MenuContextTrigger>
-			<Portal>
+			<Portal container={containerRef}>
 				<MenuContent className="z-1">
 					<MenuItem
 						value="log"
@@ -69,7 +90,7 @@ export function CellContextMenu({
 					</MenuItem>
 					<Clipboard.Root value={text}>
 						<MenuItem value="copy" asChild>
-							<Clipboard.Trigger>
+							<Clipboard.Trigger className="w-full">
 								<Copy className="size-4" />
 								<MenuItemText>Copy value</MenuItemText>
 							</Clipboard.Trigger>

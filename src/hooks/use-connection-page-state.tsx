@@ -1,95 +1,28 @@
-import { useCallback, useMemo, useState } from "react";
+import type { DataTableRowSubrow } from "#src/components/data-table.row.tsx";
+import { formatTableValue } from "#src/components/pages/connection-page/format-table-value.ts";
+import { RelationshipSubrowTable } from "#src/components/relationship-subrow-table.tsx";
+import { Button } from "#src/components/ui/button.tsx";
+import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
+import { useDataTable } from "#src/components/use-data-table.ts";
+import { useQueryBuilder } from "#src/hooks/use-query-builder";
+import { useRowsColumns } from "#src/hooks/use-rows-columns.tsx";
+import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
+import { useTableRelationships } from "#src/hooks/use-table-relationships";
+import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
+import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
+import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
 	AccessorKeyColumnDef,
 	ColumnDef,
-	ColumnOrderState,
 	ColumnPinningState,
+	Row,
 } from "@tanstack/react-table";
-import { useQueryBuilder } from "#src/hooks/use-query-builder";
-import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
-import { getColumnTextAlignment } from "#src/lib/data-type-utils";
-import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
-import { useRef, useEffect } from "react";
-import type { ForeignKeyInfo } from "#src/components/cell-context-menu.tsx";
-import { MemoizedDataCell } from "#src/components/memoized-data-cell.tsx";
-import { ColumnHeaderWithInfo } from "#src/components/ui/column-header-with-info.tsx";
-import { ForeignKeyIcon } from "#src/components/ui/foreign-key-icon.tsx";
-import { JsonCell } from "#src/components/ui/json-cell.tsx";
-import { PrimaryKeyIcon } from "#src/components/ui/primary-key-icon.tsx";
-import { RowActionsMenu } from "#src/components/ui/row-actions-menu.tsx";
-import { UniqueConstraintIcon } from "#src/components/ui/unique-constraint-icon.tsx";
-import { useDataTable } from "#src/components/use-data-table.ts";
-import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
-
-function replaceDatabaseInConnectionUrl(
-	connectionUrl: string,
-	newDatabase: string,
-) {
-	try {
-		const url = new URL(connectionUrl);
-		url.pathname = `/${newDatabase}`;
-		return url.toString();
-	} catch {
-		return connectionUrl;
-	}
-}
-
-function safeJsonParse(value: string) {
-	try {
-		return JSON.parse(value);
-	} catch {
-		return value;
-	}
-}
-
-const formatTableValue = (value: unknown): unknown => {
-	if (value instanceof Date) {
-		return value.toISOString();
-	}
-	if (typeof value === "string") {
-		// Check if it looks like a date
-		const dateObj = new Date(value);
-		if (!isNaN(dateObj.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-			return dateObj.toISOString();
-		}
-
-		if (value.at(0) === "{" && value.at(-1) === "}") {
-			// Check if it looks like a JSON object
-			return safeJsonParse(value);
-		}
-	}
-	return value;
-};
-
-const createTabState = (
-	schema: string,
-	table: string,
-	options?: {
-		filters?: any;
-		offset?: number;
-		limit?: number;
-		filtersOpened?: boolean;
-		fkValue?: string;
-	},
-) => ({
-	tabId: `${schema}.${table}:${options?.fkValue ?? ""}`,
-	schema,
-	table,
-	tableFilter: undefined,
-	orderBy: undefined,
-	orderDirection: undefined,
-	limit: options?.limit ?? 50,
-	offset: options?.offset ?? 0,
-	viewMode: "rows" as const,
-	tableSize: "cozy" as const,
-	hiddenColumnList: undefined,
-	filters: options?.filters,
-	filtersOpened: options?.filtersOpened ?? false,
-	fkValue: options?.fkValue,
-});
+import { useCallback, useMemo, useState } from "react";
+import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
+import { RowContextMenu } from "#src/components/row-context-menu.tsx";
 
 interface UseConnectionPageStateProps {
 	connection: {
@@ -100,7 +33,6 @@ interface UseConnectionPageStateProps {
 export const useConnectionPageState = ({
 	connection,
 }: UseConnectionPageStateProps) => {
-	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
 	const search = useSearch({
@@ -119,6 +51,7 @@ export const useConnectionPageState = ({
 			tableSize: s.tableSize,
 			columnPinning: s.columnPinning,
 			columnOrder: s.columnOrder,
+			relationshipRowId: s.relationshipRowId,
 		}),
 	});
 
@@ -186,11 +119,7 @@ export const useConnectionPageState = ({
 	});
 
 	// Fetch column metadata
-	const {
-		columnMetadata,
-		columnList,
-		isLoading: isColumnMetadataLoading,
-	} = useTableColumnMetadata({
+	const tableMetadata = useTableColumnMetadata({
 		url: activeConnectionUrl,
 		schema: search.schema || "",
 		table: search.table || "",
@@ -225,365 +154,259 @@ export const useConnectionPageState = ({
 				id: "__select",
 				meta: { enableColumnOrdering: false },
 				header: (ctx) => {
-					const checkboxRef = useRef<HTMLInputElement>(null);
 					const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
-					useEffect(() => {
-						if (checkboxRef.current) {
-							checkboxRef.current.indeterminate = isSomeRowsSelected;
-						}
-					}, [isSomeRowsSelected]);
+					const isAllSelected = ctx.table.getIsAllRowsSelected();
+					const hasAnySelection = isSomeRowsSelected || isAllSelected;
+
 					return (
-						<Checkbox
-							className="flex items-center gap-2 ml-2"
-							checked={ctx.table.getIsAllRowsSelected()}
-							onChange={ctx.table.getToggleAllRowsSelectedHandler()}
-							aria-label="Select all rows"
-						>
-							<CheckboxControl />
-						</Checkbox>
+						<div className="flex items-center justify-center h-full w-full text-center">
+							{hasAnySelection ? (
+								<Checkbox
+									className="flex items-center gap-2"
+									checked={
+										isAllSelected
+											? true
+											: isSomeRowsSelected
+												? "indeterminate"
+												: false
+									}
+									onChange={ctx.table.getToggleAllRowsSelectedHandler()}
+									aria-label="Select all rows"
+									title="Select all rows"
+								>
+									<CheckboxControl />
+								</Checkbox>
+							) : (
+								<Tooltip
+									content="Click to select all rows"
+									colorPalette="inverted"
+									positioning={{ placement: "right", strategy: "fixed" }}
+								>
+									<Button
+										size="xs"
+										className="w-full text-xs text-center"
+										variant="ghost"
+									>
+										#
+									</Button>
+								</Tooltip>
+							)}
+						</div>
 					);
 				},
-				cell: (ctx) => (
-					<Checkbox
-						className="flex items-center gap-2 ml-2"
-						checked={ctx.row.getIsSelected()}
-						disabled={!ctx.row.getCanSelect()}
-						onChange={ctx.row.getToggleSelectedHandler()}
-						aria-label="Select row"
-					>
-						<CheckboxControl />
-					</Checkbox>
-				),
-				size: 40,
-				minSize: 40,
-				maxSize: 40,
+				cell: (ctx) => {
+					const isSelected = ctx.row.getIsSelected();
+					const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
+					const isAllSelected = ctx.table.getIsAllRowsSelected();
+					const hasAnySelection = isSomeRowsSelected || isAllSelected;
+
+					const rowIndex = ctx.row.index;
+					const pageIndex = Math.floor(search.offset / search.limit);
+					const pageSize = search.limit;
+					const displayedNumber = pageIndex * pageSize + rowIndex + 1;
+
+					if (hasAnySelection) {
+						return (
+							<Tooltip
+								content={`#${displayedNumber}`}
+								colorPalette="inverted"
+								portalled={false}
+								positioning={{ placement: "right", strategy: "fixed" }}
+							>
+								<div>
+									<Checkbox
+										className="flex items-center gap-2 justify-self-center"
+										checked={isSelected}
+										disabled={!ctx.row.getCanSelect()}
+										onChange={ctx.row.getToggleSelectedHandler()}
+										aria-label={`Select row ${displayedNumber}`}
+									>
+										<CheckboxControl />
+									</Checkbox>
+								</div>
+							</Tooltip>
+						);
+					}
+
+					return (
+						<Tooltip
+							content="Click to select row, right click to open context menu"
+							colorPalette="inverted"
+							positioning={{ placement: "right", strategy: "fixed" }}
+						>
+							<RowContextMenu
+								row={ctx.row.original as Record<string, unknown>}
+								onExpandRelationships={() => {
+									navigate({
+										search: (prev) => {
+											const updatedTabs = (prev.tabs ?? []).map((tab) => {
+												if (tab.tabId === prev.activeTabId) {
+													return {
+														...tab,
+														relationshipRowId: ctx.row.id,
+													};
+												}
+												return tab;
+											});
+
+											return {
+												...prev,
+												relationshipRowId: ctx.row.id,
+												tabs: updatedTabs,
+											};
+										},
+									});
+								}}
+								onExpandRowJson={(row) => {
+									const primaryKeyColumn = tableMetadata.columnMetadata.find(
+										(col) => col.primaryKey,
+									);
+									const rowId = primaryKeyColumn
+										? String(row[primaryKeyColumn.name])
+										: undefined;
+									navigate({
+										search: (prev) => ({
+											...prev,
+											rowJsonViewerRowId: rowId,
+											rowJsonViewerOpen: !!rowId,
+										}),
+									});
+								}}
+							>
+								<Button
+									size="xs"
+									className="w-full text-xs text-center"
+									variant="ghost"
+									onClick={ctx.row.getToggleSelectedHandler()}
+								>
+									{displayedNumber}
+								</Button>
+							</RowContextMenu>
+						</Tooltip>
+					);
+				},
+				size: 50,
+				minSize: 50,
+				maxSize: 50,
 				enableResizing: false,
 				enableSorting: false,
 				enablePinning: false,
 			} as ColumnDef<Record<string, unknown>>,
-			{
-				id: "__actions",
-				meta: { enableColumnOrdering: false },
-				header: () => null,
-				cell: (ctx) => (
-					<RowActionsMenu
-						row={ctx.row.original}
-						onViewJson={() => {
-							const primaryKeyColumn = columnMetadata.find(
-								(col) => col.primaryKey,
-							);
-							const rowId = primaryKeyColumn
-								? String(ctx.row.original[primaryKeyColumn.name])
-								: undefined;
-							navigate({
-								search: (prev) => ({
-									...prev,
-									rowJsonViewerRowId: rowId,
-									rowJsonViewerOpen: !!rowId,
-								}),
-							});
-						}}
+			// {
+			// 	id: "__actions",
+			// 	meta: { enableColumnOrdering: false },
+			// 	header: () => null,
+			// 	cell: (ctx) => (
+			// 		<RowActionsMenu
+			// 			row={ctx.row.original}
+			// 			onViewJson={() => {
+			// 				const primaryKeyColumn = columnMetadata.find(
+			// 					(col) => col.primaryKey,
+			// 				);
+			// 				const rowId = primaryKeyColumn
+			// 					? String(ctx.row.original[primaryKeyColumn.name])
+			// 					: undefined;
+			// 				navigate({
+			// 					search: (prev) => ({
+			// 						...prev,
+			// 						rowJsonViewerRowId: rowId,
+			// 						rowJsonViewerOpen: !!rowId,
+			// 					}),
+			// 				});
+			// 			}}
+			// 			onExpandRelationships={() => setRelationshipRowId(ctx.row.id)}
+			// 		/>
+			// 	),
+			// 	size: 40,
+			// 	minSize: 40,
+			// 	maxSize: 40,
+			// 	enableResizing: false,
+			// 	enableSorting: false,
+			// 	enablePinning: false,
+			// } as ColumnDef<Record<string, unknown>>,
+		],
+		[tableMetadata.columnMetadata, navigate, search.offset, search.limit],
+	);
+
+	const rowActions = useRowsColumnsAction({
+		columnMetadata: tableMetadata.columnMetadata,
+		selectedSchema: search.schema || "",
+		selectedTable: search.table || "",
+		activeConnectionUrl,
+	});
+	const dataColumns = useRowsColumns({
+		columnMetadata: tableMetadata.columnMetadata,
+		schema: search.schema || "",
+		table: search.table || "",
+		activeConnectionUrl,
+		enableSorting: true,
+		onFollowFK: rowActions.onFollowFK,
+		onFindReferences: rowActions.onFindReferences,
+		onShowQuickReferences: rowActions.onShowQuickReferences,
+		onPrefetchReferences: rowActions.onPrefetchReferences,
+		onNavigateToFK: rowActions.onNavigateToFK,
+		onNavigateToReference: rowActions.onNavigateToReference,
+		onExpandToSheet: rowActions.onExpandToSheet,
+		onMenuOpen: rowActions.onMenuOpen,
+	});
+
+	// Relationship integration
+	const relationshipsQuery = useTableRelationships({
+		url: activeConnectionUrl,
+		schema: search.schema || "",
+		table: search.table || "",
+	});
+
+	const relationships = useMemo(
+		() => [
+			...relationshipsQuery.incomingReferences,
+			...relationshipsQuery.outgoingForeignKeys,
+		],
+		[
+			relationshipsQuery.incomingReferences,
+			relationshipsQuery.outgoingForeignKeys,
+		],
+	);
+
+	const renderSubrows = useCallback(
+		(row: Row<Record<string, unknown>>): DataTableRowSubrow[] => {
+			// Only render if we have an expanded relationship row set
+			if (search.relationshipRowId !== row.id) {
+				return [];
+			}
+
+			return relationships.map((rel) => ({
+				id: `rel_${rel.constraintName}`,
+				content: (
+					<RelationshipSubrowTable
+						relationship={rel}
+						parentRowValue={row.original[rel.referencedColumn] as string}
+						connection={{ url: activeConnectionUrl }}
 					/>
 				),
-				size: 40,
-				minSize: 40,
-				maxSize: 40,
-				enableResizing: false,
-				enableSorting: false,
-				enablePinning: false,
-			} as ColumnDef<Record<string, unknown>>,
-		],
-		[columnMetadata, navigate],
-	);
-
-	// Navigation callbacks
-	const handleFollowFK = useCallback(
-		(fkInfo: ForeignKeyInfo, cellValue: unknown) => {
-			const newTabState = createTabState(
-				fkInfo.referencedSchema,
-				fkInfo.referencedTable,
-				{
-					filters: {
-						conditions: [
-							{
-								column: fkInfo.referencedColumn,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					fkValue: String(cellValue),
-				},
-			);
-			navigate({
-				search: (prev) => ({
-					...prev,
-					schema: fkInfo.referencedSchema,
-					table: fkInfo.referencedTable,
-					activeTabId: newTabState.tabId,
-					tabs: [...(prev.tabs ?? []), newTabState],
-					filters: {
-						conditions: [
-							{
-								column: fkInfo.referencedColumn,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
-				}),
-			});
+			}));
 		},
-		[navigate],
+		[relationships, search.relationshipRowId, activeConnectionUrl],
 	);
-
-	const handleFindReferences = useCallback(
-		(columnName: string, cellValue: unknown) => {
-			navigate({
-				search: (prev) => ({
-					...prev,
-					filtersOpened: true,
-					filters: {
-						conditions: [
-							{
-								column: columnName,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					offset: 0,
-				}),
-			});
-		},
-		[navigate],
-	);
-
-	const handleNavigateToReference = useCallback(
-		(
-			ref: { schema: string; table: string; column: string },
-			cellValue: unknown,
-		) => {
-			const newTabState = createTabState(ref.schema, ref.table, {
-				filters: {
-					conditions: [
-						{
-							column: ref.column,
-							operator: "equals",
-							value: String(cellValue),
-						},
-					],
-					logicalOperator: "and",
-				},
-				filtersOpened: true,
-				fkValue: String(cellValue),
-			});
-			navigate({
-				search: (prev) => ({
-					...prev,
-					schema: ref.schema,
-					table: ref.table,
-					activeTabId: newTabState.tabId,
-					tabs: [...(prev.tabs ?? []), newTabState],
-					filters: {
-						conditions: [
-							{
-								column: ref.column,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
-				}),
-			});
-		},
-		[navigate],
-	);
-
-	// Data columns
-	const dataColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(() => {
-		if (!columnMetadata.length) return [];
-		return columnMetadata.map(
-			(col) =>
-				({
-					accessorKey: col.name,
-					header: () => {
-						const currentSearch = useSearch({
-							from: "/connections/$connectionName",
-							select: (s) => ({
-								orderBy: s.orderBy,
-								orderDirection: s.orderDirection,
-							}),
-						});
-						const sortOrder =
-							currentSearch.orderBy === col.name
-								? (currentSearch.orderDirection as "asc" | "desc")
-								: false;
-						return (
-							<ColumnHeaderWithInfo
-								columnName={col.name}
-								dataType={col.dataType}
-								showBadge
-								isPrimaryKey={col.primaryKey}
-								isUnique={col.unique}
-								isForeignKey={col.isForeignKey}
-								foreignKey={col.foreignKey}
-								sortOrder={sortOrder}
-							>
-								<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
-								<UniqueConstraintIcon isUnique={col.unique} />
-								<ForeignKeyIcon isForeignKey={col.isForeignKey ?? false} />
-							</ColumnHeaderWithInfo>
-						);
-					},
-					meta: {
-						textAlign: getColumnTextAlignment(col.dataType),
-					},
-					cell: col.dataType.toLowerCase().includes("json")
-						? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
-						: (ctx) => {
-								const currentSearch = useSearch({
-									from: "/connections/$connectionName",
-									select: (s) => ({
-										schema: s.schema,
-										table: s.table,
-									}),
-								});
-								return (
-									<MemoizedDataCell
-										ctx={ctx}
-										col={col}
-										schema={currentSearch.schema}
-										table={currentSearch.table}
-										activeConnectionUrl={activeConnectionUrl}
-										onFollowFK={handleFollowFK}
-										onFindReferences={handleFindReferences}
-										onShowQuickReferences={() => {
-											navigate({
-												search: (prev) => ({
-													...prev,
-													quickReferencesOpen: true,
-													quickReferencesColumnName: col.name,
-													quickReferencesCellValue: String(
-														ctx.row.original[col.name],
-													),
-												}),
-											});
-										}}
-										onPrefetchReferences={() => {
-											const referenceTarget = col.foreignKey
-												? {
-														referencedSchema: col.foreignKey.referencedSchema,
-														referencedTable: col.foreignKey.referencedTable,
-														referencedColumn: col.foreignKey.referencedColumn,
-													}
-												: {
-														referencedSchema: currentSearch.schema || "",
-														referencedTable: currentSearch.table || "",
-														referencedColumn: col.name,
-													};
-
-											queryClient.prefetchQuery(
-												findColumnReferencesWithCountsQueryOptions({
-													url: activeConnectionUrl,
-													referencedSchema: referenceTarget.referencedSchema,
-													referencedTable: referenceTarget.referencedTable,
-													referencedColumn: referenceTarget.referencedColumn,
-													cellValue: ctx.row.original[col.name],
-												}),
-											);
-										}}
-										onNavigateToFK={handleFollowFK}
-										onNavigateToReference={handleNavigateToReference}
-										onExpandToSheet={() => {
-											navigate({
-												search: (prev) => ({
-													...prev,
-													quickReferencesOpen: true,
-													quickReferencesColumnName: col.name,
-													quickReferencesCellValue: String(
-														ctx.row.original[col.name],
-													),
-												}),
-											});
-										}}
-										onMenuOpen={() => {
-											const cellValue = ctx.row.original[col.name];
-
-											const referenceTarget = col.foreignKey
-												? {
-														referencedSchema: col.foreignKey.referencedSchema,
-														referencedTable: col.foreignKey.referencedTable,
-														referencedColumn: col.foreignKey.referencedColumn,
-													}
-												: {
-														referencedSchema: currentSearch.schema || "",
-														referencedTable: currentSearch.table || "",
-														referencedColumn: col.name,
-													};
-
-											queryClient.prefetchQuery(
-												findColumnReferencesWithCountsQueryOptions({
-													url: activeConnectionUrl,
-													referencedSchema: referenceTarget.referencedSchema,
-													referencedTable: referenceTarget.referencedTable,
-													referencedColumn: referenceTarget.referencedColumn,
-													cellValue,
-												}),
-											);
-										}}
-									/>
-								);
-							},
-					enableResizing: true,
-					enableSorting: true,
-				}) as ColumnDef<any> as any,
-		);
-	}, [
-		columnMetadata,
-		activeConnectionUrl,
-		handleFollowFK,
-		handleFindReferences,
-		handleNavigateToReference,
-		navigate,
-		queryClient,
-	]);
 
 	// Combine columns
-	const rowsColumns = useMemo(
-		() =>
-			dataColumns.length
-				? [...staticColumns, ...dataColumns]
-				: [
-						...staticColumns,
-						...(Array.from(
-							{ length: 10 },
-							(_, i) =>
-								({
-									id: `__skeleton-${i}`,
-									cell: () => (
-										<div className="h-3 bg-muted rounded animate-pulse" />
-									),
-								}) as ColumnDef<any>,
-						) as typeof staticColumns),
-					],
-		[staticColumns, dataColumns],
-	);
+	const rowsColumns = useMemo(() => {
+		return dataColumns.length
+			? [...staticColumns, ...dataColumns]
+			: [
+					...staticColumns,
+					...(Array.from(
+						{ length: 10 },
+						(_, i) =>
+							({
+								id: `__skeleton-${i}`,
+								cell: () => (
+									<div className="h-3 bg-muted rounded animate-pulse" />
+								),
+							}) as ColumnDef<any>,
+					) as typeof staticColumns),
+				];
+	}, [staticColumns, dataColumns]);
 
 	// Sorting state
 	const sortingState = useMemo(
@@ -630,13 +453,14 @@ export const useConnectionPageState = ({
 
 		// Add __select column if it doesn't exist
 		if (!state.left.some((col) => col === "__select")) {
-			state.left.push(
+			state.left.unshift(
 				// ...(staticColumns.map((col) => col.id).filter(Boolean) as string[]),
+				"__rowIndex",
 				"__select",
 			);
 		}
 		return state;
-	}, [search.columnPinning, staticColumns]);
+	}, [search.columnPinning]);
 
 	// Column order state
 	const columnOrderState = useMemo(() => {
@@ -647,25 +471,17 @@ export const useConnectionPageState = ({
 
 		return staticColumns
 			.map((col) => col.id)
-			.concat(columnList)
+			.concat(tableMetadata.columnList)
 			.filter(Boolean) as string[];
-	}, [search.columnOrder, staticColumns, columnList]);
+	}, [search.columnOrder, staticColumns, tableMetadata.columnList]);
 
-	// Default column size calculation
-	let defaultColumnSize = columnMetadata.some((col) =>
+	const hasUuid = tableMetadata.columnMetadata.some((col) =>
 		col.dataType.includes("uuid"),
-	)
-		? 280
-		: 180;
-	if (search.tableSize === "excel") {
-		defaultColumnSize -= 50;
-	} else if (search.tableSize === "compact") {
-		defaultColumnSize += 20;
-	} else if (search.tableSize === "cozy") {
-		defaultColumnSize += 30;
-	} else if (search.tableSize === "comfortable") {
-		defaultColumnSize += 60;
-	}
+	);
+	const defaultColumnSize = getDefaultColumnSize({
+		tableSize: search.tableSize,
+		hasUuid,
+	});
 
 	// Data table setup
 	const rowsDataTable = useDataTable({
@@ -835,12 +651,16 @@ export const useConnectionPageState = ({
 		activeConnectionUrl,
 		queryBuilder,
 		rowsQuery,
-		columnMetadata,
-		columnList,
-		isColumnMetadataLoading,
+		columnMetadata: tableMetadata.columnMetadata,
+		columnList: tableMetadata.columnList,
+		isColumnMetadataLoading: tableMetadata.isLoading,
 		queryResponse,
 		totalRowCount,
 		rowsDataTable,
 		rowsColumns,
+		hasUuid,
+		relationshipRowId: search.relationshipRowId,
+		relationships,
+		renderSubrows,
 	};
 };

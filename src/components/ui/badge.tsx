@@ -26,6 +26,7 @@ const badgeVariants = cva(
 				muted: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
 			},
 			size: {
+				"2xs": "px-1 py-0.25 text-2xs",
 				xs: "px-1.5 py-0.5 text-xs",
 				sm: "px-2 py-1 text-xs",
 				md: "px-3 py-1.5 text-sm",

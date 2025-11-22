@@ -1,11 +1,15 @@
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
+import {
+	QueryFilter,
+	filterQueryValidConditions,
+	type QueryFilterType,
+} from "#src/lib/query-filter";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { Effect, Schema } from "effect";
-import { queryTableData } from "../fns/query-table-data.kysely.ts";
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { Duration, Effect, Schema } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
-import { QueryFilter, type QueryFilterType } from "#src/lib/query-filter";
+import { queryTableData } from "../fns/query-table-data.kysely.ts";
 
 // Using Record type with any for now to avoid schema validation issues
 
@@ -22,13 +26,19 @@ const InputSchema = Schema.Struct({
 	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
 	filters: QueryFilter.pipe(Schema.optional),
 });
-const queryTableDataServerFn = createServerFn()
+const queryTableDataServerFn = createServerFn({ method: "POST" })
 	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
 	.handler(async (ctx) => {
-		console.time("queryTableDataServerFn");
 		const input = ctx.data;
 
 		const startTime = Date.now();
+		console.log("---> queryTableDataServerFn");
+
+		// Filter out conditions with null/undefined values (apply validation on server side too)
+		const validatedFilters = input.filters
+			? filterQueryValidConditions(input.filters)
+			: null;
+
 		const { rows, rowCount } = (await AppRuntime.runPromise(
 			Effect.gen(function* () {
 				const repo = yield* DatabaseConnectionRepository;
@@ -45,12 +55,18 @@ const queryTableDataServerFn = createServerFn()
 					offset: input.offset ?? 0,
 					orderBy: input.orderBy,
 					orderDirection: input.orderDirection,
-					filters: input.filters ?? { conditions: [], logicalOperator: "and" },
+					filters: validatedFilters ?? {
+						conditions: [],
+						logicalOperator: "and",
+					},
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 			}),
 		)) as { rows: Record<string, any>[]; rowCount: number };
 		const endTime = Date.now();
-		console.timeEnd("queryTableDataServerFn");
+		console.log(
+			"<--- queryTableDataServerFn",
+			Duration.format(Duration.toMillis(endTime - startTime)),
+		);
 
 		return {
 			rows,
@@ -88,6 +104,6 @@ export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
 				input.filters ?? { conditions: [], logicalOperator: "and" },
 			),
 		],
-		queryFn: async () => queryTableDataServerFn({ data: input as any }),
+		queryFn: async () => queryTableDataServerFn({ data: input }),
 	});
 };

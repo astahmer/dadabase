@@ -4,7 +4,7 @@ import { Schema } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { mutationOptions } from "@tanstack/react-query";
 
-const deleteDbConnectionServerFn = createServerFn()
+const deleteDbConnectionServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
 		Schema.Struct({ id: Schema.String }).pipe(Schema.standardSchemaV1),
 	)

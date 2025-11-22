@@ -1,10 +1,11 @@
+import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
 import {
 	horizontalListSortingStrategy,
 	SortableContext,
 } from "@dnd-kit/sortable";
-import type { Row } from "@tanstack/react-table";
+import { flexRender, type Row } from "@tanstack/react-table";
 import type { ReactNode } from "react";
-import { Fragment, memo } from "react";
+import { Fragment, memo, useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { DataTableCell } from "./data-table.cell.tsx";
 import {
@@ -16,6 +17,11 @@ import { RowContextMenu } from "./row-context-menu";
 
 const fallbackRender = () => "An error happened";
 
+export interface DataTableRowSubrow {
+	id: string;
+	content: ReactNode;
+}
+
 export const DataTableRow = memo(function TableRow({
 	index,
 	getRow,
@@ -24,11 +30,12 @@ export const DataTableRow = memo(function TableRow({
 	striped,
 	interactive,
 	showColumnBorder,
-	withContextMenu,
+	withRowContextMenu,
 	ExpandedRow,
 	onExpandRowJson,
 	enableColumnOrdering,
 	columnOrder = [],
+	renderSubrows,
 }: {
 	index: number;
 	getRow: () => Row<any>;
@@ -37,68 +44,93 @@ export const DataTableRow = memo(function TableRow({
 	striped: boolean;
 	interactive: boolean;
 	showColumnBorder: boolean;
-	withContextMenu: boolean;
+	withRowContextMenu?: boolean;
 	enableColumnOrdering: boolean;
 	columnOrder?: string[];
 	ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
+	renderSubrows?: (row: Row<any>) => DataTableRowSubrow[];
 }) {
 	const row = getRow();
 	const visibleCells = row.getVisibleCells();
 	const isSelected = row.getIsSelected();
+	const isExpanded = row.getIsExpanded();
 
-	const ContextMenu = withContextMenu ? RowContextMenu : Fragment;
+	const CellsList = useMemo(() => {
+		return visibleCells.map((cell, cellIndex) => {
+			const isPinned = Boolean(cell.column.getIsPinned());
+			const isDragDisabled =
+				(cell.column.columnDef.meta as any)?.enableColumnOrdering === false ||
+				isPinned;
+			const textAlign =
+				(cell.column.columnDef.meta as any)?.textAlign || "left";
 
-	const CellsList = visibleCells.map((cell, cellIndex) => (
-		<DataTableCell
-			key={cell.id}
-			cell={cell}
-			index={cellIndex}
-			isExpanded={row.getIsExpanded()}
-			size={size}
-			showColumnBorder={showColumnBorder}
-			enableColumnOrdering={enableColumnOrdering}
-		/>
-	));
+			return (
+				<DataTableCell
+					key={cell.id}
+					columnId={cell.column.id}
+					columnSize={cell.column.getSize()}
+					isDragDisabled={isDragDisabled}
+					textAlign={textAlign}
+					index={cellIndex}
+					isExpanded={isExpanded}
+					size={size}
+					showColumnBorder={showColumnBorder}
+					enableColumnOrdering={enableColumnOrdering}
+					style={isPinned ? getColumnPinningStyles(cell.column) : undefined}
+				>
+					{flexRender(cell.column.columnDef.cell, cell.getContext())}
+				</DataTableCell>
+			);
+		});
+	}, [visibleCells, isSelected, isExpanded, size]);
+
+	const MainRow = (
+		<tr
+			className={tableRowStyles({
+				striped,
+				selected: isSelected,
+				interactive: interactive && !!onRowClick,
+			})}
+			data-testid={`row-${index}`}
+			data-state={isSelected && "selected"}
+			onClick={
+				onRowClick
+					? (e) => {
+							if (isDescendantOfButton(e, ["BUTTON", "A"])) return;
+							e.stopPropagation();
+							return onRowClick(row);
+						}
+					: undefined
+			}
+		>
+			{enableColumnOrdering ? (
+				// the sortable context needs to be ABOVE the useSortable usage (inside the DataTableCell)
+				<SortableContext
+					items={columnOrder}
+					strategy={horizontalListSortingStrategy}
+				>
+					{CellsList}
+				</SortableContext>
+			) : (
+				CellsList
+			)}
+		</tr>
+	);
 
 	return (
 		<Fragment>
-			<ContextMenu
-				row={row.original as Record<string, unknown>}
-				onExpandRowJson={onExpandRowJson}
-			>
-				<tr
-					className={tableRowStyles({
-						striped,
-						selected: isSelected,
-						interactive: interactive && !!onRowClick,
-					})}
-					data-testid={`row-${index}`}
-					data-state={isSelected && "selected"}
-					onClick={
-						onRowClick
-							? (e) => {
-									if (isDescendantOfButton(e, ["BUTTON", "A"])) return;
-									e.stopPropagation();
-									return onRowClick(row);
-								}
-							: undefined
-					}
+			{withRowContextMenu ? (
+				<RowContextMenu
+					row={row.original as Record<string, unknown>}
+					onExpandRowJson={onExpandRowJson}
 				>
-					{enableColumnOrdering ? (
-						// the sortable context needs to be ABOVE the useSortable usage (inside the DataTableCell)
-						<SortableContext
-							items={columnOrder}
-							strategy={horizontalListSortingStrategy}
-						>
-							{CellsList}
-						</SortableContext>
-					) : (
-						CellsList
-					)}
-				</tr>
-			</ContextMenu>
-			{row.getIsExpanded() && ExpandedRow && (
+					{MainRow}
+				</RowContextMenu>
+			) : (
+				MainRow
+			)}
+			{isExpanded && ExpandedRow && (
 				<tr
 					className={`border-b ${isSelected ? "bg-blue-50" : ""}`}
 					data-testid={`row-${index}-subrow`}
@@ -114,6 +146,21 @@ export const DataTableRow = memo(function TableRow({
 					</td>
 				</tr>
 			)}
+			{/* Custom subrows */}
+			{renderSubrows &&
+				renderSubrows(row).map((subrow) => (
+					<tr
+						key={subrow.id}
+						className="bg-muted/20 border-b border-border"
+						data-testid={`row-${index}-subrow-${subrow.id}`}
+					>
+						<td colSpan={visibleCells.length} className="p-0">
+							<ErrorBoundary fallbackRender={fallbackRender}>
+								{subrow.content}
+							</ErrorBoundary>
+						</td>
+					</tr>
+				))}
 		</Fragment>
 	);
 });

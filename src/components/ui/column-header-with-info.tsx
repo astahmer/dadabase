@@ -6,6 +6,7 @@ interface ForeignKeyInfo {
 	referencedSchema: string;
 	referencedTable: string;
 	referencedColumn: string;
+	constraintName?: string;
 }
 
 interface ColumnHeaderWithInfoProps {
@@ -54,7 +55,7 @@ export const ColumnHeaderWithInfo = ({
 	const tooltipContent = tooltipParts.join(" • ");
 
 	return (
-		<Tooltip content={tooltipContent} portalled>
+		<Tooltip content={tooltipContent} portalled colorPalette="inverted">
 			<div className={`flex items-center gap-2 min-w-0 ${className || ""}`}>
 				<span className="truncate">{columnName}</span>
 				{showBadge && <DataTypeBadge dataType={dataType} />}

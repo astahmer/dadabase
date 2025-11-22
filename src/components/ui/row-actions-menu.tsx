@@ -8,9 +8,14 @@ import { RowActionsMenuContent } from "./row-actions-menu-content";
 export interface RowActionsMenuProps {
 	row: Record<string, unknown>;
 	onViewJson?: () => void;
+	onExpandRelationships?: () => void;
 }
 
-export function RowActionsMenu({ row, onViewJson }: RowActionsMenuProps) {
+export function RowActionsMenu({
+	row,
+	onViewJson,
+	onExpandRelationships,
+}: RowActionsMenuProps) {
 	const [open, setOpen] = useState(false);
 	const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -18,7 +23,6 @@ export function RowActionsMenu({ row, onViewJson }: RowActionsMenuProps) {
 		<Menu
 			open={open}
 			onOpenChange={(details) => {
-				console.trace();
 				return setOpen(details.open);
 			}}
 			lazyMount
@@ -47,6 +51,7 @@ export function RowActionsMenu({ row, onViewJson }: RowActionsMenuProps) {
 						row={row}
 						onClose={() => setOpen(false)}
 						onViewJson={onViewJson}
+						onExpandRelationships={onExpandRelationships}
 					/>
 				</MenuContent>
 			</Portal>

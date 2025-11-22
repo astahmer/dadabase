@@ -1,7 +1,7 @@
 import type { Row } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactNode } from "react";
-import { DataTableRow } from "./data-table.row.tsx";
+import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import type { DataTableSize } from "./data-table.styles.ts";
 
 export interface VirtualizedTableBodyProps<TData> {
@@ -19,6 +19,7 @@ export interface VirtualizedTableBodyProps<TData> {
 	scrollElement: HTMLDivElement;
 	enableColumnOrdering: boolean;
 	columnOrder?: string[];
+	renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
 }
 
 export function VirtualizedTableBody<TData>({
@@ -36,12 +37,13 @@ export function VirtualizedTableBody<TData>({
 	overscan,
 	scrollElement,
 	columnOrder = [],
+	renderSubrows,
 }: VirtualizedTableBodyProps<TData>) {
 	const virtualizer = useVirtualizer({
 		count: rows.length,
 		getScrollElement: () => scrollElement,
 		estimateSize: () => estimateItemSize,
-		overscan,
+		overscan: overscan ?? 30,
 	});
 
 	const virtualRows = virtualizer.getVirtualItems();
@@ -76,9 +78,9 @@ export function VirtualizedTableBody<TData>({
 						showColumnBorder={showColumnBorder}
 						enableColumnOrdering={enableColumnOrdering}
 						columnOrder={columnOrder}
-						withContextMenu={withContextMenu}
 						ExpandedRow={ExpandedRow}
 						onExpandRowJson={onExpandRowJson}
+						renderSubrows={renderSubrows}
 					/>
 				);
 			})}

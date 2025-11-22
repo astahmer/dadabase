@@ -587,10 +587,19 @@ function generateExampleValues(column: string, _operator: string): string[] {
  */
 export function getInitialExamples(availableColumns: string[]): Suggestion[] {
 	const suggestions: Suggestion[] = [];
+	const seen = new Set<string>();
+
+	const addSuggestion = (suggestion: Suggestion) => {
+		const key = `${suggestion.type}:${suggestion.value}`;
+		if (!seen.has(key)) {
+			seen.add(key);
+			suggestions.push(suggestion);
+		}
+	};
 
 	// Show all available columns as column examples
 	availableColumns.forEach((col) => {
-		suggestions.push({
+		addSuggestion({
 			label: col,
 			value: col + " ",
 			type: "column",
@@ -601,14 +610,14 @@ export function getInitialExamples(availableColumns: string[]): Suggestion[] {
 	// Show example complete queries
 	if (availableColumns.length > 0) {
 		const col1 = availableColumns[0];
-		suggestions.push({
+		addSuggestion({
 			label: `${col1} = something`,
 			value: `${col1} = something`,
 			type: "example",
 			state: "complete",
 		});
 
-		suggestions.push({
+		addSuggestion({
 			label: `${col1} contains text`,
 			value: `${col1} contains text`,
 			type: "example",
@@ -618,7 +627,7 @@ export function getInitialExamples(availableColumns: string[]): Suggestion[] {
 
 	if (availableColumns.length > 1) {
 		const col2 = availableColumns[1];
-		suggestions.push({
+		addSuggestion({
 			label: `sort by ${col2} desc`,
 			value: `sort by ${col2} desc`,
 			type: "example",
@@ -626,7 +635,7 @@ export function getInitialExamples(availableColumns: string[]): Suggestion[] {
 		});
 	}
 
-	suggestions.push({
+	addSuggestion({
 		label: "limit 10",
 		value: "limit 10",
 		type: "example",

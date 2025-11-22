@@ -37,7 +37,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 		columnResizeMode: "onChange",
 		renderFallbackValue: "-",
 		rowCount,
-		getRowId: (row) => (row as { id: string }).id,
+		getRowId: (row, index) => (row as { id: string }).id ?? index,
 		...tableOptions,
 		data: data as TData[],
 		columns,

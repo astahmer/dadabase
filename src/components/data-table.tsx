@@ -7,28 +7,28 @@ import {
 	useSensor,
 	useSensors,
 } from "@dnd-kit/core";
+import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import {
 	arrayMove,
 	horizontalListSortingStrategy,
 	SortableContext,
 } from "@dnd-kit/sortable";
-import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import type { Row, Table as TanstackTable } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
 import {
-	ArrowDown,
-	ArrowUp,
+	ArrowDownNarrowWide,
+	ArrowUpNarrowWide,
 	ChevronsUpDown,
 	GripVertical,
 	Pin,
 	PinOff,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Fragment, useRef } from "react";
-import { getCommonPinningStyles } from "../lib/get-pinning-styles.ts";
+import { useRef } from "react";
+import { getColumnPinningStyles } from "../lib/get-pinning-styles.ts";
 import { cn } from "../lib/utils.ts";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
-import { DataTableRow } from "./data-table.row.tsx";
+import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import {
 	tableCellStyles,
 	tableEmptyStateStyles,
@@ -37,12 +37,12 @@ import {
 	tableStyles,
 	type DataTableSize,
 } from "./data-table.styles.ts";
+import { VirtualizedTableBody } from "./data-table.virtualized-table-body.tsx";
 import { DraggableColumnHeader } from "./draggable-column-header.tsx";
 import { PageLimitSelect } from "./page-limit.select.tsx";
 import { runIfFn } from "./run-if-fn.ts";
 import { Button } from "./ui/button";
 import { HStack } from "./ui/layout.tsx";
-import { VirtualizedTableBody } from "./data-table.virtualized-table-body.tsx";
 
 const i18n = {
 	emptyText: "No results found.",
@@ -56,7 +56,6 @@ export interface DataTableProps<TData> {
 	table: TanstackTable<TData>;
 	containerRef?: React.RefObject<HTMLDivElement | null>;
 	getTableContainer?: (el: HTMLDivElement) => void;
-	header?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
 	footer?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
 	top?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
 	bottom?: ReactNode | ((props: TanstackTable<TData>) => ReactNode);
@@ -79,6 +78,8 @@ export interface DataTableProps<TData> {
 	estimateItemSize?: number;
 	overscan?: number;
 	enableColumnOrdering?: boolean;
+	renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
+	hideColumnPinIconUnlessHovered?: boolean;
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -87,7 +88,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		table,
 		containerRef,
 		getTableContainer,
-		header,
 		top,
 		bottom,
 		emptyState = true,
@@ -106,8 +106,10 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		ExpandedRow,
 		virtualized = false,
 		estimateItemSize,
-		overscan = 10,
+		overscan = 30,
 		enableColumnOrdering = false,
+		renderSubrows,
+		hideColumnPinIconUnlessHovered = true,
 	} = props;
 
 	const state = table.getState();
@@ -125,270 +127,287 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		useSensor(KeyboardSensor),
 	);
 
-	const DndContextProvider = enableColumnOrdering ? DndContext : Fragment;
-	const SortableContextProvider = enableColumnOrdering
-		? SortableContext
-		: Fragment;
+	const TableContainer = (
+		<div
+			className={`overflow-x-auto h-full ${virtualized ? "overflow-y-auto" : ""} ${className || ""}`}
+			ref={(el) => {
+				if (containerRef) {
+					containerRef.current = el;
+				}
 
-	return (
-		<>
-			{runIfFn(top, table)}
-			{runIfFn(header, table)}
-			<DndContextProvider
-				sensors={sensors}
-				collisionDetection={closestCenter}
-				modifiers={[restrictToHorizontalAxis]}
-				onDragEnd={function handleDragEnd(event) {
-					const { active, over } = event;
-					if (active && over && active.id !== over.id) {
-						table.setColumnOrder((columnOrder) => {
-							const oldIndex = columnOrder.indexOf(active.id as string);
-							const newIndex = columnOrder.indexOf(over.id as string);
-							return arrayMove(columnOrder, oldIndex, newIndex);
-						});
-					}
-				}}
+				if (el) {
+					tableContainerRef.current = el;
+					getTableContainer?.(el);
+				}
+			}}
+		>
+			<table
+				className={tableStyles({ variant })}
+				// style={{ width: table.getCenterTotalSize() }}
 			>
-				<div
-					className={`overflow-x-auto h-full ${virtualized ? "overflow-y-auto" : ""} ${className || ""}`}
-					ref={(el) => {
-						if (containerRef) {
-							containerRef.current = el;
-						}
+				<thead className={tableHeaderStyles({ stickyHeader, variant })}>
+					{table.getHeaderGroups().map((headerGroup) => {
+						const TableContent = headerGroup.headers.map((headerCell) => {
+							const hasBulkActions =
+								hasSelectedRows && headerGroup.headers.at(-1) === headerCell;
+							const column = headerCell.column;
+							const isSorted = column.getIsSorted();
 
-						if (el) {
-							tableContainerRef.current = el;
-							getTableContainer?.(el);
-						}
-					}}
-				>
-					<table
-						className={tableStyles({ variant })}
-						// style={{ width: table.getCenterTotalSize() }}
-					>
-						<thead className={tableHeaderStyles({ stickyHeader, variant })}>
-							{table.getHeaderGroups().map((headerGroup) => (
-								<tr key={headerGroup.id}>
-									<SortableContextProvider
-										items={state.columnOrder}
-										strategy={horizontalListSortingStrategy}
+							const meta = headerCell.column.columnDef.meta as
+								| Record<string, unknown>
+								| undefined;
+							const textAlign =
+								(meta?.textAlign as "left" | "right" | "center" | undefined) ||
+								"left";
+							const isDragDisabled =
+								meta?.enableColumnOrdering === false ||
+								Boolean(column.getIsPinned());
+
+							const CellHeaderContent = (
+								<div className={"flex items-center justify-between min-w-0"}>
+									<ColumnHeaderContextMenu
+										column={column}
+										table={table}
+										onFilterClick={onColumnFilterClick}
 									>
-										{headerGroup.headers.map((headerCell) => {
-											const hasBulkActions =
-												hasSelectedRows &&
-												headerGroup.headers.at(-1) === headerCell;
-											const column = headerCell.column;
-											const isSorted = column.getIsSorted();
+										<HStack
+											className="flex-1 min-w-0 truncate"
+											align="center"
+											w="full"
+										>
+											{headerCell.isPlaceholder ? null : column.getCanSort() &&
+												column.columnDef.enableSorting ? (
+												<Button
+													onClick={column.getToggleSortingHandler()}
+													variant="ghost"
+													size="sm"
+													data-test-id={`table-sort-${column.id}`}
+													className="h-5 px-1 gap-1"
+												>
+													{flexRender(
+														headerCell.column.columnDef.header,
+														headerCell.getContext(),
+													)}
+													{isSorted === "desc" ? (
+														<ArrowDownNarrowWide className="h-3 w-3 shrink-0" />
+													) : isSorted === "asc" ? (
+														<ArrowUpNarrowWide className="h-3 w-3 shrink-0" />
+													) : (
+														<ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+													)}
+												</Button>
+											) : (
+												flexRender(
+													headerCell.column.columnDef.header,
+													headerCell.getContext(),
+												)
+											)}
+										</HStack>
+									</ColumnHeaderContextMenu>
+									{column.getCanPin() ? (
+										column.getIsPinned() ? (
+											<Button
+												variant={
+													hideColumnPinIconUnlessHovered ? "outline" : "ghost"
+												}
+												size="xs"
+												withIcon={false}
+												onClick={() => column.pin(false)}
+												className={
+													hideColumnPinIconUnlessHovered
+														? "absolute right-3 group-hover:opacity-100 opacity-0 transition-opacity"
+														: "mr-2"
+												}
+											>
+												<PinOff className="h-3 w-3" />
+											</Button>
+										) : (
+											<Button
+												variant={
+													hideColumnPinIconUnlessHovered ? "outline" : "ghost"
+												}
+												size="xs"
+												withIcon={false}
+												onClick={() => column.pin("left")}
+												className={
+													hideColumnPinIconUnlessHovered
+														? "absolute right-3 group-hover:opacity-100 opacity-0 transition-opacity"
+														: "mr-2"
+												}
+											>
+												<Pin className="h-3 w-3" />
+											</Button>
+										)
+									) : null}
+								</div>
+							);
 
-											const meta = headerCell.column.columnDef.meta as
-												| Record<string, unknown>
-												| undefined;
-											const textAlign =
-												(meta?.textAlign as
-													| "left"
-													| "right"
-													| "center"
-													| undefined) || "left";
-											const isDragDisabled =
-												meta?.enableColumnOrdering === false;
-
-											const CellHeaderContent = (
-												<div className="flex items-center justify-between overflow-hidden">
-													<ColumnHeaderContextMenu
-														column={column}
-														table={table}
-														onFilterClick={onColumnFilterClick}
-													>
-														<HStack className="flex-1 min-w-0" align="center">
-															{headerCell.isPlaceholder ? null : column.getCanSort() &&
-																column.columnDef.enableSorting ? (
-																<Button
-																	onClick={column.getToggleSortingHandler()}
-																	variant="ghost"
-																	size="sm"
-																	data-test-id={`table-sort-${column.id}`}
-																	className="h-5 px-1 gap-1"
-																>
-																	{flexRender(
-																		headerCell.column.columnDef.header,
-																		headerCell.getContext(),
-																	)}
-																	{isSorted === "desc" ? (
-																		<ArrowDown className="h-3 w-3 shrink-0" />
-																	) : isSorted === "asc" ? (
-																		<ArrowUp className="h-3 w-3 shrink-0" />
-																	) : (
-																		<ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-																	)}
-																</Button>
-															) : (
-																<span>
-																	{flexRender(
-																		headerCell.column.columnDef.header,
-																		headerCell.getContext(),
-																	)}
-																</span>
-															)}
-														</HStack>
-													</ColumnHeaderContextMenu>
-													{column.getCanPin() ? (
-														column.getIsPinned() ? (
-															<Button
-																variant="ghost"
-																size="xs"
-																withIcon={false}
-																onClick={() => column.pin(false)}
-															>
-																<PinOff className="mr-2 h-3 w-3" />
-															</Button>
-														) : (
-															<Button
-																variant="ghost"
-																size="xs"
-																withIcon={false}
-																onClick={() => column.pin("left")}
-															>
-																<Pin className="mr-2 h-3 w-3" />
-															</Button>
-														)
-													) : null}
-													{resizable &&
-														headerCell.column.columnDef.enableResizing !==
-															false && (
-															<div
-																{...{
-																	onDoubleClick: () =>
-																		headerCell.column.resetSize(),
-																	onMouseDown: headerCell.getResizeHandler(),
-																	onTouchStart: headerCell.getResizeHandler(),
-																	className: cn(
-																		table.options.columnResizeDirection,
-																		headerCell.column.getIsResizing() &&
-																			"isResizing",
-																		"select-none touch-none cursor-col-resize w-1.5 h-6 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md shrink-0 -mx-0.5",
-																	),
-																	title: "Drag to resize column",
-																	//   style: {
-																	//     transform:
-																	//       columnResizeMode === 'onEnd' &&
-																	//       headerCell.column.getIsResizing()
-																	//         ? `translateX(${
-																	//             (table.options.columnResizeDirection ===
-																	//             'rtl'
-																	//               ? -1
-																	//               : 1) *
-																	//             (table.getState().columnSizingInfo
-																	//               .deltaOffset ?? 0)
-																	//           }px)`
-																	//         : '',
-																	//   },
-																}}
-															/>
-														)}
-												</div>
-											);
-
-											if (enableColumnOrdering && !isDragDisabled) {
-												return (
-													<DraggableColumnHeader
-														key={headerCell.id}
-														column={column}
-													>
-														{(dragCtx) => {
-															return (
-																<th
-																	key={headerCell.id}
-																	colSpan={headerCell.colSpan}
-																	data-column-id={headerCell.column.id}
-																	ref={dragCtx.setNodeRef}
-																	style={{
-																		width: `${headerCell.getSize()}px`,
-																		...dragCtx.style,
-																	}}
-																	className={tableHeaderCellStyles({
-																		size,
-																		showColumnBorder,
-																		textAlign: hasBulkActions
-																			? "right"
-																			: textAlign,
-																	})}
-																>
-																	<div
-																		className={cn(
-																			"flex items-center gap-2",
-																			!dragCtx.isDragDisabled &&
-																				"cursor-grab active:cursor-grabbing",
-																			className,
-																		)}
-																	>
-																		{!dragCtx.isDragDisabled && (
-																			<button
-																				{...dragCtx.attributes}
-																				{...dragCtx.listeners}
-																				type="button"
-																				className="p-1 hover:bg-muted rounded cursor-grab active:cursor-grabbing"
-																				title="Drag to reorder columns"
-																			>
-																				<GripVertical className="size-4 text-muted-foreground" />
-																			</button>
-																		)}
-																		<div className="flex-1">
-																			{CellHeaderContent}
-																		</div>
-																	</div>
-																</th>
-															);
-														}}
-													</DraggableColumnHeader>
-												);
-											}
-
+							if (enableColumnOrdering && !isDragDisabled) {
+								return (
+									<DraggableColumnHeader key={headerCell.id} column={column}>
+										{(dragCtx) => {
 											return (
 												<th
 													key={headerCell.id}
 													colSpan={headerCell.colSpan}
 													data-column-id={headerCell.column.id}
+													ref={dragCtx.setNodeRef}
 													style={{
 														width: `${headerCell.getSize()}px`,
-														...getCommonPinningStyles(column),
+														...dragCtx.style,
 													}}
-													className={tableHeaderCellStyles({
-														size,
-														showColumnBorder,
-														textAlign: hasBulkActions ? "right" : textAlign,
-													})}
+													className={cn(
+														tableHeaderCellStyles({
+															size,
+															showColumnBorder,
+															textAlign: hasBulkActions ? "right" : textAlign,
+														}),
+														"relative",
+													)}
 												>
-													{CellHeaderContent}
+													<div
+														className={cn(
+															"flex items-center gap-2 truncate",
+															hideColumnPinIconUnlessHovered && "group",
+														)}
+													>
+														{!dragCtx.isDragDisabled && (
+															<button
+																{...dragCtx.attributes}
+																{...dragCtx.listeners}
+																type="button"
+																className="p-1 hover:bg-muted rounded cursor-grab active:cursor-grabbing shrink-0"
+																title="Drag to reorder columns"
+															>
+																<GripVertical className="size-4 text-muted-foreground" />
+															</button>
+														)}
+														{CellHeaderContent}
+													</div>
+													{resizable &&
+														headerCell.column.columnDef.enableResizing !==
+															false && (
+															<ResizeHandle
+																onDoubleClick={() =>
+																	headerCell.column.resetSize()
+																}
+																onMouseDown={headerCell.getResizeHandler()}
+																onTouchStart={headerCell.getResizeHandler()}
+																isResizing={headerCell.column.getIsResizing()}
+																columnResizeDirection={
+																	table.options.columnResizeDirection
+																}
+															/>
+														)}
 												</th>
 											);
-										})}
-									</SortableContextProvider>
+										}}
+									</DraggableColumnHeader>
+								);
+							}
+
+							return (
+								<th
+									key={headerCell.id}
+									colSpan={headerCell.colSpan}
+									data-column-id={headerCell.column.id}
+									data-column-pinned={headerCell.column.getIsPinned()}
+									style={{
+										width: `${headerCell.getSize()}px`,
+										...getColumnPinningStyles(column),
+									}}
+									className={cn(
+										tableHeaderCellStyles({
+											size,
+											showColumnBorder,
+											textAlign: hasBulkActions ? "right" : textAlign,
+										}),
+										"relative",
+										hideColumnPinIconUnlessHovered && "group",
+									)}
+								>
+									{CellHeaderContent}
+									{resizable &&
+										headerCell.column.columnDef.enableResizing !== false && (
+											<ResizeHandle
+												onDoubleClick={() => headerCell.column.resetSize()}
+												onMouseDown={headerCell.getResizeHandler()}
+												onTouchStart={headerCell.getResizeHandler()}
+												isResizing={headerCell.column.getIsResizing()}
+												columnResizeDirection={
+													table.options.columnResizeDirection
+												}
+											/>
+										)}
+								</th>
+							);
+						});
+
+						if (enableColumnOrdering) {
+							return (
+								<tr key={headerGroup.id}>
+									<SortableContext
+										items={state.columnOrder}
+										strategy={horizontalListSortingStrategy}
+									>
+										{TableContent}
+									</SortableContext>
+								</tr>
+							);
+						}
+
+						return <tr key={headerGroup.id}>{TableContent}</tr>;
+					})}
+				</thead>
+
+				{isLoading ? (
+					<tbody>
+						{Array(pagination.pageSize)
+							.fill(pagination.pageSize)
+							.map((_, index) => (
+								<tr
+									className="border-b border-border"
+									key={index}
+									data-skeleton
+								>
+									{columns.map((col) => (
+										<td key={col.id} className={tableCellStyles({ size })}>
+											<div className="h-3 bg-muted rounded animate-pulse" />
+										</td>
+									))}
 								</tr>
 							))}
-						</thead>
-
-						{isLoading ? (
-							<tbody>
-								{Array(pagination.pageSize)
-									.fill(pagination.pageSize)
-									.map((_, index) => (
-										<tr
-											className="border-b border-border"
-											key={index}
-											data-skeleton
-										>
-											{columns.map((col) => (
-												<td key={col.id} className={tableCellStyles({ size })}>
-													<div className="h-3 bg-muted rounded animate-pulse" />
-												</td>
-											))}
-										</tr>
-									))}
-							</tbody>
-						) : virtualized && rows.length && tableContainerRef.current ? (
-							<tbody>
-								<VirtualizedTableBody
-									rows={rows}
+					</tbody>
+				) : virtualized && rows.length && tableContainerRef.current ? (
+					<tbody>
+						<VirtualizedTableBody
+							rows={rows}
+							onRowClick={onRowClick}
+							size={size}
+							striped={striped}
+							interactive={interactive}
+							showColumnBorder={showColumnBorder}
+							enableColumnOrdering={enableColumnOrdering}
+							columnOrder={state.columnOrder}
+							withContextMenu={withContextMenu}
+							ExpandedRow={ExpandedRow}
+							onExpandRowJson={props.onExpandRowJson}
+							estimateItemSize={
+								estimateItemSize ?? estimateSizeByTableSize(size)
+							}
+							overscan={overscan}
+							scrollElement={tableContainerRef.current}
+							renderSubrows={renderSubrows}
+						/>
+					</tbody>
+				) : (
+					<tbody>
+						{rows.length ? (
+							rows.map((row, index) => (
+								<DataTableRow
+									key={row.id}
+									index={index}
+									getRow={() => row}
 									onRowClick={onRowClick}
 									size={size}
 									striped={striped}
@@ -396,64 +415,85 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									showColumnBorder={showColumnBorder}
 									enableColumnOrdering={enableColumnOrdering}
 									columnOrder={state.columnOrder}
-									withContextMenu={withContextMenu}
 									ExpandedRow={ExpandedRow}
 									onExpandRowJson={props.onExpandRowJson}
-									estimateItemSize={
-										estimateItemSize ?? estimateSizeByTableSize(size)
-									}
-									overscan={overscan}
-									scrollElement={tableContainerRef.current}
+									renderSubrows={renderSubrows}
 								/>
-							</tbody>
+							))
 						) : (
-							<tbody>
-								{rows.length ? (
-									rows.map((row, index) => (
-										<DataTableRow
-											key={row.id}
-											index={index}
-											getRow={() => row}
-											onRowClick={onRowClick}
-											size={size}
-											striped={striped}
-											interactive={interactive}
-											showColumnBorder={showColumnBorder}
-											enableColumnOrdering={enableColumnOrdering}
-											columnOrder={state.columnOrder}
-											withContextMenu={withContextMenu}
-											ExpandedRow={ExpandedRow}
-											onExpandRowJson={props.onExpandRowJson}
-										/>
-									))
-								) : (
-									<tr>
-										{emptyState ? (
-											<td className="text-center" colSpan={columns.length}>
-												<div className={tableEmptyStateStyles()}>
-													<span>
-														{hasError ? i18n.errorText : i18n.emptyText}
-													</span>
-												</div>
-											</td>
-										) : null}
-									</tr>
-								)}
-							</tbody>
+							<tr>
+								{emptyState ? (
+									<td className="text-center" colSpan={columns.length}>
+										<div className={tableEmptyStateStyles()}>
+											<span>{hasError ? i18n.errorText : i18n.emptyText}</span>
+										</div>
+									</td>
+								) : null}
+							</tr>
 						)}
-					</table>
-				</div>
-			</DndContextProvider>
+					</tbody>
+				)}
+			</table>
+		</div>
+	);
+
+	return (
+		<>
+			{runIfFn(top, table)}
+			{enableColumnOrdering ? (
+				<DndContext
+					sensors={sensors}
+					collisionDetection={closestCenter}
+					modifiers={[restrictToHorizontalAxis]}
+					onDragEnd={function handleDragEnd(event) {
+						const { active, over } = event;
+						if (active && over && active.id !== over.id) {
+							table.setColumnOrder((columnOrder) => {
+								const oldIndex = columnOrder.indexOf(active.id as string);
+								const newIndex = columnOrder.indexOf(over.id as string);
+								return arrayMove(columnOrder, oldIndex, newIndex);
+							});
+						}
+					}}
+				>
+					{TableContainer}
+				</DndContext>
+			) : (
+				TableContainer
+			)}
 
 			{table.options.manualPagination === false &&
-			(table.getRowModel().rows.length >= pagination.pageSize ||
-				pagination.pageSize > 100) ? (
+			(rows.length >= pagination.pageSize || pagination.pageSize > 100) ? (
 				<DataTablePagination table={table} />
 			) : null}
 			{runIfFn(bottom, table)}
 		</>
 	);
 }
+
+const ResizeHandle = (props: {
+	onDoubleClick: () => void;
+	onMouseDown: (e: React.MouseEvent) => void;
+	onTouchStart: (e: React.TouchEvent) => void;
+	isResizing: boolean;
+	columnResizeDirection?: string;
+}) => {
+	return (
+		<div
+			{...{
+				onDoubleClick: props.onDoubleClick,
+				onMouseDown: props.onMouseDown,
+				onTouchStart: props.onTouchStart,
+				className: cn(
+					props.columnResizeDirection,
+					props.isResizing && "isResizing",
+					"absolute top-0 right-0 bottom-0 select-none touch-none cursor-col-resize w-1.5 bg-border hover:bg-primary transition-colors duration-150 hover:shadow-md",
+				),
+				title: "Drag to resize column",
+			}}
+		/>
+	);
+};
 
 const estimateSizeByTableSize = (size: DataTableSize) => {
 	switch (size) {

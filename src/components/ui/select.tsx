@@ -41,9 +41,8 @@ const SelectContent = ({
 }: SelectPrimitive.ContentProps & {
 	portalled?: boolean;
 }) => {
-	const Portallish = portalled ? Portal : React.Fragment;
 	return (
-		<Portallish>
+		<Portal disabled={!portalled}>
 			<SelectPrimitive.Positioner>
 				<SelectPrimitive.Content
 					className={cn(
@@ -55,7 +54,7 @@ const SelectContent = ({
 					{...props}
 				/>
 			</SelectPrimitive.Positioner>
-		</Portallish>
+		</Portal>
 	);
 };
 SelectContent.displayName = "SelectContent";

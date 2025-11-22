@@ -2,13 +2,12 @@ import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
-import type {
-	FilterConditionExpression,
-	LogicalOperator,
-	QueryFilterType,
-} from "#src/lib/query-filter";
+import type { QueryFilterType } from "#src/lib/query-filter";
+import { buildWhereExpression } from "./build-where-expression";
 
-export const queryTableData = (input: {
+export const queryTableData = <
+	T extends Record<string, any> = Record<string, any>,
+>(input: {
 	schema: string;
 	table: string;
 	limit?: number;
@@ -26,70 +25,6 @@ export const queryTableData = (input: {
 		const filterConfig = input.filters;
 
 		try {
-			// Build WHERE clause using Kysely's expression builder
-			const buildWhereExpression = (
-				conditions: FilterConditionExpression[],
-				logicalOp: LogicalOperator,
-			): any => {
-				if (conditions.length === 0) return undefined;
-
-				const expressions = conditions.map((condition) => {
-					const colRef = sql.ref(condition.column);
-
-					switch (condition.operator) {
-						case "equals":
-							return sql`${colRef} = ${condition.value}`;
-						case "not_equals":
-							return sql`${colRef} != ${condition.value}`;
-						case "contains":
-							return sql`${colRef} ILIKE ${"%" + condition.value + "%"}`;
-						case "not_contains":
-							return sql`${colRef} NOT ILIKE ${"%" + condition.value + "%"}`;
-						case "starts_with":
-							return sql`${colRef} ILIKE ${condition.value + "%"}`;
-						case "ends_with":
-							return sql`${colRef} ILIKE ${"%" + condition.value}`;
-						case "greater_than":
-							return sql`${colRef} > ${condition.value}`;
-						case "greater_than_or_equal":
-							return sql`${colRef} >= ${condition.value}`;
-						case "less_than":
-							return sql`${colRef} < ${condition.value}`;
-						case "less_than_or_equal":
-							return sql`${colRef} <= ${condition.value}`;
-						case "is_null":
-							return sql`${colRef} IS NULL`;
-						case "is_not_null":
-							return sql`${colRef} IS NOT NULL`;
-						case "in": {
-							const values = Array.isArray(condition.value)
-								? condition.value
-								: [condition.value];
-							return sql`${colRef} = ANY(${values})`;
-						}
-						case "not_in": {
-							const values = Array.isArray(condition.value)
-								? condition.value
-								: [condition.value];
-							return sql`${colRef} != ALL(${values})`;
-						}
-						default:
-							const _exhaustive: never = condition.operator;
-							return _exhaustive;
-					}
-				});
-
-				if (expressions.length === 0) return undefined;
-				if (expressions.length === 1) return expressions[0];
-
-				// Combine expressions with AND/OR
-				if (logicalOp === "and") {
-					return expressions.reduce((acc, expr) => sql`${acc} AND ${expr}`);
-				} else {
-					return expressions.reduce((acc, expr) => sql`${acc} OR ${expr}`);
-				}
-			};
-
 			const whereExpression = filterConfig
 				? buildWhereExpression(
 						Array.from(filterConfig.conditions),
@@ -134,7 +69,7 @@ export const queryTableData = (input: {
 			console.time(`<-- Main SQL: ${query.compile().sql}`);
 			const rows = yield* db.execute(query as any);
 			console.timeEnd(`<-- Main SQL: ${query.compile().sql}`);
-			return { rows, rowCount };
+			return { rows: rows as T[], rowCount };
 		} catch (e) {
 			return yield* Effect.fail(
 				new SqlError.SqlError({

@@ -6,7 +6,7 @@ import { Effect, Schema } from "effect";
 import { getAvailableDatabaseList } from "../fns/get-available-database-list.kysely.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
-const getAvailableDatabaseListServerFn = createServerFn()
+const getAvailableDatabaseListServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
 		Schema.Struct({ url: Schema.String }).pipe(Schema.standardSchemaV1),
 	)

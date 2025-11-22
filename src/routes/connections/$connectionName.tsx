@@ -38,6 +38,7 @@ const tabStateSchema = Schema.Struct({
 	}).pipe(Schema.optional), // Zipson-compressed column pinning config
 	columnOrder: Schema.String.pipe(Schema.Array, Schema.optional), // JSON-stringified column order array
 	fkValue: Schema.String.pipe(Schema.optional), // FK value used when navigating to this tab
+	relationshipRowId: Schema.String.pipe(Schema.optional), // Row ID for expanded relationships panel
 });
 
 const searchSchema = Schema.Struct({
@@ -70,7 +71,9 @@ const searchSchema = Schema.Struct({
 		Schema.optionalWith({ default: () => false }),
 	),
 	quickReferencesColumnName: Schema.String.pipe(Schema.optional),
-	quickReferencesCellValue: Schema.String.pipe(Schema.optional),
+	quickReferencesCellValue: Schema.Union(Schema.String, Schema.Number).pipe(
+		Schema.optional,
+	),
 	tabs: tabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
 	sidebarCollapsed: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
@@ -78,7 +81,10 @@ const searchSchema = Schema.Struct({
 	rowJsonViewerOpen: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
-	rowJsonViewerRowId: Schema.String.pipe(Schema.optional), // Primary key value to identify which row to display
+	rowJsonViewerRowId: Schema.Union(Schema.String, Schema.Number).pipe(
+		Schema.optional,
+	), // Primary key value to identify which row to display
+	relationshipRowId: Schema.String.pipe(Schema.optional), // Row ID for expanded relationships panel
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({

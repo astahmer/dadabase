@@ -22,6 +22,7 @@ interface UseTableColumnMetadataResult {
 			referencedSchema: string;
 			referencedTable: string;
 			referencedColumn: string;
+			constraintName: string;
 		};
 	}>;
 	columnList: string[];

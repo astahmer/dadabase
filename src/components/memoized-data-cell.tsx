@@ -5,6 +5,7 @@ import { CellContextMenu } from "./cell-context-menu";
 import { InlineReferencesButton } from "./inline-references.button.tsx";
 import { Badge } from "./ui/badge";
 import { JsonCell } from "./ui/json-cell";
+import { formatTableValue } from "./pages/connection-page/format-table-value.ts";
 
 export interface MemoizedDataCellProps {
 	ctx: CellContext<Record<string, unknown>, unknown>;
@@ -32,16 +33,7 @@ export interface MemoizedDataCellProps {
 	onMenuOpen?: () => void;
 }
 
-const CellContent = ({
-	value,
-	fallback,
-}: {
-	value: unknown;
-	fallback: () => any;
-}) => {
-	if (typeof value === "object" && value !== null) {
-		return <JsonCell value={value} />;
-	}
+const CellContent = ({ value }: { value: unknown }) => {
 	// Handle boolean values with colored badges
 	if (typeof value === "boolean") {
 		return (
@@ -53,13 +45,17 @@ const CellContent = ({
 	// Handle null/undefined with a neutral badge
 	if (value === null || value === undefined) {
 		return (
-			<Badge colorPalette="muted" size="xs" variant="subtle">
+			<Badge colorPalette="muted" size="2xs" variant="subtle">
 				{value === null ? "NULL" : "undefined"}
 			</Badge>
 		);
 	}
 
-	return fallback();
+	if (typeof value === "object" && value !== null && !(value instanceof Date)) {
+		return <JsonCell value={value} />;
+	}
+
+	return formatTableValue(value) as string;
 };
 
 function MemoizedDataCellInner({
@@ -88,7 +84,7 @@ function MemoizedDataCellInner({
 			onShowQuickReferences={onShowQuickReferences}
 			onOpen={onMenuOpen}
 		>
-			<CellContent value={ctx.getValue()} fallback={() => ctx.renderValue()} />
+			<CellContent value={ctx.getValue()} />
 		</CellContextMenu>
 	);
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { InlineJsonButton } from "../inline-json-button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
 import { JsonViewerModal } from "./json-viewer";
+import { Badge } from "./badge.tsx";
 
 interface JsonCellProps {
 	value: unknown;
@@ -23,6 +24,14 @@ function generatePreview(value: unknown): string {
 
 export function JsonCell({ value, className }: JsonCellProps) {
 	const [open, setOpen] = useState(false);
+
+	if (value === null || value === undefined) {
+		return (
+			<Badge colorPalette="muted" size="2xs" variant="subtle">
+				{value === null ? "NULL" : "undefined"}
+			</Badge>
+		);
+	}
 
 	// Determine if value is a complex object/array
 	const isComplex =

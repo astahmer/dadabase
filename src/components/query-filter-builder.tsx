@@ -12,7 +12,7 @@ import {
 import { useListCollection } from "@ark-ui/react";
 import { useFilter } from "@ark-ui/react/locale";
 import { Plus, X } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Button } from "./ui/button";
 import {
 	Combobox,
@@ -159,10 +159,17 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 		initialItems: columnCollection.items,
 		filter: filters.contains,
 	});
+	useEffect(() => {
+		columnList.set(columnCollection.items);
+	}, [columnCollection.items]);
+
 	const operatorList = useListCollection({
 		initialItems: operatorCollection.items,
 		filter: filters.contains,
 	});
+	useEffect(() => {
+		operatorList.set(operatorCollection.items);
+	}, [operatorCollection.items]);
 
 	return (
 		<Stack>

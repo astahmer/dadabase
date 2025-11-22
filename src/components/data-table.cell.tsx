@@ -1,38 +1,39 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Cell } from "@tanstack/react-table";
-import { flexRender } from "@tanstack/react-table";
-import type { CSSProperties } from "react";
+import type { CSSProperties, PropsWithChildren } from "react";
 import { memo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { getCommonPinningStyles } from "../lib/get-pinning-styles.ts";
 import { tableCellStyles, type DataTableSize } from "./data-table.styles.ts";
 
 const fallbackRender = () => "An error happened";
 
-export const DataTableCell = memo(function TableCell({
-	cell,
-	index,
-	size,
-	showColumnBorder,
-	enableColumnOrdering,
-}: {
-	cell: Cell<any, any>;
+export const DataTableCell = memo(function TableCell(props: {
+	children: PropsWithChildren["children"];
+	columnId: string;
+	columnSize: number;
 	index: number;
 	isExpanded: boolean;
 	size: DataTableSize;
 	showColumnBorder: boolean;
 	enableColumnOrdering: boolean;
+	isDragDisabled: boolean;
+	textAlign: "left" | "right" | "center";
+	style?: CSSProperties;
 }) {
-	const columnSize = cell.column.getSize();
-	const textAlign = (cell.column.columnDef.meta as any)?.textAlign || "left";
-
-	const isDragDisabled =
-		(cell.column.columnDef.meta as any)?.enableColumnOrdering === false ||
-		Boolean(cell.column.getIsPinned());
+	const {
+		columnId,
+		children,
+		index,
+		size,
+		showColumnBorder,
+		enableColumnOrdering,
+		textAlign,
+		isDragDisabled,
+		style,
+	} = props;
 
 	const sortable = useSortable({
-		id: cell.column.id,
+		id: columnId,
 		disabled: isDragDisabled,
 	});
 
@@ -42,21 +43,22 @@ export const DataTableCell = memo(function TableCell({
 			position: "relative",
 			transform: CSS.Translate.toString(sortable.transform), // translate instead of transform to avoid squishing
 			transition: "width transform 0.2s ease-in-out",
-			width: cell.column.getSize(),
+			width: props.columnSize,
 			zIndex: sortable.isDragging ? 1 : 0,
 		};
 		return (
 			<td
 				ref={sortable.setNodeRef}
 				className={tableCellStyles({ size, showColumnBorder, textAlign })}
-				data-testid={`cell-${index}-${cell.column.id}`}
+				data-testid={`cell-${index}-${columnId}`}
 				style={{
-					width: `${columnSize}px`,
+					width: `${props.columnSize}px`,
 					...dragStyle,
 				}}
 			>
 				<ErrorBoundary fallbackRender={fallbackRender}>
-					{flexRender(cell.column.columnDef.cell, cell.getContext())}
+					{children}
+					{/* {flexRender(cell.column.columnDef.cell, cell.getContext())} */}
 				</ErrorBoundary>
 			</td>
 		);
@@ -65,14 +67,15 @@ export const DataTableCell = memo(function TableCell({
 	return (
 		<td
 			className={tableCellStyles({ size, showColumnBorder, textAlign })}
-			data-testid={`cell-${index}-${cell.column.id}`}
+			data-testid={`cell-${index}-${columnId}`}
 			style={{
-				width: `${columnSize}px`,
-				...getCommonPinningStyles(cell.column),
+				width: `${props.columnSize}px`,
+				...style,
 			}}
 		>
 			<ErrorBoundary fallbackRender={fallbackRender}>
-				{flexRender(cell.column.columnDef.cell, cell.getContext())}
+				{children}
+				{/* {flexRender(cell.column.columnDef.cell, cell.getContext())} */}
 			</ErrorBoundary>
 		</td>
 	);

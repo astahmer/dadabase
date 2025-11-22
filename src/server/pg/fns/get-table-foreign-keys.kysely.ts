@@ -25,7 +25,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 					kcu2.table_schema AS "referencedSchema",
 					kcu2.table_name AS "referencedTable",
 					kcu2.column_name AS "referencedColumn",
-					constraint_name AS "constraintName"
+					kcu1.constraint_name AS "constraintName"
 				FROM
 					information_schema.key_column_usage kcu1
 					LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
@@ -33,7 +33,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 				WHERE
 					kcu1.table_schema = ${input.schema}
 					AND kcu1.table_name = ${input.table}
-					AND constraint_name IN (
+					AND kcu1.constraint_name IN (
 						SELECT constraint_name
 						FROM information_schema.table_constraints
 						WHERE constraint_type = 'FOREIGN KEY'
@@ -153,27 +153,46 @@ export const findColumnReferencesWithCounts = (input: {
 			`);
 
 			// Execute all COUNT queries in parallel
+			// Normalize the cell value: treat string "null" or "undefined" as null
+			const normalizedCellValue =
+				input.cellValue === undefined || input.cellValue === null
+					? null
+					: typeof input.cellValue === "string" &&
+							(input.cellValue === "null" || input.cellValue === "undefined")
+						? null
+						: input.cellValue;
+			// console.log({ cellValue: input.cellValue, normalizedCellValue });
+
 			const referencesWithCounts = yield* Effect.all(
-				references.map((ref) =>
-					db
-						.execute(sql<{ count: number }>`
-							SELECT COUNT(*) as count
-							FROM ${sql.table(`${ref.schema}.${ref.table}`)}
-							WHERE ${sql.ref(ref.column)} = ${input.cellValue}
-						`)
-						.pipe(
-							Effect.map((countResult: { count: number }[]) => ({
+				references.map((ref) => {
+					// If the cell value is null-ish, query for IS NULL to avoid passing
+					// string values like "null" or "undefined" into typed columns
+					const countQuery =
+						normalizedCellValue === null
+							? db.execute(sql<{ count: number }>`
+								SELECT COUNT(*) as count
+								FROM ${sql.table(`${ref.schema}.${ref.table}`)}
+								WHERE ${sql.ref(ref.column)} IS NULL
+							`)
+							: db.execute(sql<{ count: number }>`
+								SELECT COUNT(*) as count
+								FROM ${sql.table(`${ref.schema}.${ref.table}`)}
+								WHERE ${sql.ref(ref.column)} = ${normalizedCellValue}
+							`);
+
+					return countQuery.pipe(
+						Effect.map((countResult: { count: number }[]) => ({
+							...ref,
+							matchingRowCount: countResult[0]?.count ?? 0,
+						})),
+						Effect.catchAll(() =>
+							Effect.succeed({
 								...ref,
-								matchingRowCount: countResult[0]?.count ?? 0,
-							})),
-							Effect.catchAll(() =>
-								Effect.succeed({
-									...ref,
-									matchingRowCount: -1, // Default to 0 on error
-								}),
-							),
+								matchingRowCount: -1, // Default on error
+							}),
 						),
-				),
+					);
+				}),
 			);
 
 			return referencesWithCounts;

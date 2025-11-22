@@ -33,6 +33,8 @@ export const FilterCondition = Schema.Struct({
 	value: Schema.Union(
 		Schema.String,
 		Schema.Number,
+		Schema.Boolean,
+		Schema.Null,
 		Schema.Array(Schema.String),
 	).pipe(Schema.optional),
 	// Not serializable, but used for UI state
@@ -202,6 +204,7 @@ export const filterQueryValidConditions = (
 		if (
 			!nullOperators.includes(condition.operator) &&
 			(condition.value === undefined ||
+				condition.value === null ||
 				condition.value === "" ||
 				(Array.isArray(condition.value) && condition.value.length === 0))
 		) {

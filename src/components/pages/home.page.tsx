@@ -47,6 +47,7 @@ export const HomePage = () => {
 
 	const savedDatabaseList = useSuspenseQuery(listDbConnectionQueryOptions);
 	const table = useDataTable({
+		enableColumnPinning: false,
 		data: savedDatabaseList.data,
 		columns: [
 			{

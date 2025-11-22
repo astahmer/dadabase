@@ -9,7 +9,7 @@ import { listAvailableSchemasQueryOptions } from "#src/server/pg/start-fns/get-a
 import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-available-tables.start";
 import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import { useListCollection } from "@ark-ui/react";
+import { Splitter, useListCollection } from "@ark-ui/react";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { Pagination } from "@ark-ui/react/pagination";
@@ -31,14 +31,14 @@ import {
 	RefreshCw,
 	Rows,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getErrorMessage } from "../../lib/get-error-message.ts";
-import { BulkActionBar } from "../bulk-action-bar";
 import { CollapsibleSidebar } from "../collapsible-sidebar";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
 import { NaturalLanguageSearch } from "../natural-language-search";
 import { OrderBySelect } from "../order-by-select";
+import { RelationshipsPanel } from "../relationships-panel";
 import { QueryFilterBuilder } from "../query-filter-builder";
 import { ScrollToColumnButton } from "../scroll-to-column.button.tsx";
 import { TableTabsBar } from "../table-tabs-bar";
@@ -66,6 +66,10 @@ import { ConnectionRowJsonViewerDrawer } from "./connection-page/connection-row-
 import { createTabState } from "./connection-page/create-tab-state.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
+import type { DataTableSize } from "../data-table.styles.ts";
+import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
+import { calculateSplitterRelationshipPanelSize } from "#src/lib/calculate-percentage-from-pixels.ts";
+import { RowsPerPageSelector } from "./connection-page/rows-per-page.selector.tsx";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -100,7 +104,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			table: s.table,
 			filtersOpened: s.filtersOpened,
 			viewMode: s.viewMode,
-			tableSize: s.tableSize,
+			tableSize:
+				(s.tabs ?? []).find((t) => t.tabId === s.activeTabId)?.tableSize ??
+				s.tableSize ??
+				"cozy",
+			limit: s.limit,
 		}),
 	});
 
@@ -108,7 +116,21 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
 		null,
 	);
+	const [relationshipPanelSize, setRelationshipPanelSize] = useState(
+		calculateSplitterRelationshipPanelSize(50),
+	);
 
+	// Recalculate relationship panel size on window resize
+	useEffect(() => {
+		const handleResize = () => {
+			setRelationshipPanelSize(calculateSplitterRelationshipPanelSize(50));
+		};
+
+		window.addEventListener("resize", handleResize);
+		return () => window.removeEventListener("resize", handleResize);
+	}, []);
+
+	const pageState = useConnectionPageState({ connection });
 	const {
 		activeConnectionUrl,
 		queryBuilder,
@@ -120,7 +142,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		totalRowCount,
 		rowsDataTable,
 		rowsColumns,
-	} = useConnectionPageState({ connection });
+		hasUuid,
+	} = pageState;
 
 	return (
 		<div className="h-screen bg-background flex flex-col">
@@ -182,7 +205,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 										/>
 									</div>
 								) : (
-									<div className="flex-1 overflow-auto flex flex-col h-full px-2">
+									<div className="flex-1 flex flex-col h-full min-h-0 px-2">
 										{rowsQuery.isLoading ? (
 											<Stack className="flex-1 flex items-center justify-center">
 												<Spinner />
@@ -211,84 +234,190 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											</div>
 										) : (
 											<>
-												<div className="flex-1 overflow-auto flex flex-col h-full relative">
-													<DataTable
-														virtualized
-														enableColumnOrdering
-														table={rowsDataTable}
-														getTableContainer={setTableContainer}
-														isLoading={
-															rowsQuery.isLoading || isColumnMetadataLoading
-														}
-														size={search.tableSize}
-														withContextMenu
-														onColumnFilterClick={(columnId, _columnName) => {
-															navigate({
-																search: (prev) => ({
-																	...prev,
-																	filtersOpened: true,
-																	filters: {
-																		conditions: [
-																			...(prev.filters?.conditions ?? []),
-																			{
-																				column: columnId,
-																				operator: "equals",
-																			},
-																		],
-																		logicalOperator:
-																			prev.filters?.logicalOperator ?? "and",
-																	},
-																}),
-															});
-														}}
-														onExpandRowJson={(row) => {
-															const primaryKeyColumn = columnMetadata.find(
-																(col) => col.primaryKey,
-															);
-															const rowId = primaryKeyColumn
-																? String(row[primaryKeyColumn.name])
-																: undefined;
-															navigate({
-																search: (prev) => ({
-																	...prev,
-																	rowJsonViewerRowId: rowId,
-																	rowJsonViewerOpen: !!rowId,
-																}),
-															});
-														}}
-													/>
-													{!rowsQuery.isLoading && !isColumnMetadataLoading && (
-														<ScrollToColumnButton
-															columnList={columnMetadata.map((col) => col.name)}
-															containerRef={{ current: tableContainer }}
+												<Splitter.Root
+													orientation="vertical"
+													className="flex-1 flex flex-col h-full overflow-hidden"
+													panels={[
+														{
+															id: "rows-table",
+															collapsible: true,
+															minSize: 0,
+														},
+														{
+															id: "relationships",
+															collapsible: true,
+															collapsedSize: relationshipPanelSize,
+															minSize: relationshipPanelSize,
+														},
+													]}
+												>
+													<Splitter.Panel
+														id="rows-table"
+														className="flex-1 overflow-auto flex flex-col relative"
+													>
+														<DataTable
+															virtualized={search.limit > 100}
+															enableColumnOrdering
+															table={rowsDataTable}
+															getTableContainer={setTableContainer}
+															isLoading={
+																rowsQuery.isLoading || isColumnMetadataLoading
+															}
+															size={search.tableSize}
+															withContextMenu
+															// renderSubrows={renderSubrows}
+															onColumnFilterClick={(columnId, _columnName) => {
+																navigate({
+																	search: (prev) => ({
+																		...prev,
+																		filtersOpened: true,
+																		filters: {
+																			conditions: [
+																				...(prev.filters?.conditions ?? []),
+																				{
+																					column: columnId,
+																					operator: "equals",
+																				},
+																			],
+																			logicalOperator:
+																				prev.filters?.logicalOperator ?? "and",
+																		},
+																	}),
+																});
+															}}
+															onExpandRowJson={(row) => {
+																const primaryKeyColumn = columnMetadata.find(
+																	(col) => col.primaryKey,
+																);
+																const rowId = primaryKeyColumn
+																	? String(row[primaryKeyColumn.name])
+																	: undefined;
+																navigate({
+																	search: (prev) => ({
+																		...prev,
+																		rowJsonViewerRowId: rowId,
+																		rowJsonViewerOpen: !!rowId,
+																	}),
+																});
+															}}
 														/>
+														{!rowsQuery.isLoading &&
+															!isColumnMetadataLoading && (
+																<ScrollToColumnButton
+																	columnList={columnMetadata.map(
+																		(col) => col.name,
+																	)}
+																	containerRef={{ current: tableContainer }}
+																/>
+															)}
+													</Splitter.Panel>
+
+													{pageState.relationshipRowId && search.table && (
+														<>
+															<Splitter.Context>
+																{(ctx) => (
+																	<Splitter.ResizeTrigger
+																		id="rows-table:relationships"
+																		className="h-1 bg-border hover:bg-primary/50 cursor-row-resize transition-colors"
+																		title="Drag to resize, double click to collapse/expand rows table"
+																		onDoubleClick={() =>
+																			ctx.isPanelExpanded("rows-table")
+																				? ctx.collapsePanel("rows-table")
+																				: ctx.expandPanel("rows-table")
+																		}
+																	/>
+																)}
+															</Splitter.Context>
+															<Splitter.Panel
+																id="relationships"
+																className="overflow-hidden flex flex-col mb-2.5"
+															>
+																<Splitter.Context>
+																	{(ctx) => {
+																		let isPanelExpanded = false;
+																		try {
+																			isPanelExpanded =
+																				ctx.isPanelExpanded("relationships");
+																		} catch {}
+
+																		return (
+																			<RelationshipsPanel
+																				key={
+																					activeConnectionUrl +
+																					search.table +
+																					pageState.relationshipRowId
+																				}
+																				connectionUrl={activeConnectionUrl}
+																				schema={search.schema}
+																				table={search.table!}
+																				selectedRowId={
+																					pageState.relationshipRowId ?? null
+																				}
+																				rowData={
+																					rowsDataTable
+																						.getRowModel()
+																						.rows.find(
+																							(row) =>
+																								row.id ===
+																								pageState.relationshipRowId,
+																						)?.original ?? {}
+																				}
+																				isPanelExpanded={isPanelExpanded}
+																				onCollapse={() => {
+																					ctx.collapsePanel("relationships");
+																				}}
+																				onExpand={() => {
+																					ctx.expandPanel("relationships");
+																				}}
+																				onClose={() => {
+																					navigate({
+																						search: (prev) => {
+																							const updatedTabs = (
+																								prev.tabs ?? []
+																							).map((tab) => {
+																								if (
+																									tab.tabId === prev.activeTabId
+																								) {
+																									return {
+																										...tab,
+																										relationshipRowId:
+																											undefined,
+																									};
+																								}
+																								return tab;
+																							});
+
+																							return {
+																								...prev,
+																								relationshipRowId: undefined,
+																								tabs: updatedTabs,
+																							};
+																						},
+																					});
+																				}}
+																			/>
+																		);
+																	}}
+																</Splitter.Context>
+															</Splitter.Panel>
+														</>
 													)}
-												</div>
-												<BulkActionBar
-													selectedCount={
-														rowsDataTable.getSelectedRowModel().rows.length
-													}
-													onDelete={() => {
-														// Placeholder - implement deletion logic
-														console.log("Delete selected rows");
-													}}
-													onExport={() => {
-														// Placeholder - implement export logic
-														console.log("Export selected rows");
-													}}
-													isLoading={rowsQuery.isLoading}
-												/>
+												</Splitter.Root>
 											</>
 										)}
-										{/* Status Bar */}
-										<ConnectionPageStatusBar
-											isLoading={rowsQuery.isLoading}
-											refetch={rowsQuery.refetch}
-											timeTaken={queryResponse.timeTaken}
-											ranAt={queryResponse.ranAt}
-											totalRowCount={totalRowCount}
-											rowsColumnsCount={rowsColumns.length}
-										/>
+										{/* Footer Bar - Status Only */}
+										<div className="shrink-0 border-t">
+											<ConnectionPageStatusBar
+												table={rowsDataTable}
+												hasUuid={hasUuid}
+												isLoading={rowsQuery.isLoading}
+												refetch={rowsQuery.refetch}
+												timeTaken={queryResponse.timeTaken}
+												ranAt={queryResponse.ranAt}
+												totalRowCount={totalRowCount}
+												rowsColumnsCount={rowsColumns.length}
+											/>
+										</div>
 									</div>
 								)}
 							</div>
@@ -353,122 +482,6 @@ const TableSizeCollection = ArkSelect.createListCollection({
 	],
 });
 
-interface RowsPerPageSelectorProps {
-	value: number;
-	onValueChange: (newLimit: number) => void;
-}
-
-const items = [
-	{ label: "50", value: 50 },
-	{ label: "100", value: 100 },
-	{ label: "250", value: 250 },
-	{ label: "500", value: 500 },
-];
-
-function RowsPerPageSelector({
-	value,
-	onValueChange,
-}: RowsPerPageSelectorProps) {
-	const [open, setOpen] = useState(false);
-
-	const filters = useFilter({ sensitivity: "base" });
-	const list = useListCollection({
-		initialItems: items,
-		filter: filters.contains,
-	});
-
-	const filteredItems = list.collection.items;
-
-	const handleSelect = (newValue: number) => {
-		onValueChange(newValue);
-		setOpen(false);
-	};
-
-	return (
-		<ListboxMenu.ListboxMenuRoot
-			open={open}
-			onOpenChange={(e) => setOpen(e.open)}
-		>
-			<ListboxMenu.ListboxMenuTrigger size="sm" asChild>
-				<Button
-					variant="outline"
-					className="flex flex-1 items-center justify-between gap-5 bg-transparent px-3 py-2 outline-none outline-hidden placeholder:text-muted-foreground/70 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50 data-placeholder-shown:text-muted-foreground"
-				>
-					<span className="text-sm font-medium text-foreground">{value}</span>
-					<ChevronDownIcon className="size-4 shrink-0 in-aria-invalid:text-destructive/80 text-muted-foreground/80" />
-				</Button>
-			</ListboxMenu.ListboxMenuTrigger>
-			<ListboxMenu.ListboxMenuContent>
-				<ListboxMenu.ListboxRoot collection={list.collection}>
-					<ListboxMenu.ListboxMenuFilterContainer>
-						<Stack>
-							<ListboxMenu.ListboxMenuFilterInput
-								placeholder="Use a custom value"
-								autoFocus
-								type="number"
-								// onChange={(e) => {
-								// 	list.filter(e.target.value);
-								// }}
-								onKeyDown={(e) => {
-									if (e.key === "Enter") {
-										const target = e.target as HTMLInputElement;
-										const exits = list.collection.items.some(
-											(item) => item.value === target.valueAsNumber,
-										);
-										if (
-											exits ||
-											target.valueAsNumber < 1 ||
-											target.valueAsNumber > 1000
-										) {
-											setOpen(false);
-											return;
-										}
-
-										const insertAfterIndex = list.collection.items.findIndex(
-											(item) => item.value > target.valueAsNumber,
-										);
-										list.insert(
-											insertAfterIndex === -1
-												? list.collection.items.length
-												: insertAfterIndex,
-											{
-												label: target.value,
-												value: target.valueAsNumber,
-											},
-										);
-										handleSelect(target.valueAsNumber);
-									}
-								}}
-							/>
-							<span className="text-xs text-muted-foreground">Max: 1000</span>
-						</Stack>
-					</ListboxMenu.ListboxMenuFilterContainer>
-					<ListboxMenu.ListboxMenuList>
-						{filteredItems.length > 0 ? (
-							<ListboxMenu.ListboxMenuItemGroup>
-								{filteredItems.map((item: { label: string; value: number }) => (
-									<ListboxMenu.ListboxMenuItem
-										key={item.value}
-										item={item}
-										onClick={() => handleSelect(item.value)}
-										showIndicator={item.value === value}
-									>
-										{item.label}
-									</ListboxMenu.ListboxMenuItem>
-								))}
-							</ListboxMenu.ListboxMenuItemGroup>
-						) : (
-							<ListboxMenu.ListboxMenuEmpty>
-								No items found
-							</ListboxMenu.ListboxMenuEmpty>
-						)}
-					</ListboxMenu.ListboxMenuList>
-				</ListboxMenu.ListboxRoot>
-			</ListboxMenu.ListboxMenuContent>
-		</ListboxMenu.ListboxMenuRoot>
-	);
-}
-
 const StructureTable = (props: {
 	columnMetadata: Array<{
 		name: string;
@@ -485,7 +498,7 @@ const StructureTable = (props: {
 		};
 	}>;
 	isLoading: boolean;
-	tableSize: "excel" | "minimal" | "compact" | "cozy" | "comfortable";
+	tableSize: DataTableSize;
 }) => {
 	{
 		const { columnMetadata } = props;
@@ -597,6 +610,7 @@ const ConnectionPageHeader = (props: {
 	onAddConnection: () => void;
 }) => {
 	const { connection } = props;
+	const [connectionMenuOpen, setConnectionMenuOpen] = useState(false);
 
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -624,7 +638,12 @@ const ConnectionPageHeader = (props: {
 							</Breadcrumb.BreadcrumbItem>
 							<Breadcrumb.BreadcrumbSeparator />
 							<Breadcrumb.BreadcrumbItem>
-								<ListboxMenu.ListboxMenuRoot>
+								<ListboxMenu.ListboxMenuRoot
+									open={connectionMenuOpen}
+									onOpenChange={(details) => {
+										setConnectionMenuOpen(details.open);
+									}}
+								>
 									<ListboxMenu.ListboxMenuTrigger
 										variant="unstyled"
 										size="unstyled"
@@ -648,6 +667,7 @@ const ConnectionPageHeader = (props: {
 													details.value &&
 													details.value[0] !== connectionName
 												) {
+													setConnectionMenuOpen(false);
 													navigate({
 														to: "/connections/$connectionName",
 														params: { connectionName: details.value[0] },
@@ -661,6 +681,11 @@ const ConnectionPageHeader = (props: {
 														key={conn.name}
 														item={{ label: conn.name, value: conn.name }}
 														showIndicator={conn.name === connectionName}
+														className={
+															conn.name === connectionName
+																? "bg-primary/15 text-primary font-semibold hover:bg-primary/20"
+																: ""
+														}
 													>
 														{conn.name}
 													</ListboxMenu.ListboxMenuItem>
@@ -672,6 +697,7 @@ const ConnectionPageHeader = (props: {
 														value: "__add",
 													}}
 													onClick={() => {
+														setConnectionMenuOpen(false);
 														props.onAddConnection();
 													}}
 												>
@@ -710,6 +736,7 @@ const ConnectionPageHeader = (props: {
 									limit: 50,
 									orderBy: undefined,
 									orderDirection: undefined,
+									relationshipRowId: undefined,
 									quickReferencesCellValue: undefined,
 									quickReferencesColumnName: undefined,
 									quickReferencesOpen: false,
@@ -1137,6 +1164,8 @@ const ConnectionPageSidebar = (props: {
 																		offset: 0,
 																		limit: 50,
 																		orderBy: undefined,
+																		relationshipRowId:
+																			existingTab?.relationshipRowId,
 																		orderDirection: undefined,
 																		quickReferencesOpen: false,
 																		quickReferencesColumnName: undefined,
@@ -1178,57 +1207,6 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 		from: "/connections/$connectionName",
 		select: (s) => s.activeTabId ?? null,
 	});
-
-	const addEmptyTab = () => {
-		// Create a placeholder empty tab with a unique ID
-		const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-		const emptyTabState = {
-			tabId,
-			schema: "",
-			table: "",
-			tableFilter: undefined,
-			orderBy: undefined,
-			orderDirection: undefined,
-			limit: 50,
-			offset: 0,
-			viewMode: "rows" as const,
-			tableSize: "cozy" as const,
-			hiddenColumnList: undefined,
-			filters: undefined,
-			filtersOpened: false,
-		};
-		navigate({
-			search: (prev) => ({
-				...prev,
-				tabs: [...(prev.tabs ?? []), emptyTabState],
-				activeTabId: tabId,
-			}),
-		});
-	};
-
-	const closeTab = (tabId: string) => {
-		navigate({
-			search: (prev) => {
-				const updatedTabs = (prev.tabs ?? []).filter((t) => t.tabId !== tabId);
-				let newActiveTabId = prev.activeTabId;
-
-				// If we closed the active tab, switch to another tab
-				if (prev.activeTabId === tabId) {
-					if (updatedTabs.length > 0) {
-						newActiveTabId = updatedTabs[updatedTabs.length - 1].tabId;
-					} else {
-						newActiveTabId = undefined;
-					}
-				}
-
-				return {
-					...prev,
-					tabs: updatedTabs,
-					activeTabId: newActiveTabId,
-				};
-			},
-		});
-	};
 
 	const prefetchTableData = (schema: string, table: string) => {
 		queryClient.prefetchQuery({
@@ -1276,6 +1254,7 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 								table: undefined,
 								schema: undefined,
 								activeTabId: tabId,
+								relationshipRowId: undefined,
 							}),
 						});
 					} else {
@@ -1297,64 +1276,107 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 								hiddenColumnList: tab.hiddenColumnList,
 								fkValue: tab.fkValue,
 								activeTabId: tabId,
+								relationshipRowId: tab.relationshipRowId,
 							}),
 						});
 					}
 				}
 			}}
 			onTabClose={(tabId) => {
-				closeTab(tabId);
-				// If there are remaining tabs, navigate to the last one
-				const remainingTabs = tabs.filter((t) => t.tabId !== tabId);
-				if (remainingTabs.length > 0) {
-					const lastTab = remainingTabs[remainingTabs.length - 1];
-					if (!lastTab.schema || !lastTab.table) {
-						navigate({
-							search: (prev) => ({
-								...prev,
+				navigate({
+					search: (prev) => {
+						const updatedTabs = (prev.tabs ?? []).filter(
+							(t) => t.tabId !== tabId,
+						);
+						let newActiveTabId = prev.activeTabId;
+
+						// If we closed the active tab, switch to another tab
+						if (prev.activeTabId === tabId) {
+							if (updatedTabs.length > 0) {
+								newActiveTabId = updatedTabs[updatedTabs.length - 1].tabId;
+							} else {
+								newActiveTabId = undefined;
+							}
+						}
+
+						// Build the navigation state based on the new active tab
+						const baseState = {
+							...prev,
+							tabs: updatedTabs,
+							activeTabId: newActiveTabId,
+						};
+
+						// If no remaining tabs, clear table selection
+						if (updatedTabs.length === 0) {
+							return {
+								...baseState,
 								table: undefined,
 								schema: undefined,
-								activeTabId: lastTab.tabId,
-							}),
-						});
-					} else {
-						navigate({
-							search: (prev) => ({
-								...prev,
-								schema: lastTab.schema,
-								table: lastTab.table,
-								offset: lastTab.offset ?? 0,
-								limit: lastTab.limit ?? 50,
-								orderBy: lastTab.orderBy,
-								orderDirection: lastTab.orderDirection,
-								filters: lastTab.filters,
-								filtersOpened: lastTab.filtersOpened ?? false,
-								viewMode: lastTab.viewMode ?? "rows",
-								tableSize: lastTab.tableSize ?? "cozy",
-								tableFilter: lastTab.tableFilter,
-								hiddenColumnList: lastTab.hiddenColumnList,
-								activeTabId: lastTab.tabId,
-							}),
-						});
-					}
-				} else {
-					// No more tabs, go back to no table selected
-					navigate({
-						search: (prev) => ({
-							...prev,
-							table: undefined,
-							schema: undefined,
-							activeTabId: undefined,
-						}),
-					});
-				}
+								relationshipRowId: undefined,
+							};
+						}
+
+						// If new active tab exists, restore its state
+						const newActiveTab = updatedTabs.find(
+							(t) => t.tabId === newActiveTabId,
+						);
+						if (newActiveTab) {
+							if (!newActiveTab.schema || !newActiveTab.table) {
+								return {
+									...baseState,
+									table: undefined,
+									schema: undefined,
+									relationshipRowId: undefined,
+								};
+							}
+							return {
+								...baseState,
+								schema: newActiveTab.schema,
+								table: newActiveTab.table,
+								offset: newActiveTab.offset ?? 0,
+								limit: newActiveTab.limit ?? 50,
+								orderBy: newActiveTab.orderBy,
+								orderDirection: newActiveTab.orderDirection,
+								filters: newActiveTab.filters,
+								filtersOpened: newActiveTab.filtersOpened ?? false,
+								viewMode: newActiveTab.viewMode ?? "rows",
+								tableSize: newActiveTab.tableSize ?? "cozy",
+								tableFilter: newActiveTab.tableFilter,
+								hiddenColumnList: newActiveTab.hiddenColumnList,
+								relationshipRowId: newActiveTab.relationshipRowId,
+							};
+						}
+
+						return baseState;
+					},
+				});
 			}}
 			onAddTab={() => {
-				addEmptyTab();
+				// Create a placeholder empty tab with a unique ID
+				const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+				const emptyTabState = {
+					tabId,
+					schema: "",
+					table: "",
+					tableFilter: undefined,
+					orderBy: undefined,
+					orderDirection: undefined,
+					limit: 50,
+					offset: 0,
+					viewMode: "rows" as const,
+					tableSize: "cozy" as const,
+					hiddenColumnList: undefined,
+					filters: undefined,
+					filtersOpened: false,
+					relationshipRowId: undefined,
+				};
 				navigate({
 					search: (prev) => ({
 						...prev,
+						tabs: [...(prev.tabs ?? []), emptyTabState],
+						activeTabId: tabId,
 						table: undefined,
+						relationshipRowId: undefined,
 					}),
 				});
 			}}
@@ -1707,6 +1729,8 @@ const ConnectionPageFilters = (props: {
 };
 
 const ConnectionPageStatusBar = (props: {
+	table: TanstackTable<any>;
+	hasUuid: boolean;
 	isLoading: boolean;
 	refetch: () => void;
 	timeTaken: number;
@@ -1875,11 +1899,8 @@ const ConnectionPageStatusBar = (props: {
 							value={[tableSize]}
 							collection={TableSizeCollection}
 							positioning={{ sameWidth: true }}
-							onValueChange={(details: { value?: string[] }) => {
-								const newSize = (details.value?.[0] || "cozy") as
-									| "compact"
-									| "cozy"
-									| "comfortable";
+							onValueChange={(details) => {
+								const newSize = (details.value?.[0] || "cozy") as DataTableSize;
 								navigate({
 									search: (prev) => {
 										// Update the currently active tab with the same tableSize
@@ -1900,6 +1921,17 @@ const ConnectionPageStatusBar = (props: {
 										};
 									},
 								});
+
+								const newSizing: Record<string, number> = {};
+								const defaultSize = getDefaultColumnSize({
+									tableSize: newSize,
+									hasUuid: props.hasUuid,
+								});
+								for (const col of props.table.getAllColumns()) {
+									newSizing[col.id] = defaultSize;
+								}
+
+								props.table.setColumnSizing(newSizing);
 							}}
 						>
 							<ArkSelect.SelectControl>
