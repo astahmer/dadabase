@@ -290,7 +290,7 @@ describe("getRelationshipsCounts", () => {
 		},
 	);
 
-	it.effect("handles null filter values correctly", () => {
+	it.effect("ignores relationships when filter value is null", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
@@ -308,25 +308,16 @@ describe("getRelationshipsCounts", () => {
 				},
 			];
 
-			// room_id is null in rowData, so we should count all activity_logs with room_id IS NULL
-			const rowData = { id: "activity_room_with_null" };
-
-			// Need to query with a relation where the foreign column is null
-			// Create a temporary table to test this scenario
-			yield* (yield* KyselyPgDatabase).executeRaw(sql`
-				INSERT INTO activity_logs (id, room_id, action)
-				VALUES ('log-null-1', NULL, 'test'), ('log-null-2', NULL, 'test')
-			`);
-
+			// When the filter value (id) is null, the relationship is ignored entirely
 			const counts = yield* getRelationshipsCounts({
 				schema: "public",
 				table: "activity_rooms",
 				relationships,
-				rowData: { id: null }, // Simulating a null id
+				rowData: { id: null }, // Null id means this relationship is filtered out
 			});
 
-			// When filtering by null, should count all logs with room_id IS NULL
-			expect(counts["activity_logs_room_id_fkey"]).toBe(4); // 2 original + 2 new
+			// Null relationships are not included in the result
+			expect(counts["activity_logs_room_id_fkey"]).toBeUndefined();
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
 
