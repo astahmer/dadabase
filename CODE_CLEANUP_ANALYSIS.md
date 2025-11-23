@@ -1,50 +1,7 @@
 # Dadabase Code Cleanup Analysis
 
 ## Overview
-Comprehensive analysis of the `src` folder identifying opportunities for code cleaning and maintainability improvements without making changes.
-
-**Statistics:**
-- Total server-side files: 43
-- Test files: 11 (mostly server-side only)
-- Hook files: 12 (all generic hooks mixed together)
-- Component files: 100+ across folders
-
----
-
-## 1. GENERIC COMPONENTS POLLUTED WITH APP-SPECIFIC CODE
-
-### Issue: DataTable Component
-**File:** `src/components/data-table.tsx` (line count: ~430)
-
-**Problem:**
-- Props `tableMetadata` and `connectionUrl` are app-specific (connection context)
-- These are passed through to child components (`DataTableRow`, `VirtualizedTableBody`)
-- DataTable should be completely generic and agnostic of connection/schema/table context
-- Currently leaks implementation details that make it non-reusable
-
-**Impact:**
-- Cannot reuse DataTable for other data sources
-- Hard to test in isolation
-- Violates single responsibility principle
-
-**Affected Props:**
-```tsx
-tableMetadata?: { schema: string; table: string };
-connectionUrl?: string;
-```
-
-**Child Components Also Polluted:**
-- `DataTableRow` - accepts same metadata props
-- `VirtualizedTableBody` - accepts same metadata props
-- `RowContextMenu` - uses connection-specific logic
-
-**Recommendation:**
-- Remove `tableMetadata` and `connectionUrl` from DataTable/DataTableRow/VirtualizedTableBody
-- Pass these only through context (create DataTableContext) if needed
-- Use callback props for row-level actions that need context
-- Move connection-aware logic to wrapper component
-
----
+Comprehensive analysis of the `src` folder identifying opportunities for code cleaning and maintainability improvements.
 
 ## 2. FOLDER ORGANIZATION ISSUES
 
@@ -542,59 +499,10 @@ Creates new component instances on each render - potential performance/key issue
 - `useTableColumns` - column definitions
 - `useTableState` - table state management
 
-### Issue 3: Missing Type Safety in Router Search Params
-**Problem:** Many `useSearch()` calls with manual selection functions
-- Prone to typos
-- No compile-time checking
-- Duplicated across components
-
-**Recommendation:**
-Create typed search param hooks in connection page folder
-
-### Issue 4: Inconsistent Error Handling
-- Some components use `getErrorMessage()` utility
-- Some render errors directly
-- No consistent error boundary strategy
-
-**Recommendation:**
-- Create `<ErrorDisplay error={error} />` component
-- Use consistent error message formatting
-
 ### Issue 5: Performance: Unnecessary Memo/useMemo
 Many components use `memo` but may not need it. Need profiling to identify real bottlenecks.
 
 **Example:** `DataTableRow` is memoized but receives `getRow` callback which changes on every render
-
-### Issue 6: Magic Numbers/Strings
-**Examples:**
-- `224` - sidebar default width (where is this constant?)
-- `30` - overscan default in virtualization
-- `"cozy"` - default table size
-- `50` - hardcoded pixel size in `useSplitterPanelPercentSize`
-
-**Recommendation:**
-Create constants file:
-```ts
-// src/constants/ui.ts
-export const SIDEBAR_DEFAULT_WIDTH = 224;
-export const TABLE_VIRTUALIZATION_OVERSCAN = 30;
-export const DEFAULT_TABLE_SIZE = "cozy" as const;
-```
-
-### Issue 7: Commented Code
-**In DataTableRow:** Large commented section for `__actions` column
-**In relationship-panel:** Multiple commented debug statements
-
-**Recommendation:** Remove all commented code
-
-### Issue 8: Missing JSDoc Documentation
-No documentation on:
-- Public hook APIs
-- Complex component props
-- Utility functions
-- Type definitions
-
----
 
 ## 10. SUMMARY TABLE
 
@@ -609,56 +517,3 @@ No documentation on:
 | Poor naming (confusing names) | LOW | 10+ | Nice-to-have |
 | Folder organization issues | MEDIUM | Multiple | Soon |
 | Inline component definitions | LOW | 5+ | Nice-to-have |
-| Inconsistent error handling | MEDIUM | Multiple | Soon |
-
----
-
-## 11. RECOMMENDED CLEANUP ORDER
-
-### Phase 1 (Critical - Foundation)
-1. Remove app-specific props from DataTable, DataTableRow
-2. Extract DataTable sub-components to separate files
-3. Reorganize hooks folder by feature/scope
-4. Extract ConnectionPage sub-components to separate files
-
-### Phase 2 (High Priority - Structure)
-1. Split RelationshipsPanel into smaller components
-2. Extract tab state update logic to utility
-3. Create reusable error/loading UI components
-4. Move connection-specific UI logic to wrapper components
-
-### Phase 3 (Medium Priority - Quality)
-1. Consolidate useState in complex components to useReducer
-2. Add server-side unit tests (high-impact functions first)
-3. Create connection page typed hooks for router search params
-4. Extract sticky relationship tracking to custom hook
-
-### Phase 4 (Nice-to-Have - Polish)
-1. Fix naming inconsistencies
-2. Remove commented code
-3. Add JSDoc documentation
-4. Extract magic numbers to constants
-5. Performance profiling and optimization
-
----
-
-## 12. ESTIMATED EFFORT
-
-- **Phase 1:** 3-4 days
-- **Phase 2:** 2-3 days
-- **Phase 3:** 3-5 days
-- **Phase 4:** 2-3 days
-
-**Total:** ~10-15 days of focused refactoring work
-
----
-
-## Conclusion
-
-The codebase has solid foundational structure but suffers from:
-1. **Architecture issues** (generic components polluted)
-2. **Organization issues** (hooks folder anti-pattern)
-3. **Scale issues** (god components too large)
-4. **Testing gaps** (server-side untested)
-
-Most critical is separating concerns between generic, reusable components and app-specific implementations. This will significantly improve maintainability, testability, and reusability.

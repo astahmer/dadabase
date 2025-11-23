@@ -39,11 +39,8 @@ export const RelationshipsPanel = ({
 	onClose,
 }: RelationshipsPanelProps) => {
 	const panelState = useRelationshipsPanelState();
-	const {
-		selectedRelationships,
-		displayedRelationships,
-		relationshipViewMode,
-	} = panelState.state;
+	const { selectedRelationships, displayedRelationships, relationshipViewMode } =
+		panelState.state;
 	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const rightPanelRef = useRef<HTMLDivElement | null>(null);
 
