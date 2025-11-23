@@ -11,7 +11,7 @@ export interface VirtualizedTableBodyProps<TData> {
 	striped: boolean;
 	interactive: boolean;
 	showColumnBorder: boolean;
-	withContextMenu: boolean;
+	withRowContextMenu?: boolean;
 	ExpandedRow?: (props: { row: Row<TData> }) => ReactNode;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
 	estimateItemSize?: number;
@@ -20,8 +20,6 @@ export interface VirtualizedTableBodyProps<TData> {
 	enableColumnOrdering: boolean;
 	columnOrder?: string[];
 	renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
-	tableMetadata?: { schema: string; table: string };
-	connectionUrl?: string;
 }
 
 export function VirtualizedTableBody<TData>({
@@ -32,7 +30,7 @@ export function VirtualizedTableBody<TData>({
 	interactive,
 	showColumnBorder,
 	enableColumnOrdering,
-	withContextMenu,
+	withRowContextMenu,
 	ExpandedRow,
 	onExpandRowJson,
 	estimateItemSize = 35,
@@ -40,8 +38,6 @@ export function VirtualizedTableBody<TData>({
 	scrollElement,
 	columnOrder = [],
 	renderSubrows,
-	tableMetadata,
-	connectionUrl,
 }: VirtualizedTableBodyProps<TData>) {
 	const virtualizer = useVirtualizer({
 		count: rows.length,
@@ -82,11 +78,10 @@ export function VirtualizedTableBody<TData>({
 						showColumnBorder={showColumnBorder}
 						enableColumnOrdering={enableColumnOrdering}
 						columnOrder={columnOrder}
+						withRowContextMenu={withRowContextMenu}
 						ExpandedRow={ExpandedRow}
 						onExpandRowJson={onExpandRowJson}
 						renderSubrows={renderSubrows}
-						tableMetadata={tableMetadata}
-						connectionUrl={connectionUrl}
 					/>
 				);
 			})}

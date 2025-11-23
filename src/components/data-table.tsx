@@ -68,7 +68,7 @@ export interface DataTableProps<TData> {
 	interactive?: boolean;
 	striped?: boolean;
 	showColumnBorder?: boolean;
-	withContextMenu?: boolean;
+	withRowContextMenu?: boolean;
 	variant?: DataTableVariant;
 	size?: DataTableSize;
 	ExpandedRow?: (props: { row: Row<TData> }) => ReactNode;
@@ -80,8 +80,6 @@ export interface DataTableProps<TData> {
 	enableColumnOrdering?: boolean;
 	renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
 	hideColumnPinIconUnlessHovered?: boolean;
-	tableMetadata?: { schema: string; table: string };
-	connectionUrl?: string;
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -101,7 +99,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		interactive = false,
 		striped = false,
 		showColumnBorder = false,
-		withContextMenu = false,
+		withRowContextMenu = false,
 		resizable = true,
 		variant = "line",
 		size = "cozy",
@@ -112,8 +110,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		enableColumnOrdering = false,
 		renderSubrows,
 		hideColumnPinIconUnlessHovered = true,
-		tableMetadata,
-		connectionUrl,
 	} = props;
 
 	const state = table.getState();
@@ -393,7 +389,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 							showColumnBorder={showColumnBorder}
 							enableColumnOrdering={enableColumnOrdering}
 							columnOrder={state.columnOrder}
-							withContextMenu={withContextMenu}
+							withRowContextMenu={withRowContextMenu}
 							ExpandedRow={ExpandedRow}
 							onExpandRowJson={props.onExpandRowJson}
 							estimateItemSize={
@@ -402,8 +398,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 							overscan={overscan}
 							scrollElement={tableContainerRef.current}
 							renderSubrows={renderSubrows}
-							tableMetadata={tableMetadata}
-							connectionUrl={connectionUrl}
 						/>
 					</tbody>
 				) : (
@@ -421,11 +415,10 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									showColumnBorder={showColumnBorder}
 									enableColumnOrdering={enableColumnOrdering}
 									columnOrder={state.columnOrder}
+									withRowContextMenu={withRowContextMenu}
 									ExpandedRow={ExpandedRow}
 									onExpandRowJson={props.onExpandRowJson}
 									renderSubrows={renderSubrows}
-									tableMetadata={tableMetadata}
-									connectionUrl={connectionUrl}
 								/>
 							))
 						) : (

@@ -252,12 +252,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																rowsQuery.isLoading || isColumnMetadataLoading
 															}
 															size={search.tableSize}
-															withContextMenu
-															tableMetadata={{
-																schema: search.schema,
-																table: search.table,
-															}}
-															connectionUrl={activeConnectionUrl}
+															withRowContextMenu
 															// renderSubrows={renderSubrows}
 															onColumnFilterClick={(columnId, _columnName) => {
 																navigate({
