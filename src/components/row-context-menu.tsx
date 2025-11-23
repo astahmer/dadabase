@@ -25,7 +25,7 @@ export function RowContextMenu(props: RowContextMenuProps) {
 			positioning={{ placement: "right" }}
 		>
 			<Menu lazyMount>
-				<Popover.Anchor>
+				<Popover.Anchor className="contents">
 					<MenuContextTrigger asChild>{props.children}</MenuContextTrigger>
 				</Popover.Anchor>
 				<Portal>
