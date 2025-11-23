@@ -36,6 +36,7 @@ import { CollapsibleSidebar } from "../collapsible-sidebar";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
+import { LoadingSpinner } from "../shared/loading-spinner";
 import { NaturalLanguageSearch } from "../natural-language-search";
 import { OrderBySelect } from "../order-by-select";
 import { RelationshipsPanel } from "../relationships-panel";
@@ -894,19 +895,12 @@ const ConnectionPageSidebar = (props: {
 						onRetry={() => databaseListQuery.refetch()}
 					/>
 				) : databaseListQuery.isLoading ? (
-					<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9 gap-2">
-						<Spinner />
-						<div className="text-xs text-muted-foreground">
-							{databaseListQuery.failureCount > 0 ? (
-								<>
-									Failed {databaseListQuery.failureCount} time
-									{databaseListQuery.failureCount > 1 ? "s" : ""}, retrying...
-								</>
-							) : (
-								"Loading databases..."
-							)}
-						</div>
-					</div>
+					<LoadingSpinner
+						label="Loading databases..."
+						failureCount={databaseListQuery.failureCount}
+						layout="horizontal"
+						className="rounded-md border border-input bg-card px-3 py-2 min-h-9"
+					/>
 				) : (
 					<ArkSelect.Select
 						className="w-full"
@@ -972,19 +966,12 @@ const ConnectionPageSidebar = (props: {
 						onRetry={() => schemaListQuery.refetch()}
 					/>
 				) : schemaListQuery.isLoading ? (
-					<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9 gap-2">
-						<Spinner />
-						<div className="text-xs text-muted-foreground">
-							{schemaListQuery.failureCount > 0 ? (
-								<>
-									Failed {schemaListQuery.failureCount} time
-									{schemaListQuery.failureCount > 1 ? "s" : ""}, retrying...
-								</>
-							) : (
-								"Loading schemas..."
-							)}
-						</div>
-					</div>
+					<LoadingSpinner
+						label="Loading schemas..."
+						failureCount={schemaListQuery.failureCount}
+						layout="horizontal"
+						className="rounded-md border border-input bg-card px-3 py-2 min-h-9"
+					/>
 				) : (
 					<ArkSelect.Select
 						className="w-full"
@@ -1043,19 +1030,12 @@ const ConnectionPageSidebar = (props: {
 							/>
 						</div>
 					) : tablesListQuery.isLoading ? (
-						<div className="p-4 flex items-center justify-center gap-2">
-							<Spinner />
-							<div className="text-xs text-muted-foreground">
-								{tablesListQuery.failureCount > 0 ? (
-									<>
-										Failed {tablesListQuery.failureCount} time
-										{tablesListQuery.failureCount > 1 ? "s" : ""}, retrying...
-									</>
-								) : (
-									"Loading tables..."
-								)}
-							</div>
-						</div>
+						<LoadingSpinner
+							label="Loading tables..."
+							failureCount={tablesListQuery.failureCount}
+							layout="horizontal"
+							className="p-4"
+						/>
 					) : (
 						<div className="flex-1 overflow-hidden flex flex-col h-full">
 							<div className="px-4">
