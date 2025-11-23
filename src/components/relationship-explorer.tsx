@@ -324,8 +324,7 @@ const RelationshipField = memo(function RelationshipField({
 		relationship.type === "outgoing"
 			? `${relationship.referencingColumn}`
 			: `${relationship.referencingTable}.${relationship.referencingColumn}`;
-	const displayCount =
-		relationship.type === "incoming" && count > 0 ? ` (${count})` : "";
+	const displayCount = relationship.type === "incoming" ? ` (${count})` : "";
 
 	return (
 		<div className="py-0.5">
