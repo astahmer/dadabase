@@ -5,7 +5,10 @@ import type { UseRowsColumnsOptions } from "./use-rows-columns.tsx";
 import type { TableColumnMetadata } from "#src/server/pg/fns/get-table-columns.kysely.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { createTabState } from "#src/components/pages/connection-page/create-tab-state.ts";
+import {
+	updateTabState,
+	createTabState,
+} from "#src/components/pages/connection-page/create-tab-state.ts";
 
 interface UseRowsColumnsActionOptions {
 	columnMetadata: TableColumnMetadata[];
@@ -74,21 +77,21 @@ export const useRowsColumnsAction = (props: UseRowsColumnsActionOptions) => {
 	const handleFindReferences = useCallback(
 		(columnName: string, cellValue: unknown) => {
 			navigate({
-				search: (prev) => ({
-					...prev,
-					filtersOpened: true,
-					filters: {
-						conditions: [
-							{
-								column: columnName,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					offset: 0,
-				}),
+				search: (prev) =>
+					updateTabState(prev, {
+						filtersOpened: true,
+						filters: {
+							conditions: [
+								{
+									column: columnName,
+									operator: "equals",
+									value: String(cellValue),
+								},
+							],
+							logicalOperator: "and",
+						},
+						offset: 0,
+					}),
 			});
 		},
 		[navigate],
@@ -116,26 +119,9 @@ export const useRowsColumnsAction = (props: UseRowsColumnsActionOptions) => {
 			navigate({
 				search: (prev) => ({
 					...prev,
-					schema: ref.schema,
-					table: ref.table,
+					...newTabState,
 					activeTabId: newTabState.tabId,
 					tabs: [...(prev.tabs ?? []), newTabState],
-					filters: {
-						conditions: [
-							{
-								column: ref.column,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
-					relationshipRowId: undefined,
 				}),
 			});
 		},

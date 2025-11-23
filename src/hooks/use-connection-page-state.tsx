@@ -23,6 +23,7 @@ import type {
 import { useCallback, useMemo, useState } from "react";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
 import { RowContextMenu } from "#src/components/row-context-menu.tsx";
+import { updateTabState } from "#src/components/pages/connection-page/create-tab-state.ts";
 
 interface UseConnectionPageStateProps {
 	connection: {
@@ -74,27 +75,14 @@ export const useConnectionPageState = ({
 
 			navigate({
 				search: (prev) => {
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								filters: updatedFilter,
-								filtersOpened: shouldOpenFilters,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
-						filters: updatedFilter || undefined,
+					return updateTabState(prev, {
+						filters: updatedFilter,
 						filtersOpened: shouldOpenFilters,
 						offset: 0,
 						limit: 50,
 						orderBy: undefined,
 						orderDirection: undefined,
-						tabs: updatedTabs,
-					};
+					});
 				},
 			});
 		},
@@ -244,21 +232,9 @@ export const useConnectionPageState = ({
 								onExpandRelationships={() => {
 									navigate({
 										search: (prev) => {
-											const updatedTabs = (prev.tabs ?? []).map((tab) => {
-												if (tab.tabId === prev.activeTabId) {
-													return {
-														...tab,
-														relationshipRowId: ctx.row.id,
-													};
-												}
-												return tab;
-											});
-
-											return {
-												...prev,
+											return updateTabState(prev, {
 												relationshipRowId: ctx.row.id,
-												tabs: updatedTabs,
-											};
+											});
 										},
 									});
 								}}
@@ -520,29 +496,13 @@ export const useConnectionPageState = ({
 			const firstSort = newSorting[0];
 			navigate({
 				search: (prev) => {
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								orderBy: firstSort?.id || undefined,
-								orderDirection: (firstSort?.desc ? "desc" : "asc") as
-									| "asc"
-									| "desc",
-								offset: 0,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
+					return updateTabState(prev, {
 						orderBy: firstSort?.id || undefined,
 						orderDirection: (firstSort?.desc ? "desc" : "asc") as
 							| "asc"
 							| "desc",
 						offset: 0,
-						tabs: updatedTabs,
-					};
+					});
 				},
 			});
 		},
@@ -555,23 +515,10 @@ export const useConnectionPageState = ({
 				typeof updater === "function" ? updater(current) : updater;
 			navigate({
 				search: (prev) => {
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								offset: newPagination.pageIndex * newPagination.pageSize,
-								limit: newPagination.pageSize,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
+					return updateTabState(prev, {
 						offset: newPagination.pageIndex * newPagination.pageSize,
 						limit: newPagination.pageSize,
-						tabs: updatedTabs,
-					};
+					});
 				},
 			});
 		},
@@ -585,22 +532,9 @@ export const useConnectionPageState = ({
 				.sort();
 			navigate({
 				search: (prev) => {
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								hiddenColumnList:
-									hiddenCols.length > 0 ? hiddenCols : undefined,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
+					return updateTabState(prev, {
 						hiddenColumnList: hiddenCols.length > 0 ? hiddenCols : undefined,
-						tabs: updatedTabs,
-					};
+					});
 				},
 			});
 		},
@@ -609,21 +543,9 @@ export const useConnectionPageState = ({
 				typeof updater === "function" ? updater(columnPinningState) : updater;
 			navigate({
 				search: (prev) => {
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								columnPinning: newPinning,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
+					return updateTabState(prev, {
 						columnPinning: newPinning,
-						tabs: updatedTabs,
-					};
+					});
 				},
 			});
 		},
@@ -632,21 +554,9 @@ export const useConnectionPageState = ({
 				typeof updater === "function" ? updater(columnOrderState) : updater;
 			navigate({
 				search: (prev) => {
-					const updatedTabs = (prev.tabs ?? []).map((tab) => {
-						if (tab.tabId === prev.activeTabId) {
-							return {
-								...tab,
-								columnOrder: newOrder,
-							};
-						}
-						return tab;
-					});
-
-					return {
-						...prev,
+					return updateTabState(prev, {
 						columnOrder: newOrder,
-						tabs: updatedTabs,
-					};
+					});
 				},
 			});
 		},

@@ -1,3 +1,10 @@
+import { FileRouteTypes } from "#src/routeTree.gen.ts";
+
+type ConnectionPageSearch =
+	FileRouteTypes["fileRoutesByFullPath"]["/connections/$connectionName"]["types"]["searchSchema"];
+
+type TabState = NonNullable<ConnectionPageSearch["tabs"]>[number];
+
 export const createTabState = (
 	schema: string,
 	table: string,
@@ -8,7 +15,7 @@ export const createTabState = (
 		filtersOpened?: boolean;
 		fkValue?: string;
 	},
-) => ({
+): TabState => ({
 	tabId: `${schema}.${table}:${options?.fkValue ?? ""}`,
 	schema,
 	table,
@@ -25,3 +32,18 @@ export const createTabState = (
 	filtersOpened: options?.filtersOpened ?? false,
 	fkValue: options?.fkValue,
 });
+
+export const updateTabState = (
+	prev: ConnectionPageSearch,
+	updates: Partial<TabState>,
+): ConnectionPageSearch => {
+	const updatedTabs = (prev.tabs ?? []).map((tab) =>
+		tab.tabId === prev.activeTabId ? { ...tab, ...updates } : tab,
+	);
+
+	return {
+		...prev,
+		...updates,
+		tabs: updatedTabs,
+	} as ConnectionPageSearch;
+};

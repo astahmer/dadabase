@@ -64,7 +64,10 @@ import { UniqueConstraintIcon } from "../ui/unique-constraint-icon";
 import { useDataTable } from "../use-data-table";
 import { ConnectionQuickReferencesDrawer } from "./connection-page/connection-quick-references.drawer.tsx";
 import { ConnectionRowJsonViewerDrawer } from "./connection-page/connection-row-json-viewer.drawer.tsx";
-import { createTabState } from "./connection-page/create-tab-state.ts";
+import {
+	createTabState,
+	updateTabState,
+} from "./connection-page/create-tab-state.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
 import type { DataTableSize } from "../data-table.styles.ts";
@@ -255,21 +258,22 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															// renderSubrows={renderSubrows}
 															onColumnFilterClick={(columnId, _columnName) => {
 																navigate({
-																	search: (prev) => ({
-																		...prev,
-																		filtersOpened: true,
-																		filters: {
-																			conditions: [
-																				...(prev.filters?.conditions ?? []),
-																				{
-																					column: columnId,
-																					operator: "equals",
-																				},
-																			],
-																			logicalOperator:
-																				prev.filters?.logicalOperator ?? "and",
-																		},
-																	}),
+																	search: (prev) =>
+																		updateTabState(prev, {
+																			filtersOpened: true,
+																			filters: {
+																				conditions: [
+																					...(prev.filters?.conditions ?? []),
+																					{
+																						column: columnId,
+																						operator: "equals",
+																					},
+																				],
+																				logicalOperator:
+																					prev.filters?.logicalOperator ??
+																					"and",
+																			},
+																		}),
 																});
 															}}
 															onExpandRowJson={(row) => {
@@ -358,28 +362,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																				}}
 																				onClose={() => {
 																					navigate({
-																						search: (prev) => {
-																							const updatedTabs = (
-																								prev.tabs ?? []
-																							).map((tab) => {
-																								if (
-																									tab.tabId === prev.activeTabId
-																								) {
-																									return {
-																										...tab,
-																										relationshipRowId:
-																											undefined,
-																									};
-																								}
-																								return tab;
-																							});
-
-																							return {
-																								...prev,
+																						search: (prev) =>
+																							updateTabState(prev, {
 																								relationshipRowId: undefined,
-																								tabs: updatedTabs,
-																							};
-																						},
+																							}),
 																					});
 																				}}
 																			/>
@@ -982,13 +968,13 @@ const ConnectionPageSidebar = (props: {
 							const newSchema = details.value?.[0];
 							if (newSchema) {
 								navigate({
-									search: (prev) => ({
-										...prev,
-										schema: newSchema,
-										table: undefined,
-										offset: 0,
-										filters: undefined,
-									}),
+									search: (prev) =>
+										updateTabState(prev, {
+											schema: newSchema,
+											table: undefined,
+											offset: 0,
+											filters: undefined,
+										}),
 								});
 							}
 						}}
@@ -1045,10 +1031,8 @@ const ConnectionPageSidebar = (props: {
 									onChange={(e) =>
 										navigate({
 											replace: true,
-											search: (prev) => ({
-												...prev,
-												tableFilter: e.target.value,
-											}),
+											search: (prev) =>
+												updateTabState(prev, { tableFilter: e.target.value }),
 										})
 									}
 								/>
@@ -1210,21 +1194,8 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 						navigate({
 							search: (prev) => ({
 								...prev,
-								schema: tab.schema,
-								table: tab.table,
-								offset: tab.offset ?? 0,
-								limit: tab.limit ?? 50,
-								orderBy: tab.orderBy,
-								orderDirection: tab.orderDirection,
-								filters: tab.filters,
-								filtersOpened: tab.filtersOpened ?? false,
-								viewMode: tab.viewMode ?? "rows",
-								tableSize: tab.tableSize ?? "cozy",
-								tableFilter: tab.tableFilter,
-								hiddenColumnList: tab.hiddenColumnList,
-								fkValue: tab.fkValue,
+								...tab,
 								activeTabId: tabId,
-								relationshipRowId: tab.relationshipRowId,
 							}),
 						});
 					}
@@ -1279,19 +1250,7 @@ const ConnectionPageTabs = (props: { activeConnectionUrl: string }) => {
 							}
 							return {
 								...baseState,
-								schema: newActiveTab.schema,
-								table: newActiveTab.table,
-								offset: newActiveTab.offset ?? 0,
-								limit: newActiveTab.limit ?? 50,
-								orderBy: newActiveTab.orderBy,
-								orderDirection: newActiveTab.orderDirection,
-								filters: newActiveTab.filters,
-								filtersOpened: newActiveTab.filtersOpened ?? false,
-								viewMode: newActiveTab.viewMode ?? "rows",
-								tableSize: newActiveTab.tableSize ?? "cozy",
-								tableFilter: newActiveTab.tableFilter,
-								hiddenColumnList: newActiveTab.hiddenColumnList,
-								relationshipRowId: newActiveTab.relationshipRowId,
+								...newActiveTab,
 							};
 						}
 
@@ -1431,24 +1390,10 @@ const ConnectionPageFilters = (props: {
 							size="sm"
 							onClick={() =>
 								navigate({
-									search: (prev) => {
-										// Update the currently active tab with the same viewMode
-										const updatedTabs = (prev.tabs ?? []).map((tab) => {
-											if (tab.tabId === prev.activeTabId) {
-												return {
-													...tab,
-													viewMode: "rows" as const,
-												};
-											}
-											return tab;
-										});
-
-										return {
-											...prev,
-											viewMode: "rows" as const,
-											tabs: updatedTabs,
-										};
-									},
+									search: (prev) =>
+										updateTabState(prev, {
+											viewMode: "rows",
+										}),
 								})
 							}
 						>
@@ -1461,24 +1406,10 @@ const ConnectionPageFilters = (props: {
 							size="sm"
 							onClick={() =>
 								navigate({
-									search: (prev) => {
-										// Update the currently active tab with the same viewMode
-										const updatedTabs = (prev.tabs ?? []).map((tab) => {
-											if (tab.tabId === prev.activeTabId) {
-												return {
-													...tab,
-													viewMode: "structure" as const,
-												};
-											}
-											return tab;
-										});
-
-										return {
-											...prev,
-											viewMode: "structure" as const,
-											tabs: updatedTabs,
-										};
-									},
+									search: (prev) =>
+										updateTabState(prev, {
+											viewMode: "structure",
+										}),
 								})
 							}
 						>
@@ -1498,24 +1429,10 @@ const ConnectionPageFilters = (props: {
 									queryBuilder.addCondition();
 								} else {
 									navigate({
-										search: (prev) => {
-											// Update the currently active tab with the same filtersOpened state
-											const updatedTabs = (prev.tabs ?? []).map((tab) => {
-												if (tab.tabId === prev.activeTabId) {
-													return {
-														...tab,
-														filtersOpened: !prev.filtersOpened,
-													};
-												}
-												return tab;
-											});
-
-											return {
-												...prev,
+										search: (prev) =>
+											updateTabState(prev, {
 												filtersOpened: !prev.filtersOpened,
-												tabs: updatedTabs,
-											};
-										},
+											}),
 									});
 								}
 							}}
@@ -1550,7 +1467,7 @@ const ConnectionPageFilters = (props: {
 						onApplyFilters={(parsed) => {
 							const { filters = [], orderBy, limit } = parsed;
 							console.log("onApplyFilters", filters);
-							// 	// Map NL operators to query filter operators
+							// 	Map NL operators to query filter operators
 							const operatorMap: Record<string, any> = {
 								eq: "equals",
 								gt: "greater_than",
@@ -1598,20 +1515,20 @@ const ConnectionPageFilters = (props: {
 
 							if (orderBy) {
 								navigate({
-									search: (prev) => ({
-										...prev,
-										orderBy: orderBy.field,
-										orderDirection: orderBy.direction,
-									}),
+									search: (prev) =>
+										updateTabState(prev, {
+											orderBy: orderBy.field,
+											orderDirection: orderBy.direction,
+										}),
 								});
 							}
 
 							if (limit) {
 								navigate({
-									search: (prev) => ({
-										...prev,
-										limit: limit,
-									}),
+									search: (prev) =>
+										updateTabState(prev, {
+											limit: limit,
+										}),
 								});
 							}
 						}}
@@ -1633,28 +1550,12 @@ const ConnectionPageFilters = (props: {
 						orderDirection={orderDirection}
 						onOrderChange={(orderBy, direction) => {
 							navigate({
-								search: (prev) => {
-									// Update the currently active tab with the same order updates
-									const updatedTabs = (prev.tabs ?? []).map((tab) => {
-										if (tab.tabId === prev.activeTabId) {
-											return {
-												...tab,
-												orderBy,
-												orderDirection: direction || "asc",
-												offset: 0,
-											};
-										}
-										return tab;
-									});
-
-									return {
-										...prev,
+								search: (prev) =>
+									updateTabState(prev, {
 										orderBy,
 										orderDirection: direction || "asc",
 										offset: 0,
-										tabs: updatedTabs,
-									};
-								},
+									}),
 							});
 						}}
 						getColumnLabel={(col) => col}
@@ -1754,24 +1655,10 @@ const ConnectionPageStatusBar = (props: {
 						page={Math.floor(offset / limit) + 1}
 						onPageChange={(details) => {
 							navigate({
-								search: (prev) => {
-									// Update the currently active tab with the same offset
-									const updatedTabs = (prev.tabs ?? []).map((tab) => {
-										if (tab.tabId === prev.activeTabId) {
-											return {
-												...tab,
-												offset: (details.page - 1) * limit,
-											};
-										}
-										return tab;
-									});
-
-									return {
-										...prev,
+								search: (prev) =>
+									updateTabState(prev, {
 										offset: (details.page - 1) * limit,
-										tabs: updatedTabs,
-									};
-								},
+									}),
 							});
 						}}
 					>
@@ -1807,26 +1694,11 @@ const ConnectionPageStatusBar = (props: {
 							value={limit}
 							onValueChange={(newLimit) => {
 								navigate({
-									search: (prev) => {
-										// Update the currently active tab with the same limit updates
-										const updatedTabs = (prev.tabs ?? []).map((tab) => {
-											if (tab.tabId === prev.activeTabId) {
-												return {
-													...tab,
-													limit: newLimit,
-													offset: 0,
-												};
-											}
-											return tab;
-										});
-
-										return {
-											...prev,
+									search: (prev) =>
+										updateTabState(prev, {
 											limit: newLimit,
 											offset: 0,
-											tabs: updatedTabs,
-										};
-									},
+										}),
 								});
 							}}
 						/>
@@ -1840,24 +1712,10 @@ const ConnectionPageStatusBar = (props: {
 							onValueChange={(details) => {
 								const newSize = (details.value?.[0] || "cozy") as DataTableSize;
 								navigate({
-									search: (prev) => {
-										// Update the currently active tab with the same tableSize
-										const updatedTabs = (prev.tabs ?? []).map((tab) => {
-											if (tab.tabId === prev.activeTabId) {
-												return {
-													...tab,
-													tableSize: newSize,
-												};
-											}
-											return tab;
-										});
-
-										return {
-											...prev,
+									search: (prev) =>
+										updateTabState(prev, {
 											tableSize: newSize,
-											tabs: updatedTabs,
-										};
-									},
+										}),
 								});
 
 								const newSizing: Record<string, number> = {};

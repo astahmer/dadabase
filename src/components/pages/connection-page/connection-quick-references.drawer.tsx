@@ -95,26 +95,9 @@ export const ConnectionQuickReferencesDrawer = ({
 								navigate({
 									search: (prev) => ({
 										...prev,
-										schema,
-										table,
+										...newTabState,
 										activeTabId: newTabState.tabId,
 										tabs: [...(prev.tabs ?? []), newTabState],
-										filters: {
-											conditions: [
-												{
-													column,
-													operator: "equals",
-													value: String(value),
-												},
-											],
-											logicalOperator: "and",
-										},
-										filtersOpened: true,
-										offset: 0,
-										limit: 50,
-										orderBy: undefined,
-										orderDirection: undefined,
-										relationshipRowId: undefined,
 										quickReferencesOpen: false,
 										quickReferencesColumnName: undefined,
 										quickReferencesCellValue: undefined,
