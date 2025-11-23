@@ -6,9 +6,9 @@ import { useRowsColumnsAction } from "#src/hooks/use-rows-columns.actions.ts";
 import type { TableRelationship } from "#src/types/relationships.ts";
 import { useRowsColumns } from "../hooks/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "../hooks/use-table-column-metadata";
-import { getErrorMessage } from "../lib/get-error-message";
 import { queryFkTargetDataQueryOptions } from "../server/pg/start-fns/get-fk-target-data.start";
 import { DataTable } from "./data-table";
+import { ErrorBoundaryCard } from "./shared/error-boundary-card.tsx";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Spinner } from "./ui/spinner";
@@ -120,17 +120,20 @@ export const RelatedDataSubrowTable = ({
 
 	if (tableMetadata.error) {
 		return (
-			<div className="p-4 text-sm text-red-600">
-				Error loading table metadata: {getErrorMessage(tableMetadata.error)}
-			</div>
+			<ErrorBoundaryCard
+				error={tableMetadata.error}
+				title="Error loading table metadata"
+			/>
 		);
 	}
 
 	if (rowsQuery.error) {
 		return (
-			<div className="p-4 text-sm text-red-600">
-				Error loading related data: {getErrorMessage(rowsQuery.error)}
-			</div>
+			<ErrorBoundaryCard
+				error={rowsQuery.error}
+				title="Error loading related data"
+				onRetry={() => rowsQuery.refetch()}
+			/>
 		);
 	}
 

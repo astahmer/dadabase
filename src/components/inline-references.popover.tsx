@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
 import type { ForeignKeyInfo } from "./cell-context-menu.tsx";
+import { ErrorBoundaryCard } from "./shared/error-boundary-card.tsx";
 import { Stack } from "./ui/layout.tsx";
 
 interface InlineReferencesPopoverProps {
@@ -56,7 +57,12 @@ export function InlineReferencesPopover({
 			};
 
 	// Fetch reverse FK references
-	const { data: reverseReferences = [], isLoading } = useQuery(
+	const {
+		data: reverseReferences = [],
+		isLoading,
+		error,
+		refetch,
+	} = useQuery(
 		findColumnReferencesWithCountsQueryOptions({
 			url: connectionUrl,
 			referencedSchema: referenceTarget.referencedSchema,
@@ -75,6 +81,18 @@ export function InlineReferencesPopover({
 						Cannot display relationships for NULL values
 					</div>
 				</div>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="min-w-80 max-w-2xl">
+				<ErrorBoundaryCard
+					error={error}
+					title="Error loading relationships"
+					onRetry={() => refetch()}
+				/>
 			</div>
 		);
 	}

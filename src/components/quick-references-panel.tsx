@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useListCollection, useFilter, Clipboard } from "@ark-ui/react";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
+import { ErrorBoundaryCard } from "./shared/error-boundary-card.tsx";
 import {
 	ListboxRoot,
 	ListboxMenuList,
@@ -90,6 +91,7 @@ export function QuickReferencesPanel({
 		data: reverseReferences = [],
 		isLoading: isLoadingReferences,
 		error: referencesError,
+		refetch: refetchReferences,
 	} = useQuery(
 		findColumnReferencesWithCountsQueryOptions({
 			url: connectionUrl,
@@ -309,24 +311,18 @@ export function QuickReferencesPanel({
 										</div>
 									</div>
 								)}
-
 								{referencesError && (
-									<div className="m-3 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg">
-										<div className="flex items-start gap-2">
-											<AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-											<div className="text-sm text-red-900 dark:text-red-100">
-												Failed to load relationships
-											</div>
-										</div>
-									</div>
-								)}
-
+									<ErrorBoundaryCard
+										error={referencesError}
+										title="Failed to load relationships"
+										onRetry={() => refetchReferences()}
+									/>
+								)}{" "}
 								{!isLoadingReferences && !reverseReferencesExist && (
 									<div className="text-sm text-muted-foreground py-3 px-4">
 										No tables reference this value
 									</div>
 								)}
-
 								{!isLoadingReferences && reverseReferencesExist && (
 									<ListboxRoot
 										collection={refList.collection}

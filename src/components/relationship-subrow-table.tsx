@@ -5,9 +5,9 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { LogOut, Maximize2, Minimize, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import { ErrorBoundaryCard } from "./shared/error-boundary-card.tsx";
 import { useRowsColumns } from "../hooks/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "../hooks/use-table-column-metadata";
-import { getErrorMessage } from "../lib/get-error-message";
 import { getRelationshipCardinalityQueryOptions } from "../server/pg/start-fns/get-relationship-cardinality.start.ts";
 import { queryRelationshipSubrowDataQueryOptions } from "../server/pg/start-fns/get-relationship-subrow-data.start";
 import { DataTable } from "./data-table";
@@ -166,14 +166,11 @@ export const RelationshipSubrowTable = ({
 
 	if (rowsQuery.isError) {
 		return (
-			<div className="p-4 bg-destructive/5 rounded border border-destructive/20">
-				<p className="text-sm text-destructive">
-					Failed to load {referencingSchema}.{referencingTable}
-				</p>
-				<p className="text-xs text-muted-foreground mt-1">
-					{getErrorMessage(rowsQuery.error)}
-				</p>
-			</div>
+			<ErrorBoundaryCard
+				error={rowsQuery.error}
+				title={`Failed to load ${referencingSchema}.${referencingTable}`}
+				onRetry={() => rowsQuery.refetch()}
+			/>
 		);
 	}
 

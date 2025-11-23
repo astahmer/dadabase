@@ -32,10 +32,10 @@ import {
 	Rows,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { getErrorMessage } from "../../lib/get-error-message.ts";
 import { CollapsibleSidebar } from "../collapsible-sidebar";
 import { ColumnVisibilityControls } from "../column-visibility";
 import { DataTable } from "../data-table";
+import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { NaturalLanguageSearch } from "../natural-language-search";
 import { OrderBySelect } from "../order-by-select";
 import { RelationshipsPanel } from "../relationships-panel";
@@ -211,13 +211,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											</Stack>
 										) : rowsQuery.isError ? (
 											<div className="flex-1 flex items-center justify-center p-4">
-												<Stack className="max-w-2xl w-full bg-destructive/10 border border-destructive/30 rounded-lg p-4">
-													<span className="text-sm font-semibold text-destructive">
-														Error loading table data
-													</span>
-													<span className="text-xs text-destructive/80 font-mono wrap-break-word whitespace-pre-wrap max-h-48 overflow-y-auto">
-														{getErrorMessage(rowsQuery.error)}
-													</span>
+												<Stack className="max-w-2xl w-full">
+													<ErrorBoundaryCard
+														error={rowsQuery.error}
+														title="Error loading table data"
+														onRetry={() => rowsQuery.refetch()}
+													/>
 												</Stack>
 											</div>
 										) : (
@@ -889,22 +888,11 @@ const ConnectionPageSidebar = (props: {
 					Database
 				</label>
 				{databaseListQuery.isError ? (
-					<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
-						<div className="text-xs font-semibold text-destructive mb-1">
-							Failed to load databases
-						</div>
-						<div className="text-xs text-destructive/80 font-mono wrap-break-word mb-2 max-h-24 overflow-y-auto">
-							{getErrorMessage(databaseListQuery.error)}
-						</div>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => databaseListQuery.refetch()}
-							className="w-full text-xs h-7"
-						>
-							Retry
-						</Button>
-					</div>
+					<ErrorBoundaryCard
+						error={databaseListQuery.error}
+						title="Failed to load databases"
+						onRetry={() => databaseListQuery.refetch()}
+					/>
 				) : databaseListQuery.isLoading ? (
 					<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9 gap-2">
 						<Spinner />
@@ -978,22 +966,11 @@ const ConnectionPageSidebar = (props: {
 					Schema
 				</label>
 				{schemaListQuery.isError ? (
-					<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
-						<div className="text-xs font-semibold text-destructive mb-1">
-							Failed to load schemas
-						</div>
-						<div className="text-xs text-destructive/80 font-mono wrap-break-word mb-2 max-h-24 overflow-y-auto">
-							{getErrorMessage(schemaListQuery.error)}
-						</div>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => schemaListQuery.refetch()}
-							className="w-full text-xs h-7"
-						>
-							Retry
-						</Button>
-					</div>
+					<ErrorBoundaryCard
+						error={schemaListQuery.error}
+						title="Failed to load schemas"
+						onRetry={() => schemaListQuery.refetch()}
+					/>
 				) : schemaListQuery.isLoading ? (
 					<div className="flex items-center justify-center rounded-md border border-input bg-card px-3 py-2 min-h-9 gap-2">
 						<Spinner />
@@ -1059,22 +1036,11 @@ const ConnectionPageSidebar = (props: {
 					</div>
 					{tablesListQuery.isError ? (
 						<div className="p-4">
-							<div className="rounded-md border border-destructive/30 bg-destructive/10 p-3">
-								<div className="text-xs font-semibold text-destructive mb-1">
-									Failed to load tables
-								</div>
-								<div className="text-xs text-destructive/80 font-mono wrap-break-word mb-2 max-h-24 overflow-y-auto">
-									{getErrorMessage(tablesListQuery.error)}
-								</div>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => tablesListQuery.refetch()}
-									className="w-full text-xs h-7"
-								>
-									Retry
-								</Button>
-							</div>
+							<ErrorBoundaryCard
+								error={tablesListQuery.error}
+								title="Failed to load tables"
+								onRetry={() => tablesListQuery.refetch()}
+							/>
 						</div>
 					) : tablesListQuery.isLoading ? (
 						<div className="p-4 flex items-center justify-center gap-2">
@@ -1402,32 +1368,22 @@ const RowsTableErrorState = ({
 		// Show error if schema query failed, otherwise ask to select schema/table
 		<div className="flex-1 flex items-center justify-center">
 			{schemaListQuery.isError ? (
-				<div className="max-w-2xl w-full mx-4 bg-destructive/10 border border-destructive/30 rounded-lg p-6">
+				<div className="max-w-2xl w-full mx-4">
 					<div className="flex flex-col gap-3">
-						<span className="text-sm font-semibold text-destructive">
-							Failed to connect to database
-						</span>
-						<span className="text-xs text-destructive/80 font-mono wrap-break-word whitespace-pre-wrap max-h-48 overflow-y-auto">
-							{getErrorMessage(schemaListQuery.error)}
-						</span>
-						<div className="flex gap-2 pt-2">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => schemaListQuery.refetch()}
-							>
-								Retry Connection
-							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									navigate({ to: "/" });
-								}}
-							>
-								Back to Connections
-							</Button>
-						</div>
+						<ErrorBoundaryCard
+							error={schemaListQuery.error}
+							title="Failed to connect to database"
+							onRetry={() => schemaListQuery.refetch()}
+						/>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								navigate({ to: "/" });
+							}}
+						>
+							Back to Connections
+						</Button>
 					</div>
 				</div>
 			) : (
