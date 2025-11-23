@@ -467,7 +467,7 @@ const useSplitterPanelPercentSize = (fromPixels: number) => {
 
 	useEffect(() => {
 		const handleResize = () => {
-			setSize(fromPixelToPercentage(50));
+			setSize(fromPixelToPercentage(fromPixels));
 		};
 
 		window.addEventListener("resize", handleResize);
