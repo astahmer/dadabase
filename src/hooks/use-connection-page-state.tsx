@@ -23,7 +23,12 @@ import type {
 import { useCallback, useMemo, useState } from "react";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
 import { RowContextMenu } from "#src/components/row-context-menu.tsx";
-import { updateTabState } from "#src/components/pages/connection-page/create-tab-state.ts";
+import {
+	createTabState,
+	getActiveTabState,
+	updateTabState,
+	useActiveTabState,
+} from "#src/components/pages/connection-page/create-tab-state.ts";
 
 interface UseConnectionPageStateProps {
 	connection: {
@@ -36,10 +41,12 @@ export const useConnectionPageState = ({
 }: UseConnectionPageStateProps) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
-	const search = useSearch({
+	const dbName = useSearch({
 		from: "/connections/$connectionName",
-		select: (s) => ({
-			dbName: s.dbName,
+		select: (s) => s.dbName,
+	});
+	const search = useActiveTabState((s) => {
+		return {
 			schema: s.schema,
 			table: s.table,
 			filters: s.filters,
@@ -53,12 +60,12 @@ export const useConnectionPageState = ({
 			columnPinning: s.columnPinning,
 			columnOrder: s.columnOrder,
 			relationshipRowId: s.relationshipRowId,
-		}),
+		};
 	});
 
 	const connectionUrl = connection.url || "";
-	const activeConnectionUrl = search.dbName
-		? replaceDatabaseInConnectionUrl(connectionUrl, search.dbName)
+	const activeConnectionUrl = dbName
+		? replaceDatabaseInConnectionUrl(connectionUrl, dbName)
 		: connectionUrl;
 
 	// Query builder setup

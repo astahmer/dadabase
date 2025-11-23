@@ -15,6 +15,7 @@ import { useMemo } from "react";
 import type { DbConnection } from "../connection.types.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { formatTableValue } from "./format-table-value.ts";
+import { useActiveTabState } from "./create-tab-state.ts";
 
 export const ConnectionRowJsonViewerDrawer = ({
 	connection,
@@ -22,21 +23,18 @@ export const ConnectionRowJsonViewerDrawer = ({
 	connection: DbConnection;
 }) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
-	const search = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => ({
-			dbName: s.dbName,
-			schema: s.schema,
-			table: s.table,
-			rowJsonViewerOpen: s.rowJsonViewerOpen,
-			rowJsonViewerRowId: s.rowJsonViewerRowId,
-			limit: s.limit,
-			offset: s.offset,
-			orderBy: s.orderBy,
-			orderDirection: s.orderDirection,
-			filters: s.filters,
-		}),
-	});
+	const search = useActiveTabState((tab, s) => ({
+		dbName: s.dbName,
+		schema: tab.schema,
+		table: tab.table,
+		limit: tab.limit,
+		offset: tab.offset,
+		orderBy: tab.orderBy,
+		orderDirection: tab.orderDirection,
+		filters: tab.filters,
+		rowJsonViewerOpen: s.rowJsonViewerOpen,
+		rowJsonViewerRowId: s.rowJsonViewerRowId,
+	}));
 
 	const connectionUrl = connection.url || "";
 	const activeConnectionUrl = search.dbName
