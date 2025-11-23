@@ -386,7 +386,7 @@ export function QuickReferencesPanel({
 										</div>
 										<ListboxMenuList className="overflow-visible px-2">
 											{refList.collection.items.length > 0 ? (
-												refList.collection.items.map((item: any) => {
+												refList.collection.items.map((item) => {
 													const ref = item.ref as ColumnReference;
 													return (
 														<ListboxMenuItem

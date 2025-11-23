@@ -7,7 +7,7 @@ import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-
 import type { TableRelationship } from "#src/types/relationships.ts";
 import { RelationshipViewMode } from "#src/types/relationship-view-mode.ts";
 import { useRelationshipsPanelState } from "#src/hooks/use-relationships-panel-state.ts";
-import { useStickyRelationshipTracking } from "#src/hooks/use-sticky-relationship-tracking.ts";
+import { useStickyRelationshipTracking as useStickyTracking } from "#src/hooks/use-sticky-relationship-tracking.ts";
 import { RelatedDataSubrowTable } from "./related-data-subrow-table";
 import { RelationshipSubrowTable } from "./relationship-subrow-table";
 import { Button } from "./ui/button";
@@ -47,7 +47,6 @@ export const RelationshipsPanel = ({
 	const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 	const rightPanelRef = useRef<HTMLDivElement | null>(null);
 
-	// Fetch relationships for this table
 	const relationshipsQuery = useQuery(
 		getTableRelationshipsQueryOptions({
 			url: connectionUrl,
@@ -58,7 +57,6 @@ export const RelationshipsPanel = ({
 
 	const relationships = relationshipsQuery.data ?? [];
 
-	// Filter out relationships where the FK value is null
 	const validRelationships = rowData
 		? relationships.filter((rel) => {
 				const filterValue =
@@ -75,7 +73,6 @@ export const RelationshipsPanel = ({
 			})
 		: relationships;
 
-	// Fetch all relationship counts in a single batch query
 	const countsQuery = useQuery({
 		...getRelationshipsCountsQueryOptions({
 			url: connectionUrl,
@@ -89,7 +86,7 @@ export const RelationshipsPanel = ({
 
 	const counts = countsQuery.data ?? {};
 
-	const stickyRelationship = useStickyRelationshipTracking(
+	const stickyRelationship = useStickyTracking(
 		rightPanelRef,
 		cardRefs,
 		displayedRelationships,
@@ -130,7 +127,6 @@ export const RelationshipsPanel = ({
 		);
 	}
 
-	// Group relationships by type for rendering
 	const relsByType = {
 		outgoing: validRelationships.filter((r) => r.type === "outgoing"),
 		incoming: validRelationships.filter((r) => r.type === "incoming"),
@@ -143,34 +139,16 @@ export const RelationshipsPanel = ({
 
 	const handleSelectAllGroup = (type: "outgoing" | "incoming") => {
 		const groupRels = relsByType[type];
-		const next = new Set(selectedRelationships);
-		const displayed = new Set(displayedRelationships);
-
-		groupRels.forEach((rel) => {
-			// Only select relationships with rows > 0
-			const rowCount = Number(counts[rel.constraintName]) ?? 0;
-			if (rowCount > 0) {
-				next.add(rel.constraintName);
-				displayed.add(rel.constraintName);
-			}
-		});
-
-		setSelectedRelationships(next);
-		setDisplayedRelationships(displayed);
+		const selectableNames = groupRels
+			.filter((r) => (Number(counts[r.constraintName]) ?? 0) > 0)
+			.map((r) => r.constraintName);
+		panelState.selectGroup(selectableNames);
 	};
 
 	const handleDeselectAllGroup = (type: "outgoing" | "incoming") => {
 		const groupRels = relsByType[type];
-		const next = new Set(selectedRelationships);
-		const displayed = new Set(displayedRelationships);
-
-		groupRels.forEach((rel) => {
-			next.delete(rel.constraintName);
-			displayed.delete(rel.constraintName);
-		});
-
-		setSelectedRelationships(next);
-		setDisplayedRelationships(displayed);
+		const names = groupRels.map((r) => r.constraintName);
+		panelState.deselectGroup(names);
 	};
 
 	const isGroupFullySelected = (type: "outgoing" | "incoming") => {
@@ -186,17 +164,9 @@ export const RelationshipsPanel = ({
 
 	const handleRelationshipClick = (constraintName: string) => {
 		const rowCount = counts[constraintName] ?? 0;
-
-		// Don't allow selection if rowCount is 0
 		if (rowCount === 0) return;
-
 		if (!selectedRelationships.has(constraintName)) {
-			const next = new Set(selectedRelationships);
-			next.add(constraintName);
-			const displayed = new Set(displayedRelationships);
-			displayed.add(constraintName);
-			setSelectedRelationships(next);
-			setDisplayedRelationships(displayed);
+			panelState.selectRelationship(constraintName);
 		}
 	};
 
@@ -205,24 +175,14 @@ export const RelationshipsPanel = ({
 		checked: boolean,
 	) => {
 		const rowCount = counts[constraintName] ?? 0;
-
-		// Don't allow selection if rowCount is 0
 		if (checked && rowCount === 0) return;
-
-		const next = new Set(selectedRelationships);
-		const displayed = new Set(displayedRelationships);
-
 		if (checked) {
-			next.add(constraintName);
-			displayed.add(constraintName);
+			panelState.selectRelationship(constraintName);
 		} else {
-			next.delete(constraintName);
-			displayed.delete(constraintName);
+			panelState.deselectRelationship(constraintName);
 		}
-
-		setSelectedRelationships(next);
-		setDisplayedRelationships(displayed);
 	};
+
 	return (
 		<div className="border-t bg-card flex flex-col h-full overflow-hidden">
 			{/* Header */}
@@ -283,12 +243,11 @@ export const RelationshipsPanel = ({
 					]}
 					className="h-full flex overflow-hidden"
 				>
-					{/* Left Sidebar - Relationship List */}
+					{/* Left Sidebar */}
 					<Splitter.Panel
 						id="sidebar"
 						className="border-r bg-muted/30 flex flex-col overflow-hidden ml-2"
 					>
-						{/* Relationships List */}
 						<div className="flex-1 overflow-y-auto">
 							{(["outgoing", "incoming"] as const).map((type, idx) => {
 								const rels = relsByType[type];
@@ -328,11 +287,6 @@ export const RelationshipsPanel = ({
 													}
 												}}
 												onClick={(e) => e.stopPropagation()}
-												title={
-													isFullySelected
-														? `Deselect all ${typeLabel.toLowerCase()}`
-														: `Select all ${typeLabel.toLowerCase()}`
-												}
 											>
 												<CheckboxControl />
 											</Checkbox>
@@ -369,10 +323,7 @@ export const RelationshipsPanel = ({
 														)
 													}
 													onViewModeChange={(mode) => {
-														setRelationshipViewMode((prev) => ({
-															...prev,
-															[rel.constraintName]: mode,
-														}));
+														panelState.setViewMode(rel.constraintName, mode);
 													}}
 												/>
 											))}
@@ -388,7 +339,7 @@ export const RelationshipsPanel = ({
 							<Splitter.ResizeTrigger
 								id="sidebar:content"
 								className="w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors"
-								title="Drag to resize column, double click to collapse/expand"
+								title="Drag to resize"
 								onDoubleClick={() =>
 									ctx.isPanelExpanded("sidebar")
 										? ctx.collapsePanel("sidebar")
@@ -398,7 +349,7 @@ export const RelationshipsPanel = ({
 						)}
 					</Splitter.Context>
 
-					{/* Right Panel - Data Display */}
+					{/* Right Panel */}
 					<Splitter.Panel
 						id="content"
 						className="flex flex-col overflow-hidden"
@@ -413,10 +364,8 @@ export const RelationshipsPanel = ({
 								const parentRowValue =
 									rel &&
 									(rel.type === "outgoing"
-										? // For outgoing relationships, get the FK value from the row
-											rowData[rel.referencingColumn]
-										: // For incoming relationships, we need the PK value from the current row
-											rowData[rel.referencedColumn]);
+										? rowData[rel.referencingColumn]
+										: rowData[rel.referencedColumn]);
 
 								return rel ? (
 									<div className="sticky top-0 bg-card border-b px-4 py-2 text-xs text-muted-foreground flex items-center gap-2">
@@ -447,7 +396,6 @@ export const RelationshipsPanel = ({
 								{validRelationships
 									.filter((r) => displayedRelationships.has(r.constraintName))
 									.sort((a, b) => {
-										// Outgoing (References) first, then incoming (Referenced By)
 										if (a.type === "outgoing" && b.type === "incoming")
 											return -1;
 										if (a.type === "incoming" && b.type === "outgoing")
@@ -478,9 +426,7 @@ export const RelationshipsPanel = ({
 														RelationshipViewMode.RelatedData
 													}
 													onRemove={() => {
-														const next = new Set(displayedRelationships);
-														next.delete(constraintName);
-														setDisplayedRelationships(next);
+														panelState.hideRelationship(constraintName);
 													}}
 												/>
 											</div>
@@ -498,83 +444,6 @@ export const RelationshipsPanel = ({
 		</div>
 	);
 };
-
-function useStickyRelationshipTracking(
-	containerRef: React.RefObject<HTMLDivElement | null>,
-	cardRefs: React.RefObject<Record<string, HTMLDivElement | null>>,
-	displayedRelationships: Set<string>,
-	relationships: TableRelationship[],
-) {
-	const [stickyRelationship, setStickyRelationship] = useState<string | null>(
-		null,
-	);
-
-	useEffect(() => {
-		const container = containerRef.current;
-		if (!container) return;
-
-		const sortedRels = relationships
-			.filter((r) => displayedRelationships.has(r.constraintName))
-			.sort((a, b) => {
-				if (a.type === "outgoing" && b.type === "incoming") return -1;
-				if (a.type === "incoming" && b.type === "outgoing") return 1;
-				return 0;
-			});
-
-		const visibleCards = new Map<string, number>();
-
-		const observer = new IntersectionObserver(
-			(entries) => {
-				entries.forEach((entry) => {
-					const constraintName = entry.target.getAttribute("data-constraint");
-					if (!constraintName) return;
-
-					if (entry.isIntersecting) {
-						visibleCards.set(
-							constraintName,
-							entry.boundingClientRect.top -
-								container.getBoundingClientRect().top,
-						);
-					} else {
-						visibleCards.delete(constraintName);
-					}
-				});
-
-				let topmostCard: string | null = null;
-				let smallestTop = Infinity;
-
-				for (const [name, top] of visibleCards) {
-					if (top <= smallestTop) {
-						smallestTop = top;
-						topmostCard = name;
-					}
-				}
-
-				if (!topmostCard && sortedRels.length > 0) {
-					topmostCard = sortedRels[0].constraintName;
-				}
-
-				if (topmostCard) {
-					setStickyRelationship(topmostCard);
-				}
-			},
-			{
-				root: container,
-				threshold: 0,
-			},
-		);
-
-		Object.entries(cardRefs.current).forEach(([constraintName, el]) => {
-			if (el && displayedRelationships.has(constraintName)) {
-				observer.observe(el);
-			}
-		});
-
-		return () => observer.disconnect();
-	}, [displayedRelationships, relationships, containerRef, cardRefs]);
-
-	return stickyRelationship;
-}
 
 interface RelationshipCardProps {
 	relationship: TableRelationship;
@@ -597,12 +466,9 @@ const RelationshipCard = ({
 }: RelationshipCardProps) => {
 	const parentRowValue =
 		relationship.type === "outgoing"
-			? // For outgoing relationships, get the FK value from the row
-				rowData[relationship.referencingColumn]
-			: // For incoming relationships, we need the PK value from the current row
-				rowData[relationship.referencedColumn];
+			? rowData[relationship.referencingColumn]
+			: rowData[relationship.referencedColumn];
 
-	// For "related_data" view mode with outgoing relationships, show the FK target record
 	if (
 		viewMode === RelationshipViewMode.RelatedData &&
 		relationship.type === "outgoing"
@@ -621,7 +487,6 @@ const RelationshipCard = ({
 		);
 	}
 
-	// Default: show reverse lookup (rows with matching FK column value)
 	return (
 		<div className="flex flex-col h-full overflow-hidden">
 			<RelationshipSubrowTable
@@ -755,7 +620,6 @@ const RelationshipListItem = ({
 					</Checkbox>
 				</div>
 			</button>
-			{/* View mode toggle for outgoing relationships */}
 			{isSelected && rel.type === "outgoing" && (
 				<div className="px-3 py-1 bg-muted/20 border-t flex gap-1 text-xs">
 					<button

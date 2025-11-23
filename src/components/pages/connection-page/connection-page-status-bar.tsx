@@ -44,15 +44,15 @@ export const ConnectionPageStatusBar = (
 
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
-	const selectedSchema = useActiveTabState((s: any) => s.schema);
-	const selectedTable = useActiveTabState((s: any) => s.table);
+	const selectedSchema = useActiveTabState((s) => s.schema);
+	const selectedTable = useActiveTabState((s) => s.table);
 	const tableDisplayName = selectedTable
 		? `${selectedSchema}.${selectedTable}`
 		: "No table selected";
 
-	const offset = useActiveTabState((s: any) => s.offset);
-	const limit = useActiveTabState((s: any) => s.limit);
-	const tableSize = useActiveTabState((s: any) => s.tableSize);
+	const offset = useActiveTabState((s) => s.offset);
+	const limit = useActiveTabState((s) => s.limit);
+	const tableSize = useActiveTabState((s) => s.tableSize);
 
 	return (
 		<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
@@ -100,7 +100,7 @@ export const ConnectionPageStatusBar = (
 						pageSize={limit}
 						siblingCount={1}
 						page={Math.floor(offset / limit) + 1}
-						onPageChange={(details: any) => {
+						onPageChange={(details) => {
 							navigate({
 								search: (prev) =>
 									updateTabState(prev, {
@@ -110,7 +110,7 @@ export const ConnectionPageStatusBar = (
 						}}
 					>
 						<Pagination.Context>
-							{(pagination: any) => (
+							{(pagination) => (
 								<div className="flex items-center gap-1">
 									<Pagination.PrevTrigger asChild>
 										<Button variant="ghost" size="sm" className="h-6 px-1">
@@ -156,7 +156,7 @@ export const ConnectionPageStatusBar = (
 							value={[tableSize]}
 							collection={TableSizeCollection}
 							positioning={{ sameWidth: true }}
-							onValueChange={(details: any) => {
+							onValueChange={(details) => {
 								const newSize = (details.value?.[0] || "cozy") as DataTableSize;
 								navigate({
 									search: (prev) =>

@@ -66,7 +66,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		null,
 	);
 
-	const search = useActiveTabState((s: any) => {
+	const search = useActiveTabState((s) => {
 		return {
 			schema: s.schema,
 			table: s.table,
@@ -216,7 +216,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															onColumnFilterClick={(columnId) => {
 																navigate({
 																	search: (prev) =>
-																		updateTabState(prev, (tab: any) => ({
+																		updateTabState(prev, (tab) => ({
 																			filtersOpened: true,
 																			filters: {
 																				conditions: [
@@ -262,7 +262,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 													{relationshipRowId && search.table && (
 														<>
 															<Splitter.Context>
-																{(ctx: any) => (
+																{(ctx) => (
 																	<Splitter.ResizeTrigger
 																		id="rows-table:relationships"
 																		className="h-1 bg-border hover:bg-primary/50 cursor-row-resize transition-colors"
@@ -280,7 +280,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																className="overflow-hidden flex flex-col mb-2.5"
 															>
 																<Splitter.Context>
-																	{(ctx: any) => {
+																	{(ctx) => {
 																		let isPanelExpanded = false;
 																		try {
 																			isPanelExpanded =

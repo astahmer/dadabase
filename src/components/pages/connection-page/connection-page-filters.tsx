@@ -27,13 +27,13 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 	const { columnList, isLoading, table, queryBuilder } = props;
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
-	const viewMode = useActiveTabState((s: any) => s.viewMode);
-	const filtersOpened = useActiveTabState((s: any) => s.filtersOpened);
+	const viewMode = useActiveTabState((s) => s.viewMode);
+	const filtersOpened = useActiveTabState((s) => s.filtersOpened);
 	const filterConditions = useActiveTabState(
-		(s: any) => s.filters?.conditions ?? [],
+		(s) => s.filters?.conditions ?? [],
 	);
-	const orderBy = useActiveTabState((s: any) => s.orderBy);
-	const orderDirection = useActiveTabState((s: any) => s.orderDirection);
+	const orderBy = useActiveTabState((s) => s.orderBy);
+	const orderDirection = useActiveTabState((s) => s.orderDirection);
 
 	return (
 		<div className="relative border-b bg-muted/50">
@@ -95,7 +95,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 								} else {
 									navigate({
 										search: (prev) =>
-											updateTabState(prev, (tab: any) => ({
+											updateTabState(prev, (tab) => ({
 												filtersOpened: !tab.filtersOpened,
 											})),
 									});
@@ -147,9 +147,9 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 							if (filters.length) {
 								if (parsed.clear) {
 									queryBuilder.updateManyConditions(
-										filterConditions.filter((current: any) => {
+										filterConditions.filter((current) => {
 											return filters.some(
-												(removed: any) =>
+												(removed) =>
 													current.column === removed.field &&
 													current.operator === removed.operator &&
 													current.value === removed.value,
@@ -159,13 +159,13 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 								} else {
 									queryBuilder.updateManyConditions(
 										filterConditions
-											.map((f: any) => ({
+											.map((f) => ({
 												column: f.column,
 												operator: f.operator,
 												value: f.value as string,
 											}))
 											.concat(
-												filters.map((f: any) => ({
+												filters.map((f) => ({
 													column: f.field,
 													operator: operatorMap[f.operator] || "equals",
 													value: f.value as string,

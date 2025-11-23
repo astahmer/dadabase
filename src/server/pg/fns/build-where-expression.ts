@@ -11,7 +11,7 @@ import type {
 export const buildWhereExpression = (
 	conditions: FilterConditionExpression[],
 	logicalOp: LogicalOperator,
-): any => {
+) => {
 	if (conditions.length === 0) return undefined;
 
 	// Filter out conditions with undefined or null values (except for is_null/is_not_null operators)

@@ -63,7 +63,7 @@ type ListboxRootMenuRootComponent = <T extends CollectionItem>(
 		},
 ) => JSX.Element;
 
-const ListboxRoot = ((props: any) => (
+const ListboxRoot = ((props) => (
 	<ListboxPrimitive.Root {...props} />
 )) as ListboxRootMenuRootComponent;
 (ListboxRoot as any).displayName = "ListboxRoot";

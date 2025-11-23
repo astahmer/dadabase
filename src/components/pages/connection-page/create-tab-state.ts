@@ -11,7 +11,7 @@ export const createTabState = (
 	schema: string,
 	table: string,
 	options?: {
-		filters?: any;
+		filters?;
 		offset?: number;
 		limit?: number;
 		filtersOpened?: boolean;
