@@ -9,7 +9,6 @@ import { listAvailableTablesQueryOptions } from "#src/server/pg/start-fns/get-av
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
 import { useQueryClient } from "@tanstack/react-query";
 import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
-import { CollapsibleSidebar } from "../../collapsible-sidebar";
 import { ErrorBoundaryCard } from "../../shared/error-boundary-card.tsx";
 import { LoadingSpinner } from "../../shared/loading-spinner";
 import * as ArkSelect from "../../ui/select";
@@ -125,7 +124,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 	};
 
 	return (
-		<CollapsibleSidebar>
+		<>
 			{/* Database Selector */}
 			<Stack className="px-4 pt-4 shrink-0" gap="2">
 				<label className="text-xs font-medium text-foreground uppercase tracking-wide">
@@ -377,6 +376,6 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 					)}
 				</Stack>
 			</div>
-		</CollapsibleSidebar>
+		</>
 	);
 };

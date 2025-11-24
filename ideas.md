@@ -27,6 +27,8 @@
 - cmd+f in table
 - cmd+k
 - (vertical) reorder drag handle inside of visible column dropdown
+- chrome-like JS repl for visible rows
+- JSON viewer like chrome console evaluated array
 
 
 - https://x.com/mac_hour/status/1988953549305442655

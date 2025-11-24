@@ -20,8 +20,14 @@ export function calculatePercentageFromPixelsInContainer(
  * @param pixelHeight - The desired height in pixels (default: 40px)
  * @returns The percentage value rounded to 2 decimal places
  */
-export function fromPixelToPercentage(pixelHeight: number = 40): number {
-	const percentage = calculatePercentageFromPixelsInContainer(pixelHeight);
+export function fromPixelToPercentage(
+	pixelHeight: number = 40,
+	containerSize?: number,
+): number {
+	const percentage = calculatePercentageFromPixelsInContainer(
+		pixelHeight,
+		containerSize,
+	);
 	// Round to 2 decimal places for cleaner values
 	return Math.round(percentage * 100) / 100;
 }

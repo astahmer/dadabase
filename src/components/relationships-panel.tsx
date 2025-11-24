@@ -14,6 +14,7 @@ import { Button } from "./ui/button";
 import { Checkbox, CheckboxControl } from "./ui/checkbox";
 import { HStack } from "./ui/layout.tsx";
 import { Spinner } from "./ui/spinner";
+import { cn, tryFn } from "#src/lib/utils.ts";
 
 interface RelationshipsPanelProps {
 	connectionUrl: string;
@@ -338,7 +339,12 @@ export const RelationshipsPanel = ({
 						{(ctx) => (
 							<Splitter.ResizeTrigger
 								id="sidebar:content"
-								className="w-1 bg-border hover:bg-primary/50 cursor-col-resize transition-colors"
+								className={cn(
+									tryFn(() => ctx.isPanelCollapsed("relationships"))
+										? "w-3"
+										: "w-1.5",
+									"bg-border hover:bg-primary/50 cursor-col-resize transition-colors",
+								)}
 								title="Drag to resize"
 								onDoubleClick={() =>
 									ctx.isPanelExpanded("sidebar")
