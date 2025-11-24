@@ -1,5 +1,5 @@
 import { ConnectionPage } from "#src/components/pages/connection.page";
-import { QueryFilter } from "#src/lib/query-filter";
+import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
 import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 import { Suspense } from "react";

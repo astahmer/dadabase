@@ -10,10 +10,10 @@ import {
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
-import { NaturalLanguageSearch } from "../../natural-language-search";
-import { ColumnVisibilityControls } from "../../column-visibility";
-import { OrderBySelect } from "../../order-by-select";
-import type { QueryFilterBuilderReturn } from "#src/hooks/use-query-builder";
+import { NaturalLanguageSearch } from "../../query-builder/natural-language-search.tsx";
+import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
+import { OrderBySelect } from "../../app/order-by-select.tsx";
+import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 
 interface ConnectionPageFiltersProps {

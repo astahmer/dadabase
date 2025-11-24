@@ -1,4 +1,4 @@
-import type { QueryFilterType } from "#src/lib/query-filter.ts";
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { queryTableDataQueryOptions } from "./query-table-data.start";
 
 /**

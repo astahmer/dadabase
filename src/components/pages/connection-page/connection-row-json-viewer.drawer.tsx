@@ -7,10 +7,10 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "../../ui/sheet.tsx";
-import { RelationshipExplorer } from "#src/components/relationship-explorer.tsx";
+import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
 import { JsonViewer } from "../../ui/json-viewer.tsx";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
+import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
 import { useMemo } from "react";
 import type { DbConnection } from "../connection.types.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";

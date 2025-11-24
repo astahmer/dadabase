@@ -4,7 +4,7 @@ import { queryTableData } from "./query-table-data.kysely.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
-import type { QueryFilterType } from "#src/lib/query-filter";
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 
 interface User {
 	id: number;

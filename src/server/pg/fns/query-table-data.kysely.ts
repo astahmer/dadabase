@@ -2,7 +2,7 @@ import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
-import type { QueryFilterType } from "#src/lib/query-filter";
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { buildWhereExpression } from "./build-where-expression";
 
 export const queryTableData = <

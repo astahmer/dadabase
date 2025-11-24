@@ -1,7 +1,7 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Sheet, SheetContent } from "../../ui/sheet.tsx";
-import { QuickReferencesPanel } from "../../quick-references-panel.tsx";
-import { useTableColumnMetadata } from "#src/hooks/use-table-column-metadata";
+import { QuickReferencesPanel } from "./relationships/quick-references-panel.tsx";
+import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
 import type { DbConnection } from "../connection.types.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { createTabState, useActiveTabState } from "./create-tab-state.ts";

@@ -9,7 +9,7 @@ import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import * as ArkSelect from "../../ui/select";
-import type { DataTableSize } from "../../data-table.styles.ts";
+import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 import { RowsPerPageSelector } from "./rows-per-page.selector.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 

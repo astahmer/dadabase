@@ -1,5 +1,5 @@
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
-import type { TableRelationship } from "#src/types/relationships.ts";
+import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";

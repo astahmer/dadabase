@@ -4,7 +4,7 @@ import { getRelationshipsCounts } from "./get-relationships-counts.kysely.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
-import type { TableRelationship } from "#src/types/relationships.ts";
+import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 
 interface TestInMemoryDbSchema {
 	apps: {

@@ -2,7 +2,7 @@ import { sql } from "kysely";
 import type {
 	FilterConditionExpression,
 	LogicalOperator,
-} from "#src/lib/query-filter";
+} from "#src/components/query-builder/query-filter.ts";
 
 /**
  * Build a WHERE clause expression from filter conditions

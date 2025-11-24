@@ -2,7 +2,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { getTableColumnsQueryOptions } from "#src/server/pg/start-fns/get-table-columns.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
-import { TableTabsBar } from "../../table-tabs-bar";
+import { TableTabsBar } from "./table-tabs-bar.tsx";
 import {
 	createTabState,
 	updateTabState,

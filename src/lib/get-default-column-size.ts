@@ -1,4 +1,4 @@
-import type { DataTableSize } from "#src/components/data-table.styles.ts";
+import type { DataTableSize } from "#src/components/data-table/data-table.styles.ts";
 
 export const getDefaultColumnSize = (props: {
 	tableSize: DataTableSize;

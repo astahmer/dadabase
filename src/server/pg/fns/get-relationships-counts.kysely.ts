@@ -1,8 +1,8 @@
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { Effect } from "effect";
 import { sql } from "kysely";
-import type { TableRelationship } from "#src/types/relationships.ts";
-import type { QueryFilterType } from "#src/lib/query-filter";
+import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { buildWhereExpression } from "./build-where-expression";
 
 export interface RelationshipCountResult {

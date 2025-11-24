@@ -1,4 +1,4 @@
-import { useConnectionPageState } from "#src/hooks/use-connection-page-state.tsx";
+import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
 import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Splitter } from "@ark-ui/react";
@@ -14,10 +14,10 @@ import {
 import { Stack } from "../ui/layout.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
-import { RelationshipsPanel } from "../relationships-panel";
-import { QueryFilterBuilder } from "../query-filter-builder";
-import { DataTable } from "../data-table";
-import { ScrollToColumnButton } from "../scroll-to-column.button.tsx";
+import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
+import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
+import { DataTable } from "../data-table/data-table.tsx";
+import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { ConnectionPageHeader } from "./connection-page/connection-page-header.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageTabs } from "./connection-page/connection-page-tabs.tsx";

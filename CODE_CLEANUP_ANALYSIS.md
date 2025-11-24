@@ -220,27 +220,6 @@ Extract hooks and sub-components
 
 ---
 
-## 7. NAMING ISSUES
-
-6. **File naming in hooks**
-   - `use-rows-columns.actions.ts`
-   - Why `.actions`? Should describe what it does: `use-row-context-menu-actions.ts`
-
-8. **`connectionUrl` prop naming**
-   - Leaks implementation detail
-   - Generic component shouldn't know about "connection"
-   - Better: pass through context or parent-specific prop
-
-9. **`RelationshipViewMode` enum**
-   - Where's the enum? `src/types/relationship-view-mode.ts`
-   - Values: Unclear from name, should be at that file
-
-10. **`findColumnReferencesWithCountsQueryOptions`**
-    - Verbose function name
-    - Consider: `getColumnReferencesQuery` (QueryOptions suffix is obvious from usage)
-
----
-
 ## 8. COMPONENT ORGANIZATION ISSUES
 
 ### Current Structure:
