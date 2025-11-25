@@ -1,9 +1,9 @@
 import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
-import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { buildWhereExpression } from "./build-where-expression.ts";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
+import { Context, Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
+import type { EffectKysely } from "#src/db/effect-kysely.ts";
 
 interface TestInMemoryDbSchema {
 	test_data: {
@@ -20,17 +20,23 @@ interface TestInMemoryDbSchema {
 	};
 }
 
+// Type-safe test database context
+class TestDatabase extends Context.Tag("@dadabase/Test/Database")<
+	TestDatabase,
+	EffectKysely<TestInMemoryDbSchema>
+>() {}
+
 const InMemoryLayer = Layer.effect(
-	KyselyPgDatabase,
+	TestDatabase,
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
 		dataDir: "memory://",
 	}),
-) as Layer.Layer<KyselyPgDatabase, never, never>;
+);
 
 describe("buildWhereExpression", () => {
 	// Helper to set up test schema
 	const setupSchema = Effect.gen(function* () {
-		const db = yield* KyselyPgDatabase;
+		const db = yield* TestDatabase;
 
 		yield* db.executeRaw(sql`
 			CREATE TABLE IF NOT EXISTS test_data (
@@ -50,7 +56,7 @@ describe("buildWhereExpression", () => {
 
 	// Helper to insert test data
 	const insertTestData = Effect.gen(function* () {
-		const db = yield* KyselyPgDatabase;
+		const db = yield* TestDatabase;
 
 		yield* db.executeRaw(sql`
 			INSERT INTO test_data (id, age, status, name, email, price, description, is_active, is_deleted, quantity)
@@ -76,7 +82,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -89,11 +95,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
+			const rows = yield* db.execute(
 				db
 					.selectFrom("test_data")
 					.selectAll()
-					.where(whereExpr || sql`1=1`),
+					.where(whereExpr || (sql`1=1` as any)),
 			);
 			// No WHERE clause applied, so all rows returned
 			expect(rows).toHaveLength(5);
@@ -106,7 +112,7 @@ describe("buildWhereExpression", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
-				const db = yield* KyselyPgDatabase;
+				const db = yield* TestDatabase;
 
 				const whereExpr = buildWhereExpression(
 					[
@@ -119,11 +125,11 @@ describe("buildWhereExpression", () => {
 					"and",
 				);
 
-				const rows: any[] = yield* db.execute(
+				const rows = yield* db.execute(
 					db
 						.selectFrom("test_data")
 						.selectAll()
-						.where(whereExpr || sql`1=1`),
+						.where(whereExpr || (sql`1=1` as any)),
 				);
 				// No WHERE clause applied, so all rows returned
 				expect(rows).toHaveLength(5);
@@ -135,7 +141,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -147,8 +153,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// Only row-5 has NULL age
 			expect(rows).toHaveLength(1);
@@ -160,7 +169,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -172,8 +181,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// All rows except row-5 have non-NULL age
 			expect(rows).toHaveLength(4);
@@ -190,7 +202,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -203,8 +215,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(2);
 			expect(rows.map((r: any) => r.id).sort()).toEqual(["row-1", "row-4"]);
@@ -215,7 +230,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -228,8 +243,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// Rows with status != 'active' (excludes NULL status rows)
 			expect(rows).toHaveLength(3);
@@ -245,7 +263,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -258,8 +276,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// Case-insensitive contains 'john'
 			expect(rows).toHaveLength(2);
@@ -271,7 +292,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -284,8 +305,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// Rows that don't contain 'john' (excludes NULLs): row-2, row-4 (empty string), row-5
 			expect(rows).toHaveLength(3);
@@ -301,7 +325,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -314,8 +338,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(1);
 			expect(rows[0]!.id).toBe("row-4");
@@ -326,7 +353,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -339,8 +366,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// All emails end with example.com: row-1, row-2, row-4, row-5
 			expect(rows).toHaveLength(4);
@@ -357,7 +387,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -370,8 +400,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(2);
 			expect(rows.map((r: any) => r.id).sort()).toEqual(["row-2", "row-3"]);
@@ -382,7 +415,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -395,8 +428,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(2);
 			expect(rows.map((r: any) => r.id).sort()).toEqual(["row-2", "row-3"]);
@@ -407,7 +443,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -420,8 +456,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(2);
 			expect(rows.map((r: any) => r.id).sort()).toEqual(["row-1", "row-4"]);
@@ -432,7 +471,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -445,8 +484,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(3);
 			expect(rows.map((r: any) => r.id).sort()).toEqual([
@@ -461,7 +503,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -474,8 +516,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(3);
 			expect(rows.map((r: any) => r.id).sort()).toEqual([
@@ -490,7 +535,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -503,8 +548,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(2);
 			expect(rows.map((r: any) => r.id).sort()).toEqual(["row-1", "row-4"]);
@@ -515,7 +563,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -528,8 +576,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(2);
 			expect(rows.map((r: any) => r.id).sort()).toEqual(["row-3", "row-5"]);
@@ -540,7 +591,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -558,8 +609,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// age > 25 AND status = 'active' => no rows (active rows are 25 and 18)
 			expect(rows).toHaveLength(0);
@@ -570,7 +624,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -588,8 +642,11 @@ describe("buildWhereExpression", () => {
 				"or",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(3);
 			expect(rows.map((r: any) => r.id).sort()).toEqual([
@@ -606,7 +663,7 @@ describe("buildWhereExpression", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
-				const db = yield* KyselyPgDatabase;
+				const db = yield* TestDatabase;
 
 				const whereExpr = buildWhereExpression(
 					[
@@ -629,8 +686,11 @@ describe("buildWhereExpression", () => {
 					"and",
 				);
 
-				const rows: any[] = yield* db.execute(
-					db.selectFrom("test_data").selectAll().where(whereExpr!),
+				const rows = yield* db.execute(
+					db
+						.selectFrom("test_data")
+						.selectAll()
+						.where(whereExpr! as any),
 				);
 				// Only age > 25 AND status = 'active' applied
 				expect(rows).toHaveLength(0);
@@ -644,7 +704,7 @@ describe("buildWhereExpression", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
-				const db = yield* KyselyPgDatabase;
+				const db = yield* TestDatabase;
 
 				const whereExpr = buildWhereExpression(
 					[
@@ -657,8 +717,11 @@ describe("buildWhereExpression", () => {
 					"and",
 				);
 
-				const rows: any[] = yield* db.execute(
-					db.selectFrom("test_data").selectAll().where(whereExpr!),
+				const rows = yield* db.execute(
+					db
+						.selectFrom("test_data")
+						.selectAll()
+						.where(whereExpr! as any),
 				);
 				expect(rows).toHaveLength(2);
 			}).pipe(Effect.provide(InMemoryLayer));
@@ -669,7 +732,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -682,8 +745,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(1);
 			expect(rows[0]!.id).toBe("row-1");
@@ -694,7 +760,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -707,8 +773,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(2);
 			expect(rows.map((r: any) => r.id).sort()).toEqual(["row-1", "row-4"]);
@@ -721,7 +790,7 @@ describe("buildWhereExpression", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
-				const db = yield* KyselyPgDatabase;
+				const db = yield* TestDatabase;
 
 				const whereExpr = buildWhereExpression(
 					[
@@ -734,8 +803,11 @@ describe("buildWhereExpression", () => {
 					"and",
 				);
 
-				const rows: any[] = yield* db.execute(
-					db.selectFrom("test_data").selectAll().where(whereExpr!),
+				const rows = yield* db.execute(
+					db
+						.selectFrom("test_data")
+						.selectAll()
+						.where(whereExpr! as any),
 				);
 				expect(rows).toHaveLength(1);
 				expect(rows[0]!.id).toBe("row-1");
@@ -747,7 +819,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -760,8 +832,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			expect(rows).toHaveLength(1);
 			expect(rows[0]!.id).toBe("row-5");
@@ -774,7 +849,7 @@ describe("buildWhereExpression", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
-				const db = yield* KyselyPgDatabase;
+				const db = yield* TestDatabase;
 
 				const whereExpr = buildWhereExpression(
 					[
@@ -787,8 +862,11 @@ describe("buildWhereExpression", () => {
 					"and",
 				);
 
-				const rows: any[] = yield* db.execute(
-					db.selectFrom("test_data").selectAll().where(whereExpr!),
+				const rows = yield* db.execute(
+					db
+						.selectFrom("test_data")
+						.selectAll()
+						.where(whereExpr! as any),
 				);
 				expect(rows).toHaveLength(4);
 			}).pipe(Effect.provide(InMemoryLayer));
@@ -799,7 +877,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -812,8 +890,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// Empty array in ANY() matches nothing
 			expect(rows).toHaveLength(0);
@@ -824,7 +905,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -837,8 +918,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// != ALL([]) matches all rows
 			expect(rows).toHaveLength(5);
@@ -849,7 +933,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -872,8 +956,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// 18 < age < 35 AND status = 'active' => row-1 (age 25, active)
 			expect(rows).toHaveLength(1);
@@ -885,7 +972,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -908,8 +995,11 @@ describe("buildWhereExpression", () => {
 				"or",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// status = 'active' OR status = 'pending' OR status = 'review'
 			expect(rows).toHaveLength(4);
@@ -926,7 +1016,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -939,8 +1029,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// 0 is a valid value
 			expect(rows).toHaveLength(2);
@@ -952,7 +1045,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -965,8 +1058,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// false is a valid value
 			expect(rows).toHaveLength(4);
@@ -983,7 +1079,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -996,8 +1092,11 @@ describe("buildWhereExpression", () => {
 				"and",
 			);
 
-			const rows: any[] = yield* db.execute(
-				db.selectFrom("test_data").selectAll().where(whereExpr!),
+			const rows = yield* db.execute(
+				db
+					.selectFrom("test_data")
+					.selectAll()
+					.where(whereExpr! as any),
 			);
 			// Empty string is a valid value
 			expect(rows).toHaveLength(1);

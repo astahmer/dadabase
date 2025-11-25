@@ -1,8 +1,8 @@
 import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
-import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
+import { Context, Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
+import type { EffectKysely } from "#src/db/effect-kysely.ts";
 
 interface TestInMemoryDbSchema {
 	pg_database: {
@@ -10,17 +10,23 @@ interface TestInMemoryDbSchema {
 	};
 }
 
+// Type-safe test database context
+class TestDatabase extends Context.Tag("@dadabase/Test/Database")<
+	TestDatabase,
+	EffectKysely<TestInMemoryDbSchema>
+>() {}
+
 const InMemoryLayer = Layer.effect(
-	KyselyPgDatabase,
+	TestDatabase,
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
 		dataDir: "memory://",
-	}) as any,
-) as any as Layer.Layer<KyselyPgDatabase, never, never>;
+	}),
+);
 
 describe("getAvailableDatabaseList", () => {
 	it.effect("returns array of database objects", () => {
 		return Effect.gen(function* () {
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			// Create a temporary table to simulate pg_database
 			yield* db.executeRaw(sql`
@@ -48,7 +54,7 @@ describe("getAvailableDatabaseList", () => {
 		"each database object has datname property with string value",
 		() => {
 			return Effect.gen(function* () {
-				const db = yield* KyselyPgDatabase;
+				const db = yield* TestDatabase;
 
 				yield* db.executeRaw(sql`
 				CREATE TABLE IF NOT EXISTS pg_database_test2 (
@@ -75,7 +81,7 @@ describe("getAvailableDatabaseList", () => {
 
 	it.effect("returns all databases including system databases", () => {
 		return Effect.gen(function* () {
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			yield* db.executeRaw(sql`
 				CREATE TABLE IF NOT EXISTS pg_database_test3 (
@@ -101,7 +107,7 @@ describe("getAvailableDatabaseList", () => {
 
 	it.effect("returns exactly the databases that were created", () => {
 		return Effect.gen(function* () {
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			yield* db.executeRaw(sql`
 				CREATE TABLE IF NOT EXISTS pg_database_test4 (
@@ -132,7 +138,7 @@ describe("getAvailableDatabaseList", () => {
 
 	it.effect("only returns datname column", () => {
 		return Effect.gen(function* () {
-			const db = yield* KyselyPgDatabase;
+			const db = yield* TestDatabase;
 
 			yield* db.executeRaw(sql`
 				CREATE TABLE IF NOT EXISTS pg_database_test5 (
