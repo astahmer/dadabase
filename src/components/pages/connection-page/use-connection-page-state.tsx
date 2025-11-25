@@ -1,14 +1,19 @@
+import { RowContextMenu } from "#src/components/app/row-context-menu.tsx";
 import type { DataTableRowSubrow } from "#src/components/data-table/data-table.row.tsx";
+import { useDataTable } from "#src/components/data-table/use-data-table.ts";
+import {
+	updateTabState,
+	useActiveTabState,
+} from "#src/components/pages/connection-page/create-tab-state.ts";
 import { formatTableValue } from "#src/components/pages/connection-page/format-table-value.ts";
 import { RelationshipSubrowTable } from "#src/components/pages/connection-page/relationships/relationship-subrow-table.tsx";
-import { Button } from "#src/components/ui/button.tsx";
-import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
-import { Tooltip } from "#src/components/ui/tooltip.tsx";
-import { useDataTable } from "#src/components/data-table/use-data-table.ts";
-import { useQueryBuilder } from "#src/components/query-builder/use-query-builder.ts";
 import { useRowsColumns } from "#src/components/pages/connection-page/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
 import { useTableRelationships } from "#src/components/pages/connection-page/use-table-relationships.ts";
+import { useQueryBuilder } from "#src/components/query-builder/use-query-builder.ts";
+import { Button } from "#src/components/ui/button.tsx";
+import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
@@ -22,13 +27,6 @@ import type {
 } from "@tanstack/react-table";
 import { useCallback, useMemo, useState } from "react";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
-import { RowContextMenu } from "#src/components/app/row-context-menu.tsx";
-import {
-	createTabState,
-	getActiveTabState,
-	updateTabState,
-	useActiveTabState,
-} from "#src/components/pages/connection-page/create-tab-state.ts";
 
 interface UseConnectionPageStateProps {
 	connection: {
