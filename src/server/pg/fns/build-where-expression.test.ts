@@ -24,13 +24,13 @@ const InMemoryLayer = Layer.effect(
 	KyselyPgDatabase,
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
 		dataDir: "memory://",
-	}) as any,
-) as any as Layer.Layer<KyselyPgDatabase, never, never>;
+	}),
+) as Layer.Layer<KyselyPgDatabase, never, never>;
 
 describe("buildWhereExpression", () => {
 	// Helper to set up test schema
 	const setupSchema = Effect.gen(function* () {
-		const db = (yield* KyselyPgDatabase) as any;
+		const db = yield* KyselyPgDatabase;
 
 		yield* db.executeRaw(sql`
 			CREATE TABLE IF NOT EXISTS test_data (
@@ -50,7 +50,7 @@ describe("buildWhereExpression", () => {
 
 	// Helper to insert test data
 	const insertTestData = Effect.gen(function* () {
-		const db = (yield* KyselyPgDatabase) as any;
+		const db = yield* KyselyPgDatabase;
 
 		yield* db.executeRaw(sql`
 			INSERT INTO test_data (id, age, status, name, email, price, description, is_active, is_deleted, quantity)
@@ -76,7 +76,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -106,7 +106,7 @@ describe("buildWhereExpression", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
-				const db = (yield* KyselyPgDatabase) as any;
+				const db = yield* KyselyPgDatabase;
 
 				const whereExpr = buildWhereExpression(
 					[
@@ -135,7 +135,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -160,7 +160,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -190,7 +190,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -215,7 +215,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -245,7 +245,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -271,7 +271,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -301,7 +301,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -326,7 +326,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -357,7 +357,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -382,7 +382,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -407,7 +407,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -432,7 +432,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -461,7 +461,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -490,7 +490,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -515,7 +515,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -540,7 +540,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -570,7 +570,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -606,7 +606,7 @@ describe("buildWhereExpression", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
-				const db = (yield* KyselyPgDatabase) as any;
+				const db = yield* KyselyPgDatabase;
 
 				const whereExpr = buildWhereExpression(
 					[
@@ -644,7 +644,7 @@ describe("buildWhereExpression", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
-				const db = (yield* KyselyPgDatabase) as any;
+				const db = yield* KyselyPgDatabase;
 
 				const whereExpr = buildWhereExpression(
 					[
@@ -669,7 +669,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -694,7 +694,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -721,7 +721,7 @@ describe("buildWhereExpression", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
-				const db = (yield* KyselyPgDatabase) as any;
+				const db = yield* KyselyPgDatabase;
 
 				const whereExpr = buildWhereExpression(
 					[
@@ -747,7 +747,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -774,7 +774,7 @@ describe("buildWhereExpression", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
-				const db = (yield* KyselyPgDatabase) as any;
+				const db = yield* KyselyPgDatabase;
 
 				const whereExpr = buildWhereExpression(
 					[
@@ -799,7 +799,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -824,7 +824,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -849,7 +849,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -885,7 +885,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -926,7 +926,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -952,7 +952,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
@@ -983,7 +983,7 @@ describe("buildWhereExpression", () => {
 		return Effect.gen(function* () {
 			yield* setupSchema;
 			yield* insertTestData;
-			const db = (yield* KyselyPgDatabase) as any;
+			const db = yield* KyselyPgDatabase;
 
 			const whereExpr = buildWhereExpression(
 				[
