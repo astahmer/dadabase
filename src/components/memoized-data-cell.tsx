@@ -90,7 +90,7 @@ function MemoizedDataCellInner({
 
 	return (
 		<div
-			className="group flex gap-1 items-center"
+			className="group flex gap-1 items-center tabular-nums"
 			data-column-content={col.name}
 		>
 			{table &&
