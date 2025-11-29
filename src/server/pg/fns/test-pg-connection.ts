@@ -29,7 +29,11 @@ export const testPgConnectionUrl = (url: string) =>
 				}
 			}
 
-			return { success: false, message: canConnect.left.message } as const;
+			return {
+				success: false,
+				message:
+					canConnect.left.message || (canConnect.left.cause as any)?.message,
+			} as const;
 		}
 
 		return { success: true, message: "OK" } as const;

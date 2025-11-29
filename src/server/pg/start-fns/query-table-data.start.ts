@@ -4,7 +4,7 @@ import {
 	QueryFilter,
 	filterQueryValidConditions,
 	type QueryFilterType,
-} from "#src/lib/query-filter";
+} from "#src/components/query-builder/query-filter.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Duration, Effect, Schema } from "effect";

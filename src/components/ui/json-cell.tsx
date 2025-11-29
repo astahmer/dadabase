@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { InlineJsonButton } from "../inline-json-button";
+import { InlineJsonButton } from "../app/inline-json-button.tsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
 import { JsonViewerModal } from "./json-viewer";
 import { Badge } from "./badge.tsx";

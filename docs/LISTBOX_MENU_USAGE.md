@@ -209,7 +209,7 @@ export function RowsPerPageSelector({
   };
 
   return (
-    <ListboxMenu.ListboxMenu open={open} onOpenChange={(e: any) => setOpen(e.open)}>
+    <ListboxMenu.ListboxMenu open={open} onOpenChange={(e) => setOpen(e.open)}>
       <ListboxMenu.ListboxMenuTrigger asChild size="sm">
         <Button variant="outline" size="sm" className="h-8 px-2 gap-1 w-16">
           <span className="text-xs font-medium">{value}</span>

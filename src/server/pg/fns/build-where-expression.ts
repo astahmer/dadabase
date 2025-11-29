@@ -2,7 +2,7 @@ import { sql } from "kysely";
 import type {
 	FilterConditionExpression,
 	LogicalOperator,
-} from "#src/lib/query-filter";
+} from "#src/components/query-builder/query-filter.ts";
 
 /**
  * Build a WHERE clause expression from filter conditions
@@ -11,7 +11,7 @@ import type {
 export const buildWhereExpression = (
 	conditions: FilterConditionExpression[],
 	logicalOp: LogicalOperator,
-): any => {
+) => {
 	if (conditions.length === 0) return undefined;
 
 	// Filter out conditions with undefined or null values (except for is_null/is_not_null operators)

@@ -1,8 +1,8 @@
 import type { CellContext } from "@tanstack/react-table";
 import { memo } from "react";
-import type { ForeignKeyInfo } from "./cell-context-menu";
-import { CellContextMenu } from "./cell-context-menu";
-import { InlineReferencesButton } from "./inline-references.button.tsx";
+import type { ForeignKeyInfo } from "./data-table/cell-context-menu.tsx";
+import { CellContextMenu } from "./data-table/cell-context-menu.tsx";
+import { InlineReferencesButton } from "./app/inline-references.button.tsx";
 import { Badge } from "./ui/badge";
 import { JsonCell } from "./ui/json-cell";
 import { formatTableValue } from "./pages/connection-page/format-table-value.ts";

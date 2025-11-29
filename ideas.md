@@ -27,6 +27,8 @@
 - cmd+f in table
 - cmd+k
 - (vertical) reorder drag handle inside of visible column dropdown
+- chrome-like JS repl for visible rows
+- JSON viewer like chrome console evaluated array
 
 
 - https://x.com/mac_hour/status/1988953549305442655
@@ -43,36 +45,3 @@
 
 - the filter "column" dropdown should show informations like data type badge etc (like the column header) next to each column name, align it to the right
 - the filter "column" dropdown should be prefixed with the table name (because later on we will add the ability to filter with joins)
-
----
-VSCode inspiration:
-
-✅ Cmd+click to follow reference (but make it prominent in UI too since not everyone uses KB)
-✅ Side panel is better than massive modal for relationships
-🎯 Consider breadcrumb trail at top: "User 5 → Order 42 → Invoice 101" to show navigation history
-
----
-
-💡 Quick compare: Select two rows or two cells → compare (show git diff with inline/side-by-side)
---
-
-Phase 4: Polish & Advanced Features (optional)
-├─ Relationship explorer side panel
-├─ Breadcrumb navigation trail
-├─ Keyboard shortcuts
-├─ Performance optimization for large datasets
-└─ Graph visualization (if useful)
-
----
-
-<!-- TODO rm -->
-the content you described in the right sidebar is something we already kinda have, even tho currently it is specific to a single column rather than the whole row. maybe it would be nice to have what you describe. but thats not the main focus! for now i mostly want to display ROWS rather than names/counts of the relationship tables. e.g if I have a youtube_channel table i want to easiliy see the youtube_video with a matching youtube_video.channel_id from the row im currently interested in
-
-i think i know where i want to display the relation rows: below the main table; so that it still "in context" as in "in the current page" but not "in context" like "disturbing the main table rows visualization"
-
-so that we can keep a similar wide datatable as in the screenshot i share but instead of being as a subrow it could just be something that is BELOW the (main) rows datatable; it could even be collapsed. then when collapsed it could show buttons for easily opening a given relationship datatable rows. ex: if im mainly looking at the youtube_channel table then on the bottom collapsed bar i could see a button to open the youtube_video rows but also another that would show another table linked to the selected (main table) youtube_channel row; like for example maybe there could be a youtube_playlist table showing all of the channel's playlist.
-
-how to select a row? that probably be either: as simple as using the existing Checkbox that allows for row selection (that displays an ActionBar at the bottom) or by using a dedicated icon/menu item (in the action column and in the right click context menu)
-
-
--> select a row -> there's a button in the ActionBar to display the right sidebar appears with tabs: 1 to show the relationship tables from the selected row; another to show the JSON data of the selected row (with expandable relationship nodes that you can lazy-load) and that you can copy/export

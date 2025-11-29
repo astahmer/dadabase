@@ -14,7 +14,7 @@ import {
 	LucideWifi,
 } from "lucide-react";
 import { useState } from "react";
-import { DataTable } from "../data-table.tsx";
+import { DataTable } from "../data-table/data-table.tsx";
 import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button } from "../ui/button.tsx";
 import { DarkModeToggle } from "../ui/dark-mode-toggle.tsx";
@@ -29,7 +29,7 @@ import {
 } from "../ui/sheet.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
-import { useDataTable } from "../use-data-table.ts";
+import { useDataTable } from "../data-table/use-data-table.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 
 interface EditableConnection {

@@ -4,7 +4,7 @@
  * @param containerSize - The container size in pixels (defaults to window height)
  * @returns The percentage value
  */
-export function calculatePercentageFromPixels(
+export function calculatePercentageFromPixelsInContainer(
 	pixels: number,
 	containerSize: number = typeof window !== "undefined"
 		? window.innerHeight
@@ -20,10 +20,14 @@ export function calculatePercentageFromPixels(
  * @param pixelHeight - The desired height in pixels (default: 40px)
  * @returns The percentage value rounded to 2 decimal places
  */
-export function calculateSplitterRelationshipPanelSize(
+export function fromPixelToPercentage(
 	pixelHeight: number = 40,
+	containerSize?: number,
 ): number {
-	const percentage = calculatePercentageFromPixels(pixelHeight);
+	const percentage = calculatePercentageFromPixelsInContainer(
+		pixelHeight,
+		containerSize,
+	);
 	// Round to 2 decimal places for cleaner values
 	return Math.round(percentage * 100) / 100;
 }

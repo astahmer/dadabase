@@ -4,7 +4,7 @@ import { queryTableData } from "./query-table-data.kysely.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
-import type { QueryFilterType } from "#src/lib/query-filter";
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 
 interface User {
 	id: number;
@@ -357,8 +357,8 @@ describe("queryTableData", () => {
 
 			expect(result.rows.length).toBe(2); // Age 32 and 35
 			expect(result.rowCount).toBe(2);
-			const ages = result.rows.map((r: any) => r.age);
-			expect(ages.every((age: any) => age > 30)).toBe(true);
+			const ages = result.rows.map((r) => r.age);
+			expect(ages.every((age) => age > 30)).toBe(true);
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
 
@@ -445,8 +445,8 @@ describe("queryTableData", () => {
 
 			// Should match ages: 28, 30, 32 (not 25 or 35)
 			expect(result.rows.length).toBe(3);
-			const ages = result.rows.map((r: any) => r.age);
-			expect(ages.every((age: any) => age > 25 && age < 35)).toBe(true);
+			const ages = result.rows.map((r) => r.age);
+			expect(ages.every((age) => age > 25 && age < 35)).toBe(true);
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
 
@@ -478,7 +478,7 @@ describe("queryTableData", () => {
 			});
 
 			expect(result.rows.length).toBe(2);
-			const names = result.rows.map((r: any) => r.name).sort();
+			const names = result.rows.map((r) => r.name).sort();
 			expect(names).toEqual(["Alice", "Bob"]);
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
@@ -511,7 +511,7 @@ describe("queryTableData", () => {
 
 			expect(result.rows.length).toBe(2);
 			expect(result.rowCount).toBe(4); // Age 28, 30, 32, 35
-			const ages = result.rows.map((r: any) => r.age);
+			const ages = result.rows.map((r) => r.age);
 			expect(ages).toEqual([35, 32]); // Ordered descending, limited to 2
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
@@ -585,9 +585,7 @@ describe("queryTableData", () => {
 
 			// Posts with published=true: 1, 2, 4, 6 = 4 posts
 			expect(result.rowCount).toBe(4);
-			expect(result.rows.every((row: any) => row.published === true)).toBe(
-				true,
-			);
+			expect(result.rows.every((row) => row.published === true)).toBe(true);
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
 
@@ -614,7 +612,7 @@ describe("queryTableData", () => {
 			});
 
 			expect(result.rows.length).toBe(4); // All except Alice
-			expect(result.rows.every((row: any) => row.name !== "Alice")).toBe(true);
+			expect(result.rows.every((row) => row.name !== "Alice")).toBe(true);
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
 
@@ -666,7 +664,7 @@ describe("queryTableData", () => {
 			});
 
 			expect(result.rowCount).toBe(6); // 6 posts have content
-			expect(result.rows.every((row: any) => row.content !== null)).toBe(true);
+			expect(result.rows.every((row) => row.content !== null)).toBe(true);
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
 

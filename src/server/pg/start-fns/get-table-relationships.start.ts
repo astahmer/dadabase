@@ -6,7 +6,7 @@ import { Effect, Schema } from "effect";
 import { getTableRelationships } from "../fns/get-table-relationships.kysely.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import type { TableRelationship } from "#src/types/relationships.ts";
+import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 
 const getTableRelationshipsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(

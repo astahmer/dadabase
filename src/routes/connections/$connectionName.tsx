@@ -1,5 +1,5 @@
 import { ConnectionPage } from "#src/components/pages/connection.page";
-import { QueryFilter } from "#src/lib/query-filter";
+import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
 import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 import { Suspense } from "react";
@@ -14,9 +14,9 @@ const tableSize = Schema.Literal(
 	"cozy",
 	"comfortable",
 );
-const tabStateSchema = Schema.Struct({
+const TabStateSchema = Schema.Struct({
 	tabId: Schema.String, // Explicit unique identifier for the tab
-	schema: Schema.String,
+	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
 	table: Schema.String,
 	tableFilter: Schema.String.pipe(Schema.optional),
 	orderBy: Schema.String.pipe(Schema.optional),
@@ -43,30 +43,8 @@ const tabStateSchema = Schema.Struct({
 
 const searchSchema = Schema.Struct({
 	dbName: Schema.String.pipe(Schema.optional),
-	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
-	table: Schema.String.pipe(Schema.optional),
 	activeTabId: Schema.String.pipe(Schema.optional), // Explicit active tab ID
-	tableFilter: Schema.String.pipe(Schema.optional),
-	orderBy: Schema.String.pipe(Schema.optional),
-	orderDirection: Schema.Literal("asc", "desc").pipe(
-		Schema.optionalWith({ default: () => "asc" }),
-	),
-	limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
-	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
-	viewMode: Schema.Literal("rows", "structure").pipe(
-		Schema.optionalWith({ default: () => "rows" }),
-	),
-	tableSize: tableSize.pipe(Schema.optionalWith({ default: () => "cozy" })),
-	hiddenColumnList: Schema.String.pipe(Schema.Array, Schema.optional), // Comma-separated list of hidden column names
-	filters: QueryFilter.pipe(Schema.optional), // Zipson-compressed filter config
-	filtersOpened: Schema.Boolean.pipe(
-		Schema.optionalWith({ default: () => false }),
-	),
-	columnPinning: Schema.Struct({
-		left: Schema.String.pipe(Schema.Array, Schema.optional),
-		right: Schema.String.pipe(Schema.Array, Schema.optional),
-	}).pipe(Schema.optional), // Zipson-compressed column pinning config
-	columnOrder: Schema.String.pipe(Schema.Array, Schema.optional), // JSON-stringified column order array
+	tabs: TabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
 	quickReferencesOpen: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
@@ -74,7 +52,6 @@ const searchSchema = Schema.Struct({
 	quickReferencesCellValue: Schema.Union(Schema.String, Schema.Number).pipe(
 		Schema.optional,
 	),
-	tabs: tabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
 	sidebarCollapsed: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
@@ -84,7 +61,6 @@ const searchSchema = Schema.Struct({
 	rowJsonViewerRowId: Schema.Union(Schema.String, Schema.Number).pipe(
 		Schema.optional,
 	), // Primary key value to identify which row to display
-	relationshipRowId: Schema.String.pipe(Schema.optional), // Row ID for expanded relationships panel
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({

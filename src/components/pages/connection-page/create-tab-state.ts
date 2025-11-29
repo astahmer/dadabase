@@ -1,14 +1,23 @@
+import { FileRouteTypes } from "#src/routeTree.gen.ts";
+import { useSearch } from "@tanstack/react-router";
+
+type ConnectionPage =
+	FileRouteTypes["fileRoutesByFullPath"]["/connections/$connectionName"];
+type ConnectionPageSearch = ConnectionPage["types"]["searchSchema"];
+
+type TabState = NonNullable<ConnectionPageSearch["tabs"]>[number];
+
 export const createTabState = (
 	schema: string,
 	table: string,
 	options?: {
-		filters?: any;
+		filters?;
 		offset?: number;
 		limit?: number;
 		filtersOpened?: boolean;
 		fkValue?: string;
 	},
-) => ({
+): TabState => ({
 	tabId: `${schema}.${table}:${options?.fkValue ?? ""}`,
 	schema,
 	table,
@@ -25,3 +34,48 @@ export const createTabState = (
 	filtersOpened: options?.filtersOpened ?? false,
 	fkValue: options?.fkValue,
 });
+
+export const updateTabState = (
+	prev: ConnectionPageSearch,
+	updates: Partial<TabState> | ((prev: TabState) => Partial<TabState>),
+): ConnectionPageSearch => {
+	const updatedTabList = (prev.tabs ?? []).map((tab) => {
+		if (tab.tabId === prev.activeTabId) {
+			return {
+				...tab,
+				...(typeof updates === "function" ? updates(tab) : updates),
+			};
+		}
+
+		return tab;
+	});
+	const updatedTab = updatedTabList.find(
+		(tab) => tab.tabId === prev.activeTabId,
+	);
+
+	return {
+		...prev,
+		...updatedTab,
+		tabs: updatedTabList,
+	} as ConnectionPageSearch;
+};
+
+export const getActiveTabState = (search: ConnectionPageSearch) =>
+	search.tabs?.find((tab) => tab.tabId === search.activeTabId);
+
+export const useActiveTabState = <T>(
+	select: (activeTab: TabState, search: ConnectionPageSearch) => T,
+) => {
+	// @ts-expect-error
+	const search = useSearch({
+		from: "/connections/$connectionName",
+		select: (search) => {
+			const activeTab = getActiveTabState(search);
+			if (!activeTab) return select(createTabState("public", ""), search);
+
+			return select(activeTab, search);
+		},
+	});
+
+	return search as T;
+};
