@@ -100,11 +100,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 	return (
 		<div className="h-screen bg-background flex flex-col">
-			{/* Header */}
-			<ConnectionPageHeader
-				onAddConnection={() => setShowAddConnectionDrawer(true)}
-			/>
-
 			{/* Main Layout */}
 			<div className="flex-1 flex h-full min-h-0">
 				<Splitter.Root

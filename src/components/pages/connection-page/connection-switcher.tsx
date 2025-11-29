@@ -1,15 +1,30 @@
-import { useNavigate } from "@tanstack/react-router";
-import { ChevronDownIcon, LucidePlus } from "lucide-react";
-import { useState } from "react";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import { DarkModeToggle } from "#src/components/ui/dark-mode-toggle.tsx";
+import {
+	Menu,
+	MenuContent,
+	MenuItem,
+	MenuItemText,
+	MenuTrigger,
+} from "#src/components/ui/menu.tsx";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url";
+import { queryClient } from "#src/query-client.ts";
+import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import { createListCollection, Portal } from "@ark-ui/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import {
+	ChevronDownIcon,
+	EllipsisIcon,
+	LucidePlus,
+	RefreshCw,
+	RotateCcw,
+} from "lucide-react";
+import { useState } from "react";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
 import * as ListboxMenu from "../../ui/listbox-menu";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import type { DbConnection } from "../connection.types";
-import { createListCollection } from "@ark-ui/react";
 
 interface ConnectionSwitcherProps {
 	connection: DbConnection;
@@ -29,9 +44,6 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
 		<div className="flex flex-col gap-1 px-4 py-3 border-b">
 			<div className="flex items-center justify-between gap-2">
 				<div className="flex-1 min-w-0">
-					<div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-						Connection
-					</div>
 					<ListboxMenu.ListboxMenuRoot
 						open={connectionMenuOpen}
 						onOpenChange={(details) => {
@@ -105,6 +117,66 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
 						</ListboxMenu.ListboxMenuContent>
 					</ListboxMenu.ListboxMenuRoot>
 				</div>
+				<DarkModeToggle variant="ghost" />
+
+				<Menu lazyMount>
+					<MenuTrigger asChild>
+						<Button
+							size="icon"
+							variant="ghost"
+							className="rounded-full shadow-none"
+							aria-label="Open menu"
+						>
+							<EllipsisIcon size={16} aria-hidden="true" />
+						</Button>
+					</MenuTrigger>
+					<Portal>
+						<MenuContent className="z-50">
+							<MenuItem
+								value="reset-page"
+								onClick={() => {
+									navigate({
+										search: (prev) => {
+											return {
+												dbName: prev.dbName,
+												schema: undefined,
+												table: undefined,
+												viewMode: undefined,
+												tableSize: undefined,
+												tableFilter: undefined,
+												hiddenColumnList: [],
+												filters: undefined,
+												filtersOpened: false,
+												offset: 0,
+												limit: 50,
+												orderBy: undefined,
+												orderDirection: undefined,
+												relationshipRowId: undefined,
+												quickReferencesCellValue: undefined,
+												quickReferencesColumnName: undefined,
+												quickReferencesOpen: false,
+												tabs: [],
+												activeTabId: undefined,
+											};
+										},
+									});
+								}}
+							>
+								<RotateCcw className="size-4" />
+								<MenuItemText>Reset page</MenuItemText>
+							</MenuItem>
+							<MenuItem
+								value="refetch-all"
+								onClick={() => {
+									queryClient.invalidateQueries();
+								}}
+							>
+								<RefreshCw className="size-4" />
+								<MenuItemText>Refetch all</MenuItemText>
+							</MenuItem>
+						</MenuContent>
+					</Portal>
+				</Menu>
 			</div>
 			<Tooltip content={redactedUrl}>
 				<span className="text-[10px] text-muted-foreground truncate">
