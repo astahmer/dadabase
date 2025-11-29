@@ -31,9 +31,9 @@ export const ConnectionPageHeader = (props: ConnectionPageHeaderProps) => {
 	const redactedUrl = redactConnectionUrl(connection.url);
 
 	return (
-		<div className="border-b bg-card px-4 py-2 sm:px-6 space-y-2">
-			<div className="flex items-center justify-between gap-4">
-				<div className="flex-1 min-w-0">
+		<div className="border-b bg-card px-3 py-1 sm:px-4">
+			<div className="flex items-center justify-between gap-2">
+				<div className="flex items-center gap-2 min-w-0">
 					<Breadcrumb.BreadcrumbRoot>
 						<Breadcrumb.BreadcrumbList size="sm">
 							<Breadcrumb.BreadcrumbItem>
@@ -60,9 +60,11 @@ export const ConnectionPageHeader = (props: ConnectionPageHeaderProps) => {
 										size="unstyled"
 										asChild
 									>
-										<Button variant="ghost" size="sm">
-											<span className="text-foreground">{connection.name}</span>
-											<ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
+										<Button variant="ghost" size="xs" className="px-2">
+											<span className="text-foreground truncate max-w-[16ch]">
+												{connection.name}
+											</span>
+											<ChevronDownIcon className="h-3 w-3 text-muted-foreground" />
 										</Button>
 									</ListboxMenu.ListboxMenuTrigger>
 									<ListboxMenu.ListboxMenuContent>
@@ -103,10 +105,7 @@ export const ConnectionPageHeader = (props: ConnectionPageHeaderProps) => {
 												))}
 												<div className="border-t" />
 												<ListboxMenu.ListboxMenuItem
-													item={{
-														label: "Add new connection",
-														value: "__add",
-													}}
+													item={{ label: "Add new connection", value: "__add" }}
 													onClick={() => {
 														setConnectionMenuOpen(false);
 														props.onAddConnection();
@@ -124,54 +123,59 @@ export const ConnectionPageHeader = (props: ConnectionPageHeaderProps) => {
 							</Breadcrumb.BreadcrumbItem>
 						</Breadcrumb.BreadcrumbList>
 					</Breadcrumb.BreadcrumbRoot>
-					<span className="text-xs text-muted-foreground truncate block">
-						{redactedUrl}
-					</span>
+					<Tooltip content={redactedUrl}>
+						<span className="text-[10px] text-muted-foreground truncate max-w-[28ch]">
+							{redactedUrl}
+						</span>
+					</Tooltip>
 				</div>
-				<div className="flex items-center gap-2 shrink-0">
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => {
-							navigate({
-								search: (prev) => {
-									return {
-										dbName: prev.dbName,
-										schema: undefined,
-										table: undefined,
-										viewMode: undefined,
-										tableSize: undefined,
-										tableFilter: undefined,
-										hiddenColumnList: [],
-										filters: undefined,
-										filtersOpened: false,
-										offset: 0,
-										limit: 50,
-										orderBy: undefined,
-										orderDirection: undefined,
-										relationshipRowId: undefined,
-										quickReferencesCellValue: undefined,
-										quickReferencesColumnName: undefined,
-										quickReferencesOpen: false,
-										tabs: [],
-										activeTabId: undefined,
-									};
-								},
-							});
-						}}
-					>
-						Reset page
-					</Button>
+				<div className="flex items-center gap-1 shrink-0">
+					<Tooltip content="Reset page">
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => {
+								navigate({
+									search: (prev) => {
+										return {
+											dbName: prev.dbName,
+											schema: undefined,
+											table: undefined,
+											viewMode: undefined,
+											tableSize: undefined,
+											tableFilter: undefined,
+											hiddenColumnList: [],
+											filters: undefined,
+											filtersOpened: false,
+											offset: 0,
+											limit: 50,
+											orderBy: undefined,
+											orderDirection: undefined,
+											relationshipRowId: undefined,
+											quickReferencesCellValue: undefined,
+											quickReferencesColumnName: undefined,
+											quickReferencesOpen: false,
+											tabs: [],
+											activeTabId: undefined,
+										};
+									},
+								});
+							}}
+						>
+							{/* reuse RefreshCw for reset icon to keep minimal UI */}
+							<RefreshCw className="h-3 w-3" />
+						</Button>
+					</Tooltip>
 					<Tooltip content="Refetch all">
 						<Button
 							variant="outline"
-							size="sm"
+							size="icon"
 							onClick={() => {
 								queryClient.invalidateQueries();
 							}}
 							className="shrink-0"
 						>
-							<RefreshCw className="h-4 w-4" />
+							<RefreshCw className="h-3 w-3" />
 						</Button>
 					</Tooltip>
 					<DarkModeToggle />
