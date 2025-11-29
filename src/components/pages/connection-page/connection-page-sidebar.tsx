@@ -19,10 +19,12 @@ import {
 	updateTabState,
 	useActiveTabState,
 } from "./create-tab-state.ts";
+import { ConnectionSwitcher } from "./connection-switcher";
 
 interface ConnectionPageSidebarProps {
 	connection: DbConnection;
 	activeConnectionUrl: string;
+	onAddConnection: () => void;
 }
 
 export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
@@ -128,6 +130,11 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
 	return (
 		<>
+			{/* Connection Switcher */}
+			<ConnectionSwitcher
+				connection={connection}
+				onAddConnection={props.onAddConnection}
+			/>
 			{/* Database Selector */}
 			<Stack className="px-4 pt-4 shrink-0" gap="2">
 				<label className="text-xs font-medium text-foreground uppercase tracking-wide">

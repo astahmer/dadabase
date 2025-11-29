@@ -102,7 +102,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		<div className="h-screen bg-background flex flex-col">
 			{/* Header */}
 			<ConnectionPageHeader
-				connection={connection}
 				onAddConnection={() => setShowAddConnectionDrawer(true)}
 			/>
 
@@ -135,6 +134,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 						<ConnectionPageSidebar
 							connection={connection}
 							activeConnectionUrl={activeConnectionUrl}
+							onAddConnection={() => setShowAddConnectionDrawer(true)}
 						/>
 					</Splitter.Panel>
 
