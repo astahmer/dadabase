@@ -63,7 +63,10 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
 	const { contains } = useFilter({ sensitivity: "base" });
 
-	const tableFilter = useActiveTabState((s) => s.tableFilter);
+	const tableFilter = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.tableFilter,
+	});
 	const selectedTable = useActiveTabState((s) => s.table);
 	const filteredTables = useMemo(
 		() =>
@@ -288,8 +291,10 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 									onChange={(e) =>
 										navigate({
 											replace: true,
-											search: (prev) =>
-												updateTabState(prev, { tableFilter: e.target.value }),
+											search: (prev) => ({
+												...prev,
+												tableFilter: e.target.value,
+											}),
 										})
 									}
 								/>
