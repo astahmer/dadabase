@@ -3,6 +3,7 @@ import { DatabaseConnectionRepository } from "#src/db/database-connection.reposi
 import { DotEnvProvider } from "#src/dotenv.runtime.ts";
 import { makePoolCacheLive } from "#src/db/postgres/pool-cache.ts";
 import { NanoId } from "#src/server/services/nano-id.ts";
+import { QueryLogger } from "#src/server/services/query-logger.service.ts";
 import { Layer, ManagedRuntime } from "effect";
 
 const AppLayer = Layer.mergeAll(
@@ -10,6 +11,7 @@ const AppLayer = Layer.mergeAll(
 	NanoId.Default,
 	DotEnvProvider,
 	makePoolCacheLive,
+	QueryLogger.Default,
 );
 export const AppRuntime = ManagedRuntime.make(
 	AppLayer.pipe(Layer.provideMerge(makeAppDatabaseLayerFromEnv)),

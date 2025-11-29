@@ -10,6 +10,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Duration, Effect, Schema } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { queryTableData } from "../fns/query-table-data.kysely.ts";
+import { withQueryLoggingAndRowCount } from "../../services/with-query-logging.ts";
 
 // Using Record type with any for now to avoid schema validation issues
 
@@ -48,18 +49,28 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 					throw new Error(`Connection not found for URL: ${input.url}`);
 				}
 
-				return yield* queryTableData({
-					schema: input.schema,
-					table: input.table,
-					limit: input.limit ?? 50,
-					offset: input.offset ?? 0,
-					orderBy: input.orderBy,
-					orderDirection: input.orderDirection,
-					filters: validatedFilters ?? {
-						conditions: [],
-						logicalOperator: "and",
+				const result = yield* withQueryLoggingAndRowCount(
+					queryTableData({
+						schema: input.schema,
+						table: input.table,
+						limit: input.limit ?? 50,
+						offset: input.offset ?? 0,
+						orderBy: input.orderBy,
+						orderDirection: input.orderDirection,
+						filters: validatedFilters ?? {
+							conditions: [],
+							logicalOperator: "and",
+						},
+					}),
+					{
+						type: "table",
+						sql: `SELECT * FROM "${input.schema}"."${input.table}"`,
+						schema: input.schema,
+						table: input.table,
 					},
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+				).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+
+				return result;
 			}),
 		)) as { rows: Record<string, any>[]; rowCount: number };
 		const endTime = Date.now();

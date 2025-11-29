@@ -28,6 +28,7 @@ import { RowsTableErrorState } from "./connection-page/rows-table-error-state.ts
 import { ConnectionForm } from "./connection.form.tsx";
 import { ConnectionQuickReferencesDrawer } from "./connection-page/connection-quick-references.drawer.tsx";
 import { ConnectionRowJsonViewerDrawer } from "./connection-page/connection-row-json-viewer.drawer.tsx";
+import { QueryLoggerPanel } from "../query-logger/query-logger-panel.tsx";
 import {
 	getActiveTabState,
 	updateTabState,
@@ -101,7 +102,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	return (
 		<div className="h-screen bg-background flex flex-col">
 			{/* Main Layout */}
-			<div className="flex-1 flex h-full min-h-0">
+			<div className="flex-1 flex h-full min-h-0 flex-col">
 				<Splitter.Root
 					orientation="horizontal"
 					defaultSize={[minSize, 100 - minSize]}
@@ -409,6 +410,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 						)}
 					</Splitter.Panel>
 				</Splitter.Root>
+
+				{/* Query Logger Panel */}
+				<QueryLoggerPanel />
 			</div>
 
 			{/* Add Connection Drawer */}
