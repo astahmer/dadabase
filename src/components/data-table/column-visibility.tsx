@@ -32,7 +32,8 @@ export function ColumnVisibilityControls<TData>(
 		() =>
 			allColumns.reduce((acc, col) => {
 				const tableCol = table.getColumn(col.value);
-				return acc + ((tableCol?.getIsVisible?.() ?? true) ? 1 : 0);
+				if (!tableCol) return acc;
+				return acc + ((tableCol.getIsVisible?.() ?? true) ? 1 : 0);
 			}, 0),
 		[allColumns, table],
 	);
@@ -41,13 +42,14 @@ export function ColumnVisibilityControls<TData>(
 	const handleSelectAll = () => {
 		allColumns.forEach((col) => {
 			const column = table.getColumn(col.value);
-			const isVisible = column?.getIsVisible?.() ?? true;
+			if (!column) return;
+			const isVisible = column.getIsVisible?.() ?? true;
 			if (allVisible && isVisible) {
 				// Unselect all
-				column?.toggleVisibility?.(false);
+				column.toggleVisibility?.(false);
 			} else if (!allVisible && !isVisible) {
 				// Select all
-				column?.toggleVisibility?.(true);
+				column.toggleVisibility?.(true);
 			}
 		});
 	};
@@ -118,9 +120,7 @@ export function ColumnVisibilityControls<TData>(
 														const column = table.getColumn(
 															highlightedItem.value,
 														);
-														if (column) {
-															column.toggleVisibility();
-														}
+														column?.toggleVisibility?.();
 													}
 												}}
 											/>
