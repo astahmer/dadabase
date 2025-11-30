@@ -640,4 +640,162 @@ describe("getTableRelationships (introspection module)", () => {
 			});
 		}).pipe(Effect.provide(pgliteLayer)),
 	);
+
+	it.effect(
+		"includes correct schema information for outgoing relationships",
+		() =>
+			Effect.gen(function* () {
+				yield* setupSchemaSqlClient;
+
+				const relationships = yield* getTableRelationshipsIntrospection({
+					schema: "public",
+					table: "posts",
+				});
+
+				const outgoing = relationships.find((r) => r.type === "outgoing");
+
+				expect(outgoing?.referencing_schema).toBe("public");
+				expect(outgoing?.referencing_table).toBe("posts");
+				expect(outgoing?.referenced_schema).toBe("public");
+				expect(outgoing?.referenced_table).toBe("users");
+			}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect(
+		"includes correct schema information for incoming relationships",
+		() =>
+			Effect.gen(function* () {
+				yield* setupSchemaSqlClient;
+
+				const relationships = yield* getTableRelationshipsIntrospection({
+					schema: "public",
+					table: "users",
+				});
+
+				relationships.forEach((rel) => {
+					expect(rel.type).toBe("incoming");
+					expect(rel.referenced_schema).toBe("public");
+					expect(rel.referenced_table).toBe("users");
+					expect(rel.referencing_schema).toBe("public");
+				});
+			}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("includes constraint names for all relationships", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "posts",
+			});
+
+			relationships.forEach((rel) => {
+				expect(rel.constraint_name).toBeDefined();
+				expect(rel.constraint_name.length).toBeGreaterThan(0);
+			});
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("handles table with multiple outgoing FKs", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "comments",
+			});
+
+			// comments has outgoing FKs to posts and users
+			const outgoing = relationships.filter((r) => r.type === "outgoing");
+			expect(outgoing.length).toBe(2);
+
+			const postFk = outgoing.find((r) => r.referencing_column === "post_id");
+			expect(postFk?.referenced_table).toBe("posts");
+
+			const userFk = outgoing.find((r) => r.referencing_column === "user_id");
+			expect(userFk?.referenced_table).toBe("users");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("handles one-to-one relationships", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "user_profiles",
+			});
+
+			// user_profiles has one outgoing FK to users (one-to-one)
+			expect(relationships.length).toBe(1);
+			expect(relationships[0].type).toBe("outgoing");
+			expect(relationships[0].referencing_column).toBe("user_id");
+			expect(relationships[0].referenced_table).toBe("users");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("handles many-to-many relationships through junction tables", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "post_tags",
+			});
+
+			// post_tags has outgoing FKs to posts and tags
+			const outgoing = relationships.filter((r) => r.type === "outgoing");
+			expect(outgoing.length).toBe(2);
+
+			const postFk = outgoing.find((r) => r.referencing_column === "post_id");
+			expect(postFk?.referenced_table).toBe("posts");
+
+			const tagFk = outgoing.find((r) => r.referencing_column === "tag_id");
+			expect(tagFk?.referenced_table).toBe("tags");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("identifies junction table relationships correctly", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			// From posts perspective: incoming relationship from post_tags
+			const postRelationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "posts",
+			});
+
+			const incomingFromJunction = postRelationships.find(
+				(r) => r.type === "incoming" && r.referencing_table === "post_tags",
+			);
+			expect(incomingFromJunction).toBeDefined();
+			expect(incomingFromJunction?.referencing_column).toBe("post_id");
+
+			// From tags perspective: incoming relationship from post_tags
+			const tagRelationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "tags",
+			});
+
+			const incomingFromJunctionToTags = tagRelationships.find(
+				(r) => r.type === "incoming" && r.referencing_table === "post_tags",
+			);
+			expect(incomingFromJunctionToTags).toBeDefined();
+			expect(incomingFromJunctionToTags?.referencing_column).toBe("tag_id");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("returns empty array for non-existent table", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "nonexistent_table",
+			});
+
+			expect(relationships).toEqual([]);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 });

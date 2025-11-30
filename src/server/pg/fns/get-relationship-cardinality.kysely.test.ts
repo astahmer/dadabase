@@ -371,4 +371,25 @@ describe("getRelationshipCardinality (introspection module)", () => {
 				expect(result[0]?.cardinality).toBe("many-to-one");
 			}).pipe(Effect.provide(pgliteLayer)),
 	);
+
+	it.effect(
+		"detects one-to-many cardinality for incoming relationships perspective",
+		() =>
+			Effect.gen(function* () {
+				yield* setupTablesSqlClient;
+
+				// The Kysely function has an isIncomingRelationship parameter that flips
+				// the cardinality for incoming relationships. The introspection module
+				// doesn't have this parameter - it always returns the FK side perspective.
+				// So posts -> authors returns "many-to-one" (many posts to one author)
+				const result = yield* getRelationshipCardinalityIntrospection({
+					schema: "public",
+					table: "posts",
+					columns: ["author_id"],
+				});
+
+				// From FK side: many posts reference one author = many-to-one
+				expect(result[0]?.cardinality).toBe("many-to-one");
+			}).pipe(Effect.provide(pgliteLayer)),
+	);
 });
