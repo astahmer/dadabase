@@ -334,6 +334,7 @@ For Effect.ts patterns, best practices, and API reference:
 - Use `.context/effect/` folder in the workspace - it contains the Effect.ts source code repo
 - Search this folder when you need to understand how to use Effect APIs
 - Look at `src/server/services/`, `src/server/pg/fns/` for applied examples in Dadabase
+- and `docs/effect-patterns.md`
 
 ### Key Patterns to Study
 - **Service definition**: `src/server/services/nano-id.ts`, `src/server/services/app.runtime.ts`
@@ -341,4 +342,3 @@ For Effect.ts patterns, best practices, and API reference:
 - **Query logging wrapper**: `src/server/query-logger/with-query-logging.ts`
 - **Component-scoped state**: `src/components/pages/connection-page/use-connection-page-state.tsx`
 - **Component-scoped utilities**: `src/components/pages/connection-page/format-table-value.ts`
-
