@@ -1,5 +1,5 @@
 import type { QueryObserverOptions } from "@tanstack/react-query";
-import { MutationCache, QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 
 export const queryClient = new QueryClient({
 	defaultOptions: {
@@ -14,6 +14,15 @@ export const queryClient = new QueryClient({
 			// },
 		},
 	},
+	queryCache: new QueryCache({
+		onSuccess(_data, query) {
+			if (query.queryKey.includes("remote")) {
+				queryClient.invalidateQueries({
+					queryKey: ["app", "queryHistory"],
+				});
+			}
+		},
+	}),
 	mutationCache: new MutationCache({
 		onSuccess: async (_data, _variables, _context, _mutation) => {
 			await queryClient.invalidateQueries(

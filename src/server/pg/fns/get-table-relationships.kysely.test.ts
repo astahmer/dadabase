@@ -1,6 +1,8 @@
 import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { getTableRelationships } from "./get-table-relationships.kysely.ts";
+import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
+import { QueryLoggerNoopLayer } from "#src/server/query-logger/query-logger.layer.noop.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
@@ -41,7 +43,11 @@ const InMemoryLayer = Layer.effect(
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
 		dataDir: "memory://",
 	}) as any,
-) as any as Layer.Layer<KyselyPgDatabase, never, never>;
+).pipe(Layer.merge(QueryLoggerNoopLayer)) as any as Layer.Layer<
+	KyselyPgDatabase | QueryLogger,
+	never,
+	never
+>;
 
 describe("getTableRelationships", () => {
 	// Helper to set up test schema

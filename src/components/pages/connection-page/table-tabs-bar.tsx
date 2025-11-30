@@ -48,7 +48,7 @@ export const TableTabsBar = ({
 								className={`flex items-center gap-2 px-3 py-1.5 rounded-t-md border border-b-0 cursor-pointer transition-all whitespace-nowrap text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
 									activeTabId === tab.tabId
 										? "bg-background text-foreground border-input"
-										: "bg-muted text-muted-foreground border-muted hover:bg-muted/80"
+										: "bg-muted text-muted-foreground border-muted hover:bg-background/50 hover:text-foreground"
 								}`}
 								onMouseEnter={() => onTabHover?.(tab)}
 								asChild

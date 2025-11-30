@@ -18,7 +18,6 @@ const TabStateSchema = Schema.Struct({
 	tabId: Schema.String, // Explicit unique identifier for the tab
 	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
 	table: Schema.String,
-	tableFilter: Schema.String.pipe(Schema.optional),
 	orderBy: Schema.String.pipe(Schema.optional),
 	orderDirection: Schema.Literal("asc", "desc").pipe(Schema.optional),
 	limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
@@ -45,6 +44,7 @@ const searchSchema = Schema.Struct({
 	dbName: Schema.String.pipe(Schema.optional),
 	activeTabId: Schema.String.pipe(Schema.optional), // Explicit active tab ID
 	tabs: TabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
+	tableFilter: Schema.String.pipe(Schema.optional),
 	quickReferencesOpen: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),

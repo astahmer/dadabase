@@ -144,25 +144,38 @@ Install with: `pnpx shadcn@latest add button`
 
 ### Naming Patterns
 - **Server functions**: Suffix with `.start.ts` (e.g., `update-db-connection.start.ts`)
-- **Kysely query files**: Suffix with `.kysely.ts`
-- **Hooks**: Prefix with `use-` (e.g., `use-connection-storage.ts`)
+- **Effect functions**: Suffix with `.ts` or `.kysely.ts` for database queries; place in `server/*/fns/` folders (e.g., `get-table-foreign-keys.kysely.ts`)
+- **Component-scoped logic**: Use `.ts` or `.tsx` files in the same component folder (e.g., `use-connection-page-state.tsx`, `format-table-value.ts`, `use-rows-columns.actions.ts`)
+- **Generic React hooks**: Only in `hooks/` folder, prefix with `use-` (e.g., `use-debounced-search-param.ts`, `use-local-storage.ts`). These are **truly generic** - applicable across many features with no feature-specific dependencies
+- **Generic utilities**: Only in `lib/` folder for **truly reusable, framework-agnostic code** (e.g., `get-error-message.ts`, `safe-json-parse.ts`, `data-type-utils.ts`). No feature-specific logic
 - **Style files**: Suffix with `.styles.ts`
+
+**Important**: Feature-specific state hooks and utilities should be colocated in the component folder where they're used, NOT in `hooks/` or `lib/`. Only use those folders for code with zero feature dependencies.
 
 ### Directory Organization
 ```
 src/
   components/
-    ui/                 # Unstyled reusable components (Button, Input, etc.)
-    pages/              # Page-level layouts
+    ui/                 # Unstyled reusable UI components (Button, Input, etc.)
+    pages/              # Page-level layouts and their features
+    data-table/         # Data table components and utilities
+    query-builder/      # Query builder components
     form/               # Form-related components
+    app/                # App-wide components (headers, icons, context menus)
+    shared/             # Shared components used across multiple features
   db/
     postgres/           # PostgreSQL-specific (connection pooling, introspection)
   server/
-    db-connection/fns/  # Connection CRUD operations (Effect.fn)
-    pg/fns/             # PostgreSQL introspection & queries
+    db-connection/
+      fns/              # Effect.fn functions (pure business logic)
+      start-fns/        # TanStack Start server functions (queries/mutations)
+    pg/
+      fns/              # Effect.fn functions (PostgreSQL queries, introspection)
+      start-fns/        # TanStack Start server functions wrapping fns
+    query-logger/       # Query logging service and middleware
     services/           # Effect services (NanoId, AppRuntime)
-  lib/                  # Pure utilities, parsers, styling helpers
-  hooks/                # React custom hooks
+  lib/                  # Generic utilities ONLY (data parsing, formatting, type helpers)
+  hooks/                # Generic React hooks ONLY (theme, search params, local storage)
   routes/               # TanStack file-based routes
 ```
 
@@ -177,22 +190,59 @@ src/
 
 ### Adding a Database Query
 
-1. **Create Effect function** in `src/server/pg/fns/`:
+1. **Create core Effect function** in `src/server/pg/fns/`:
 ```typescript
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { Effect } from "effect";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 
-export const getMyData = (input: { tableId: string }) =>
+export const getTableData = (input: { schema: string; table: string }) =>
   Effect.gen(function* () {
     const db = yield* KyselyPgDatabase;
     const rows = yield* db.execute(
-      db.selectFrom("my_table").selectAll().where("id", "=", input.tableId)
+      db.selectFrom("my_table").selectAll().where("id", "=", input.id)
     );
-    return rows;
-  });
+    return { rows };
+  }).pipe(withQueryLogging());
 ```
 
-2. **Import and use** in server components or route loaders via TanStack Start
+2. **Wrap in TanStack Start server function** in `src/server/pg/start-fns/`:
+```typescript
+import { createServerFn } from "@tanstack/start";
+import { getTableData } from "#src/server/pg/fns/get-table-data.kysely.ts";
+import { appRuntime } from "#src/server/services/app.runtime.ts";
+
+export const getTableDataServerFn = createServerFn(
+  { method: "GET" },
+  async (input: { schema: string; table: string }) => {
+    return appRuntime.runSync(getTableData(input));
+  },
+);
+
+// Export query options for use in client
+export const tableDataQueryOptions = queryOptions({
+  queryKey: ["table-data", input],
+  queryFn: () => getTableDataServerFn(input),
+});
+```
+
+3. **Use in client/component**: Import `tableDataQueryOptions` from `.start.ts` file
+
+### Adding Component-Scoped Logic
+
+For feature-specific logic (state, formatting, derived data), colocate files in the component folder:
+
+```
+components/pages/connection-page/
+  connection-page.tsx
+  use-connection-page-state.tsx  # Component-specific state hook
+  use-rows-columns.tsx           # Component-specific data hook
+  use-rows-columns.actions.ts    # Actions for state reducer
+  format-table-value.ts          # Component-specific formatting
+  relationships/
+    relationships-panel.tsx
+    use-relationships-panel-state.ts
+```
 
 ### Filtering Tables
 
@@ -275,3 +325,20 @@ export const getMyData = (input: { tableId: string }) =>
 - **Table not rendering**: Check TanStack Table columns array matches data shape; verify virtualization settings if large
 - **Relationship panel empty**: Verify foreign keys exist in schema; check `get-table-foreign-keys.ts` query
 
+---
+
+## Resources for Learning & Reference
+
+### Effect.ts Examples
+For Effect.ts patterns, best practices, and API reference:
+- Use `.context/effect/` folder in the workspace - it contains the Effect.ts source code repo
+- Search this folder when you need to understand how to use Effect APIs
+- Look at `src/server/services/`, `src/server/pg/fns/` for applied examples in Dadabase
+- and `docs/effect-patterns.md`
+
+### Key Patterns to Study
+- **Service definition**: `src/server/services/nano-id.ts`, `src/server/services/app.runtime.ts`
+- **Effect generators**: `src/server/pg/fns/*.kysely.ts`, `src/db/effect-kysely.ts`
+- **Query logging wrapper**: `src/server/query-logger/with-query-logging.ts`
+- **Component-scoped state**: `src/components/pages/connection-page/use-connection-page-state.tsx`
+- **Component-scoped utilities**: `src/components/pages/connection-page/format-table-value.ts`

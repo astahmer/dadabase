@@ -1,4 +1,3 @@
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -6,7 +5,9 @@ import { Effect, Schema } from "effect";
 import { getRelationshipsCounts } from "../fns/get-relationships-counts.kysely.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 const TableRelationshipSchema = Schema.Struct({
 	constraintName: Schema.String,
@@ -38,7 +39,9 @@ const getRelationshipsCountsServerFn = createServerFn({ method: "POST" })
 				const connection = yield* repo.findByUrl(input.url);
 
 				if (!connection) {
-					throw new Error(`Connection not found for URL: ${input.url}`);
+					return yield* Effect.fail(
+						new Error(`Connection not found for URL: ${input.url}`),
+					);
 				}
 
 				return yield* getRelationshipsCounts({
@@ -46,7 +49,13 @@ const getRelationshipsCountsServerFn = createServerFn({ method: "POST" })
 					table: input.table,
 					relationships: input.relationships,
 					rowData: input.rowData,
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+					connectionId: connection.id,
+				}).pipe(
+					withRemoteConnectionLayers(
+						connection.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});
@@ -55,14 +64,6 @@ export const getRelationshipsCountsQueryOptions = (
 	input: InferServerFnSchema<typeof getRelationshipsCountsServerFn>,
 ) =>
 	queryOptions({
-		queryKey: [
-			"pg",
-			"relationshipsCounts",
-			input.url,
-			input.schema,
-			input.table,
-			JSON.stringify(input.relationships),
-			JSON.stringify(input.rowData),
-		],
+		queryKey: ["remote", "relationshipsCounts", input],
 		queryFn: () => getRelationshipsCountsServerFn({ data: input }),
 	});

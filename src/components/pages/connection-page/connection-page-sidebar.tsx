@@ -19,10 +19,12 @@ import {
 	updateTabState,
 	useActiveTabState,
 } from "./create-tab-state.ts";
+import { ConnectionSwitcher } from "./connection-switcher";
 
 interface ConnectionPageSidebarProps {
 	connection: DbConnection;
 	activeConnectionUrl: string;
+	onAddConnection: () => void;
 }
 
 export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
@@ -63,7 +65,10 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
 	const { contains } = useFilter({ sensitivity: "base" });
 
-	const tableFilter = useActiveTabState((s) => s.tableFilter);
+	const tableFilter = useSearch({
+		from: "/connections/$connectionName",
+		select: (s) => s.tableFilter,
+	});
 	const selectedTable = useActiveTabState((s) => s.table);
 	const filteredTables = useMemo(
 		() =>
@@ -125,6 +130,11 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
 	return (
 		<>
+			{/* Connection Switcher */}
+			<ConnectionSwitcher
+				connection={connection}
+				onAddConnection={props.onAddConnection}
+			/>
 			{/* Database Selector */}
 			<Stack className="px-4 pt-4 shrink-0" gap="2">
 				<label className="text-xs font-medium text-foreground uppercase tracking-wide">
@@ -288,8 +298,10 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 									onChange={(e) =>
 										navigate({
 											replace: true,
-											search: (prev) =>
-												updateTabState(prev, { tableFilter: e.target.value }),
+											search: (prev) => ({
+												...prev,
+												tableFilter: e.target.value,
+											}),
 										})
 									}
 								/>

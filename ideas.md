@@ -30,12 +30,6 @@
 - chrome-like JS repl for visible rows
 - JSON viewer like chrome console evaluated array
 
-
-- https://x.com/mac_hour/status/1988953549305442655
-- font-variant: numeric-tabs; sur toutes tes cellules, pour améliorer le rendu
-- La cellule row_id est trop large pour sa data. Tu devrais afficher les types de champs en tooltip plutôt
-- Le nom de la table browsée devrait être un peu plus visible (et en haut plutôt qu'en bas)
-
 - add a way to favorite/save queries
 - add a way to view query history
 - generative UI for queries (?) https://vercel.com/blog/ai-sdk-3-generative-ui

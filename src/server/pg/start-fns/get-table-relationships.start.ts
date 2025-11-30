@@ -1,4 +1,3 @@
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -6,7 +5,9 @@ import { Effect, Schema } from "effect";
 import { getTableRelationships } from "../fns/get-table-relationships.kysely.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 const getTableRelationshipsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -23,13 +24,21 @@ const getTableRelationshipsServerFn = createServerFn({ method: "POST" })
 				const connection = yield* repo.findByUrl(ctx.data.url);
 
 				if (!connection) {
-					throw new Error(`Connection not found for URL: ${ctx.data.url}`);
+					return yield* Effect.fail(
+						new Error(`Connection not found for URL: ${ctx.data.url}`),
+					);
 				}
 
 				return yield* getTableRelationships({
 					schema: ctx.data.schema,
 					table: ctx.data.table,
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+					connectionId: connection.id,
+				}).pipe(
+					withRemoteConnectionLayers(
+						connection.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});
@@ -38,7 +47,7 @@ export const getTableRelationshipsQueryOptions = (
 	input: InferServerFnSchema<typeof getTableRelationshipsServerFn>,
 ) =>
 	queryOptions({
-		queryKey: ["pg", "tableRelationships", input],
+		queryKey: ["remote", "tableRelationships", input],
 		queryFn: () => getTableRelationshipsServerFn({ data: input }),
 		staleTime: 5 * 60 * 1000, // 5 minutes
 	});

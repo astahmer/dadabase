@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
   push:
-    branches: [main, feat/relationship-bottom-panel]
+    # branches: [main]
 
 jobs:
   integration:

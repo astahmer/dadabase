@@ -1,17 +1,16 @@
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import {
 	QueryFilter,
 	filterQueryValidConditions,
 	type QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Duration, Effect, Schema } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { queryTableData } from "../fns/query-table-data.kysely.ts";
-
-// Using Record type with any for now to avoid schema validation issues
+import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 const InputSchema = Schema.Struct({
 	url: Schema.URL,
@@ -32,7 +31,7 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 		const input = ctx.data;
 
 		const startTime = Date.now();
-		console.log("---> queryTableDataServerFn");
+		// console.log("---> queryTableDataServerFn");
 
 		// Filter out conditions with null/undefined values (apply validation on server side too)
 		const validatedFilters = input.filters
@@ -45,10 +44,12 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 				const connection = yield* repo.findByUrl(input.url.toString());
 
 				if (!connection) {
-					throw new Error(`Connection not found for URL: ${input.url}`);
+					return yield* Effect.fail(
+						new Error(`Connection not found for URL: ${input.url}`),
+					);
 				}
 
-				return yield* queryTableData({
+				const result = yield* queryTableData({
 					schema: input.schema,
 					table: input.table,
 					limit: input.limit ?? 50,
@@ -59,14 +60,22 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 						conditions: [],
 						logicalOperator: "and",
 					},
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+					connectionId: connection.id,
+				}).pipe(
+					withRemoteConnectionLayers(
+						input.url.toString(),
+						RemoteConnectionId.make(connection.id),
+					),
+				);
+
+				return result;
 			}),
 		)) as { rows: Record<string, any>[]; rowCount: number };
 		const endTime = Date.now();
-		console.log(
-			"<--- queryTableDataServerFn",
-			Duration.format(Duration.toMillis(endTime - startTime)),
-		);
+		// console.log(
+		// 	"<--- queryTableDataServerFn",
+		// 	Duration.format(Duration.toMillis(endTime - startTime)),
+		// );
 
 		return {
 			rows,
@@ -90,20 +99,8 @@ export type QueryTableDataInput = {
 export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
 	// console.log("[rows query]", input)
 	return queryOptions({
-		queryKey: [
-			"pg",
-			"tableData",
-			input.url,
-			input.schema,
-			input.table,
-			input.limit ?? 50,
-			input.offset ?? 0,
-			input.orderBy,
-			input.orderDirection,
-			JSON.stringify(
-				input.filters ?? { conditions: [], logicalOperator: "and" },
-			),
-		],
+		queryKey: ["remote", "rows", input],
 		queryFn: async () => queryTableDataServerFn({ data: input }),
+		meta: { loggable: true },
 	});
 };

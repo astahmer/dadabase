@@ -1,8 +1,10 @@
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
-import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { buildWhereExpression } from "./build-where-expression";
 
 export const queryTableData = <
@@ -15,6 +17,7 @@ export const queryTableData = <
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
 	filters?: QueryFilterType;
+	connectionId?: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -41,8 +44,17 @@ export const queryTableData = <
 				countQuery = countQuery.where(whereExpression as any);
 			}
 
-			// console.log("Count SQL:", countQuery.compile().sql);
-			const countResult = yield* db.execute(countQuery as any);
+			const countQueryCompiled = countQuery.compile();
+			const countResult = yield* db.execute(countQuery).pipe(
+				withQueryLogging({
+					type: QueryLogType.TableCount,
+					sql: countQueryCompiled.sql,
+					params: countQueryCompiled.parameters,
+					schema: input.schema,
+					table: input.table,
+					connectionId: input.connectionId,
+				}),
+			);
 			const rowCount = (countResult[0] as any)?.count ?? 0;
 
 			// Build the main query
@@ -65,11 +77,29 @@ export const queryTableData = <
 			// Add limit and offset for pagination
 			query = query.limit(limit).offset(offset);
 
-			console.log("--> Main SQL:", query.compile().sql);
-			console.time(`<-- Main SQL: ${query.compile().sql}`);
-			const rows = yield* db.execute(query as any);
-			console.timeEnd(`<-- Main SQL: ${query.compile().sql}`);
-			return { rows: rows as T[], rowCount };
+			const compiled = query.compile();
+			const mainSql = compiled.sql;
+			// console.log("--> Main SQL:", mainSql);
+			// console.time(`<-- Main SQL: ${mainSql}`);
+			const rows = yield* db
+				.execute(query as any)
+				.pipe(Effect.map((r) => ({ rows: r as T[], rowCount: rowCount })))
+				.pipe(
+					withQueryLogging({
+						type: QueryLogType.TableRows,
+						sql: mainSql,
+						params: compiled.parameters,
+						schema: input.schema,
+						table: input.table,
+						connectionId: input.connectionId,
+					}),
+				);
+			// .pipe(
+			// 	Effect.tap(() =>
+			// 		Effect.sync(() => console.timeEnd(`<-- Main SQL: ${mainSql}`)),
+			// 	),
+			// );
+			return rows;
 		} catch (e) {
 			return yield* Effect.fail(
 				new SqlError.SqlError({

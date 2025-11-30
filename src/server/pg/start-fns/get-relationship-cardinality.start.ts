@@ -1,4 +1,3 @@
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -9,6 +8,8 @@ import {
 } from "../fns/get-relationship-cardinality.kysely.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -27,15 +28,23 @@ const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 				const connection = yield* repo.findByUrl(ctx.data.url);
 
 				if (!connection) {
-					throw new Error(`Connection not found for URL: ${ctx.data.url}`);
+					return yield* Effect.fail(
+						new Error(`Connection not found for URL: ${ctx.data.url}`),
+					);
 				}
 
 				return yield* getRelationshipCardinality({
 					schema: ctx.data.schema,
 					table: ctx.data.table,
 					columns: Array.from(ctx.data.columns),
+					connectionId: connection.id,
 					isIncomingRelationship: ctx.data.isIncomingRelationship,
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+				}).pipe(
+					withRemoteConnectionLayers(
+						connection.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});
@@ -44,7 +53,7 @@ export const getRelationshipCardinalityQueryOptions = (
 	input: InferServerFnSchema<typeof getRelationshipCardinalityServerFn>,
 ) =>
 	queryOptions({
-		queryKey: ["pg", "relationshipCardinality", input],
+		queryKey: ["remote", "relationshipCardinality", input],
 		queryFn: () => getRelationshipCardinalityServerFn({ data: input }),
 		staleTime: 30 * 60 * 1000, // 30 minutes (schema changes infrequently)
 	});

@@ -3,6 +3,7 @@ import type * as pg_catalog from "./catalog.schema.ts";
 import type * as information_schema from "./information.schema.ts";
 
 export interface KyselyPgSchema {
+	[key: string]: Kyselify<any>;
 	"pg_catalog.pg_namespace": Kyselify<typeof pg_catalog.pg_namespace>;
 	"pg_catalog.pg_type": Kyselify<typeof pg_catalog.pg_type>;
 	"pg_catalog.pg_database": Kyselify<typeof pg_catalog.pg_database>;

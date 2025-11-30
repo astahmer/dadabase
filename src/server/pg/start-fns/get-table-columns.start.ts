@@ -1,4 +1,3 @@
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -9,6 +8,8 @@ import {
 } from "../fns/get-table-columns.kysely.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 const getTableColumnsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -25,13 +26,21 @@ const getTableColumnsServerFn = createServerFn({ method: "POST" })
 				const connection = yield* repo.findByUrl(ctx.data.url);
 
 				if (!connection) {
-					throw new Error(`Connection not found for URL: ${ctx.data.url}`);
+					return yield* Effect.fail(
+						new Error(`Connection not found for URL: ${ctx.data.url}`),
+					);
 				}
 
 				return yield* getTableColumns({
 					schema: ctx.data.schema,
 					table: ctx.data.table,
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+					connectionId: connection.id,
+				}).pipe(
+					withRemoteConnectionLayers(
+						connection.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});
@@ -40,7 +49,7 @@ export const getTableColumnsQueryOptions = (
 	input: InferServerFnSchema<typeof getTableColumnsServerFn>,
 ) =>
 	queryOptions({
-		queryKey: ["pg", "tableColumns", input],
+		queryKey: ["remote", "tableColumns", input],
 		queryFn: () => getTableColumnsServerFn({ data: input }),
 		staleTime: 60 * 1000, // 1 minute
 	});

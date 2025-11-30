@@ -1,4 +1,6 @@
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
@@ -24,27 +26,39 @@ export interface TableColumnsMetadata {
 	}>;
 }
 
-export const getAllTablesColumns = (input: { schema: string }) =>
+export const getAllTablesColumns = (input: {
+	schema: string;
+	connectionId?: string;
+}) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
 
 		try {
 			// Get all tables in the schema first
-			const tableNames = yield* db.execute(sql<{ tablename: string }>`
-				SELECT tablename
-				FROM pg_tables
-				WHERE schemaname = ${input.schema}
-				ORDER BY tablename
-			`);
+			const tableNamesQuery = sql<{ tablename: string }>`
+			SELECT tablename
+			FROM pg_tables
+			WHERE schemaname = ${input.schema}
+			ORDER BY tablename
+		`;
 
-			// For each table, fetch its columns metadata
+			const compiledTables = tableNamesQuery.compile(db);
+			const tableNames = yield* db.execute(tableNamesQuery).pipe(
+				withQueryLogging({
+					type: QueryLogType.ColumnMetadata,
+					sql: compiledTables.sql,
+					params: compiledTables.parameters,
+					schema: input.schema,
+					connectionId: input.connectionId,
+				}),
+			); // For each table, fetch its columns metadata
 			const allTablesColumns: TableColumnsMetadata[] = [];
 
 			for (const tableRecord of tableNames) {
 				const tableName = tableRecord.tablename;
 
 				// First, get all foreign keys for this table using pg_catalog
-				const foreignKeys = yield* db.execute(sql<{
+				const fkQuery = sql<{
 					columnName: string;
 					referencedSchema: string;
 					referencedTable: string;
@@ -71,9 +85,19 @@ export const getAllTablesColumns = (input: { schema: string }) =>
 						AND con.contype = 'f'
 						AND a.attnum > 0
 						AND NOT a.attisdropped
-				`);
+			`;
 
-				// Create a map for quick FK lookup
+				const compiledFK = fkQuery.compile(db);
+				const foreignKeys = yield* db.execute(fkQuery).pipe(
+					withQueryLogging({
+						type: QueryLogType.ColumnMetadata,
+						sql: compiledFK.sql,
+						params: compiledFK.parameters,
+						schema: input.schema,
+						table: tableName,
+						connectionId: input.connectionId,
+					}),
+				); // Create a map for quick FK lookup
 				const fkMap = new Map<
 					string,
 					{
@@ -92,7 +116,7 @@ export const getAllTablesColumns = (input: { schema: string }) =>
 					});
 				});
 
-				const columns = yield* db.execute(sql<{
+				const columnsQuery = sql<{
 					name: string;
 					dataType: string;
 					nullable: boolean;
@@ -121,7 +145,19 @@ export const getAllTablesColumns = (input: { schema: string }) =>
 					AND NOT a.attisdropped
 				ORDER BY
 					a.attnum
-			`); // Merge FK info with column metadata
+		`;
+
+				const compiledCols = columnsQuery.compile(db);
+				const columns = yield* db.execute(columnsQuery).pipe(
+					withQueryLogging({
+						type: QueryLogType.ColumnMetadata,
+						sql: compiledCols.sql,
+						params: compiledCols.parameters,
+						schema: input.schema,
+						table: tableName,
+						connectionId: input.connectionId,
+					}),
+				); // Merge FK info with column metadata
 				const columnsWithFK = columns.map((col) => ({
 					...col,
 					isForeignKey: fkMap.has(col.name),

@@ -1,15 +1,16 @@
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
+import { AppRuntime } from "../../services/app.runtime.ts";
 import {
 	findColumnReferences,
 	findColumnReferencesWithCounts,
 	type ColumnReference,
 } from "../fns/get-table-foreign-keys.kysely.ts";
-import { AppRuntime } from "../../services/app.runtime.ts";
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 /**
  * Find all tables and columns that reference a specific column (reverse FK lookup)
@@ -31,14 +32,22 @@ const findColumnReferencesServerFn = createServerFn({ method: "POST" })
 				const connection = yield* repo.findByUrl(ctx.data.url);
 
 				if (!connection) {
-					throw new Error(`Connection not found for URL: ${ctx.data.url}`);
+					return yield* Effect.fail(
+						new Error(`Connection not found for URL: ${ctx.data.url}`),
+					);
 				}
 
 				return yield* findColumnReferences({
 					referencedSchema: ctx.data.referencedSchema,
 					referencedTable: ctx.data.referencedTable,
 					referencedColumn: ctx.data.referencedColumn,
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+					connectionId: connection.id,
+				}).pipe(
+					withRemoteConnectionLayers(
+						connection.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});
@@ -66,7 +75,9 @@ const findColumnReferencesWithCountsServerFn = createServerFn({
 				const connection = yield* repo.findByUrl(ctx.data.url);
 
 				if (!connection) {
-					throw new Error(`Connection not found for URL: ${ctx.data.url}`);
+					return yield* Effect.fail(
+						new Error(`Connection not found for URL: ${ctx.data.url}`),
+					);
 				}
 
 				return yield* findColumnReferencesWithCounts({
@@ -74,7 +85,13 @@ const findColumnReferencesWithCountsServerFn = createServerFn({
 					referencedTable: ctx.data.referencedTable,
 					referencedColumn: ctx.data.referencedColumn,
 					cellValue: ctx.data.cellValue,
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+					connectionId: connection.id,
+				}).pipe(
+					withRemoteConnectionLayers(
+						connection.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});
@@ -83,13 +100,7 @@ export const findColumnReferencesQueryOptions = (
 	input: InferServerFnSchema<typeof findColumnReferencesServerFn>,
 ) =>
 	queryOptions({
-		queryKey: [
-			"pg",
-			"columnReferences",
-			input.referencedSchema,
-			input.referencedTable,
-			input.referencedColumn,
-		],
+		queryKey: ["remote", "columnReferences", input],
 		queryFn: () => findColumnReferencesServerFn({ data: input }),
 	});
 
@@ -97,13 +108,6 @@ export const findColumnReferencesWithCountsQueryOptions = (
 	input: InferServerFnSchema<typeof findColumnReferencesWithCountsServerFn>,
 ) =>
 	queryOptions({
-		queryKey: [
-			"pg",
-			"columnReferencesWithCounts",
-			input.referencedSchema,
-			input.referencedTable,
-			input.referencedColumn,
-			input.cellValue,
-		],
+		queryKey: ["remote", "columnReferencesWithCounts", input],
 		queryFn: () => findColumnReferencesWithCountsServerFn({ data: input }),
 	});

@@ -1,8 +1,10 @@
-import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
-import { Effect } from "effect";
-import { sql } from "kysely";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
+import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
+import { Effect } from "effect";
+import { sql } from "kysely";
 import { buildWhereExpression } from "./build-where-expression";
 
 export interface RelationshipCountResult {
@@ -19,10 +21,11 @@ export const getRelationshipsCounts = (input: {
 	table: string;
 	relationships: TableRelationship[];
 	rowData: Record<string, unknown>;
+	connectionId?: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
-		const { schema, table, relationships, rowData } = input;
+		const { schema, table, relationships, rowData, connectionId } = input;
 
 		if (relationships.length === 0) {
 			return {};
@@ -82,8 +85,17 @@ export const getRelationshipsCounts = (input: {
 							countQuery = countQuery.where(whereExpression as any);
 						}
 
-						const result = yield* db.execute(countQuery as any);
-
+						const compiled = countQuery.compile();
+						const result = yield* db.execute(countQuery as any).pipe(
+							withQueryLogging({
+								type: QueryLogType.RelationshipCounting,
+								sql: compiled.sql,
+								params: compiled.parameters,
+								schema: rel.referencingSchema,
+								table: rel.referencingTable,
+								connectionId,
+							}),
+						);
 						const count = (result[0] as any)?.count ?? 0;
 						return {
 							constraintName: rel.constraintName,
