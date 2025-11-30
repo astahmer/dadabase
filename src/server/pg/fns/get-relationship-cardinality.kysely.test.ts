@@ -1,11 +1,18 @@
+import { PgLiteClient } from "@dadabase/effect-pglite";
 import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { getRelationshipCardinality } from "./get-relationship-cardinality.kysely.ts";
-import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
+import { getRelationshipCardinality as getRelationshipCardinalityIntrospection } from "#src/server/introspection/introspection.ts";
 import { QueryLoggerNoopLayer } from "#src/server/query-logger/query-logger.layer.noop.ts";
+import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
+
+// PgLite layer for new introspection tests
+const pgliteLayer = PgLiteClient.layer({
+	dataDir: "memory://",
+}) as unknown as Layer.Layer<SqlClient.SqlClient>;
 
 interface TestInMemoryDbSchema {
 	// One-to-One: user has one profile
@@ -224,5 +231,144 @@ describe("getRelationshipCardinality", () => {
 				expect(result.cardinality).toBe("one-to-many");
 			}).pipe(Effect.provide(InMemoryLayer));
 		},
+	);
+});
+
+// ============================================================================
+// Tests using new introspection module (SqlClient/onDialectOrElse)
+// ============================================================================
+
+// Setup schema for PgLite/SqlClient tests
+const setupTablesSqlClient = Effect.gen(function* () {
+	const client = yield* SqlClient.SqlClient;
+
+	// 1:1 - User Profile (one user has one profile)
+	yield* client`
+		CREATE TABLE IF NOT EXISTS users (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		)
+	`;
+
+	yield* client`
+		CREATE TABLE IF NOT EXISTS user_profiles (
+			user_id SERIAL UNIQUE PRIMARY KEY REFERENCES users(id),
+			bio TEXT
+		)
+	`;
+
+	// 1:N - Author Posts (one author has many posts)
+	yield* client`
+		CREATE TABLE IF NOT EXISTS authors (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		)
+	`;
+
+	yield* client`
+		CREATE TABLE IF NOT EXISTS posts (
+			id SERIAL PRIMARY KEY,
+			author_id INTEGER NOT NULL REFERENCES authors(id),
+			title TEXT NOT NULL
+		)
+	`;
+
+	// N:1 - Video Channel (many videos reference one channel)
+	yield* client`
+		CREATE TABLE IF NOT EXISTS channels (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		)
+	`;
+
+	yield* client`
+		CREATE TABLE IF NOT EXISTS videos (
+			id SERIAL PRIMARY KEY,
+			channel_id INTEGER NOT NULL REFERENCES channels(id),
+			title TEXT NOT NULL
+		)
+	`;
+
+	// M:N - Student Courses (via junction table with no uniqueness constraints)
+	yield* client`
+		CREATE TABLE IF NOT EXISTS students (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		)
+	`;
+
+	yield* client`
+		CREATE TABLE IF NOT EXISTS courses (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		)
+	`;
+
+	yield* client`
+		CREATE TABLE IF NOT EXISTS student_courses (
+			student_id INTEGER NOT NULL REFERENCES students(id),
+			course_id INTEGER NOT NULL REFERENCES courses(id)
+		)
+	`;
+});
+
+describe("getRelationshipCardinality (introspection module)", () => {
+	it.effect("detects one-to-one cardinality (user_profiles -> users)", () =>
+		Effect.gen(function* () {
+			yield* setupTablesSqlClient;
+
+			const result = yield* getRelationshipCardinalityIntrospection({
+				schema: "public",
+				table: "user_profiles",
+				columns: ["user_id"],
+			});
+
+			expect(result[0]?.cardinality).toBe("one-to-one");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("detects many-to-one cardinality (posts -> authors)", () =>
+		Effect.gen(function* () {
+			yield* setupTablesSqlClient;
+
+			const result = yield* getRelationshipCardinalityIntrospection({
+				schema: "public",
+				table: "posts",
+				columns: ["author_id"],
+			});
+
+			expect(result[0]?.cardinality).toBe("many-to-one");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("detects many-to-one cardinality (videos -> channels)", () =>
+		Effect.gen(function* () {
+			yield* setupTablesSqlClient;
+
+			const result = yield* getRelationshipCardinalityIntrospection({
+				schema: "public",
+				table: "videos",
+				columns: ["channel_id"],
+			});
+
+			expect(result[0]?.cardinality).toBe("many-to-one");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect(
+		"detects many-to-one cardinality (student_courses -> students)",
+		() =>
+			Effect.gen(function* () {
+				yield* setupTablesSqlClient;
+
+				const result = yield* getRelationshipCardinalityIntrospection({
+					schema: "public",
+					table: "student_courses",
+					columns: ["student_id"],
+				});
+
+				// This is many-to-one from the perspective of "many student_courses refer to one student"
+				expect(result[0]?.cardinality).toBe("many-to-one");
+			}).pipe(Effect.provide(pgliteLayer)),
 	);
 });

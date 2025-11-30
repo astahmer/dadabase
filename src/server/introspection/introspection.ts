@@ -302,3 +302,311 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 				`,
 		});
 	});
+
+/**
+ * Table relationship info for both incoming and outgoing relationships
+ */
+interface TableRelationshipInfo {
+	type: "outgoing" | "incoming";
+	referencing_schema: string;
+	referencing_table: string;
+	referencing_column: string;
+	referenced_schema: string;
+	referenced_table: string;
+	referenced_column: string;
+	constraint_name: string;
+}
+
+/**
+ * Get all relationships for a table (both incoming and outgoing)
+ * - PostgreSQL: Query pg_constraint and information_schema
+ * - SQLite: PRAGMA foreign_key_list (limited - only outgoing)
+ */
+export const getTableRelationships = (input: {
+	schema: string;
+	table: string;
+}) =>
+	Effect.gen(function* () {
+		const client = yield* SqlClient.SqlClient;
+		const { schema, table } = input;
+
+		return yield* client.onDialectOrElse({
+			pg: () =>
+				client<TableRelationshipInfo>`
+					-- Get outgoing relationships (FKs from this table)
+					SELECT
+						'outgoing'::text as type,
+						${schema}::text as referencing_schema,
+						${table}::text as referencing_table,
+						a.attname::text as referencing_column,
+						nf.nspname::text as referenced_schema,
+						cf.relname::text as referenced_table,
+						af.attname::text as referenced_column,
+						con.conname::text as constraint_name
+					FROM
+						pg_attribute a
+						JOIN pg_class c ON a.attrelid = c.oid
+						JOIN pg_namespace n ON c.relnamespace = n.oid
+						JOIN pg_constraint con ON con.conrelid = c.oid AND a.attnum = ANY(con.conkey)
+						JOIN pg_class cf ON con.confrelid = cf.oid
+						JOIN pg_namespace nf ON cf.relnamespace = nf.oid
+						JOIN pg_attribute af ON af.attrelid = cf.oid AND af.attnum = ANY(con.confkey)
+					WHERE
+						n.nspname = ${schema}
+						AND c.relname = ${table}
+						AND con.contype = 'f'
+						AND a.attnum > 0
+						AND NOT a.attisdropped
+
+					UNION ALL
+
+					-- Get incoming relationships (FKs pointing to this table)
+					SELECT
+						'incoming'::text as type,
+						kcu1.table_schema::text as referencing_schema,
+						kcu1.table_name::text as referencing_table,
+						kcu1.column_name::text as referencing_column,
+						${schema}::text as referenced_schema,
+						${table}::text as referenced_table,
+						kcu2.column_name::text as referenced_column,
+						kcu1.constraint_name::text as constraint_name
+					FROM
+						information_schema.key_column_usage kcu1
+						LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
+						LEFT JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_name = kcu2.constraint_name
+					WHERE
+						kcu1.constraint_name IN (
+							SELECT constraint_name
+							FROM information_schema.table_constraints
+							WHERE constraint_type = 'FOREIGN KEY'
+						)
+						AND kcu2.table_schema = ${schema}
+						AND kcu2.table_name = ${table}
+					ORDER BY
+						type, referencing_table, referencing_column
+				`,
+			sqlite: () =>
+				Effect.gen(function* () {
+					// SQLite only supports outgoing relationships via PRAGMA
+					const rows = yield* client<PragmaForeignKeyInfo>`
+						PRAGMA foreign_key_list(${table})
+					`;
+					return rows.map((row) => ({
+						type: "outgoing" as const,
+						referencing_schema: schema,
+						referencing_table: table,
+						referencing_column: row.from,
+						referenced_schema: "main",
+						referenced_table: row.table,
+						referenced_column: row.to,
+						constraint_name: `fk_${row.id}`,
+					})) as TableRelationshipInfo[];
+				}),
+			orElse: () =>
+				client<TableRelationshipInfo>`
+					SELECT
+						'outgoing' as type,
+						${schema} as referencing_schema,
+						${table} as referencing_table,
+						kcu.column_name as referencing_column,
+						ccu.table_schema as referenced_schema,
+						ccu.table_name as referenced_table,
+						ccu.column_name as referenced_column,
+						tc.constraint_name as constraint_name
+					FROM information_schema.table_constraints tc
+					JOIN information_schema.key_column_usage kcu
+						ON tc.constraint_name = kcu.constraint_name
+					JOIN information_schema.constraint_column_usage ccu
+						ON tc.constraint_name = ccu.constraint_name
+					WHERE tc.constraint_type = 'FOREIGN KEY'
+					AND tc.table_schema = ${schema}
+					AND tc.table_name = ${table}
+				`,
+		});
+	});
+
+/**
+ * Column reference info for reverse FK lookup
+ */
+interface ColumnReferenceInfo {
+	schema: string;
+	table: string;
+	column: string;
+	referenced_column: string;
+	constraint_name: string;
+}
+
+/**
+ * Get all tables and columns that reference a specific column (reverse FK lookup)
+ * - PostgreSQL: Query information_schema
+ * - SQLite: Not directly supported (would need to scan all tables)
+ */
+export const findColumnReferences = (input: {
+	referencedSchema: string;
+	referencedTable: string;
+	referencedColumn: string;
+}) =>
+	Effect.gen(function* () {
+		const client = yield* SqlClient.SqlClient;
+		const { referencedSchema, referencedTable, referencedColumn } = input;
+
+		return yield* client.onDialectOrElse({
+			pg: () =>
+				client<ColumnReferenceInfo>`
+					SELECT
+						kcu1.table_schema AS schema,
+						kcu1.table_name AS table,
+						kcu1.column_name AS column,
+						kcu2.column_name AS referenced_column,
+						kcu1.constraint_name AS constraint_name
+					FROM
+						information_schema.key_column_usage kcu1
+						LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
+						LEFT JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_name = kcu2.constraint_name
+					WHERE
+						kcu1.constraint_name IN (
+							SELECT constraint_name
+							FROM information_schema.table_constraints
+							WHERE constraint_type = 'FOREIGN KEY'
+						)
+						AND kcu2.table_schema = ${referencedSchema}
+						AND kcu2.table_name = ${referencedTable}
+						AND kcu2.column_name = ${referencedColumn}
+					ORDER BY
+						kcu1.table_name,
+						kcu1.column_name
+				`,
+			sqlite: () =>
+				// SQLite doesn't have a system-wide FK reverse lookup
+				// Return empty array - callers need to handle this limitation
+				Effect.succeed([] as ColumnReferenceInfo[]),
+			orElse: () =>
+				client<ColumnReferenceInfo>`
+					SELECT
+						kcu1.table_schema AS schema,
+						kcu1.table_name AS table,
+						kcu1.column_name AS column,
+						kcu2.column_name AS referenced_column,
+						kcu1.constraint_name AS constraint_name
+					FROM
+						information_schema.key_column_usage kcu1
+						LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
+						LEFT JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_name = kcu2.constraint_name
+					WHERE
+						kcu1.constraint_name IN (
+							SELECT constraint_name
+							FROM information_schema.table_constraints
+							WHERE constraint_type = 'FOREIGN KEY'
+						)
+						AND kcu2.table_schema = ${referencedSchema}
+						AND kcu2.table_name = ${referencedTable}
+						AND kcu2.column_name = ${referencedColumn}
+					ORDER BY
+						kcu1.table_name,
+						kcu1.column_name
+				`,
+		});
+	});
+
+/**
+ * Relationship cardinality info
+ */
+export type Cardinality =
+	| "one-to-one"
+	| "one-to-many"
+	| "many-to-one"
+	| "many-to-many";
+
+interface CardinalityInfo {
+	cardinality: Cardinality;
+}
+
+/**
+ * Detect the cardinality of a foreign key relationship.
+ * - PostgreSQL: Query pg_constraint to check uniqueness
+ * - SQLite: Limited support (always returns many-to-one as default)
+ *
+ * Checks:
+ * 1. If the referencing columns have a UNIQUE/PRIMARY KEY constraint → potentially 1:1
+ * 2. If the referenced columns are unique (PK of referenced table) → indicates 1:N or 1:1
+ * 3. If neither side is unique → M:N (many-to-many)
+ */
+export const getRelationshipCardinality = (input: {
+	schema: string;
+	table: string;
+	columns: string[];
+}) =>
+	Effect.gen(function* () {
+		const client = yield* SqlClient.SqlClient;
+		const { schema, table } = input;
+
+		return yield* client.onDialectOrElse({
+			pg: () =>
+				client<CardinalityInfo>`
+					-- Determine cardinality of FK relationship
+					WITH table_oid AS (
+						SELECT oid
+						FROM pg_class
+						WHERE relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = ${schema})
+							AND relname = ${table}
+					),
+					fk_info AS (
+						SELECT
+							con.oid,
+							con.conrelid,
+							con.confrelid,
+							con.conkey,
+							con.confkey
+						FROM pg_constraint con
+						WHERE con.conrelid = (SELECT oid FROM table_oid)
+							AND con.contype = 'f'
+					),
+					fk_side_unique AS (
+						SELECT
+							fk.oid,
+							COALESCE(
+								EXISTS (
+									SELECT 1 FROM pg_constraint con2
+									WHERE con2.conrelid = fk.conrelid
+										AND con2.contype IN ('p', 'u')
+										AND con2.conkey = fk.conkey
+								),
+								false
+							) as fk_is_unique
+						FROM fk_info fk
+					),
+					referenced_side_unique AS (
+						SELECT
+							fk.oid,
+							COALESCE(
+								EXISTS (
+									SELECT 1 FROM pg_constraint con3
+									WHERE con3.conrelid = fk.confrelid
+										AND con3.contype = 'p'
+										AND con3.conkey = fk.confkey
+								),
+								false
+							) as referenced_is_pk
+						FROM fk_info fk
+					)
+					SELECT
+						CASE
+							WHEN fk_u.fk_is_unique AND ref_u.referenced_is_pk THEN 'one-to-one'
+							WHEN NOT fk_u.fk_is_unique AND ref_u.referenced_is_pk THEN 'many-to-one'
+							WHEN fk_u.fk_is_unique AND NOT ref_u.referenced_is_pk THEN 'one-to-many'
+							ELSE 'many-to-many'
+						END as cardinality
+					FROM fk_info fk
+					JOIN fk_side_unique fk_u ON fk.oid = fk_u.oid
+					JOIN referenced_side_unique ref_u ON fk.oid = ref_u.oid
+					LIMIT 1
+				`,
+			sqlite: () =>
+				// SQLite doesn't have easy access to constraint metadata
+				// Default to many-to-one as a safe assumption
+				Effect.succeed([{ cardinality: "many-to-one" as Cardinality }]),
+			orElse: () =>
+				// Default fallback - assume many-to-one
+				Effect.succeed([{ cardinality: "many-to-one" as Cardinality }]),
+		});
+	});

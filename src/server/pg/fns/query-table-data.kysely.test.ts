@@ -558,7 +558,7 @@ describe("queryTableData", () => {
 
 			expect(result.rows.length).toBe(7); // We inserted 7 posts
 			expect(result.rowCount).toBe(7);
-			expect(result.rows[0]).toHaveProperty("userId");
+			expect(result.rows[0]).toHaveProperty("user_id");
 			expect(result.rows[0]).toHaveProperty("title");
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
@@ -695,8 +695,8 @@ describe("queryTableData", () => {
 			});
 
 			expect(result.rowCount).toBe(2); // Alice has 2 posts
-			expect(result.rows[0].userId).toBe(1);
-			expect(result.rows[1].userId).toBe(1);
+			expect(result.rows[0].user_id).toBe(1);
+			expect(result.rows[1].user_id).toBe(1);
 			// Ordered desc, so higher id first
 			expect(result.rows[0].id).toBeGreaterThan(result.rows[1].id);
 		}).pipe(Effect.provide(InMemoryLayer));

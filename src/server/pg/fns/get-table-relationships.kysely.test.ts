@@ -1,11 +1,18 @@
+import { PgLiteClient } from "@dadabase/effect-pglite";
 import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { getTableRelationships } from "./get-table-relationships.kysely.ts";
-import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
+import { getTableRelationships as getTableRelationshipsIntrospection } from "#src/server/introspection/introspection.ts";
 import { QueryLoggerNoopLayer } from "#src/server/query-logger/query-logger.layer.noop.ts";
+import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
+
+// PgLite layer for new introspection tests
+const pgliteLayer = PgLiteClient.layer({
+	dataDir: "memory://",
+}) as unknown as Layer.Layer<SqlClient.SqlClient>;
 
 interface TestInMemoryDbSchema {
 	users: {
@@ -424,4 +431,213 @@ describe("getTableRelationships", () => {
 			});
 		}).pipe(Effect.provide(InMemoryLayer));
 	});
+});
+
+// ============================================================================
+// Tests using new introspection module (SqlClient/onDialectOrElse)
+// ============================================================================
+
+// Setup schema for PgLite/SqlClient tests
+const setupSchemaSqlClient = Effect.gen(function* () {
+	const client = yield* SqlClient.SqlClient;
+
+	// Create users table
+	yield* client`
+		CREATE TABLE IF NOT EXISTS users (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			email TEXT NOT NULL UNIQUE
+		)
+	`;
+
+	// Create user_profiles table with FK to users
+	yield* client`
+		CREATE TABLE IF NOT EXISTS user_profiles (
+			user_id SERIAL UNIQUE PRIMARY KEY REFERENCES users(id),
+			bio TEXT
+		)
+	`;
+
+	// Create posts table with FK to users
+	yield* client`
+		CREATE TABLE IF NOT EXISTS posts (
+			id SERIAL PRIMARY KEY,
+			user_id INTEGER NOT NULL REFERENCES users(id),
+			title TEXT NOT NULL
+		)
+	`;
+
+	// Create comments table with multiple FKs
+	yield* client`
+		CREATE TABLE IF NOT EXISTS comments (
+			id SERIAL PRIMARY KEY,
+			post_id INTEGER NOT NULL REFERENCES posts(id),
+			user_id INTEGER NOT NULL REFERENCES users(id),
+			text TEXT NOT NULL
+		)
+	`;
+
+	// Create tags table
+	yield* client`
+		CREATE TABLE IF NOT EXISTS tags (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL UNIQUE
+		)
+	`;
+
+	// Create many-to-many junction table
+	yield* client`
+		CREATE TABLE IF NOT EXISTS post_tags (
+			post_id INTEGER NOT NULL REFERENCES posts(id),
+			tag_id INTEGER NOT NULL REFERENCES tags(id),
+			PRIMARY KEY (post_id, tag_id)
+		)
+	`;
+});
+
+describe("getTableRelationships (introspection module)", () => {
+	it.effect(
+		"returns relationships for tables referenced in junction tables",
+		() =>
+			Effect.gen(function* () {
+				yield* setupSchemaSqlClient;
+
+				// tags is referenced by post_tags junction table
+				const relationships = yield* getTableRelationshipsIntrospection({
+					schema: "public",
+					table: "tags",
+				});
+
+				// Should have incoming relationship from post_tags
+				expect(relationships.length).toBeGreaterThan(0);
+				const incomingFromJunction = relationships.find(
+					(r) => r.type === "incoming" && r.referencing_table === "post_tags",
+				);
+				expect(incomingFromJunction).toBeDefined();
+			}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("retrieves outgoing and incoming relationships for posts", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "posts",
+			});
+
+			// posts has 1 outgoing FK to users and 2 incoming FKs (from comments and post_tags)
+			expect(relationships.length).toBe(3);
+
+			const outgoing = relationships.filter((r) => r.type === "outgoing");
+			expect(outgoing.length).toBe(1);
+			expect(outgoing[0].referencing_table).toBe("posts");
+			expect(outgoing[0].referencing_column).toBe("user_id");
+			expect(outgoing[0].referenced_table).toBe("users");
+
+			const incoming = relationships.filter((r) => r.type === "incoming");
+			expect(incoming.length).toBe(2);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("retrieves only outgoing relationships for user_profiles", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "user_profiles",
+			});
+
+			// user_profiles only has outgoing FK to users
+			expect(relationships.length).toBe(1);
+			expect(relationships[0].type).toBe("outgoing");
+			expect(relationships[0].referencing_column).toBe("user_id");
+			expect(relationships[0].referenced_table).toBe("users");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("retrieves only incoming relationships for users", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "users",
+			});
+
+			// users has no outgoing FK but multiple incoming from user_profiles, posts, comments
+			const outgoing = relationships.filter((r) => r.type === "outgoing");
+			expect(outgoing.length).toBe(0);
+
+			const incoming = relationships.filter((r) => r.type === "incoming");
+			expect(incoming.length).toBe(3); // user_profiles, posts, comments
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("returns empty array for table with no relationships", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			// Create an isolated table
+			const client = yield* SqlClient.SqlClient;
+			yield* client`
+				CREATE TABLE IF NOT EXISTS isolated_table (
+					id SERIAL PRIMARY KEY,
+					data TEXT
+				)
+			`;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "isolated_table",
+			});
+
+			expect(relationships).toEqual([]);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("specifies correct relationship types", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "posts",
+			});
+
+			relationships.forEach((rel) => {
+				expect(["outgoing", "incoming"]).toContain(rel.type);
+
+				if (rel.type === "outgoing") {
+					// For outgoing, referencing table should be posts
+					expect(rel.referencing_table).toBe("posts");
+				} else if (rel.type === "incoming") {
+					// For incoming, referenced table should be posts
+					expect(rel.referenced_table).toBe("posts");
+				}
+			});
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("correctly identifies foreign key columns vs primary keys", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const relationships = yield* getTableRelationshipsIntrospection({
+				schema: "public",
+				table: "posts",
+			});
+
+			// Outgoing relationships should have FK columns
+			const outgoing = relationships.find((r) => r.type === "outgoing");
+			expect(outgoing?.referencing_column).toBe("user_id");
+
+			// Incoming relationships should reference PK/unique columns
+			const incoming = relationships.filter((r) => r.type === "incoming");
+			incoming.forEach((rel) => {
+				expect(rel.referenced_column).toBe("id");
+			});
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 });

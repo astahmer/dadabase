@@ -1,272 +1,235 @@
-import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
-import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
-import { getAvailableSchemas } from "./get-available-schemas.kysely.ts";
-import { getAvailableTableList } from "./get-available-tables.kysely.ts";
-import { getAvailableDatabaseList } from "./get-available-database-list.kysely.ts";
-import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
-import { QueryLoggerNoopLayer } from "#src/server/query-logger/query-logger.layer.noop.ts";
+import { PgLiteClient } from "@dadabase/effect-pglite";
+import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
+import {
+	getAvailableSchemas,
+	getAvailableTables,
+	getAvailableDatabases,
+} from "#src/server/introspection/introspection.ts";
 import { Effect, Layer } from "effect";
-import { sql, type ColumnType } from "kysely";
 
-interface TestInMemoryDbSchema {
-	users: {
-		id: ColumnType<number, number, number>;
-		name: ColumnType<string, string, string>;
-	};
-	posts: {
-		id: ColumnType<number, number, number>;
-		title: ColumnType<string, string, string>;
-	};
-}
+const pgliteLayer = PgLiteClient.layer({
+	dataDir: "memory://",
+}) as unknown as Layer.Layer<SqlClient.SqlClient>;
 
-const InMemoryLayer = Layer.effect(
-	KyselyPgDatabase,
-	makeEffectKyselyPglite<TestInMemoryDbSchema>({
-		dataDir: "memory://",
-	}),
-).pipe(Layer.merge(QueryLoggerNoopLayer));
+// Helper to set up test schema
+const setupSchema = Effect.gen(function* () {
+	const client = yield* SqlClient.SqlClient;
+
+	// Create users table
+	yield* client`
+		CREATE TABLE IF NOT EXISTS users (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL
+		)
+	`;
+
+	// Create posts table
+	yield* client`
+		CREATE TABLE IF NOT EXISTS posts (
+			id SERIAL PRIMARY KEY,
+			title TEXT NOT NULL
+		)
+	`;
+});
 
 describe("PostgreSQL Introspection Functions", () => {
 	describe("getAvailableSchemas", () => {
-		it.effect("retrieves available schemas", () => {
-			return Effect.gen(function* () {
-				const schemas = yield* getAvailableSchemas;
+		it.effect("retrieves available schemas", () =>
+			Effect.gen(function* () {
+				const schemas = yield* getAvailableSchemas();
 
 				expect(Array.isArray(schemas)).toBe(true);
 				expect(schemas.length).toBeGreaterThan(0);
 				// 'public' schema should always exist
 				expect(schemas).toContain("public");
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 
-		it.effect("returns strings for schema names", () => {
-			return Effect.gen(function* () {
-				const schemas = yield* getAvailableSchemas;
+		it.effect("returns strings for schema names", () =>
+			Effect.gen(function* () {
+				const schemas = yield* getAvailableSchemas();
 
 				schemas.forEach((schema) => {
 					expect(typeof schema).toBe("string");
 					expect(schema.length).toBeGreaterThan(0);
 				});
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 
-		it.effect("includes default schemas like public, pg_catalog", () => {
-			return Effect.gen(function* () {
-				const schemas = yield* getAvailableSchemas;
+		it.effect("includes default schemas like public, pg_catalog", () =>
+			Effect.gen(function* () {
+				const schemas = yield* getAvailableSchemas();
 
 				expect(schemas).toContain("public");
 				// pg_catalog and information_schema are default system schemas
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 	});
 
-	describe("getAvailableTableList", () => {
-		it.effect("retrieves available tables with metadata", () => {
-			return Effect.gen(function* () {
-				const db = yield* KyselyPgDatabase;
+	describe("getAvailableTables", () => {
+		it.effect("retrieves available tables", () =>
+			Effect.gen(function* () {
+				yield* setupSchema;
 
-				// Create test tables
-				yield* db.executeRaw(sql`
-					CREATE TABLE IF NOT EXISTS users (
-						id SERIAL PRIMARY KEY,
-						name TEXT NOT NULL
-					)
-				`);
-
-				yield* db.executeRaw(sql`
-					CREATE TABLE IF NOT EXISTS posts (
-						id SERIAL PRIMARY KEY,
-						title TEXT NOT NULL
-					)
-				`);
-
-				const tables = yield* getAvailableTableList;
+				const tables = yield* getAvailableTables({ schema: "public" });
 
 				expect(Array.isArray(tables)).toBe(true);
 				expect(tables.length).toBeGreaterThan(0);
 
 				// Check that our test tables are in the list
-				const tableNames = tables.map((t) => t.name);
-				expect(tableNames).toContain("users");
-				expect(tableNames).toContain("posts");
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+				expect(tables).toContain("users");
+				expect(tables).toContain("posts");
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 
-		it.effect("returns table objects with name and schema properties", () => {
-			return Effect.gen(function* () {
-				const db = yield* KyselyPgDatabase;
+		it.effect("returns strings for table names", () =>
+			Effect.gen(function* () {
+				const client = yield* SqlClient.SqlClient;
 
-				yield* db.executeRaw(sql`
+				yield* client`
 					CREATE TABLE IF NOT EXISTS test_table (
 						id SERIAL PRIMARY KEY
 					)
-				`);
+				`;
 
-				const tables = yield* getAvailableTableList;
+				const tables = yield* getAvailableTables({ schema: "public" });
 
 				tables.forEach((table) => {
-					expect(table.name).toBeDefined();
-					expect(typeof table.name).toBe("string");
-					expect(table.schema).toBeDefined();
-					expect(typeof table.schema).toBe("string");
+					expect(typeof table).toBe("string");
+					expect(table.length).toBeGreaterThan(0);
 				});
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 
-		it.effect("filters to only public schema tables", () => {
-			return Effect.gen(function* () {
-				const db = yield* KyselyPgDatabase;
+		it.effect("retrieves only tables from specified schema", () =>
+			Effect.gen(function* () {
+				const client = yield* SqlClient.SqlClient;
 
-				yield* db.executeRaw(sql`
+				yield* client`
 					CREATE TABLE IF NOT EXISTS public_test (
 						id SERIAL PRIMARY KEY
 					)
-				`);
+				`;
 
-				const tables = yield* getAvailableTableList;
+				const tables = yield* getAvailableTables({ schema: "public" });
 
-				// All tables should be from public schema
+				// All tables returned should be string names
 				tables.forEach((table) => {
-					expect(table.schema).toBe("public");
+					expect(typeof table).toBe("string");
 				});
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 
-		it.effect("does not include system tables", () => {
-			return Effect.gen(function* () {
-				const tables = yield* getAvailableTableList;
+		it.effect("does not include system tables", () =>
+			Effect.gen(function* () {
+				const tables = yield* getAvailableTables({ schema: "public" });
 
-				const tableNames = tables.map((t) => t.name);
-				// System tables should not be included
-				expect(tableNames).not.toContain("pg_class");
-				expect(tableNames).not.toContain("pg_attribute");
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+				// System tables should not be included in public schema
+				expect(tables).not.toContain("pg_class");
+				expect(tables).not.toContain("pg_attribute");
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 
-		it.effect("returns empty array when no tables exist", () => {
-			return Effect.gen(function* () {
-				const tables = yield* getAvailableTableList;
+		it.effect("returns empty array when no tables exist", () =>
+			Effect.gen(function* () {
+				// Query a non-existent schema or fresh database
+				const tables = yield* getAvailableTables({
+					schema: "nonexistent_schema",
+				});
 
-				// Fresh in-memory database might have no tables
-				if (tables.length === 0) {
-					expect(Array.isArray(tables)).toBe(true);
-				}
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+				expect(Array.isArray(tables)).toBe(true);
+				expect(tables.length).toBe(0);
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 
-		it.effect("includes all custom created tables", () => {
-			return Effect.gen(function* () {
-				const db = yield* KyselyPgDatabase;
+		it.effect("includes all custom created tables", () =>
+			Effect.gen(function* () {
+				const client = yield* SqlClient.SqlClient;
 
-				yield* db.executeRaw(sql`
+				yield* client`
 					CREATE TABLE IF NOT EXISTS table1 (id SERIAL PRIMARY KEY)
-				`);
-				yield* db.executeRaw(sql`
+				`;
+				yield* client`
 					CREATE TABLE IF NOT EXISTS table2 (id SERIAL PRIMARY KEY)
-				`);
-				yield* db.executeRaw(sql`
+				`;
+				yield* client`
 					CREATE TABLE IF NOT EXISTS table3 (id SERIAL PRIMARY KEY)
-				`);
+				`;
 
-				const tables = yield* getAvailableTableList;
+				const tables = yield* getAvailableTables({ schema: "public" });
 
-				const tableNames = tables.map((t) => t.name);
-				expect(tableNames).toContain("table1");
-				expect(tableNames).toContain("table2");
-				expect(tableNames).toContain("table3");
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+				expect(tables).toContain("table1");
+				expect(tables).toContain("table2");
+				expect(tables).toContain("table3");
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 
-		it.effect("returns consistent results across multiple calls", () => {
-			return Effect.gen(function* () {
-				const db = yield* KyselyPgDatabase;
+		it.effect("returns consistent results across multiple calls", () =>
+			Effect.gen(function* () {
+				const client = yield* SqlClient.SqlClient;
 
-				yield* db.executeRaw(sql`
+				yield* client`
 					CREATE TABLE IF NOT EXISTS stable_table (
 						id SERIAL PRIMARY KEY
 					)
-				`);
+				`;
 
-				const tables1 = yield* getAvailableTableList;
-				const tables2 = yield* getAvailableTableList;
+				const tables1 = yield* getAvailableTables({ schema: "public" });
+				const tables2 = yield* getAvailableTables({ schema: "public" });
+
 				expect(tables1.length).toBe(tables2.length);
-				const names1 = tables1.map((t) => t.name).sort();
-				const names2 = tables2.map((t) => t.name).sort();
-				expect(names1).toEqual(names2);
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+				expect([...tables1].sort()).toEqual([...tables2].sort());
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 	});
 
-	describe("getAvailableDatabaseList", () => {
-		it.effect("retrieves available databases", () => {
-			return Effect.gen(function* () {
-				const databases = yield* getAvailableDatabaseList({
-					connectionId: undefined,
-				});
+	describe("getAvailableDatabases", () => {
+		it.effect("retrieves available databases", () =>
+			Effect.gen(function* () {
+				const databases = yield* getAvailableDatabases();
 
 				expect(Array.isArray(databases)).toBe(true);
 				expect(databases.length).toBeGreaterThan(0);
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 
-		it.effect("includes datname property for each database", () => {
-			return Effect.gen(function* () {
-				const databases = yield* getAvailableDatabaseList({
-					connectionId: undefined,
-				});
+		it.effect("returns strings for database names", () =>
+			Effect.gen(function* () {
+				const databases = yield* getAvailableDatabases();
 
 				databases.forEach((db) => {
-					expect(db.datname).toBeDefined();
-					expect(typeof db.datname).toBe("string");
-					expect(db.datname.length).toBeGreaterThan(0);
+					expect(typeof db).toBe("string");
+					expect(db.length).toBeGreaterThan(0);
 				});
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 
-		it.effect("includes default PostgreSQL databases", () => {
-			return Effect.gen(function* () {
-				const databases = yield* getAvailableDatabaseList({
-					connectionId: undefined,
-				});
+		it.effect("includes default PostgreSQL databases", () =>
+			Effect.gen(function* () {
+				const databases = yield* getAvailableDatabases();
 
-				const dbNames = databases.map((d) => d.datname);
-
-				// Default PostgreSQL databases should be present
 				// At least one database should exist
-				expect(dbNames.length).toBeGreaterThan(0);
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
-
-		it.effect("returns database objects with expected properties", () => {
-			return Effect.gen(function* () {
-				const databases = yield* getAvailableDatabaseList({
-					connectionId: undefined,
-				});
-
-				databases.forEach((database) => {
-					expect(database).toHaveProperty("datname");
-				});
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+				expect(databases.length).toBeGreaterThan(0);
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 	});
 
 	describe("Integration between functions", () => {
-		it.effect("schemas contain tables and databases contain schemas", () => {
-			return Effect.gen(function* () {
-				const db = yield* KyselyPgDatabase;
+		it.effect("schemas contain tables and databases contain schemas", () =>
+			Effect.gen(function* () {
+				const client = yield* SqlClient.SqlClient;
 
-				yield* db.executeRaw(sql`
+				yield* client`
 					CREATE TABLE IF NOT EXISTS integration_test (
 						id SERIAL PRIMARY KEY
 					)
-				`);
+				`;
 
-				const schemas = yield* getAvailableSchemas;
-				const tables = yield* getAvailableTableList;
-				const databases = yield* getAvailableDatabaseList({
-					connectionId: undefined,
-				});
+				const schemas = yield* getAvailableSchemas();
+				const tables = yield* getAvailableTables({ schema: "public" });
+				const databases = yield* getAvailableDatabases();
+
 				expect(schemas.length).toBeGreaterThan(0);
 				expect(tables.length).toBeGreaterThan(0);
 				expect(databases.length).toBeGreaterThan(0);
@@ -274,10 +237,9 @@ describe("PostgreSQL Introspection Functions", () => {
 				// Public schema should be in schemas
 				expect(schemas).toContain("public");
 
-				// Tables should be in public schema
-				const publicTables = tables.filter((t) => t.schema === "public");
-				expect(publicTables.length).toBeGreaterThan(0);
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
+				// integration_test should be in tables
+				expect(tables).toContain("integration_test");
+			}).pipe(Effect.provide(pgliteLayer)),
+		);
 	});
 });

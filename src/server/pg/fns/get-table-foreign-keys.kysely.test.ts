@@ -1,15 +1,24 @@
+import { PgLiteClient } from "@dadabase/effect-pglite";
 import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import {
-	getTableForeignKeys,
 	findColumnReferences,
 	findColumnReferencesWithCounts,
 } from "./get-table-foreign-keys.kysely.ts";
-import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
+import {
+	getTableForeignKeys,
+	findColumnReferences as findColumnReferencesIntrospection,
+} from "#src/server/introspection/introspection.ts";
 import { QueryLoggerNoopLayer } from "#src/server/query-logger/query-logger.layer.noop.ts";
+import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
+
+// PgLite layer for new introspection tests
+const pgliteLayer = PgLiteClient.layer({
+	dataDir: "memory://",
+}) as unknown as Layer.Layer<SqlClient.SqlClient>;
 
 interface TestInMemoryDbSchema {
 	users: {
@@ -42,6 +51,7 @@ interface TestInMemoryDbSchema {
 	};
 }
 
+// Kysely layer for findColumnReferences tests
 const InMemoryLayer = Layer.effect(
 	KyselyPgDatabase,
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
@@ -49,8 +59,263 @@ const InMemoryLayer = Layer.effect(
 	}),
 ).pipe(Layer.merge(QueryLoggerNoopLayer));
 
+// Setup schema for PgLite/SqlClient tests
+const setupSchemaSqlClient = Effect.gen(function* () {
+	const client = yield* SqlClient.SqlClient;
+
+	// Create users table
+	yield* client`
+		CREATE TABLE IF NOT EXISTS users (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			email TEXT NOT NULL UNIQUE
+		)
+	`;
+
+	// Create user_profiles table with FK to users
+	yield* client`
+		CREATE TABLE IF NOT EXISTS user_profiles (
+			user_id SERIAL UNIQUE PRIMARY KEY REFERENCES users(id),
+			bio TEXT
+		)
+	`;
+
+	// Create posts table with FK to users
+	yield* client`
+		CREATE TABLE IF NOT EXISTS posts (
+			id SERIAL PRIMARY KEY,
+			user_id INTEGER NOT NULL REFERENCES users(id),
+			title TEXT NOT NULL
+		)
+	`;
+
+	// Create comments table with multiple FKs
+	yield* client`
+		CREATE TABLE IF NOT EXISTS comments (
+			id SERIAL PRIMARY KEY,
+			post_id INTEGER NOT NULL REFERENCES posts(id),
+			user_id INTEGER NOT NULL REFERENCES users(id),
+			text TEXT NOT NULL
+		)
+	`;
+
+	// Create tags table
+	yield* client`
+		CREATE TABLE IF NOT EXISTS tags (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL UNIQUE
+		)
+	`;
+
+	// Create many-to-many junction table
+	yield* client`
+		CREATE TABLE IF NOT EXISTS post_tags (
+			post_id INTEGER NOT NULL REFERENCES posts(id),
+			tag_id INTEGER NOT NULL REFERENCES tags(id),
+			PRIMARY KEY (post_id, tag_id)
+		)
+	`;
+});
+
 describe("getTableForeignKeys", () => {
-	// Helper to set up test schema
+	it.effect("retrieves no foreign keys for table without FKs", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const fks = yield* getTableForeignKeys({
+				schema: "public",
+				table: "users",
+			});
+
+			expect(fks.length).toBe(0);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("retrieves single foreign key from table", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const fks = yield* getTableForeignKeys({
+				schema: "public",
+				table: "user_profiles",
+			});
+
+			expect(fks.length).toBe(1);
+			expect(fks[0].column_name).toBe("user_id");
+			expect(fks[0].referenced_table_name).toBe("users");
+			expect(fks[0].referenced_column_name).toBe("id");
+			expect(fks[0].referenced_table_schema).toBe("public");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("retrieves foreign key information with constraint name", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const fks = yield* getTableForeignKeys({
+				schema: "public",
+				table: "posts",
+			});
+
+			expect(fks.length).toBe(1);
+			expect(fks[0].constraint_name).toBeDefined();
+			expect(fks[0].constraint_name).toMatch(/posts_user_id_fkey/);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("retrieves multiple foreign keys from table", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const fks = yield* getTableForeignKeys({
+				schema: "public",
+				table: "comments",
+			});
+
+			expect(fks.length).toBe(2);
+
+			const postIdFK = fks.find((fk) => fk.column_name === "post_id");
+			expect(postIdFK?.referenced_table_name).toBe("posts");
+
+			const userIdFK = fks.find((fk) => fk.column_name === "user_id");
+			expect(userIdFK?.referenced_table_name).toBe("users");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("retrieves foreign keys from many-to-many junction table", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const fks = yield* getTableForeignKeys({
+				schema: "public",
+				table: "post_tags",
+			});
+
+			expect(fks.length).toBe(2);
+
+			const postFk = fks.find((fk) => fk.column_name === "post_id");
+			expect(postFk?.referenced_table_name).toBe("posts");
+
+			const tagFk = fks.find((fk) => fk.column_name === "tag_id");
+			expect(tagFk?.referenced_table_name).toBe("tags");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("returns empty array for non-existent table", () =>
+		Effect.gen(function* () {
+			const fks = yield* getTableForeignKeys({
+				schema: "public",
+				table: "nonexistent_table",
+			});
+
+			expect(fks).toEqual([]);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+});
+
+// ============================================================================
+// findColumnReferences tests using new introspection module
+// ============================================================================
+
+describe("findColumnReferences (introspection module)", () => {
+	it.effect("finds tables that reference a column", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			// Find all tables that reference users.id
+			const refs = yield* findColumnReferencesIntrospection({
+				referencedSchema: "public",
+				referencedTable: "users",
+				referencedColumn: "id",
+			});
+
+			expect(refs.length).toBeGreaterThan(0);
+
+			const tables = refs.map((ref) => ref.table);
+			expect(tables).toContain("user_profiles");
+			expect(tables).toContain("posts");
+			expect(tables).toContain("comments");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("finds correct columns that reference a table", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const refs = yield* findColumnReferencesIntrospection({
+				referencedSchema: "public",
+				referencedTable: "users",
+				referencedColumn: "id",
+			});
+
+			const userProfileRef = refs.find(
+				(ref) => ref.table === "user_profiles" && ref.column === "user_id",
+			);
+			expect(userProfileRef).toBeDefined();
+			expect(userProfileRef?.referenced_column).toBe("id");
+
+			const postRef = refs.find(
+				(ref) => ref.table === "posts" && ref.column === "user_id",
+			);
+			expect(postRef).toBeDefined();
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("returns empty array when no tables reference a column", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			// tags table is not referenced by anything
+			const refs = yield* findColumnReferencesIntrospection({
+				referencedSchema: "public",
+				referencedTable: "tags",
+				referencedColumn: "name",
+			});
+
+			expect(refs.length).toBe(0);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("includes constraint names in references", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const refs = yield* findColumnReferencesIntrospection({
+				referencedSchema: "public",
+				referencedTable: "posts",
+				referencedColumn: "id",
+			});
+
+			const commentRef = refs.find((ref) => ref.table === "comments");
+			expect(commentRef?.constraint_name).toBeDefined();
+			expect(commentRef?.constraint_name).toMatch(/comments_post_id_fkey/);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect("finds references in many-to-many junction tables", () =>
+		Effect.gen(function* () {
+			yield* setupSchemaSqlClient;
+
+			const refs = yield* findColumnReferencesIntrospection({
+				referencedSchema: "public",
+				referencedTable: "posts",
+				referencedColumn: "id",
+			});
+
+			const postTagRef = refs.find(
+				(ref) => ref.table === "post_tags" && ref.column === "post_id",
+			);
+			expect(postTagRef).toBeDefined();
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+});
+
+// ============================================================================
+// Kysely-based tests for findColumnReferences and findColumnReferencesWithCounts
+// ============================================================================
+
+describe("findColumnReferences and findColumnReferencesWithCounts", () => {
+	// Helper to set up test schema for Kysely tests
 	const setupSchema = Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
 
@@ -106,118 +371,6 @@ describe("getTableForeignKeys", () => {
 				PRIMARY KEY (post_id, tag_id)
 			)
 		`);
-	});
-
-	describe("getTableForeignKeys", () => {
-		it.effect("retrieves no foreign keys for table without FKs", () => {
-			return Effect.gen(function* () {
-				yield* setupSchema;
-
-				const fks = yield* getTableForeignKeys({
-					schema: "public",
-					table: "users",
-				});
-
-				expect(fks.length).toBe(0);
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
-
-		it.effect("retrieves single foreign key from table", () => {
-			return Effect.gen(function* () {
-				yield* setupSchema;
-
-				const fks = yield* getTableForeignKeys({
-					schema: "public",
-					table: "user_profiles",
-				});
-
-				expect(fks.length).toBe(1);
-				expect(fks[0].columnName).toBe("user_id");
-				expect(fks[0].referencedTable).toBe("users");
-				expect(fks[0].referencedColumn).toBe("id");
-				expect(fks[0].referencedSchema).toBe("public");
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
-
-		it.effect("retrieves foreign key information with constraint name", () => {
-			return Effect.gen(function* () {
-				yield* setupSchema;
-
-				const fks = yield* getTableForeignKeys({
-					schema: "public",
-					table: "posts",
-				});
-
-				expect(fks.length).toBe(1);
-				expect(fks[0].constraintName).toBeDefined();
-				expect(fks[0].constraintName).toMatch(/posts_user_id_fkey/);
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
-
-		it.effect("retrieves multiple foreign keys from table", () => {
-			return Effect.gen(function* () {
-				yield* setupSchema;
-
-				const fks = yield* getTableForeignKeys({
-					schema: "public",
-					table: "comments",
-				});
-
-				expect(fks.length).toBe(2);
-
-				const postIdFK = fks.find((fk) => fk.columnName === "post_id");
-				expect(postIdFK?.referencedTable).toBe("posts");
-
-				const userIdFK = fks.find((fk) => fk.columnName === "user_id");
-				expect(userIdFK?.referencedTable).toBe("users");
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
-
-		it.effect("retrieves foreign keys from many-to-many junction table", () => {
-			return Effect.gen(function* () {
-				yield* setupSchema;
-
-				const fks = yield* getTableForeignKeys({
-					schema: "public",
-					table: "post_tags",
-				});
-
-				expect(fks.length).toBe(2);
-
-				const postFk = fks.find((fk) => fk.columnName === "post_id");
-				expect(postFk?.referencedTable).toBe("posts");
-
-				const tagFk = fks.find((fk) => fk.columnName === "tag_id");
-				expect(tagFk?.referencedTable).toBe("tags");
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
-
-		it.effect("returns empty array for non-existent table", () => {
-			return Effect.gen(function* () {
-				const fks = yield* getTableForeignKeys({
-					schema: "public",
-					table: "nonexistent_table",
-				});
-
-				expect(fks).toEqual([]);
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
-
-		it.effect("orders foreign keys by column ordinal position", () => {
-			return Effect.gen(function* () {
-				yield* setupSchema;
-
-				const fks = yield* getTableForeignKeys({
-					schema: "public",
-					table: "comments",
-				});
-
-				// post_id is defined before user_id in the CREATE TABLE
-				const columnNames = fks.map((fk) => fk.columnName);
-				expect(columnNames[0]).toBe("post_id");
-				expect(columnNames[1]).toBe("user_id");
-			}).pipe(Effect.provide(InMemoryLayer));
-		});
 	});
 
 	describe("findColumnReferences", () => {
