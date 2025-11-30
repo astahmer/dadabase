@@ -412,7 +412,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 				</Splitter.Root>
 
 				{/* Query Logger Panel */}
-				<QueryLoggerPanel />
+				<QueryLoggerPanel connectionUrl={activeConnectionUrl} />
 			</div>
 
 			{/* Add Connection Drawer */}

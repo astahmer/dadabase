@@ -5,18 +5,40 @@ import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
+import type { QueryLogFilters } from "#src/server/query-logger/query-logger.types.ts";
+
+const QueryLogFiltersSchema = Schema.Struct({
+	type: Schema.optional(
+		Schema.Union(Schema.String, Schema.Array(Schema.String)),
+	),
+	status: Schema.optional(
+		Schema.Union(Schema.String, Schema.Array(Schema.String)),
+	),
+	schema: Schema.optional(Schema.String),
+	table: Schema.optional(Schema.String),
+});
+
+const getQueryHistoryInputSchema = Schema.Struct({
+	url: Schema.String,
+	filters: Schema.optional(QueryLogFiltersSchema),
+});
 
 const getQueryHistoryServerFn = createServerFn({ method: "POST" })
-	.inputValidator(
-		Schema.Struct({ url: Schema.String }).pipe(Schema.standardSchemaV1),
-	)
-	.handler(async (ctx) => {
+	.inputValidator(getQueryHistoryInputSchema.pipe(Schema.standardSchemaV1))
+	.handler(async (ctx: any) => {
 		const program = Effect.gen(function* () {
 			const queryLogger = yield* QueryLogger;
-			return yield* queryLogger.get;
+			return yield* queryLogger.get(
+				ctx.data.filters as QueryLogFilters | undefined,
+			);
 		}).pipe(withRemoteConnectionLayersFromUrl(ctx.data.url));
 
-		return AppRuntime.runPromise(program);
+		const result = await AppRuntime.runPromise(program);
+		return result.map((res) => ({
+			...res,
+			startTime: new Date(res.startTime),
+			endTime: res.endTime ? new Date(res.endTime) : undefined,
+		}));
 	});
 
 export const getQueryHistoryQueryOptions = (

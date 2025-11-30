@@ -13,6 +13,13 @@ export enum QueryLogType {
 
 export type QueryLogStatus = "pending" | "success" | "error";
 
+export interface QueryLogFilters {
+	type?: QueryLogType | QueryLogType[];
+	status?: QueryLogStatus | QueryLogStatus[];
+	schema?: string;
+	table?: string;
+}
+
 export interface QueryLogEntryType {
 	id: string;
 	sql: string;

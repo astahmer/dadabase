@@ -1,17 +1,48 @@
 import { Effect } from "effect";
 import { AppDatabase } from "#src/db/app.db.ts";
-import type { QueryLogEntryType } from "./query-logger.types.ts";
+import type {
+	QueryLogEntryType,
+	QueryLogFilters,
+} from "./query-logger.types.ts";
 
-export const getQueryLogs = (connectionId: string, limit: number = 100) =>
+export const getQueryLogs = (
+	connectionId: string,
+	filters?: QueryLogFilters,
+	limit: number = 1000,
+) =>
 	Effect.gen(function* () {
 		const db = yield* AppDatabase;
+		let query = db
+			.selectFrom("query_logs")
+			.selectAll()
+			.where("connection_id", "=", connectionId);
+
+		// Apply type filter
+		if (filters?.type) {
+			const types = Array.isArray(filters.type) ? filters.type : [filters.type];
+			query = query.where("type", "in", types);
+		}
+
+		// Apply status filter
+		if (filters?.status) {
+			const statuses = Array.isArray(filters.status)
+				? filters.status
+				: [filters.status];
+			query = query.where("status", "in", statuses);
+		}
+
+		// Apply schema filter
+		if (filters?.schema) {
+			query = query.where("schema", "=", filters.schema);
+		}
+
+		// Apply table filter
+		if (filters?.table) {
+			query = query.where("table", "=", filters.table);
+		}
+
 		const rows = yield* db.execute(
-			db
-				.selectFrom("query_logs")
-				.selectAll()
-				.where("connection_id", "=", connectionId)
-				.orderBy("created_at", "desc")
-				.limit(limit),
+			query.orderBy("created_at", "desc").limit(limit),
 		);
 		return rows
 			.map(

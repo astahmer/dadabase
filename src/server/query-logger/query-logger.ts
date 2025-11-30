@@ -1,8 +1,13 @@
 import { Context, Effect } from "effect";
-import type { QueryLogEntryType } from "./query-logger.types.ts";
+import type {
+	QueryLogEntryType,
+	QueryLogFilters,
+} from "./query-logger.types.ts";
 
 export interface QueryLoggerInterface {
-	get: Effect.Effect<QueryLogEntryType[], never, never>;
+	get: (
+		filters?: QueryLogFilters,
+	) => Effect.Effect<QueryLogEntryType[], never, never>;
 	push: (
 		entry: Omit<QueryLogEntryType, "id">,
 	) => Effect.Effect<string, never, never>;

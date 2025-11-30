@@ -31,7 +31,7 @@ describe("QueryLoggerNoopLayer", () => {
 			yield* queryLogger.update(id, { status: "success" });
 			yield* queryLogger.remove(id);
 
-			const logs = yield* queryLogger.get;
+			const logs = yield* queryLogger.get();
 
 			expect(id).toEqual("xxx");
 			expect(logs).toEqual([]);
@@ -52,7 +52,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 				startTime: DateTime.toDate(now),
 			});
 
-			const logs = yield* queryLogger.get;
+			const logs = yield* queryLogger.get();
 
 			expect(id).toMatch(/^ql_/);
 			expect(logs).toHaveLength(1);
@@ -83,7 +83,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 				timeTaken: 50,
 			});
 
-			const logs = yield* queryLogger.get;
+			const logs = yield* queryLogger.get();
 
 			expect(logs).toHaveLength(1);
 			expect(logs[0]).toMatchObject({
@@ -116,7 +116,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 
 			yield* queryLogger.remove(id1);
 
-			const logs = yield* queryLogger.get;
+			const logs = yield* queryLogger.get();
 
 			expect(logs).toHaveLength(1);
 			expect(logs[0]).toMatchObject({ id: id2, sql: "SELECT 2" });
@@ -144,7 +144,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 
 			yield* queryLogger.clearAll();
 
-			const logs = yield* queryLogger.get;
+			const logs = yield* queryLogger.get();
 
 			expect(logs).toEqual([]);
 		}).pipe(Effect.provide(QueryLoggerInMemoryLayer));
@@ -174,7 +174,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 				error: errorObj,
 			});
 
-			const logs = yield* queryLogger.get;
+			const logs = yield* queryLogger.get();
 
 			expect(logs).toHaveLength(1);
 			expect(logs[0]).toMatchObject({
@@ -200,7 +200,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 				startTime: DateTime.toDate(now),
 			});
 
-			const logs = yield* queryLogger.get;
+			const logs = yield* queryLogger.get();
 
 			expect(logs).toHaveLength(1);
 			expect(logs[0]).toMatchObject({
@@ -229,7 +229,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 				startTime: DateTime.toDate(now),
 			});
 
-			const logs = yield* queryLogger.get;
+			const logs = yield* queryLogger.get();
 
 			expect(logs).toHaveLength(1);
 			expect(logs[0]).toMatchObject({
@@ -264,7 +264,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 				startTime: DateTime.toDate(DateTime.add(now, { seconds: 2 })),
 			});
 
-			const logs = yield* queryLogger.get;
+			const logs = yield* queryLogger.get();
 
 			expect(logs).toHaveLength(3);
 			expect(logs.map((l) => l.type)).toEqual([
@@ -340,7 +340,7 @@ describe("QueryLoggerPersistentLayer", () => {
 		it.effect("returns empty array when no logs exist", () => {
 			return Effect.gen(function* () {
 				const queryLogger = yield* QueryLogger;
-				const logs = yield* queryLogger.get;
+				const logs = yield* queryLogger.get();
 
 				expect(logs).toEqual([]);
 			}).pipe(
@@ -376,7 +376,7 @@ describe("QueryLoggerPersistentLayer", () => {
 					});
 
 					// Retrieve logs
-					const logs = yield* queryLogger.get;
+					const logs = yield* queryLogger.get();
 
 					expect(logs).toEqual(
 						expect.arrayContaining([
@@ -410,7 +410,7 @@ describe("QueryLoggerPersistentLayer", () => {
 					startTime: DateTime.toDate(now),
 				});
 
-				const logsForConnection = yield* queryLogger.get;
+				const logsForConnection = yield* queryLogger.get();
 
 				expect(logsForConnection).toHaveLength(1);
 			}).pipe(
@@ -440,7 +440,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				});
 
 				// Verify it was persisted
-				const logs = yield* queryLogger.get;
+				const logs = yield* queryLogger.get();
 
 				expect(logs).toEqual(
 					expect.arrayContaining([
@@ -499,7 +499,7 @@ describe("QueryLoggerPersistentLayer", () => {
 					startTime: DateTime.toDate(now),
 				});
 
-				const logs = yield* queryLogger.get;
+				const logs = yield* queryLogger.get();
 
 				expect(logs).toContainEqual(
 					expect.objectContaining({
@@ -538,7 +538,7 @@ describe("QueryLoggerPersistentLayer", () => {
 					rowsReturned: 10,
 				});
 
-				const logs = yield* queryLogger.get;
+				const logs = yield* queryLogger.get();
 
 				expect(logs).toContainEqual(
 					expect.objectContaining({
@@ -580,7 +580,7 @@ describe("QueryLoggerPersistentLayer", () => {
 					error: errorObj,
 				});
 
-				const logs = yield* queryLogger.get;
+				const logs = yield* queryLogger.get();
 
 				expect(logs).toContainEqual(
 					expect.objectContaining({
@@ -621,7 +621,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				// Remove the first entry
 				yield* queryLogger.remove(id1);
 
-				const logs = yield* queryLogger.get;
+				const logs = yield* queryLogger.get();
 
 				expect(logs).toEqual(
 					expect.arrayContaining([
@@ -643,7 +643,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				// Try to remove a non-existent entry - should not throw
 				yield* queryLogger.remove("non-existent-id");
 
-				const logs = yield* queryLogger.get;
+				const logs = yield* queryLogger.get();
 
 				expect(logs).toEqual([]);
 			}).pipe(
@@ -677,7 +677,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				// Clear all
 				yield* queryLogger.clearAll();
 
-				const logs = yield* queryLogger.get;
+				const logs = yield* queryLogger.get();
 
 				expect(logs).toEqual([]);
 			}).pipe(

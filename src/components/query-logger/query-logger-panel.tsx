@@ -7,8 +7,22 @@ import { queryLoggerPanelStyles } from "./query-logger.styles.ts";
 import type { QueryLogEntryType as QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
 import { QueryLogEntry } from "./query-log-entry.tsx";
 
-export const QueryLoggerPanel = () => {
-	const { history, isOpen, toggleOpen, clearHistory } = useQueryLogger();
+interface QueryLoggerPanelProps {
+	connectionUrl: string;
+}
+
+export const QueryLoggerPanel = ({ connectionUrl }: QueryLoggerPanelProps) => {
+	const {
+		history,
+		isOpen,
+		toggleOpen,
+		clearHistory,
+		filters,
+		setFilters,
+		isClearing,
+	} = useQueryLogger({
+		connectionUrl,
+	});
 	const [selectedEntry, setSelectedEntry] = useState<QueryLogEntryType | null>(
 		null,
 	);
@@ -67,6 +81,7 @@ export const QueryLoggerPanel = () => {
 								size="sm"
 								variant="ghost"
 								onClick={clearHistory}
+								disabled={isClearing}
 								title="Clear history"
 								className="text-muted-foreground hover:text-foreground"
 							>
