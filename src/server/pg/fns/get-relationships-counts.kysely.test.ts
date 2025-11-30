@@ -1,6 +1,7 @@
 import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { getRelationshipsCounts } from "./get-relationships-counts.kysely.ts";
+import { QueryLogger } from "#src/server/query-logger/query-logger.service.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
@@ -39,7 +40,11 @@ const InMemoryLayer = Layer.effect(
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
 		dataDir: "memory://",
 	}) as any,
-) as any as Layer.Layer<KyselyPgDatabase, never, never>;
+).pipe(Layer.merge(QueryLogger.Default)) as any as Layer.Layer<
+	KyselyPgDatabase | QueryLogger,
+	never,
+	never
+>;
 
 describe("getRelationshipsCounts", () => {
 	// Helper to set up test schema
@@ -163,6 +168,7 @@ describe("getRelationshipsCounts", () => {
 				const rowData = { id: "app-1", name: "App 1" };
 
 				const counts = yield* getRelationshipsCounts({
+					connectionId: undefined,
 					schema: "public",
 					table: "apps",
 					relationships,
@@ -198,6 +204,7 @@ describe("getRelationshipsCounts", () => {
 				const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
 
 				const counts = yield* getRelationshipsCounts({
+					connectionId: undefined,
 					schema: "public",
 					table: "activity_rooms",
 					relationships,
@@ -241,6 +248,7 @@ describe("getRelationshipsCounts", () => {
 			const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
 
 			const counts = yield* getRelationshipsCounts({
+				connectionId: undefined,
 				schema: "public",
 				table: "activity_rooms",
 				relationships,
@@ -278,6 +286,7 @@ describe("getRelationshipsCounts", () => {
 				const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
 
 				const counts = yield* getRelationshipsCounts({
+					connectionId: undefined,
 					schema: "public",
 					table: "activity_rooms",
 					relationships,
@@ -310,6 +319,7 @@ describe("getRelationshipsCounts", () => {
 
 			// When the filter value (id) is null, the relationship is ignored entirely
 			const counts = yield* getRelationshipsCounts({
+				connectionId: undefined,
 				schema: "public",
 				table: "activity_rooms",
 				relationships,
@@ -343,6 +353,7 @@ describe("getRelationshipsCounts", () => {
 			const rowData = { id: "room-4", app_id: "app-2", name: "Room 4" };
 
 			const counts = yield* getRelationshipsCounts({
+				connectionId: undefined,
 				schema: "public",
 				table: "activity_rooms",
 				relationships,
@@ -359,6 +370,7 @@ describe("getRelationshipsCounts", () => {
 			yield* insertTestData;
 
 			const counts = yield* getRelationshipsCounts({
+				connectionId: undefined,
 				schema: "public",
 				table: "activity_rooms",
 				relationships: [],
@@ -391,6 +403,7 @@ describe("getRelationshipsCounts", () => {
 			const rowData = { id: "user-1", name: "User 1", app_id: "app-1" };
 
 			const counts = yield* getRelationshipsCounts({
+				connectionId: undefined,
 				schema: "public",
 				table: "users",
 				relationships,
@@ -422,6 +435,7 @@ describe("getRelationshipsCounts", () => {
 			const rowData = { id: "app-1", name: "App 1" };
 
 			const counts = yield* getRelationshipsCounts({
+				connectionId: undefined,
 				schema: "public",
 				table: "apps",
 				relationships,
@@ -464,6 +478,7 @@ describe("getRelationshipsCounts", () => {
 			const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
 
 			const counts = yield* getRelationshipsCounts({
+				connectionId: undefined,
 				schema: "public",
 				table: "activity_rooms",
 				relationships,

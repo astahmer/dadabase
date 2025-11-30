@@ -3,6 +3,7 @@ import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { getAvailableSchemas } from "./get-available-schemas.kysely.ts";
 import { getAvailableTableList } from "./get-available-tables.kysely.ts";
 import { getAvailableDatabaseList } from "./get-available-database-list.kysely.ts";
+import { QueryLogger } from "#src/server/query-logger/query-logger.service.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
@@ -23,7 +24,11 @@ const InMemoryLayer = Layer.effect(
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
 		dataDir: "memory://",
 	}) as any,
-) as any as Layer.Layer<KyselyPgDatabase, never, never>;
+).pipe(Layer.merge(QueryLogger.Default)) as any as Layer.Layer<
+	KyselyPgDatabase | QueryLogger,
+	never,
+	never
+>;
 
 describe("PostgreSQL Introspection Functions", () => {
 	describe("getAvailableSchemas", () => {
@@ -188,7 +193,6 @@ describe("PostgreSQL Introspection Functions", () => {
 
 				const tables1 = yield* getAvailableTableList;
 				const tables2 = yield* getAvailableTableList;
-
 				expect(tables1.length).toBe(tables2.length);
 				const names1 = tables1.map((t) => t.name).sort();
 				const names2 = tables2.map((t) => t.name).sort();
@@ -200,7 +204,9 @@ describe("PostgreSQL Introspection Functions", () => {
 	describe("getAvailableDatabaseList", () => {
 		it.effect("retrieves available databases", () => {
 			return Effect.gen(function* () {
-				const databases = yield* getAvailableDatabaseList;
+				const databases = yield* getAvailableDatabaseList({
+					connectionId: undefined,
+				});
 
 				expect(Array.isArray(databases)).toBe(true);
 				expect(databases.length).toBeGreaterThan(0);
@@ -209,7 +215,9 @@ describe("PostgreSQL Introspection Functions", () => {
 
 		it.effect("includes datname property for each database", () => {
 			return Effect.gen(function* () {
-				const databases = yield* getAvailableDatabaseList;
+				const databases = yield* getAvailableDatabaseList({
+					connectionId: undefined,
+				});
 
 				databases.forEach((db) => {
 					expect(db.datname).toBeDefined();
@@ -221,7 +229,9 @@ describe("PostgreSQL Introspection Functions", () => {
 
 		it.effect("includes default PostgreSQL databases", () => {
 			return Effect.gen(function* () {
-				const databases = yield* getAvailableDatabaseList;
+				const databases = yield* getAvailableDatabaseList({
+					connectionId: undefined,
+				});
 
 				const dbNames = databases.map((d) => d.datname);
 
@@ -233,7 +243,9 @@ describe("PostgreSQL Introspection Functions", () => {
 
 		it.effect("returns database objects with expected properties", () => {
 			return Effect.gen(function* () {
-				const databases = yield* getAvailableDatabaseList;
+				const databases = yield* getAvailableDatabaseList({
+					connectionId: undefined,
+				});
 
 				databases.forEach((database) => {
 					expect(database).toHaveProperty("datname");
@@ -255,8 +267,9 @@ describe("PostgreSQL Introspection Functions", () => {
 
 				const schemas = yield* getAvailableSchemas;
 				const tables = yield* getAvailableTableList;
-				const databases = yield* getAvailableDatabaseList;
-
+				const databases = yield* getAvailableDatabaseList({
+					connectionId: undefined,
+				});
 				expect(schemas.length).toBeGreaterThan(0);
 				expect(tables.length).toBeGreaterThan(0);
 				expect(databases.length).toBeGreaterThan(0);

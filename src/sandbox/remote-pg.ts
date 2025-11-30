@@ -4,10 +4,10 @@ import { getAvailableTableList } from "#src/server/pg/fns/get-available-table-li
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 import { PlatformConfigProvider } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
-import { Config, Effect } from "effect";
+import { Config, Effect, Layer } from "effect";
 
 const program = Effect.gen(function* () {
-	const dbList = yield* getAvailableDatabaseList;
+	const dbList = yield* getAvailableDatabaseList({ connectionId: undefined });
 	const tableList = yield* getAvailableTableList;
 	return { dbList, tableList };
 });
@@ -15,7 +15,10 @@ const program = Effect.gen(function* () {
 const DatabaseUrl = Config.string("DB_URL");
 const runWithDb = Effect.gen(function* () {
 	const url = yield* DatabaseUrl;
-	yield* program.pipe(Effect.provide(makeKyselyPgDatabaseLayer(url)));
+	const result = yield* program.pipe(
+		Effect.provide(makeKyselyPgDatabaseLayer(url)),
+	);
+	return result;
 });
 
 const res = await AppRuntime.runPromise(

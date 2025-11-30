@@ -29,7 +29,7 @@ export interface TableColumnMetadata {
 export const getTableColumns = (input: {
 	schema: string;
 	table: string;
-	connectionId: string;
+	connectionId?: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -66,16 +66,18 @@ export const getTableColumns = (input: {
 			`;
 
 			const compiledFk = fkQuery.compile(db);
-			const foreignKeys = yield* withQueryLogging(db.execute(fkQuery), {
-				type: "columns" as const,
-				sql: compiledFk.sql,
-				params: compiledFk.parameters,
-				schema: input.schema,
-				table: input.table,
-				connectionId: input.connectionId,
-				persistFn: persistQueryLog,
-				updatePersistFn: updatePersistedQueryLog,
-			}); // Create a map for quick FK lookup
+			const foreignKeys = yield* db.execute(fkQuery).pipe(
+				withQueryLogging({
+					type: "columns" as const,
+					sql: compiledFk.sql,
+					params: compiledFk.parameters,
+					schema: input.schema,
+					table: input.table,
+					connectionId: input.connectionId,
+					persistFn: persistQueryLog,
+					updatePersistFn: updatePersistedQueryLog,
+				}),
+			); // Create a map for quick FK lookup
 			const fkMap = new Map<
 				string,
 				{
@@ -119,16 +121,18 @@ export const getTableColumns = (input: {
 		`;
 
 			const compiledCols = columnsQuery.compile(db);
-			const columns = yield* withQueryLogging(db.execute(columnsQuery), {
-				type: "columns" as const,
-				sql: compiledCols.sql,
-				params: compiledCols.parameters,
-				schema: input.schema,
-				table: input.table,
-				connectionId: input.connectionId,
-				persistFn: persistQueryLog,
-				updatePersistFn: updatePersistedQueryLog,
-			}); // Merge FK info with column metadata
+			const columns = yield* db.execute(columnsQuery).pipe(
+				withQueryLogging({
+					type: "columns" as const,
+					sql: compiledCols.sql,
+					params: compiledCols.parameters,
+					schema: input.schema,
+					table: input.table,
+					connectionId: input.connectionId,
+					persistFn: persistQueryLog,
+					updatePersistFn: updatePersistedQueryLog,
+				}),
+			); // Merge FK info with column metadata
 			return columns.map((col) => ({
 				...col,
 				isForeignKey: fkMap.has(col.name),

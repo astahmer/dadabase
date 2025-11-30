@@ -31,7 +31,7 @@ export interface TableColumnsMetadata {
 
 export const getAllTablesColumns = (input: {
 	schema: string;
-	connectionId: string;
+	connectionId?: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -46,15 +46,17 @@ export const getAllTablesColumns = (input: {
 		`;
 
 			const compiledTables = tableNamesQuery.compile(db);
-			const tableNames = yield* withQueryLogging(db.execute(tableNamesQuery), {
-				type: "columns" as const,
-				sql: compiledTables.sql,
-				params: compiledTables.parameters,
-				schema: input.schema,
-				connectionId: input.connectionId,
-				persistFn: persistQueryLog,
-				updatePersistFn: updatePersistedQueryLog,
-			}); // For each table, fetch its columns metadata
+			const tableNames = yield* db.execute(tableNamesQuery).pipe(
+				withQueryLogging({
+					type: "columns" as const,
+					sql: compiledTables.sql,
+					params: compiledTables.parameters,
+					schema: input.schema,
+					connectionId: input.connectionId,
+					persistFn: persistQueryLog,
+					updatePersistFn: updatePersistedQueryLog,
+				}),
+			); // For each table, fetch its columns metadata
 			const allTablesColumns: TableColumnsMetadata[] = [];
 
 			for (const tableRecord of tableNames) {
@@ -91,18 +93,18 @@ export const getAllTablesColumns = (input: {
 			`;
 
 				const compiledFK = fkQuery.compile(db);
-				const foreignKeys = yield* withQueryLogging(db.execute(fkQuery), {
-					type: "columns" as const,
-					sql: compiledFK.sql,
-					params: compiledFK.parameters,
-					schema: input.schema,
-					table: tableName,
-					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
-				});
-
-				// Create a map for quick FK lookup
+				const foreignKeys = yield* db.execute(fkQuery).pipe(
+					withQueryLogging({
+						type: "columns" as const,
+						sql: compiledFK.sql,
+						params: compiledFK.parameters,
+						schema: input.schema,
+						table: tableName,
+						connectionId: input.connectionId,
+						persistFn: persistQueryLog,
+						updatePersistFn: updatePersistedQueryLog,
+					}),
+				); // Create a map for quick FK lookup
 				const fkMap = new Map<
 					string,
 					{
@@ -153,16 +155,18 @@ export const getAllTablesColumns = (input: {
 		`;
 
 				const compiledCols = columnsQuery.compile(db);
-				const columns = yield* withQueryLogging(db.execute(columnsQuery), {
-					type: "columns" as const,
-					sql: compiledCols.sql,
-					params: compiledCols.parameters,
-					schema: input.schema,
-					table: tableName,
-					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
-				}); // Merge FK info with column metadata
+				const columns = yield* db.execute(columnsQuery).pipe(
+					withQueryLogging({
+						type: "columns" as const,
+						sql: compiledCols.sql,
+						params: compiledCols.parameters,
+						schema: input.schema,
+						table: tableName,
+						connectionId: input.connectionId,
+						persistFn: persistQueryLog,
+						updatePersistFn: updatePersistedQueryLog,
+					}),
+				); // Merge FK info with column metadata
 				const columnsWithFK = columns.map((col) => ({
 					...col,
 					isForeignKey: fkMap.has(col.name),

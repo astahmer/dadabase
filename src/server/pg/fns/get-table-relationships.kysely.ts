@@ -16,7 +16,7 @@ import {
 export const getTableRelationships = (input: {
 	schema: string;
 	table: string;
-	connectionId: string;
+	connectionId?: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -77,16 +77,18 @@ export const getTableRelationships = (input: {
 		`;
 
 			const compiledRel = relQuery.compile(db);
-			const relationships = yield* withQueryLogging(db.execute(relQuery), {
-				type: "constraint" as const,
-				sql: compiledRel.sql,
-				params: compiledRel.parameters,
-				schema: input.schema,
-				table: input.table,
-				connectionId: input.connectionId,
-				persistFn: persistQueryLog,
-				updatePersistFn: updatePersistedQueryLog,
-			});
+			const relationships = yield* db.execute(relQuery).pipe(
+				withQueryLogging({
+					type: "constraint" as const,
+					sql: compiledRel.sql,
+					params: compiledRel.parameters,
+					schema: input.schema,
+					table: input.table,
+					connectionId: input.connectionId,
+					persistFn: persistQueryLog,
+					updatePersistFn: updatePersistedQueryLog,
+				}),
+			);
 			return relationships;
 		} catch (e) {
 			return yield* Effect.fail(

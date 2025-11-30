@@ -6,18 +6,20 @@ import {
 	updatePersistedQueryLog,
 } from "#src/server/query-logger/query-logger.kysely.ts";
 
-export const getAvailableDatabaseList = (input: { connectionId: string }) =>
+export const getAvailableDatabaseList = (input: { connectionId?: string }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
 		const query = db.selectFrom("pg_catalog.pg_database").select("datname");
 		const compiled = query.compile();
-		const rows = yield* withQueryLogging(db.execute(query), {
-			type: "schema" as const,
-			sql: compiled.sql,
-			params: compiled.parameters,
-			connectionId: input.connectionId,
-			persistFn: persistQueryLog,
-			updatePersistFn: updatePersistedQueryLog,
-		});
+		const rows = yield* db.execute(query).pipe(
+			withQueryLogging({
+				type: "schema" as const,
+				sql: compiled.sql,
+				params: compiled.parameters,
+				connectionId: input.connectionId,
+				persistFn: persistQueryLog,
+				updatePersistFn: updatePersistedQueryLog,
+			}),
+		);
 		return rows;
 	});

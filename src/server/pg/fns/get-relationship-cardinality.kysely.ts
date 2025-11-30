@@ -35,7 +35,7 @@ export const getRelationshipCardinality = (input: {
 	schema: string;
 	table: string;
 	columns: string[];
-	connectionId: string;
+	connectionId?: string;
 	isIncomingRelationship?: boolean;
 }) =>
 	Effect.gen(function* () {
@@ -103,16 +103,18 @@ export const getRelationshipCardinality = (input: {
 		`;
 
 			const compiledCard = cardQuery.compile(db);
-			const result = yield* withQueryLogging(db.execute(cardQuery), {
-				type: "constraint" as const,
-				sql: compiledCard.sql,
-				params: compiledCard.parameters,
-				schema: input.schema,
-				table: input.table,
-				connectionId: input.connectionId,
-				persistFn: persistQueryLog,
-				updatePersistFn: updatePersistedQueryLog,
-			});
+			const result = yield* db.execute(cardQuery).pipe(
+				withQueryLogging({
+					type: "constraint" as const,
+					sql: compiledCard.sql,
+					params: compiledCard.parameters,
+					schema: input.schema,
+					table: input.table,
+					connectionId: input.connectionId,
+					persistFn: persistQueryLog,
+					updatePersistFn: updatePersistedQueryLog,
+				}),
+			);
 			let cardinality: Cardinality;
 
 			if (result.length === 0) {

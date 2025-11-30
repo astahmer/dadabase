@@ -22,7 +22,7 @@ export interface ForeignKeyMetadata {
 export const getTableForeignKeys = (input: {
 	schema: string;
 	table: string;
-	connectionId: string;
+	connectionId?: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -54,16 +54,18 @@ export const getTableForeignKeys = (input: {
 			`;
 
 			const compiled = fkQuery.compile(db);
-			const foreignKeys = yield* withQueryLogging(db.execute(fkQuery), {
-				type: "constraint" as const,
-				sql: compiled.sql,
-				params: compiled.parameters,
-				schema: input.schema,
-				table: input.table,
-				connectionId: input.connectionId,
-				persistFn: persistQueryLog,
-				updatePersistFn: updatePersistedQueryLog,
-			});
+			const foreignKeys = yield* db.execute(fkQuery).pipe(
+				withQueryLogging({
+					type: "constraint" as const,
+					sql: compiled.sql,
+					params: compiled.parameters,
+					schema: input.schema,
+					table: input.table,
+					connectionId: input.connectionId,
+					persistFn: persistQueryLog,
+					updatePersistFn: updatePersistedQueryLog,
+				}),
+			);
 			return foreignKeys;
 		} catch (e) {
 			return yield* Effect.fail(
@@ -91,7 +93,7 @@ export const findColumnReferences = (input: {
 	referencedSchema: string;
 	referencedTable: string;
 	referencedColumn: string;
-	connectionId: string;
+	connectionId?: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -123,16 +125,18 @@ export const findColumnReferences = (input: {
 			`;
 
 			const compiled = refQuery.compile(db);
-			const references = yield* withQueryLogging(db.execute(refQuery), {
-				type: "constraint" as const,
-				sql: compiled.sql,
-				params: compiled.parameters,
-				schema: input.referencedSchema,
-				table: input.referencedTable,
-				connectionId: input.connectionId,
-				persistFn: persistQueryLog,
-				updatePersistFn: updatePersistedQueryLog,
-			});
+			const references = yield* db.execute(refQuery).pipe(
+				withQueryLogging({
+					type: "constraint" as const,
+					sql: compiled.sql,
+					params: compiled.parameters,
+					schema: input.referencedSchema,
+					table: input.referencedTable,
+					connectionId: input.connectionId,
+					persistFn: persistQueryLog,
+					updatePersistFn: updatePersistedQueryLog,
+				}),
+			);
 			return references;
 		} catch (e) {
 			return yield* Effect.fail(
@@ -154,7 +158,7 @@ export const findColumnReferencesWithCounts = (input: {
 	referencedTable: string;
 	referencedColumn: string;
 	cellValue: unknown;
-	connectionId: string;
+	connectionId?: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -186,16 +190,18 @@ export const findColumnReferencesWithCounts = (input: {
 		`;
 
 			const compiledRef = refQuery.compile(db);
-			const references = yield* withQueryLogging(db.execute(refQuery), {
-				type: "constraint" as const,
-				sql: compiledRef.sql,
-				params: compiledRef.parameters,
-				schema: input.referencedSchema,
-				table: input.referencedTable,
-				connectionId: input.connectionId,
-				persistFn: persistQueryLog,
-				updatePersistFn: updatePersistedQueryLog,
-			}); // Execute all COUNT queries in parallel
+			const references = yield* db.execute(refQuery).pipe(
+				withQueryLogging({
+					type: "constraint" as const,
+					sql: compiledRef.sql,
+					params: compiledRef.parameters,
+					schema: input.referencedSchema,
+					table: input.referencedTable,
+					connectionId: input.connectionId,
+					persistFn: persistQueryLog,
+					updatePersistFn: updatePersistedQueryLog,
+				}),
+			); // Execute all COUNT queries in parallel
 			// Normalize the cell value: treat string "null" or "undefined" as null
 			const normalizedCellValue =
 				input.cellValue === undefined || input.cellValue === null
@@ -223,16 +229,17 @@ export const findColumnReferencesWithCounts = (input: {
 								WHERE ${sql.ref(ref.column)} = ${normalizedCellValue}
 							`;
 
-					return withQueryLogging(db.execute(countQuery), {
-						type: "constraint" as const,
-						sql: countQuery.compile(db).sql,
-						params: countQuery.compile(db).parameters,
-						schema: ref.schema,
-						table: ref.table,
-						connectionId: input.connectionId,
-						persistFn: persistQueryLog,
-						updatePersistFn: updatePersistedQueryLog,
-					}).pipe(
+					return db.execute(countQuery).pipe(
+						withQueryLogging({
+							type: "constraint" as const,
+							sql: countQuery.compile(db).sql,
+							params: countQuery.compile(db).parameters,
+							schema: ref.schema,
+							table: ref.table,
+							connectionId: input.connectionId,
+							persistFn: persistQueryLog,
+							updatePersistFn: updatePersistedQueryLog,
+						}),
 						Effect.map((countResult: { count: number }[]) => ({
 							...ref,
 							matchingRowCount: countResult[0]?.count ?? 0,

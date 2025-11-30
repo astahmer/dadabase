@@ -24,7 +24,7 @@ export const getRelationshipsCounts = (input: {
 	table: string;
 	relationships: TableRelationship[];
 	rowData: Record<string, unknown>;
-	connectionId: string;
+	connectionId?: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -89,9 +89,8 @@ export const getRelationshipsCounts = (input: {
 						}
 
 						const countSql = countQuery.compile().sql;
-						const result = yield* withQueryLogging(
-							db.execute(countQuery as any),
-							{
+						const result = yield* db.execute(countQuery as any).pipe(
+							withQueryLogging({
 								type: "constraint" as const,
 								sql: countSql,
 								schema: rel.referencingSchema,
@@ -99,9 +98,8 @@ export const getRelationshipsCounts = (input: {
 								connectionId,
 								persistFn: persistQueryLog,
 								updatePersistFn: updatePersistedQueryLog,
-							},
+							}),
 						);
-
 						const count = (result[0] as any)?.count ?? 0;
 						return {
 							constraintName: rel.constraintName,

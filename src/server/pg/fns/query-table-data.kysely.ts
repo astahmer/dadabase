@@ -23,7 +23,7 @@ export const queryTableData = <
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
 	filters?: QueryFilterType;
-	connectionId: string;
+	connectionId?: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -51,9 +51,8 @@ export const queryTableData = <
 			}
 
 			const countSql = countQuery.compile().sql;
-			const countResult = yield* withQueryLogging(
-				db.execute(countQuery as any),
-				{
+			const countResult = yield* db.execute(countQuery as any).pipe(
+				withQueryLogging({
 					type: "total",
 					sql: countSql,
 					schema: input.schema,
@@ -61,7 +60,7 @@ export const queryTableData = <
 					connectionId: input.connectionId,
 					persistFn: persistQueryLog,
 					updatePersistFn: updatePersistedQueryLog,
-				},
+				}),
 			);
 			const rowCount = (countResult[0] as any)?.count ?? 0;
 
@@ -88,24 +87,25 @@ export const queryTableData = <
 			const mainSql = query.compile().sql;
 			console.log("--> Main SQL:", mainSql);
 			console.time(`<-- Main SQL: ${mainSql}`);
-			const rows = yield* withQueryLoggingAndRowCount(
-				db
-					.execute(query as any)
-					.pipe(Effect.map((r) => ({ rows: r as T[], rowCount: rowCount }))),
-				{
-					type: "table",
-					sql: mainSql,
-					schema: input.schema,
-					table: input.table,
-					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
-				},
-			).pipe(
-				Effect.tap(() =>
-					Effect.sync(() => console.timeEnd(`<-- Main SQL: ${mainSql}`)),
-				),
-			);
+			const rows = yield* db
+				.execute(query as any)
+				.pipe(Effect.map((r) => ({ rows: r as T[], rowCount: rowCount })))
+				.pipe(
+					withQueryLoggingAndRowCount({
+						type: "table",
+						sql: mainSql,
+						schema: input.schema,
+						table: input.table,
+						connectionId: input.connectionId,
+						persistFn: persistQueryLog,
+						updatePersistFn: updatePersistedQueryLog,
+					}),
+				)
+				.pipe(
+					Effect.tap(() =>
+						Effect.sync(() => console.timeEnd(`<-- Main SQL: ${mainSql}`)),
+					),
+				);
 			return rows;
 		} catch (e) {
 			return yield* Effect.fail(
