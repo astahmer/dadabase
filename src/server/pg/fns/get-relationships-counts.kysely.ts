@@ -4,6 +4,11 @@ import { sql } from "kysely";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { buildWhereExpression } from "./build-where-expression";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
+import {
+	persistQueryLog,
+	updatePersistedQueryLog,
+} from "#src/server/query-logger/query-logger.kysely.ts";
 
 export interface RelationshipCountResult {
 	constraintName: string;
@@ -19,10 +24,11 @@ export const getRelationshipsCounts = (input: {
 	table: string;
 	relationships: TableRelationship[];
 	rowData: Record<string, unknown>;
+	connectionId: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
-		const { schema, table, relationships, rowData } = input;
+		const { schema, table, relationships, rowData, connectionId } = input;
 
 		if (relationships.length === 0) {
 			return {};
@@ -82,7 +88,19 @@ export const getRelationshipsCounts = (input: {
 							countQuery = countQuery.where(whereExpression as any);
 						}
 
-						const result = yield* db.execute(countQuery as any);
+						const countSql = countQuery.compile().sql;
+						const result = yield* withQueryLogging(
+							db.execute(countQuery as any),
+							{
+								type: "constraint" as const,
+								sql: countSql,
+								schema: rel.referencingSchema,
+								table: rel.referencingTable,
+								connectionId,
+								persistFn: persistQueryLog,
+								updatePersistFn: updatePersistedQueryLog,
+							},
+						);
 
 						const count = (result[0] as any)?.count ?? 0;
 						return {

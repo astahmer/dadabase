@@ -4,6 +4,14 @@ import { Effect } from "effect";
 import { sql } from "kysely";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { buildWhereExpression } from "./build-where-expression";
+import {
+	withQueryLogging,
+	withQueryLoggingAndRowCount,
+} from "#src/server/query-logger/with-query-logging.ts";
+import {
+	persistQueryLog,
+	updatePersistedQueryLog,
+} from "#src/server/query-logger/query-logger.kysely.ts";
 
 export const queryTableData = <
 	T extends Record<string, any> = Record<string, any>,
@@ -15,6 +23,7 @@ export const queryTableData = <
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
 	filters?: QueryFilterType;
+	connectionId: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
@@ -41,8 +50,19 @@ export const queryTableData = <
 				countQuery = countQuery.where(whereExpression as any);
 			}
 
-			// console.log("Count SQL:", countQuery.compile().sql);
-			const countResult = yield* db.execute(countQuery as any);
+			const countSql = countQuery.compile().sql;
+			const countResult = yield* withQueryLogging(
+				db.execute(countQuery as any),
+				{
+					type: "total",
+					sql: countSql,
+					schema: input.schema,
+					table: input.table,
+					connectionId: input.connectionId,
+					persistFn: persistQueryLog,
+					updatePersistFn: updatePersistedQueryLog,
+				},
+			);
 			const rowCount = (countResult[0] as any)?.count ?? 0;
 
 			// Build the main query
@@ -65,11 +85,28 @@ export const queryTableData = <
 			// Add limit and offset for pagination
 			query = query.limit(limit).offset(offset);
 
-			console.log("--> Main SQL:", query.compile().sql);
-			console.time(`<-- Main SQL: ${query.compile().sql}`);
-			const rows = yield* db.execute(query as any);
-			console.timeEnd(`<-- Main SQL: ${query.compile().sql}`);
-			return { rows: rows as T[], rowCount };
+			const mainSql = query.compile().sql;
+			console.log("--> Main SQL:", mainSql);
+			console.time(`<-- Main SQL: ${mainSql}`);
+			const rows = yield* withQueryLoggingAndRowCount(
+				db
+					.execute(query as any)
+					.pipe(Effect.map((r) => ({ rows: r as T[], rowCount: rowCount }))),
+				{
+					type: "table",
+					sql: mainSql,
+					schema: input.schema,
+					table: input.table,
+					connectionId: input.connectionId,
+					persistFn: persistQueryLog,
+					updatePersistFn: updatePersistedQueryLog,
+				},
+			).pipe(
+				Effect.tap(() =>
+					Effect.sync(() => console.timeEnd(`<-- Main SQL: ${mainSql}`)),
+				),
+			);
+			return rows;
 		} catch (e) {
 			return yield* Effect.fail(
 				new SqlError.SqlError({

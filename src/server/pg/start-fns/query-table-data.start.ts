@@ -49,26 +49,19 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 					throw new Error(`Connection not found for URL: ${input.url}`);
 				}
 
-				const result = yield* withQueryLoggingAndRowCount(
-					queryTableData({
-						schema: input.schema,
-						table: input.table,
-						limit: input.limit ?? 50,
-						offset: input.offset ?? 0,
-						orderBy: input.orderBy,
-						orderDirection: input.orderDirection,
-						filters: validatedFilters ?? {
-							conditions: [],
-							logicalOperator: "and",
-						},
-					}),
-					{
-						type: "table",
-						sql: `SELECT * FROM "${input.schema}"."${input.table}"`,
-						schema: input.schema,
-						table: input.table,
+				const result = yield* queryTableData({
+					schema: input.schema,
+					table: input.table,
+					limit: input.limit ?? 50,
+					offset: input.offset ?? 0,
+					orderBy: input.orderBy,
+					orderDirection: input.orderDirection,
+					filters: validatedFilters ?? {
+						conditions: [],
+						logicalOperator: "and",
 					},
-				).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+					connectionId: connection.id,
+				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 
 				return result;
 			}),

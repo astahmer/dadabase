@@ -46,6 +46,7 @@ const getRelationshipsCountsServerFn = createServerFn({ method: "POST" })
 					table: input.table,
 					relationships: input.relationships,
 					rowData: input.rowData,
+					connectionId: connection.id,
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 			}),
 		);

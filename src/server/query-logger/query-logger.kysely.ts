@@ -2,40 +2,42 @@ import { Effect } from "effect";
 import { AppDatabase } from "#src/db/app.db.ts";
 import type { QueryLogEntryType } from "./query-logger.types.ts";
 
-export const persistQueryLog = (input: {
-	connectionId: string;
-	entry: QueryLogEntryType;
-}) =>
+/**
+ * Curried version for use with withQueryLogging wrappers
+ */
+export const persistQueryLog = (
+	connectionId: string,
+	entry: QueryLogEntryType,
+) =>
 	Effect.gen(function* () {
 		const db = yield* AppDatabase;
 		yield* db.execute(
 			db.insertInto("query_logs").values({
-				id: input.entry.id,
-				connection_id: input.connectionId,
-				sql: input.entry.sql,
-				params: input.entry.params ? JSON.stringify(input.entry.params) : null,
-				type: input.entry.type,
-				schema: input.entry.schema ?? null,
-				table: input.entry.table ?? null,
-				status: input.entry.status,
-				start_time: input.entry.startTime,
-				end_time: input.entry.endTime ?? null,
-				time_taken: input.entry.timeTaken ?? null,
-				rows_returned: input.entry.rowsReturned ?? null,
-				rows_affected: input.entry.rowsAffected ?? null,
-				error: input.entry.error ? JSON.stringify(input.entry.error) : null,
+				id: entry.id,
+				connection_id: connectionId,
+				sql: entry.sql,
+				params: entry.params ? JSON.stringify(entry.params) : null,
+				type: entry.type,
+				schema: entry.schema ?? null,
+				table: entry.table ?? null,
+				status: entry.status,
+				start_time: entry.startTime,
+				end_time: entry.endTime ?? null,
+				time_taken: entry.timeTaken ?? null,
+				rows_returned: entry.rowsReturned ?? null,
+				rows_affected: entry.rowsAffected ?? null,
+				error: entry.error ? JSON.stringify(entry.error) : null,
 				created_at: Date.now(),
 			}),
 		);
 	});
 
-export const updatePersistedQueryLog = (input: {
-	id: string;
-	updates: Partial<QueryLogEntryType>;
-}) =>
+export const updatePersistedQueryLog = (
+	id: string,
+	updates: Partial<QueryLogEntryType>,
+) =>
 	Effect.gen(function* () {
 		const db = yield* AppDatabase;
-		const updates = input.updates;
 
 		yield* db.execute(
 			db
@@ -48,7 +50,7 @@ export const updatePersistedQueryLog = (input: {
 					rows_affected: updates.rowsAffected ?? undefined,
 					error: updates.error ? JSON.stringify(updates.error) : undefined,
 				})
-				.where("id", "=", input.id),
+				.where("id", "=", id),
 		);
 	});
 
