@@ -1,33 +1,16 @@
 import { PgLiteClient } from "@dadabase/effect-pglite";
 import { SqlClient } from "@effect/sql";
+import { describe, expect, it } from "@effect/vitest";
 import {
 	getTableColumns,
 	getTableForeignKeys,
 	getTableIndexes,
 } from "#src/server/introspection/introspection.ts";
-import { describe, expect, test } from "vitest";
-import { Effect, Exit } from "effect";
+import { Effect, Layer } from "effect";
 
 const pgliteLayer = PgLiteClient.layer({
 	dataDir: "memory://",
-});
-
-// Helper to run tests with the pglite layer
-async function runTest<A>(
-	program: Effect.Effect<A, unknown, SqlClient.SqlClient>,
-): Promise<A> {
-	const exit = await Effect.runPromiseExit(
-		program.pipe(Effect.provide(pgliteLayer as any)) as Effect.Effect<
-			A,
-			unknown,
-			never
-		>,
-	);
-	if (Exit.isFailure(exit)) {
-		throw exit.cause;
-	}
-	return exit.value;
-}
+}) as unknown as Layer.Layer<SqlClient.SqlClient>;
 
 // Helper to set up test schema
 const setupSchema = Effect.gen(function* () {
@@ -81,194 +64,176 @@ PRIMARY KEY (post_id, tag_id)
 });
 
 describe("getTableColumns", () => {
-	test("retrieves all columns from a simple table", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+	it.effect("retrieves all columns from a simple table", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const columns = yield* getTableColumns({
-					schema: "public",
-					table: "users",
-				});
+			const columns = yield* getTableColumns({
+				schema: "public",
+				table: "users",
+			});
 
-				expect(columns).toHaveLength(3);
-				const columnNames = columns.map((c) => c.column_name).sort();
-				expect(columnNames).toEqual(["email", "id", "name"]);
-			}),
-		);
-	});
+			expect(columns).toHaveLength(3);
+			const columnNames = columns.map((c) => c.column_name).sort();
+			expect(columnNames).toEqual(["email", "id", "name"]);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-	test("correctly identifies nullable columns", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+	it.effect("correctly identifies nullable columns", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const columns = yield* getTableColumns({
-					schema: "public",
-					table: "posts",
-				});
+			const columns = yield* getTableColumns({
+				schema: "public",
+				table: "posts",
+			});
 
-				const contentColumn = columns.find((c) => c.column_name === "content");
-				expect(contentColumn?.is_nullable).toBe(true);
+			const contentColumn = columns.find((c) => c.column_name === "content");
+			expect(contentColumn?.is_nullable).toBe(true);
 
-				const titleColumn = columns.find((c) => c.column_name === "title");
-				expect(titleColumn?.is_nullable).toBe(false);
-			}),
-		);
-	});
+			const titleColumn = columns.find((c) => c.column_name === "title");
+			expect(titleColumn?.is_nullable).toBe(false);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-	test("correctly identifies data types", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+	it.effect("correctly identifies data types", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const columns = yield* getTableColumns({
-					schema: "public",
-					table: "posts",
-				});
+			const columns = yield* getTableColumns({
+				schema: "public",
+				table: "posts",
+			});
 
-				const idColumn = columns.find((c) => c.column_name === "id");
-				expect(idColumn?.data_type).toContain("integer");
+			const idColumn = columns.find((c) => c.column_name === "id");
+			expect(idColumn?.data_type).toContain("integer");
 
-				const titleColumn = columns.find((c) => c.column_name === "title");
-				expect(titleColumn?.data_type).toContain("text");
+			const titleColumn = columns.find((c) => c.column_name === "title");
+			expect(titleColumn?.data_type).toContain("text");
 
-				const publishedColumn = columns.find(
-					(c) => c.column_name === "published",
-				);
-				expect(publishedColumn?.data_type).toContain("boolean");
-			}),
-		);
-	});
-	test("returns empty array for non-existent table", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				const result = yield* getTableColumns({
-					schema: "public",
-					table: "nonexistent_table",
-				});
+			const publishedColumn = columns.find(
+				(c) => c.column_name === "published",
+			);
+			expect(publishedColumn?.data_type).toContain("boolean");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-				expect(result).toEqual([]);
-			}),
-		);
-	});
+	it.effect("returns empty array for non-existent table", () =>
+		Effect.gen(function* () {
+			const result = yield* getTableColumns({
+				schema: "public",
+				table: "nonexistent_table",
+			});
 
-	test("retrieves columns with nullable defaults", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+			expect(result).toEqual([]);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-				const columns = yield* getTableColumns({
-					schema: "public",
-					table: "user_profiles",
-				});
+	it.effect("retrieves columns with nullable defaults", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const bioColumn = columns.find((c) => c.column_name === "bio");
-				expect(bioColumn?.is_nullable).toBe(true);
-				expect(bioColumn?.column_default).toBeNull();
-			}),
-		);
-	});
+			const columns = yield* getTableColumns({
+				schema: "public",
+				table: "user_profiles",
+			});
 
-	test("retrieves columns with timestamp defaults", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+			const bioColumn = columns.find((c) => c.column_name === "bio");
+			expect(bioColumn?.is_nullable).toBe(true);
+			expect(bioColumn?.column_default).toBeNull();
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-				const columns = yield* getTableColumns({
-					schema: "public",
-					table: "user_profiles",
-				});
+	it.effect("retrieves columns with timestamp defaults", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const createdAtColumn = columns.find(
-					(c) => c.column_name === "created_at",
-				);
-				expect(createdAtColumn?.is_nullable).toBe(false);
-				expect(createdAtColumn?.column_default).toBeDefined();
-				expect(createdAtColumn?.data_type).toContain("timestamp");
-			}),
-		);
-	});
+			const columns = yield* getTableColumns({
+				schema: "public",
+				table: "user_profiles",
+			});
 
-	test("preserves column order from table definition", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+			const createdAtColumn = columns.find(
+				(c) => c.column_name === "created_at",
+			);
+			expect(createdAtColumn?.is_nullable).toBe(false);
+			expect(createdAtColumn?.column_default).toBeDefined();
+			expect(createdAtColumn?.data_type).toContain("timestamp");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-				const columns = yield* getTableColumns({
-					schema: "public",
-					table: "posts",
-				});
+	it.effect("preserves column order from table definition", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const columnNames = columns.map((c) => c.column_name);
-				// Columns should be in the order they were defined: id, user_id, title, content, published
-				expect(columnNames).toEqual([
-					"id",
-					"user_id",
-					"title",
-					"content",
-					"published",
-				]);
-			}),
-		);
-	});
+			const columns = yield* getTableColumns({
+				schema: "public",
+				table: "posts",
+			});
 
-	test("does not return duplicate columns", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+			const columnNames = columns.map((c) => c.column_name);
+			// Columns should be in the order they were defined: id, user_id, title, content, published
+			expect(columnNames).toEqual([
+				"id",
+				"user_id",
+				"title",
+				"content",
+				"published",
+			]);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-				const columns = yield* getTableColumns({
-					schema: "public",
-					table: "posts",
-				});
+	it.effect("does not return duplicate columns", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				// Check that there are no duplicate column names
-				const columnNames = columns.map((c) => c.column_name);
-				const uniqueColumnNames = new Set(columnNames);
-				expect(columnNames.length).toBe(uniqueColumnNames.size);
-			}),
-		);
-	});
+			const columns = yield* getTableColumns({
+				schema: "public",
+				table: "posts",
+			});
 
-	test("includes default values when present", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+			// Check that there are no duplicate column names
+			const columnNames = columns.map((c) => c.column_name);
+			const uniqueColumnNames = new Set(columnNames);
+			expect(columnNames.length).toBe(uniqueColumnNames.size);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-				const columns = yield* getTableColumns({
-					schema: "public",
-					table: "posts",
-				});
+	it.effect("includes default values when present", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const publishedColumn = columns.find(
-					(c) => c.column_name === "published",
-				);
-				// The default value should contain 'false'
-				expect(publishedColumn?.column_default).toBeDefined();
-			}),
-		);
-	});
+			const columns = yield* getTableColumns({
+				schema: "public",
+				table: "posts",
+			});
 
-	test("handles tables with multiple columns", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+			const publishedColumn = columns.find(
+				(c) => c.column_name === "published",
+			);
+			// The default value should contain 'false'
+			expect(publishedColumn?.column_default).toBeDefined();
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-				const columns = yield* getTableColumns({
-					schema: "public",
-					table: "post_tags",
-				});
+	it.effect("handles tables with multiple columns", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				expect(columns.length).toBe(2);
-				const columnNames = columns.map((c) => c.column_name).sort();
-				expect(columnNames).toEqual(["post_id", "tag_id"]);
-			}),
-		);
-	});
+			const columns = yield* getTableColumns({
+				schema: "public",
+				table: "post_tags",
+			});
 
-	test("does not return duplicates for columns with both PK and UNIQUE constraints", async () => {
-		await runTest(
+			expect(columns.length).toBe(2);
+			const columnNames = columns.map((c) => c.column_name).sort();
+			expect(columnNames).toEqual(["post_id", "tag_id"]);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
+
+	it.effect(
+		"does not return duplicates for columns with both PK and UNIQUE constraints",
+		() =>
 			Effect.gen(function* () {
 				yield* setupSchema;
 
@@ -304,14 +269,14 @@ describe("getTableColumns", () => {
 				const hasUnique = userIdIndexes.some((idx) => idx.is_unique);
 				expect(hasPrimary).toBe(true);
 				expect(hasUnique).toBe(true);
-			}),
-		);
-	});
+			}).pipe(Effect.provide(pgliteLayer)),
+	);
 });
 
 describe("getTableIndexes", () => {
-	test("correctly identifies primary key columns via getTableIndexes", async () => {
-		await runTest(
+	it.effect(
+		"correctly identifies primary key columns via getTableIndexes",
+		() =>
 			Effect.gen(function* () {
 				yield* setupSchema;
 
@@ -324,146 +289,131 @@ describe("getTableIndexes", () => {
 				const pkIndex = indexes.find((idx) => idx.is_primary);
 				expect(pkIndex).toBeDefined();
 				expect(pkIndex?.column_name).toBe("id");
-			}),
-		);
-	});
+			}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-	test("correctly identifies unique columns via getTableIndexes", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+	it.effect("correctly identifies unique columns via getTableIndexes", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const indexes = yield* getTableIndexes({
-					schema: "public",
-					table: "users",
-				});
+			const indexes = yield* getTableIndexes({
+				schema: "public",
+				table: "users",
+			});
 
-				// Find unique index for email column
-				const uniqueIndex = indexes.find(
-					(idx) =>
-						idx.is_unique && !idx.is_primary && idx.column_name === "email",
-				);
-				expect(uniqueIndex).toBeDefined();
-			}),
-		);
-	});
+			// Find unique index for email column
+			const uniqueIndex = indexes.find(
+				(idx) =>
+					idx.is_unique && !idx.is_primary && idx.column_name === "email",
+			);
+			expect(uniqueIndex).toBeDefined();
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-	test("handles one-to-one relationships (unique FK)", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+	it.effect("handles one-to-one relationships (unique FK)", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const foreignKeys = yield* getTableForeignKeys({
-					schema: "public",
-					table: "user_profiles",
-				});
+			const foreignKeys = yield* getTableForeignKeys({
+				schema: "public",
+				table: "user_profiles",
+			});
 
-				const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
-				expect(userIdFK).toBeDefined();
-				expect(userIdFK?.referenced_table_name).toBe("users");
+			const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
+			expect(userIdFK).toBeDefined();
+			expect(userIdFK?.referenced_table_name).toBe("users");
 
-				// Also check that user_id is a primary key via indexes
-				const indexes = yield* getTableIndexes({
-					schema: "public",
-					table: "user_profiles",
-				});
-				const pkIndex = indexes.find(
-					(idx) => idx.is_primary && idx.column_name === "user_id",
-				);
-				expect(pkIndex).toBeDefined();
-			}),
-		);
-	});
+			// Also check that user_id is a primary key via indexes
+			const indexes = yield* getTableIndexes({
+				schema: "public",
+				table: "user_profiles",
+			});
+			const pkIndex = indexes.find(
+				(idx) => idx.is_primary && idx.column_name === "user_id",
+			);
+			expect(pkIndex).toBeDefined();
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-	test("handles composite primary keys via getTableIndexes", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+	it.effect("handles composite primary keys via getTableIndexes", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const indexes = yield* getTableIndexes({
-					schema: "public",
-					table: "post_tags",
-				});
+			const indexes = yield* getTableIndexes({
+				schema: "public",
+				table: "post_tags",
+			});
 
-				// Find primary key indexes - there should be entries for both columns
-				const pkIndexes = indexes.filter((idx) => idx.is_primary);
-				expect(pkIndexes.length).toBeGreaterThanOrEqual(1);
-			}),
-		);
-	});
+			// Find primary key indexes - there should be entries for both columns
+			const pkIndexes = indexes.filter((idx) => idx.is_primary);
+			expect(pkIndexes.length).toBeGreaterThanOrEqual(1);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 });
 
 describe("getTableForeignKeys", () => {
-	test("correctly returns constraint names for foreign keys", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+	it.effect("correctly returns constraint names for foreign keys", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const foreignKeys = yield* getTableForeignKeys({
-					schema: "public",
-					table: "posts",
-				});
+			const foreignKeys = yield* getTableForeignKeys({
+				schema: "public",
+				table: "posts",
+			});
 
-				const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
-				expect(userIdFK?.constraint_name).toBeDefined();
-				expect(userIdFK?.constraint_name).toMatch(/posts_user_id_fkey/);
-			}),
-		);
-	});
+			const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
+			expect(userIdFK?.constraint_name).toBeDefined();
+			expect(userIdFK?.constraint_name).toMatch(/posts_user_id_fkey/);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-	test("retrieves foreign key information via getTableForeignKeys", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+	it.effect("retrieves foreign key information via getTableForeignKeys", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const foreignKeys = yield* getTableForeignKeys({
-					schema: "public",
-					table: "posts",
-				});
+			const foreignKeys = yield* getTableForeignKeys({
+				schema: "public",
+				table: "posts",
+			});
 
-				const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
-				expect(userIdFK).toBeDefined();
-				expect(userIdFK?.referenced_table_name).toBe("users");
-				expect(userIdFK?.referenced_column_name).toBe("id");
-				expect(userIdFK?.referenced_table_schema).toBe("public");
-			}),
-		);
-	});
+			const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
+			expect(userIdFK).toBeDefined();
+			expect(userIdFK?.referenced_table_name).toBe("users");
+			expect(userIdFK?.referenced_column_name).toBe("id");
+			expect(userIdFK?.referenced_table_schema).toBe("public");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-	test("returns empty foreign keys for tables without FKs", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+	it.effect("returns empty foreign keys for tables without FKs", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const foreignKeys = yield* getTableForeignKeys({
-					schema: "public",
-					table: "users",
-				});
+			const foreignKeys = yield* getTableForeignKeys({
+				schema: "public",
+				table: "users",
+			});
 
-				// users table has no foreign keys
-				expect(foreignKeys.length).toBe(0);
-			}),
-		);
-	});
+			// users table has no foreign keys
+			expect(foreignKeys.length).toBe(0);
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 
-	test("handles tables with multiple foreign keys", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
+	it.effect("handles tables with multiple foreign keys", () =>
+		Effect.gen(function* () {
+			yield* setupSchema;
 
-				const foreignKeys = yield* getTableForeignKeys({
-					schema: "public",
-					table: "post_tags",
-				});
+			const foreignKeys = yield* getTableForeignKeys({
+				schema: "public",
+				table: "post_tags",
+			});
 
-				const postIdFK = foreignKeys.find((fk) => fk.column_name === "post_id");
-				expect(postIdFK).toBeDefined();
-				expect(postIdFK?.referenced_table_name).toBe("posts");
+			const postIdFK = foreignKeys.find((fk) => fk.column_name === "post_id");
+			expect(postIdFK).toBeDefined();
+			expect(postIdFK?.referenced_table_name).toBe("posts");
 
-				const tagIdFK = foreignKeys.find((fk) => fk.column_name === "tag_id");
-				expect(tagIdFK).toBeDefined();
-				expect(tagIdFK?.referenced_table_name).toBe("tags");
-			}),
-		);
-	});
+			const tagIdFK = foreignKeys.find((fk) => fk.column_name === "tag_id");
+			expect(tagIdFK).toBeDefined();
+			expect(tagIdFK?.referenced_table_name).toBe("tags");
+		}).pipe(Effect.provide(pgliteLayer)),
+	);
 });
