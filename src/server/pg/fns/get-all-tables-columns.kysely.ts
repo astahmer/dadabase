@@ -51,7 +51,9 @@ export const getAllTablesColumns = (input: {
 					schema: input.schema,
 					connectionId: input.connectionId,
 				}),
-			); // For each table, fetch its columns metadata
+			);
+
+			// For each table, fetch its columns metadata
 			const allTablesColumns: TableColumnsMetadata[] = [];
 
 			for (const tableRecord of tableNames) {
