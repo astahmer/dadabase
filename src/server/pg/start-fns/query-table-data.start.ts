@@ -31,7 +31,7 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 		const input = ctx.data;
 
 		const startTime = Date.now();
-		console.log("---> queryTableDataServerFn");
+		// console.log("---> queryTableDataServerFn");
 
 		// Filter out conditions with null/undefined values (apply validation on server side too)
 		const validatedFilters = input.filters
@@ -72,10 +72,10 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 			}),
 		)) as { rows: Record<string, any>[]; rowCount: number };
 		const endTime = Date.now();
-		console.log(
-			"<--- queryTableDataServerFn",
-			Duration.format(Duration.toMillis(endTime - startTime)),
-		);
+		// console.log(
+		// 	"<--- queryTableDataServerFn",
+		// 	Duration.format(Duration.toMillis(endTime - startTime)),
+		// );
 
 		return {
 			rows,
