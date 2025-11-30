@@ -5,7 +5,10 @@ import {
 	findColumnReferences,
 	findColumnReferencesWithCounts,
 } from "./get-table-foreign-keys.kysely.ts";
-import { QueryLogger } from "#src/server/query-logger/query-logger.service.ts";
+import {
+	QueryLogger,
+	QueryLoggerNoopLayer,
+} from "#src/server/query-logger/query-logger.service.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
@@ -46,7 +49,7 @@ const InMemoryLayer = Layer.effect(
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
 		dataDir: "memory://",
 	}) as any,
-).pipe(Layer.merge(QueryLogger.Default)) as any as Layer.Layer<
+).pipe(Layer.merge(QueryLoggerNoopLayer)) as any as Layer.Layer<
 	KyselyPgDatabase | QueryLogger,
 	never,
 	never

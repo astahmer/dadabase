@@ -4,12 +4,12 @@ import {
 	type QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Duration, Effect, Schema } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { queryTableData } from "../fns/query-table-data.kysely.ts";
+import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
 
 const InputSchema = Schema.Struct({
 	url: Schema.URL,
@@ -43,7 +43,9 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 				const connection = yield* repo.findByUrl(input.url.toString());
 
 				if (!connection) {
-					throw new Error(`Connection not found for URL: ${input.url}`);
+					return yield* Effect.fail(
+						new Error(`Connection not found for URL: ${input.url}`),
+					);
 				}
 
 				const result = yield* queryTableData({
@@ -58,7 +60,9 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 						logicalOperator: "and",
 					},
 					connectionId: connection.id,
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+				}).pipe(
+					withRemoteConnectionLayers(input.url.toString(), connection.id),
+				);
 
 				return result;
 			}),

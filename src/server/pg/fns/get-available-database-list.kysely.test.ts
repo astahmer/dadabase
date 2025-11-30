@@ -1,7 +1,10 @@
 import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { getAvailableDatabaseList } from "#src/server/pg/fns/get-available-database-list.kysely.ts";
-import { QueryLogger } from "#src/server/query-logger/query-logger.service.ts";
+import {
+	QueryLogger,
+	QueryLoggerNoopLayer,
+} from "#src/server/query-logger/query-logger.service.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
@@ -10,7 +13,7 @@ const InMemoryLayer = Layer.effect(
 	makeEffectKyselyPglite<any>({
 		dataDir: "memory://",
 	}),
-).pipe(Layer.merge(QueryLogger.Default));
+).pipe(Layer.merge(QueryLoggerNoopLayer));
 
 describe("getAvailableDatabaseList", () => {
 	it.effect("works", () => {

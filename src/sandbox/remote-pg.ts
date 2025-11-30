@@ -1,6 +1,10 @@
 import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import { getAvailableDatabaseList } from "#src/server/pg/fns/get-available-database-list.kysely.ts";
 import { getAvailableTableList } from "#src/server/pg/fns/get-available-table-list.kysely.ts";
+import {
+	QueryLogger,
+	QueryLoggerInMemoryLayer,
+} from "#src/server/query-logger/query-logger.service.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 import { PlatformConfigProvider } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
@@ -23,6 +27,7 @@ const runWithDb = Effect.gen(function* () {
 
 const res = await AppRuntime.runPromise(
 	runWithDb.pipe(
+		Effect.provide(QueryLoggerInMemoryLayer),
 		Effect.scoped,
 		Effect.provide(PlatformConfigProvider.layerDotEnv(".env")),
 		Effect.provide(NodeContext.layer),

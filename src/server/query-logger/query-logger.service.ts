@@ -1,235 +1,143 @@
-import { Effect, Ref } from "effect";
+import { AppDatabase } from "#src/db/app.db.ts";
+import { Context, Effect, Layer, Ref } from "effect";
+import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
+import { NanoId } from "../services/nano-id.ts";
+import {
+	deleteQueryLog,
+	getQueryLogs,
+	persistQueryLog,
+	updatePersistedQueryLog,
+} from "./query-logger.kysely.ts";
 import type { QueryLogEntryType } from "./query-logger.types.ts";
 
-export type QueryLoggerOptions = {
-	/**
-	 * Connection ID for database persistence. If provided, logs will be automatically
-	 * persisted to the database. If omitted, only in-memory storage is used.
-	 */
-	connectionId?: string;
-	/**
-	 * Function to persist a query log entry. Called automatically if connectionId is set.
-	 */
-	persistFn?: (
-		connectionId: string,
-		entry: QueryLogEntryType,
-	) => Effect.Effect<void>;
-	/**
-	 * Function to update a persisted query log entry.
-	 */
-	updatePersistFn?: (
+export interface QueryLoggerInterface {
+	get: Effect.Effect<QueryLogEntryType[], never, never>;
+	push: (
+		entry: Omit<QueryLogEntryType, "id">,
+	) => Effect.Effect<string, never, never>;
+	update: (
 		id: string,
 		updates: Partial<QueryLogEntryType>,
-	) => Effect.Effect<void>;
-	/**
-	 * Function to delete a persisted query log entry.
-	 */
-	deletePersistFn?: (id: string) => Effect.Effect<void>;
-	/**
-	 * Function to clear all persisted query logs.
-	 */
-	clearPersistFn?: (connectionId: string) => Effect.Effect<void>;
-};
+	) => Effect.Effect<void, never, never>;
+	clearAll: () => Effect.Effect<void, never, never>;
+	remove: (id: string) => Effect.Effect<void, never, never>;
+}
 
-export class QueryLogger extends Effect.Service<QueryLogger>()("QueryLogger", {
-	effect: Effect.gen(function* () {
+export class QueryLogger extends Context.Tag("@dadabase/QueryLogger")<
+	QueryLogger,
+	QueryLoggerInterface
+>() {}
+
+export const QueryLoggerNoopLayer = Layer.succeed(
+	QueryLogger,
+	QueryLogger.of({
+		get: Effect.succeed([]),
+		push: () => Effect.succeed("xxx"),
+		update: () => Effect.void,
+		clearAll: () => Effect.void,
+		remove: () => Effect.void,
+	}),
+);
+
+export const QueryLoggerInMemoryLayer = Layer.effect(
+	QueryLogger,
+	Effect.gen(function* () {
 		const entriesRef = yield* Ref.make<QueryLogEntryType[]>([]);
 
-		const createInstance = (options?: QueryLoggerOptions) => ({
-			get history() {
-				return Ref.get(entriesRef);
-			},
-			addEntry: (entry: Omit<QueryLogEntryType, "id">) =>
+		return {
+			get: Ref.get(entriesRef),
+			push: (entry: Omit<QueryLogEntryType, "id">) =>
 				Effect.gen(function* () {
 					const id = `ql_${Math.random().toString(36).substr(2, 9)}`;
 					const fullEntry = { ...entry, id };
 
 					yield* Ref.update(entriesRef, (entries) => entries.concat(fullEntry));
 
-					// Optionally persist to database
-					if (options?.connectionId && options.persistFn) {
-						yield* options
-							.persistFn(options.connectionId, fullEntry)
-							.pipe(
-								Effect.catchAll(() =>
-									Effect.sync(() =>
-										console.warn(
-											`Failed to persist query log ${id} to database`,
-										),
-									),
-								),
-							);
-					}
-
 					return id;
 				}),
-			updateEntry: (id: string, updates: Partial<QueryLogEntryType>) =>
+			update: (id: string, updates: Partial<QueryLogEntryType>) =>
 				Effect.gen(function* () {
 					yield* Ref.update(entriesRef, (entries) =>
 						entries.map((entry) =>
 							entry.id === id ? { ...entry, ...updates } : entry,
 						),
 					);
-
-					// Optionally persist to database
-					if (options?.updatePersistFn) {
-						yield* options
-							.updatePersistFn(id, updates)
-							.pipe(
-								Effect.catchAll(() =>
-									Effect.sync(() =>
-										console.warn(
-											`Failed to update persisted query log ${id} in database`,
-										),
-									),
-								),
-							);
-					}
 				}),
-			clearHistory: () =>
+			clearAll: () =>
 				Effect.gen(function* () {
 					yield* Ref.set(entriesRef, []);
-
-					// Optionally clear from database
-					if (options?.connectionId && options.clearPersistFn) {
-						yield* options
-							.clearPersistFn(options.connectionId)
-							.pipe(
-								Effect.catchAll(() =>
-									Effect.sync(() =>
-										console.warn("Failed to clear query logs from database"),
-									),
-								),
-							);
-					}
 				}),
-			removeEntry: (id: string) =>
+			remove: (id: string) =>
 				Effect.gen(function* () {
 					yield* Ref.update(entriesRef, (entries) =>
 						entries.filter((entry) => entry.id !== id),
 					);
-
-					// Optionally delete from database
-					if (options?.deletePersistFn) {
-						yield* options
-							.deletePersistFn(id)
-							.pipe(
-								Effect.catchAll(() =>
-									Effect.sync(() =>
-										console.warn(
-											`Failed to delete persisted query log ${id} from database`,
-										),
-									),
-								),
-							);
-					}
 				}),
-		});
-
-		// Return the logger with default (no persistence) options
-		return createInstance();
+		};
 	}),
-}) {
-	/**
-	 * Create a new QueryLogger instance with custom persistence options.
-	 * Useful for scoped instances that need to persist logs to specific connections.
-	 */
-	static withPersistence(options: QueryLoggerOptions) {
-		return Effect.gen(function* () {
-			const entriesRef = yield* Ref.make<QueryLogEntryType[]>([]);
+);
 
-			return {
-				get history() {
-					return Ref.get(entriesRef);
-				},
-				addEntry: (entry: Omit<QueryLogEntryType, "id">) =>
-					Effect.gen(function* () {
-						const id = `ql_${Math.random().toString(36).substr(2, 9)}`;
-						const fullEntry = { ...entry, id };
+export const QueryLoggerPersistentLayer = Layer.effect(
+	QueryLogger,
+	Effect.gen(function* () {
+		const connectionId = yield* RemoteConnection;
+		const appDatabase = yield* AppDatabase;
+		const nanoId = yield* NanoId;
 
-						yield* Ref.update(entriesRef, (entries) =>
-							entries.concat(fullEntry),
-						);
-
-						// Optionally persist to database
-						if (options.connectionId && options.persistFn) {
-							yield* options
-								.persistFn(options.connectionId, fullEntry)
-								.pipe(
-									Effect.catchAll(() =>
-										Effect.sync(() =>
-											console.warn(
-												`Failed to persist query log ${id} to database`,
-											),
-										),
-									),
-								);
-						}
-
-						return id;
-					}),
-				updateEntry: (id: string, updates: Partial<QueryLogEntryType>) =>
-					Effect.gen(function* () {
-						yield* Ref.update(entriesRef, (entries) =>
-							entries.map((entry) =>
-								entry.id === id ? { ...entry, ...updates } : entry,
-							),
-						);
-
-						// Optionally persist to database
-						if (options.updatePersistFn) {
-							yield* options
-								.updatePersistFn(id, updates)
-								.pipe(
-									Effect.catchAll(() =>
-										Effect.sync(() =>
-											console.warn(
-												`Failed to update persisted query log ${id} in database`,
-											),
-										),
-									),
-								);
-						}
-					}),
-				clearHistory: () =>
-					Effect.gen(function* () {
-						yield* Ref.set(entriesRef, []);
-
-						// Optionally clear from database
-						if (options.connectionId && options.clearPersistFn) {
-							yield* options
-								.clearPersistFn(options.connectionId)
-								.pipe(
-									Effect.catchAll(() =>
-										Effect.sync(() =>
-											console.warn("Failed to clear query logs from database"),
-										),
-									),
-								);
-						}
-					}),
-				removeEntry: (id: string) =>
-					Effect.gen(function* () {
-						yield* Ref.update(entriesRef, (entries) =>
-							entries.filter((entry) => entry.id !== id),
-						);
-
-						// Optionally delete from database
-						if (options.deletePersistFn) {
-							yield* options
-								.deletePersistFn(id)
-								.pipe(
-									Effect.catchAll(() =>
-										Effect.sync(() =>
-											console.warn(
-												`Failed to delete persisted query log ${id} from database`,
-											),
-										),
-									),
-								);
-						}
-					}),
-			};
+		return QueryLogger.of({
+			get: Effect.gen(function* () {
+				return yield* getQueryLogs(connectionId, 100).pipe(
+					Effect.tapError((err) =>
+						Effect.logWarning("Failed to fetch query logs from database", err),
+					),
+					Effect.orElseSucceed(() => []),
+				);
+			}).pipe(Effect.provideService(AppDatabase, appDatabase)),
+			push: function (
+				entry: Omit<QueryLogEntryType, "id">,
+			): Effect.Effect<string, never, never> {
+				return Effect.gen(function* () {
+					const entryId = yield* nanoId.generate("ql");
+					yield* persistQueryLog(connectionId, { ...entry, id: entryId }).pipe(
+						Effect.tapError((err) =>
+							Effect.logWarning("Failed to insert query log to database", err),
+						),
+						Effect.orElseSucceed(() => Effect.void),
+					);
+					return entryId;
+				}).pipe(Effect.provideService(AppDatabase, appDatabase));
+			},
+			update: function (
+				entryId: string,
+				updates: Partial<QueryLogEntryType>,
+			): Effect.Effect<void, never, never> {
+				return updatePersistedQueryLog(entryId, updates)
+					.pipe(
+						Effect.tapError((err) =>
+							Effect.logWarning("Failed to update query log to database", err),
+						),
+						Effect.orElseSucceed(() => Effect.void),
+					)
+					.pipe(Effect.provideService(AppDatabase, appDatabase));
+			},
+			clearAll: function (): Effect.Effect<void, never, never> {
+				return appDatabase.execute(appDatabase.deleteFrom("query_logs")).pipe(
+					Effect.tapError((err) =>
+						Effect.logWarning("Failed to clear all query log in database", err),
+					),
+					Effect.orElseSucceed(() => Effect.void),
+					Effect.provideService(AppDatabase, appDatabase),
+				);
+			},
+			remove: function (id: string): Effect.Effect<void, never, never> {
+				return deleteQueryLog(id).pipe(
+					Effect.tapError((err) =>
+						Effect.logWarning("Failed to remove query log from database", err),
+					),
+					Effect.orElseSucceed(() => Effect.void),
+					Effect.provideService(AppDatabase, appDatabase),
+				);
+			},
 		});
-	}
-}
+	}),
+);

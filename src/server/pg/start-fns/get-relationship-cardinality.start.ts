@@ -1,4 +1,3 @@
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -9,6 +8,7 @@ import {
 } from "../fns/get-relationship-cardinality.kysely.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
 
 const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -27,7 +27,9 @@ const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 				const connection = yield* repo.findByUrl(ctx.data.url);
 
 				if (!connection) {
-					throw new Error(`Connection not found for URL: ${ctx.data.url}`);
+					return yield* Effect.fail(
+						new Error(`Connection not found for URL: ${ctx.data.url}`),
+					);
 				}
 
 				return yield* getRelationshipCardinality({
@@ -36,7 +38,7 @@ const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 					columns: Array.from(ctx.data.columns),
 					connectionId: connection.id,
 					isIncomingRelationship: ctx.data.isIncomingRelationship,
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+				}).pipe(withRemoteConnectionLayers(connection.url, connection.id));
 			}),
 		);
 	});

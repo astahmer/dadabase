@@ -3,7 +3,10 @@ import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { getAvailableSchemas } from "./get-available-schemas.kysely.ts";
 import { getAvailableTableList } from "./get-available-tables.kysely.ts";
 import { getAvailableDatabaseList } from "./get-available-database-list.kysely.ts";
-import { QueryLogger } from "#src/server/query-logger/query-logger.service.ts";
+import {
+	QueryLogger,
+	QueryLoggerNoopLayer,
+} from "#src/server/query-logger/query-logger.service.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";
@@ -24,7 +27,7 @@ const InMemoryLayer = Layer.effect(
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
 		dataDir: "memory://",
 	}) as any,
-).pipe(Layer.merge(QueryLogger.Default)) as any as Layer.Layer<
+).pipe(Layer.merge(QueryLoggerNoopLayer)) as any as Layer.Layer<
 	KyselyPgDatabase | QueryLogger,
 	never,
 	never

@@ -1,4 +1,3 @@
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -6,6 +5,7 @@ import { Effect, Schema } from "effect";
 import { getRelationshipsCounts } from "../fns/get-relationships-counts.kysely.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 
 const TableRelationshipSchema = Schema.Struct({
@@ -38,7 +38,9 @@ const getRelationshipsCountsServerFn = createServerFn({ method: "POST" })
 				const connection = yield* repo.findByUrl(input.url);
 
 				if (!connection) {
-					throw new Error(`Connection not found for URL: ${input.url}`);
+					return yield* Effect.fail(
+						new Error(`Connection not found for URL: ${input.url}`),
+					);
 				}
 
 				return yield* getRelationshipsCounts({
@@ -47,7 +49,7 @@ const getRelationshipsCountsServerFn = createServerFn({ method: "POST" })
 					relationships: input.relationships,
 					rowData: input.rowData,
 					connectionId: connection.id,
-				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
+				}).pipe(withRemoteConnectionLayers(connection.url, connection.id));
 			}),
 		);
 	});

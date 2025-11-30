@@ -1,8 +1,11 @@
-import { QueryLogger } from "#src/server/query-logger/query-logger.service.ts";
+import {
+	QueryLogger,
+	QueryLoggerInMemoryLayer,
+} from "#src/server/query-logger/query-logger.service.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { Effect } from "effect";
+import { Effect, Layer } from "effect";
 
 const getQueryHistoryServerFn = createServerFn({
 	method: "GET",
@@ -10,8 +13,8 @@ const getQueryHistoryServerFn = createServerFn({
 	return AppRuntime.runPromise(
 		Effect.gen(function* () {
 			const queryLogger = yield* QueryLogger;
-			return yield* queryLogger.history;
-		}),
+			return yield* queryLogger.get;
+		}).pipe(Effect.provide(QueryLoggerInMemoryLayer)),
 	);
 });
 
@@ -24,4 +27,5 @@ export const getQueryHistoryQueryOptions = (
 		staleTime: 60 * 1000, // 1 minute
 	});
 
+// TODO clear
 // export const

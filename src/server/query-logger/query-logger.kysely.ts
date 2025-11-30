@@ -2,6 +2,64 @@ import { Effect } from "effect";
 import { AppDatabase } from "#src/db/app.db.ts";
 import type { QueryLogEntryType } from "./query-logger.types.ts";
 
+export const getQueryLogs = (connectionId: string, limit: number = 100) =>
+	Effect.gen(function* () {
+		const db = yield* AppDatabase;
+		const rows = yield* db.execute(
+			db
+				.selectFrom("query_logs")
+				.selectAll()
+				.where("connection_id", "=", connectionId)
+				.orderBy("created_at", "desc")
+				.limit(limit),
+		);
+		return rows
+			.map(
+				(row) =>
+					({
+						id: row.id,
+						sql: row.sql,
+						params: row.params ? JSON.parse(row.params) : undefined,
+						type: row.type,
+						schema: row.schema ?? undefined,
+						table: row.table ?? undefined,
+						status: row.status as "pending" | "success" | "error",
+						startTime: row.start_time,
+						endTime: row.end_time ?? undefined,
+						timeTaken: row.time_taken ?? undefined,
+						rowsReturned: row.rows_returned ?? undefined,
+						rowsAffected: row.rows_affected ?? undefined,
+						error: row.error ? JSON.parse(row.error) : undefined,
+					}) as QueryLogEntryType,
+			)
+			.reverse(); // Reverse to get chronological order (oldest first)
+	});
+
+/**
+ * Keep only the last 1000 query logs for a given connection.
+ * Deletes older entries to prevent unbounded table growth.
+ */
+const cleanupOldQueryLogs = (connectionId: string) =>
+	Effect.gen(function* () {
+		const db = yield* AppDatabase;
+		// Get IDs of logs to delete (keeping only the last 1000)
+		const logsToDelete = yield* db.execute(
+			db
+				.selectFrom("query_logs")
+				.select("id")
+				.where("connection_id", "=", connectionId)
+				.orderBy("created_at", "desc")
+				.offset(1000),
+		);
+
+		if (logsToDelete.length > 0) {
+			const idsToDelete = logsToDelete.map((row) => row.id);
+			yield* db.execute(
+				db.deleteFrom("query_logs").where("id", "in", idsToDelete),
+			);
+		}
+	});
+
 /**
  * Curried version for use with withQueryLogging wrappers
  */
@@ -30,6 +88,8 @@ export const persistQueryLog = (
 				created_at: Date.now(),
 			}),
 		);
+		// Cleanup old logs to keep only the last 1000
+		yield* cleanupOldQueryLogs(connectionId);
 	});
 
 export const updatePersistedQueryLog = (
@@ -103,22 +163,4 @@ export const getFavorites = (connectionId: string) =>
 				.orderBy("created_at", "desc"),
 		);
 		return rows;
-	});
-
-export const getQueryLogs = (connectionId: string, limit: number = 100) =>
-	Effect.gen(function* () {
-		const db = yield* AppDatabase;
-		const rows = yield* db.execute(
-			db
-				.selectFrom("query_logs")
-				.selectAll()
-				.where("connection_id", "=", connectionId)
-				.orderBy("created_at", "desc")
-				.limit(limit),
-		);
-		return rows.map((row) => ({
-			...row,
-			params: row.params ? JSON.parse(row.params) : undefined,
-			error: row.error ? JSON.parse(row.error) : undefined,
-		}));
 	});

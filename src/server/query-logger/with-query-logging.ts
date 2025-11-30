@@ -2,12 +2,6 @@ import { Effect } from "effect";
 import { QueryLogger } from "./query-logger.service.ts";
 import type { QueryLogEntryType, QueryLogType } from "./query-logger.types.ts";
 
-const trimSql = (sql: string) =>
-	sql
-		.split("\n")
-		.filter((str) => !str.startsWith("--"))
-		.join(" ")
-		.trim();
 export interface WithQueryLoggingOptions {
 	type: QueryLogType;
 	sql?: string;
@@ -28,6 +22,13 @@ export interface WithQueryLoggingOptions {
 		updates: Partial<QueryLogEntryType>,
 	) => Effect.Effect<void, any, any>;
 }
+
+const trimSql = (sql: string) =>
+	sql
+		.split("\n")
+		.filter((str) => !str.startsWith("--"))
+		.join(" ")
+		.trim();
 
 /**
  * Wraps an Effect with automatic query logging and database persistence
@@ -68,16 +69,14 @@ export const withQueryLogging =
 				startTime,
 			};
 
-			const entryId = yield* queryLogger.addEntry(logEntry);
+			const entryId = yield* queryLogger.push(logEntry);
 
 			// Persist initial entry
 			yield* options
 				.persistFn(connectionId, { ...logEntry, id: entryId })
 				.pipe(
 					Effect.catchAll(() =>
-						Effect.sync(() =>
-							console.warn(`Failed to persist initial query log ${entryId}`),
-						),
+						Effect.logWarning(`Failed to persist initial query log ${entryId}`),
 					),
 				);
 
@@ -101,13 +100,11 @@ export const withQueryLogging =
 						updates.rowsAffected = result.rowCount as number;
 					}
 
-					return queryLogger.updateEntry(entryId, updates).pipe(
+					return queryLogger.update(entryId, updates).pipe(
 						Effect.andThen(() => options.updatePersistFn(entryId, updates)),
 						Effect.catchAll(() =>
-							Effect.sync(() =>
-								console.warn(
-									`Failed to persist query log update for ${entryId}`,
-								),
+							Effect.logWarning(
+								`Failed to persist query log update for ${entryId}`,
 							),
 						),
 					);
@@ -127,13 +124,11 @@ export const withQueryLogging =
 						},
 					};
 
-					return queryLogger.updateEntry(entryId, updates).pipe(
+					return queryLogger.update(entryId, updates).pipe(
 						Effect.andThen(() => options.updatePersistFn(entryId, updates)),
 						Effect.catchAll(() =>
-							Effect.sync(() =>
-								console.warn(
-									`Failed to persist error for query log ${entryId}`,
-								),
+							Effect.logWarning(
+								`Failed to persist error for query log ${entryId}`,
 							),
 						),
 						Effect.andThen(() => Effect.fail(error as E)),
