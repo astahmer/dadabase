@@ -119,6 +119,7 @@ interface PragmaColumnInfo {
 	type: string;
 	notnull: number;
 	dflt_value: string | null;
+	pk: number;
 }
 
 /**
@@ -156,6 +157,7 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 						is_nullable: row.notnull === 0,
 						column_default: row.dflt_value,
 						ordinal_position: row.cid,
+						pk: row.pk,
 					})) as ColumnInfo[];
 				}),
 			orElse: () =>
@@ -254,6 +256,7 @@ interface PragmaIndexInfo {
 	name: string;
 	unique: number;
 	partial: number;
+	origin?: string;
 }
 
 /**
@@ -285,15 +288,35 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 				`,
 			sqlite: () =>
 				Effect.gen(function* () {
-					const rows = yield* client<PragmaIndexInfo>`
+					const indexList = yield* client<PragmaIndexInfo>`
 						PRAGMA index_list(${table})
 					`;
-					return rows.map((row) => ({
-						index_name: row.name,
-						column_name: "",
-						is_unique: row.unique === 1,
-						is_primary: false,
-					})) as IndexInfo[];
+
+					const results: IndexInfo[] = [];
+
+					for (const idx of indexList) {
+						// For each index, get its columns
+						const idxCols = yield* client<{
+							seqno: number;
+							cid: number;
+							name: string;
+						}>`
+							PRAGMA index_info(${idx.name})
+						`;
+
+						for (const col of idxCols) {
+							results.push({
+								index_name: idx.name,
+								column_name: col.name,
+								is_unique: idx.unique === 1,
+								is_primary:
+									idx.origin === "pk" ||
+									idx.name.startsWith("sqlite_autoindex"),
+							});
+						}
+					}
+
+					return results as IndexInfo[];
 				}),
 			orElse: () =>
 				client<IndexInfo>`
@@ -301,6 +324,107 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 					WHERE table_schema = ${schema} AND table_name = ${table}
 				`,
 		});
+	});
+
+/**
+ * Types and helper used by getAllTablesColumns
+ */
+export interface AllTablesForeignKeyInfo {
+	referencedSchema: string;
+	referencedTable: string;
+	referencedColumn: string;
+	constraintName: string;
+}
+
+export interface TableColumnsMetadata {
+	table: string;
+	columns: Array<{
+		name: string;
+		dataType: string;
+		nullable: boolean;
+		primaryKey?: boolean;
+		unique?: boolean;
+		defaultValue?: string | null;
+		isForeignKey?: boolean;
+		foreignKey?: AllTablesForeignKeyInfo | null;
+	}>;
+}
+
+/**
+ * Get all tables and their columns (including basic FK mapping)
+ * Reuses existing multi-dialect helpers `getAvailableTables`, `getTableColumns`,
+ * and `getTableForeignKeys` so logic stays consistent across drivers.
+ */
+export const getAllTablesColumns = (input: { schema: string }) =>
+	Effect.gen(function* () {
+		const { schema } = input;
+
+		// Get list of tables for the schema (driver-specific)
+		const tables = yield* getAvailableTables({ schema });
+
+		// For each table, fetch columns and foreign keys and merge them
+		const tablesWithColumns = yield* Effect.all(
+			tables.map((tableName) =>
+				Effect.gen(function* () {
+					const [cols, fks, indexes] = yield* Effect.all(
+						[
+							getTableColumns({ schema, table: tableName }),
+							getTableForeignKeys({ schema, table: tableName }),
+							getTableIndexes({ schema, table: tableName }),
+						],
+						{ concurrency: "unbounded" },
+					);
+
+					// Build FK map keyed by column_name (getTableForeignKeys returns snake_case keys)
+					const fkMap = new Map<string, AllTablesForeignKeyInfo>();
+					for (const fk of fks) {
+						fkMap.set(fk.column_name, {
+							referencedSchema: (fk.referenced_table_schema ??
+								fk.referenced_table_schema) as string,
+							referencedTable: fk.referenced_table_name as string,
+							referencedColumn: fk.referenced_column_name as string,
+							constraintName: fk.constraint_name as string,
+						});
+					}
+
+					// Build sets for primary key and unique columns from indexes (PG) or column info (SQLite)
+					const pkSet = new Set<string>();
+					const uniqueSet = new Set<string>();
+
+					// Indexes may contain multiple entries per index (one per column)
+					for (const idx of indexes as IndexInfo[]) {
+						if (idx.is_primary) pkSet.add(idx.column_name);
+						if (idx.is_unique) uniqueSet.add(idx.column_name);
+					}
+
+					// For sqlite, PRAGMA table_info provides pk flag on columns; ensure we include those
+					for (const c of cols as any[]) {
+						if (c.pk) pkSet.add(c.column_name);
+					}
+
+					const columns = (cols as Array<any>).map((c: any) => ({
+						name: c.column_name,
+						dataType: c.data_type,
+						nullable: Boolean(c.is_nullable),
+						primaryKey: pkSet.has(c.column_name) || false,
+						unique: uniqueSet.has(c.column_name) || false,
+						defaultValue: c.column_default ?? null,
+						isForeignKey: fkMap.has(c.column_name),
+						foreignKey: fkMap.has(c.column_name)
+							? fkMap.get(c.column_name)
+							: undefined,
+					}));
+
+					return {
+						table: tableName,
+						columns,
+					} as TableColumnsMetadata;
+				}),
+			),
+			{ concurrency: "unbounded" },
+		);
+
+		return tablesWithColumns;
 	});
 
 /**
