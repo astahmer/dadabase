@@ -31,6 +31,7 @@ const getTableColumnsServerFn = createServerFn({ method: "POST" })
 				return yield* getTableColumns({
 					schema: ctx.data.schema,
 					table: ctx.data.table,
+					connectionId: connection.id,
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 			}),
 		);

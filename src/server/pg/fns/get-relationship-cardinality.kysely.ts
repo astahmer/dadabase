@@ -1,6 +1,11 @@
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { Effect } from "effect";
 import { sql } from "kysely";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
+import {
+	persistQueryLog,
+	updatePersistedQueryLog,
+} from "#src/server/query-logger/query-logger.kysely.ts";
 
 export type Cardinality =
 	| "one-to-one"
@@ -30,13 +35,14 @@ export const getRelationshipCardinality = (input: {
 	schema: string;
 	table: string;
 	columns: string[];
+	connectionId: string;
 	isIncomingRelationship?: boolean;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
 
 		try {
-			const result = yield* db.execute(sql<CardinalityResult>`
+			const cardQuery = sql<CardinalityResult>`
 				-- Determine cardinality of FK relationship
 				WITH table_oid AS (
 					SELECT oid
@@ -91,11 +97,22 @@ export const getRelationshipCardinality = (input: {
 						ELSE 'many-to-many'
 					END as cardinality
 				FROM fk_info fk
-				JOIN fk_side_unique fk_u ON fk.oid = fk_u.oid
-				JOIN referenced_side_unique ref_u ON fk.oid = ref_u.oid
-				LIMIT 1
-			`);
+			JOIN fk_side_unique fk_u ON fk.oid = fk_u.oid
+			JOIN referenced_side_unique ref_u ON fk.oid = ref_u.oid
+			LIMIT 1
+		`;
 
+			const compiledCard = cardQuery.compile(db);
+			const result = yield* withQueryLogging(db.execute(cardQuery), {
+				type: "constraint" as const,
+				sql: compiledCard.sql,
+				params: compiledCard.parameters,
+				schema: input.schema,
+				table: input.table,
+				connectionId: input.connectionId,
+				persistFn: persistQueryLog,
+				updatePersistFn: updatePersistedQueryLog,
+			});
 			let cardinality: Cardinality;
 
 			if (result.length === 0) {

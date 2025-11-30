@@ -2,6 +2,11 @@ import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
+import {
+	persistQueryLog,
+	updatePersistedQueryLog,
+} from "#src/server/query-logger/query-logger.kysely.ts";
 
 export interface ForeignKeyMetadata {
 	columnName: string;
@@ -14,12 +19,16 @@ export interface ForeignKeyMetadata {
 /**
  * Get all foreign keys for a specific table
  */
-export const getTableForeignKeys = (input: { schema: string; table: string }) =>
+export const getTableForeignKeys = (input: {
+	schema: string;
+	table: string;
+	connectionId: string;
+}) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
 
 		try {
-			const foreignKeys = yield* db.execute(sql<ForeignKeyMetadata>`
+			const fkQuery = sql<ForeignKeyMetadata>`
 				SELECT
 					kcu1.column_name AS "columnName",
 					kcu2.table_schema AS "referencedSchema",
@@ -42,8 +51,19 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 					)
 				ORDER BY
 					kcu1.ordinal_position
-			`);
+			`;
 
+			const compiled = fkQuery.compile(db);
+			const foreignKeys = yield* withQueryLogging(db.execute(fkQuery), {
+				type: "constraint" as const,
+				sql: compiled.sql,
+				params: compiled.parameters,
+				schema: input.schema,
+				table: input.table,
+				connectionId: input.connectionId,
+				persistFn: persistQueryLog,
+				updatePersistFn: updatePersistedQueryLog,
+			});
 			return foreignKeys;
 		} catch (e) {
 			return yield* Effect.fail(
@@ -71,12 +91,13 @@ export const findColumnReferences = (input: {
 	referencedSchema: string;
 	referencedTable: string;
 	referencedColumn: string;
+	connectionId: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
 
 		try {
-			const references = yield* db.execute(sql<ColumnReference>`
+			const refQuery = sql<ColumnReference>`
 				SELECT
 					kcu1.table_schema AS "schema",
 					kcu1.table_name AS "table",
@@ -99,8 +120,19 @@ export const findColumnReferences = (input: {
 				ORDER BY
 					kcu1.table_name,
 					kcu1.column_name
-			`);
+			`;
 
+			const compiled = refQuery.compile(db);
+			const references = yield* withQueryLogging(db.execute(refQuery), {
+				type: "constraint" as const,
+				sql: compiled.sql,
+				params: compiled.parameters,
+				schema: input.referencedSchema,
+				table: input.referencedTable,
+				connectionId: input.connectionId,
+				persistFn: persistQueryLog,
+				updatePersistFn: updatePersistedQueryLog,
+			});
 			return references;
 		} catch (e) {
 			return yield* Effect.fail(
@@ -122,12 +154,13 @@ export const findColumnReferencesWithCounts = (input: {
 	referencedTable: string;
 	referencedColumn: string;
 	cellValue: unknown;
+	connectionId: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
 
 		try {
-			const references = yield* db.execute(sql<ColumnReference>`
+			const refQuery = sql<ColumnReference>`
 				SELECT
 					kcu1.table_schema AS "schema",
 					kcu1.table_name AS "table",
@@ -150,9 +183,19 @@ export const findColumnReferencesWithCounts = (input: {
 				ORDER BY
 					kcu1.table_name,
 					kcu1.column_name
-			`);
+		`;
 
-			// Execute all COUNT queries in parallel
+			const compiledRef = refQuery.compile(db);
+			const references = yield* withQueryLogging(db.execute(refQuery), {
+				type: "constraint" as const,
+				sql: compiledRef.sql,
+				params: compiledRef.parameters,
+				schema: input.referencedSchema,
+				table: input.referencedTable,
+				connectionId: input.connectionId,
+				persistFn: persistQueryLog,
+				updatePersistFn: updatePersistedQueryLog,
+			}); // Execute all COUNT queries in parallel
 			// Normalize the cell value: treat string "null" or "undefined" as null
 			const normalizedCellValue =
 				input.cellValue === undefined || input.cellValue === null
@@ -169,18 +212,27 @@ export const findColumnReferencesWithCounts = (input: {
 					// string values like "null" or "undefined" into typed columns
 					const countQuery =
 						normalizedCellValue === null
-							? db.execute(sql<{ count: number }>`
+							? sql<{ count: number }>`
 								SELECT COUNT(*) as count
 								FROM ${sql.table(`${ref.schema}.${ref.table}`)}
 								WHERE ${sql.ref(ref.column)} IS NULL
-							`)
-							: db.execute(sql<{ count: number }>`
+							`
+							: sql<{ count: number }>`
 								SELECT COUNT(*) as count
 								FROM ${sql.table(`${ref.schema}.${ref.table}`)}
 								WHERE ${sql.ref(ref.column)} = ${normalizedCellValue}
-							`);
+							`;
 
-					return countQuery.pipe(
+					return withQueryLogging(db.execute(countQuery), {
+						type: "constraint" as const,
+						sql: countQuery.compile(db).sql,
+						params: countQuery.compile(db).parameters,
+						schema: ref.schema,
+						table: ref.table,
+						connectionId: input.connectionId,
+						persistFn: persistQueryLog,
+						updatePersistFn: updatePersistedQueryLog,
+					}).pipe(
 						Effect.map((countResult: { count: number }[]) => ({
 							...ref,
 							matchingRowCount: countResult[0]?.count ?? 0,

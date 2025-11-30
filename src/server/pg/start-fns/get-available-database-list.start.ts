@@ -5,6 +5,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 import { getAvailableDatabaseList } from "../fns/get-available-database-list.kysely.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 
 const getAvailableDatabaseListServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -12,9 +13,18 @@ const getAvailableDatabaseListServerFn = createServerFn({ method: "POST" })
 	)
 	.handler(async (ctx) => {
 		return await AppRuntime.runPromise(
-			getAvailableDatabaseList.pipe(
-				Effect.provide(makeKyselyPgDatabaseLayer(ctx.data.url)),
-			),
+			Effect.gen(function* () {
+				const repo = yield* DatabaseConnectionRepository;
+				const connection = yield* repo.findByUrl(ctx.data.url);
+
+				if (!connection) {
+					throw new Error(`Connection not found for URL: ${ctx.data.url}`);
+				}
+
+				return yield* getAvailableDatabaseList({
+					connectionId: connection.id,
+				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(ctx.data.url)));
+			}),
 		);
 	});
 

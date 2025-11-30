@@ -29,6 +29,7 @@ const getTableRelationshipsServerFn = createServerFn({ method: "POST" })
 				return yield* getTableRelationships({
 					schema: ctx.data.schema,
 					table: ctx.data.table,
+					connectionId: connection.id,
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 			}),
 		);

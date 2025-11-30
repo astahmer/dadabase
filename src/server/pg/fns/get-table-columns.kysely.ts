@@ -2,6 +2,11 @@ import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
+import {
+	persistQueryLog,
+	updatePersistedQueryLog,
+} from "#src/server/query-logger/query-logger.kysely.ts";
 
 export interface ForeignKeyInfo {
 	referencedSchema: string;
@@ -21,13 +26,17 @@ export interface TableColumnMetadata {
 	foreignKey?: ForeignKeyInfo;
 }
 
-export const getTableColumns = (input: { schema: string; table: string }) =>
+export const getTableColumns = (input: {
+	schema: string;
+	table: string;
+	connectionId: string;
+}) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
 
 		try {
 			// First, get all foreign keys for this table using a simpler query
-			const foreignKeys = yield* db.execute(sql<{
+			const fkQuery = sql<{
 				columnName: string;
 				referencedSchema: string;
 				referencedTable: string;
@@ -54,9 +63,19 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 					AND con.contype = 'f'
 					AND a.attnum > 0
 					AND NOT a.attisdropped
-			`);
+			`;
 
-			// Create a map for quick FK lookup
+			const compiledFk = fkQuery.compile(db);
+			const foreignKeys = yield* withQueryLogging(db.execute(fkQuery), {
+				type: "columns" as const,
+				sql: compiledFk.sql,
+				params: compiledFk.parameters,
+				schema: input.schema,
+				table: input.table,
+				connectionId: input.connectionId,
+				persistFn: persistQueryLog,
+				updatePersistFn: updatePersistedQueryLog,
+			}); // Create a map for quick FK lookup
 			const fkMap = new Map<
 				string,
 				{
@@ -75,7 +94,7 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 				});
 			});
 
-			const columns = yield* db.execute(sql<TableColumnMetadata>`
+			const columnsQuery = sql<TableColumnMetadata>`
 			SELECT DISTINCT ON (a.attnum)
 				a.attname as name,
 				format_type(a.atttypid, a.atttypmod) as "dataType",
@@ -97,7 +116,19 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 				AND NOT a.attisdropped
 			ORDER BY
 				a.attnum
-		`); // Merge FK info with column metadata
+		`;
+
+			const compiledCols = columnsQuery.compile(db);
+			const columns = yield* withQueryLogging(db.execute(columnsQuery), {
+				type: "columns" as const,
+				sql: compiledCols.sql,
+				params: compiledCols.parameters,
+				schema: input.schema,
+				table: input.table,
+				connectionId: input.connectionId,
+				persistFn: persistQueryLog,
+				updatePersistFn: updatePersistedQueryLog,
+			}); // Merge FK info with column metadata
 			return columns.map((col) => ({
 				...col,
 				isForeignKey: fkMap.has(col.name),

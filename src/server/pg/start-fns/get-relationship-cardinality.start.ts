@@ -34,6 +34,7 @@ const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 					schema: ctx.data.schema,
 					table: ctx.data.table,
 					columns: Array.from(ctx.data.columns),
+					connectionId: connection.id,
 					isIncomingRelationship: ctx.data.isIncomingRelationship,
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 			}),

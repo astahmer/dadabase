@@ -38,6 +38,7 @@ const findColumnReferencesServerFn = createServerFn({ method: "POST" })
 					referencedSchema: ctx.data.referencedSchema,
 					referencedTable: ctx.data.referencedTable,
 					referencedColumn: ctx.data.referencedColumn,
+					connectionId: connection.id,
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 			}),
 		);
@@ -74,6 +75,7 @@ const findColumnReferencesWithCountsServerFn = createServerFn({
 					referencedTable: ctx.data.referencedTable,
 					referencedColumn: ctx.data.referencedColumn,
 					cellValue: ctx.data.cellValue,
+					connectionId: connection.id,
 				}).pipe(Effect.provide(makeKyselyPgDatabaseLayer(connection.url)));
 			}),
 		);

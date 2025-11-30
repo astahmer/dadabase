@@ -3,6 +3,11 @@ import type { TableRelationship } from "#src/components/pages/connection-page/re
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
+import {
+	persistQueryLog,
+	updatePersistedQueryLog,
+} from "#src/server/query-logger/query-logger.kysely.ts";
 
 /**
  * Get all relationships for a table (both incoming and outgoing)
@@ -11,12 +16,13 @@ import { sql } from "kysely";
 export const getTableRelationships = (input: {
 	schema: string;
 	table: string;
+	connectionId: string;
 }) =>
 	Effect.gen(function* () {
 		const db = yield* KyselyPgDatabase;
 
 		try {
-			const relationships = yield* db.execute(sql<TableRelationship>`
+			const relQuery = sql<TableRelationship>`
 				-- Get outgoing relationships (FKs from this table)
 				SELECT
 					'outgoing'::text as type,
@@ -66,10 +72,21 @@ export const getTableRelationships = (input: {
 					)
 					AND kcu2.table_schema = ${input.schema}
 					AND kcu2.table_name = ${input.table}
-				ORDER BY
-					type, "referencingTable", "referencingColumn"
-			`);
+			ORDER BY
+				type, "referencingTable", "referencingColumn"
+		`;
 
+			const compiledRel = relQuery.compile(db);
+			const relationships = yield* withQueryLogging(db.execute(relQuery), {
+				type: "constraint" as const,
+				sql: compiledRel.sql,
+				params: compiledRel.parameters,
+				schema: input.schema,
+				table: input.table,
+				connectionId: input.connectionId,
+				persistFn: persistQueryLog,
+				updatePersistFn: updatePersistedQueryLog,
+			});
 			return relationships;
 		} catch (e) {
 			return yield* Effect.fail(
