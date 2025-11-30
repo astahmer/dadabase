@@ -8,80 +8,80 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ConnectionsConnectionNameRouteImport } from './routes/connections/$connectionName'
+import { Route as rootRouteImport } from "./routes/__root";
+import { Route as IndexRouteImport } from "./routes/index";
+import { Route as ConnectionsConnectionNameRouteImport } from "./routes/connections/$connectionName";
 
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
+	id: "/",
+	path: "/",
+	getParentRoute: () => rootRouteImport,
+} as any);
 const ConnectionsConnectionNameRoute =
-  ConnectionsConnectionNameRouteImport.update({
-    id: '/connections/$connectionName',
-    path: '/connections/$connectionName',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+	ConnectionsConnectionNameRouteImport.update({
+		id: "/connections/$connectionName",
+		path: "/connections/$connectionName",
+		getParentRoute: () => rootRouteImport,
+	} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+	"/": typeof IndexRoute;
+	"/connections/$connectionName": typeof ConnectionsConnectionNameRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+	"/": typeof IndexRoute;
+	"/connections/$connectionName": typeof ConnectionsConnectionNameRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+	__root__: typeof rootRouteImport;
+	"/": typeof IndexRoute;
+	"/connections/$connectionName": typeof ConnectionsConnectionNameRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/connections/$connectionName'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/connections/$connectionName'
-  id: '__root__' | '/' | '/connections/$connectionName'
-  fileRoutesById: FileRoutesById
+	fileRoutesByFullPath: FileRoutesByFullPath;
+	fullPaths: "/" | "/connections/$connectionName";
+	fileRoutesByTo: FileRoutesByTo;
+	to: "/" | "/connections/$connectionName";
+	id: "__root__" | "/" | "/connections/$connectionName";
+	fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ConnectionsConnectionNameRoute: typeof ConnectionsConnectionNameRoute
+	IndexRoute: typeof IndexRoute;
+	ConnectionsConnectionNameRoute: typeof ConnectionsConnectionNameRoute;
 }
 
-declare module '@tanstack/react-router' {
-  interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/connections/$connectionName': {
-      id: '/connections/$connectionName'
-      path: '/connections/$connectionName'
-      fullPath: '/connections/$connectionName'
-      preLoaderRoute: typeof ConnectionsConnectionNameRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-  }
+declare module "@tanstack/react-router" {
+	interface FileRoutesByPath {
+		"/": {
+			id: "/";
+			path: "/";
+			fullPath: "/";
+			preLoaderRoute: typeof IndexRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+		"/connections/$connectionName": {
+			id: "/connections/$connectionName";
+			path: "/connections/$connectionName";
+			fullPath: "/connections/$connectionName";
+			preLoaderRoute: typeof ConnectionsConnectionNameRouteImport;
+			parentRoute: typeof rootRouteImport;
+		};
+	}
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  ConnectionsConnectionNameRoute: ConnectionsConnectionNameRoute,
-}
+	IndexRoute: IndexRoute,
+	ConnectionsConnectionNameRoute: ConnectionsConnectionNameRoute,
+};
 export const routeTree = rootRouteImport
-  ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+	._addFileChildren(rootRouteChildren)
+	._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
+import type { getRouter } from "./router.tsx";
+import type { createStart } from "@tanstack/react-start";
+declare module "@tanstack/react-start" {
+	interface Register {
+		ssr: true;
+		router: Awaited<ReturnType<typeof getRouter>>;
+	}
 }

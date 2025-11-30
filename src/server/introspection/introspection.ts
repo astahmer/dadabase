@@ -270,15 +270,16 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 			pg: () =>
 				client<IndexInfo>`
 					SELECT DISTINCT
-						i.indexname as index_name,
+						pi.indexname as index_name,
 						a.attname as column_name,
 						ix.indisunique as is_unique,
 						ix.indisprimary as is_primary
 					FROM pg_indexes pi
 					JOIN pg_class t ON pi.tablename = t.relname
-					JOIN pg_class i ON pi.indexname = i.relname
-					JOIN pg_index ix ON i.oid = ix.indexrelid
+					JOIN pg_class c ON pi.indexname = c.relname
+					JOIN pg_index ix ON c.oid = ix.indexrelid
 					JOIN pg_attribute a ON a.attrelid = t.oid
+						AND a.attnum = ANY(ix.indkey)
 					WHERE pi.schemaname = ${schema}
 					AND pi.tablename = ${table}
 				`,

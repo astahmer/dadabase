@@ -67,7 +67,7 @@
 		"class-variance-authority": "0.7.1",
 		"clsx": "2.1.1",
 		"drizzle-orm": "catalog:",
-		"effect": "3.18.4",
+		"effect": "catalog:",
 		"highlight.js": "11.11.1",
 		"kysely": "0.28.8",
 		"lucide-react": "0.553.0",
