@@ -98,44 +98,6 @@ describe("getTableColumns", () => {
 		);
 	});
 
-	test("correctly identifies primary key columns via getTableIndexes", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
-
-				const indexes = yield* getTableIndexes({
-					schema: "public",
-					table: "users",
-				});
-
-				// Find primary key index
-				const pkIndex = indexes.find((idx) => idx.is_primary);
-				expect(pkIndex).toBeDefined();
-				expect(pkIndex?.column_name).toBe("id");
-			}),
-		);
-	});
-
-	test("correctly identifies unique columns via getTableIndexes", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
-
-				const indexes = yield* getTableIndexes({
-					schema: "public",
-					table: "users",
-				});
-
-				// Find unique index for email column
-				const uniqueIndex = indexes.find(
-					(idx) =>
-						idx.is_unique && !idx.is_primary && idx.column_name === "email",
-				);
-				expect(uniqueIndex).toBeDefined();
-			}),
-		);
-	});
-
 	test("correctly identifies nullable columns", async () => {
 		await runTest(
 			Effect.gen(function* () {
@@ -178,107 +140,6 @@ describe("getTableColumns", () => {
 			}),
 		);
 	});
-
-	test("retrieves foreign key information via getTableForeignKeys", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
-
-				const foreignKeys = yield* getTableForeignKeys({
-					schema: "public",
-					table: "posts",
-				});
-
-				const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
-				expect(userIdFK).toBeDefined();
-				expect(userIdFK?.referenced_table_name).toBe("users");
-				expect(userIdFK?.referenced_column_name).toBe("id");
-				expect(userIdFK?.referenced_table_schema).toBe("public");
-			}),
-		);
-	});
-
-	test("returns empty foreign keys for tables without FKs", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
-
-				const foreignKeys = yield* getTableForeignKeys({
-					schema: "public",
-					table: "users",
-				});
-
-				// users table has no foreign keys
-				expect(foreignKeys.length).toBe(0);
-			}),
-		);
-	});
-
-	test("handles one-to-one relationships (unique FK)", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
-
-				const foreignKeys = yield* getTableForeignKeys({
-					schema: "public",
-					table: "user_profiles",
-				});
-
-				const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
-				expect(userIdFK).toBeDefined();
-				expect(userIdFK?.referenced_table_name).toBe("users");
-
-				// Also check that user_id is a primary key via indexes
-				const indexes = yield* getTableIndexes({
-					schema: "public",
-					table: "user_profiles",
-				});
-				const pkIndex = indexes.find(
-					(idx) => idx.is_primary && idx.column_name === "user_id",
-				);
-				expect(pkIndex).toBeDefined();
-			}),
-		);
-	});
-
-	test("handles tables with multiple foreign keys", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
-
-				const foreignKeys = yield* getTableForeignKeys({
-					schema: "public",
-					table: "post_tags",
-				});
-
-				const postIdFK = foreignKeys.find((fk) => fk.column_name === "post_id");
-				expect(postIdFK).toBeDefined();
-				expect(postIdFK?.referenced_table_name).toBe("posts");
-
-				const tagIdFK = foreignKeys.find((fk) => fk.column_name === "tag_id");
-				expect(tagIdFK).toBeDefined();
-				expect(tagIdFK?.referenced_table_name).toBe("tags");
-			}),
-		);
-	});
-
-	test("handles composite primary keys via getTableIndexes", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
-
-				const indexes = yield* getTableIndexes({
-					schema: "public",
-					table: "post_tags",
-				});
-
-				// Find primary key indexes - there should be entries for both columns
-				const pkIndexes = indexes.filter((idx) => idx.is_primary);
-				expect(pkIndexes.length).toBeGreaterThanOrEqual(1);
-			}),
-		);
-	});
-
 	test("returns empty array for non-existent table", async () => {
 		await runTest(
 			Effect.gen(function* () {
@@ -325,23 +186,6 @@ describe("getTableColumns", () => {
 				expect(createdAtColumn?.is_nullable).toBe(false);
 				expect(createdAtColumn?.column_default).toBeDefined();
 				expect(createdAtColumn?.data_type).toContain("timestamp");
-			}),
-		);
-	});
-
-	test("correctly returns constraint names for foreign keys", async () => {
-		await runTest(
-			Effect.gen(function* () {
-				yield* setupSchema;
-
-				const foreignKeys = yield* getTableForeignKeys({
-					schema: "public",
-					table: "posts",
-				});
-
-				const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
-				expect(userIdFK?.constraint_name).toBeDefined();
-				expect(userIdFK?.constraint_name).toMatch(/posts_user_id_fkey/);
 			}),
 		);
 	});
@@ -460,6 +304,165 @@ describe("getTableColumns", () => {
 				const hasUnique = userIdIndexes.some((idx) => idx.is_unique);
 				expect(hasPrimary).toBe(true);
 				expect(hasUnique).toBe(true);
+			}),
+		);
+	});
+});
+
+describe("getTableIndexes", () => {
+	test("correctly identifies primary key columns via getTableIndexes", async () => {
+		await runTest(
+			Effect.gen(function* () {
+				yield* setupSchema;
+
+				const indexes = yield* getTableIndexes({
+					schema: "public",
+					table: "users",
+				});
+
+				// Find primary key index
+				const pkIndex = indexes.find((idx) => idx.is_primary);
+				expect(pkIndex).toBeDefined();
+				expect(pkIndex?.column_name).toBe("id");
+			}),
+		);
+	});
+
+	test("correctly identifies unique columns via getTableIndexes", async () => {
+		await runTest(
+			Effect.gen(function* () {
+				yield* setupSchema;
+
+				const indexes = yield* getTableIndexes({
+					schema: "public",
+					table: "users",
+				});
+
+				// Find unique index for email column
+				const uniqueIndex = indexes.find(
+					(idx) =>
+						idx.is_unique && !idx.is_primary && idx.column_name === "email",
+				);
+				expect(uniqueIndex).toBeDefined();
+			}),
+		);
+	});
+
+	test("handles one-to-one relationships (unique FK)", async () => {
+		await runTest(
+			Effect.gen(function* () {
+				yield* setupSchema;
+
+				const foreignKeys = yield* getTableForeignKeys({
+					schema: "public",
+					table: "user_profiles",
+				});
+
+				const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
+				expect(userIdFK).toBeDefined();
+				expect(userIdFK?.referenced_table_name).toBe("users");
+
+				// Also check that user_id is a primary key via indexes
+				const indexes = yield* getTableIndexes({
+					schema: "public",
+					table: "user_profiles",
+				});
+				const pkIndex = indexes.find(
+					(idx) => idx.is_primary && idx.column_name === "user_id",
+				);
+				expect(pkIndex).toBeDefined();
+			}),
+		);
+	});
+
+	test("handles composite primary keys via getTableIndexes", async () => {
+		await runTest(
+			Effect.gen(function* () {
+				yield* setupSchema;
+
+				const indexes = yield* getTableIndexes({
+					schema: "public",
+					table: "post_tags",
+				});
+
+				// Find primary key indexes - there should be entries for both columns
+				const pkIndexes = indexes.filter((idx) => idx.is_primary);
+				expect(pkIndexes.length).toBeGreaterThanOrEqual(1);
+			}),
+		);
+	});
+});
+
+describe("getTableForeignKeys", () => {
+	test("correctly returns constraint names for foreign keys", async () => {
+		await runTest(
+			Effect.gen(function* () {
+				yield* setupSchema;
+
+				const foreignKeys = yield* getTableForeignKeys({
+					schema: "public",
+					table: "posts",
+				});
+
+				const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
+				expect(userIdFK?.constraint_name).toBeDefined();
+				expect(userIdFK?.constraint_name).toMatch(/posts_user_id_fkey/);
+			}),
+		);
+	});
+
+	test("retrieves foreign key information via getTableForeignKeys", async () => {
+		await runTest(
+			Effect.gen(function* () {
+				yield* setupSchema;
+
+				const foreignKeys = yield* getTableForeignKeys({
+					schema: "public",
+					table: "posts",
+				});
+
+				const userIdFK = foreignKeys.find((fk) => fk.column_name === "user_id");
+				expect(userIdFK).toBeDefined();
+				expect(userIdFK?.referenced_table_name).toBe("users");
+				expect(userIdFK?.referenced_column_name).toBe("id");
+				expect(userIdFK?.referenced_table_schema).toBe("public");
+			}),
+		);
+	});
+
+	test("returns empty foreign keys for tables without FKs", async () => {
+		await runTest(
+			Effect.gen(function* () {
+				yield* setupSchema;
+
+				const foreignKeys = yield* getTableForeignKeys({
+					schema: "public",
+					table: "users",
+				});
+
+				// users table has no foreign keys
+				expect(foreignKeys.length).toBe(0);
+			}),
+		);
+	});
+
+	test("handles tables with multiple foreign keys", async () => {
+		await runTest(
+			Effect.gen(function* () {
+				yield* setupSchema;
+
+				const foreignKeys = yield* getTableForeignKeys({
+					schema: "public",
+					table: "post_tags",
+				});
+
+				const postIdFK = foreignKeys.find((fk) => fk.column_name === "post_id");
+				expect(postIdFK).toBeDefined();
+				expect(postIdFK?.referenced_table_name).toBe("posts");
+
+				const tagIdFK = foreignKeys.find((fk) => fk.column_name === "tag_id");
+				expect(tagIdFK).toBeDefined();
+				expect(tagIdFK?.referenced_table_name).toBe("tags");
 			}),
 		);
 	});
