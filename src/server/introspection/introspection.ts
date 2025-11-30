@@ -126,10 +126,7 @@ interface PragmaColumnInfo {
  * - PostgreSQL: Query information_schema.columns
  * - SQLite: PRAGMA table_info
  */
-export const getTableColumns = (input: {
-	schema: string;
-	table: string;
-}) =>
+export const getTableColumns = (input: { schema: string; table: string }) =>
 	Effect.gen(function* () {
 		const client = yield* SqlClient.SqlClient;
 		const { schema, table } = input;
@@ -201,10 +198,7 @@ interface PragmaForeignKeyInfo {
  * - PostgreSQL: Query information_schema.table_constraints
  * - SQLite: PRAGMA foreign_key_list
  */
-export const getTableForeignKeys = (input: {
-	schema: string;
-	table: string;
-}) =>
+export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 	Effect.gen(function* () {
 		const client = yield* SqlClient.SqlClient;
 		const { schema, table } = input;
@@ -267,10 +261,7 @@ interface PragmaIndexInfo {
  * - PostgreSQL: Query pg_indexes
  * - SQLite: PRAGMA index_list
  */
-export const getTableIndexes = (input: {
-	schema: string;
-	table: string;
-}) =>
+export const getTableIndexes = (input: { schema: string; table: string }) =>
 	Effect.gen(function* () {
 		const client = yield* SqlClient.SqlClient;
 		const { schema, table } = input;
