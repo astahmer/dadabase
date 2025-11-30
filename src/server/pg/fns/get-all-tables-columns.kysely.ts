@@ -1,13 +1,9 @@
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
-import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
-import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
-import {
-	persistQueryLog,
-	updatePersistedQueryLog,
-} from "#src/server/query-logger/query-logger.kysely.ts";
 
 export interface ForeignKeyInfo {
 	referencedSchema: string;
@@ -54,8 +50,6 @@ export const getAllTablesColumns = (input: {
 					params: compiledTables.parameters,
 					schema: input.schema,
 					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
 				}),
 			); // For each table, fetch its columns metadata
 			const allTablesColumns: TableColumnsMetadata[] = [];
@@ -102,8 +96,6 @@ export const getAllTablesColumns = (input: {
 						schema: input.schema,
 						table: tableName,
 						connectionId: input.connectionId,
-						persistFn: persistQueryLog,
-						updatePersistFn: updatePersistedQueryLog,
 					}),
 				); // Create a map for quick FK lookup
 				const fkMap = new Map<
@@ -164,8 +156,6 @@ export const getAllTablesColumns = (input: {
 						schema: input.schema,
 						table: tableName,
 						connectionId: input.connectionId,
-						persistFn: persistQueryLog,
-						updatePersistFn: updatePersistedQueryLog,
 					}),
 				); // Merge FK info with column metadata
 				const columnsWithFK = columns.map((col) => ({

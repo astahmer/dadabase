@@ -3,10 +3,8 @@ import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { getAvailableSchemas } from "./get-available-schemas.kysely.ts";
 import { getAvailableTableList } from "./get-available-tables.kysely.ts";
 import { getAvailableDatabaseList } from "./get-available-database-list.kysely.ts";
-import {
-	QueryLogger,
-	QueryLoggerNoopLayer,
-} from "#src/server/query-logger/query-logger.service.ts";
+import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
+import { QueryLoggerNoopLayer } from "#src/server/query-logger/query-logger.layer.noop.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";

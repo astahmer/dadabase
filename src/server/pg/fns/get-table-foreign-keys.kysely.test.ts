@@ -5,10 +5,8 @@ import {
 	findColumnReferences,
 	findColumnReferencesWithCounts,
 } from "./get-table-foreign-keys.kysely.ts";
-import {
-	QueryLogger,
-	QueryLoggerNoopLayer,
-} from "#src/server/query-logger/query-logger.service.ts";
+import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
+import { QueryLoggerNoopLayer } from "#src/server/query-logger/query-logger.layer.noop.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { sql, type ColumnType } from "kysely";

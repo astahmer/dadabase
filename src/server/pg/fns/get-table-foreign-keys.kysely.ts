@@ -1,13 +1,9 @@
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
-import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
-import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
-import {
-	persistQueryLog,
-	updatePersistedQueryLog,
-} from "#src/server/query-logger/query-logger.kysely.ts";
 
 export interface ForeignKeyMetadata {
 	columnName: string;
@@ -63,8 +59,6 @@ export const getTableForeignKeys = (input: {
 					schema: input.schema,
 					table: input.table,
 					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
 				}),
 			);
 			return foreignKeys;
@@ -134,8 +128,6 @@ export const findColumnReferences = (input: {
 					schema: input.referencedSchema,
 					table: input.referencedTable,
 					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
 				}),
 			);
 			return references;
@@ -199,8 +191,6 @@ export const findColumnReferencesWithCounts = (input: {
 					schema: input.referencedSchema,
 					table: input.referencedTable,
 					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
 				}),
 			); // Execute all COUNT queries in parallel
 			// Normalize the cell value: treat string "null" or "undefined" as null
@@ -238,8 +228,6 @@ export const findColumnReferencesWithCounts = (input: {
 							schema: ref.schema,
 							table: ref.table,
 							connectionId: input.connectionId,
-							persistFn: persistQueryLog,
-							updatePersistFn: updatePersistedQueryLog,
 						}),
 						Effect.map((countResult: { count: number }[]) => ({
 							...ref,

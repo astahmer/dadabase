@@ -1,14 +1,10 @@
-import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
+import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
-import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
-import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
-import {
-	persistQueryLog,
-	updatePersistedQueryLog,
-} from "#src/server/query-logger/query-logger.kysely.ts";
 
 /**
  * Get all relationships for a table (both incoming and outgoing)
@@ -86,8 +82,6 @@ export const getTableRelationships = (input: {
 					schema: input.schema,
 					table: input.table,
 					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
 				}),
 			);
 			return relationships;

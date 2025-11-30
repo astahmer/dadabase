@@ -1,15 +1,11 @@
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
-import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { sql } from "kysely";
-import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { buildWhereExpression } from "./build-where-expression";
-import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
-import {
-	persistQueryLog,
-	updatePersistedQueryLog,
-} from "#src/server/query-logger/query-logger.kysely.ts";
 
 export const queryTableData = <
 	T extends Record<string, any> = Record<string, any>,
@@ -56,8 +52,6 @@ export const queryTableData = <
 					schema: input.schema,
 					table: input.table,
 					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
 				}),
 			);
 			const rowCount = (countResult[0] as any)?.count ?? 0;
@@ -95,8 +89,6 @@ export const queryTableData = <
 						schema: input.schema,
 						table: input.table,
 						connectionId: input.connectionId,
-						persistFn: persistQueryLog,
-						updatePersistFn: updatePersistedQueryLog,
 					}),
 				)
 				.pipe(

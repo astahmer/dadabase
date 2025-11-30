@@ -43,12 +43,14 @@ const cleanupOldQueryLogs = (connectionId: string) =>
 	Effect.gen(function* () {
 		const db = yield* AppDatabase;
 		// Get IDs of logs to delete (keeping only the last 1000)
+		// Note: SQLite requires LIMIT with OFFSET, so we use a large LIMIT
 		const logsToDelete = yield* db.execute(
 			db
 				.selectFrom("query_logs")
 				.select("id")
 				.where("connection_id", "=", connectionId)
 				.orderBy("created_at", "desc")
+				.limit(1000)
 				.offset(1000),
 		);
 

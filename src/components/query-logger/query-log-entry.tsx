@@ -29,7 +29,7 @@ const queryTypeColorMap: Record<
 };
 
 export const QueryLogEntry = ({ entry, onExpand }: QueryLogEntryProps) => {
-	const relativeTime = formatRelativeTime(entry.startTime);
+	const relativeTime = formatRelativeTime(entry.startTime.getTime());
 	const exactTime = new Date(entry.startTime).toLocaleTimeString();
 
 	return (

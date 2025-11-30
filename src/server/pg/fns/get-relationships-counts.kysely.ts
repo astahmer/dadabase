@@ -1,15 +1,11 @@
-import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
-import { Effect } from "effect";
-import { sql } from "kysely";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
-import { buildWhereExpression } from "./build-where-expression";
+import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
-import {
-	persistQueryLog,
-	updatePersistedQueryLog,
-} from "#src/server/query-logger/query-logger.kysely.ts";
+import { Effect } from "effect";
+import { sql } from "kysely";
+import { buildWhereExpression } from "./build-where-expression";
 
 export interface RelationshipCountResult {
 	constraintName: string;
@@ -97,8 +93,6 @@ export const getRelationshipsCounts = (input: {
 								schema: rel.referencingSchema,
 								table: rel.referencingTable,
 								connectionId,
-								persistFn: persistQueryLog,
-								updatePersistFn: updatePersistedQueryLog,
 							}),
 						);
 						const count = (result[0] as any)?.count ?? 0;

@@ -75,8 +75,6 @@ export const getTableColumns = (input: {
 					schema: input.schema,
 					table: input.table,
 					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
 				}),
 			); // Create a map for quick FK lookup
 			const fkMap = new Map<
@@ -130,8 +128,6 @@ export const getTableColumns = (input: {
 					schema: input.schema,
 					table: input.table,
 					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
 				}),
 			); // Merge FK info with column metadata
 			return columns.map((col) => ({

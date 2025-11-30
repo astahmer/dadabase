@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { QueryLogger } from "./query-logger.service.ts";
+import { QueryLogger } from "./query-logger.ts";
 import type { QueryLogEntryType, QueryLogType } from "./query-logger.types.ts";
 
 export interface WithQueryLoggingOptions {
@@ -13,14 +13,6 @@ export interface WithQueryLoggingOptions {
 	 * Logs will be automatically persisted to the database.
 	 */
 	connectionId?: string | undefined;
-	persistFn: (
-		connectionId: string,
-		entry: QueryLogEntryType,
-	) => Effect.Effect<void, any, any>;
-	updatePersistFn: (
-		id: string,
-		updates: Partial<QueryLogEntryType>,
-	) => Effect.Effect<void, any, any>;
 }
 
 const trimSql = (sql: string) =>
@@ -58,7 +50,7 @@ export const withQueryLogging =
 
 		return Effect.gen(function* () {
 			const queryLogger = yield* QueryLogger;
-			const startTime = Date.now();
+			const startTime = new Date();
 			const logEntry: Omit<QueryLogEntryType, "id"> = {
 				sql: trimSql(options.sql || ""),
 				params: options.params,
@@ -71,23 +63,15 @@ export const withQueryLogging =
 
 			const entryId = yield* queryLogger.push(logEntry);
 
-			// Persist initial entry
-			yield* options
-				.persistFn(connectionId, { ...logEntry, id: entryId })
-				.pipe(
-					Effect.catchAll(() =>
-						Effect.logWarning(`Failed to persist initial query log ${entryId}`),
-					),
-				);
-
 			return yield* effect.pipe(
 				Effect.tap((result) => {
-					const endTime = Date.now();
+					const endTime = new Date();
 					const updates: Partial<QueryLogEntryType> = {
 						status: "success" as const,
 						endTime,
-						timeTaken: endTime - startTime,
+						timeTaken: endTime.getTime() - startTime.getTime(),
 					};
+
 					if (
 						result &&
 						typeof result === "object" &&
@@ -100,39 +84,24 @@ export const withQueryLogging =
 						updates.rowsAffected = result.rowCount as number;
 					}
 
-					return queryLogger.update(entryId, updates).pipe(
-						Effect.andThen(() => options.updatePersistFn(entryId, updates)),
-						Effect.catchAll(() =>
-							Effect.logWarning(
-								`Failed to persist query log update for ${entryId}`,
-							),
-						),
-					);
+					return queryLogger.update(entryId, updates);
 				}),
 				Effect.catchAll((error) => {
-					const endTime = Date.now();
+					const endTime = new Date();
 					const errorMessage =
 						error instanceof Error ? error.message : String(error);
 					const errorStack = error instanceof Error ? error.stack : undefined;
 					const updates = {
 						status: "error" as const,
 						endTime,
-						timeTaken: endTime - startTime,
+						timeTaken: endTime.getTime() - startTime.getTime(),
 						error: {
 							message: errorMessage,
 							stack: errorStack,
 						},
 					};
 
-					return queryLogger.update(entryId, updates).pipe(
-						Effect.andThen(() => options.updatePersistFn(entryId, updates)),
-						Effect.catchAll(() =>
-							Effect.logWarning(
-								`Failed to persist error for query log ${entryId}`,
-							),
-						),
-						Effect.andThen(() => Effect.fail(error as E)),
-					);
+					return queryLogger.update(entryId, updates);
 				}),
 			);
 		}) as Effect.Effect<TOutput, E, R | QueryLogger>;

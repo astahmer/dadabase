@@ -3,7 +3,7 @@ import {
 	RemoteConnectionId,
 	makeRemoteConnectionLayer,
 } from "#src/server/db-connection/remote-connection.tag.ts";
-import { QueryLoggerPersistentLayer } from "#src/server/query-logger/query-logger.service.ts";
+import { QueryLoggerPersistentLayer } from "./query-logger/query-logger.layer.persisted";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 import { Effect, Layer, type ManagedRuntime } from "effect";
 

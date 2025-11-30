@@ -1,11 +1,7 @@
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
-import { Effect } from "effect";
 import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
-import {
-	persistQueryLog,
-	updatePersistedQueryLog,
-} from "#src/server/query-logger/query-logger.kysely.ts";
+import { Effect } from "effect";
 
 export const getAvailableDatabaseList = (input: { connectionId?: string }) =>
 	Effect.gen(function* () {
@@ -18,8 +14,6 @@ export const getAvailableDatabaseList = (input: { connectionId?: string }) =>
 				sql: compiled.sql,
 				params: compiled.parameters,
 				connectionId: input.connectionId,
-				persistFn: persistQueryLog,
-				updatePersistFn: updatePersistedQueryLog,
 			}),
 		);
 		return rows;

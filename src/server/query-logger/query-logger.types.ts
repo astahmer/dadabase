@@ -21,8 +21,8 @@ export interface QueryLogEntryType {
 	schema?: string;
 	table?: string;
 	status: QueryLogStatus;
-	startTime: number;
-	endTime?: number;
+	startTime: Date;
+	endTime?: Date;
 	timeTaken?: number;
 	rowsReturned?: number;
 	rowsAffected?: number;

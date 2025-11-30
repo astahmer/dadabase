@@ -1,12 +1,8 @@
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
-import { Effect } from "effect";
 import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
-import { sql } from "kysely";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
-import {
-	persistQueryLog,
-	updatePersistedQueryLog,
-} from "#src/server/query-logger/query-logger.kysely.ts";
+import { Effect } from "effect";
+import { sql } from "kysely";
 
 export type Cardinality =
 	| "one-to-one"
@@ -112,8 +108,6 @@ export const getRelationshipCardinality = (input: {
 					schema: input.schema,
 					table: input.table,
 					connectionId: input.connectionId,
-					persistFn: persistQueryLog,
-					updatePersistFn: updatePersistedQueryLog,
 				}),
 			);
 			let cardinality: Cardinality;

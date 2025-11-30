@@ -1,7 +1,5 @@
-import {
-	QueryLogger,
-	QueryLoggerInMemoryLayer,
-} from "#src/server/query-logger/query-logger.service.ts";
+import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
+import { QueryLoggerInMemoryLayer } from "#src/server/query-logger/query-logger.layer.in-memory.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
