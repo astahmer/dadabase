@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Trash2, ChevronUp, ChevronDown } from "lucide-react";
-import { useQueryLogger } from "#src/hooks/use-query-logger.ts";
-import { QueryLogEntry } from "./query-log-entry.tsx";
+import { useQueryLogger } from "#src/components/query-logger/use-query-logger.ts";
 import { QueryLoggerDetailDialog } from "./query-logger-detail-dialog.tsx";
 import { Button } from "../ui/button.tsx";
 import { queryLoggerPanelStyles } from "./query-logger.styles.ts";
-import type { QueryLogEntry as QueryLogEntryType } from "#src/lib/query-logger.types.ts";
+import type { QueryLogEntryType as QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
+import { QueryLogEntry } from "./query-log-entry.tsx";
 
 export const QueryLoggerPanel = () => {
 	const { history, isOpen, toggleOpen, clearHistory } = useQueryLogger();

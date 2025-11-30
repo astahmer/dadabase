@@ -1,9 +1,6 @@
 import { Effect } from "effect";
-import type {
-	QueryLogEntry,
-	QueryLogType,
-} from "#src/lib/query-logger.types.ts";
 import { QueryLogger } from "./query-logger.service.ts";
+import type { QueryLogEntryType, QueryLogType } from "./query-logger.types.ts";
 
 export interface WithQueryLoggingOptions {
 	type: QueryLogType;
@@ -35,7 +32,7 @@ export const withQueryLogging = <R, E, A>(
 	return Effect.gen(function* () {
 		const logger = yield* QueryLogger;
 		const startTime = Date.now();
-		const logEntry: Omit<QueryLogEntry, "id"> = {
+		const logEntry: Omit<QueryLogEntryType, "id"> = {
 			sql: options.sql || "",
 			params: options.params,
 			type: options.type,
@@ -45,34 +42,33 @@ export const withQueryLogging = <R, E, A>(
 			startTime,
 		};
 
-		const entryId = logger.addEntry(logEntry);
+		const entryId = yield* logger.addEntry(logEntry);
 
 		return yield* effect.pipe(
-			Effect.tap(() =>
-				Effect.sync(() => {
-					const endTime = Date.now();
-					logger.updateEntry(entryId, {
-						status: "success",
-						endTime,
-						timeTaken: endTime - startTime,
-					});
-				}),
-			),
+			Effect.tap(() => {
+				const endTime = Date.now();
+				return logger.updateEntry(entryId, {
+					status: "success",
+					endTime,
+					timeTaken: endTime - startTime,
+				});
+			}),
 			Effect.catchAll((error) => {
 				const endTime = Date.now();
 				const errorMessage =
 					error instanceof Error ? error.message : String(error);
 				const errorStack = error instanceof Error ? error.stack : undefined;
-				logger.updateEntry(entryId, {
-					status: "error",
-					endTime,
-					timeTaken: endTime - startTime,
-					error: {
-						message: errorMessage,
-						stack: errorStack,
-					},
-				});
-				return Effect.fail(error as E);
+				return logger
+					.updateEntry(entryId, {
+						status: "error",
+						endTime,
+						timeTaken: endTime - startTime,
+						error: {
+							message: errorMessage,
+							stack: errorStack,
+						},
+					})
+					.pipe(Effect.andThen(() => Effect.fail(error as E)));
 			}),
 		);
 	});
@@ -92,7 +88,7 @@ export const withQueryLoggingAndRowCount = <
 	return Effect.gen(function* () {
 		const logger = yield* QueryLogger;
 		const startTime = Date.now();
-		const logEntry: Omit<QueryLogEntry, "id"> = {
+		const logEntry: Omit<QueryLogEntryType, "id"> = {
 			sql: options.sql || "",
 			params: options.params,
 			type: options.type,
@@ -102,36 +98,35 @@ export const withQueryLoggingAndRowCount = <
 			startTime,
 		};
 
-		const entryId = logger.addEntry(logEntry);
+		const entryId = yield* logger.addEntry(logEntry);
 
 		return yield* effect.pipe(
-			Effect.tap((result) =>
-				Effect.sync(() => {
-					const endTime = Date.now();
-					logger.updateEntry(entryId, {
-						status: "success",
-						endTime,
-						timeTaken: endTime - startTime,
-						rowsReturned: result.rows?.length ?? 0,
-						rowsAffected: result.rowCount,
-					});
-				}),
-			),
+			Effect.tap((result) => {
+				const endTime = Date.now();
+				return logger.updateEntry(entryId, {
+					status: "success",
+					endTime,
+					timeTaken: endTime - startTime,
+					rowsReturned: result.rows?.length ?? 0,
+					rowsAffected: result.rowCount,
+				});
+			}),
 			Effect.catchAll((error) => {
 				const endTime = Date.now();
 				const errorMessage =
 					error instanceof Error ? error.message : String(error);
 				const errorStack = error instanceof Error ? error.stack : undefined;
-				logger.updateEntry(entryId, {
-					status: "error",
-					endTime,
-					timeTaken: endTime - startTime,
-					error: {
-						message: errorMessage,
-						stack: errorStack,
-					},
-				});
-				return Effect.fail(error as E);
+				return logger
+					.updateEntry(entryId, {
+						status: "error",
+						endTime,
+						timeTaken: endTime - startTime,
+						error: {
+							message: errorMessage,
+							stack: errorStack,
+						},
+					})
+					.pipe(Effect.andThen(() => Effect.fail(error as E)));
 			}),
 		);
 	});

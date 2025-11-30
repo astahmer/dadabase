@@ -1,3 +1,5 @@
+import type { Effect } from "effect";
+
 export type QueryLogType =
 	| "table"
 	| "schema"
@@ -8,7 +10,7 @@ export type QueryLogType =
 
 export type QueryLogStatus = "pending" | "success" | "error";
 
-export interface QueryLogEntry {
+export interface QueryLogEntryType {
 	id: string;
 	sql: string;
 	params?: Record<string, any> | ReadonlyArray<any>;
@@ -28,9 +30,12 @@ export interface QueryLogEntry {
 }
 
 export interface QueryLoggerContext {
-	history: QueryLogEntry[];
-	addEntry: (entry: Omit<QueryLogEntry, "id">) => string;
-	updateEntry: (id: string, updates: Partial<QueryLogEntry>) => void;
-	clearHistory: () => void;
-	removeEntry: (id: string) => void;
+	history: QueryLogEntryType[];
+	addEntry: (entry: Omit<QueryLogEntryType, "id">) => Effect.Effect<string>;
+	updateEntry: (
+		id: string,
+		updates: Partial<QueryLogEntryType>,
+	) => Effect.Effect<void>;
+	clearHistory: () => Effect.Effect<void>;
+	removeEntry: (id: string) => Effect.Effect<void>;
 }

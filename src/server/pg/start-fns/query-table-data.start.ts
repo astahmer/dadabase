@@ -10,7 +10,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Duration, Effect, Schema } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { queryTableData } from "../fns/query-table-data.kysely.ts";
-import { withQueryLoggingAndRowCount } from "../../services/with-query-logging.ts";
+import { withQueryLoggingAndRowCount } from "#src/server/query-logger/with-query-logging.ts";
 
 // Using Record type with any for now to avoid schema validation issues
 

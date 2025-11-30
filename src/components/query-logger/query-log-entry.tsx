@@ -1,13 +1,13 @@
 import { ChevronRight } from "lucide-react";
-import type { QueryLogEntry } from "#src/lib/query-logger.types.ts";
+import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
 import {
 	queryLogEntryStatusStyles,
 	queryLogEntryTypeStyles,
 } from "./query-logger.styles.ts";
 
 interface QueryLogEntryProps {
-	entry: QueryLogEntry;
-	onExpand: (entry: QueryLogEntry) => void;
+	entry: QueryLogEntryType;
+	onExpand: (entry: QueryLogEntryType) => void;
 }
 
 export const QueryLogEntry = ({ entry, onExpand }: QueryLogEntryProps) => {

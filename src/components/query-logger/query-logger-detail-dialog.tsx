@@ -8,11 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs.tsx";
 import { Button } from "../ui/button.tsx";
 import { Copy, Check } from "lucide-react";
 import { useState } from "react";
-import type { QueryLogEntry } from "#src/lib/query-logger.types.ts";
+import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
 import { cn } from "#src/lib/utils.ts";
 
 interface QueryLoggerDetailDialogProps {
-	entry: QueryLogEntry | null;
+	entry: QueryLogEntryType | null;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 }
