@@ -874,3 +874,284 @@ export const getRelationshipsCounts = (input: {
 
 		return result;
 	});
+
+/**
+ * Filter condition for building WHERE clauses
+ */
+export interface FilterCondition {
+	column: string;
+	operator:
+		| "equals"
+		| "not_equals"
+		| "contains"
+		| "not_contains"
+		| "starts_with"
+		| "ends_with"
+		| "greater_than"
+		| "greater_than_or_equal"
+		| "less_than"
+		| "less_than_or_equal"
+		| "is_null"
+		| "is_not_null"
+		| "in"
+		| "not_in";
+	value?: string | number | boolean | null | string[];
+}
+
+/**
+ * Build a WHERE clause fragment for PostgreSQL
+ */
+const buildPgWhereFragment = (
+	conditions: FilterCondition[],
+	logicalOp: "and" | "or",
+): string => {
+	if (conditions.length === 0) return "";
+
+	const validConditions = conditions.filter((c) => {
+		if (c.operator === "is_null" || c.operator === "is_not_null") return true;
+		return c.value !== undefined && c.value !== null;
+	});
+
+	if (validConditions.length === 0) return "";
+
+	const expressions = validConditions.map((c) => {
+		const col = `"${c.column}"`;
+		switch (c.operator) {
+			case "equals":
+				return `${col} = '${escapeValue(c.value)}'`;
+			case "not_equals":
+				return `${col} != '${escapeValue(c.value)}'`;
+			case "contains":
+				return `${col} ILIKE '%${escapeValue(c.value)}%'`;
+			case "not_contains":
+				return `${col} NOT ILIKE '%${escapeValue(c.value)}%'`;
+			case "starts_with":
+				return `${col} ILIKE '${escapeValue(c.value)}%'`;
+			case "ends_with":
+				return `${col} ILIKE '%${escapeValue(c.value)}'`;
+			case "greater_than":
+				return `${col} > '${escapeValue(c.value)}'`;
+			case "greater_than_or_equal":
+				return `${col} >= '${escapeValue(c.value)}'`;
+			case "less_than":
+				return `${col} < '${escapeValue(c.value)}'`;
+			case "less_than_or_equal":
+				return `${col} <= '${escapeValue(c.value)}'`;
+			case "is_null":
+				return `${col} IS NULL`;
+			case "is_not_null":
+				return `${col} IS NOT NULL`;
+			case "in": {
+				const values = Array.isArray(c.value) ? c.value : [c.value];
+				return `${col} = ANY(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
+			}
+			case "not_in": {
+				const values = Array.isArray(c.value) ? c.value : [c.value];
+				return `${col} != ALL(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
+			}
+			default:
+				return "";
+		}
+	});
+
+	const joiner = logicalOp === "and" ? " AND " : " OR ";
+	return expressions.filter(Boolean).join(joiner);
+};
+
+/**
+ * Build a WHERE clause fragment for SQLite
+ */
+const buildSqliteWhereFragment = (
+	conditions: FilterCondition[],
+	logicalOp: "and" | "or",
+): string => {
+	if (conditions.length === 0) return "";
+
+	const validConditions = conditions.filter((c) => {
+		if (c.operator === "is_null" || c.operator === "is_not_null") return true;
+		return c.value !== undefined && c.value !== null;
+	});
+
+	if (validConditions.length === 0) return "";
+
+	const expressions = validConditions.map((c) => {
+		const col = `"${c.column}"`;
+		switch (c.operator) {
+			case "equals":
+				return `${col} = '${escapeValue(c.value)}'`;
+			case "not_equals":
+				return `${col} != '${escapeValue(c.value)}'`;
+			case "contains":
+				// SQLite uses LIKE (case-insensitive with COLLATE NOCASE)
+				return `${col} LIKE '%${escapeValue(c.value)}%' COLLATE NOCASE`;
+			case "not_contains":
+				return `${col} NOT LIKE '%${escapeValue(c.value)}%' COLLATE NOCASE`;
+			case "starts_with":
+				return `${col} LIKE '${escapeValue(c.value)}%' COLLATE NOCASE`;
+			case "ends_with":
+				return `${col} LIKE '%${escapeValue(c.value)}' COLLATE NOCASE`;
+			case "greater_than":
+				return `${col} > '${escapeValue(c.value)}'`;
+			case "greater_than_or_equal":
+				return `${col} >= '${escapeValue(c.value)}'`;
+			case "less_than":
+				return `${col} < '${escapeValue(c.value)}'`;
+			case "less_than_or_equal":
+				return `${col} <= '${escapeValue(c.value)}'`;
+			case "is_null":
+				return `${col} IS NULL`;
+			case "is_not_null":
+				return `${col} IS NOT NULL`;
+			case "in": {
+				const values = Array.isArray(c.value) ? c.value : [c.value];
+				return `${col} IN (${values.map((v) => `'${escapeValue(v)}'`).join(",")})`;
+			}
+			case "not_in": {
+				const values = Array.isArray(c.value) ? c.value : [c.value];
+				return `${col} NOT IN (${values.map((v) => `'${escapeValue(v)}'`).join(",")})`;
+			}
+			default:
+				return "";
+		}
+	});
+
+	const joiner = logicalOp === "and" ? " AND " : " OR ";
+	return expressions.filter(Boolean).join(joiner);
+};
+
+/**
+ * Escape a value for SQL queries to prevent SQL injection
+ */
+const escapeValue = (value: unknown): string => {
+	if (value === null || value === undefined) return "";
+	const str = String(value);
+	// Escape single quotes by doubling them
+	return str.replace(/'/g, "''");
+};
+
+/**
+ * Query table rows with filtering, pagination, and ordering
+ * - PostgreSQL: Uses schema.table notation, ILIKE, ANY/ALL for arrays
+ * - SQLite: Uses table only (no schema), LIKE with COLLATE NOCASE, IN for arrays
+ */
+export const queryTableRows = <
+	T extends Record<string, unknown> = Record<string, unknown>,
+>(input: {
+	schema: string;
+	table: string;
+	limit?: number;
+	offset?: number;
+	orderBy?: string;
+	orderDirection?: "asc" | "desc";
+	filters?: {
+		conditions: FilterCondition[];
+		logicalOperator: "and" | "or";
+	};
+}) =>
+	Effect.gen(function* () {
+		const client = yield* SqlClient.SqlClient;
+		const {
+			schema,
+			table,
+			limit = 50,
+			offset = 0,
+			orderBy,
+			orderDirection = "asc",
+			filters,
+		} = input;
+
+		// Build WHERE clause if filters exist
+		const pgWhereClause =
+			filters && filters.conditions.length > 0
+				? buildPgWhereFragment(filters.conditions, filters.logicalOperator)
+				: "";
+		const sqliteWhereClause =
+			filters && filters.conditions.length > 0
+				? buildSqliteWhereFragment(filters.conditions, filters.logicalOperator)
+				: "";
+
+		// Build ORDER BY clause
+		const orderClause = orderBy
+			? `ORDER BY "${orderBy}" ${orderDirection.toUpperCase()}`
+			: "";
+
+		// Get count and rows
+		const result = yield* client.onDialectOrElse({
+			pg: () =>
+				Effect.gen(function* () {
+					const tableRef = `"${schema}"."${table}"`;
+					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
+
+					// Get total count
+					const countRows = yield* client<{ count: bigint }>`
+						SELECT COUNT(*)::bigint as count
+						FROM ${Statement.unsafeFragment(tableRef)}
+						${Statement.unsafeFragment(whereFragment)}
+					`;
+					const rowCount = Number(countRows[0]?.count ?? 0);
+
+					// Get rows
+					const rows = yield* client<T>`
+						SELECT *
+						FROM ${Statement.unsafeFragment(tableRef)}
+						${Statement.unsafeFragment(whereFragment)}
+						${Statement.unsafeFragment(orderClause)}
+						LIMIT ${limit} OFFSET ${offset}
+					`;
+
+					return { rows: rows as T[], rowCount };
+				}),
+			sqlite: () =>
+				Effect.gen(function* () {
+					const tableRef = `"${table}"`;
+					const whereFragment = sqliteWhereClause
+						? `WHERE ${sqliteWhereClause}`
+						: "";
+
+					// Get total count
+					const countRows = yield* client<{ count: number }>`
+						SELECT COUNT(*) as count
+						FROM ${Statement.unsafeFragment(tableRef)}
+						${Statement.unsafeFragment(whereFragment)}
+					`;
+					const rowCount = Number(countRows[0]?.count ?? 0);
+
+					// Get rows
+					const rows = yield* client<T>`
+						SELECT *
+						FROM ${Statement.unsafeFragment(tableRef)}
+						${Statement.unsafeFragment(whereFragment)}
+						${Statement.unsafeFragment(orderClause)}
+						LIMIT ${limit} OFFSET ${offset}
+					`;
+
+					return { rows: rows as T[], rowCount };
+				}),
+			orElse: () =>
+				Effect.gen(function* () {
+					const tableRef = `"${schema}"."${table}"`;
+					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
+
+					// Get total count
+					const countRows = yield* client<{ count: number }>`
+						SELECT COUNT(*) as count
+						FROM ${Statement.unsafeFragment(tableRef)}
+						${Statement.unsafeFragment(whereFragment)}
+					`;
+					const rowCount = Number(countRows[0]?.count ?? 0);
+
+					// Get rows
+					const rows = yield* client<T>`
+						SELECT *
+						FROM ${Statement.unsafeFragment(tableRef)}
+						${Statement.unsafeFragment(whereFragment)}
+						${Statement.unsafeFragment(orderClause)}
+						LIMIT ${limit} OFFSET ${offset}
+					`;
+
+					return { rows: rows as T[], rowCount };
+				}),
+		});
+
+		return result;
+	});
