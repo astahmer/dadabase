@@ -14,7 +14,7 @@ const pgliteKyselyLayer = Layer.effect(
 );
 
 // https://github.com/evelant/synchrotron/blob/a0ba9fe2a8515c7a900c74069e2f7cb850c6c147/packages/sql-pglite/src/PgLiteClient.ts
-const pgliteLayer = PgLiteClient.layer({
+export const pgliteLayer = PgLiteClient.layer({
 	// dataDir: "pglite-cache",
 	dataDir: "memory://",
 	// extensions: { vector },

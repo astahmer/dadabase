@@ -26,6 +26,9 @@
 		"paths": {
 			"#src/*": [
 				"./src/*"
+			],
+			"@dadabase/effect-pglite": [
+				"./packages/effect-pglite/src/mod.ts"
 			]
 		},
 		"plugins": [
