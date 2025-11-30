@@ -1,11 +1,11 @@
 import { cva } from "class-variance-authority";
 
 export const queryLoggerPanelStyles = cva(
-	"border-t bg-background transition-all duration-300",
+	"border-t bg-background transition-all duration-300 flex flex-col overflow-hidden",
 	{
 		variants: {
 			isOpen: {
-				true: "h-64",
+				true: "h-96",
 				false: "h-12",
 			},
 		},

@@ -7,6 +7,7 @@ import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 const getTableRelationshipsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -32,7 +33,12 @@ const getTableRelationshipsServerFn = createServerFn({ method: "POST" })
 					schema: ctx.data.schema,
 					table: ctx.data.table,
 					connectionId: connection.id,
-				}).pipe(withRemoteConnectionLayers(connection.url, connection.id));
+				}).pipe(
+					withRemoteConnectionLayers(
+						connection.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});

@@ -9,6 +9,7 @@ import {
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -38,7 +39,12 @@ const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 					columns: Array.from(ctx.data.columns),
 					connectionId: connection.id,
 					isIncomingRelationship: ctx.data.isIncomingRelationship,
-				}).pipe(withRemoteConnectionLayers(connection.url, connection.id));
+				}).pipe(
+					withRemoteConnectionLayers(
+						connection.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});

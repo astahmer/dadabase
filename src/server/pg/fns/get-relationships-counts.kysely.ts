@@ -85,11 +85,12 @@ export const getRelationshipsCounts = (input: {
 							countQuery = countQuery.where(whereExpression as any);
 						}
 
-						const countSql = countQuery.compile().sql;
+						const compiled = countQuery.compile();
 						const result = yield* db.execute(countQuery as any).pipe(
 							withQueryLogging({
 								type: QueryLogType.RelationshipCounting,
-								sql: countSql,
+								sql: compiled.sql,
+								params: compiled.parameters,
 								schema: rel.referencingSchema,
 								table: rel.referencingTable,
 								connectionId,

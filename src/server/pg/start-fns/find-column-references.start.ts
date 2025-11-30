@@ -10,6 +10,7 @@ import {
 	findColumnReferencesWithCounts,
 	type ColumnReference,
 } from "../fns/get-table-foreign-keys.kysely.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 /**
  * Find all tables and columns that reference a specific column (reverse FK lookup)
@@ -41,7 +42,12 @@ const findColumnReferencesServerFn = createServerFn({ method: "POST" })
 					referencedTable: ctx.data.referencedTable,
 					referencedColumn: ctx.data.referencedColumn,
 					connectionId: connection.id,
-				}).pipe(withRemoteConnectionLayers(connection.url, connection.id));
+				}).pipe(
+					withRemoteConnectionLayers(
+						connection.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});
@@ -80,7 +86,12 @@ const findColumnReferencesWithCountsServerFn = createServerFn({
 					referencedColumn: ctx.data.referencedColumn,
 					cellValue: ctx.data.cellValue,
 					connectionId: connection.id,
-				}).pipe(withRemoteConnectionLayers(connection.url, connection.id));
+				}).pipe(
+					withRemoteConnectionLayers(
+						connection.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});

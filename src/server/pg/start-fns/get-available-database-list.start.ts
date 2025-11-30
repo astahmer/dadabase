@@ -6,6 +6,7 @@ import { getAvailableDatabaseList } from "../fns/get-available-database-list.kys
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 const getAvailableDatabaseListServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -25,7 +26,12 @@ const getAvailableDatabaseListServerFn = createServerFn({ method: "POST" })
 
 				return yield* getAvailableDatabaseList({
 					connectionId: connection.id,
-				}).pipe(withRemoteConnectionLayers(ctx.data.url, connection.id));
+				}).pipe(
+					withRemoteConnectionLayers(
+						ctx.data.url,
+						RemoteConnectionId.make(connection.id),
+					),
+				);
 			}),
 		);
 	});

@@ -7,7 +7,7 @@ export interface WithQueryLoggingOptions {
 	sql?: string;
 	schema?: string;
 	table?: string;
-	params?: Record<string, any> | ReadonlyArray<any>;
+	params: Record<string, any> | ReadonlyArray<any>;
 	/**
 	 * Connection ID for database persistence.
 	 * Logs will be automatically persisted to the database.

@@ -44,11 +44,12 @@ export const queryTableData = <
 				countQuery = countQuery.where(whereExpression as any);
 			}
 
-			const countSql = countQuery.compile().sql;
+			const countQueryCompiled = countQuery.compile();
 			const countResult = yield* db.execute(countQuery).pipe(
 				withQueryLogging({
 					type: QueryLogType.TableCount,
-					sql: countSql,
+					sql: countQueryCompiled.sql,
+					params: countQueryCompiled.parameters,
 					schema: input.schema,
 					table: input.table,
 					connectionId: input.connectionId,
@@ -76,9 +77,10 @@ export const queryTableData = <
 			// Add limit and offset for pagination
 			query = query.limit(limit).offset(offset);
 
-			const mainSql = query.compile().sql;
-			console.log("--> Main SQL:", mainSql);
-			console.time(`<-- Main SQL: ${mainSql}`);
+			const compiled = query.compile();
+			const mainSql = compiled.sql;
+			// console.log("--> Main SQL:", mainSql);
+			// console.time(`<-- Main SQL: ${mainSql}`);
 			const rows = yield* db
 				.execute(query as any)
 				.pipe(Effect.map((r) => ({ rows: r as T[], rowCount: rowCount })))
@@ -86,16 +88,17 @@ export const queryTableData = <
 					withQueryLogging({
 						type: QueryLogType.TableRows,
 						sql: mainSql,
+						params: compiled.parameters,
 						schema: input.schema,
 						table: input.table,
 						connectionId: input.connectionId,
 					}),
-				)
-				.pipe(
-					Effect.tap(() =>
-						Effect.sync(() => console.timeEnd(`<-- Main SQL: ${mainSql}`)),
-					),
 				);
+			// .pipe(
+			// 	Effect.tap(() =>
+			// 		Effect.sync(() => console.timeEnd(`<-- Main SQL: ${mainSql}`)),
+			// 	),
+			// );
 			return rows;
 		} catch (e) {
 			return yield* Effect.fail(

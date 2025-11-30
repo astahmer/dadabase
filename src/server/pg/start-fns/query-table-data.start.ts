@@ -10,6 +10,7 @@ import { Duration, Effect, Schema } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { queryTableData } from "../fns/query-table-data.kysely.ts";
 import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 
 const InputSchema = Schema.Struct({
 	url: Schema.URL,
@@ -61,7 +62,10 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 					},
 					connectionId: connection.id,
 				}).pipe(
-					withRemoteConnectionLayers(input.url.toString(), connection.id),
+					withRemoteConnectionLayers(
+						input.url.toString(),
+						RemoteConnectionId.make(connection.id),
+					),
 				);
 
 				return result;

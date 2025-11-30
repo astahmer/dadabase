@@ -1,14 +1,16 @@
+import { AppDatabase } from "#src/db/app.db.ts";
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
+import { NanoId } from "#src/server/services/nano-id.ts";
+import { describe, expect, it } from "@effect/vitest";
+import { Effect, Layer } from "effect";
+import { sql } from "kysely";
+import { customAlphabet, nanoid as defaultNanoId } from "nanoid";
 import { createDbConnection } from "./create-db-connection.ts";
 import { deleteDbConnection } from "./delete-db-connection.ts";
 import { updateDbConnection } from "./update-db-connection.ts";
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { NanoId } from "#src/server/services/nano-id.ts";
-import { AppDatabase } from "#src/db/app.db.ts";
-import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
-import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
-import { sql, type ColumnType } from "kysely";
-import { customAlphabet, nanoid as defaultNanoId } from "nanoid";
+import type { EffectKysely } from "#src/db/effect-kysely.ts";
+import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 
 const testNanoId = (prefix: string) =>
 	Effect.sync(
@@ -43,7 +45,7 @@ const TestNanoIdLayer = Layer.succeed(
 const TestDatabaseRepositoryLayer = Layer.effect(
 	DatabaseConnectionRepository,
 	Effect.gen(function* () {
-		const db = yield* AppDatabase;
+		const db = (yield* AppDatabase) as EffectKysely<AppDatabaseSchema>;
 		return new DatabaseConnectionRepository({
 			findAll: () => {
 				return db.execute(
