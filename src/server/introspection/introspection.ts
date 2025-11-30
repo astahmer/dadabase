@@ -769,3 +769,108 @@ export const getRelationshipCardinality = (input: {
 
 		return { cardinality };
 	});
+
+/**
+ * Input type for relationship counting
+ */
+interface TableRelationshipInput {
+	constraintName: string;
+	referencingSchema: string;
+	referencingTable: string;
+	referencingColumn: string;
+	referencedSchema: string;
+	referencedTable: string;
+	referencedColumn: string;
+	type: "incoming" | "outgoing";
+}
+
+/**
+ * Fetch row counts for all relationships of a table in a single batch
+ * This is more efficient than querying each relationship individually
+ * - PostgreSQL: Query with COUNT and WHERE clause
+ * - SQLite: Same approach
+ */
+export const getRelationshipsCounts = (input: {
+	schema: string;
+	table: string;
+	relationships: TableRelationshipInput[];
+	rowData: Record<string, unknown>;
+}) =>
+	Effect.gen(function* () {
+		const client = yield* SqlClient.SqlClient;
+		const { relationships, rowData } = input;
+
+		if (relationships.length === 0) {
+			return {};
+		}
+
+		// Filter out relationships where the FK value is null
+		const validRelationships = relationships.filter((rel) => {
+			const filterValue =
+				rowData[
+					rel.type === "incoming" ? rel.referencedColumn : rel.referencingColumn
+				];
+			const isNullValue =
+				filterValue === null ||
+				filterValue === undefined ||
+				filterValue === "null";
+			return !isNullValue;
+		});
+
+		// Execute COUNT queries in parallel
+		const results = yield* Effect.all(
+			validRelationships.map((rel) =>
+				Effect.gen(function* () {
+					const filterValue =
+						rowData[
+							rel.type === "incoming"
+								? rel.referencedColumn
+								: rel.referencingColumn
+						];
+
+					const count = yield* client.onDialectOrElse({
+						pg: () =>
+							client<{ count: number }>`
+								SELECT COUNT(*)::bigint as count
+								FROM ${Statement.unsafeFragment(`"${rel.referencingSchema}"."${rel.referencingTable}"`)}
+								WHERE ${Statement.unsafeFragment(`"${rel.referencingColumn}"`)} = ${String(filterValue)}
+							`.pipe(
+								Effect.map((rows) => Number(rows[0]?.count ?? 0)),
+								Effect.catchAll(() => Effect.succeed(0)),
+							),
+						sqlite: () =>
+							client<{ count: number }>`
+								SELECT COUNT(*) as count
+								FROM ${Statement.unsafeFragment(`"${rel.referencingTable}"`)}
+								WHERE ${Statement.unsafeFragment(`"${rel.referencingColumn}"`)} = ${String(filterValue)}
+							`.pipe(
+								Effect.map((rows) => Number(rows[0]?.count ?? 0)),
+								Effect.catchAll(() => Effect.succeed(0)),
+							),
+						orElse: () =>
+							client<{ count: number }>`
+								SELECT COUNT(*) as count
+								FROM ${Statement.unsafeFragment(`"${rel.referencingSchema}"."${rel.referencingTable}"`)}
+								WHERE ${Statement.unsafeFragment(`"${rel.referencingColumn}"`)} = ${String(filterValue)}
+							`.pipe(
+								Effect.map((rows) => Number(rows[0]?.count ?? 0)),
+								Effect.catchAll(() => Effect.succeed(0)),
+							),
+					});
+
+					return {
+						constraintName: rel.constraintName,
+						count,
+					};
+				}),
+			),
+		);
+
+		// Convert array to object keyed by constraintName
+		const result: Record<string, number> = {};
+		for (const { constraintName, count } of results) {
+			result[constraintName] = count;
+		}
+
+		return result;
+	});
