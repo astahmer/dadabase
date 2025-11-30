@@ -56,12 +56,8 @@ const InMemoryLayer = Layer.effect(
 	KyselyPgDatabase,
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
 		dataDir: "memory://",
-	}) as any,
-).pipe(Layer.merge(QueryLoggerNoopLayer)) as any as Layer.Layer<
-	KyselyPgDatabase | QueryLogger,
-	never,
-	never
->;
+	}),
+).pipe(Layer.merge(QueryLoggerNoopLayer));
 
 describe("queryTableData", () => {
 	// Helper to set up test schema
@@ -928,7 +924,7 @@ describe("queryTableData", () => {
 
 				// is_null should work without a value
 				expect(result.rowCount).toBe(1);
-				expect((result.rows as any)[0].content).toBeNull();
+				expect(result.rows[0].content).toBeNull();
 			}).pipe(Effect.provide(InMemoryLayer));
 		},
 	);

@@ -40,12 +40,8 @@ const InMemoryLayer = Layer.effect(
 	KyselyPgDatabase,
 	makeEffectKyselyPglite<TestInMemoryDbSchema>({
 		dataDir: "memory://",
-	}) as any,
-).pipe(Layer.merge(QueryLoggerNoopLayer)) as any as Layer.Layer<
-	KyselyPgDatabase | QueryLogger,
-	never,
-	never
->;
+	}),
+).pipe(Layer.merge(QueryLoggerNoopLayer));
 
 describe("getRelationshipsCounts", () => {
 	// Helper to set up test schema

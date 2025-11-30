@@ -43,7 +43,7 @@ describe("filterQueryValidConditions", () => {
 				{
 					column: "name",
 					operator: "equals",
-					value: null as any,
+					value: null,
 				},
 			],
 			logicalOperator: "and",
@@ -236,7 +236,7 @@ describe("filterQueryValidConditions", () => {
 				{
 					column: "name",
 					operator: "equals",
-					value: null as any,
+					value: null,
 				},
 				{
 					column: "age",
