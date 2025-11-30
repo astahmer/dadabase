@@ -1,4 +1,4 @@
-import { SqlClient } from "@effect/sql";
+import { SqlClient, Statement } from "@effect/sql";
 import { Effect } from "effect";
 
 /**
@@ -427,14 +427,14 @@ export const getTableRelationships = (input: {
 	});
 
 /**
- * Column reference info for reverse FK lookup
+ * Column reference info for reverse FK lookup (camelCase to match Kysely interface)
  */
 interface ColumnReferenceInfo {
 	schema: string;
 	table: string;
 	column: string;
-	referenced_column: string;
-	constraint_name: string;
+	referencedColumn: string;
+	constraintName: string;
 }
 
 /**
@@ -458,8 +458,8 @@ export const findColumnReferences = (input: {
 						kcu1.table_schema AS schema,
 						kcu1.table_name AS table,
 						kcu1.column_name AS column,
-						kcu2.column_name AS referenced_column,
-						kcu1.constraint_name AS constraint_name
+						kcu2.column_name AS "referencedColumn",
+						kcu1.constraint_name AS "constraintName"
 					FROM
 						information_schema.key_column_usage kcu1
 						LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
@@ -487,8 +487,8 @@ export const findColumnReferences = (input: {
 						kcu1.table_schema AS schema,
 						kcu1.table_name AS table,
 						kcu1.column_name AS column,
-						kcu2.column_name AS referenced_column,
-						kcu1.constraint_name AS constraint_name
+						kcu2.column_name AS "referencedColumn",
+						kcu1.constraint_name AS "constraintName"
 					FROM
 						information_schema.key_column_usage kcu1
 						LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
@@ -507,6 +507,137 @@ export const findColumnReferences = (input: {
 						kcu1.column_name
 				`,
 		});
+	});
+
+/**
+ * Column reference info with matching row count
+ */
+interface ColumnReferenceWithCount extends ColumnReferenceInfo {
+	matchingRowCount: number;
+}
+
+/**
+ * Get all tables and columns that reference a specific column with row counts
+ * Counts how many rows in each referencing table match the given cell value
+ * All COUNT queries execute in parallel for efficiency
+ * - PostgreSQL: Query information_schema + dynamic count queries
+ * - SQLite: Not directly supported (would need to scan all tables)
+ */
+export const findColumnReferencesWithCounts = (input: {
+	referencedSchema: string;
+	referencedTable: string;
+	referencedColumn: string;
+	cellValue: unknown;
+}) =>
+	Effect.gen(function* () {
+		const client = yield* SqlClient.SqlClient;
+		const { referencedSchema, referencedTable, referencedColumn, cellValue } =
+			input;
+
+		// First get all references
+		const references = yield* findColumnReferences({
+			referencedSchema,
+			referencedTable,
+			referencedColumn,
+		});
+
+		// Normalize the cell value: treat string "null" or "undefined" as null
+		const normalizedCellValue =
+			cellValue === undefined || cellValue === null
+				? null
+				: typeof cellValue === "string" &&
+						(cellValue === "null" || cellValue === "undefined")
+					? null
+					: cellValue;
+
+		// Execute all COUNT queries in parallel
+		const referencesWithCounts = yield* Effect.all(
+			references.map((ref) =>
+				client.onDialectOrElse({
+					pg: () => {
+						// Build the count query based on whether value is null
+						if (normalizedCellValue === null) {
+							return client<{ count: number }>`
+								SELECT COUNT(*) as count
+								FROM ${Statement.unsafeFragment(`"${ref.schema}"."${ref.table}"`)}
+								WHERE ${Statement.unsafeFragment(`"${ref.column}"`)} IS NULL
+							`.pipe(
+								Effect.map((rows) => ({
+									...ref,
+									matchingRowCount: Number(rows[0]?.count ?? 0),
+								})),
+								Effect.catchAll(() =>
+									Effect.succeed({
+										...ref,
+										matchingRowCount: -1,
+									}),
+								),
+							);
+						}
+						return client<{ count: number }>`
+							SELECT COUNT(*) as count
+							FROM ${Statement.unsafeFragment(`"${ref.schema}"."${ref.table}"`)}
+							WHERE ${Statement.unsafeFragment(`"${ref.column}"`)} = ${normalizedCellValue}
+						`.pipe(
+							Effect.map((rows) => ({
+								...ref,
+								matchingRowCount: Number(rows[0]?.count ?? 0),
+							})),
+							Effect.catchAll(() =>
+								Effect.succeed({
+									...ref,
+									matchingRowCount: -1,
+								}),
+							),
+						);
+					},
+					sqlite: () =>
+						// SQLite: return 0 since we can't do reverse FK lookup
+						Effect.succeed({
+							...ref,
+							matchingRowCount: 0,
+						} as ColumnReferenceWithCount),
+					orElse: () => {
+						if (normalizedCellValue === null) {
+							return client<{ count: number }>`
+								SELECT COUNT(*) as count
+								FROM ${Statement.unsafeFragment(`"${ref.schema}"."${ref.table}"`)}
+								WHERE ${Statement.unsafeFragment(`"${ref.column}"`)} IS NULL
+							`.pipe(
+								Effect.map((rows) => ({
+									...ref,
+									matchingRowCount: Number(rows[0]?.count ?? 0),
+								})),
+								Effect.catchAll(() =>
+									Effect.succeed({
+										...ref,
+										matchingRowCount: -1,
+									}),
+								),
+							);
+						}
+						return client<{ count: number }>`
+							SELECT COUNT(*) as count
+							FROM ${Statement.unsafeFragment(`"${ref.schema}"."${ref.table}"`)}
+							WHERE ${Statement.unsafeFragment(`"${ref.column}"`)} = ${normalizedCellValue}
+						`.pipe(
+							Effect.map((rows) => ({
+								...ref,
+								matchingRowCount: Number(rows[0]?.count ?? 0),
+							})),
+							Effect.catchAll(() =>
+								Effect.succeed({
+									...ref,
+									matchingRowCount: -1,
+								}),
+							),
+						);
+					},
+				}),
+			),
+		);
+
+		return referencesWithCounts;
 	});
 
 /**
