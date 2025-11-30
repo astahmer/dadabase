@@ -6,10 +6,11 @@ import {
 } from "../ui/dialog.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs.tsx";
 import { Button } from "../ui/button.tsx";
+import { Badge } from "../ui/badge.tsx";
 import { Copy, Check } from "lucide-react";
 import { useState } from "react";
 import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
-import { cn } from "#src/lib/utils.ts";
+import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 
 interface QueryLoggerDetailDialogProps {
 	entry: QueryLogEntryType | null;
@@ -34,22 +35,53 @@ export const QueryLoggerDetailDialog = ({
 
 	if (!entry) return null;
 
+	const queryTypeColorMap: Record<
+		string,
+		| "default"
+		| "secondary"
+		| "destructive"
+		| "success"
+		| "error"
+		| "warning"
+		| "info"
+		| "muted"
+	> = {
+		table: "info",
+		schema: "secondary",
+		enum: "warning",
+		constraint: "destructive",
+		total: "muted",
+		columns: "default",
+	};
+
+	const statusColorMap: Record<
+		string,
+		| "default"
+		| "secondary"
+		| "destructive"
+		| "success"
+		| "error"
+		| "warning"
+		| "info"
+		| "muted"
+	> = {
+		success: "success",
+		error: "error",
+		pending: "warning",
+	};
+
+	const relativeTime = formatRelativeTime(entry.startTime);
+	const exactTime = new Date(entry.startTime).toLocaleTimeString();
+
 	return (
 		<Dialog open={open} onOpenChange={(details) => onOpenChange(details.open)}>
 			<DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						Query Details
-						<span
-							className={cn(
-								"px-2 py-1 rounded text-xs font-medium",
-								entry.status === "success" && "bg-green-100 text-green-700",
-								entry.status === "error" && "bg-red-100 text-red-700",
-								entry.status === "pending" && "bg-yellow-100 text-yellow-700",
-							)}
-						>
+						<Badge colorPalette={statusColorMap[entry.status]} size="xs">
 							{entry.status}
-						</span>
+						</Badge>
 					</DialogTitle>
 				</DialogHeader>
 
@@ -93,7 +125,13 @@ export const QueryLoggerDetailDialog = ({
 								<p className="text-sm font-medium text-muted-foreground">
 									Type
 								</p>
-								<p className="text-sm">{entry.type}</p>
+								<Badge
+									colorPalette={queryTypeColorMap[entry.type]}
+									size="sm"
+									className="w-fit"
+								>
+									{entry.type}
+								</Badge>
 							</div>
 							{entry.schema && (
 								<div>
@@ -140,8 +178,8 @@ export const QueryLoggerDetailDialog = ({
 									<p className="text-sm font-medium text-muted-foreground">
 										Executed At
 									</p>
-									<p className="text-sm">
-										{new Date(entry.startTime).toLocaleTimeString()}
+									<p className="text-sm" title={exactTime}>
+										{relativeTime}
 									</p>
 								</div>
 							)}

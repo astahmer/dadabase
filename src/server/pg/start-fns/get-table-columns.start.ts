@@ -41,7 +41,7 @@ export const getTableColumnsQueryOptions = (
 	input: InferServerFnSchema<typeof getTableColumnsServerFn>,
 ) =>
 	queryOptions({
-		queryKey: ["pg", "tableColumns", input],
+		queryKey: ["remote", "tableColumns", input],
 		queryFn: () => getTableColumnsServerFn({ data: input }),
 		staleTime: 60 * 1000, // 1 minute
 	});

@@ -2,6 +2,7 @@ import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import {
 	persistQueryLog,
@@ -56,7 +57,7 @@ export const getTableForeignKeys = (input: {
 			const compiled = fkQuery.compile(db);
 			const foreignKeys = yield* db.execute(fkQuery).pipe(
 				withQueryLogging({
-					type: "constraint" as const,
+					type: QueryLogType.ForeignKeyLookup,
 					sql: compiled.sql,
 					params: compiled.parameters,
 					schema: input.schema,
@@ -127,7 +128,7 @@ export const findColumnReferences = (input: {
 			const compiled = refQuery.compile(db);
 			const references = yield* db.execute(refQuery).pipe(
 				withQueryLogging({
-					type: "constraint" as const,
+					type: QueryLogType.ForeignKeyLookup,
 					sql: compiled.sql,
 					params: compiled.parameters,
 					schema: input.referencedSchema,
@@ -192,7 +193,7 @@ export const findColumnReferencesWithCounts = (input: {
 			const compiledRef = refQuery.compile(db);
 			const references = yield* db.execute(refQuery).pipe(
 				withQueryLogging({
-					type: "constraint" as const,
+					type: QueryLogType.ForeignKeyLookup,
 					sql: compiledRef.sql,
 					params: compiledRef.parameters,
 					schema: input.referencedSchema,
@@ -231,7 +232,7 @@ export const findColumnReferencesWithCounts = (input: {
 
 					return db.execute(countQuery).pipe(
 						withQueryLogging({
-							type: "constraint" as const,
+							type: QueryLogType.ForeignKeyLookup,
 							sql: countQuery.compile(db).sql,
 							params: countQuery.compile(db).parameters,
 							schema: ref.schema,

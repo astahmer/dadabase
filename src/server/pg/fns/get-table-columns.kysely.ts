@@ -2,6 +2,7 @@ import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import {
 	persistQueryLog,
@@ -68,7 +69,7 @@ export const getTableColumns = (input: {
 			const compiledFk = fkQuery.compile(db);
 			const foreignKeys = yield* db.execute(fkQuery).pipe(
 				withQueryLogging({
-					type: "columns" as const,
+					type: QueryLogType.ColumnMetadata,
 					sql: compiledFk.sql,
 					params: compiledFk.parameters,
 					schema: input.schema,
@@ -123,7 +124,7 @@ export const getTableColumns = (input: {
 			const compiledCols = columnsQuery.compile(db);
 			const columns = yield* db.execute(columnsQuery).pipe(
 				withQueryLogging({
-					type: "columns" as const,
+					type: QueryLogType.ColumnMetadata,
 					sql: compiledCols.sql,
 					params: compiledCols.parameters,
 					schema: input.schema,

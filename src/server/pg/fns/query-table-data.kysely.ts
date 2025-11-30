@@ -1,13 +1,11 @@
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { sql } from "kysely";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { buildWhereExpression } from "./build-where-expression";
-import {
-	withQueryLogging,
-	withQueryLoggingAndRowCount,
-} from "#src/server/query-logger/with-query-logging.ts";
+import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import {
 	persistQueryLog,
 	updatePersistedQueryLog,
@@ -51,9 +49,9 @@ export const queryTableData = <
 			}
 
 			const countSql = countQuery.compile().sql;
-			const countResult = yield* db.execute(countQuery as any).pipe(
+			const countResult = yield* db.execute(countQuery).pipe(
 				withQueryLogging({
-					type: "total",
+					type: QueryLogType.TableCount,
 					sql: countSql,
 					schema: input.schema,
 					table: input.table,
@@ -91,8 +89,8 @@ export const queryTableData = <
 				.execute(query as any)
 				.pipe(Effect.map((r) => ({ rows: r as T[], rowCount: rowCount })))
 				.pipe(
-					withQueryLoggingAndRowCount({
-						type: "table",
+					withQueryLogging({
+						type: QueryLogType.TableRows,
 						sql: mainSql,
 						schema: input.schema,
 						table: input.table,

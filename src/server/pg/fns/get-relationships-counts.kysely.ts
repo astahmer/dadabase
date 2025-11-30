@@ -4,6 +4,7 @@ import { sql } from "kysely";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { buildWhereExpression } from "./build-where-expression";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import {
 	persistQueryLog,
@@ -91,7 +92,7 @@ export const getRelationshipsCounts = (input: {
 						const countSql = countQuery.compile().sql;
 						const result = yield* db.execute(countQuery as any).pipe(
 							withQueryLogging({
-								type: "constraint" as const,
+								type: QueryLogType.RelationshipCounting,
 								sql: countSql,
 								schema: rel.referencingSchema,
 								table: rel.referencingTable,

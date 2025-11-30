@@ -1,12 +1,15 @@
 import type { Effect } from "effect";
 
-export type QueryLogType =
-	| "table"
-	| "schema"
-	| "enum"
-	| "constraint"
-	| "total"
-	| "columns";
+export enum QueryLogType {
+	TableRows = "table_rows",
+	TableCount = "table_count",
+	SchemaIntrospection = "schema_introspection",
+	ColumnMetadata = "column_metadata",
+	ForeignKeyLookup = "foreign_key_lookup",
+	RelationshipDiscovery = "relationship_discovery",
+	RelationshipCardinality = "relationship_cardinality",
+	RelationshipCounting = "relationship_counting",
+}
 
 export type QueryLogStatus = "pending" | "success" | "error";
 

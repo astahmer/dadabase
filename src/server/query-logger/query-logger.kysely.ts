@@ -68,6 +68,7 @@ export const saveFavorite = (input: {
 }) =>
 	Effect.gen(function* () {
 		const db = yield* AppDatabase;
+		// TODO NanoId
 		const id = `qf_${Math.random().toString(36).substr(2, 9)}`;
 
 		yield* db.execute(

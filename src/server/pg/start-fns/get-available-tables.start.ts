@@ -24,7 +24,7 @@ export const listAvailableTablesQueryOptions = (
 	input: InferServerFnSchema<typeof getAvailableTablesServerFn>,
 ) =>
 	queryOptions({
-		queryKey: ["pg", "tableList", input],
+		queryKey: ["remote", "tableList", input],
 		queryFn: () => getAvailableTablesServerFn({ data: input }),
 		staleTime: 60 * 1000, // 1 minute
 	});

@@ -45,6 +45,7 @@ export const query_logs = sqlite.sqliteTable("query_logs", {
 	created_at: timestamp(),
 });
 
+// TODO drag_order (?)
 export const query_favorites = sqlite.sqliteTable("query_favorites", {
 	id: primaryId(),
 	connection_id: sqlite

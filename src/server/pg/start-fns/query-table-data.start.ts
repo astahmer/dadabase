@@ -1,18 +1,15 @@
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import {
 	QueryFilter,
 	filterQueryValidConditions,
 	type QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Duration, Effect, Schema } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { queryTableData } from "../fns/query-table-data.kysely.ts";
-import { withQueryLoggingAndRowCount } from "#src/server/query-logger/with-query-logging.ts";
-
-// Using Record type with any for now to avoid schema validation issues
 
 const InputSchema = Schema.Struct({
 	url: Schema.URL,
@@ -94,20 +91,8 @@ export type QueryTableDataInput = {
 export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
 	// console.log("[rows query]", input)
 	return queryOptions({
-		queryKey: [
-			"pg",
-			"tableData",
-			input.url,
-			input.schema,
-			input.table,
-			input.limit ?? 50,
-			input.offset ?? 0,
-			input.orderBy,
-			input.orderDirection,
-			JSON.stringify(
-				input.filters ?? { conditions: [], logicalOperator: "and" },
-			),
-		],
+		queryKey: ["remote", "rows", input],
 		queryFn: async () => queryTableDataServerFn({ data: input }),
+		meta: { loggable: true },
 	});
 };

@@ -155,20 +155,6 @@ describe("Result Query Server Functions", () => {
 			expect(typeof options.queryFn).toBe("function");
 		});
 
-		it("includes table, column, and value in query key", () => {
-			const options = queryRelationshipSubrowDataQueryOptions({
-				url: "postgresql://localhost/db",
-				schema: "public",
-				table: "comments",
-				filterColumn: "post_id",
-				filterValue: 42,
-			});
-
-			const queryKey = options.queryKey;
-			expect(queryKey).toContain("public");
-			expect(queryKey).toContain("comments");
-		});
-
 		it("creates different query keys for different tables", () => {
 			const options1 = queryRelationshipSubrowDataQueryOptions({
 				url: "postgresql://localhost/db",
@@ -345,21 +331,6 @@ describe("Result Query Server Functions", () => {
 			});
 
 			expect(typeof options.queryFn).toBe("function");
-		});
-
-		it("includes referenced table, column, and value in query key", () => {
-			const options = queryFkTargetDataQueryOptions({
-				url: "postgresql://localhost/db",
-				schema: "public",
-				referencedSchema: "public",
-				referencedTable: "users",
-				referencedColumn: "id",
-				fkValue: 42,
-			});
-
-			const queryKey = options.queryKey;
-			expect(queryKey).toContain("public");
-			expect(queryKey).toContain("users");
 		});
 
 		it("creates different query keys for different referenced tables", () => {

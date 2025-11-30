@@ -85,13 +85,7 @@ export const findColumnReferencesQueryOptions = (
 	input: InferServerFnSchema<typeof findColumnReferencesServerFn>,
 ) =>
 	queryOptions({
-		queryKey: [
-			"pg",
-			"columnReferences",
-			input.referencedSchema,
-			input.referencedTable,
-			input.referencedColumn,
-		],
+		queryKey: ["remote", "columnReferences", input],
 		queryFn: () => findColumnReferencesServerFn({ data: input }),
 	});
 
@@ -99,13 +93,6 @@ export const findColumnReferencesWithCountsQueryOptions = (
 	input: InferServerFnSchema<typeof findColumnReferencesWithCountsServerFn>,
 ) =>
 	queryOptions({
-		queryKey: [
-			"pg",
-			"columnReferencesWithCounts",
-			input.referencedSchema,
-			input.referencedTable,
-			input.referencedColumn,
-			input.cellValue,
-		],
+		queryKey: ["remote", "columnReferencesWithCounts", input],
 		queryFn: () => findColumnReferencesWithCountsServerFn({ data: input }),
 	});

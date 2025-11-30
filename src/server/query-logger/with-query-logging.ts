@@ -2,6 +2,12 @@ import { Effect } from "effect";
 import { QueryLogger } from "./query-logger.service.ts";
 import type { QueryLogEntryType, QueryLogType } from "./query-logger.types.ts";
 
+const trimSql = (sql: string) =>
+	sql
+		.split("\n")
+		.filter((str) => !str.startsWith("--"))
+		.join(" ")
+		.trim();
 export interface WithQueryLoggingOptions {
 	type: QueryLogType;
 	sql?: string;
@@ -42,16 +48,18 @@ export interface WithQueryLoggingOptions {
  * );
  */
 export const withQueryLogging =
-	<O, E, R>(options: WithQueryLoggingOptions) =>
-	(effect: Effect.Effect<O, E, R>): Effect.Effect<O, E, R | QueryLogger> => {
+	<TOutput, E, R>(options: WithQueryLoggingOptions) =>
+	(
+		effect: Effect.Effect<TOutput, E, R>,
+	): Effect.Effect<TOutput, E, R | QueryLogger> => {
 		const connectionId = options.connectionId;
 		if (!connectionId) return effect;
 
 		return Effect.gen(function* () {
-			const logger = yield* QueryLogger;
+			const queryLogger = yield* QueryLogger;
 			const startTime = Date.now();
 			const logEntry: Omit<QueryLogEntryType, "id"> = {
-				sql: options.sql || "",
+				sql: trimSql(options.sql || ""),
 				params: options.params,
 				type: options.type,
 				schema: options.schema,
@@ -60,109 +68,7 @@ export const withQueryLogging =
 				startTime,
 			};
 
-			const entryId = yield* logger.addEntry(logEntry);
-
-			// Persist initial entry
-			yield* options
-				.persistFn(connectionId, { ...logEntry, id: entryId })
-				.pipe(
-					Effect.catchAll(() =>
-						Effect.sync(() =>
-							console.warn(`Failed to persist initial query log ${entryId}`),
-						),
-					),
-				);
-
-			return yield* effect.pipe(
-				Effect.tap(() => {
-					const endTime = Date.now();
-					const updates = {
-						status: "success" as const,
-						endTime,
-						timeTaken: endTime - startTime,
-					};
-					return logger.updateEntry(entryId, updates).pipe(
-						Effect.andThen(() => options.updatePersistFn(entryId, updates)),
-						Effect.catchAll(() =>
-							Effect.sync(() =>
-								console.warn(
-									`Failed to persist query log update for ${entryId}`,
-								),
-							),
-						),
-					);
-				}),
-				Effect.catchAll((error) => {
-					const endTime = Date.now();
-					const errorMessage =
-						error instanceof Error ? error.message : String(error);
-					const errorStack = error instanceof Error ? error.stack : undefined;
-					const updates = {
-						status: "error" as const,
-						endTime,
-						timeTaken: endTime - startTime,
-						error: {
-							message: errorMessage,
-							stack: errorStack,
-						},
-					};
-
-					return logger.updateEntry(entryId, updates).pipe(
-						Effect.andThen(() => options.updatePersistFn(entryId, updates)),
-						Effect.catchAll(() =>
-							Effect.sync(() =>
-								console.warn(
-									`Failed to persist error for query log ${entryId}`,
-								),
-							),
-						),
-						Effect.andThen(() => Effect.fail(error as E)),
-					);
-				}),
-			);
-		}) as Effect.Effect<O, E, R | QueryLogger>;
-	};
-
-/**
- * Wraps an Effect with automatic query logging and database persistence
- * For results that include row counts
- *
- * Usage with pipe:
- * @example
- * const result = yield* db.execute(query).pipe(
- *   withQueryLoggingAndRowCount({
- *     type: "table",
- *     sql: query.compile().sql,
- *     schema: "public",
- *     table: "users",
- *     connectionId: connection.id,
- *     persistFn: persistQueryLog,
- *     updatePersistFn: updatePersistedQueryLog
- *   })
- * );
- */
-export const withQueryLoggingAndRowCount =
-	<A extends { rows?: any[]; rowCount?: number }, E, R>(
-		options: WithQueryLoggingOptions,
-	) =>
-	(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R | QueryLogger> => {
-		const connectionId = options.connectionId;
-		if (!connectionId) return effect;
-
-		return Effect.gen(function* () {
-			const logger = yield* QueryLogger;
-			const startTime = Date.now();
-			const logEntry: Omit<QueryLogEntryType, "id"> = {
-				sql: options.sql || "",
-				params: options.params,
-				type: options.type,
-				schema: options.schema,
-				table: options.table,
-				status: "pending",
-				startTime,
-			};
-
-			const entryId = yield* logger.addEntry(logEntry);
+			const entryId = yield* queryLogger.addEntry(logEntry);
 
 			// Persist initial entry
 			yield* options
@@ -178,14 +84,24 @@ export const withQueryLoggingAndRowCount =
 			return yield* effect.pipe(
 				Effect.tap((result) => {
 					const endTime = Date.now();
-					const updates = {
+					const updates: Partial<QueryLogEntryType> = {
 						status: "success" as const,
 						endTime,
 						timeTaken: endTime - startTime,
-						rowsReturned: result.rows?.length ?? 0,
-						rowsAffected: result.rowCount,
 					};
-					return logger.updateEntry(entryId, updates).pipe(
+					if (
+						result &&
+						typeof result === "object" &&
+						"rows" in result &&
+						Array.isArray(result.rows)
+					) {
+						updates.rowsReturned = result.rows.length;
+					}
+					if (result && typeof result === "object" && "rowCount" in result) {
+						updates.rowsAffected = result.rowCount as number;
+					}
+
+					return queryLogger.updateEntry(entryId, updates).pipe(
 						Effect.andThen(() => options.updatePersistFn(entryId, updates)),
 						Effect.catchAll(() =>
 							Effect.sync(() =>
@@ -211,7 +127,7 @@ export const withQueryLoggingAndRowCount =
 						},
 					};
 
-					return logger.updateEntry(entryId, updates).pipe(
+					return queryLogger.updateEntry(entryId, updates).pipe(
 						Effect.andThen(() => options.updatePersistFn(entryId, updates)),
 						Effect.catchAll(() =>
 							Effect.sync(() =>
@@ -224,5 +140,5 @@ export const withQueryLoggingAndRowCount =
 					);
 				}),
 			);
-		}) as Effect.Effect<A, E, R | QueryLogger>;
+		}) as Effect.Effect<TOutput, E, R | QueryLogger>;
 	};

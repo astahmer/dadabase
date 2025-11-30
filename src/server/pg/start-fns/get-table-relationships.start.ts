@@ -39,7 +39,7 @@ export const getTableRelationshipsQueryOptions = (
 	input: InferServerFnSchema<typeof getTableRelationshipsServerFn>,
 ) =>
 	queryOptions({
-		queryKey: ["pg", "tableRelationships", input],
+		queryKey: ["remote", "tableRelationships", input],
 		queryFn: () => getTableRelationshipsServerFn({ data: input }),
 		staleTime: 5 * 60 * 1000, // 5 minutes
 	});

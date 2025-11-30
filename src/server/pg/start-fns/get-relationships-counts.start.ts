@@ -56,14 +56,6 @@ export const getRelationshipsCountsQueryOptions = (
 	input: InferServerFnSchema<typeof getRelationshipsCountsServerFn>,
 ) =>
 	queryOptions({
-		queryKey: [
-			"pg",
-			"relationshipsCounts",
-			input.url,
-			input.schema,
-			input.table,
-			JSON.stringify(input.relationships),
-			JSON.stringify(input.rowData),
-		],
+		queryKey: ["remote", "relationshipsCounts", input],
 		queryFn: () => getRelationshipsCountsServerFn({ data: input }),
 	});

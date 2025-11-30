@@ -45,7 +45,7 @@ export const getRelationshipCardinalityQueryOptions = (
 	input: InferServerFnSchema<typeof getRelationshipCardinalityServerFn>,
 ) =>
 	queryOptions({
-		queryKey: ["pg", "relationshipCardinality", input],
+		queryKey: ["remote", "relationshipCardinality", input],
 		queryFn: () => getRelationshipCardinalityServerFn({ data: input }),
 		staleTime: 30 * 60 * 1000, // 30 minutes (schema changes infrequently)
 	});

@@ -1,19 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
-import { useState, useCallback, useEffect } from "react";
-import { getQueryHistoryServerFn } from "#src/server/pg/start-fns/get-query-history.start.ts";
+import { getQueryHistoryQueryOptions } from "#src/server/pg/start-fns/get-query-history.start.ts";
 import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useState } from "react";
 
 export const useQueryLogger = () => {
+	const queryClient = useQueryClient();
 	const [history, setHistory] = useState<QueryLogEntryType[]>([]);
 	const [isOpen, setIsOpen] = useState(false);
 
-	// Poll the server for query history updates
-	const { data } = useQuery({
-		queryKey: ["queryHistory"],
-		queryFn: async () => getQueryHistoryServerFn(),
-		refetchInterval: 500, // Poll every 500ms for real-time updates
-		refetchIntervalInBackground: true,
-	});
+	// Query the server for query history
+	const { data } = useQuery(getQueryHistoryQueryOptions());
 
 	useEffect(() => {
 		if (data) {
@@ -29,10 +25,16 @@ export const useQueryLogger = () => {
 		setHistory([]);
 	}, []);
 
+	// Function to invalidate query history (called after mutations)
+	const invalidateQueryHistory = useCallback(() => {
+		queryClient.invalidateQueries(getQueryHistoryQueryOptions());
+	}, [queryClient]);
+
 	return {
 		history,
 		isOpen,
 		toggleOpen,
 		clearHistory,
+		invalidateQueryHistory,
 	};
 };

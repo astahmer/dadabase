@@ -3,6 +3,7 @@ import type { TableRelationship } from "#src/components/pages/connection-page/re
 import { SqlError } from "@effect/sql";
 import { Effect } from "effect";
 import { sql } from "kysely";
+import { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import {
 	persistQueryLog,
@@ -79,7 +80,7 @@ export const getTableRelationships = (input: {
 			const compiledRel = relQuery.compile(db);
 			const relationships = yield* db.execute(relQuery).pipe(
 				withQueryLogging({
-					type: "constraint" as const,
+					type: QueryLogType.RelationshipDiscovery,
 					sql: compiledRel.sql,
 					params: compiledRel.parameters,
 					schema: input.schema,
