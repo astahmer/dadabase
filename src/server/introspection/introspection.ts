@@ -305,16 +305,17 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 
 /**
  * Table relationship info for both incoming and outgoing relationships
+ * Uses camelCase to match existing TableRelationship type for transparent migration
  */
 interface TableRelationshipInfo {
 	type: "outgoing" | "incoming";
-	referencing_schema: string;
-	referencing_table: string;
-	referencing_column: string;
-	referenced_schema: string;
-	referenced_table: string;
-	referenced_column: string;
-	constraint_name: string;
+	referencingSchema: string;
+	referencingTable: string;
+	referencingColumn: string;
+	referencedSchema: string;
+	referencedTable: string;
+	referencedColumn: string;
+	constraintName: string;
 }
 
 /**
@@ -336,13 +337,13 @@ export const getTableRelationships = (input: {
 					-- Get outgoing relationships (FKs from this table)
 					SELECT
 						'outgoing'::text as type,
-						${schema}::text as referencing_schema,
-						${table}::text as referencing_table,
-						a.attname::text as referencing_column,
-						nf.nspname::text as referenced_schema,
-						cf.relname::text as referenced_table,
-						af.attname::text as referenced_column,
-						con.conname::text as constraint_name
+						${schema}::text as "referencingSchema",
+						${table}::text as "referencingTable",
+						a.attname::text as "referencingColumn",
+						nf.nspname::text as "referencedSchema",
+						cf.relname::text as "referencedTable",
+						af.attname::text as "referencedColumn",
+						con.conname::text as "constraintName"
 					FROM
 						pg_attribute a
 						JOIN pg_class c ON a.attrelid = c.oid
@@ -363,13 +364,13 @@ export const getTableRelationships = (input: {
 					-- Get incoming relationships (FKs pointing to this table)
 					SELECT
 						'incoming'::text as type,
-						kcu1.table_schema::text as referencing_schema,
-						kcu1.table_name::text as referencing_table,
-						kcu1.column_name::text as referencing_column,
-						${schema}::text as referenced_schema,
-						${table}::text as referenced_table,
-						kcu2.column_name::text as referenced_column,
-						kcu1.constraint_name::text as constraint_name
+						kcu1.table_schema::text as "referencingSchema",
+						kcu1.table_name::text as "referencingTable",
+						kcu1.column_name::text as "referencingColumn",
+						${schema}::text as "referencedSchema",
+						${table}::text as "referencedTable",
+						kcu2.column_name::text as "referencedColumn",
+						kcu1.constraint_name::text as "constraintName"
 					FROM
 						information_schema.key_column_usage kcu1
 						LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
@@ -383,7 +384,7 @@ export const getTableRelationships = (input: {
 						AND kcu2.table_schema = ${schema}
 						AND kcu2.table_name = ${table}
 					ORDER BY
-						type, referencing_table, referencing_column
+						type, "referencingTable", "referencingColumn"
 				`,
 			sqlite: () =>
 				Effect.gen(function* () {
@@ -393,26 +394,26 @@ export const getTableRelationships = (input: {
 					`;
 					return rows.map((row) => ({
 						type: "outgoing" as const,
-						referencing_schema: schema,
-						referencing_table: table,
-						referencing_column: row.from,
-						referenced_schema: "main",
-						referenced_table: row.table,
-						referenced_column: row.to,
-						constraint_name: `fk_${row.id}`,
+						referencingSchema: schema,
+						referencingTable: table,
+						referencingColumn: row.from,
+						referencedSchema: "main",
+						referencedTable: row.table,
+						referencedColumn: row.to,
+						constraintName: `fk_${row.id}`,
 					})) as TableRelationshipInfo[];
 				}),
 			orElse: () =>
 				client<TableRelationshipInfo>`
 					SELECT
 						'outgoing' as type,
-						${schema} as referencing_schema,
-						${table} as referencing_table,
-						kcu.column_name as referencing_column,
-						ccu.table_schema as referenced_schema,
-						ccu.table_name as referenced_table,
-						ccu.column_name as referenced_column,
-						tc.constraint_name as constraint_name
+						${schema} as "referencingSchema",
+						${table} as "referencingTable",
+						kcu.column_name as "referencingColumn",
+						ccu.table_schema as "referencedSchema",
+						ccu.table_name as "referencedTable",
+						ccu.column_name as "referencedColumn",
+						tc.constraint_name as "constraintName"
 					FROM information_schema.table_constraints tc
 					JOIN information_schema.key_column_usage kcu
 						ON tc.constraint_name = kcu.constraint_name
@@ -530,17 +531,21 @@ interface CardinalityInfo {
  * 1. If the referencing columns have a UNIQUE/PRIMARY KEY constraint → potentially 1:1
  * 2. If the referenced columns are unique (PK of referenced table) → indicates 1:N or 1:1
  * 3. If neither side is unique → M:N (many-to-many)
+ *
+ * @param isIncomingRelationship - When true, inverts the cardinality perspective
+ *   (many-to-one becomes one-to-many and vice versa)
  */
 export const getRelationshipCardinality = (input: {
 	schema: string;
 	table: string;
 	columns: string[];
+	isIncomingRelationship?: boolean;
 }) =>
 	Effect.gen(function* () {
 		const client = yield* SqlClient.SqlClient;
-		const { schema, table } = input;
+		const { schema, table, isIncomingRelationship } = input;
 
-		return yield* client.onDialectOrElse({
+		const result = yield* client.onDialectOrElse({
 			pg: () =>
 				client<CardinalityInfo>`
 					-- Determine cardinality of FK relationship
@@ -609,4 +614,27 @@ export const getRelationshipCardinality = (input: {
 				// Default fallback - assume many-to-one
 				Effect.succeed([{ cardinality: "many-to-one" as Cardinality }]),
 		});
+
+		// If no result found, return defaults based on relationship direction
+		if (result.length === 0) {
+			if (isIncomingRelationship) {
+				return { cardinality: "one-to-many" as Cardinality };
+			}
+			return { cardinality: "many-to-one" as Cardinality };
+		}
+
+		let cardinality = result[0].cardinality;
+
+		// If this is an incoming relationship, invert the cardinality
+		// many-to-one becomes one-to-many and vice versa
+		if (isIncomingRelationship) {
+			if (cardinality === "many-to-one") {
+				cardinality = "one-to-many";
+			} else if (cardinality === "one-to-many") {
+				cardinality = "many-to-one";
+			}
+			// one-to-one and many-to-many remain the same
+		}
+
+		return { cardinality };
 	});
