@@ -69,79 +69,69 @@ export const QueryLoggerPanel = ({ connectionUrl }: QueryLoggerPanelProps) => {
 						className="flex items-center gap-2 flex-1 text-left font-medium hover:bg-muted transition-colors rounded px-2 py-1"
 					>
 						<span>Query Logger</span>
-						{isOpen && totalCount > 0 && (
-							<span className="text-xs text-muted-foreground ml-auto">
-								{totalCount} {totalCount === 1 ? "query" : "queries"}
-							</span>
-						)}
 						{!isOpen && (
-							<span className="text-xs text-muted-foreground ml-auto flex gap-1">
-								{successCount > 0 && (
-									<span className="inline-flex items-center gap-1">
-										<div className="h-2 w-2 rounded-full bg-green-500" />
-										{successCount}
-									</span>
-								)}
-								{errorCount > 0 && (
-									<span className="inline-flex items-center gap-1 text-red-600">
-										<div className="h-2 w-2 rounded-full bg-red-500" />
-										{errorCount}
-									</span>
-								)}
-								{pendingCount > 0 && (
-									<span className="inline-flex items-center gap-1 text-yellow-600">
-										<div className="h-2 w-2 rounded-full bg-yellow-500" />
-										{pendingCount}
-									</span>
-								)}
+							<span className="text-xs text-muted-foreground mr-auto flex gap-2 mx-2">
+								<span className="inline-flex items-center gap-1">
+									<div className="h-2 w-2 rounded-full bg-green-500" />
+									{successCount}
+								</span>
+								<span className="inline-flex items-center gap-1 text-red-600">
+									<div className="h-2 w-2 rounded-full bg-red-500" />
+									{errorCount}
+								</span>
+								{/* <span className="inline-flex items-center gap-1 text-yellow-600">
+									<div className="h-2 w-2 rounded-full bg-yellow-500" />
+									{pendingCount}
+								</span> */}
 							</span>
 						)}
-						{isOpen ? (
-							<ChevronDown className="h-4 w-4 ml-auto" />
-						) : (
-							<ChevronUp className="h-4 w-4 ml-auto" />
+						{isOpen && (
+							<div className="flex items-center gap-1">
+								<Button
+									size="sm"
+									variant="ghost"
+									onClick={() => toggleStatusFilter("success")}
+									title="Filter by success"
+									className={`transition-all rounded-md px-2 py-1.5 flex items-center gap-1.5 ${
+										isSuccessFiltered
+											? "bg-green-500/20 text-green-700 hover:bg-green-500/30"
+											: "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+									}`}
+								>
+									<div className="h-2.5 w-2.5 rounded-full bg-green-500" />
+									<span className="text-xs font-medium">{successCount}</span>
+								</Button>
+								<Button
+									size="sm"
+									variant="ghost"
+									onClick={() => toggleStatusFilter("error")}
+									title="Filter by error"
+									className={`transition-all rounded-md px-2 py-1.5 flex items-center gap-1.5 ${
+										isErrorFiltered
+											? "bg-red-500/20 text-red-700 hover:bg-red-500/30"
+											: "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+									}`}
+								>
+									<div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+									<span className="text-xs font-medium">{errorCount}</span>
+								</Button>
+							</div>
 						)}
 					</button>
-
-					{isOpen && (
-						<div className="flex items-center gap-1">
-							<Button
-								size="sm"
-								variant="ghost"
-								onClick={() => toggleStatusFilter("success")}
-								title="Filter by success"
-								className={`transition-all rounded-md px-2 py-1.5 ${
-									isSuccessFiltered
-										? "bg-green-500/20 text-green-700 hover:bg-green-500/30"
-										: "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-								}`}
-							>
-								<div className="h-2.5 w-2.5 rounded-full bg-green-500" />
-							</Button>
-							<Button
-								size="sm"
-								variant="ghost"
-								onClick={() => toggleStatusFilter("error")}
-								title="Filter by error"
-								className={`transition-all rounded-md px-2 py-1.5 ${
-									isErrorFiltered
-										? "bg-red-500/20 text-red-700 hover:bg-red-500/30"
-										: "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-								}`}
-							>
-								<div className="h-2.5 w-2.5 rounded-full bg-red-500" />
-							</Button>
-							<Button
-								size="sm"
-								variant="ghost"
-								onClick={clearHistory}
-								disabled={isClearing}
-								title="Clear history"
-								className="text-muted-foreground hover:text-foreground"
-							>
-								<Trash2 className="h-4 w-4" />
-							</Button>
-						</div>
+					<Button
+						size="sm"
+						variant="ghost"
+						onClick={clearHistory}
+						disabled={isClearing}
+						title="Clear history"
+						className="text-muted-foreground hover:text-foreground ml-auto"
+					>
+						<Trash2 className="h-4 w-4" />
+					</Button>
+					{isOpen ? (
+						<ChevronDown className="h-4 w-4" />
+					) : (
+						<ChevronUp className="h-4 w-4" />
 					)}
 				</div>
 
