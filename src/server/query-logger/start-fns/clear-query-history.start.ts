@@ -4,6 +4,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
+import { queryOptions } from "@tanstack/react-query";
+import { getQueryHistoryQueryOptions } from "#src/server/pg/start-fns/get-query-history.start.ts";
 
 const clearQueryHistoryInputSchema = Schema.Struct({
 	url: Schema.String,
@@ -20,6 +22,18 @@ const clearQueryHistoryServerFn = createServerFn({ method: "POST" })
 		return AppRuntime.runPromise(program);
 	});
 
-export const clearQueryHistoryMutation = (
+export const clearQueryHistoryQueryOptions = (
 	input: InferServerFnSchema<typeof clearQueryHistoryServerFn>,
-) => clearQueryHistoryServerFn({ data: input });
+) =>
+	queryOptions({
+		queryKey: ["remote", "clearQueryHistory", input],
+		queryFn: (ctx) =>
+			clearQueryHistoryServerFn({ data: input })
+				.then(() =>
+					ctx.client.invalidateQueries(
+						getQueryHistoryQueryOptions({ url: input.url }),
+					),
+				)
+				.then(() => Math.random()),
+		enabled: false,
+	});
