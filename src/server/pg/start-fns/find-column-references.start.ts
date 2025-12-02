@@ -5,12 +5,13 @@ import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
+import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 import {
 	findColumnReferences,
 	findColumnReferencesWithCounts,
 	type ColumnReference,
-} from "../fns/get-table-foreign-keys.kysely.ts";
-import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
+	type ColumnReferenceWithCount,
+} from "#src/server/introspection/introspection.ts";
 
 /**
  * Find all tables and columns that reference a specific column (reverse FK lookup)
@@ -26,30 +27,28 @@ const findColumnReferencesServerFn = createServerFn({ method: "POST" })
 		}).pipe(Schema.standardSchemaV1),
 	)
 	.handler(async (ctx): Promise<ColumnReference[]> => {
-		return await AppRuntime.runPromise(
-			Effect.gen(function* () {
-				const repo = yield* DatabaseConnectionRepository;
-				const connection = yield* repo.findByUrl(ctx.data.url);
+		const program = Effect.gen(function* () {
+			const repo = yield* DatabaseConnectionRepository;
+			const connection = yield* repo.findByUrl(ctx.data.url);
 
-				if (!connection) {
-					return yield* Effect.fail(
-						new Error(`Connection not found for URL: ${ctx.data.url}`),
-					);
-				}
-
-				return yield* findColumnReferences({
-					referencedSchema: ctx.data.referencedSchema,
-					referencedTable: ctx.data.referencedTable,
-					referencedColumn: ctx.data.referencedColumn,
-					connectionId: connection.id,
-				}).pipe(
-					withRemoteConnectionLayers(
-						connection.url,
-						RemoteConnectionId.make(connection.id),
-					),
+			if (!connection) {
+				return yield* Effect.fail(
+					new Error(`Connection not found for URL: ${ctx.data.url}`),
 				);
-			}),
-		);
+			}
+
+			return yield* findColumnReferences({
+				referencedSchema: ctx.data.referencedSchema,
+				referencedTable: ctx.data.referencedTable,
+				referencedColumn: ctx.data.referencedColumn,
+			}).pipe(
+				withRemoteConnectionLayers(
+					connection.url,
+					RemoteConnectionId.make(connection.id),
+				),
+			);
+		});
+		return await AppRuntime.runPromise(program);
 	});
 
 /**
@@ -68,32 +67,30 @@ const findColumnReferencesWithCountsServerFn = createServerFn({
 			cellValue: Schema.Any,
 		}).pipe(Schema.standardSchemaV1),
 	)
-	.handler(async (ctx): Promise<ColumnReference[]> => {
-		return await AppRuntime.runPromise(
-			Effect.gen(function* () {
-				const repo = yield* DatabaseConnectionRepository;
-				const connection = yield* repo.findByUrl(ctx.data.url);
+	.handler(async (ctx): Promise<ColumnReferenceWithCount[]> => {
+		const program = Effect.gen(function* () {
+			const repo = yield* DatabaseConnectionRepository;
+			const connection = yield* repo.findByUrl(ctx.data.url);
 
-				if (!connection) {
-					return yield* Effect.fail(
-						new Error(`Connection not found for URL: ${ctx.data.url}`),
-					);
-				}
-
-				return yield* findColumnReferencesWithCounts({
-					referencedSchema: ctx.data.referencedSchema,
-					referencedTable: ctx.data.referencedTable,
-					referencedColumn: ctx.data.referencedColumn,
-					cellValue: ctx.data.cellValue,
-					connectionId: connection.id,
-				}).pipe(
-					withRemoteConnectionLayers(
-						connection.url,
-						RemoteConnectionId.make(connection.id),
-					),
+			if (!connection) {
+				return yield* Effect.fail(
+					new Error(`Connection not found for URL: ${ctx.data.url}`),
 				);
-			}),
-		);
+			}
+
+			return yield* findColumnReferencesWithCounts({
+				referencedSchema: ctx.data.referencedSchema,
+				referencedTable: ctx.data.referencedTable,
+				referencedColumn: ctx.data.referencedColumn,
+				cellValue: ctx.data.cellValue,
+			}).pipe(
+				withRemoteConnectionLayers(
+					connection.url,
+					RemoteConnectionId.make(connection.id),
+				),
+			);
+		});
+		return await AppRuntime.runPromise(program);
 	});
 
 export const findColumnReferencesQueryOptions = (

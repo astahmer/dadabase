@@ -4,13 +4,13 @@ import {
 	type QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { queryOptions } from "@tanstack/react-query";
-import { createServerFn } from "@tanstack/react-start";
-import { Duration, Effect, Schema } from "effect";
-import { AppRuntime } from "../../services/app.runtime.ts";
-import { queryTableData } from "../fns/query-table-data.kysely.ts";
 import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
 import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
+import { queryTableRows } from "#src/server/introspection/introspection.ts";
+import { queryOptions } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
+import { Effect, Schema } from "effect";
+import { AppRuntime } from "../../services/app.runtime.ts";
 
 const InputSchema = Schema.Struct({
 	url: Schema.URL,
@@ -38,39 +38,40 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 			? filterQueryValidConditions(input.filters)
 			: null;
 
-		const { rows, rowCount } = (await AppRuntime.runPromise(
-			Effect.gen(function* () {
-				const repo = yield* DatabaseConnectionRepository;
-				const connection = yield* repo.findByUrl(input.url.toString());
+		const program = Effect.gen(function* () {
+			const repo = yield* DatabaseConnectionRepository;
+			const connection = yield* repo.findByUrl(input.url.toString());
 
-				if (!connection) {
-					return yield* Effect.fail(
-						new Error(`Connection not found for URL: ${input.url}`),
-					);
-				}
-
-				const result = yield* queryTableData({
-					schema: input.schema,
-					table: input.table,
-					limit: input.limit ?? 50,
-					offset: input.offset ?? 0,
-					orderBy: input.orderBy,
-					orderDirection: input.orderDirection,
-					filters: validatedFilters ?? {
-						conditions: [],
-						logicalOperator: "and",
-					},
-					connectionId: connection.id,
-				}).pipe(
-					withRemoteConnectionLayers(
-						input.url.toString(),
-						RemoteConnectionId.make(connection.id),
-					),
+			if (!connection) {
+				return yield* Effect.fail(
+					new Error(`Connection not found for URL: ${input.url}`),
 				);
+			}
 
-				return result;
-			}),
-		)) as { rows: Record<string, any>[]; rowCount: number };
+			const result = yield* queryTableRows({
+				schema: input.schema,
+				table: input.table,
+				limit: input.limit ?? 50,
+				offset: input.offset ?? 0,
+				orderBy: input.orderBy,
+				orderDirection: input.orderDirection,
+				filters: validatedFilters ?? {
+					conditions: [],
+					logicalOperator: "and",
+				},
+			}).pipe(
+				withRemoteConnectionLayers(
+					input.url.toString(),
+					RemoteConnectionId.make(connection.id),
+				),
+			);
+
+			return result;
+		});
+		const output = (await AppRuntime.runPromise(program)) as {
+			rows: Record<string, any>[];
+			rowCount: number;
+		};
 		const endTime = Date.now();
 		// console.log(
 		// 	"<--- queryTableDataServerFn",
@@ -78,8 +79,8 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 		// );
 
 		return {
-			rows,
-			rowCount,
+			rows: output.rows,
+			rowCount: output.rowCount,
 			timeTaken: endTime - startTime,
 			ranAt: startTime,
 		};

@@ -2,13 +2,13 @@ import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-men
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
 import { useCallback } from "react";
 import type { UseRowsColumnsOptions } from "./use-rows-columns.tsx";
-import type { TableColumnMetadata } from "#src/server/pg/fns/get-table-columns.kysely.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
 	updateTabState,
 	createTabState,
 } from "#src/components/pages/connection-page/create-tab-state.ts";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 interface UseRowsColumnsActionOptions {
 	columnMetadata: TableColumnMetadata[];

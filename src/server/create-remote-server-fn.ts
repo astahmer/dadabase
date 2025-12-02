@@ -28,9 +28,10 @@ export const withRemoteConnectionLayers =
 				),
 			);
 
+			const sqlLayer = yield* makeKyselyPgDatabaseLayer(connectionUrl);
 			const program = effect.pipe(
 				Effect.provide(connectionLayer),
-				Effect.provide(makeKyselyPgDatabaseLayer(connectionUrl)),
+				Effect.provide(sqlLayer),
 			);
 
 			return yield* program;
@@ -61,9 +62,10 @@ export const withRemoteConnectionLayersFromUrl =
 				),
 			);
 
+			const sqlLayer = yield* makeKyselyPgDatabaseLayer(connectionUrl);
 			const program = effect.pipe(
 				Effect.provide(connectionLayer),
-				Effect.provide(makeKyselyPgDatabaseLayer(connectionUrl)),
+				Effect.provide(sqlLayer),
 			);
 
 			return yield* program;

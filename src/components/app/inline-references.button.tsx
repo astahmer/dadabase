@@ -1,10 +1,10 @@
-import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
 import type { ForeignKeyInfo } from "../data-table/cell-context-menu.tsx";
 import { Popover, Portal } from "@ark-ui/react";
 import { Link as LinkIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { InlineReferencesPopover } from "./inline-references.popover";
 import { Button } from "../ui/button.tsx";
+import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 
 interface InlineReferencesButton {
 	schema: string;

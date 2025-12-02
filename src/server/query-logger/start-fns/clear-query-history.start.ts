@@ -13,7 +13,7 @@ const clearQueryHistoryInputSchema = Schema.Struct({
 
 const clearQueryHistoryServerFn = createServerFn({ method: "POST" })
 	.inputValidator(clearQueryHistoryInputSchema.pipe(Schema.standardSchemaV1))
-	.handler(async (ctx: any) => {
+	.handler(async (ctx) => {
 		const program = Effect.gen(function* () {
 			const queryLogger = yield* QueryLogger;
 			return yield* queryLogger.clearAll();

@@ -165,8 +165,8 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 						}
 						collection={ArkSelect.createListCollection({
 							items: (databaseListQuery.data || []).map((db) => ({
-								label: db.datname,
-								value: db.datname,
+								label: db.name,
+								value: db.name,
 							})),
 						})}
 						positioning={{ sameWidth: true }}
@@ -196,10 +196,10 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 						<ArkSelect.SelectContent>
 							{(databaseListQuery.data || []).map((db) => (
 								<ArkSelect.SelectItem
-									key={db.datname}
-									item={{ label: db.datname, value: db.datname }}
+									key={db.name}
+									item={{ label: db.name, value: db.name }}
 								>
-									{db.datname}
+									{db.name}
 								</ArkSelect.SelectItem>
 							))}
 						</ArkSelect.SelectContent>

@@ -3,8 +3,8 @@ import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
-import { getAvailableTableList } from "../fns/get-available-tables.kysely.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
+import { getAvailableTables } from "#src/server/introspection/introspection.ts";
 
 const getAvailableTablesServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -13,11 +13,14 @@ const getAvailableTablesServerFn = createServerFn({ method: "POST" })
 		}).pipe(Schema.standardSchemaV1),
 	)
 	.handler(async (ctx) => {
-		return await AppRuntime.runPromise(
-			getAvailableTableList.pipe(
-				Effect.provide(makeKyselyPgDatabaseLayer(ctx.data.url)),
-			),
-		);
+		const program = Effect.gen(function* () {
+			const sqlLayer = yield* makeKyselyPgDatabaseLayer(ctx.data.url);
+			// TODO
+			return yield* getAvailableTables({ schema: "public" }).pipe(
+				Effect.provide(sqlLayer),
+			);
+		});
+		return await AppRuntime.runPromise(program);
 	});
 
 export const listAvailableTablesQueryOptions = (

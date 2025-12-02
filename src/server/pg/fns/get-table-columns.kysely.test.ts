@@ -74,7 +74,7 @@ describe("getTableColumns", () => {
 			});
 
 			expect(columns).toHaveLength(3);
-			const columnNames = columns.map((c) => c.column_name).sort();
+			const columnNames = columns.map((c) => c.name).sort();
 			expect(columnNames).toEqual(["email", "id", "name"]);
 		}).pipe(Effect.provide(pgliteLayer)),
 	);
@@ -88,11 +88,11 @@ describe("getTableColumns", () => {
 				table: "posts",
 			});
 
-			const contentColumn = columns.find((c) => c.column_name === "content");
-			expect(contentColumn?.is_nullable).toBe(true);
+			const contentColumn = columns.find((c) => c.name === "content");
+			expect(contentColumn?.nullable).toBe(true);
 
-			const titleColumn = columns.find((c) => c.column_name === "title");
-			expect(titleColumn?.is_nullable).toBe(false);
+			const titleColumn = columns.find((c) => c.name === "title");
+			expect(titleColumn?.nullable).toBe(false);
 		}).pipe(Effect.provide(pgliteLayer)),
 	);
 
@@ -105,16 +105,14 @@ describe("getTableColumns", () => {
 				table: "posts",
 			});
 
-			const idColumn = columns.find((c) => c.column_name === "id");
-			expect(idColumn?.data_type).toContain("integer");
+			const idColumn = columns.find((c) => c.name === "id");
+			expect(idColumn?.dataType).toContain("integer");
 
-			const titleColumn = columns.find((c) => c.column_name === "title");
-			expect(titleColumn?.data_type).toContain("text");
+			const titleColumn = columns.find((c) => c.name === "title");
+			expect(titleColumn?.dataType).toContain("text");
 
-			const publishedColumn = columns.find(
-				(c) => c.column_name === "published",
-			);
-			expect(publishedColumn?.data_type).toContain("boolean");
+			const publishedColumn = columns.find((c) => c.name === "published");
+			expect(publishedColumn?.dataType).toContain("boolean");
 		}).pipe(Effect.provide(pgliteLayer)),
 	);
 
@@ -138,9 +136,9 @@ describe("getTableColumns", () => {
 				table: "user_profiles",
 			});
 
-			const bioColumn = columns.find((c) => c.column_name === "bio");
-			expect(bioColumn?.is_nullable).toBe(true);
-			expect(bioColumn?.column_default).toBeNull();
+			const bioColumn = columns.find((c) => c.name === "bio");
+			expect(bioColumn?.nullable).toBe(true);
+			expect(bioColumn?.defaultValue).toBeNull();
 		}).pipe(Effect.provide(pgliteLayer)),
 	);
 
@@ -153,12 +151,10 @@ describe("getTableColumns", () => {
 				table: "user_profiles",
 			});
 
-			const createdAtColumn = columns.find(
-				(c) => c.column_name === "created_at",
-			);
-			expect(createdAtColumn?.is_nullable).toBe(false);
-			expect(createdAtColumn?.column_default).toBeDefined();
-			expect(createdAtColumn?.data_type).toContain("timestamp");
+			const createdAtColumn = columns.find((c) => c.name === "created_at");
+			expect(createdAtColumn?.nullable).toBe(false);
+			expect(createdAtColumn?.defaultValue).toBeDefined();
+			expect(createdAtColumn?.dataType).toContain("timestamp");
 		}).pipe(Effect.provide(pgliteLayer)),
 	);
 
@@ -171,7 +167,7 @@ describe("getTableColumns", () => {
 				table: "posts",
 			});
 
-			const columnNames = columns.map((c) => c.column_name);
+			const columnNames = columns.map((c) => c.name);
 			// Columns should be in the order they were defined: id, user_id, title, content, published
 			expect(columnNames).toEqual([
 				"id",
@@ -193,7 +189,7 @@ describe("getTableColumns", () => {
 			});
 
 			// Check that there are no duplicate column names
-			const columnNames = columns.map((c) => c.column_name);
+			const columnNames = columns.map((c) => c.name);
 			const uniqueColumnNames = new Set(columnNames);
 			expect(columnNames.length).toBe(uniqueColumnNames.size);
 		}).pipe(Effect.provide(pgliteLayer)),
@@ -208,11 +204,9 @@ describe("getTableColumns", () => {
 				table: "posts",
 			});
 
-			const publishedColumn = columns.find(
-				(c) => c.column_name === "published",
-			);
+			const publishedColumn = columns.find((c) => c.name === "published");
 			// The default value should contain 'false'
-			expect(publishedColumn?.column_default).toBeDefined();
+			expect(publishedColumn?.defaultValue).toBeDefined();
 		}).pipe(Effect.provide(pgliteLayer)),
 	);
 
@@ -226,7 +220,7 @@ describe("getTableColumns", () => {
 			});
 
 			expect(columns.length).toBe(2);
-			const columnNames = columns.map((c) => c.column_name).sort();
+			const columnNames = columns.map((c) => c.name).sort();
 			expect(columnNames).toEqual(["post_id", "tag_id"]);
 		}).pipe(Effect.provide(pgliteLayer)),
 	);
@@ -248,12 +242,12 @@ describe("getTableColumns", () => {
 
 				expect(columns.length).toBe(3); // user_id, bio, created_at
 
-				const userIdColumn = columns.find((c) => c.column_name === "user_id");
+				const userIdColumn = columns.find((c) => c.name === "user_id");
 				expect(userIdColumn).toBeDefined();
 
 				// Verify no duplicates by checking column count
 				const userIdOccurrences = columns.filter(
-					(c) => c.column_name === "user_id",
+					(c) => c.name === "user_id",
 				).length;
 				expect(userIdOccurrences).toBe(1);
 

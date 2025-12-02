@@ -2,14 +2,11 @@ import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
-import {
-	getRelationshipCardinality,
-	type CardinalityResult,
-} from "../fns/get-relationship-cardinality.kysely.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
 import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
+import { getRelationshipCardinality } from "#src/server/introspection/introspection.ts";
 
 const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -21,7 +18,7 @@ const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 			isIncomingRelationship: Schema.optional(Schema.Boolean),
 		}).pipe(Schema.standardSchemaV1),
 	)
-	.handler(async (ctx): Promise<CardinalityResult> => {
+	.handler(async (ctx) => {
 		return await AppRuntime.runPromise(
 			Effect.gen(function* () {
 				const repo = yield* DatabaseConnectionRepository;
@@ -37,7 +34,6 @@ const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
 					schema: ctx.data.schema,
 					table: ctx.data.table,
 					columns: Array.from(ctx.data.columns),
-					connectionId: connection.id,
 					isIncomingRelationship: ctx.data.isIncomingRelationship,
 				}).pipe(
 					withRemoteConnectionLayers(

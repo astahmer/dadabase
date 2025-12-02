@@ -74,7 +74,7 @@ const TestDatabaseRepositoryLayer = Layer.effect(
 
 					return results.length > 0 ? results[0] : null;
 				})(),
-			insert: (insertable: any) =>
+			insert: (insertable) =>
 				Effect.fn(function* () {
 					return yield* db.execute(
 						db.insertInto("database_connections").values({

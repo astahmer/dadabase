@@ -25,7 +25,7 @@ const getQueryHistoryInputSchema = Schema.Struct({
 
 const getQueryHistoryServerFn = createServerFn({ method: "POST" })
 	.inputValidator(getQueryHistoryInputSchema.pipe(Schema.standardSchemaV1))
-	.handler(async (ctx: any) => {
+	.handler(async (ctx) => {
 		const program = Effect.gen(function* () {
 			const queryLogger = yield* QueryLogger;
 			return yield* queryLogger.get(

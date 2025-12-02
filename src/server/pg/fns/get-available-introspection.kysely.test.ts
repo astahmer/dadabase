@@ -78,27 +78,8 @@ describe("PostgreSQL Introspection Functions", () => {
 				expect(tables.length).toBeGreaterThan(0);
 
 				// Check that our test tables are in the list
-				expect(tables).toContain("users");
-				expect(tables).toContain("posts");
-			}).pipe(Effect.provide(pgliteLayer)),
-		);
-
-		it.effect("returns strings for table names", () =>
-			Effect.gen(function* () {
-				const client = yield* SqlClient.SqlClient;
-
-				yield* client`
-					CREATE TABLE IF NOT EXISTS test_table (
-						id SERIAL PRIMARY KEY
-					)
-				`;
-
-				const tables = yield* getAvailableTables({ schema: "public" });
-
-				tables.forEach((table) => {
-					expect(typeof table).toBe("string");
-					expect(table.length).toBeGreaterThan(0);
-				});
+				expect(tables.map((table) => table.name)).toContain("users");
+				expect(tables.map((table) => table.name)).toContain("posts");
 			}).pipe(Effect.provide(pgliteLayer)),
 		);
 
@@ -114,10 +95,8 @@ describe("PostgreSQL Introspection Functions", () => {
 
 				const tables = yield* getAvailableTables({ schema: "public" });
 
-				// All tables returned should be string names
-				tables.forEach((table) => {
-					expect(typeof table).toBe("string");
-				});
+				expect(tables.length).toBe(1);
+				expect(tables.map((table) => table.name)).toContain("public_test");
 			}).pipe(Effect.provide(pgliteLayer)),
 		);
 
@@ -159,9 +138,9 @@ describe("PostgreSQL Introspection Functions", () => {
 
 				const tables = yield* getAvailableTables({ schema: "public" });
 
-				expect(tables).toContain("table1");
-				expect(tables).toContain("table2");
-				expect(tables).toContain("table3");
+				expect(tables.map((table) => table.name)).toContain("table1");
+				expect(tables.map((table) => table.name)).toContain("table2");
+				expect(tables.map((table) => table.name)).toContain("table3");
 			}).pipe(Effect.provide(pgliteLayer)),
 		);
 
@@ -199,8 +178,8 @@ describe("PostgreSQL Introspection Functions", () => {
 				const databases = yield* getAvailableDatabases();
 
 				databases.forEach((db) => {
-					expect(typeof db).toBe("string");
-					expect(db.length).toBeGreaterThan(0);
+					expect(typeof db.name).toBe("string");
+					expect(db.name.length).toBeGreaterThan(0);
 				});
 			}).pipe(Effect.provide(pgliteLayer)),
 		);
@@ -238,7 +217,9 @@ describe("PostgreSQL Introspection Functions", () => {
 				expect(schemas).toContain("public");
 
 				// integration_test should be in tables
-				expect(tables).toContain("integration_test");
+				expect(tables.some((table) => table.name === "integration_test")).toBe(
+					true,
+				);
 			}).pipe(Effect.provide(pgliteLayer)),
 		);
 	});
