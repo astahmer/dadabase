@@ -165,6 +165,22 @@ describe("getTableForeignKeys", () => {
 			expect(fks).toEqual([]);
 		}).pipe(Effect.provide(pgliteLayer)),
 	);
+
+	it.effect("orders foreign keys by column ordinal position", () => {
+		return Effect.gen(function* () {
+			yield* setupSchema;
+
+			const fks = yield* getTableForeignKeys({
+				schema: "public",
+				table: "comments",
+			});
+
+			// post_id is defined before user_id in the CREATE TABLE
+			const columnNames = fks.map((fk) => fk.column_name);
+			expect(columnNames[0]).toBe("post_id");
+			expect(columnNames[1]).toBe("user_id");
+		}).pipe(Effect.provide(pgliteLayer));
+	});
 });
 
 describe("findColumnReferences", () => {
