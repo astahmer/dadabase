@@ -18,19 +18,19 @@ import { Effect } from "effect";
  */
 export const getAvailableDatabases = () =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 
-		const result = yield* client.onDialectOrElse({
+		const result = yield* sql.onDialectOrElse({
 			pg: () =>
-				client<{ datname: string }>`
+				sql<{ datname: string }>`
 					SELECT datname as name FROM pg_catalog.pg_database ORDER BY datname
 				`,
 			sqlite: () =>
-				client<{ name: string }>`
+				sql<{ name: string }>`
 					PRAGMA database_list
 				`,
 			orElse: () =>
-				client<{ datname: string }>`
+				sql<{ datname: string }>`
 					SELECT datname as name FROM pg_catalog.pg_database ORDER BY datname
 				`,
 		});
@@ -45,22 +45,22 @@ export const getAvailableDatabases = () =>
  */
 export const getAvailableSchemas = () =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 
-		const result = yield* client.onDialectOrElse({
+		const result = yield* sql.onDialectOrElse({
 			pg: () =>
-				client<{ schema_name: string }>`
+				sql<{ schema_name: string }>`
 					SELECT schema_name FROM information_schema.schemata
 					WHERE schema_name NOT IN ('pg_catalog', 'information_schema')
 					ORDER BY schema_name
 				`,
 			sqlite: () =>
-				client<{ schema_name: string }>`
+				sql<{ schema_name: string }>`
 					SELECT 'main' as schema_name
 					UNION SELECT 'temp' as schema_name
 				`,
 			orElse: () =>
-				client<{ schema_name: string }>`
+				sql<{ schema_name: string }>`
 					SELECT schema_name FROM information_schema.schemata
 					ORDER BY schema_name
 				`,
@@ -76,12 +76,12 @@ export const getAvailableSchemas = () =>
  */
 export const getAvailableTables = (input?: { schema?: string }) =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 		const { schema = "public" } = input ?? {};
 
-		const result = yield* client.onDialectOrElse({
+		const result = yield* sql.onDialectOrElse({
 			pg: () => {
-				const query = client`
+				const query = sql`
 					SELECT table_name as name, table_schema as schema FROM information_schema.tables
 					WHERE table_schema = ${schema}
 					AND table_type = 'BASE TABLE'
@@ -90,14 +90,14 @@ export const getAvailableTables = (input?: { schema?: string }) =>
 				return query;
 			},
 			sqlite: () =>
-				client`
+				sql`
 					SELECT name as name FROM sqlite_master
 					WHERE type = 'table'
 					AND name NOT LIKE 'sqlite_%'
 					ORDER BY table_name
 				`,
 			orElse: () =>
-				client`
+				sql`
 					SELECT table_name as name, table_schema as schema FROM information_schema.tables
 					WHERE table_schema = ${schema}
 					ORDER BY table_name
@@ -269,12 +269,12 @@ interface PragmaForeignKeyInfo {
  */
 export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 		const { schema, table } = input;
 
-		return yield* client.onDialectOrElse({
+		return yield* sql.onDialectOrElse({
 			pg: () =>
-				client<ForeignKeyInfo>`
+				sql<ForeignKeyInfo>`
 					SELECT
 						tc.constraint_name,
 						kcu.column_name,
@@ -292,7 +292,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 				`,
 			sqlite: () =>
 				Effect.gen(function* () {
-					const rows = yield* client<PragmaForeignKeyInfo>`
+					const rows = yield* sql<PragmaForeignKeyInfo>`
 						PRAGMA foreign_key_list(${table})
 					`;
 					return rows.map((row) => ({
@@ -304,7 +304,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 					})) as ForeignKeyInfo[];
 				}),
 			orElse: () =>
-				client<ForeignKeyInfo>`
+				sql<ForeignKeyInfo>`
 					SELECT constraint_name, column_name FROM information_schema.key_column_usage
 					WHERE table_schema = ${schema} AND table_name = ${table}
 				`,
@@ -333,12 +333,12 @@ interface PragmaIndexInfo {
  */
 export const getTableIndexes = (input: { schema: string; table: string }) =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 		const { schema, table } = input;
 
-		return yield* client.onDialectOrElse({
+		return yield* sql.onDialectOrElse({
 			pg: () =>
-				client<IndexInfo>`
+				sql<IndexInfo>`
 					SELECT DISTINCT
 						pi.indexname as index_name,
 						a.attname as column_name,
@@ -355,7 +355,7 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 				`,
 			sqlite: () =>
 				Effect.gen(function* () {
-					const indexList = yield* client<PragmaIndexInfo>`
+					const indexList = yield* sql<PragmaIndexInfo>`
 						PRAGMA index_list(${table})
 					`;
 
@@ -363,7 +363,7 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 
 					for (const idx of indexList) {
 						// For each index, get its columns
-						const idxCols = yield* client<{
+						const idxCols = yield* sql<{
 							seqno: number;
 							cid: number;
 							name: string;
@@ -386,7 +386,7 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 					return results as IndexInfo[];
 				}),
 			orElse: () =>
-				client<IndexInfo>`
+				sql<IndexInfo>`
 					SELECT index_name, column_name FROM information_schema.statistics
 					WHERE table_schema = ${schema} AND table_name = ${table}
 				`,
@@ -509,12 +509,12 @@ export const getTableRelationships = (input: {
 	table: string;
 }) =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 		const { schema, table } = input;
 
-		const output = yield* client.onDialectOrElse({
+		const output = yield* sql.onDialectOrElse({
 			pg: () =>
-				client<TableRelationship>`
+				sql<TableRelationship>`
 					-- Get outgoing relationships (FKs from this table)
 					SELECT
 						'outgoing'::text as type,
@@ -570,7 +570,7 @@ export const getTableRelationships = (input: {
 			sqlite: () =>
 				Effect.gen(function* () {
 					// SQLite only supports outgoing relationships via PRAGMA
-					const rows = yield* client<PragmaForeignKeyInfo>`
+					const rows = yield* sql<PragmaForeignKeyInfo>`
 						PRAGMA foreign_key_list(${table})
 					`;
 					return rows.map((row) => ({
@@ -585,7 +585,7 @@ export const getTableRelationships = (input: {
 					})) as TableRelationship[];
 				}),
 			orElse: () =>
-				client<TableRelationship>`
+				sql<TableRelationship>`
 					SELECT
 						'outgoing' as type,
 						${schema} as "referencingSchema",
@@ -631,12 +631,12 @@ export const findColumnReferences = (input: {
 	referencedColumn: string;
 }) =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 		const { referencedSchema, referencedTable, referencedColumn } = input;
 
-		const output = yield* client.onDialectOrElse({
+		const output = yield* sql.onDialectOrElse({
 			pg: () =>
-				client`
+				sql`
 					SELECT
 						kcu1.table_schema AS schema,
 						kcu1.table_name AS table,
@@ -665,7 +665,7 @@ export const findColumnReferences = (input: {
 				// Return empty array - callers need to handle this limitation
 				Effect.succeed([]),
 			orElse: () =>
-				client`
+				sql`
 					SELECT
 						kcu1.table_schema AS schema,
 						kcu1.table_name AS table,
@@ -712,7 +712,7 @@ export const findColumnReferencesWithCounts = (input: {
 	cellValue: unknown;
 }) =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 		const { referencedSchema, referencedTable, referencedColumn, cellValue } =
 			input;
 
@@ -735,13 +735,13 @@ export const findColumnReferencesWithCounts = (input: {
 		// Execute all COUNT queries in parallel
 		const referencesWithCounts = yield* Effect.all(
 			references.map((ref) => {
-				const tableRef = client`${client(ref.schema)}.${client(ref.table)}`;
-				const column = client(ref.column);
-				return client.onDialectOrElse({
+				const tableRef = sql`${sql(ref.schema)}.${sql(ref.table)}`;
+				const column = sql(ref.column);
+				return sql.onDialectOrElse({
 					pg: () => {
 						// Build the count query based on whether value is null
 						if (normalizedCellValue === null) {
-							return client<{ count: number }>`
+							return sql<{ count: number }>`
 								SELECT COUNT(*) as count
 								FROM ${tableRef}
 								WHERE ${column} IS NULL
@@ -758,7 +758,7 @@ export const findColumnReferencesWithCounts = (input: {
 								),
 							);
 						}
-						return client<{ count: number }>`
+						return sql<{ count: number }>`
 							SELECT COUNT(*) as count
 							FROM ${tableRef}
 							WHERE ${column} = ${normalizedCellValue}
@@ -783,7 +783,7 @@ export const findColumnReferencesWithCounts = (input: {
 						} as ColumnReferenceWithCount),
 					orElse: () => {
 						if (normalizedCellValue === null) {
-							return client<{ count: number }>`
+							return sql<{ count: number }>`
 								SELECT COUNT(*) as count
 								FROM ${tableRef}
 								WHERE ${column} IS NULL
@@ -800,7 +800,7 @@ export const findColumnReferencesWithCounts = (input: {
 								),
 							);
 						}
-						return client<{ count: number }>`
+						return sql<{ count: number }>`
 							SELECT COUNT(*) as count
 							FROM ${tableRef}
 							WHERE ${column} = ${normalizedCellValue}
@@ -850,12 +850,12 @@ export const getRelationshipCardinality = (input: {
 	isIncomingRelationship?: boolean;
 }) =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 		const { schema, table, isIncomingRelationship } = input;
 
-		const output = yield* client.onDialectOrElse({
+		const output = yield* sql.onDialectOrElse({
 			pg: () =>
-				client`
+				sql`
 					-- Determine cardinality of FK relationship
 					WITH table_oid AS (
 						SELECT oid
@@ -975,7 +975,7 @@ export const getRelationshipsCounts = (input: {
 	rowData: Record<string, unknown>;
 }) =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 		const { relationships, rowData } = input;
 
 		if (relationships.length === 0) {
@@ -1005,13 +1005,13 @@ export const getRelationshipsCounts = (input: {
 								? rel.referencedColumn
 								: rel.referencingColumn
 						];
-					const tableRef = client`${client(rel.referencingSchema)}.${client(rel.referencingTable)}`;
-					const referencingColumn = client(rel.referencingColumn);
-					const referencingTable = client(rel.referencingTable);
+					const tableRef = sql`${sql(rel.referencingSchema)}.${sql(rel.referencingTable)}`;
+					const referencingColumn = sql(rel.referencingColumn);
+					const referencingTable = sql(rel.referencingTable);
 
-					const count = yield* client.onDialectOrElse({
+					const count = yield* sql.onDialectOrElse({
 						pg: () =>
-							client<{ count: number }>`
+							sql<{ count: number }>`
 								SELECT COUNT(*)::bigint as count
 								FROM ${tableRef}
 								WHERE ${referencingColumn} = ${String(filterValue)}
@@ -1020,7 +1020,7 @@ export const getRelationshipsCounts = (input: {
 								Effect.catchAll(() => Effect.succeed(0)),
 							),
 						sqlite: () =>
-							client<{ count: number }>`
+							sql<{ count: number }>`
 								SELECT COUNT(*) as count
 								FROM ${referencingTable}
 								WHERE ${referencingColumn} = ${String(filterValue)}
@@ -1029,7 +1029,7 @@ export const getRelationshipsCounts = (input: {
 								Effect.catchAll(() => Effect.succeed(0)),
 							),
 						orElse: () =>
-							client<{ count: number }>`
+							sql<{ count: number }>`
 								SELECT COUNT(*) as count
 								FROM ${tableRef}
 								WHERE ${referencingColumn} = ${String(filterValue)}
@@ -1085,18 +1085,18 @@ export interface FilterCondition {
 const buildPgWhereFragment = (
 	conditions: QueryFilterType["conditions"],
 	logicalOp: "and" | "or",
-): string => {
-	if (conditions.length === 0) return "";
+) => {
+	if (conditions.length === 0) return;
 
 	const validConditions = conditions.filter((c) => {
 		if (c.operator === "is_null" || c.operator === "is_not_null") return true;
 		return c.value !== undefined && c.value !== null;
 	});
 
-	if (validConditions.length === 0) return "";
+	if (validConditions.length === 0) return;
 
 	const expressions = validConditions.map((c) => {
-		const col = `"${c.column}"`;
+		const col = escapeIdentifier(c.column);
 		switch (c.operator) {
 			case "equals":
 				return `${col} = '${escapeValue(c.value)}'`;
@@ -1131,7 +1131,7 @@ const buildPgWhereFragment = (
 				return `${col} != ALL(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
 			}
 			default:
-				return "";
+				return;
 		}
 	});
 
@@ -1156,7 +1156,7 @@ const buildSqliteWhereFragment = (
 	if (validConditions.length === 0) return "";
 
 	const expressions = validConditions.map((c) => {
-		const col = `"${c.column}"`;
+		const col = escapeIdentifier(c.column);
 		switch (c.operator) {
 			case "equals":
 				return `${col} = '${escapeValue(c.value)}'`;
@@ -1200,6 +1200,8 @@ const buildSqliteWhereFragment = (
 	return expressions.filter(Boolean).join(joiner);
 };
 
+const escapeIdentifier = Statement.defaultEscape('"');
+
 /**
  * Escape a value for SQL queries to prevent SQL injection
  */
@@ -1227,7 +1229,7 @@ export const queryTableRows = <
 	filters?: QueryFilterType;
 }) =>
 	Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+		const sql = yield* SqlClient.SqlClient;
 		const {
 			schema,
 			table,
@@ -1246,30 +1248,30 @@ export const queryTableRows = <
 
 		// Build ORDER BY clause
 		const orderClause = orderBy
-			? `ORDER BY ${client(orderBy).value} ${orderDirection.toUpperCase()}`
+			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
 			: "";
 
 		// Get count and rows
-		const result = yield* client.onDialectOrElse({
+		const result = yield* sql.onDialectOrElse({
 			pg: () =>
 				Effect.gen(function* () {
-					const tableRef = client`${client(schema)}.${client(table)}`;
+					const tableRef = sql`${sql(schema)}.${sql(table)}`;
 					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
 
 					// Get total count
-					const countRows = yield* client<{ count: bigint }>`
+					const countRows = yield* sql<{ count: bigint }>`
 						SELECT COUNT(*)::bigint as count
 						FROM ${tableRef}
-						${client.unsafe(whereFragment)}
+						${sql.unsafe(whereFragment)}
 					`;
 					const rowCount = Number(countRows[0]?.count ?? 0);
 
 					// Get rows
-					const rows = yield* client<T>`
+					const rows = yield* sql<T>`
 						SELECT *
 						FROM ${tableRef}
-						${client.unsafe(whereFragment)}
-						${client.unsafe(orderClause)}
+						${sql.unsafe(whereFragment)}
+						${sql.unsafe(orderClause)}
 						LIMIT ${limit} OFFSET ${offset}
 					`;
 
@@ -1277,7 +1279,7 @@ export const queryTableRows = <
 				}),
 			sqlite: () =>
 				Effect.gen(function* () {
-					const tableRef = client(table);
+					const tableRef = sql(table);
 					const sqliteWhereClause =
 						filters && filters.conditions.length > 0
 							? buildSqliteWhereFragment(
@@ -1290,19 +1292,19 @@ export const queryTableRows = <
 						: "";
 
 					// Get total count
-					const countRows = yield* client<{ count: number }>`
+					const countRows = yield* sql<{ count: number }>`
 						SELECT COUNT(*) as count
 						FROM ${tableRef}
-						${client.unsafe(whereFragment)}
+						${sql.unsafe(whereFragment)}
 					`;
 					const rowCount = Number(countRows[0]?.count ?? 0);
 
 					// Get rows
-					const rows = yield* client<T>`
+					const rows = yield* sql<T>`
 						SELECT *
 						FROM ${tableRef}
-						${client.unsafe(whereFragment)}
-						${client.unsafe(orderClause)}
+						${sql.unsafe(whereFragment)}
+						${sql.unsafe(orderClause)}
 						LIMIT ${limit} OFFSET ${offset}
 					`;
 
@@ -1314,19 +1316,19 @@ export const queryTableRows = <
 					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
 
 					// Get total count
-					const countRows = yield* client<{ count: number }>`
+					const countRows = yield* sql<{ count: number }>`
 						SELECT COUNT(*) as count
 						FROM ${tableRef}
-						${client.unsafe(whereFragment)}
+						${sql.unsafe(whereFragment)}
 					`;
 					const rowCount = Number(countRows[0]?.count ?? 0);
 
 					// Get rows
-					const rows = yield* client<T>`
+					const rows = yield* sql<T>`
 						SELECT *
 						FROM ${tableRef}
-						${client.unsafe(whereFragment)}
-						${client.unsafe(orderClause)}
+						${sql.unsafe(whereFragment)}
+						${sql.unsafe(orderClause)}
 						LIMIT ${limit} OFFSET ${offset}
 					`;
 
