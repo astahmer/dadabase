@@ -2,6 +2,7 @@ import type { QueryFilterType } from "#src/components/query-builder/query-filter
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
 import { PgLiteClient } from "@dadabase/effect-pglite";
 import { SqlClient } from "@effect/sql";
+import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 
@@ -16,13 +17,19 @@ const pgliteLayer = PgLiteClient.layer({
 	dataDir: "memory://",
 }) as unknown as Layer.Layer<SqlClient.SqlClient>;
 
-describe("queryTableData", () => {
-	// Helper to set up test schema
-	const setupSchema = Effect.gen(function* () {
-		const client = yield* SqlClient.SqlClient;
+const libsqlLayer = LibsqlClient.layer({
+	url: ":memory:",
+}) as unknown as Layer.Layer<SqlClient.SqlClient>;
 
-		// Create users table
-		yield* client`
+const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
+	const setupSchema = Effect.gen(function* () {
+		const sql = yield* SqlClient.SqlClient;
+
+		yield* sql.onDialectOrElse({
+			pg: () =>
+				Effect.gen(function* () {
+					// Create users table
+					yield* sql`
 			CREATE TABLE IF NOT EXISTS users (
 				id SERIAL PRIMARY KEY,
 				name TEXT NOT NULL,
@@ -31,8 +38,8 @@ describe("queryTableData", () => {
 			)
 		`;
 
-		// Create posts table with FK to users
-		yield* client`
+					// Create posts table with FK to users
+					yield* sql`
 			CREATE TABLE IF NOT EXISTS posts (
 				id SERIAL PRIMARY KEY,
 				user_id INTEGER NOT NULL REFERENCES users(id),
@@ -41,6 +48,38 @@ describe("queryTableData", () => {
 				published BOOLEAN NOT NULL DEFAULT false
 			)
 		`;
+				}),
+			sqlite: () =>
+				Effect.gen(function* () {
+					// Enable foreign keys for SQLite
+					yield* sql`PRAGMA foreign_keys = ON`;
+
+					// Create users table
+					yield* sql`
+						CREATE TABLE IF NOT EXISTS users (
+							id INTEGER PRIMARY KEY AUTOINCREMENT,
+							name TEXT NOT NULL,
+							email TEXT NOT NULL UNIQUE,
+							age INTEGER NOT NULL
+						)
+					`;
+
+					// Create posts table with FK to users
+					yield* sql`
+						CREATE TABLE IF NOT EXISTS posts (
+							id INTEGER PRIMARY KEY AUTOINCREMENT,
+							user_id INTEGER NOT NULL REFERENCES users(id),
+							title TEXT NOT NULL,
+							content TEXT,
+							published INTEGER NOT NULL DEFAULT 0
+						)
+					`;
+				}),
+			orElse: () =>
+				Effect.gen(function* () {
+					return Effect.fail(new Error("Unsupported database"));
+				}),
+		});
 	});
 
 	// Helper to insert test data
@@ -86,7 +125,7 @@ describe("queryTableData", () => {
 			expect(result.rows[0]).toHaveProperty("name");
 			expect(result.rows[0]).toHaveProperty("email");
 			expect(result.rows[0]).toHaveProperty("age");
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("applies limit correctly", () => {
@@ -103,7 +142,7 @@ describe("queryTableData", () => {
 			expect(result.rows.length).toBe(2);
 			// But rowCount should still reflect total count
 			expect(result.rowCount).toBe(5);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("applies offset correctly", () => {
@@ -128,7 +167,7 @@ describe("queryTableData", () => {
 				offset: 0,
 			});
 			expect(result.rows[0].id).not.toBe(firstResult.rows[0].id);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("applies default limit of 50 when not specified", () => {
@@ -143,7 +182,7 @@ describe("queryTableData", () => {
 
 			// We have 5 rows, which is less than default limit of 50
 			expect(result.rows.length).toBe(5);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("applies default offset of 0 when not specified", () => {
@@ -158,7 +197,7 @@ describe("queryTableData", () => {
 
 			// Should get first rows when no offset is provided
 			expect(result.rows[0].id).toBe(1);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("orders by ascending when orderDirection not specified", () => {
@@ -175,7 +214,7 @@ describe("queryTableData", () => {
 			// Should be ordered by age ascending: 25, 28, 30, 32, 35
 			const ages = result.rows.map((r) => r.age);
 			expect(ages).toEqual([25, 28, 30, 32, 35]);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("orders by ascending direction explicitly", () => {
@@ -192,7 +231,7 @@ describe("queryTableData", () => {
 
 			const names = result.rows.map((r) => r.name);
 			expect(names).toEqual(["Alice", "Bob", "Charlie", "Diana", "Eve"]);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("orders by descending direction", () => {
@@ -210,7 +249,7 @@ describe("queryTableData", () => {
 			// Should be ordered by age descending: 35, 32, 30, 28, 25
 			const ages = result.rows.map((r) => r.age);
 			expect(ages).toEqual([35, 32, 30, 28, 25]);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with equals operator", () => {
@@ -238,7 +277,7 @@ describe("queryTableData", () => {
 			expect(result.rows.length).toBe(1);
 			expect(result.rowCount).toBe(1);
 			expect(result.rows[0].name).toBe("Alice");
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with contains operator (case-insensitive)", () => {
@@ -265,7 +304,7 @@ describe("queryTableData", () => {
 
 			expect(result.rows.length).toBe(1);
 			expect(result.rows[0].name).toBe("Alice");
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with greater_than operator", () => {
@@ -294,7 +333,7 @@ describe("queryTableData", () => {
 			expect(result.rowCount).toBe(2);
 			const ages = result.rows.map((r) => r.age);
 			expect(ages.every((age) => age > 30)).toBe(true);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with less_than operator", () => {
@@ -321,7 +360,7 @@ describe("queryTableData", () => {
 
 			expect(result.rows.length).toBe(2); // Age 25 and 28
 			expect(result.rowCount).toBe(2);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with starts_with operator", () => {
@@ -348,7 +387,7 @@ describe("queryTableData", () => {
 
 			expect(result.rows.length).toBe(1);
 			expect(result.rows[0].name).toBe("Charlie");
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with multiple AND conditions", () => {
@@ -382,7 +421,7 @@ describe("queryTableData", () => {
 			expect(result.rows.length).toBe(3);
 			const ages = result.rows.map((r) => r.age);
 			expect(ages.every((age) => age > 25 && age < 35)).toBe(true);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with multiple OR conditions", () => {
@@ -415,7 +454,7 @@ describe("queryTableData", () => {
 			expect(result.rows.length).toBe(2);
 			const names = result.rows.map((r) => r.name).sort();
 			expect(names).toEqual(["Alice", "Bob"]);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("combines filters with ordering and pagination", () => {
@@ -448,7 +487,7 @@ describe("queryTableData", () => {
 			expect(result.rowCount).toBe(4); // Age 28, 30, 32, 35
 			const ages = result.rows.map((r) => r.age);
 			expect(ages).toEqual([35, 32]); // Ordered descending, limited to 2
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("returns correct row count even with filters applied", () => {
@@ -476,7 +515,7 @@ describe("queryTableData", () => {
 
 			expect(result.rows.length).toBe(2);
 			expect(result.rowCount).toBe(4); // But total count after filter is 4
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("queries from different table with relationships", () => {
@@ -493,7 +532,7 @@ describe("queryTableData", () => {
 			expect(result.rowCount).toBe(7);
 			expect(result.rows[0]).toHaveProperty("user_id");
 			expect(result.rows[0]).toHaveProperty("title");
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters posts by published status", () => {
@@ -520,8 +559,9 @@ describe("queryTableData", () => {
 
 			// Posts with published=true: 1, 2, 4, 6 = 4 posts
 			expect(result.rowCount).toBe(4);
-			expect(result.rows.every((row) => row.published === true)).toBe(true);
-		}).pipe(Effect.provide(pgliteLayer));
+			// SQLite returns 0/1, PostgreSQL returns true/false
+			expect(result.rows.every((row) => row.published)).toBe(true);
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with not_equals operator", () => {
@@ -548,7 +588,7 @@ describe("queryTableData", () => {
 
 			expect(result.rows.length).toBe(4); // All except Alice
 			expect(result.rows.every((row) => row.name !== "Alice")).toBe(true);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters posts by nullable content field", () => {
@@ -574,7 +614,7 @@ describe("queryTableData", () => {
 
 			expect(result.rowCount).toBe(1); // One post has NULL content
 			expect(result.rows[0].content).toBeNull();
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters posts by non-null content", () => {
@@ -600,7 +640,7 @@ describe("queryTableData", () => {
 
 			expect(result.rowCount).toBe(6); // 6 posts have content
 			expect(result.rows.every((row) => row.content !== null)).toBe(true);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("orders and filters together correctly", () => {
@@ -632,7 +672,7 @@ describe("queryTableData", () => {
 			expect(result.rows[1].user_id).toBe(1);
 			// Ordered desc, so higher id first
 			expect(result.rows[0].id).toBeGreaterThan(result.rows[1].id);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("handles case-sensitive ID filtering correctly", () => {
@@ -660,7 +700,7 @@ describe("queryTableData", () => {
 			expect(result.rows.length).toBe(1);
 			expect(result.rows[0].id).toBe(3);
 			expect(result.rows[0].name).toBe("Charlie");
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("applies pagination with large dataset", () => {
@@ -700,7 +740,7 @@ describe("queryTableData", () => {
 			expect(page2.rowCount).toBe(100);
 			// Verify different rows on different pages
 			expect(page1.rows[0].id).not.toBe(page2.rows[0].id);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("ignores filter conditions with undefined values", () => {
@@ -728,7 +768,7 @@ describe("queryTableData", () => {
 			// When filter value is undefined, it should be ignored and return all users
 			expect(result.rows.length).toBe(5);
 			expect(result.rowCount).toBe(5);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("ignores filter conditions with null values", () => {
@@ -756,7 +796,7 @@ describe("queryTableData", () => {
 			// When filter value is null, it should be ignored and return all users
 			expect(result.rows.length).toBe(5);
 			expect(result.rowCount).toBe(5);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("handles mixed valid and invalid filter conditions", () => {
@@ -789,7 +829,7 @@ describe("queryTableData", () => {
 			// Should only apply the age filter, ignoring the undefined name filter
 			expect(result.rows.length).toBe(4); // Age > 25: 28, 30, 32, 35
 			expect(result.rowCount).toBe(4);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect(
@@ -824,7 +864,7 @@ describe("queryTableData", () => {
 				// When all filter values are invalid, no filters should be applied
 				expect(result.rows.length).toBe(5);
 				expect(result.rowCount).toBe(5);
-			}).pipe(Effect.provide(pgliteLayer));
+			}).pipe(Effect.provide(sqlLayer));
 		},
 	);
 
@@ -854,7 +894,7 @@ describe("queryTableData", () => {
 				// is_null should work without a value
 				expect(result.rowCount).toBe(1);
 				expect(result.rows[0].content).toBeNull();
-			}).pipe(Effect.provide(pgliteLayer));
+			}).pipe(Effect.provide(sqlLayer));
 		},
 	);
 
@@ -883,7 +923,7 @@ describe("queryTableData", () => {
 			// Alice, Charlie, Eve
 			expect(result.rows.length).toBe(3);
 			expect(result.rows.every((row) => row.name.endsWith("e"))).toBe(true);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with not_contains operator", () => {
@@ -913,7 +953,7 @@ describe("queryTableData", () => {
 			expect(
 				result.rows.every((row) => !row.name.toLowerCase().includes("a")),
 			).toBe(true);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with in operator", () => {
@@ -941,7 +981,7 @@ describe("queryTableData", () => {
 			expect(result.rows.length).toBe(3);
 			const names = result.rows.map((r) => r.name).sort();
 			expect(names).toEqual(["Alice", "Bob", "Charlie"]);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with greater_than_or_equal operator", () => {
@@ -969,7 +1009,7 @@ describe("queryTableData", () => {
 			// Alice (30), Eve (32), Charlie (35)
 			expect(result.rows.length).toBe(3);
 			expect(result.rows.every((row) => row.age >= 30)).toBe(true);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
 
 	it.effect("filters with less_than_or_equal operator", () => {
@@ -997,6 +1037,9 @@ describe("queryTableData", () => {
 			// Bob (25), Diana (28)
 			expect(result.rows.length).toBe(2);
 			expect(result.rows.every((row) => row.age <= 28)).toBe(true);
-		}).pipe(Effect.provide(pgliteLayer));
+		}).pipe(Effect.provide(sqlLayer));
 	});
-});
+};
+
+describe("queryTableData (pglite)", testSuite(pgliteLayer));
+describe("queryTableData (libsql)", testSuite(libsqlLayer));

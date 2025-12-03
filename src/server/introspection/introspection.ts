@@ -94,7 +94,7 @@ export const getAvailableTables = (input?: { schema?: string }) =>
 					SELECT name as name FROM sqlite_master
 					WHERE type = 'table'
 					AND name NOT LIKE 'sqlite_%'
-					ORDER BY table_name
+					ORDER BY name
 				`,
 			orElse: () =>
 				sql`
@@ -433,7 +433,6 @@ export const getAllTablesColumns = (input: { schema: string }) =>
 	Effect.gen(function* () {
 		const { schema } = input;
 
-		// Get list of tables for the schema (driver-specific)
 		const tables = yield* getAvailableTables({ schema });
 
 		// For each table, fetch columns and foreign keys and merge them
@@ -851,7 +850,7 @@ export const getRelationshipCardinality = (input: {
 }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
-		const { schema, table, isIncomingRelationship } = input;
+		const { schema, table, columns, isIncomingRelationship } = input;
 
 		const output = yield* sql.onDialectOrElse({
 			pg: () =>
@@ -915,9 +914,93 @@ export const getRelationshipCardinality = (input: {
 					LIMIT 1
 				`,
 			sqlite: () =>
-				// SQLite doesn't have easy access to constraint metadata
-				// Default to many-to-one as a safe assumption
-				Effect.succeed([{ cardinality: "many-to-one" }]),
+				Effect.gen(function* () {
+					// Get foreign keys for this table
+					const fks = yield* sql<PragmaForeignKeyInfo>`
+						PRAGMA foreign_key_list("${table}")
+					`;
+
+					// Find the FK that matches our columns
+					const matchingFk = fks.find((fk) => fk.from === columns[0]);
+
+					if (!matchingFk) {
+						// No matching FK found
+						return [{ cardinality: "many-to-one" }];
+					}
+
+					// Get table info to check if FK column is a primary key
+					const tableInfo = yield* sql<{
+						cid: number;
+						name: string;
+						type: string;
+						notnull: number;
+						dflt_value: string | null;
+						pk: number;
+					}>`
+						PRAGMA table_info("${table}")
+					`;
+
+					// Check if FK column is the primary key
+					const fkColumnInfo = tableInfo.find((col) => col.name === columns[0]);
+					const fkIsPrimaryKey = (fkColumnInfo?.pk ?? 0) > 0;
+
+					// Get indexes to check if FK columns are unique (non-primary unique index)
+					const indexList = yield* sql<PragmaIndexInfo>`
+						PRAGMA index_list("${table}")
+					`;
+
+					let fkIsUnique = fkIsPrimaryKey; // Primary key is unique
+
+					if (!fkIsUnique) {
+						for (const idx of indexList) {
+							if (idx.unique === 1 && idx.origin !== "pk") {
+								// Check if it's not the primary key index
+								const idxCols = yield* sql<{
+									seqno: number;
+									cid: number;
+									name: string;
+								}>`
+									PRAGMA index_info("${idx.name}")
+								`;
+
+								// Check if this index contains our FK column
+								if (idxCols.some((col) => col.name === columns[0])) {
+									fkIsUnique = true;
+									break;
+								}
+							}
+						}
+					}
+
+					// Check if referenced columns are the primary key
+					const referencedTableInfo = yield* sql<{
+						cid: number;
+						name: string;
+						type: string;
+						notnull: number;
+						dflt_value: string | null;
+						pk: number;
+					}>`
+						PRAGMA table_info("${matchingFk.table}")
+					`;
+
+					const referencedIsPk = referencedTableInfo.some(
+						(col) => col.name === matchingFk.to && col.pk > 0,
+					);
+
+					let cardinality: RelationshipCardinality = "many-to-one";
+					if (fkIsUnique && referencedIsPk) {
+						cardinality = "one-to-one";
+					} else if (!fkIsUnique && referencedIsPk) {
+						cardinality = "many-to-one";
+					} else if (fkIsUnique && !referencedIsPk) {
+						cardinality = "one-to-many";
+					} else {
+						cardinality = "many-to-many";
+					}
+
+					return [{ cardinality }];
+				}),
 			orElse: () =>
 				// Default fallback - assume many-to-one
 				Effect.succeed([{ cardinality: "many-to-one" }]),
@@ -1157,39 +1240,54 @@ const buildSqliteWhereFragment = (
 
 	const expressions = validConditions.map((c) => {
 		const col = escapeIdentifier(c.column);
+		// Convert boolean values to integers for SQLite (0/1 instead of false/true)
+		const sqliteValue =
+			typeof c.value === "boolean" ? (c.value ? 1 : 0) : c.value;
+		// Helper function to format values - numbers without quotes, strings with quotes
+		const formatValue = (val: any): string => {
+			if (typeof val === "number") return String(val);
+			return `'${escapeValue(val)}'`;
+		};
+
 		switch (c.operator) {
 			case "equals":
-				return `${col} = '${escapeValue(c.value)}'`;
+				return `${col} = ${formatValue(sqliteValue)}`;
 			case "not_equals":
-				return `${col} != '${escapeValue(c.value)}'`;
+				return `${col} != ${formatValue(sqliteValue)}`;
 			case "contains":
 				// SQLite uses LIKE (case-insensitive with COLLATE NOCASE)
-				return `${col} LIKE '%${escapeValue(c.value)}%' COLLATE NOCASE`;
+				return `${col} LIKE '%${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
 			case "not_contains":
-				return `${col} NOT LIKE '%${escapeValue(c.value)}%' COLLATE NOCASE`;
+				return `${col} NOT LIKE '%${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
 			case "starts_with":
-				return `${col} LIKE '${escapeValue(c.value)}%' COLLATE NOCASE`;
+				return `${col} LIKE '${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
 			case "ends_with":
-				return `${col} LIKE '%${escapeValue(c.value)}' COLLATE NOCASE`;
+				return `${col} LIKE '%${escapeValue(sqliteValue)}' COLLATE NOCASE`;
 			case "greater_than":
-				return `${col} > '${escapeValue(c.value)}'`;
+				return `${col} > ${formatValue(sqliteValue)}`;
 			case "greater_than_or_equal":
-				return `${col} >= '${escapeValue(c.value)}'`;
+				return `${col} >= ${formatValue(sqliteValue)}`;
 			case "less_than":
-				return `${col} < '${escapeValue(c.value)}'`;
+				return `${col} < ${formatValue(sqliteValue)}`;
 			case "less_than_or_equal":
-				return `${col} <= '${escapeValue(c.value)}'`;
+				return `${col} <= ${formatValue(sqliteValue)}`;
 			case "is_null":
 				return `${col} IS NULL`;
 			case "is_not_null":
 				return `${col} IS NOT NULL`;
 			case "in": {
 				const values = Array.isArray(c.value) ? c.value : [c.value];
-				return `${col} IN (${values.map((v) => `'${escapeValue(v)}'`).join(",")})`;
+				const sqliteValues = values.map((v) =>
+					typeof v === "boolean" ? (v ? 1 : 0) : v,
+				);
+				return `${col} IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
 			}
 			case "not_in": {
 				const values = Array.isArray(c.value) ? c.value : [c.value];
-				return `${col} NOT IN (${values.map((v) => `'${escapeValue(v)}'`).join(",")})`;
+				const sqliteValues = values.map((v) =>
+					typeof v === "boolean" ? (v ? 1 : 0) : v,
+				);
+				return `${col} NOT IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
 			}
 			default:
 				return "";
