@@ -301,7 +301,7 @@ interface TestDbSchema {
 
 const InMemoryDatabaseLayer = Layer.effect(
 	AppDatabase,
-	makeEffectKyselyPglite<TestDbSchema>({
+	makeEffectKyselyPglite<any>({
 		dataDir: "memory://test-query-logger",
 		setup: async (db) => {
 			// Create the query_logs table

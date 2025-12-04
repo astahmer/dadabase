@@ -13,12 +13,14 @@ const timestamp = () =>
 // const boolean = () => sqlite.integer({ mode: "boolean" });
 // const json = () => sqlite.text({ mode: "json" });
 
+type DatabaseDialect = "postgres" | "sqlite";
+
 export const database_connections = sqlite.sqliteTable(
 	"database_connections",
 	{
 		id: primaryId(),
 		url: sqlite.text().notNull(),
-		dialect: sqlite.text().notNull(),
+		dialect: sqlite.text().notNull().$type<DatabaseDialect>(),
 		name: sqlite.text().notNull(),
 		created_at: timestamp(),
 		updated_at: timestamp(),
