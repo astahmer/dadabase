@@ -341,13 +341,32 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 					const rows = yield* sql<PragmaForeignKeyInfo>`
 						PRAGMA foreign_key_list(${sql(table)})
 					`;
-					return rows.map((row) => ({
-						constraint_name: `fk_${row.id}`,
-						column_name: row.from,
-						referenced_table_schema: input.schema,
-						referenced_table_name: row.table,
-						referenced_column_name: row.to,
-					})) as ForeignKeyInfo[];
+
+					// Get column positions for ordering
+					const tableInfo = yield* sql<{
+						cid: number;
+						name: string;
+					}>`
+						PRAGMA table_info(${sql(table)})
+					`;
+
+					const columnPositions = new Map(
+						tableInfo.map((col) => [col.name, col.cid]),
+					);
+
+					return rows
+						.map((row) => ({
+							constraint_name: `fk_${row.id}`,
+							column_name: row.from,
+							referenced_table_schema: input.schema,
+							referenced_table_name: row.table,
+							referenced_column_name: row.to,
+						}))
+						.sort((a, b) => {
+							const posA = columnPositions.get(a.column_name) ?? 999;
+							const posB = columnPositions.get(b.column_name) ?? 999;
+							return posA - posB;
+						}) as ForeignKeyInfo[];
 				}),
 			orElse: () =>
 				sql<ForeignKeyInfo>`
@@ -613,20 +632,67 @@ export const getTableRelationships = (input: {
 				`,
 			sqlite: () =>
 				Effect.gen(function* () {
-					// SQLite only supports outgoing relationships via PRAGMA
-					const rows = yield* sql<PragmaForeignKeyInfo>`
-						PRAGMA foreign_key_list("${table}")
+					// Get outgoing relationships via PRAGMA
+					const outgoingRows = yield* sql<PragmaForeignKeyInfo>`
+						PRAGMA foreign_key_list(${sql(table)})
 					`;
-					return rows.map((row) => ({
+
+					const outgoing = outgoingRows.map((row) => ({
 						type: "outgoing" as const,
 						referencingSchema: schema,
 						referencingTable: table,
 						referencingColumn: row.from,
-						referencedSchema: "main",
+						referencedSchema: schema,
 						referencedTable: row.table,
 						referencedColumn: row.to,
 						constraintName: `fk_${row.id}`,
-					})) as TableRelationship[];
+					}));
+
+					// Get incoming relationships by finding all FK references to this table
+					// For each column in this table, find tables that reference it
+					const tableInfo = yield* sql<{
+						name: string;
+					}>`
+						PRAGMA table_info(${sql(table)})
+					`;
+
+					const incomingRelationships: TableRelationship[] = [];
+					for (const col of tableInfo) {
+						const refs = yield* findColumnReferences({
+							referencedSchema: schema,
+							referencedTable: table,
+							referencedColumn: col.name,
+						});
+
+						for (const ref of refs) {
+							incomingRelationships.push({
+								type: "incoming" as const,
+								referencingSchema: ref.schema,
+								referencingTable: ref.table,
+								referencingColumn: ref.column,
+								referencedSchema: schema,
+								referencedTable: table,
+								referencedColumn: ref.referencedColumn,
+								constraintName: ref.constraintName,
+							});
+						}
+					}
+
+					// Combine and sort
+					const combined = [...outgoing, ...incomingRelationships].sort(
+						(a, b) => {
+							const typeOrder = { outgoing: 0, incoming: 1 };
+							if (typeOrder[a.type] !== typeOrder[b.type]) {
+								return typeOrder[a.type] - typeOrder[b.type];
+							}
+							if (a.referencingTable !== b.referencingTable) {
+								return a.referencingTable.localeCompare(b.referencingTable);
+							}
+							return a.referencingColumn.localeCompare(b.referencingColumn);
+						},
+					);
+
+					return combined;
 				}),
 			orElse: () =>
 				sql<TableRelationship>`
@@ -705,9 +771,40 @@ export const findColumnReferences = (input: {
 						kcu1.column_name
 				`,
 			sqlite: () =>
-				// SQLite doesn't have a system-wide FK reverse lookup
-				// Return empty array - callers need to handle this limitation
-				Effect.succeed([]),
+				Effect.gen(function* () {
+					// SQLite: manually scan all tables for foreign keys that reference the target
+					const tables = yield* getAvailableTables();
+					const results: ColumnReference[] = [];
+
+					for (const tableInfo of tables) {
+						const fks = yield* getTableForeignKeys({
+							schema: referencedSchema,
+							table: tableInfo.name,
+						});
+
+						for (const fk of fks) {
+							if (
+								fk.referenced_table_name === referencedTable &&
+								fk.referenced_column_name === referencedColumn
+							) {
+								results.push({
+									schema: referencedSchema,
+									table: tableInfo.name,
+									column: fk.column_name,
+									referencedColumn: fk.referenced_column_name,
+									constraintName: fk.constraint_name,
+								});
+							}
+						}
+					}
+
+					return results.sort((a, b) => {
+						if (a.table !== b.table) {
+							return a.table.localeCompare(b.table);
+						}
+						return a.column.localeCompare(b.column);
+					});
+				}),
 			orElse: () =>
 				sql`
 					SELECT
@@ -819,12 +916,43 @@ export const findColumnReferencesWithCounts = (input: {
 							),
 						);
 					},
-					sqlite: () =>
-						// SQLite: return 0 since we can't do reverse FK lookup
-						Effect.succeed({
-							...ref,
-							matchingRowCount: 0,
-						} as ColumnReferenceWithCount),
+					sqlite: () => {
+						// SQLite: execute the count query dynamically
+						if (normalizedCellValue === null) {
+							return sql<{ count: number }>`
+								SELECT COUNT(*) as count
+								FROM ${sql(ref.table)}
+								WHERE ${sql(ref.column)} IS NULL
+							`.pipe(
+								Effect.map((rows) => ({
+									...ref,
+									matchingRowCount: Number(rows[0]?.count ?? 0),
+								})),
+								Effect.catchAll(() =>
+									Effect.succeed({
+										...ref,
+										matchingRowCount: -1,
+									}),
+								),
+							);
+						}
+						return sql<{ count: number }>`
+							SELECT COUNT(*) as count
+							FROM ${sql(ref.table)}
+							WHERE ${sql(ref.column)} = ${normalizedCellValue}
+						`.pipe(
+							Effect.map((rows) => ({
+								...ref,
+								matchingRowCount: Number(rows[0]?.count ?? 0),
+							})),
+							Effect.catchAll(() =>
+								Effect.succeed({
+									...ref,
+									matchingRowCount: -1,
+								}),
+							),
+						);
+					},
 					orElse: () => {
 						if (normalizedCellValue === null) {
 							return sql<{ count: number }>`
