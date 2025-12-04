@@ -1,17 +1,12 @@
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
-import type { InferServerFnSchema } from "#src/types.ts";
-import { queryOptions } from "@tanstack/react-query";
-import { createServerFn } from "@tanstack/react-start";
-import { Effect, Schema } from "effect";
-import { AppRuntime } from "../../services/app.runtime.ts";
-import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
+import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import {
 	findColumnReferences,
 	findColumnReferencesWithCounts,
-	type ColumnReference,
-	type ColumnReferenceWithCount,
 } from "#src/server/introspection/introspection.ts";
+import type { InferServerFnSchema } from "#src/types.ts";
+import { queryOptions } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
+import { Schema } from "effect";
 
 /**
  * Find all tables and columns that reference a specific column (reverse FK lookup)
@@ -26,30 +21,15 @@ const findColumnReferencesServerFn = createServerFn({ method: "POST" })
 			referencedColumn: Schema.String,
 		}).pipe(Schema.standardSchemaV1),
 	)
-	.handler(async (ctx): Promise<ColumnReference[]> => {
-		const program = Effect.gen(function* () {
-			const repo = yield* DatabaseConnectionRepository;
-			const connection = yield* repo.findByUrl(ctx.data.url);
-
-			if (!connection) {
-				return yield* Effect.fail(
-					new Error(`Connection not found for URL: ${ctx.data.url}`),
-				);
-			}
-
-			return yield* findColumnReferences({
-				referencedSchema: ctx.data.referencedSchema,
-				referencedTable: ctx.data.referencedTable,
-				referencedColumn: ctx.data.referencedColumn,
-			}).pipe(
-				withRemoteConnectionLayers(
-					connection.url,
-					RemoteConnectionId.make(connection.id),
-				),
-			);
-		});
-		return await AppRuntime.runPromise(program);
-	});
+	.handler(
+		createRemoteIntrospectionHandler((input) =>
+			findColumnReferences({
+				referencedSchema: input.referencedSchema,
+				referencedTable: input.referencedTable,
+				referencedColumn: input.referencedColumn,
+			}),
+		),
+	);
 
 /**
  * Find all tables and columns that reference a specific column with row counts
@@ -67,31 +47,16 @@ const findColumnReferencesWithCountsServerFn = createServerFn({
 			cellValue: Schema.Any,
 		}).pipe(Schema.standardSchemaV1),
 	)
-	.handler(async (ctx): Promise<ColumnReferenceWithCount[]> => {
-		const program = Effect.gen(function* () {
-			const repo = yield* DatabaseConnectionRepository;
-			const connection = yield* repo.findByUrl(ctx.data.url);
-
-			if (!connection) {
-				return yield* Effect.fail(
-					new Error(`Connection not found for URL: ${ctx.data.url}`),
-				);
-			}
-
-			return yield* findColumnReferencesWithCounts({
-				referencedSchema: ctx.data.referencedSchema,
-				referencedTable: ctx.data.referencedTable,
-				referencedColumn: ctx.data.referencedColumn,
-				cellValue: ctx.data.cellValue,
-			}).pipe(
-				withRemoteConnectionLayers(
-					connection.url,
-					RemoteConnectionId.make(connection.id),
-				),
-			);
-		});
-		return await AppRuntime.runPromise(program);
-	});
+	.handler(
+		createRemoteIntrospectionHandler((input) =>
+			findColumnReferencesWithCounts({
+				referencedSchema: input.referencedSchema,
+				referencedTable: input.referencedTable,
+				referencedColumn: input.referencedColumn,
+				cellValue: input.cellValue,
+			}),
+		),
+	);
 
 export const findColumnReferencesQueryOptions = (
 	input: InferServerFnSchema<typeof findColumnReferencesServerFn>,

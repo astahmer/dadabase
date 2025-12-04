@@ -1,12 +1,9 @@
 import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { Effect, Schema } from "effect";
-import { AppRuntime } from "../../services/app.runtime.ts";
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
+import { Schema } from "effect";
+import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
-import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
 import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
 
 const TableRelationshipSchema = Schema.Struct({
@@ -31,33 +28,16 @@ const InputSchema = Schema.Struct({
 
 const getRelationshipsCountsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
-	.handler(async (ctx) => {
-		const input = ctx.data;
-		return await AppRuntime.runPromise(
-			Effect.gen(function* () {
-				const repo = yield* DatabaseConnectionRepository;
-				const connection = yield* repo.findByUrl(input.url);
-
-				if (!connection) {
-					return yield* Effect.fail(
-						new Error(`Connection not found for URL: ${input.url}`),
-					);
-				}
-
-				return yield* getRelationshipsCounts({
-					schema: input.schema,
-					table: input.table,
-					relationships: input.relationships,
-					rowData: input.rowData,
-				}).pipe(
-					withRemoteConnectionLayers(
-						connection.url,
-						RemoteConnectionId.make(connection.id),
-					),
-				);
+	.handler(
+		createRemoteIntrospectionHandler((input) =>
+			getRelationshipsCounts({
+				schema: input.schema,
+				table: input.table,
+				relationships: input.relationships,
+				rowData: input.rowData,
 			}),
-		);
-	});
+		),
+	);
 
 export const getRelationshipsCountsQueryOptions = (
 	input: InferServerFnSchema<typeof getRelationshipsCountsServerFn>,

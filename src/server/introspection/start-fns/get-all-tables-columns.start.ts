@@ -1,12 +1,9 @@
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
-import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
+import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { getAllTablesColumns } from "#src/server/introspection/introspection.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { Effect, Schema } from "effect";
-import { AppRuntime } from "../../services/app.runtime.ts";
+import { Schema } from "effect";
 
 const getAllTablesColumnsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
@@ -15,29 +12,13 @@ const getAllTablesColumnsServerFn = createServerFn({ method: "POST" })
 			schema: Schema.String,
 		}).pipe(Schema.standardSchemaV1),
 	)
-	.handler(async (ctx) => {
-		const program = Effect.gen(function* () {
-			const repo = yield* DatabaseConnectionRepository;
-			const connection = yield* repo.findByUrl(ctx.data.url);
-
-			if (!connection) {
-				return yield* Effect.fail(
-					new Error(`Connection not found for URL: ${ctx.data.url}`),
-				);
-			}
-
-			return yield* getAllTablesColumns({
-				schema: ctx.data.schema,
-			}).pipe(
-				withRemoteConnectionLayers(
-					connection.url,
-					RemoteConnectionId.make(connection.id),
-				),
-			);
-		});
-
-		return await AppRuntime.runPromise(program);
-	});
+	.handler(
+		createRemoteIntrospectionHandler((input) =>
+			getAllTablesColumns({
+				schema: input.schema,
+			}),
+		),
+	);
 
 export const getAllTablesColumnsQueryOptions = (
 	input: InferServerFnSchema<typeof getAllTablesColumnsServerFn>,

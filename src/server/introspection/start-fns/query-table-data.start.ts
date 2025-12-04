@@ -3,17 +3,14 @@ import {
 	filterQueryValidConditions,
 	type QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { withRemoteConnectionLayers } from "#src/server/create-remote-server-fn.ts";
-import { RemoteConnectionId } from "#src/server/db-connection/remote-connection.tag.ts";
+import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
-import { AppRuntime } from "../../services/app.runtime.ts";
 
 const InputSchema = Schema.Struct({
-	url: Schema.URL,
+	url: Schema.String,
 	dbName: Schema.String.pipe(Schema.optional),
 	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
 	table: Schema.String,
@@ -27,64 +24,39 @@ const InputSchema = Schema.Struct({
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
 	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
-	.handler(async (ctx) => {
-		const input = ctx.data;
+	.handler(
+		createRemoteIntrospectionHandler((input) =>
+			Effect.gen(function* () {
+				const startTime = Date.now();
 
-		const startTime = Date.now();
-		// console.log("---> queryTableDataServerFn");
+				// Filter out conditions with null/undefined values (apply validation on server side too)
+				const validatedFilters = input.filters
+					? filterQueryValidConditions(input.filters)
+					: null;
 
-		// Filter out conditions with null/undefined values (apply validation on server side too)
-		const validatedFilters = input.filters
-			? filterQueryValidConditions(input.filters)
-			: null;
+				const output = yield* queryTableRows({
+					schema: input.schema,
+					table: input.table,
+					limit: input.limit ?? 50,
+					offset: input.offset ?? 0,
+					orderBy: input.orderBy,
+					orderDirection: input.orderDirection,
+					filters: validatedFilters ?? {
+						conditions: [],
+						logicalOperator: "and",
+					},
+				});
 
-		const program = Effect.gen(function* () {
-			const repo = yield* DatabaseConnectionRepository;
-			const connection = yield* repo.findByUrl(input.url.toString());
-
-			if (!connection) {
-				return yield* Effect.fail(
-					new Error(`Connection not found for URL: ${input.url}`),
-				);
-			}
-
-			const result = yield* queryTableRows({
-				schema: input.schema,
-				table: input.table,
-				limit: input.limit ?? 50,
-				offset: input.offset ?? 0,
-				orderBy: input.orderBy,
-				orderDirection: input.orderDirection,
-				filters: validatedFilters ?? {
-					conditions: [],
-					logicalOperator: "and",
-				},
-			}).pipe(
-				withRemoteConnectionLayers(
-					input.url.toString(),
-					RemoteConnectionId.make(connection.id),
-				),
-			);
-
-			return result;
-		});
-		const output = (await AppRuntime.runPromise(program)) as {
-			rows: Record<string, any>[];
-			rowCount: number;
-		};
-		const endTime = Date.now();
-		// console.log(
-		// 	"<--- queryTableDataServerFn",
-		// 	Duration.format(Duration.toMillis(endTime - startTime)),
-		// );
-
-		return {
-			rows: output.rows,
-			rowCount: output.rowCount,
-			timeTaken: endTime - startTime,
-			ranAt: startTime,
-		};
-	});
+				const endTime = Date.now();
+				return {
+					rows: output.rows as any[],
+					rowCount: output.rowCount,
+					timeTaken: endTime - startTime,
+					ranAt: startTime,
+				};
+			}),
+		),
+	);
 
 export type QueryTableDataInput = {
 	url: string;
