@@ -20,6 +20,7 @@ import {
 	useActiveTabState,
 } from "./create-tab-state.ts";
 import { ConnectionSwitcher } from "./connection-switcher";
+import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 
 interface ConnectionPageSidebarProps {
 	connection: DbConnection;
@@ -38,7 +39,6 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
 	const databaseListQuery = useQuery({
 		...listAvailableDatabase({ url: connectionUrl }),
-		enabled: !!connection.url,
 		retry: 3,
 	});
 
@@ -49,7 +49,6 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
 	const schemaListQuery = useQuery({
 		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
-		enabled: !!activeConnectionUrl,
 		retry: 3,
 	});
 
@@ -70,12 +69,17 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 		select: (s) => s.tableFilter,
 	});
 	const selectedTable = useActiveTabState((s) => s.table);
+	const isNotSqlite = !(
+		connection.dialect === DatabaseDialect.SQLite ||
+		connection.dialect === DatabaseDialect.LibSQL
+	);
+
 	const filteredTables = useMemo(
 		() =>
 			tableList.filter(
 				(table) =>
 					(tableFilter ? contains(table.name, tableFilter) : true) &&
-					selectedSchema === table.schema,
+					(isNotSqlite ? selectedSchema === table.schema : true),
 			),
 		[tableList, tableFilter, selectedSchema, contains],
 	);
@@ -104,7 +108,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 	const schemaCollection = ArkSelect.createListCollection({
 		items: allSchemaList
 			.filter((schema) => tableList.some((t) => t.schema === schema))
-			.map((s: string) => {
+			.map((s) => {
 				const tableCount = schemaTableCounts.get(s) || 0;
 				return {
 					label: `${s} (${tableCount} tables)`,
@@ -112,21 +116,6 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 				};
 			}),
 	});
-
-	const prefetchTableData = (schema: string, table: string) => {
-		queryClient.prefetchQuery({
-			...queryTableDataQueryOptions({
-				url: activeConnectionUrl,
-				schema,
-				table,
-				limit: 50,
-				offset: 0,
-				orderBy: undefined,
-				orderDirection: undefined,
-				filters: { conditions: [], logicalOperator: "and" },
-			}),
-		});
-	};
 
 	return (
 		<>
@@ -136,132 +125,136 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 				onAddConnection={props.onAddConnection}
 			/>
 			{/* Database Selector */}
-			<Stack className="px-4 pt-4 shrink-0" gap="2">
-				<label className="text-xs font-medium text-foreground uppercase tracking-wide">
-					Database
-				</label>
-				{databaseListQuery.isError ? (
-					<ErrorBoundaryCard
-						error={databaseListQuery.error}
-						title="Failed to load databases"
-						onRetry={() => databaseListQuery.refetch()}
-					/>
-				) : databaseListQuery.isLoading ? (
-					<LoadingSpinner
-						label="Loading databases..."
-						failureCount={databaseListQuery.failureCount}
-						layout="horizontal"
-						className="rounded-md border border-input bg-card px-3 py-2 min-h-9"
-					/>
-				) : (
-					<ArkSelect.Select
-						className="w-full"
-						value={
-							selectedDbName
-								? [selectedDbName]
-								: defaultDatabaseName
-									? [defaultDatabaseName]
-									: []
-						}
-						collection={ArkSelect.createListCollection({
-							items: (databaseListQuery.data || []).map((db) => ({
-								label: db.name,
-								value: db.name,
-							})),
-						})}
-						positioning={{ sameWidth: true }}
-						disabled={databaseListQuery.isLoading}
-						onValueChange={(details: { value?: string[] }) => {
-							const newDbName = details.value?.[0];
-							if (newDbName) {
-								navigate({
-									search: (prev) => ({
-										...prev,
-										dbName: newDbName,
-										schema: undefined,
-										table: undefined,
-										offset: 0,
-										filters: undefined,
-									}),
-								});
+			{isNotSqlite && (
+				<Stack className="px-4 pt-4 shrink-0" gap="2">
+					<label className="text-xs font-medium text-foreground uppercase tracking-wide">
+						Database
+					</label>
+					{databaseListQuery.isError ? (
+						<ErrorBoundaryCard
+							error={databaseListQuery.error}
+							title="Failed to load databases"
+							onRetry={() => databaseListQuery.refetch()}
+						/>
+					) : databaseListQuery.isLoading ? (
+						<LoadingSpinner
+							label="Loading databases..."
+							failureCount={databaseListQuery.failureCount}
+							layout="horizontal"
+							className="rounded-md border border-input bg-card px-3 py-2 min-h-9"
+						/>
+					) : (
+						<ArkSelect.Select
+							className="w-full"
+							value={
+								selectedDbName
+									? [selectedDbName]
+									: defaultDatabaseName
+										? [defaultDatabaseName]
+										: []
 							}
-						}}
-					>
-						<ArkSelect.SelectControl>
-							<ArkSelect.SelectTrigger>
-								<ArkSelect.SelectValueText placeholder="Select database" />
-								<ArkSelect.SelectIndicator />
-							</ArkSelect.SelectTrigger>
-						</ArkSelect.SelectControl>
-						<ArkSelect.SelectContent>
-							{(databaseListQuery.data || []).map((db) => (
-								<ArkSelect.SelectItem
-									key={db.name}
-									item={{ label: db.name, value: db.name }}
-								>
-									{db.name}
-								</ArkSelect.SelectItem>
-							))}
-						</ArkSelect.SelectContent>
-					</ArkSelect.Select>
-				)}
-			</Stack>
-			{/* Schema Selector */}
-			<Stack className="px-4 pt-4 shrink-0" gap="2">
-				<label className="text-xs font-medium text-foreground uppercase tracking-wide">
-					Schema
-				</label>
-				{schemaListQuery.isError ? (
-					<ErrorBoundaryCard
-						error={schemaListQuery.error}
-						title="Failed to load schemas"
-						onRetry={() => schemaListQuery.refetch()}
-					/>
-				) : schemaListQuery.isLoading ? (
-					<LoadingSpinner
-						label="Loading schemas..."
-						failureCount={schemaListQuery.failureCount}
-						layout="horizontal"
-						className="rounded-md border border-input bg-card px-3 py-2 min-h-9"
-					/>
-				) : (
-					<ArkSelect.Select
-						className="w-full"
-						value={selectedSchema ? [selectedSchema] : []}
-						collection={schemaCollection}
-						positioning={{ sameWidth: true }}
-						disabled={schemaListQuery.isLoading}
-						onValueChange={(details: { value?: string[] }) => {
-							const newSchema = details.value?.[0];
-							if (newSchema) {
-								navigate({
-									search: (prev) =>
-										updateTabState(prev, {
-											schema: newSchema,
+							collection={ArkSelect.createListCollection({
+								items: (databaseListQuery.data || []).map((db) => ({
+									label: db.name,
+									value: db.name,
+								})),
+							})}
+							positioning={{ sameWidth: true }}
+							disabled={databaseListQuery.isLoading}
+							onValueChange={(details: { value?: string[] }) => {
+								const newDbName = details.value?.[0];
+								if (newDbName) {
+									navigate({
+										search: (prev) => ({
+											...prev,
+											dbName: newDbName,
+											schema: undefined,
 											table: undefined,
 											offset: 0,
 											filters: undefined,
 										}),
-								});
-							}
-						}}
-					>
-						<ArkSelect.SelectControl>
-							<ArkSelect.SelectTrigger>
-								<ArkSelect.SelectValueText placeholder="Select schema" />
-								<ArkSelect.SelectIndicator />
-							</ArkSelect.SelectTrigger>
-						</ArkSelect.SelectControl>
-						<ArkSelect.SelectContent>
-							{schemaCollection.items.map((item) => (
-								<ArkSelect.SelectItem key={item.value} item={item}>
-									{item.label}
-								</ArkSelect.SelectItem>
-							))}
-						</ArkSelect.SelectContent>
-					</ArkSelect.Select>
-				)}
-			</Stack>
+									});
+								}
+							}}
+						>
+							<ArkSelect.SelectControl>
+								<ArkSelect.SelectTrigger>
+									<ArkSelect.SelectValueText placeholder="Select database" />
+									<ArkSelect.SelectIndicator />
+								</ArkSelect.SelectTrigger>
+							</ArkSelect.SelectControl>
+							<ArkSelect.SelectContent>
+								{(databaseListQuery.data || []).map((db) => (
+									<ArkSelect.SelectItem
+										key={db.name}
+										item={{ label: db.name, value: db.name }}
+									>
+										{db.name}
+									</ArkSelect.SelectItem>
+								))}
+							</ArkSelect.SelectContent>
+						</ArkSelect.Select>
+					)}
+				</Stack>
+			)}
+			{/* Schema Selector */}
+			{isNotSqlite && (
+				<Stack className="px-4 pt-4 shrink-0" gap="2">
+					<label className="text-xs font-medium text-foreground uppercase tracking-wide">
+						Schema
+					</label>
+					{schemaListQuery.isError ? (
+						<ErrorBoundaryCard
+							error={schemaListQuery.error}
+							title="Failed to load schemas"
+							onRetry={() => schemaListQuery.refetch()}
+						/>
+					) : schemaListQuery.isLoading ? (
+						<LoadingSpinner
+							label="Loading schemas..."
+							failureCount={schemaListQuery.failureCount}
+							layout="horizontal"
+							className="rounded-md border border-input bg-card px-3 py-2 min-h-9"
+						/>
+					) : (
+						<ArkSelect.Select
+							className="w-full"
+							value={selectedSchema ? [selectedSchema] : []}
+							collection={schemaCollection}
+							positioning={{ sameWidth: true }}
+							disabled={schemaListQuery.isLoading}
+							onValueChange={(details: { value?: string[] }) => {
+								const newSchema = details.value?.[0];
+								if (newSchema) {
+									navigate({
+										search: (prev) =>
+											updateTabState(prev, {
+												schema: newSchema,
+												table: undefined,
+												offset: 0,
+												filters: undefined,
+											}),
+									});
+								}
+							}}
+						>
+							<ArkSelect.SelectControl>
+								<ArkSelect.SelectTrigger>
+									<ArkSelect.SelectValueText placeholder="Select schema" />
+									<ArkSelect.SelectIndicator />
+								</ArkSelect.SelectTrigger>
+							</ArkSelect.SelectControl>
+							<ArkSelect.SelectContent>
+								{schemaCollection.items.map((item) => (
+									<ArkSelect.SelectItem key={item.value} item={item}>
+										{item.label}
+									</ArkSelect.SelectItem>
+								))}
+							</ArkSelect.SelectContent>
+						</ArkSelect.Select>
+					)}
+				</Stack>
+			)}
 			{/* Tables List */}
 			<div
 				className="flex-1 h-full min-h-0 flex flex-col gap-2 overflow-hidden"
@@ -318,6 +311,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 								) : (
 									<Listbox.Root collection={tableCollection}>
 										<Listbox.Content className="overflow-visible px-4">
+											{/* TODO virtualize? */}
 											<Listbox.ItemGroup>
 												{filteredTables.map((table) => (
 													<Listbox.Item
@@ -333,11 +327,29 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 														}`}
 														title={table.name}
 														onMouseEnter={() => {
-															const schema = selectedSchema || "public";
-															prefetchTableData(schema, table.name);
+															const schema =
+																selectedSchema ||
+																getDialectDefaultSchema(connection.dialect);
+															queryClient.prefetchQuery({
+																...queryTableDataQueryOptions({
+																	url: activeConnectionUrl,
+																	schema,
+																	table: table.name,
+																	limit: 50,
+																	offset: 0,
+																	orderBy: undefined,
+																	orderDirection: undefined,
+																	filters: {
+																		conditions: [],
+																		logicalOperator: "and",
+																	},
+																}),
+															});
 														}}
 														onClick={() => {
-															const schema = selectedSchema || "public";
+															const schema =
+																selectedSchema ||
+																getDialectDefaultSchema(connection.dialect);
 															const tabState = createTabState(
 																schema,
 																table.name,

@@ -1,4 +1,4 @@
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
+import { makeRemoteSqlClientLayer } from "#src/db/postgres/remote-sql-client.layer.ts";
 import {
 	RemoteConnectionId,
 	makeRemoteConnectionLayer,
@@ -10,9 +10,14 @@ import { QueryLoggerPersistentLayer } from "./query-logger/query-logger.layer.pe
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import type { SqlError } from "@effect/sql/SqlError";
 import type { SqlClient } from "@effect/sql";
+import type { AppDatabase } from "#src/db/app.db.ts";
+import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
+import type { Selectable } from "kysely";
+import type { DatabaseDialect } from "#src/db/dialect.ts";
 
-export const withRemoteConnectionLayers =
+const withRemoteConnectionLayers =
 	<TOutput, E, R>(
+		dialect: DatabaseDialect,
 		connectionUrl: string,
 		connectionId: RemoteConnectionIdType,
 	) =>
@@ -30,7 +35,7 @@ export const withRemoteConnectionLayers =
 				),
 			);
 
-			const sqlLayer = yield* makeKyselyPgDatabaseLayer(connectionUrl);
+			const sqlLayer = yield* makeRemoteSqlClientLayer(connectionUrl, dialect);
 			const program = effect.pipe(
 				Effect.provide(connectionLayer),
 				Effect.provide(sqlLayer),
@@ -64,7 +69,10 @@ export const withRemoteConnectionLayersFromUrl =
 				),
 			);
 
-			const sqlLayer = yield* makeKyselyPgDatabaseLayer(connectionUrl);
+			const sqlLayer = yield* makeRemoteSqlClientLayer(
+				connectionUrl,
+				connection.dialect,
+			);
 			const program = effect.pipe(
 				Effect.provide(connectionLayer),
 				Effect.provide(sqlLayer),
@@ -82,6 +90,7 @@ export const createRemoteIntrospectionHandler =
 	<TInput extends { url: string }, TOutput>(
 		effectFn: (
 			input: TInput,
+			connection: Selectable<AppDatabaseSchema["database_connections"]>,
 		) => Effect.Effect<TOutput, SqlError, SqlClient.SqlClient>,
 	) =>
 	async (ctx: { data: TInput }): Promise<TOutput> => {
@@ -95,8 +104,9 @@ export const createRemoteIntrospectionHandler =
 				);
 			}
 
-			return yield* effectFn(ctx.data).pipe(
+			return yield* effectFn(ctx.data, connection).pipe(
 				withRemoteConnectionLayers(
+					connection.dialect,
 					connection.url,
 					RemoteConnectionId.make(connection.id),
 				),

@@ -11,14 +11,16 @@ import z from "zod";
 import { useAppForm } from "../form/form.hook.ts";
 import { HStack, Stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
-import { LucideCheck } from "lucide-react";
+import { LucideCheck, LucideCross } from "lucide-react";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 
-const connectionType = z.enum(["postgres", "mysql", "sqlite"]);
+const connectionType = z.enum(DatabaseDialect);
 const connectionFormSchema = z.object({
 	connectionName: z.string().min(1),
 	connectionType,
-	// sqlite
+	// sqlite / libsql
 	filePath: z.string(),
+	libsqlAuthToken: z.string(),
 	// postgres / mysql
 	connectionUrl: z.url(),
 	host: z.string(),
@@ -30,8 +32,9 @@ const connectionFormSchema = z.object({
 
 const defaultValues = {
 	connectionName: "New connection",
-	connectionType: "postgres" as z.infer<typeof connectionType>,
+	connectionType: DatabaseDialect.Postgres as z.infer<typeof connectionType>,
 	filePath: "",
+	libsqlAuthToken: "",
 	connectionUrl: "postgres://localhost:5432/dadabase",
 	host: "localhost",
 	port: 5432,
@@ -66,12 +69,27 @@ export function ConnectionForm({
 		},
 		onSubmit: async (ctx) => {
 			const isCreate = mode === "create";
+			const connectionType = ctx.value.connectionType;
+
+			// Build the connection URL based on type
+			let connectionUrl = ctx.value.connectionUrl;
+			if (connectionType === DatabaseDialect.SQLite) {
+				connectionUrl = `sqlite://${ctx.value.filePath}`;
+			} else if (connectionType === DatabaseDialect.LibSQL) {
+				if (ctx.value.libsqlAuthToken) {
+					connectionUrl = `${ctx.value.connectionUrl}?authToken=${ctx.value.libsqlAuthToken}`;
+				} else {
+					connectionUrl = ctx.value.connectionUrl;
+				}
+			}
+
 			try {
 				if (isCreate) {
 					await createMutation.mutateAsync({
 						data: {
 							name: ctx.value.connectionName,
-							url: ctx.value.connectionUrl,
+							url: connectionUrl,
+							dialect: connectionType,
 						},
 					});
 
@@ -90,7 +108,7 @@ export function ConnectionForm({
 						data: {
 							id: initialValues?.id || "",
 							name: ctx.value.connectionName,
-							url: ctx.value.connectionUrl,
+							url: connectionUrl,
 						},
 					});
 					toaster.create({
@@ -107,8 +125,8 @@ export function ConnectionForm({
 			} catch (error) {
 				toaster.create({
 					title: (
-						<HStack align="center" className="text-chart-2">
-							<LucideCheck className="h-3 w-3" />
+						<HStack align="center" className="text-chart-1">
+							<LucideCross className="h-3 w-3" />
 							Error
 						</HStack>
 					),
@@ -126,7 +144,9 @@ export function ConnectionForm({
 		const values = { ...defaultValues, ...initialValues };
 		if (initialValues?.connectionUrl) {
 			const parsed = parseConnectionUrl(initialValues.connectionUrl);
-			values.connectionType = parsed.protocol as z.infer<typeof connectionType>;
+			values.connectionType =
+				initialValues.connectionType ||
+				(parsed.protocol as z.infer<typeof connectionType>);
 			values.user = parsed.user;
 			values.password = parsed.password;
 			values.host = parsed.host;
@@ -212,8 +232,9 @@ export function ConnectionForm({
 						defaultValue={[field.state.value]}
 						options={[
 							{ label: "Postgres", value: "postgres" },
+							{ label: "SQLite", value: "sqlite" },
+							{ label: "libSQL / Turso", value: "libsql" },
 							// { label: "MySQL", value: "mysql" },
-							// { label: "SQLite", value: "sqlite" },
 						]}
 					/>
 				)}
@@ -226,11 +247,45 @@ export function ConnectionForm({
 						return;
 					}
 
-					if (connectionType === "sqlite") {
+					if (connectionType === DatabaseDialect.SQLite) {
 						return (
 							<>
+								<form.AppField name="connectionName">
+									{(field) => <field.TextField label="Name" />}
+								</form.AppField>
+								<form.AppField name="filePath">
+									{(field) => (
+										<field.TextField
+											label="File Path"
+											placeholder="/path/to/database.db"
+										/>
+									)}
+								</form.AppField>
+							</>
+						);
+					}
+
+					if (connectionType === DatabaseDialect.LibSQL) {
+						return (
+							<>
+								<form.AppField name="connectionName">
+									{(field) => <field.TextField label="Name" />}
+								</form.AppField>
 								<form.AppField name="connectionUrl">
-									{(field) => <field.TextField label="URL" />}
+									{(field) => (
+										<field.TextField
+											label="URL"
+											placeholder="libsql://your-database.turso.io"
+										/>
+									)}
+								</form.AppField>
+								<form.AppField name="libsqlAuthToken">
+									{(field) => (
+										<field.TextField
+											label="Auth Token (optional)"
+											placeholder="your-auth-token"
+										/>
+									)}
 								</form.AppField>
 							</>
 						);

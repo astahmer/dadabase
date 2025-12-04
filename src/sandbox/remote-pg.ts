@@ -1,4 +1,5 @@
-import { makeKyselyPgDatabaseLayer } from "#src/db/postgres/kysely.pg.database.live.ts";
+import { DatabaseDialect } from "#src/db/dialect.ts";
+import { makeRemoteSqlClientLayer } from "#src/db/postgres/remote-sql-client.layer.ts";
 import {
 	getAvailableDatabases,
 	getAvailableTables,
@@ -18,7 +19,7 @@ const program = Effect.gen(function* () {
 const DatabaseUrl = Config.string("DB_URL");
 const runWithDb = Effect.gen(function* () {
 	const url = yield* DatabaseUrl;
-	const layer = yield* makeKyselyPgDatabaseLayer(url);
+	const layer = yield* makeRemoteSqlClientLayer(url, DatabaseDialect.Postgres);
 	const result = yield* program.pipe(Effect.provide(layer));
 	return result;
 });

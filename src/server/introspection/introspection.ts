@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
+import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.
@@ -79,13 +80,12 @@ export const getAvailableSchemas = () =>
 export const getAvailableTables = (input?: { schema?: string }) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
-		const { schema = "public" } = input ?? {};
 
 		const result = yield* sql.onDialectOrElse({
 			pg: () => {
 				const query = sql`
 					SELECT table_name as name, table_schema as schema FROM information_schema.tables
-					WHERE table_schema = ${schema}
+					WHERE table_schema = ${input?.schema || getDialectDefaultSchema(DatabaseDialect.Postgres)}
 					AND table_type = 'BASE TABLE'
 					ORDER BY table_name
 				`;
@@ -101,7 +101,7 @@ export const getAvailableTables = (input?: { schema?: string }) =>
 			orElse: () =>
 				sql`
 					SELECT table_name as name, table_schema as schema FROM information_schema.tables
-					WHERE table_schema = ${schema}
+					WHERE table_schema = ${input?.schema || getDialectDefaultSchema(DatabaseDialect.Postgres)}
 					ORDER BY table_name
 				`,
 		});

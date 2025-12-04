@@ -6,9 +6,7 @@ export const testLibsqlConnectionUrl = (url: string) =>
 	Effect.gen(function* () {
 		const canConnect = yield* Effect.tryPromise({
 			try: async () => {
-				const client = createClient({
-					url,
-				});
+				const client = createClient({ url });
 				await client.execute("SELECT 1");
 				return { success: true };
 			},

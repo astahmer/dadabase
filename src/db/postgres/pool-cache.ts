@@ -1,22 +1,25 @@
-import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
-import {
-	Effect,
-	Ref,
-	Layer,
-	Context,
-	Schedule,
-	Redacted,
-	Duration,
-} from "effect";
-import { PgClient } from "@effect/sql-pg";
 import { SqlClient } from "@effect/sql";
 import type { SqlError } from "@effect/sql/SqlError";
+import { PgClient } from "@effect/sql-pg";
+import {
+	Context,
+	Duration,
+	Effect,
+	Layer,
+	Redacted,
+	Ref,
+	Schedule,
+} from "effect";
+import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
+import { LibsqlClient } from "@effect/sql-libsql";
+import type { DatabaseDialect } from "../dialect.ts";
 
 export class PoolCache extends Context.Tag("@dadabase/PoolCache")<
 	PoolCache,
 	{
 		readonly getOrCreate: (
 			url: string,
+			dialect: DatabaseDialect,
 		) => Effect.Effect<Layer.Layer<SqlClient.SqlClient, SqlError>>;
 		readonly getMetrics: () => Effect.Effect<{
 			poolCount: number;
@@ -61,7 +64,7 @@ export const makePoolCacheLive = Layer.effect(
 		yield* Effect.forkDaemon(cleanupRoutine);
 
 		return {
-			getOrCreate: (url: string) =>
+			getOrCreate: (url: string, dialect: DatabaseDialect) =>
 				Ref.modify(cacheRef, (cache) => {
 					const existing = cache.get(url);
 					if (existing) {
@@ -77,13 +80,16 @@ export const makePoolCacheLive = Layer.effect(
 					console.log(
 						`[PoolCache] Creating new pool for ${redactConnectionUrl(url)}`,
 					);
-					const layer = PgClient.layer({
-						url: Redacted.make(url),
-						maxConnections: 20,
-						idleTimeout: Duration.seconds(30),
-					});
-					// PgClient.make
-					// Layer.extendScope
+					let layer: Layer.Layer<SqlClient.SqlClient, SqlError>;
+					if (dialect === "postgres") {
+						layer = PgClient.layer({
+							url: Redacted.make(url),
+							maxConnections: 20,
+							idleTimeout: Duration.seconds(30),
+						});
+					} else {
+						layer = LibsqlClient.layer({ url });
+					}
 
 					const newCache = new Map(cache);
 					newCache.set(url, { layer, lastUsed: Date.now() });

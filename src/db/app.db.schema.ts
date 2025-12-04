@@ -1,6 +1,7 @@
 // import { sql } from "drizzle-orm";
 import type { Kyselify } from "drizzle-orm/kysely";
 import * as sqlite from "drizzle-orm/sqlite-core";
+import type { DatabaseDialect } from "./dialect.ts";
 
 const primaryId = () => sqlite.text().primaryKey();
 const timestamp = () =>
@@ -13,15 +14,13 @@ const timestamp = () =>
 // const boolean = () => sqlite.integer({ mode: "boolean" });
 // const json = () => sqlite.text({ mode: "json" });
 
-type DatabaseDialect = "postgres" | "sqlite";
-
 export const database_connections = sqlite.sqliteTable(
 	"database_connections",
 	{
 		id: primaryId(),
-		url: sqlite.text().notNull(),
 		dialect: sqlite.text().notNull().$type<DatabaseDialect>(),
-		name: sqlite.text().notNull(),
+		url: sqlite.text().unique().notNull(),
+		name: sqlite.text().unique().notNull(),
 		created_at: timestamp(),
 		updated_at: timestamp(),
 	},

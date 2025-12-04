@@ -1,6 +1,6 @@
 import { deleteDbConnectionMutation } from "#src/server/db-connection/start-fns/delete-db-connection.start.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
-import { testPgConnectionServerFn } from "#src/server/introspection/start-fns/test-pg-connection.start.ts";
+import { tryConnectionServerFn } from "#src/server/introspection/start-fns/try-connection.start.ts";
 import { Clipboard, Portal } from "@ark-ui/react";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -31,12 +31,13 @@ import { toaster } from "../ui/toaster.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { useDataTable } from "../data-table/use-data-table.ts";
 import { ConnectionForm } from "./connection.form.tsx";
+import type { DatabaseDialect } from "#src/db/dialect.ts";
 
 interface EditableConnection {
 	id: string;
 	name: string;
 	url: string;
-	dialect: string;
+	dialect: DatabaseDialect;
 	created_at: number;
 	updated_at: number;
 }
@@ -63,7 +64,7 @@ export const HomePage = () => {
 				id: "_connect",
 				size: 200,
 				cell: (ctx) => {
-					const testPgConnectionUrl = useServerFn(testPgConnectionServerFn);
+					const testPgConnectionUrl = useServerFn(tryConnectionServerFn);
 					const [state, setState] = useState("idle");
 					return (
 						<HStack>
@@ -73,7 +74,10 @@ export const HomePage = () => {
 								size="sm"
 								onClick={async () => {
 									const canConnect = await testPgConnectionUrl({
-										data: { url: ctx.row.original.url },
+										data: {
+											url: ctx.row.original.url,
+											dialect: ctx.row.original.dialect,
+										},
 									});
 									if (canConnect.success) {
 										setState("success");
@@ -289,9 +293,10 @@ export const HomePage = () => {
 								initialValues={{
 									id: editingConnection.id,
 									connectionName: editingConnection.name,
-									connectionType: "postgres",
+									connectionType: editingConnection.dialect,
 									filePath: "",
 									connectionUrl: editingConnection.url,
+									libsqlAuthToken: "",
 									host: "",
 									port: 5432,
 									databaseName: "",

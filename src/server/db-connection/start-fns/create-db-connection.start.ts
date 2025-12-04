@@ -3,12 +3,14 @@ import { Schema } from "effect";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { createDbConnection } from "#src/server/db-connection/fns/create-db-connection.ts";
 import { mutationOptions } from "@tanstack/react-query";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 
 const createDbConnectionServerFn = createServerFn({ method: "POST" })
 	.inputValidator(
 		Schema.Struct({
 			name: Schema.String,
 			url: Schema.URL,
+			dialect: Schema.Enums(DatabaseDialect),
 		}).pipe(Schema.standardSchemaV1),
 	)
 	.handler(async (ctx) => {
@@ -16,6 +18,7 @@ const createDbConnectionServerFn = createServerFn({ method: "POST" })
 			createDbConnection({
 				name: ctx.data.name,
 				url: ctx.data.url.toString(),
+				dialect: ctx.data.dialect,
 			}),
 		);
 	});
