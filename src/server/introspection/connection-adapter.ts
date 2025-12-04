@@ -2,7 +2,7 @@ import type { TableRelationship } from "#src/components/pages/connection-page/re
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import type { SqlClient } from "@effect/sql";
 import type { SqlError } from "@effect/sql/SqlError";
-import type { Effect } from "effect";
+import { Context, type Effect } from "effect";
 import {
 	type ColumnReference,
 	type ColumnReferenceWithCount,
@@ -14,11 +14,9 @@ import {
 } from "./introspection.ts";
 
 /**
- * ConnectionAdapter interface - abstracts database introspection operations
- * Allows swapping between different database drivers (PostgreSQL, SQLite, etc.)
- * while using the same introspection function implementations
+ * DatabaseConnectionAdapter interface - abstracts database introspection operations
  */
-export interface ConnectionAdapter {
+export interface DatabaseConnectionAdapterType {
 	dialect: "postgres" | "sqlite";
 
 	// Database metadata
@@ -126,6 +124,10 @@ export interface ConnectionAdapter {
 		SqlClient.SqlClient
 	>;
 }
+
+export class DatabaseConnectionAdapter extends Context.Tag(
+	"@dadabase/DatabaseConnectionAdapter",
+)<DatabaseConnectionAdapter, DatabaseConnectionAdapterType>() {}
 
 export interface TableRelationshipInput {
 	constraintName: string;
