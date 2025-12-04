@@ -16,10 +16,7 @@ export const testLibsqlConnectionUrl = (url: string) =>
 		}).pipe(Effect.either);
 
 		if (Either.isLeft(canConnect)) {
-			if (
-				canConnect.left.cause &&
-				typeof canConnect.left.cause === "object"
-			) {
+			if (canConnect.left.cause && typeof canConnect.left.cause === "object") {
 				const cause = canConnect.left.cause as any;
 				if (cause.code === "SQLITE_CANTOPEN") {
 					return {
