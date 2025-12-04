@@ -13,6 +13,14 @@ interface User {
 	age: number;
 }
 
+interface Post {
+	id: number;
+	user_id: number;
+	title: string;
+	content: string;
+	published: boolean;
+}
+
 const pgliteLayer = PgLiteClient.layer({
 	dataDir: "memory://",
 }) as unknown as Layer.Layer<SqlClient.SqlClient>;
@@ -239,7 +247,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 			yield* setupSchema;
 			yield* insertTestData;
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				orderBy: "age",
@@ -296,7 +304,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -323,7 +331,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -379,7 +387,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -411,7 +419,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -445,7 +453,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "or",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -473,7 +481,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -551,7 +559,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<Post>({
 				schema: "public",
 				table: "posts",
 				filters,
@@ -580,7 +588,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -606,7 +614,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<Post>({
 				schema: "public",
 				table: "posts",
 				filters,
@@ -632,7 +640,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<Post>({
 				schema: "public",
 				table: "posts",
 				filters,
@@ -659,7 +667,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<Post>({
 				schema: "public",
 				table: "posts",
 				filters,
@@ -691,7 +699,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -719,7 +727,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 			yield* sql`INSERT INTO users (name, email, age) VALUES ${sql.csv(manyUsers)}`;
 
 			// Get first page
-			const page1 = yield* queryTableRows({
+			const page1 = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				limit: 10,
@@ -727,7 +735,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 			});
 
 			// Get second page
-			const page2 = yield* queryTableRows({
+			const page2 = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				limit: 10,
@@ -885,7 +893,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 					logicalOperator: "and",
 				};
 
-				const result = yield* queryTableRows({
+				const result = yield* queryTableRows<Post>({
 					schema: "public",
 					table: "posts",
 					filters,
@@ -914,7 +922,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -942,7 +950,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -972,7 +980,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -1000,7 +1008,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,
@@ -1028,7 +1036,7 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>) => () => {
 				logicalOperator: "and",
 			};
 
-			const result = yield* queryTableRows({
+			const result = yield* queryTableRows<User>({
 				schema: "public",
 				table: "users",
 				filters,

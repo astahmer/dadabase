@@ -111,19 +111,19 @@ const testSuite =
 			Effect.gen(function* () {
 				yield* setupTables;
 
-				const result = yield* getRelationshipCardinality({
+				const cardinality = yield* getRelationshipCardinality({
 					schema: config.defaultSchema,
 					table: "user_profiles",
 					columns: ["user_id"],
 				});
 
 				if (config.isPostgres) {
-					expect(result.cardinality).toBe("one-to-one");
+					expect(cardinality).toBe("one-to-one");
 				} else {
 					// SQLite: libsql has limitations detecting one-to-one relationships
 					// due to how PRAGMA table_info exposes primary key information.
 					// This is expected behavior and "many-to-one" is a safe fallback.
-					expect(result.cardinality).toBe("many-to-one");
+					expect(cardinality).toBe("many-to-one");
 				}
 			}).pipe(Effect.provide(sqlLayer)),
 		);
@@ -132,13 +132,13 @@ const testSuite =
 			Effect.gen(function* () {
 				yield* setupTables;
 
-				const result = yield* getRelationshipCardinality({
+				const cardinality = yield* getRelationshipCardinality({
 					schema: config.defaultSchema,
 					table: "posts",
 					columns: ["author_id"],
 				});
 
-				expect(result.cardinality).toBe("many-to-one");
+				expect(cardinality).toBe("many-to-one");
 			}).pipe(Effect.provide(sqlLayer)),
 		);
 
@@ -146,13 +146,13 @@ const testSuite =
 			Effect.gen(function* () {
 				yield* setupTables;
 
-				const result = yield* getRelationshipCardinality({
+				const cardinality = yield* getRelationshipCardinality({
 					schema: config.defaultSchema,
 					table: "videos",
 					columns: ["channel_id"],
 				});
 
-				expect(result.cardinality).toBe("many-to-one");
+				expect(cardinality).toBe("many-to-one");
 			}).pipe(Effect.provide(sqlLayer)),
 		);
 
@@ -171,14 +171,14 @@ const testSuite =
 					// To properly detect M:N from our algorithm, we'd need to check if the FK side
 					// is the entire primary key AND neither side is individually unique.
 					// For now, test that student_id alone (non-unique FK to unique PK) returns "many-to-one"
-					const result = yield* getRelationshipCardinality({
+					const cardinality = yield* getRelationshipCardinality({
 						schema: config.defaultSchema,
 						table: "student_courses",
 						columns: ["student_id"],
 					});
 
 					// This is many-to-one from the perspective of "many student_courses refer to one student"
-					expect(result.cardinality).toBe("many-to-one");
+					expect(cardinality).toBe("many-to-one");
 				}).pipe(Effect.provide(sqlLayer)),
 		);
 
@@ -190,14 +190,14 @@ const testSuite =
 
 					// When querying from the "many" side's perspective as an incoming relationship,
 					// it should correctly return "one-to-many"
-					const result = yield* getRelationshipCardinality({
+					const cardinality = yield* getRelationshipCardinality({
 						schema: config.defaultSchema,
 						table: "posts",
 						columns: ["author_id"],
 						isIncomingRelationship: true,
 					});
 
-					expect(result.cardinality).toBe("one-to-many");
+					expect(cardinality).toBe("one-to-many");
 				}).pipe(Effect.provide(sqlLayer)),
 		);
 	};

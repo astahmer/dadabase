@@ -65,7 +65,8 @@ export const QueryFilter = Schema.Struct({
 	),
 });
 
-export type QueryFilterType = Schema.Schema.Type<typeof QueryFilter>;
+export interface QueryFilterType
+	extends Schema.Schema.Type<typeof QueryFilter> {}
 
 export const conditionToWhereClause = (
 	condition: FilterConditionExpression,

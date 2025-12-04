@@ -1,7 +1,9 @@
+import { SqlClient, Statement } from "@effect/sql";
+import { SqlError } from "@effect/sql/SqlError";
+import { Effect } from "effect";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
-import { SqlClient, Statement } from "@effect/sql";
-import { Effect } from "effect";
+import type { TableRelationshipInput } from "./connection-adapter.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.
@@ -289,7 +291,7 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 		return output as Array<TableColumnMetadata>;
 	});
 
-interface ForeignKeyInfo {
+export interface ForeignKeyInfo {
 	constraint_name: string;
 	column_name: string;
 	referenced_table_schema: string;
@@ -318,7 +320,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 		const sql = yield* SqlClient.SqlClient;
 		const { schema, table } = input;
 
-		return yield* sql.onDialectOrElse({
+		const result = yield* sql.onDialectOrElse({
 			pg: () =>
 				sql<ForeignKeyInfo>`
 					SELECT
@@ -374,9 +376,11 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 					WHERE table_schema = ${schema} AND table_name = ${table}
 				`,
 		});
+
+		return result as Array<ForeignKeyInfo>;
 	});
 
-interface IndexInfo {
+export interface IndexInfo {
 	index_name: string;
 	column_name: string;
 	is_unique: boolean;
@@ -401,7 +405,7 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 		const sql = yield* SqlClient.SqlClient;
 		const { schema, table } = input;
 
-		return yield* sql.onDialectOrElse({
+		const result = yield* sql.onDialectOrElse({
 			pg: () =>
 				sql<IndexInfo>`
 					SELECT DISTINCT
@@ -456,6 +460,8 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 					WHERE table_schema = ${schema} AND table_name = ${table}
 				`,
 		});
+
+		return result as Array<IndexInfo>;
 	});
 
 /**
@@ -1020,14 +1026,14 @@ export const getRelationshipCardinality = (input: {
 	table: string;
 	columns: string[];
 	isIncomingRelationship?: boolean;
-}) =>
+}): Effect.Effect<RelationshipCardinality, SqlError, SqlClient.SqlClient> =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const { schema, table, columns, isIncomingRelationship } = input;
 
 		const output = yield* sql.onDialectOrElse({
 			pg: () =>
-				sql`
+				sql<{ cardinality: string }>`
 					-- Determine cardinality of FK relationship
 					WITH table_oid AS (
 						SELECT oid
@@ -1161,7 +1167,7 @@ export const getRelationshipCardinality = (input: {
 						(col) => col.name === matchingFk.to && col.pk > 0,
 					);
 
-					let cardinality: RelationshipCardinality = "many-to-one";
+					let cardinality: string = "many-to-one";
 					if (fkIsUnique && referencedIsPk) {
 						cardinality = "one-to-one";
 					} else if (!fkIsUnique && referencedIsPk) {
@@ -1178,17 +1184,17 @@ export const getRelationshipCardinality = (input: {
 				// Default fallback - assume many-to-one
 				Effect.succeed([{ cardinality: "many-to-one" }]),
 		});
-		const result = output as Array<{ cardinality: RelationshipCardinality }>;
+		const result = output as Array<{ cardinality: string }>;
 
 		// If no result found, return defaults based on relationship direction
 		if (result.length === 0) {
 			if (isIncomingRelationship) {
-				return { cardinality: "one-to-many" };
+				return "one-to-many";
 			}
-			return { cardinality: "many-to-one" };
+			return "many-to-one";
 		}
 
-		let cardinality = result[0].cardinality;
+		let cardinality = result[0].cardinality as RelationshipCardinality;
 
 		// If this is an incoming relationship, invert the cardinality
 		// many-to-one becomes one-to-many and vice versa
@@ -1201,22 +1207,8 @@ export const getRelationshipCardinality = (input: {
 			// one-to-one and many-to-many remain the same
 		}
 
-		return { cardinality };
+		return cardinality;
 	});
-
-/**
- * Input type for relationship counting
- */
-interface TableRelationshipInput {
-	constraintName: string;
-	referencingSchema: string;
-	referencingTable: string;
-	referencingColumn: string;
-	referencedSchema: string;
-	referencedTable: string;
-	referencedColumn: string;
-	type: "incoming" | "outgoing";
-}
 
 /**
  * Fetch row counts for all relationships of a table in a single batch
@@ -1488,9 +1480,7 @@ const escapeValue = (value: unknown): string => {
  * - PostgreSQL: Uses schema.table notation, ILIKE, ANY/ALL for arrays
  * - SQLite: Uses table only (no schema), LIKE with COLLATE NOCASE, IN for arrays
  */
-export const queryTableRows = <
-	T extends Record<string, any> = Record<string, any>,
->(input: {
+export const queryTableRows = <TData>(input: {
 	schema: string;
 	table: string;
 	limit?: number;
@@ -1498,7 +1488,15 @@ export const queryTableRows = <
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
 	filters?: QueryFilterType;
-}) =>
+}): Effect.Effect<
+	{
+		rows: TData[];
+		rowCount: number;
+		hasNextPage: boolean;
+	},
+	SqlError,
+	SqlClient.SqlClient
+> =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const {
@@ -1538,7 +1536,7 @@ export const queryTableRows = <
 					const rowCount = Number(countRows[0]?.count ?? 0);
 
 					// Get rows
-					const rows = yield* sql<T>`
+					const rows = yield* sql`
 						SELECT *
 						FROM ${tableRef}
 						${sql.unsafe(whereFragment)}
@@ -1546,7 +1544,11 @@ export const queryTableRows = <
 						LIMIT ${limit} OFFSET ${offset}
 					`;
 
-					return { rows: rows as T[], rowCount };
+					return {
+						rows: rows as TData[],
+						rowCount,
+						hasNextPage: offset + limit < rowCount,
+					};
 				}),
 			sqlite: () =>
 				Effect.gen(function* () {
@@ -1571,7 +1573,7 @@ export const queryTableRows = <
 					const rowCount = Number(countRows[0]?.count ?? 0);
 
 					// Get rows
-					const rows = yield* sql<T>`
+					const rows = yield* sql`
 						SELECT *
 						FROM ${tableRef}
 						${sql.unsafe(whereFragment)}
@@ -1579,7 +1581,11 @@ export const queryTableRows = <
 						LIMIT ${limit} OFFSET ${offset}
 					`;
 
-					return { rows: rows as T[], rowCount };
+					return {
+						rows: rows as TData[],
+						rowCount,
+						hasNextPage: offset + limit < rowCount,
+					};
 				}),
 			orElse: () =>
 				Effect.gen(function* () {
@@ -1595,7 +1601,7 @@ export const queryTableRows = <
 					const rowCount = Number(countRows[0]?.count ?? 0);
 
 					// Get rows
-					const rows = yield* sql<T>`
+					const rows = yield* sql`
 						SELECT *
 						FROM ${tableRef}
 						${sql.unsafe(whereFragment)}
@@ -1603,7 +1609,11 @@ export const queryTableRows = <
 						LIMIT ${limit} OFFSET ${offset}
 					`;
 
-					return { rows: rows as T[], rowCount };
+					return {
+						rows: rows as TData[],
+						rowCount,
+						hasNextPage: offset + limit < rowCount,
+					};
 				}),
 		});
 

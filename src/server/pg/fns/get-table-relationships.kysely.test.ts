@@ -144,7 +144,10 @@ const createSetupSchema = (config: TestConfig) =>
 		}
 	});
 
-const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) => {
+const testSuite = (
+	layer: Layer.Layer<SqlClient.SqlClient>,
+	config: TestConfig,
+) => {
 	const setupSchema = createSetupSchema(config);
 
 	return [
@@ -204,7 +207,9 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) 
 					});
 
 					// users has incoming FKs from posts, user_profiles, and comments
-					const incomingRels = relationships.filter((r) => r.type === "incoming");
+					const incomingRels = relationships.filter(
+						(r) => r.type === "incoming",
+					);
 					expect(incomingRels.length).toBeGreaterThan(0);
 
 					// All should be incoming
@@ -328,25 +333,29 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) 
 			}).pipe(Effect.provide(layer)),
 		),
 
-		it.effect("handles many-to-many relationships through junction tables", () =>
-			Effect.gen(function* () {
-				yield* setupSchema;
+		it.effect(
+			"handles many-to-many relationships through junction tables",
+			() =>
+				Effect.gen(function* () {
+					yield* setupSchema;
 
-				const relationships = yield* getTableRelationships({
-					schema: config.defaultSchema,
-					table: "post_tags",
-				});
+					const relationships = yield* getTableRelationships({
+						schema: config.defaultSchema,
+						table: "post_tags",
+					});
 
-				// post_tags has outgoing FKs to posts and tags
-				const outgoing = relationships.filter((r) => r.type === "outgoing");
-				expect(outgoing.length).toBe(2);
+					// post_tags has outgoing FKs to posts and tags
+					const outgoing = relationships.filter((r) => r.type === "outgoing");
+					expect(outgoing.length).toBe(2);
 
-				const postFk = outgoing.find((r) => r.referencingColumn === "post_id");
-				expect(postFk?.referencedTable).toBe("posts");
+					const postFk = outgoing.find(
+						(r) => r.referencingColumn === "post_id",
+					);
+					expect(postFk?.referencedTable).toBe("posts");
 
-				const tagFk = outgoing.find((r) => r.referencingColumn === "tag_id");
-				expect(tagFk?.referencedTable).toBe("tags");
-			}).pipe(Effect.provide(layer)),
+					const tagFk = outgoing.find((r) => r.referencingColumn === "tag_id");
+					expect(tagFk?.referencedTable).toBe("tags");
+				}).pipe(Effect.provide(layer)),
 		),
 
 		it.effect("identifies junction table relationships correctly", () =>
