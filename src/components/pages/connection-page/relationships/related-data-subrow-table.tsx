@@ -6,7 +6,7 @@ import { useRowsColumnsAction } from "#src/components/pages/connection-page/use-
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import { useRowsColumns } from "../use-rows-columns.tsx";
 import { useTableColumnMetadata } from "../use-table-column-metadata.ts";
-import { queryFkTargetDataQueryOptions } from "../../../../server/pg/start-fns/get-fk-target-data.start.ts";
+import { queryFkTargetDataQueryOptions } from "../../../../server/introspection/start-fns/get-fk-target-data.start.ts";
 import { DataTable } from "../../../data-table/data-table.tsx";
 import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
 import { Button } from "../../../ui/button.tsx";

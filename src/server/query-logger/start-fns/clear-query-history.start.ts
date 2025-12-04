@@ -5,7 +5,7 @@ import { Effect, Schema } from "effect";
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
-import { getQueryHistoryQueryOptions } from "#src/server/pg/start-fns/get-query-history.start.ts";
+import { getQueryHistoryQueryOptions } from "#src/server/introspection/start-fns/get-query-history.start.ts";
 
 const clearQueryHistoryInputSchema = Schema.Struct({
 	url: Schema.String,

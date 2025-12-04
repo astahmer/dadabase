@@ -1,9 +1,9 @@
 import { JsonArray } from "#src/components/ui/json-viewer.tsx";
 import { renderPrimitiveValue } from "#src/components/ui/json-viewer.render-primitive-value.tsx";
 import { cn } from "#src/lib/utils";
-import { queryRelationshipSubrowDataQueryOptions } from "#src/server/pg/start-fns/get-relationship-subrow-data.start.ts";
-import { getRelationshipsCountsQueryOptions } from "#src/server/pg/start-fns/get-relationships-counts.start.ts";
-import { getTableRelationshipsQueryOptions } from "#src/server/pg/start-fns/get-table-relationships.start.ts";
+import { queryRelationshipSubrowDataQueryOptions } from "#src/server/introspection/start-fns/get-relationship-subrow-data.start.ts";
+import { getRelationshipsCountsQueryOptions } from "#src/server/introspection/start-fns/get-relationships-counts.start.ts";
+import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";

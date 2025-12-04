@@ -8,7 +8,7 @@ import { MemoizedDataCell } from "#src/components/memoized-data-cell.tsx";
 import { PrimaryKeyIcon } from "#src/components/app/primary-key-icon.tsx";
 import { UniqueConstraintIcon } from "#src/components/app/unique-constraint-icon.tsx";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
 
 interface ColumnMetadata {

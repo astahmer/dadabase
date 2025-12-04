@@ -7,7 +7,7 @@ import {
 	X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import type { ForeignKeyInfo } from "../data-table/cell-context-menu.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { Stack } from "../ui/layout.tsx";

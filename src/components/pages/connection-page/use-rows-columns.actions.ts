@@ -1,5 +1,5 @@
 import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import { useCallback } from "react";
 import type { UseRowsColumnsOptions } from "./use-rows-columns.tsx";
 import { useQueryClient } from "@tanstack/react-query";

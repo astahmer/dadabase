@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { TableRelationship } from "./relationships/relationships.ts";
-import { getTableRelationshipsQueryOptions } from "../../../server/pg/start-fns/get-table-relationships.start.ts";
+import { getTableRelationshipsQueryOptions } from "../../../server/introspection/start-fns/get-table-relationships.start.ts";
 
 interface UseTableRelationshipsOptions {
 	url: string;

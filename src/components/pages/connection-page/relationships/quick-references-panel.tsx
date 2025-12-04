@@ -10,7 +10,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useListCollection, useFilter, Clipboard } from "@ark-ui/react";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
 import {
 	ListboxRoot,
