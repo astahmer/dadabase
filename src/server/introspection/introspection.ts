@@ -517,10 +517,9 @@ export const getAllTablesColumns = (input: { schema: string }) =>
 					}
 
 					// For sqlite, PRAGMA table_info provides pk flag on columns; ensure we include those
-					for (const c of cols as any[]) {
-						if (c.pk) pkSet.add(c.column_name);
+					for (const c of cols) {
+						if (c.primaryKey) pkSet.add(c.name);
 					}
-
 					const columns = cols.map((c) => ({
 						name: c.name,
 						dataType: c.dataType,
