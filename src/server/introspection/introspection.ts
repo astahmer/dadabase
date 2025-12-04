@@ -232,11 +232,57 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 						foreignKey: fkMap.get(col.name),
 					}));
 				}),
-			// TODO
-			// sqlite: () =>
+			sqlite: () =>
+				Effect.gen(function* () {
+					// Get table schema from PRAGMA table_info
+					const tableInfo = yield* sql<{
+						cid: number;
+						name: string;
+						type: string;
+						notnull: number;
+						dflt_value: string | null;
+						pk: number;
+					}>`PRAGMA table_info(${sql(input.table)})`;
+
+					// Get foreign keys for this table
+					const fks =
+						yield* sql<PragmaForeignKeyInfo>`PRAGMA foreign_key_list(${sql(input.table)})`;
+
+					// Create FK map for quick lookup
+					const fkMap = new Map<
+						string,
+						{
+							referencedSchema: string;
+							referencedTable: string;
+							referencedColumn: string;
+							constraintName: string;
+						}
+					>();
+
+					fks.forEach((fk) => {
+						fkMap.set(fk.from, {
+							referencedSchema: "", // SQLite doesn't have schemas
+							referencedTable: fk.table,
+							referencedColumn: fk.to,
+							constraintName: `fk_${fk.id}`,
+						});
+					});
+
+					// Convert PRAGMA table_info to our TableColumnMetadata format
+					return tableInfo.map((col) => ({
+						name: col.name,
+						dataType: col.type.toLowerCase(), // Normalize to lowercase like PostgreSQL
+						nullable: col.notnull === 0,
+						primaryKey: col.pk > 0,
+						unique: false, // Would need to check indexes for unique columns
+						defaultValue: col.dflt_value,
+						isForeignKey: fkMap.has(col.name),
+						foreignKey: fkMap.get(col.name),
+					}));
+				}),
 			orElse: () =>
 				Effect.gen(function* () {
-					// TODO
+					// Fallback for unknown databases
 					return [];
 				}),
 		});
@@ -293,12 +339,12 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 			sqlite: () =>
 				Effect.gen(function* () {
 					const rows = yield* sql<PragmaForeignKeyInfo>`
-						PRAGMA foreign_key_list(${table})
+						PRAGMA foreign_key_list(${sql(table)})
 					`;
 					return rows.map((row) => ({
 						constraint_name: `fk_${row.id}`,
 						column_name: row.from,
-						referenced_table_schema: "",
+						referenced_table_schema: input.schema,
 						referenced_table_name: row.table,
 						referenced_column_name: row.to,
 					})) as ForeignKeyInfo[];
@@ -356,7 +402,7 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 			sqlite: () =>
 				Effect.gen(function* () {
 					const indexList = yield* sql<PragmaIndexInfo>`
-						PRAGMA index_list(${table})
+						PRAGMA index_list(${sql(table)})
 					`;
 
 					const results: IndexInfo[] = [];
@@ -368,7 +414,7 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 							cid: number;
 							name: string;
 						}>`
-							PRAGMA index_info(${idx.name})
+							PRAGMA index_info(${sql(idx.name)})
 						`;
 
 						for (const col of idxCols) {
@@ -570,7 +616,7 @@ export const getTableRelationships = (input: {
 				Effect.gen(function* () {
 					// SQLite only supports outgoing relationships via PRAGMA
 					const rows = yield* sql<PragmaForeignKeyInfo>`
-						PRAGMA foreign_key_list(${table})
+						PRAGMA foreign_key_list("${table}")
 					`;
 					return rows.map((row) => ({
 						type: "outgoing" as const,
