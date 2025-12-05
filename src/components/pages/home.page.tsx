@@ -32,6 +32,7 @@ import { Tooltip } from "../ui/tooltip.tsx";
 import { useDataTable } from "../data-table/use-data-table.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 import type { DatabaseDialect } from "#src/db/dialect.ts";
+import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 
 interface EditableConnection {
 	id: string;
@@ -55,8 +56,16 @@ export const HomePage = () => {
 				accessorKey: "name",
 				header: "Name",
 				cell: (ctx) => (
-					<Tooltip content={ctx.row.original.url}>
-						<span>{ctx.row.original.name}</span>
+					<Tooltip
+						content={redactConnectionUrl(ctx.row.original.url)}
+						portalled
+					>
+						<Link
+							to="/connections/$connectionName"
+							params={{ connectionName: ctx.row.original.name }}
+						>
+							{ctx.row.original.name}
+						</Link>
 					</Tooltip>
 				),
 			},

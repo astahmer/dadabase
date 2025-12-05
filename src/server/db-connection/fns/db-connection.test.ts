@@ -43,73 +43,9 @@ const TestNanoIdLayer = Layer.succeed(
 	}),
 );
 
-const TestDatabaseRepositoryLayer = Layer.effect(
-	DatabaseConnectionRepository,
-	Effect.gen(function* () {
-		const db = (yield* AppDatabase) as EffectKysely<AppDatabaseSchema>;
-		return new DatabaseConnectionRepository({
-			findAll: () => {
-				return db.execute(
-					db
-						.selectFrom("database_connections")
-						.selectAll()
-						.where("id", "is not", null),
-				);
-			},
-			findByUrl: (connectionUrl: string) =>
-				Effect.fn(function* () {
-					const urlWithoutDb = connectionUrl.split("/").slice(0, -1).join("/");
-					const urlWithDb = connectionUrl;
-
-					const results = yield* db.execute(
-						db
-							.selectFrom("database_connections")
-							.selectAll()
-							.where((qb) =>
-								qb.or([
-									qb("url", "=", urlWithDb),
-									qb("url", "=", urlWithoutDb),
-								]),
-							),
-					);
-
-					return results.length > 0 ? results[0] : null;
-				})(),
-			insert: (insertable) =>
-				Effect.fn(function* () {
-					return yield* db.execute(
-						db.insertInto("database_connections").values({
-							id: insertable.id,
-							dialect: insertable.dialect,
-							name: insertable.name,
-							url: insertable.url,
-							created_at: insertable.created_at,
-							updated_at: insertable.updated_at,
-						}),
-					);
-				})(),
-			update: (input: { id: string; name: string; url: string }) =>
-				Effect.fn(function* () {
-					return yield* db.execute(
-						db
-							.updateTable("database_connections")
-							.set({
-								name: input.name,
-								url: input.url,
-								updated_at: new Date().getTime(),
-							})
-							.where("id", "=", input.id),
-					);
-				})(),
-			delete: (input: { id: string }) =>
-				Effect.fn(function* () {
-					return yield* db.execute(
-						db.deleteFrom("database_connections").where("id", "=", input.id),
-					);
-				})(),
-		});
-	}),
-).pipe(Layer.provide(TestAppDatabaseLayer));
+const TestDatabaseRepositoryLayer = DatabaseConnectionRepository.Default.pipe(
+	Layer.provide(TestAppDatabaseLayer),
+);
 
 const InMemoryLayer = Layer.merge(
 	TestAppDatabaseLayer,

@@ -6,29 +6,60 @@ import {
 } from "#src/components/ui/accordion";
 import { createDbConnectionMutation } from "#src/server/db-connection/start-fns/create-db-connection.start.ts";
 import { updateDbConnectionMutation } from "#src/server/db-connection/start-fns/update-db-connection.start.ts";
+import { tryConnectionServerFn } from "#src/server/introspection/start-fns/try-connection.start.ts";
 import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
 import z from "zod";
 import { useAppForm } from "../form/form.hook.ts";
 import { HStack, Stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
+import { Button } from "../ui/button.tsx";
 import { LucideCheck, LucideCross } from "lucide-react";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 
 const connectionType = z.enum(DatabaseDialect);
-const connectionFormSchema = z.object({
-	connectionName: z.string().min(1),
-	connectionType,
-	// sqlite / libsql
-	filePath: z.string(),
-	libsqlAuthToken: z.string(),
-	// postgres / mysql
-	connectionUrl: z.url(),
-	host: z.string(),
-	port: z.number(),
-	databaseName: z.string(),
-	user: z.string(),
-	password: z.string(),
-});
+const connectionFormSchema = z
+	.object({
+		connectionName: z.string().min(1),
+		connectionType,
+		// sqlite / libsql
+		filePath: z.string(),
+		libsqlAuthToken: z.string(),
+		// postgres / mysql
+		connectionUrl: z.string(),
+		host: z.string(),
+		port: z.number(),
+		databaseName: z.string(),
+		user: z.string(),
+		password: z.string(),
+	})
+	.refine(
+		(data) => {
+			// SQLite requires filePath
+			if (data.connectionType === DatabaseDialect.SQLite) {
+				return data.filePath.length > 0;
+			}
+			// LibSQL requires connectionUrl
+			if (data.connectionType === DatabaseDialect.LibSQL) {
+				return data.connectionUrl.length > 0;
+			}
+			// Postgres requires connectionUrl to be valid
+			if (data.connectionType === DatabaseDialect.Postgres) {
+				try {
+					new URL(data.connectionUrl);
+					return true;
+				} catch {
+					return false;
+				}
+			}
+			return true;
+		},
+		{
+			message: "Invalid connection configuration for selected type",
+			path: ["connectionUrl"],
+		},
+	);
 
 const defaultValues = {
 	connectionName: "New connection",
@@ -58,13 +89,18 @@ export function ConnectionForm({
 }: ConnectionFormProps) {
 	const createMutation = useMutation(createDbConnectionMutation);
 	const updateMutation = useMutation(updateDbConnectionMutation);
+	const testConnectionFn = useServerFn(tryConnectionServerFn);
+	const [testState, setTestState] = useState<
+		"idle" | "loading" | "success" | "error"
+	>("idle");
 
 	const form = useAppForm({
 		defaultValues: getInitialValues(),
 		validators: {
 			onChange: connectionFormSchema,
 		},
-		onSubmitInvalid(_props) {
+		onSubmitInvalid(props) {
+			console.log(props.formApi.getAllErrors(), props.value);
 			toaster.create({ title: "Invalid form" });
 		},
 		onSubmit: async (ctx) => {
@@ -185,7 +221,7 @@ export function ConnectionForm({
 		const user = url.username;
 		const password = url.password;
 		const host = url.hostname;
-		const port = parseInt(url.port, 10);
+		const port = url.port ? parseInt(url.port, 10) : 5432; // Default to 5432 if no port specified
 		const databaseName = url.pathname.replace("/", "");
 
 		return {
@@ -383,7 +419,70 @@ export function ConnectionForm({
 				}}
 			/>
 
-			<div className="flex justify-end gap-2 pt-4">
+			<div className="flex justify-between gap-2 pt-4">
+				<Button
+					type="button"
+					variant="outline"
+					disabled={testState === "loading"}
+					onClick={async () => {
+						const connectionUrl = form.getFieldValue("connectionUrl");
+						const connectionType = form.getFieldValue("connectionType");
+
+						if (!connectionUrl) {
+							toaster.create({ title: "Connection URL is required" });
+							return;
+						}
+
+						try {
+							setTestState("loading");
+							const result = await testConnectionFn({
+								data: {
+									url: connectionUrl,
+									dialect: connectionType,
+								},
+							});
+
+							if (result.success) {
+								setTestState("success");
+								toaster.create({
+									title: (
+										<HStack align="center" className="text-chart-2">
+											<LucideCheck className="h-3 w-3" />
+											Connection successful
+										</HStack>
+									),
+								});
+								setTimeout(() => setTestState("idle"), 2000);
+							} else {
+								setTestState("error");
+								toaster.create({
+									title: (
+										<HStack align="center" className="text-chart-1">
+											<LucideCross className="h-3 w-3" />
+											Connection failed
+										</HStack>
+									),
+									description: result.message,
+								});
+								setTimeout(() => setTestState("idle"), 2000);
+							}
+						} catch (error) {
+							setTestState("error");
+							toaster.create({
+								title: (
+									<HStack align="center" className="text-chart-1">
+										<LucideCross className="h-3 w-3" />
+										Error
+									</HStack>
+								),
+								description: "Failed to test connection",
+							});
+							setTimeout(() => setTestState("idle"), 2000);
+						}
+					}}
+				>
+					Test Connection
+				</Button>
 				<form.AppForm>
 					<form.SubscribeButton label={mode === "create" ? "Add" : "Update"} />
 				</form.AppForm>
