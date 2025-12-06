@@ -1,20 +1,16 @@
-import {
-	X,
-	Plus,
-	Copy,
-	Trash2,
-	ArrowLeftFromLine,
-	ArrowRightFromLine,
-	ChevronsLeftRight,
-	ArrowLeftRight,
-	ShareIcon,
-	CopyPlus,
-	ClipboardIcon,
-} from "lucide-react";
-import { Tabs } from "@ark-ui/react/tabs";
-import { Button } from "../../ui/button";
-import { Menu, MenuItem, MenuContent, MenuContextTrigger } from "../../ui/menu";
 import { Portal } from "@ark-ui/react";
+import { Tabs } from "@ark-ui/react/tabs";
+import {
+	ArrowLeftFromLine,
+	ArrowLeftRight,
+	ArrowRightFromLine,
+	ClipboardIcon,
+	CopyPlus,
+	Plus,
+	X,
+} from "lucide-react";
+import { Button } from "../../ui/button";
+import { Menu, MenuContent, MenuContextTrigger, MenuItem } from "../../ui/menu";
 
 export interface TableTab {
 	tabId: string; // Explicit unique identifier
@@ -53,8 +49,6 @@ export const TableTabsBar = ({
 	if (tabs.length === 0) {
 		return null;
 	}
-
-	const tabIndex = tabs.findIndex((t) => t.tabId === activeTabId);
 
 	return (
 		<div className="border-b bg-muted/50">
@@ -110,7 +104,7 @@ export const TableTabsBar = ({
 												aria-label="Close tab"
 												type="button"
 											>
-												<X className="h-3 w-3" />
+												<X className="h-3! w-3!" />
 											</button>
 										</div>
 									</Tabs.Trigger>
@@ -121,7 +115,7 @@ export const TableTabsBar = ({
 											value="close"
 											onClick={() => onTabClose?.(tab.tabId)}
 										>
-											<X className="h-2 w-2" />
+											<X className="h-3! w-3!" />
 											<span>Close</span>
 										</MenuItem>
 										{index > 0 && (
@@ -129,7 +123,7 @@ export const TableTabsBar = ({
 												value="close-left"
 												onClick={() => onCloseTabsOnLeft?.(tab.tabId)}
 											>
-												<ArrowLeftFromLine className="h-2 w-2" />
+												<ArrowLeftFromLine className="h-3! w-3!" />
 												<span>Close Tabs on Left</span>
 											</MenuItem>
 										)}
@@ -138,7 +132,7 @@ export const TableTabsBar = ({
 												value="close-right"
 												onClick={() => onCloseTabsOnRight?.(tab.tabId)}
 											>
-												<ArrowRightFromLine className="h-2 w-2" />
+												<ArrowRightFromLine className="h-3! w-3!" />
 												<span>Close Tabs on Right</span>
 											</MenuItem>
 										)}
@@ -147,7 +141,7 @@ export const TableTabsBar = ({
 												value="close-others"
 												onClick={() => onCloseOtherTabs?.(tab.tabId)}
 											>
-												<ArrowLeftRight className="h-2 w-2" />
+												<ArrowLeftRight className="h-3! w-3!" />
 												<span>Close Other Tabs</span>
 											</MenuItem>
 										)}
@@ -156,33 +150,33 @@ export const TableTabsBar = ({
 											value="duplicate"
 											onClick={() => onDuplicateTab?.(tab.tabId)}
 										>
-											<CopyPlus className="h-2 w-2" />
+											<CopyPlus className="h-3! w-3!" />
 											<span>Duplicate</span>
 										</MenuItem>
 										<MenuItem
 											value="copy-url"
 											onClick={() => onCopyTabUrl?.(tab.tabId)}
 										>
-											<ClipboardIcon className="h-2 w-2" />
+											<ClipboardIcon className="h-3! w-3!" />
 											<span>Copy URL</span>
 										</MenuItem>
 									</MenuContent>
 								</Portal>
 							</Menu>
 						))}
+						{onAddTab && (
+							<Button
+								onClick={onAddTab}
+								variant="ghost"
+								size="xs"
+								className="shrink-0"
+								aria-label="Add new tab"
+								type="button"
+							>
+								<Plus className="h-4 w-4" />
+							</Button>
+						)}
 					</Tabs.List>
-					{onAddTab && (
-						<Button
-							onClick={onAddTab}
-							variant="outline"
-							size="sm"
-							className="ml-4 shrink-0"
-							aria-label="Add new tab"
-							type="button"
-						>
-							<Plus className="h-2 w-2" />
-						</Button>
-					)}
 				</div>
 			</Tabs.Root>
 		</div>
