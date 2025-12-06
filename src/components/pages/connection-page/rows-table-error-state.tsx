@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useRef, useMemo, useState, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useFilter } from "@ark-ui/react/locale";
+import { Listbox, createListCollection } from "@ark-ui/react/listbox";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
@@ -100,6 +101,17 @@ const NoTableSelectedState = ({
 		[tableList, filterText, selectedSchema, contains, isNotSqlite],
 	);
 
+	const tableCollection = useMemo(
+		() =>
+			createListCollection({
+				items: filteredTables.map((t) => ({
+					label: t.name,
+					value: t.name,
+				})),
+			}),
+		[filteredTables],
+	);
+
 	// Virtual scroller setup
 	const virtualizer = useVirtualizer({
 		count: filteredTables.length,
@@ -110,7 +122,8 @@ const NoTableSelectedState = ({
 
 	const virtualItems = virtualizer.getVirtualItems();
 	const totalSize = virtualizer.getTotalSize();
-	const paddingTop = virtualItems.length > 0 ? virtualItems[0]?.start ?? 0 : 0;
+	const paddingTop =
+		virtualItems.length > 0 ? (virtualItems[0]?.start ?? 0) : 0;
 	const paddingBottom =
 		virtualItems.length > 0
 			? totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0)
@@ -219,37 +232,51 @@ const NoTableSelectedState = ({
 					</div>
 				) : (
 					<div className="rounded-lg border border-input bg-card shadow-sm overflow-hidden flex flex-col">
-						{/* Virtual list container */}
+						{/* Virtual scroll container */}
 						<div
 							ref={listContainerRef}
 							className="overflow-y-auto max-h-96 flex-1"
+							style={{ minHeight: 0 }}
 						>
 							<div style={{ height: `${totalSize}px` }} className="relative">
+								{/* Padding for virtualizer */}
 								{paddingTop > 0 && (
 									<div style={{ height: `${paddingTop}px` }} />
 								)}
-								{virtualItems.map((virtualItem) => {
-									const table = filteredTables[virtualItem.index];
-									if (!table) return null;
 
-									const isLast =
-										virtualItem.index === filteredTables.length - 1;
+								<Listbox.Root collection={tableCollection}>
+									<Listbox.Content className="block">
+										<Listbox.ItemGroup>
+											{virtualItems.map((virtualItem) => {
+												const table = filteredTables[virtualItem.index];
+												if (!table) return null;
 
-									return (
-										<div
-											key={table.name}
-											data-index={virtualItem.index}
-											className={`px-4 py-2.5 cursor-pointer text-sm transition-colors hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground ${
-												!isLast ? "border-b border-border/50" : ""
-											}`}
-											onClick={() => handleTableSelect(table)}
-										>
-											<div className="flex items-center gap-2">
-												<span className="font-medium">{table.name}</span>
-											</div>
-										</div>
-									);
-								})}
+												const isLast =
+													virtualItem.index === filteredTables.length - 1;
+
+												return (
+													<Listbox.Item
+														key={table.name}
+														item={{
+															label: table.name,
+															value: table.name,
+														}}
+														className={`px-4 py-2.5 cursor-pointer text-sm transition-colors hover:bg-accent hover:text-accent-foreground data-highlighted:bg-accent data-highlighted:text-accent-foreground ${
+															!isLast ? "border-b border-border/50" : ""
+														}`}
+														onClick={() => handleTableSelect(table)}
+													>
+														<Listbox.ItemText className="flex items-center gap-2">
+															<span className="font-medium">{table.name}</span>
+														</Listbox.ItemText>
+													</Listbox.Item>
+												);
+											})}
+										</Listbox.ItemGroup>
+									</Listbox.Content>
+								</Listbox.Root>
+
+								{/* Padding for virtualizer */}
 								{paddingBottom > 0 && (
 									<div style={{ height: `${paddingBottom}px` }} />
 								)}
