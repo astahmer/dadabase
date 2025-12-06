@@ -1,27 +1,27 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createListCollection, Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
-import { Listbox, createListCollection } from "@ark-ui/react/listbox";
-import { useMemo, useState, useRef } from "react";
-import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useMemo, useRef, useState } from "react";
+import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { listAvailableDatabase } from "#src/server/introspection/start-fns/get-available-database-list.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useQueryClient } from "@tanstack/react-query";
-import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { ErrorBoundaryCard } from "../../shared/error-boundary-card.tsx";
 import { LoadingSpinner } from "../../shared/loading-spinner";
-import * as ArkSelect from "../../ui/select";
 import { Stack } from "../../ui/layout.tsx";
+import * as ArkSelect from "../../ui/select";
+import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import type { DbConnection } from "../connection.types";
+import { ConnectionSwitcher } from "./connection-switcher";
 import {
 	createTabState,
 	updateTabState,
 	useActiveTabState,
 } from "./create-tab-state.ts";
-import { ConnectionSwitcher } from "./connection-switcher";
-import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { TableContextMenu } from "./table-context-menu.tsx";
 
 interface ConnectionPageSidebarProps {
 	connection: DbConnection;
@@ -55,7 +55,10 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 	});
 	const schemaList = schemaListQuery.data || [];
 	const selectedSchema = useActiveTabState(
-		(s) => s.schema ?? (schemaList.length === 1 ? schemaList.at(0) : undefined),
+		(s) =>
+			s.schema ??
+			(schemaList.length === 1 ? schemaList.at(0) : undefined) ??
+			getDialectDefaultSchema(connection.dialect),
 	);
 
 	const tablesListQuery = useQuery({
@@ -293,8 +296,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 							onHighlightChange={(details) => {
 								const tableName = details.highlightedValue;
 								if (!tableName) return;
-								const schema =
-									selectedSchema || getDialectDefaultSchema(connection.dialect);
+								const schema = selectedSchema;
 								queryClient.prefetchQuery({
 									...queryTableDataQueryOptions({
 										url: activeConnectionUrl,
@@ -315,8 +317,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 								const tableName = details.value;
 								if (!tableName) return;
 
-								const schema =
-									selectedSchema || getDialectDefaultSchema(connection.dialect);
+								const schema = selectedSchema;
 								const tabState = createTabState(schema, tableName);
 								navigate({
 									search: (prev) => {
@@ -402,23 +403,28 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 																if (!table) return null;
 
 																return (
-																	<Listbox.Item
+																	<TableContextMenu
 																		key={table.name}
-																		item={{
-																			label: table.name,
-																			value: table.name,
-																		}}
-																		className={`flex items-center px-3 py-2 cursor-pointer text-sm transition-colors rounded-md truncate ${
-																			selectedTable === table.name
-																				? "bg-primary/10 text-primary font-medium"
-																				: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
-																		}`}
-																		title={table.name}
+																		tableName={table.name}
+																		schema={table.schema || selectedSchema}
 																	>
-																		<Listbox.ItemText className="flex-1 truncate">
-																			{table.name}
-																		</Listbox.ItemText>
-																	</Listbox.Item>
+																		<Listbox.Item
+																			item={{
+																				label: table.name,
+																				value: table.name,
+																			}}
+																			className={`flex items-center px-3 py-2 cursor-pointer text-sm transition-colors rounded-md truncate ${
+																				selectedTable === table.name
+																					? "bg-primary/10 text-primary font-medium"
+																					: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
+																			}`}
+																			title={table.name}
+																		>
+																			<Listbox.ItemText className="flex-1 truncate">
+																				{table.name}
+																			</Listbox.ItemText>
+																		</Listbox.Item>
+																	</TableContextMenu>
 																);
 															})}
 														</Listbox.ItemGroup>
