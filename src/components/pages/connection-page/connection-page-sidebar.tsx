@@ -2,7 +2,8 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useFilter } from "@ark-ui/react/locale";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
-import { useMemo } from "react";
+import { useMemo, useState, useRef } from "react";
+import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import { listAvailableDatabase } from "#src/server/introspection/start-fns/get-available-database-list.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
@@ -286,121 +287,153 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 							className="p-4"
 						/>
 					) : (
-						<div className="flex-1 overflow-hidden flex flex-col h-full">
-							<div className="px-4">
-								<input
-									placeholder="Filter tables..."
-									className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
-									defaultValue={tableFilter}
-									onChange={(e) =>
-										navigate({
-											replace: true,
-											search: (prev) => ({
-												...prev,
-												tableFilter: e.target.value,
-											}),
-										})
-									}
-								/>
-							</div>
-							<div className="mt-2 flex-1 overflow-y-auto mr-4">
-								{filteredTables.length === 0 ? (
-									<div className="p-4 text-center">
-										<span className="text-xs text-muted-foreground">
-											{tableList.length === 0
-												? "No tables found"
-												: "No tables match filter"}
-										</span>
-									</div>
-								) : (
-									<Listbox.Root collection={tableCollection}>
-										<Listbox.Content className="overflow-visible px-4">
-											{/* TODO virtualize? */}
-											<Listbox.ItemGroup>
-												{filteredTables.map((table) => (
-													<Listbox.Item
-														key={table.name}
-														item={{
-															label: table.name,
-															value: table.name,
-														}}
-														className={`flex items-center px-3 py-2 cursor-pointer text-sm transition-colors rounded-md truncate ${
-															selectedTable === table.name
-																? "bg-primary/10 text-primary font-medium"
-																: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
-														}`}
-														title={table.name}
-														onMouseEnter={() => {
-															const schema =
-																selectedSchema ||
-																getDialectDefaultSchema(connection.dialect);
-															queryClient.prefetchQuery({
-																...queryTableDataQueryOptions({
-																	url: activeConnectionUrl,
-																	schema,
-																	table: table.name,
-																	limit: 50,
-																	offset: 0,
-																	orderBy: undefined,
-																	orderDirection: undefined,
-																	filters: {
-																		conditions: [],
-																		logicalOperator: "and",
-																	},
-																}),
-															});
-														}}
-														onClick={() => {
-															const schema =
-																selectedSchema ||
-																getDialectDefaultSchema(connection.dialect);
-															const tabState = createTabState(
-																schema,
-																table.name,
-															);
-															navigate({
-																search: (prev) => {
-																	const existingTab = (prev.tabs ?? []).find(
-																		(t) => t.tabId === tabState.tabId,
-																	);
+						<Listbox.Root
+							collection={tableCollection}
+							className="h-full min-h-0"
+							onHighlightChange={(details) => {
+								const tableName = details.highlightedValue;
+								if (!tableName) return;
+								const schema =
+									selectedSchema || getDialectDefaultSchema(connection.dialect);
+								queryClient.prefetchQuery({
+									...queryTableDataQueryOptions({
+										url: activeConnectionUrl,
+										schema,
+										table: tableName,
+										limit: 50,
+										offset: 0,
+										orderBy: undefined,
+										orderDirection: undefined,
+										filters: {
+											conditions: [],
+											logicalOperator: "and",
+										},
+									}),
+								});
+							}}
+							onSelect={(details) => {
+								const tableName = details.value;
+								if (!tableName) return;
 
-																	const updatedTabs = existingTab
-																		? (prev.tabs ?? [])
-																		: [...(prev.tabs ?? []), tabState];
+								const schema =
+									selectedSchema || getDialectDefaultSchema(connection.dialect);
+								const tabState = createTabState(schema, tableName);
+								navigate({
+									search: (prev) => {
+										const existingTab = (prev.tabs ?? []).find(
+											(t) => t.tabId === tabState.tabId,
+										);
 
-																	return {
-																		...prev,
-																		schema,
-																		table: table.name,
-																		activeTabId: tabState.tabId,
-																		tabs: updatedTabs,
-																		filters: undefined,
-																		filtersOpened: false,
-																		offset: 0,
-																		limit: 50,
-																		orderBy: undefined,
-																		relationshipRowId:
-																			existingTab?.relationshipRowId,
-																		orderDirection: undefined,
-																		quickReferencesOpen: false,
-																		quickReferencesColumnName: undefined,
-																		quickReferencesCellValue: undefined,
-																	};
-																},
-															});
-														}}
-													>
-														<Listbox.ItemText className="flex-1 truncate">
-															{table.name}
-														</Listbox.ItemText>
-													</Listbox.Item>
-												))}
-											</Listbox.ItemGroup>
-										</Listbox.Content>
-									</Listbox.Root>
-								)}
+										const updatedTabs = existingTab
+											? (prev.tabs ?? [])
+											: [...(prev.tabs ?? []), tabState];
+
+										return {
+											...prev,
+											schema,
+											table: tableName,
+											activeTabId: tabState.tabId,
+											tabs: updatedTabs,
+											filters: undefined,
+											filtersOpened: false,
+											offset: 0,
+											limit: 50,
+											orderBy: undefined,
+											relationshipRowId: existingTab?.relationshipRowId,
+											orderDirection: undefined,
+											quickReferencesOpen: false,
+											quickReferencesColumnName: undefined,
+											quickReferencesCellValue: undefined,
+										};
+									},
+								});
+							}}
+						>
+							<div className="flex-1 overflow-hidden flex flex-col h-full">
+								<div className="px-4">
+									<Listbox.Input
+										placeholder="Filter tables..."
+										autoFocus
+										defaultValue={tableFilter}
+										onChange={(e) =>
+											navigate({
+												replace: true,
+												search: (prev) => ({
+													...prev,
+													tableFilter: e.target.value,
+												}),
+											})
+										}
+										className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"
+									/>
+								</div>
+								<div className="mt-2 flex-1 overflow-hidden h-full">
+									{filteredTables.length === 0 ? (
+										<div className="p-4 text-center">
+											<span className="text-xs text-muted-foreground">
+												{tableList.length === 0
+													? "No tables found"
+													: "No tables match filter"}
+											</span>
+										</div>
+									) : (
+										<VirtualizerArea
+											count={filteredTables.length}
+											className="overflow-y-auto flex-1 mr-4 h-full max-h-full"
+										>
+											{({
+												virtualItems,
+												totalSize,
+												paddingTop,
+												paddingBottom,
+											}) => (
+												<div
+													style={{ height: `${totalSize}px` }}
+													className="relative"
+												>
+													{paddingTop > 0 && (
+														<div style={{ height: `${paddingTop}px` }} />
+													)}
+
+													<Listbox.Content className="block">
+														<Listbox.ItemGroup>
+															{virtualItems.map((virtualItem) => {
+																const table = filteredTables[virtualItem.index];
+																if (!table) return null;
+
+																return (
+																	<Listbox.Item
+																		key={table.name}
+																		item={{
+																			label: table.name,
+																			value: table.name,
+																		}}
+																		className={`flex items-center px-3 py-2 cursor-pointer text-sm transition-colors rounded-md truncate ${
+																			selectedTable === table.name
+																				? "bg-primary/10 text-primary font-medium"
+																				: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
+																		}`}
+																		title={table.name}
+																	>
+																		<Listbox.ItemText className="flex-1 truncate">
+																			{table.name}
+																		</Listbox.ItemText>
+																	</Listbox.Item>
+																);
+															})}
+														</Listbox.ItemGroup>
+													</Listbox.Content>
+
+													{paddingBottom > 0 && (
+														<div style={{ height: `${paddingBottom}px` }} />
+													)}
+												</div>
+											)}
+										</VirtualizerArea>
+									)}
+								</div>
 							</div>
-						</div>
+						</Listbox.Root>
 					)}
 				</Stack>
 			</div>

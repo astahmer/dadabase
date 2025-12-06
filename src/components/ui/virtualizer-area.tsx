@@ -20,10 +20,8 @@ interface VirtualizerAreaProps {
 		paddingTop: number;
 		paddingBottom: number;
 	}) => ReactNode;
-	/** Max height of the scroll container */
-	maxHeight?: string;
 	/** CSS class for the scroll container */
-	containerClassName?: string;
+	className?: string;
 }
 
 /**
@@ -55,8 +53,7 @@ export const VirtualizerArea = ({
 	count,
 	virtualizerOptions,
 	children,
-	maxHeight = "max-h-96",
-	containerClassName = "overflow-y-auto flex-1",
+	className = "overflow-y-auto flex-1 max-h-96",
 }: VirtualizerAreaProps) => {
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -81,7 +78,7 @@ export const VirtualizerArea = ({
 	return (
 		<div
 			ref={scrollContainerRef}
-			className={`${containerClassName} ${maxHeight}`}
+			className={className}
 			style={{ minHeight: 0 }}
 		>
 			{children({
