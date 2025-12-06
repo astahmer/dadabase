@@ -409,7 +409,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 								</div>
 							</>
 						) : (
-							<RowsTableErrorState activeConnectionUrl={activeConnectionUrl} />
+							<RowsTableErrorState
+								activeConnectionUrl={activeConnectionUrl}
+								connection={connection}
+							/>
 						)}
 					</Splitter.Panel>
 				</Splitter.Root>
