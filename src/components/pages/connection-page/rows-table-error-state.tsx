@@ -152,51 +152,96 @@ const NoTableSelectedState = ({
 	}
 
 	return (
-		<div className="w-full max-w-sm">
-			<div className="flex flex-col gap-3">
+		<div className="w-full max-w-2xl">
+			<div className="flex flex-col gap-4">
+				{/* Header */}
 				<div>
-					<label className="text-sm font-medium text-foreground mb-2 block">
-						Search tables
-					</label>
+					<h2 className="text-xl font-semibold text-foreground mb-1">
+						Select a table
+					</h2>
+					<p className="text-sm text-muted-foreground">
+						Choose a table to view and explore its data
+					</p>
+				</div>
+
+				{/* Search Input */}
+				<div className="relative">
+					<svg
+						className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							strokeWidth={2}
+							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+						/>
+					</svg>
 					<input
 						ref={inputRef}
 						type="text"
-						placeholder="Type to filter tables..."
+						placeholder="Search tables..."
 						value={filterText}
 						onChange={(e) => setFilterText(e.target.value)}
-						className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+						className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent"
 					/>
 				</div>
 
+				{/* Tables List */}
 				{filteredTables.length === 0 ? (
-					<div className="p-4 text-center border border-dashed rounded-md">
+					<div className="p-8 text-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20">
+						<svg
+							className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={1.5}
+								d="M12 6v6m0 0v6m0-6h6m0 0h6M6 12a6 6 0 11-0.001.001A6.002 6.002 0 016 12z"
+							/>
+						</svg>
 						<span className="text-sm text-muted-foreground">
 							{tableList.length === 0
 								? "No tables available"
-								: "No tables match filter"}
+								: "No tables match your search"}
 						</span>
 					</div>
 				) : (
-					<div className="border rounded-md bg-card">
+					<div className="rounded-lg border border-input bg-card shadow-sm overflow-hidden">
 						<Listbox.Root collection={tableCollection}>
-							<Listbox.Content className="overflow-visible">
+							<Listbox.Content className="overflow-visible max-h-96 overflow-y-auto">
 								<Listbox.ItemGroup>
-									{filteredTables.map((table) => (
+									{filteredTables.map((table, idx) => (
 										<Listbox.Item
 											key={table.name}
 											item={{
 												label: table.name,
 												value: table.name,
 											}}
-											className="px-3 py-2 cursor-pointer text-sm transition-colors hover:bg-muted data-highlighted:bg-muted"
+											className={`px-4 py-2.5 cursor-pointer text-sm transition-colors hover:bg-accent hover:text-accent-foreground data-highlighted:bg-accent data-highlighted:text-accent-foreground ${
+												idx !== filteredTables.length - 1
+													? "border-b border-border/50"
+													: ""
+											}`}
 											onClick={() => handleTableSelect(table)}
 										>
-											<Listbox.ItemText>{table.name}</Listbox.ItemText>
+											<Listbox.ItemText className="flex items-center gap-2">
+												<span className="font-medium">{table.name}</span>
+											</Listbox.ItemText>
 										</Listbox.Item>
 									))}
 								</Listbox.ItemGroup>
 							</Listbox.Content>
 						</Listbox.Root>
+						<div className="px-4 py-2 bg-muted/50 border-t border-border/50 text-xs text-muted-foreground">
+							{filteredTables.length} table
+							{filteredTables.length !== 1 ? "s" : ""} available
+						</div>
 					</div>
 				)}
 			</div>
