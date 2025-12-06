@@ -129,11 +129,6 @@ const NoTableSelectedState = ({
 			? totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0)
 			: 0;
 
-	// Auto-focus input on mount
-	useEffect(() => {
-		inputRef.current?.focus();
-	}, []);
-
 	const handleTableSelect = (tableName: string) => {
 		const schema =
 			selectedSchema || getDialectDefaultSchema(connection.dialect);
@@ -237,6 +232,7 @@ const NoTableSelectedState = ({
 							ref={inputRef}
 							placeholder="Search tables..."
 							value={filterText}
+							autoFocus
 							onChange={(e) => setFilterText(e.target.value)}
 							className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent"
 						/>
