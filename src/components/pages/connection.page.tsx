@@ -161,7 +161,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 						className="h-full min-h-0 flex-1 flex flex-col overflow-hidden"
 					>
 						{/* Tabs */}
-						<ConnectionPageTabs activeConnectionUrl={activeConnectionUrl} />
+						<ConnectionPageTabs
+							activeConnectionUrl={activeConnectionUrl}
+							dialect={connection.dialect}
+						/>
 
 						{search.table && search.schema ? (
 							<>

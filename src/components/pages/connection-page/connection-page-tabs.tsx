@@ -1,6 +1,6 @@
 import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	stringifySearchWith,
 	useLocation,
@@ -13,13 +13,19 @@ import { TableTabsBar } from "./table-tabs-bar.tsx";
 import { encodeToBinary } from "#src/router.encode.ts";
 import type { FileRoutesByTo } from "#src/routeTree.gen.ts";
 import { toaster } from "#src/components/ui/toaster.tsx";
+import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
+import {
+	getDialectDefaultSchema,
+	type DatabaseDialect,
+} from "#src/db/dialect.ts";
 
 interface ConnectionPageTabsProps {
 	activeConnectionUrl: string;
+	dialect: DatabaseDialect;
 }
 
 export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
-	const { activeConnectionUrl } = props;
+	const { activeConnectionUrl, dialect } = props;
 
 	const queryClient = useQueryClient();
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -34,6 +40,12 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 		from: "/connections/$connectionName",
 		select: (s) => s.activeTabId ?? null,
 	});
+
+	const schemaListQuery = useQuery({
+		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
+		retry: 3,
+	});
+	const schemaList = schemaListQuery.data || [];
 
 	const prefetchTableData = (schema: string, table: string) => {
 		queryClient.prefetchQuery({
@@ -306,10 +318,14 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			onCloseOtherTabs={handleDeleteOtherTabs}
 			onCopyTabUrl={handleCopyTabUrl}
 			onAddTab={() => {
+				const currentTab = tabs.find((t) => t.tabId === activeTabId);
 				const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 				const emptyTabState = {
 					tabId,
-					schema: "",
+					schema:
+						currentTab?.schema ??
+						schemaList[0] ??
+						getDialectDefaultSchema(dialect),
 					table: "",
 					tableFilter: undefined,
 					orderBy: undefined,

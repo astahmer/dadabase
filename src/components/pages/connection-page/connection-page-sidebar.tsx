@@ -41,25 +41,27 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 		...listAvailableDatabase({ url: connectionUrl }),
 		retry: 3,
 	});
-
+	const dbList = databaseListQuery.data || [];
 	const selectedDbName = useSearch({
 		from: "/connections/$connectionName",
-		select: (s) => s.dbName,
+		select: (s) =>
+			s.dbName ?? (dbList.length === 1 ? dbList.at(0)?.name : undefined),
 	});
 
 	const schemaListQuery = useQuery({
 		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
 		retry: 3,
 	});
+	const schemaList = schemaListQuery.data || [];
+	const selectedSchema = useActiveTabState(
+		(s) => s.schema ?? (schemaList.length === 1 ? schemaList.at(0) : undefined),
+	);
 
-	const selectedSchema = useActiveTabState((s) => s.schema);
 	const tablesListQuery = useQuery({
 		...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
 		enabled: !!selectedSchema,
 		retry: 3,
 	});
-
-	const allSchemaList = schemaListQuery.data || [];
 	const tableList = tablesListQuery.data || [];
 
 	const { contains } = useFilter({ sensitivity: "base" });
@@ -69,6 +71,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 		select: (s) => s.tableFilter,
 	});
 	const selectedTable = useActiveTabState((s) => s.table);
+
 	const isNotSqlite = !(
 		connection.dialect === DatabaseDialect.SQLite ||
 		connection.dialect === DatabaseDialect.LibSQL
@@ -83,6 +86,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 			),
 		[tableList, tableFilter, selectedSchema, contains],
 	);
+
 	const tableCollection = useMemo(
 		() =>
 			createListCollection({
@@ -106,7 +110,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 	}, [tableList]);
 
 	const schemaCollection = ArkSelect.createListCollection({
-		items: allSchemaList
+		items: schemaList
 			.filter((schema) => tableList.some((t) => t.schema === schema))
 			.map((s) => {
 				const tableCount = schemaTableCounts.get(s) || 0;
@@ -154,7 +158,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 										: []
 							}
 							collection={ArkSelect.createListCollection({
-								items: (databaseListQuery.data || []).map((db) => ({
+								items: dbList.map((db) => ({
 									label: db.name,
 									value: db.name,
 								})),
@@ -198,7 +202,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 				</Stack>
 			)}
 			{/* Schema Selector */}
-			{isNotSqlite && (
+			{isNotSqlite && schemaCollection.size > 1 && (
 				<Stack className="px-4 pt-4 shrink-0" gap="2">
 					<label className="text-xs font-medium text-foreground uppercase tracking-wide">
 						Schema
