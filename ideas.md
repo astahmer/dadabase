@@ -23,6 +23,15 @@
 - add a way to view (explicit/manual) query history
 - query history (persisted across sessions; only saves successful queries that were made by a user action) with a Badge distinction for the saved/favorites queries
 - add a way to favorite/save queries
+- move (+ new tab) button next to the right-most one
+- show list of tables on opening new tab rather than blank page
+- fix filtering the list of tables on new tab
+- duplicate tab
+- double click on tab in sidebar to open another one on this table
+- operator IN
+- left/inner join one/more tables + add their columns prefixed with the table name: table1.col1, table1.col2, table2.col1, table2.col2, table3.col1, table3.col2
+- right click delete tabs on the left/right/others
+- search in table structure / see only nullable/primary/unique/fk/with defaults
 
 - investigate using the lib that allows to move/reorder components in a gridlike manner with snap, like dashboard widgets, for full customization -> https://dockview.dev/ ?
 - expandable table row with nested entity

@@ -69,7 +69,7 @@ importers:
         specifier: 3.2.2
         version: 3.2.2(react@19.2.1)
       '@effect/cluster':
-        specifier: ^0.55.0
+        specifier: 0.55.0
         version: 0.55.0(@effect/platform@0.93.6(effect@3.19.3))(@effect/rpc@0.71.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/sql@0.48.0(@effect/experimental@0.57.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/workflow@0.11.5(@effect/platform@0.93.6(effect@3.19.3))(@effect/rpc@0.71.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(effect@3.19.3))(effect@3.19.3)
       '@effect/platform':
         specifier: 0.93.6
