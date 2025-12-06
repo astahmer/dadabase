@@ -8,8 +8,8 @@ import { useMemo, useState } from "react";
 import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
 import { useRowsColumns } from "../use-rows-columns.tsx";
 import { useTableColumnMetadata } from "../use-table-column-metadata.ts";
-import { getRelationshipCardinalityQueryOptions } from "../../../../server/pg/start-fns/get-relationship-cardinality.start.ts";
-import { queryRelationshipSubrowDataQueryOptions } from "../../../../server/pg/start-fns/get-relationship-subrow-data.start.ts";
+import { getRelationshipCardinalityQueryOptions } from "../../../../server/introspection/start-fns/get-relationship-cardinality.start.ts";
+import { queryRelationshipSubrowDataQueryOptions } from "../../../../server/introspection/start-fns/get-relationship-subrow-data.start.ts";
 import { DataTable } from "../../../data-table/data-table.tsx";
 import { PaginationPopoverContent } from "../../../app/pagination.popover-content.tsx";
 import { ScrollToColumnButton } from "../../../data-table/scroll-to-column.button.tsx";
@@ -198,11 +198,11 @@ export const RelationshipSubrowTable = ({
 
 						{cardinalityQuery.data && (
 							<span className="text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded shrink-0">
-								{cardinalityQuery.data.cardinality === "one-to-one"
+								{cardinalityQuery.data === "one-to-one"
 									? "1:1"
-									: cardinalityQuery.data.cardinality === "one-to-many"
+									: cardinalityQuery.data === "one-to-many"
 										? "1:N"
-										: cardinalityQuery.data.cardinality === "many-to-one"
+										: cardinalityQuery.data === "many-to-one"
 											? "N:1"
 											: "M:N"}
 							</span>

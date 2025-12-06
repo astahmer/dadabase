@@ -16,7 +16,7 @@ import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
-import { queryTableDataQueryOptions } from "#src/server/pg/start-fns/query-table-data.start";
+import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import type {

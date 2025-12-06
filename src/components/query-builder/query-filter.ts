@@ -59,13 +59,14 @@ export type LogicalOperator = Schema.Schema.Type<typeof LogicalOperator>;
  * Query filter configuration
  */
 export const QueryFilter = Schema.Struct({
-	conditions: Schema.Array(FilterCondition),
+	conditions: Schema.Array(FilterCondition).pipe(Schema.mutable),
 	logicalOperator: LogicalOperator.pipe(
 		Schema.optionalWith({ default: () => "and" }),
 	),
 });
 
-export type QueryFilterType = Schema.Schema.Type<typeof QueryFilter>;
+export interface QueryFilterType
+	extends Schema.Schema.Type<typeof QueryFilter> {}
 
 export const conditionToWhereClause = (
 	condition: FilterConditionExpression,

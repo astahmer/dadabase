@@ -10,8 +10,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useListCollection, useFilter, Clipboard } from "@ark-ui/react";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
-import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
 import {
 	ListboxRoot,
@@ -31,6 +30,7 @@ import {
 	SelectValueText,
 	createListCollection,
 } from "../../../ui/select.tsx";
+import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 
 export interface QuickReferencesPanelProps {
 	schema: string;
@@ -387,7 +387,7 @@ export function QuickReferencesPanel({
 										<ListboxMenuList className="overflow-visible px-2">
 											{refList.collection.items.length > 0 ? (
 												refList.collection.items.map((item) => {
-													const ref = item.ref as ColumnReference;
+													const ref = item.ref;
 													return (
 														<ListboxMenuItem
 															key={item.value}

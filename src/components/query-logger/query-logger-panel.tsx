@@ -38,8 +38,8 @@ export const QueryLoggerPanel = ({ connectionUrl }: QueryLoggerPanelProps) => {
 
 	const successCount = history.filter((e) => e.status === "success").length;
 	const errorCount = history.filter((e) => e.status === "error").length;
-	const pendingCount = history.filter((e) => e.status === "pending").length;
-	const totalCount = history.length;
+	// const pendingCount = history.filter((e) => e.status === "pending").length;
+	// const totalCount = history.length;
 
 	const toggleStatusFilter = (status: QueryLogStatus) => {
 		setFilters({
@@ -64,7 +64,7 @@ export const QueryLoggerPanel = ({ connectionUrl }: QueryLoggerPanelProps) => {
 		<>
 			<div className={queryLoggerPanelStyles({ isOpen })}>
 				<div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50 h-12 shrink-0">
-					<button
+					<div
 						onClick={toggleOpen}
 						className="flex items-center gap-2 flex-1 text-left font-medium hover:bg-muted transition-colors rounded px-2 py-1"
 					>
@@ -117,7 +117,7 @@ export const QueryLoggerPanel = ({ connectionUrl }: QueryLoggerPanelProps) => {
 								</Button>
 							</div>
 						)}
-					</button>
+					</div>
 					<Button
 						size="sm"
 						variant="ghost"

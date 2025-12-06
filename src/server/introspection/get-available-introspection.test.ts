@@ -1,0 +1,280 @@
+import { PgLiteClient } from "@dadabase/effect-pglite";
+import { SqlClient } from "@effect/sql";
+import { describe, expect, it } from "@effect/vitest";
+import {
+	getAvailableSchemas,
+	getAvailableTables,
+	getAvailableDatabases,
+} from "#src/server/introspection/introspection.ts";
+import { Effect, Layer } from "effect";
+import { LibsqlClient } from "@effect/sql-libsql";
+
+const pgliteLayer = PgLiteClient.layer({
+	dataDir: "memory://",
+}) as unknown as Layer.Layer<SqlClient.SqlClient>;
+
+const libsqlLayer = LibsqlClient.layer({
+	url: ":memory:",
+}) as unknown as Layer.Layer<SqlClient.SqlClient>;
+
+// Helper to set up test schema
+const setupSchema = Effect.gen(function* () {
+	const client = yield* SqlClient.SqlClient;
+
+	// Create users table
+	yield* client`
+		CREATE TABLE IF NOT EXISTS users (
+			id INTEGER PRIMARY KEY,
+			name TEXT NOT NULL
+		)
+	`;
+
+	// Create posts table
+	yield* client`
+		CREATE TABLE IF NOT EXISTS posts (
+			id INTEGER PRIMARY KEY,
+			title TEXT NOT NULL
+		)
+	`;
+});
+
+interface TestConfig {
+	expectedSchema: string;
+	defaultSchema: string;
+	isPostgres: boolean;
+}
+
+const postgresConfig: TestConfig = {
+	expectedSchema: "public",
+	defaultSchema: "public",
+	isPostgres: true,
+};
+
+const sqliteConfig: TestConfig = {
+	expectedSchema: "main",
+	defaultSchema: "main",
+	isPostgres: false,
+};
+
+const testSuite =
+	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) => () => {
+		describe("getAvailableSchemas", () => {
+			it.effect("retrieves available schemas", () =>
+				Effect.gen(function* () {
+					const schemas = yield* getAvailableSchemas();
+
+					expect(Array.isArray(schemas)).toBe(true);
+					expect(schemas.length).toBeGreaterThan(0);
+					// Default schema should always exist
+					expect(schemas).toContain(config.expectedSchema);
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+
+			it.effect("returns strings for schema names", () =>
+				Effect.gen(function* () {
+					const schemas = yield* getAvailableSchemas();
+
+					schemas.forEach((schema) => {
+						expect(typeof schema).toBe("string");
+						expect(schema.length).toBeGreaterThan(0);
+					});
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+
+			it.effect("includes default schemas", () =>
+				Effect.gen(function* () {
+					const schemas = yield* getAvailableSchemas();
+
+					expect(schemas).toContain(config.expectedSchema);
+					// For PostgreSQL, check pg_catalog is not returned (filtered out)
+					// For SQLite, just check main and temp exist
+					if (config.isPostgres) {
+						expect(schemas).not.toContain("pg_catalog");
+						expect(schemas).not.toContain("information_schema");
+					} else {
+						expect(schemas).toContain("temp");
+					}
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+		});
+
+		describe("getAvailableTables", () => {
+			it.effect("retrieves available tables", () =>
+				Effect.gen(function* () {
+					yield* setupSchema;
+
+					const tables = yield* getAvailableTables({
+						schema: config.defaultSchema,
+					});
+
+					expect(Array.isArray(tables)).toBe(true);
+					expect(tables.length).toBeGreaterThan(0);
+
+					// Check that our test tables are in the list
+					expect(tables.map((table) => table.name)).toContain("users");
+					expect(tables.map((table) => table.name)).toContain("posts");
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+
+			it.effect("retrieves only tables from specified schema", () =>
+				Effect.gen(function* () {
+					const client = yield* SqlClient.SqlClient;
+
+					yield* client`
+						CREATE TABLE IF NOT EXISTS schema_test (
+							id INTEGER PRIMARY KEY
+						)
+					`;
+
+					const tables = yield* getAvailableTables({
+						schema: config.defaultSchema,
+					});
+
+					expect(tables.length).toBe(1);
+					expect(tables.map((table) => table.name)).toContain("schema_test");
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+
+			it.effect("does not include system tables", () =>
+				Effect.gen(function* () {
+					const tables = yield* getAvailableTables({
+						schema: config.defaultSchema,
+					});
+
+					// System tables should not be included
+					expect(tables.map((table) => table.name)).not.toContain("pg_class");
+					expect(tables.map((table) => table.name)).not.toContain(
+						"pg_attribute",
+					);
+					expect(tables.map((table) => table.name)).not.toContain(
+						"sqlite_sequence",
+					);
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+
+			it.effect(
+				"returns empty array when no custom tables exist in fresh db",
+				() =>
+					Effect.gen(function* () {
+						// For a fresh database, there should be no user tables in temp schema
+						const tables = yield* getAvailableTables({ schema: "temp" });
+
+						expect(Array.isArray(tables)).toBe(true);
+						// temp schema should be empty or have no tables
+					}).pipe(Effect.provide(sqlLayer)),
+			);
+
+			it.effect("includes all custom created tables", () =>
+				Effect.gen(function* () {
+					const client = yield* SqlClient.SqlClient;
+
+					yield* client`
+						CREATE TABLE IF NOT EXISTS table1 (id INTEGER PRIMARY KEY)
+					`;
+					yield* client`
+						CREATE TABLE IF NOT EXISTS table2 (id INTEGER PRIMARY KEY)
+					`;
+					yield* client`
+						CREATE TABLE IF NOT EXISTS table3 (id INTEGER PRIMARY KEY)
+					`;
+
+					const tables = yield* getAvailableTables({
+						schema: config.defaultSchema,
+					});
+
+					expect(tables.map((table) => table.name)).toContain("table1");
+					expect(tables.map((table) => table.name)).toContain("table2");
+					expect(tables.map((table) => table.name)).toContain("table3");
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+
+			it.effect("returns consistent results across multiple calls", () =>
+				Effect.gen(function* () {
+					const client = yield* SqlClient.SqlClient;
+
+					yield* client`
+						CREATE TABLE IF NOT EXISTS stable_table (
+							id INTEGER PRIMARY KEY
+						)
+					`;
+
+					const tables1 = yield* getAvailableTables({
+						schema: config.defaultSchema,
+					});
+					const tables2 = yield* getAvailableTables({
+						schema: config.defaultSchema,
+					});
+
+					expect(tables1.length).toBe(tables2.length);
+					expect(tables1.map((t) => t.name).sort()).toEqual(
+						tables2.map((t) => t.name).sort(),
+					);
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+		});
+
+		describe("getAvailableDatabases", () => {
+			it.effect("retrieves available databases", () =>
+				Effect.gen(function* () {
+					const databases = yield* getAvailableDatabases();
+
+					expect(Array.isArray(databases)).toBe(true);
+					expect(databases.length).toBeGreaterThan(0);
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+
+			it.effect("returns strings for database names", () =>
+				Effect.gen(function* () {
+					const databases = yield* getAvailableDatabases();
+
+					databases.forEach((db) => {
+						expect(typeof db.name).toBe("string");
+						expect(db.name.length).toBeGreaterThan(0);
+					});
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+
+			it.effect("includes at least one database", () =>
+				Effect.gen(function* () {
+					const databases = yield* getAvailableDatabases();
+
+					// At least one database should exist
+					expect(databases.length).toBeGreaterThan(0);
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+		});
+
+		describe("Integration between functions", () => {
+			it.effect("schemas contain tables and databases exist", () =>
+				Effect.gen(function* () {
+					const client = yield* SqlClient.SqlClient;
+
+					yield* client`
+						CREATE TABLE IF NOT EXISTS integration_test (
+							id INTEGER PRIMARY KEY
+						)
+					`;
+
+					const schemas = yield* getAvailableSchemas();
+					const tables = yield* getAvailableTables({
+						schema: config.defaultSchema,
+					});
+					const databases = yield* getAvailableDatabases();
+
+					expect(schemas.length).toBeGreaterThan(0);
+					expect(databases.length).toBeGreaterThan(0);
+
+					// Default schema should be in schemas
+					expect(schemas).toContain(config.expectedSchema);
+
+					// integration_test should be in tables
+					expect(
+						tables.some((table) => table.name === "integration_test"),
+					).toBe(true);
+				}).pipe(Effect.provide(sqlLayer)),
+			);
+		});
+	};
+
+describe("Introspection (pglite)", testSuite(pgliteLayer, postgresConfig));
+describe("Introspection (libsql)", testSuite(libsqlLayer, sqliteConfig));

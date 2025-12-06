@@ -7,11 +7,11 @@ import {
 	X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/pg/start-fns/find-column-references.start.ts";
-import type { ColumnReference } from "#src/server/pg/fns/get-table-foreign-keys.kysely.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import type { ForeignKeyInfo } from "../data-table/cell-context-menu.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { Stack } from "../ui/layout.tsx";
+import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 
 interface InlineReferencesPopoverProps {
 	schema: string;

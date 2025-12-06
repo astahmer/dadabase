@@ -1,4 +1,4 @@
-import { getQueryHistoryQueryOptions } from "#src/server/pg/start-fns/get-query-history.start.ts";
+import { getQueryHistoryQueryOptions } from "#src/server/introspection/start-fns/get-query-history.start.ts";
 import type { QueryLogFilters } from "#src/server/query-logger/query-logger.types.ts";
 import { clearQueryHistoryQueryOptions } from "#src/server/query-logger/start-fns/clear-query-history.start.ts";
 import { useQuery } from "@tanstack/react-query";

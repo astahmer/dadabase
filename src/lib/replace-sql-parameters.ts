@@ -44,7 +44,7 @@ export function normalizeSql(sql: string): string {
 		.join("\n");
 }
 
-function formatParamValue(value: any): string {
+function formatParamValue(value: unknown): string {
 	if (value === null) return "NULL";
 	if (value === undefined) return "NULL";
 	if (typeof value === "string") return `'${escapeString(value)}'`;

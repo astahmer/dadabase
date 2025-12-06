@@ -18,6 +18,11 @@ const defaultTransformFileName = (
 };
 
 const config = defineConfig((env) => ({
+	resolve: {
+		alias: {
+			"@dadabase/effect-pglite": "/packages/effect-pglite/src/mod.ts",
+		},
+	},
 	plugins: [
 		// devtools({
 		// 	injectSource: { enabled: false },

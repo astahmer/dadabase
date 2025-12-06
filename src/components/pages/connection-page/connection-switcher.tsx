@@ -14,6 +14,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
 	ChevronDownIcon,
+	ChevronLeftIcon,
+	ChevronRightIcon,
 	EllipsisIcon,
 	LucidePlus,
 	RefreshCw,
@@ -85,6 +87,20 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
 								}}
 							>
 								<ListboxMenu.ListboxMenuList>
+									<ListboxMenu.ListboxMenuItem
+										item={{ label: "Back to connections", value: "__back" }}
+										onClick={() => {
+											setConnectionMenuOpen(false);
+											navigate({
+												to: "/",
+											});
+										}}
+									>
+										<HStack gap="1" align="center">
+											<ChevronLeftIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+											<span>Back to connections</span>
+										</HStack>
+									</ListboxMenu.ListboxMenuItem>
 									{connectionList.data.map((conn) => (
 										<ListboxMenu.ListboxMenuItem
 											key={conn.name}

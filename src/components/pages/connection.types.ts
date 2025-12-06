@@ -1,8 +1,6 @@
-export interface DbConnection {
-	id: string;
-	name: string;
-	url: string;
-	dialect: string;
-	created_at: number;
-	updated_at: number;
-}
+import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
+import type { Selectable } from "kysely";
+
+export type DbConnection = Selectable<
+	AppDatabaseSchema["database_connections"]
+>;

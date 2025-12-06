@@ -11,6 +11,7 @@ import { deleteDbConnection } from "./delete-db-connection.ts";
 import { updateDbConnection } from "./update-db-connection.ts";
 import type { EffectKysely } from "#src/db/effect-kysely.ts";
 import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 
 const testNanoId = (prefix: string) =>
 	Effect.sync(
@@ -42,73 +43,9 @@ const TestNanoIdLayer = Layer.succeed(
 	}),
 );
 
-const TestDatabaseRepositoryLayer = Layer.effect(
-	DatabaseConnectionRepository,
-	Effect.gen(function* () {
-		const db = (yield* AppDatabase) as EffectKysely<AppDatabaseSchema>;
-		return new DatabaseConnectionRepository({
-			findAll: () => {
-				return db.execute(
-					db
-						.selectFrom("database_connections")
-						.selectAll()
-						.where("id", "is not", null),
-				);
-			},
-			findByUrl: (connectionUrl: string) =>
-				Effect.fn(function* () {
-					const urlWithoutDb = connectionUrl.split("/").slice(0, -1).join("/");
-					const urlWithDb = connectionUrl;
-
-					const results = yield* db.execute(
-						db
-							.selectFrom("database_connections")
-							.selectAll()
-							.where((qb) =>
-								qb.or([
-									qb("url", "=", urlWithDb),
-									qb("url", "=", urlWithoutDb),
-								]),
-							),
-					);
-
-					return results.length > 0 ? results[0] : null;
-				})(),
-			insert: (insertable: any) =>
-				Effect.fn(function* () {
-					return yield* db.execute(
-						db.insertInto("database_connections").values({
-							id: insertable.id,
-							dialect: insertable.dialect,
-							name: insertable.name,
-							url: insertable.url,
-							created_at: insertable.created_at,
-							updated_at: insertable.updated_at,
-						}),
-					);
-				})(),
-			update: (input: { id: string; name: string; url: string }) =>
-				Effect.fn(function* () {
-					return yield* db.execute(
-						db
-							.updateTable("database_connections")
-							.set({
-								name: input.name,
-								url: input.url,
-								updated_at: new Date().getTime(),
-							})
-							.where("id", "=", input.id),
-					);
-				})(),
-			delete: (input: { id: string }) =>
-				Effect.fn(function* () {
-					return yield* db.execute(
-						db.deleteFrom("database_connections").where("id", "=", input.id),
-					);
-				})(),
-		});
-	}),
-).pipe(Layer.provide(TestAppDatabaseLayer));
+const TestDatabaseRepositoryLayer = DatabaseConnectionRepository.Default.pipe(
+	Layer.provide(TestAppDatabaseLayer),
+);
 
 const InMemoryLayer = Layer.merge(
 	TestAppDatabaseLayer,
@@ -139,6 +76,7 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Test Connection",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -158,11 +96,13 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Connection 1",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				yield* createDbConnection({
 					name: "Connection 2",
 					url: "postgresql://otherhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -183,6 +123,7 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Secure Connection",
 					url,
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -206,6 +147,7 @@ describe("Database Connection Management Functions", () => {
 					yield* createDbConnection({
 						name: `Test ${urls.indexOf(url)}`,
 						url,
+						dialect: DatabaseDialect.Postgres,
 					});
 				}
 
@@ -223,6 +165,7 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -241,6 +184,7 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Original Name",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -265,6 +209,7 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Database Connection",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -288,6 +233,7 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Test",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -311,6 +257,7 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Connection (v1.0)",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -336,6 +283,7 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Connection to Delete",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -357,11 +305,13 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Keep Me",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				yield* createDbConnection({
 					name: "Delete Me",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -397,6 +347,7 @@ describe("Database Connection Management Functions", () => {
 					yield* createDbConnection({
 						name: `Connection ${i}`,
 						url: `postgresql://host${i}`,
+						dialect: DatabaseDialect.Postgres,
 					});
 				}
 
@@ -423,6 +374,7 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Integration Test",
 					url: "postgresql://localhost/testdb",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
@@ -457,6 +409,7 @@ describe("Database Connection Management Functions", () => {
 				yield* createDbConnection({
 					name: "Test",
 					url: "postgresql://localhost",
+					dialect: DatabaseDialect.Postgres,
 				});
 
 				const repository = yield* DatabaseConnectionRepository;
