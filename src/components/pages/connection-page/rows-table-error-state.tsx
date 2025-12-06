@@ -134,14 +134,16 @@ const NoTableSelectedState = ({
 		inputRef.current?.focus();
 	}, []);
 
-	const handleTableSelect = (table: (typeof filteredTables)[0]) => {
+	const handleTableSelect = (tableName: string) => {
 		const schema =
 			selectedSchema || getDialectDefaultSchema(connection.dialect);
+		const newTab = createTabState(schema, tableName);
+
 		queryClient.prefetchQuery({
 			...queryTableDataQueryOptions({
 				url: activeConnectionUrl,
 				schema,
-				table: table.name,
+				table: tableName,
 				limit: 50,
 				offset: 0,
 				orderBy: undefined,
@@ -152,13 +154,40 @@ const NoTableSelectedState = ({
 				},
 			}),
 		});
+
 		navigate({
-			search: (prev) => ({
-				...prev,
-				schema,
-				table: table.name,
-				offset: 0,
-			}),
+			search: (prev) => {
+				const currentTab = (prev.tabs ?? []).find(
+					(t) => t.tabId === prev.activeTabId,
+				);
+				const isCurrentTabEmpty = !currentTab?.table;
+
+				if (isCurrentTabEmpty && currentTab) {
+					// Replace the empty tab
+					const updatedTabs = (prev.tabs ?? []).map((t) =>
+						t.tabId === currentTab.tabId
+							? { ...newTab, tabId: currentTab.tabId }
+							: t,
+					);
+					return {
+						...prev,
+						tabs: updatedTabs,
+						schema,
+						table: tableName,
+						offset: 0,
+					};
+				}
+
+				// Add a new tab
+				return {
+					...prev,
+					tabs: [...(prev.tabs ?? []), newTab],
+					activeTabId: newTab.tabId,
+					schema,
+					table: tableName,
+					offset: 0,
+				};
+			},
 		});
 	};
 
@@ -183,36 +212,16 @@ const NoTableSelectedState = ({
 					</p>
 				</div>
 
-				{/* Search Input */}
-				<div className="relative">
-					<svg
-						className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							strokeWidth={2}
-							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-						/>
-					</svg>
-					<input
-						ref={inputRef}
-						type="text"
-						placeholder="Search tables..."
-						value={filterText}
-						onChange={(e) => setFilterText(e.target.value)}
-						className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent"
-					/>
-				</div>
-
-				{/* Tables List */}
-				{filteredTables.length === 0 ? (
-					<div className="p-8 text-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20">
+				<Listbox.Root
+					collection={tableCollection}
+					onSelect={(details) => {
+						handleTableSelect(details.value);
+					}}
+				>
+					{/* Search Input */}
+					<div className="relative">
 						<svg
-							className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3"
+							className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none"
 							fill="none"
 							stroke="currentColor"
 							viewBox="0 0 24 24"
@@ -220,31 +229,55 @@ const NoTableSelectedState = ({
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
-								strokeWidth={1.5}
-								d="M12 6v6m0 0v6m0-6h6m0 0h6M6 12a6 6 0 11-0.001.001A6.002 6.002 0 016 12z"
+								strokeWidth={2}
+								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
 							/>
 						</svg>
-						<span className="text-sm text-muted-foreground">
-							{tableList.length === 0
-								? "No tables available"
-								: "No tables match your search"}
-						</span>
+						<Listbox.Input
+							ref={inputRef}
+							placeholder="Search tables..."
+							value={filterText}
+							onChange={(e) => setFilterText(e.target.value)}
+							className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent"
+						/>
 					</div>
-				) : (
-					<div className="rounded-lg border border-input bg-card shadow-sm overflow-hidden flex flex-col">
-						{/* Virtual scroll container */}
-						<div
-							ref={listContainerRef}
-							className="overflow-y-auto max-h-96 flex-1"
-							style={{ minHeight: 0 }}
-						>
-							<div style={{ height: `${totalSize}px` }} className="relative">
-								{/* Padding for virtualizer */}
-								{paddingTop > 0 && (
-									<div style={{ height: `${paddingTop}px` }} />
-								)}
 
-								<Listbox.Root collection={tableCollection}>
+					{/* Tables List */}
+					{filteredTables.length === 0 ? (
+						<div className="p-8 text-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20">
+							<svg
+								className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth={1.5}
+									d="M12 6v6m0 0v6m0-6h6m0 0h6M6 12a6 6 0 11-0.001.001A6.002 6.002 0 016 12z"
+								/>
+							</svg>
+							<span className="text-sm text-muted-foreground">
+								{tableList.length === 0
+									? "No tables available"
+									: "No tables match your search"}
+							</span>
+						</div>
+					) : (
+						<div className="rounded-lg border border-input bg-card shadow-sm overflow-hidden flex flex-col mt-4">
+							{/* Virtual scroll container */}
+							<div
+								ref={listContainerRef}
+								className="overflow-y-auto max-h-96 flex-1"
+								style={{ minHeight: 0 }}
+							>
+								<div style={{ height: `${totalSize}px` }} className="relative">
+									{/* Padding for virtualizer */}
+									{paddingTop > 0 && (
+										<div style={{ height: `${paddingTop}px` }} />
+									)}
+
 									<Listbox.Content className="block">
 										<Listbox.ItemGroup>
 											{virtualItems.map((virtualItem) => {
@@ -264,7 +297,6 @@ const NoTableSelectedState = ({
 														className={`px-4 py-2.5 cursor-pointer text-sm transition-colors hover:bg-accent hover:text-accent-foreground data-highlighted:bg-accent data-highlighted:text-accent-foreground ${
 															!isLast ? "border-b border-border/50" : ""
 														}`}
-														onClick={() => handleTableSelect(table)}
 													>
 														<Listbox.ItemText className="flex items-center gap-2">
 															<span className="font-medium">{table.name}</span>
@@ -274,22 +306,22 @@ const NoTableSelectedState = ({
 											})}
 										</Listbox.ItemGroup>
 									</Listbox.Content>
-								</Listbox.Root>
 
-								{/* Padding for virtualizer */}
-								{paddingBottom > 0 && (
-									<div style={{ height: `${paddingBottom}px` }} />
-								)}
+									{/* Padding for virtualizer */}
+									{paddingBottom > 0 && (
+										<div style={{ height: `${paddingBottom}px` }} />
+									)}
+								</div>
+							</div>
+
+							{/* Footer with count */}
+							<div className="px-4 py-2 bg-muted/50 border-t border-border/50 text-xs text-muted-foreground">
+								{filteredTables.length} table
+								{filteredTables.length !== 1 ? "s" : ""} available
 							</div>
 						</div>
-
-						{/* Footer with count */}
-						<div className="px-4 py-2 bg-muted/50 border-t border-border/50 text-xs text-muted-foreground">
-							{filteredTables.length} table
-							{filteredTables.length !== 1 ? "s" : ""} available
-						</div>
-					</div>
-				)}
+					)}
+				</Listbox.Root>
 			</div>
 		</div>
 	);
