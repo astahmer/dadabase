@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useMemo, useState, useEffect } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { useFilter } from "@ark-ui/react/locale";
 import { Listbox, createListCollection } from "@ark-ui/react/listbox";
+import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
@@ -73,7 +73,6 @@ const NoTableSelectedState = ({
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const queryClient = useQueryClient();
 	const inputRef = useRef<HTMLInputElement>(null);
-	const listContainerRef = useRef<HTMLDivElement>(null);
 	const [filterText, setFilterText] = useState("");
 	const { contains } = useFilter({ sensitivity: "base" });
 
@@ -111,23 +110,6 @@ const NoTableSelectedState = ({
 			}),
 		[filteredTables],
 	);
-
-	// Virtual scroller setup
-	const virtualizer = useVirtualizer({
-		count: filteredTables.length,
-		getScrollElement: () => listContainerRef.current,
-		estimateSize: () => 41, // height of each item (py-2.5 + border)
-		overscan: 10,
-	});
-
-	const virtualItems = virtualizer.getVirtualItems();
-	const totalSize = virtualizer.getTotalSize();
-	const paddingTop =
-		virtualItems.length > 0 ? (virtualItems[0]?.start ?? 0) : 0;
-	const paddingBottom =
-		virtualItems.length > 0
-			? totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0)
-			: 0;
 
 	const handleTableSelect = (tableName: string) => {
 		const schema =
@@ -262,59 +244,63 @@ const NoTableSelectedState = ({
 						</div>
 					) : (
 						<div className="rounded-lg border border-input bg-card shadow-sm overflow-hidden flex flex-col mt-4">
-							{/* Virtual scroll container */}
-							<div
-								ref={listContainerRef}
-								className="overflow-y-auto max-h-96 flex-1"
-								style={{ minHeight: 0 }}
-							>
-								<div style={{ height: `${totalSize}px` }} className="relative">
-									{/* Padding for virtualizer */}
-									{paddingTop > 0 && (
-										<div style={{ height: `${paddingTop}px` }} />
-									)}
+							<VirtualizerArea count={filteredTables.length}>
+								{({ virtualItems, totalSize, paddingTop, paddingBottom }) => (
+									<>
+										<div
+											style={{ height: `${totalSize}px` }}
+											className="relative"
+										>
+											{/* Padding for virtualizer */}
+											{paddingTop > 0 && (
+												<div style={{ height: `${paddingTop}px` }} />
+											)}
 
-									<Listbox.Content className="block">
-										<Listbox.ItemGroup>
-											{virtualItems.map((virtualItem) => {
-												const table = filteredTables[virtualItem.index];
-												if (!table) return null;
+											<Listbox.Content>
+												<Listbox.ItemGroup>
+													{virtualItems.map((virtualItem) => {
+														const table = filteredTables[virtualItem.index];
+														if (!table) return null;
 
-												const isLast =
-													virtualItem.index === filteredTables.length - 1;
+														const isLast =
+															virtualItem.index === filteredTables.length - 1;
 
-												return (
-													<Listbox.Item
-														key={table.name}
-														item={{
-															label: table.name,
-															value: table.name,
-														}}
-														className={`px-4 py-2.5 cursor-pointer text-sm transition-colors hover:bg-accent hover:text-accent-foreground data-highlighted:bg-accent data-highlighted:text-accent-foreground ${
-															!isLast ? "border-b border-border/50" : ""
-														}`}
-													>
-														<Listbox.ItemText className="flex items-center gap-2">
-															<span className="font-medium">{table.name}</span>
-														</Listbox.ItemText>
-													</Listbox.Item>
-												);
-											})}
-										</Listbox.ItemGroup>
-									</Listbox.Content>
+														return (
+															<Listbox.Item
+																key={table.name}
+																item={{
+																	label: table.name,
+																	value: table.name,
+																}}
+																className={`px-4 py-2.5 cursor-pointer text-sm transition-colors hover:bg-accent hover:text-accent-foreground data-highlighted:bg-accent data-highlighted:text-accent-foreground ${
+																	!isLast ? "border-b border-border/50" : ""
+																}`}
+															>
+																<Listbox.ItemText className="flex items-center gap-2">
+																	<span className="font-medium">
+																		{table.name}
+																	</span>
+																</Listbox.ItemText>
+															</Listbox.Item>
+														);
+													})}
+												</Listbox.ItemGroup>
+											</Listbox.Content>
 
-									{/* Padding for virtualizer */}
-									{paddingBottom > 0 && (
-										<div style={{ height: `${paddingBottom}px` }} />
-									)}
-								</div>
-							</div>
+											{/* Padding for virtualizer */}
+											{paddingBottom > 0 && (
+												<div style={{ height: `${paddingBottom}px` }} />
+											)}
+										</div>
 
-							{/* Footer with count */}
-							<div className="px-4 py-2 bg-muted/50 border-t border-border/50 text-xs text-muted-foreground">
-								{filteredTables.length} table
-								{filteredTables.length !== 1 ? "s" : ""} available
-							</div>
+										{/* Footer with count */}
+										<div className="px-4 py-2 bg-muted/50 border-t border-border/50 text-xs text-muted-foreground">
+											{filteredTables.length} table
+											{filteredTables.length !== 1 ? "s" : ""} available
+										</div>
+									</>
+								)}
+							</VirtualizerArea>
 						</div>
 					)}
 				</Listbox.Root>
