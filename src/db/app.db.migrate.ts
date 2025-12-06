@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
-import * as AppDbSchema from "./app.db.schema.ts";
 import { Effect } from "effect";
 import { sql } from "kysely";
+import * as AppDbSchema from "./app.db.schema.ts";
 import { AppDatabase } from "./app.db.ts";
 
 // https://github.com/drizzle-team/drizzle-orm/discussions/1901#discussioncomment-11689415

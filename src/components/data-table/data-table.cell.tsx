@@ -3,7 +3,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { CSSProperties, PropsWithChildren } from "react";
 import { memo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { tableCellStyles, type DataTableSize } from "./data-table.styles.ts";
+import { type DataTableSize, tableCellStyles } from "./data-table.styles.ts";
 
 const fallbackRender = () => "An error happened";
 

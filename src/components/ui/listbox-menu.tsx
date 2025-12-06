@@ -1,14 +1,13 @@
 import {
-	Listbox as ListboxPrimitive,
 	type CollectionItem,
+	Listbox as ListboxPrimitive,
 	type ListboxRootBaseProps,
 } from "@ark-ui/react/listbox";
 import { Popover as PopoverPrimitive } from "@ark-ui/react/popover";
 import { type VariantProps } from "class-variance-authority";
 import { CheckIcon } from "lucide-react";
-
-import { cn } from "#src/lib/utils";
 import { type JSX } from "react";
+import { cn } from "#src/lib/utils";
 import type { ExposedComponentProps } from "./component-props.ts";
 import { listboxMenuVariants } from "./listbox-menu.styles";
 
@@ -187,16 +186,14 @@ export {
 	ListboxRoot,
 };
 
-export { listboxMenuVariants } from "./listbox-menu.styles";
-
 export {
-	createListCollection,
-	useListCollection,
 	type CollectionItem,
+	createListCollection,
 	type ListCollection,
+	useListCollection,
 } from "@ark-ui/react";
-
 export {
 	Popover,
 	type PopoverOpenChangeDetails,
 } from "@ark-ui/react/popover";
+export { listboxMenuVariants } from "./listbox-menu.styles";

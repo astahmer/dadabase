@@ -1,22 +1,22 @@
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { LucideCheck, LucideCross } from "lucide-react";
+import { useState } from "react";
+import z from "zod";
 import {
 	Accordion,
 	AccordionItem,
 	AccordionItemContent,
 	AccordionItemTrigger,
 } from "#src/components/ui/accordion";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 import { createDbConnectionMutation } from "#src/server/db-connection/start-fns/create-db-connection.start.ts";
 import { updateDbConnectionMutation } from "#src/server/db-connection/start-fns/update-db-connection.start.ts";
 import { tryConnectionServerFn } from "#src/server/introspection/start-fns/try-connection.start.ts";
-import { useMutation } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import z from "zod";
 import { useAppForm } from "../form/form.hook.ts";
+import { Button } from "../ui/button.tsx";
 import { HStack, Stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
-import { Button } from "../ui/button.tsx";
-import { LucideCheck, LucideCross } from "lucide-react";
-import { DatabaseDialect } from "#src/db/dialect.ts";
 
 const connectionType = z.enum(DatabaseDialect);
 const connectionFormSchema = z

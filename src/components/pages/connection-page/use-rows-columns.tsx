@@ -1,15 +1,15 @@
+import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { ColumnHeaderWithInfo } from "#src/components/app/column-header-with-info.tsx";
 import { ForeignKeyIcon } from "#src/components/app/foreign-key-icon.tsx";
-import { JsonCell } from "#src/components/ui/json-cell.tsx";
-import { MemoizedDataCell } from "#src/components/memoized-data-cell.tsx";
 import { PrimaryKeyIcon } from "#src/components/app/primary-key-icon.tsx";
 import { UniqueConstraintIcon } from "#src/components/app/unique-constraint-icon.tsx";
+import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
+import { MemoizedDataCell } from "#src/components/memoized-data-cell.tsx";
+import { JsonCell } from "#src/components/ui/json-cell.tsx";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
-import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
 
 interface ColumnMetadata {
 	name: string;

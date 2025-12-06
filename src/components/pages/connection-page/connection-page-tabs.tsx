@@ -1,5 +1,3 @@
-import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
-import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	stringifySearchWith,
@@ -9,15 +7,17 @@ import {
 	useSearch,
 } from "@tanstack/react-router";
 import { stringify } from "zipson";
-import { TableTabsBar } from "./table-tabs-bar.tsx";
+import { toaster } from "#src/components/ui/toaster.tsx";
+import {
+	type DatabaseDialect,
+	getDialectDefaultSchema,
+} from "#src/db/dialect.ts";
 import { encodeToBinary } from "#src/router.encode.ts";
 import type { FileRoutesByTo } from "#src/routeTree.gen.ts";
-import { toaster } from "#src/components/ui/toaster.tsx";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
-import {
-	getDialectDefaultSchema,
-	type DatabaseDialect,
-} from "#src/db/dialect.ts";
+import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
+import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
+import { TableTabsBar } from "./table-tabs-bar.tsx";
 
 interface ConnectionPageTabsProps {
 	activeConnectionUrl: string;

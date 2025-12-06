@@ -1,7 +1,7 @@
 import {
-	Toast as ToastPrimitive,
-	Toaster as ToasterPrimitive,
 	createToaster,
+	Toaster as ToasterPrimitive,
+	Toast as ToastPrimitive,
 } from "@ark-ui/react/toast";
 import { type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";

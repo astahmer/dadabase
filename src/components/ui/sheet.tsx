@@ -1,8 +1,7 @@
-import * as React from "react";
-
-import { Dialog as SheetPrimitive, dialogAnatomy } from "@ark-ui/react/dialog";
+import { dialogAnatomy, Dialog as SheetPrimitive } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
 import { XIcon } from "lucide-react";
+import * as React from "react";
 
 import { cn } from "#src/lib/utils";
 

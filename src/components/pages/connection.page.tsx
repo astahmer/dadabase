@@ -1,9 +1,17 @@
-import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
-import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Splitter } from "@ark-ui/react";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
+import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
+import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
+import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import { DataTable } from "../data-table/data-table.tsx";
+import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
+import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
+import { QueryLoggerPanel } from "../query-logger/query-logger-panel.tsx";
+import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
+import { Stack } from "../ui/layout.tsx";
 import {
 	Sheet,
 	SheetContent,
@@ -11,32 +19,24 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "../ui/sheet.tsx";
-import { Stack } from "../ui/layout.tsx";
 import { Spinner } from "../ui/spinner.tsx";
-import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
-import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
-import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
-import { DataTable } from "../data-table/data-table.tsx";
-import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
+import { ConnectionForm } from "./connection.form.tsx";
+import type { DbConnection } from "./connection.types";
+import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageHeader } from "./connection-page/connection-page-header.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
-import { ConnectionPageTabs } from "./connection-page/connection-page-tabs.tsx";
-import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
-import { StructureTable } from "./connection-page/structure-table.tsx";
-import { RowsTableErrorState } from "./connection-page/rows-table-error-state.tsx";
-import { ConnectionForm } from "./connection.form.tsx";
+import { ConnectionPageTabs } from "./connection-page/connection-page-tabs.tsx";
 import { ConnectionQuickReferencesDrawer } from "./connection-page/connection-quick-references.drawer.tsx";
 import { ConnectionRowJsonViewerDrawer } from "./connection-page/connection-row-json-viewer.drawer.tsx";
-import { QueryLoggerPanel } from "../query-logger/query-logger-panel.tsx";
 import {
 	getActiveTabState,
 	updateTabState,
 	useActiveTabState,
 } from "./connection-page/create-tab-state.ts";
-import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
-import type { DbConnection } from "./connection.types";
-import { cn, tryFn } from "#src/lib/utils.ts";
+import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
+import { RowsTableErrorState } from "./connection-page/rows-table-error-state.tsx";
+import { StructureTable } from "./connection-page/structure-table.tsx";
 
 interface ConnectionPageProps {
 	connectionName: string;

@@ -1,9 +1,8 @@
 "use client";
 
-import * as React from "react";
-
 import { Menu as MenuPrimitive, menuAnatomy } from "@ark-ui/react/menu";
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react";
+import * as React from "react";
 
 import { cn } from "#src/lib/utils";
 

@@ -3,7 +3,7 @@ import { Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
-import { ArrowUp, ArrowDown, ChevronsUpDown, ArrowDownUp } from "lucide-react";
+import { ArrowDown, ArrowDownUp, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
 

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
 import { Popover, Portal } from "@ark-ui/react";
 import { Code as CodeIcon } from "lucide-react";
-import { InlineJsonPopover } from "./inline-json-popover";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../ui/button.tsx";
 import { HStack } from "../ui/layout.tsx";
+import { InlineJsonPopover } from "./inline-json-popover";
 
 interface InlineJsonButtonProps {
 	value: unknown;

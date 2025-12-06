@@ -1,4 +1,3 @@
-import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
@@ -7,6 +6,7 @@ import {
 	getTableColumns,
 	type TableColumnMetadata,
 } from "#src/server/introspection/introspection.ts";
+import type { InferServerFnSchema } from "#src/types.ts";
 
 const getTableColumnsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(

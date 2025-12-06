@@ -1,7 +1,6 @@
-import { Tooltip as TooltipPrimitive } from "@ark-ui/react/tooltip";
-
-import { cn } from "#src/lib/utils";
 import { Portal, type PortalProps } from "@ark-ui/react";
+import { Tooltip as TooltipPrimitive } from "@ark-ui/react/tooltip";
+import { cn } from "#src/lib/utils";
 import type { ExposedComponentProps } from "./component-props.ts";
 
 export interface TooltipProps
@@ -76,7 +75,7 @@ export const TooltipContext = TooltipPrimitive.Context;
 export const TooltipRootProvider = TooltipPrimitive.RootProvider;
 
 export {
+	type TooltipOpenChangeDetails,
 	useTooltip,
 	useTooltipContext,
-	type TooltipOpenChangeDetails,
 } from "@ark-ui/react/tooltip";

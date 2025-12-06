@@ -1,5 +1,6 @@
 import { SqlClient } from "@effect/sql";
 import type { SqlError } from "@effect/sql/SqlError";
+import { LibsqlClient } from "@effect/sql-libsql";
 import { PgClient } from "@effect/sql-pg";
 import {
 	Context,
@@ -11,7 +12,6 @@ import {
 	Schedule,
 } from "effect";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
-import { LibsqlClient } from "@effect/sql-libsql";
 import type { DatabaseDialect } from "../dialect.ts";
 
 export class PoolCache extends Context.Tag("@dadabase/PoolCache")<

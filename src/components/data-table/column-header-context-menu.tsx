@@ -3,17 +3,17 @@ import type { Column, Table } from "@tanstack/react-table";
 import {
 	ArrowDown,
 	ArrowUp,
+	Columns,
 	Copy,
 	Eye,
 	EyeOff,
 	Filter,
 	Maximize2,
 	Minimize2,
-	RotateCcw,
-	Type,
-	Columns,
 	Pin,
 	PinOff,
+	RotateCcw,
+	Type,
 } from "lucide-react";
 import { ReactNode } from "react";
 import {

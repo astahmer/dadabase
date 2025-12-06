@@ -7,13 +7,13 @@ import {
 	LucideListFilter,
 	Rows,
 } from "lucide-react";
+import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
+import { OrderBySelect } from "../../app/order-by-select.tsx";
+import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
+import { NaturalLanguageSearch } from "../../query-builder/natural-language-search.tsx";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
-import { NaturalLanguageSearch } from "../../query-builder/natural-language-search.tsx";
-import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
-import { OrderBySelect } from "../../app/order-by-select.tsx";
-import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 
 interface ConnectionPageFiltersProps {

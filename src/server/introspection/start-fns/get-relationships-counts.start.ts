@@ -1,10 +1,10 @@
-import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
-import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
+import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
+import type { InferServerFnSchema } from "#src/types.ts";
 
 const TableRelationshipSchema = Schema.Struct({
 	constraintName: Schema.String,

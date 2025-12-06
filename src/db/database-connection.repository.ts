@@ -1,7 +1,7 @@
 import { Effect } from "effect";
-import { AppDatabase } from "./app.db.ts";
 import type { Insertable } from "kysely";
 import type { AppDatabaseSchema } from "./app.db.schema.ts";
+import { AppDatabase } from "./app.db.ts";
 import type { EffectKysely } from "./effect-kysely.ts";
 
 export class DatabaseConnectionRepository extends Effect.Service<DatabaseConnectionRepository>()(

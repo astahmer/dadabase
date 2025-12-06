@@ -1,9 +1,9 @@
 "use client";
 
+import { ChevronRightIcon, EllipsisIcon } from "lucide-react";
 import * as React from "react";
 import { cn } from "#src/lib/utils";
 import { breadcrumbVariants } from "./breadcrumb.styles";
-import { ChevronRightIcon, EllipsisIcon } from "lucide-react";
 
 ////////////////////////////////////////////////////////////////////////////////////
 

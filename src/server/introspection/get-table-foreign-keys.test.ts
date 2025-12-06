@@ -1,13 +1,13 @@
 import { PgLiteClient } from "@dadabase/effect-pglite";
-import { LibsqlClient } from "@effect/sql-libsql";
-import {
-	getTableForeignKeys,
-	findColumnReferences,
-	findColumnReferencesWithCounts,
-} from "#src/server/introspection/introspection.ts";
 import { SqlClient } from "@effect/sql";
+import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+import {
+	findColumnReferences,
+	findColumnReferencesWithCounts,
+	getTableForeignKeys,
+} from "#src/server/introspection/introspection.ts";
 
 // Test configuration for database-specific behaviors
 interface TestConfig {

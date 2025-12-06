@@ -1,4 +1,3 @@
-import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
 import {
 	horizontalListSortingStrategy,
 	SortableContext,
@@ -7,13 +6,14 @@ import { flexRender, type Row } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { Fragment, memo, useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
+import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
+import { RowContextMenu } from "../app/row-context-menu.tsx";
 import { DataTableCell } from "./data-table.cell.tsx";
 import {
+	type DataTableSize,
 	tableCellStyles,
 	tableRowStyles,
-	type DataTableSize,
 } from "./data-table.styles.ts";
-import { RowContextMenu } from "../app/row-context-menu.tsx";
 
 const fallbackRender = () => "An error happened";
 

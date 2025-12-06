@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { parseNaturalLanguageQuery } from "./natural-language-parser";
 
 describe("Natural Language Query Parser", () => {

@@ -1,17 +1,17 @@
-import { AppDatabase } from "#src/db/app.db.ts";
-import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { DateTime, Effect, Layer, Logger, LogLevel } from "effect";
 import type { ColumnType } from "kysely";
+import { AppDatabase } from "#src/db/app.db.ts";
+import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 import {
 	RemoteConnection,
 	RemoteConnectionId,
 } from "../db-connection/remote-connection.tag.ts";
 import { NanoId } from "../services/nano-id.ts";
-import { QueryLogger } from "./query-logger.ts";
-import { QueryLoggerPersistentLayer } from "./query-logger.layer.persisted.ts";
 import { QueryLoggerInMemoryLayer } from "./query-logger.layer.in-memory.ts";
 import { QueryLoggerNoopLayer } from "./query-logger.layer.noop.ts";
+import { QueryLoggerPersistentLayer } from "./query-logger.layer.persisted.ts";
+import { QueryLogger } from "./query-logger.ts";
 import { QueryLogType } from "./query-logger.types.ts";
 
 describe("QueryLoggerNoopLayer", () => {

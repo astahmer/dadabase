@@ -1,14 +1,3 @@
-import { DarkModeToggle } from "#src/components/ui/dark-mode-toggle.tsx";
-import {
-	Menu,
-	MenuContent,
-	MenuItem,
-	MenuItemText,
-	MenuTrigger,
-} from "#src/components/ui/menu.tsx";
-import { redactConnectionUrl } from "#src/lib/redact-connection-url";
-import { queryClient } from "#src/query-client.ts";
-import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { createListCollection, Portal } from "@ark-ui/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -22,6 +11,17 @@ import {
 	RotateCcw,
 } from "lucide-react";
 import { useState } from "react";
+import { DarkModeToggle } from "#src/components/ui/dark-mode-toggle.tsx";
+import {
+	Menu,
+	MenuContent,
+	MenuItem,
+	MenuItemText,
+	MenuTrigger,
+} from "#src/components/ui/menu.tsx";
+import { redactConnectionUrl } from "#src/lib/redact-connection-url";
+import { queryClient } from "#src/query-client.ts";
+import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
 import * as ListboxMenu from "../../ui/listbox-menu";

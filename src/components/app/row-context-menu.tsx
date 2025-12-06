@@ -1,11 +1,11 @@
 import { Popover, Portal } from "@ark-ui/react";
 import { useState } from "react";
-import { RowJsonViewer } from "./row-json-viewer.tsx";
 import { Menu, MenuContent, MenuContextTrigger } from "../ui/menu.tsx";
 import {
 	RowActionsMenuContent,
 	type RowActionsMenuContentProps,
 } from "./row-actions-menu-content.tsx";
+import { RowJsonViewer } from "./row-json-viewer.tsx";
 
 export interface RowContextMenuProps extends RowActionsMenuContentProps {
 	children: React.ReactNode;

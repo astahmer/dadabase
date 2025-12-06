@@ -1,3 +1,6 @@
+import { PlatformConfigProvider } from "@effect/platform";
+import { NodeContext } from "@effect/platform-node";
+import { Config, Effect } from "effect";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { makeRemoteSqlClientLayer } from "#src/db/postgres/remote-sql-client.layer.ts";
 import {
@@ -6,9 +9,6 @@ import {
 } from "#src/server/introspection/introspection.ts";
 import { QueryLoggerInMemoryLayer } from "#src/server/query-logger/query-logger.layer.in-memory.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
-import { PlatformConfigProvider } from "@effect/platform";
-import { NodeContext } from "@effect/platform-node";
-import { Config, Effect } from "effect";
 
 const program = Effect.gen(function* () {
 	const dbList = yield* getAvailableDatabases();

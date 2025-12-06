@@ -1,14 +1,14 @@
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { useQueryLogger } from "#src/components/query-logger/use-query-logger.ts";
 import type {
 	QueryLogEntryType,
 	QueryLogStatus,
 } from "#src/server/query-logger/query-logger.types.ts";
-import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
-import { useState } from "react";
 import { Button } from "../ui/button.tsx";
 import { QueryLogEntry } from "./query-log-entry.tsx";
-import { QueryLoggerDetailDialog } from "./query-logger-detail-dialog.tsx";
 import { queryLoggerPanelStyles } from "./query-logger.styles.ts";
+import { QueryLoggerDetailDialog } from "./query-logger-detail-dialog.tsx";
 
 interface QueryLoggerPanelProps {
 	connectionUrl: string;

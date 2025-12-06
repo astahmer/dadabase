@@ -1,5 +1,5 @@
-import type { CSSProperties } from "react";
 import type { Column } from "@tanstack/react-table";
+import type { CSSProperties } from "react";
 
 export function getPinningStyles(input: {
 	isPinned: "left" | "right" | false;

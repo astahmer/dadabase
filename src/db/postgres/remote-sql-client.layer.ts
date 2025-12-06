@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import { PoolCache } from "./pool-cache.ts";
 import type { DatabaseDialect } from "../dialect.ts";
+import { PoolCache } from "./pool-cache.ts";
 
 export const makeRemoteSqlClientLayer = (
 	url: string,

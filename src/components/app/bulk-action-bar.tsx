@@ -1,7 +1,7 @@
-import { Trash2, Copy, X } from "lucide-react";
+import { Copy, Trash2, X } from "lucide-react";
+import * as ActionBar from "../ui/action-bar";
 import { Button } from "../ui/button";
 import { HStack } from "../ui/layout";
-import * as ActionBar from "../ui/action-bar";
 
 interface BulkActionBarProps {
 	selectedCount: number;

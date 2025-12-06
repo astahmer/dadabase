@@ -1,36 +1,36 @@
+import { Clipboard, useFilter, useListCollection } from "@ark-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import {
 	AlertCircle,
+	Check,
 	ChevronDown,
 	ChevronRight,
-	Loader,
-	Link as LinkIcon,
 	Copy,
-	Check,
+	Link as LinkIcon,
+	Loader,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useListCollection, useFilter, Clipboard } from "@ark-ui/react";
+import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
-import {
-	ListboxRoot,
-	ListboxMenuList,
-	ListboxMenuItem,
-	ListboxMenuFilterInput,
-	ListboxMenuFilterContainer,
-} from "../../../ui/listbox-menu.tsx";
 import { HStack, Stack } from "../../../ui/layout.tsx";
 import {
+	ListboxMenuFilterContainer,
+	ListboxMenuFilterInput,
+	ListboxMenuItem,
+	ListboxMenuList,
+	ListboxRoot,
+} from "../../../ui/listbox-menu.tsx";
+import {
+	createListCollection,
 	Select,
-	SelectControl,
 	SelectContent,
+	SelectControl,
 	SelectItem,
 	SelectList,
 	SelectTrigger,
 	SelectValueText,
-	createListCollection,
 } from "../../../ui/select.tsx";
-import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 
 export interface QuickReferencesPanelProps {
 	schema: string;

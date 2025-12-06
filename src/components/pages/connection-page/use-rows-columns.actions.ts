@@ -1,14 +1,14 @@
-import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
-import { useCallback } from "react";
-import type { UseRowsColumnsOptions } from "./use-rows-columns.tsx";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { useCallback } from "react";
+import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
 import {
-	updateTabState,
 	createTabState,
+	updateTabState,
 } from "#src/components/pages/connection-page/create-tab-state.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
+import type { UseRowsColumnsOptions } from "./use-rows-columns.tsx";
 
 interface UseRowsColumnsActionOptions {
 	columnMetadata: TableColumnMetadata[];

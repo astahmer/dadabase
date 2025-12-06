@@ -1,9 +1,9 @@
 import { ChevronRight } from "lucide-react";
+import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
 import { Tooltip } from "../ui/tooltip.tsx";
-import { queryLogEntryStatusStyles } from "./query-logger.styles.ts";
-import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import { QueryLogTypeBadge } from "./query-log-type-badge.tsx";
+import { queryLogEntryStatusStyles } from "./query-logger.styles.ts";
 
 interface QueryLogEntryProps {
 	entry: QueryLogEntryType;

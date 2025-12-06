@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { InlineJsonButton } from "../app/inline-json-button.tsx";
+import { Badge } from "./badge.tsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
 import { JsonViewerModal } from "./json-viewer";
-import { Badge } from "./badge.tsx";
 
 interface JsonCellProps {
 	value: unknown;

@@ -1,6 +1,3 @@
-import { deleteDbConnectionMutation } from "#src/server/db-connection/start-fns/delete-db-connection.start.ts";
-import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
-import { tryConnectionServerFn } from "#src/server/introspection/start-fns/try-connection.start.ts";
 import { Clipboard, Portal } from "@ark-ui/react";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -14,7 +11,13 @@ import {
 	LucideWifi,
 } from "lucide-react";
 import { useState } from "react";
+import type { DatabaseDialect } from "#src/db/dialect.ts";
+import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
+import { deleteDbConnectionMutation } from "#src/server/db-connection/start-fns/delete-db-connection.start.ts";
+import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import { tryConnectionServerFn } from "#src/server/introspection/start-fns/try-connection.start.ts";
 import { DataTable } from "../data-table/data-table.tsx";
+import { useDataTable } from "../data-table/use-data-table.ts";
 import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button } from "../ui/button.tsx";
 import { DarkModeToggle } from "../ui/dark-mode-toggle.tsx";
@@ -29,10 +32,7 @@ import {
 } from "../ui/sheet.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
-import { useDataTable } from "../data-table/use-data-table.ts";
 import { ConnectionForm } from "./connection.form.tsx";
-import type { DatabaseDialect } from "#src/db/dialect.ts";
-import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 
 interface EditableConnection {
 	id: string;

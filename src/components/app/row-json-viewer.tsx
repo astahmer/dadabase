@@ -1,8 +1,8 @@
-import { Code, X, Copy } from "lucide-react";
 import { Clipboard, useClipboard } from "@ark-ui/react";
+import { Code, Copy, X } from "lucide-react";
+import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
 import { JsonViewerModal } from "../ui/json-viewer.tsx";
 import { Stack } from "../ui/layout.tsx";
-import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
 
 interface RowJsonViewerProps {
 	row: Record<string, unknown>;

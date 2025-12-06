@@ -3,8 +3,8 @@ import { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
-import type { TableRelationshipInput } from "./connection-adapter.ts";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import type { TableRelationshipInput } from "./connection-adapter.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.

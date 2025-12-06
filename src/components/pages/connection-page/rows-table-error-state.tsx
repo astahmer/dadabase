@@ -1,19 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useRef, useMemo, useState, useEffect } from "react";
+import { createListCollection, Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
-import { Listbox, createListCollection } from "@ark-ui/react/listbox";
-import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useQueryClient } from "@tanstack/react-query";
-import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { ErrorBoundaryCard } from "../../shared/error-boundary-card.tsx";
 import { Button } from "../../ui/button";
-import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import type { DbConnection } from "../connection.types";
-import { useActiveTabState, createTabState } from "./create-tab-state.ts";
+import { createTabState, useActiveTabState } from "./create-tab-state.ts";
 
 interface RowsTableErrorStateProps {
 	activeConnectionUrl: string;

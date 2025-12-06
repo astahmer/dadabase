@@ -1,5 +1,5 @@
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { Effect } from "effect";
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 
 export const updateDbConnection = Effect.fn(function* (input: {
 	id: string;

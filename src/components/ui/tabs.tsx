@@ -75,8 +75,8 @@ export {
 };
 
 export {
-	useTabs,
-	useTabsContext,
 	type TabsFocusChangeDetails,
 	type TabsValueChangeDetails,
+	useTabs,
+	useTabsContext,
 } from "@ark-ui/react/tabs";

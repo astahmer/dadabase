@@ -1,17 +1,17 @@
-import type { Table as TanstackTable } from "@tanstack/react-table";
 import { Pagination } from "@ark-ui/react/pagination";
-import { RefreshCw } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
+import type { Table as TanstackTable } from "@tanstack/react-table";
 import { DateTime } from "effect";
+import { RefreshCw } from "lucide-react";
 import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
+import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
-import { Tooltip } from "../../ui/tooltip.tsx";
 import * as ArkSelect from "../../ui/select";
-import type { DataTableSize } from "../../data-table/data-table.styles.ts";
-import { RowsPerPageSelector } from "./rows-per-page.selector.tsx";
+import { Tooltip } from "../../ui/tooltip.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
+import { RowsPerPageSelector } from "./rows-per-page.selector.tsx";
 
 const TableSizeCollection = ArkSelect.createListCollection({
 	items: [

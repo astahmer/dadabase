@@ -1,17 +1,17 @@
+import { useQuery } from "@tanstack/react-query";
 import {
 	AlertCircle,
-	ChevronRight,
-	Loader,
-	Link as LinkIcon,
 	ArrowRight,
+	ChevronRight,
+	Link as LinkIcon,
+	Loader,
 	X,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import type { ForeignKeyInfo } from "../data-table/cell-context-menu.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { Stack } from "../ui/layout.tsx";
-import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 
 interface InlineReferencesPopoverProps {
 	schema: string;

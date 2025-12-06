@@ -1,17 +1,17 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import {
 	createRouter,
 	parseSearchWith,
 	stringifySearchWith,
 } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
-import { stringify, parse } from "zipson";
-import { ToasterProvider } from "./components/ui/toaster.tsx";
-import { routeTree } from "./routeTree.gen";
-import { queryClient } from "./query-client.ts";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Spinner } from "./components/ui/spinner.tsx";
+import { parse, stringify } from "zipson";
 import { FullCenter } from "./components/ui/layout.tsx";
+import { Spinner } from "./components/ui/spinner.tsx";
+import { ToasterProvider } from "./components/ui/toaster.tsx";
+import { queryClient } from "./query-client.ts";
 import { decodeFromBinary, encodeToBinary } from "./router.encode.ts";
+import { routeTree } from "./routeTree.gen";
 // import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 // ModuleRegistry.registerModules([AllCommunityModule]);
 

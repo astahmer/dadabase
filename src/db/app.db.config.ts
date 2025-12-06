@@ -1,5 +1,5 @@
-import { Config, Redacted } from "effect";
 import path from "node:path";
+import { Config, Redacted } from "effect";
 
 // @ts-expect-error drizle-kit wont work with the line below but node does
 if (typeof __dirname === "undefined") {

@@ -1,13 +1,13 @@
 import { PgLiteClient } from "@dadabase/effect-pglite";
 import { SqlClient } from "@effect/sql";
+import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
+import { Effect, Layer } from "effect";
 import {
+	getAvailableDatabases,
 	getAvailableSchemas,
 	getAvailableTables,
-	getAvailableDatabases,
 } from "#src/server/introspection/introspection.ts";
-import { Effect, Layer } from "effect";
-import { LibsqlClient } from "@effect/sql-libsql";
 
 const pgliteLayer = PgLiteClient.layer({
 	dataDir: "memory://",

@@ -1,13 +1,13 @@
 import { PgLiteClient } from "@dadabase/effect-pglite";
 import { SqlClient } from "@effect/sql";
+import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
+import { Effect, Layer } from "effect";
 import {
 	getTableColumns,
 	getTableForeignKeys,
 	getTableIndexes,
 } from "#src/server/introspection/introspection.ts";
-import { Effect, Layer } from "effect";
-import { LibsqlClient } from "@effect/sql-libsql";
 
 // PgLite layer for introspection tests
 const pgliteLayer = PgLiteClient.layer({

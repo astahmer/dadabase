@@ -1,10 +1,10 @@
-import { ConnectionPage } from "#src/components/pages/connection.page";
-import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
 import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 import { Suspense } from "react";
-import { Spinner } from "../../components/ui/spinner.tsx";
+import { ConnectionPage } from "#src/components/pages/connection.page";
+import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
 import { FullCenter } from "../../components/ui/layout.tsx";
+import { Spinner } from "../../components/ui/spinner.tsx";
 
 // Schema for individual tab state
 const tableSize = Schema.Literal(

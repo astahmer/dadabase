@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { Button } from "../ui/button";
 
 export interface OrderDirectionToggleProps {

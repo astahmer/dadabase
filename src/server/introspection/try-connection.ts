@@ -1,5 +1,5 @@
-import { DatabaseDialect } from "#src/db/dialect.ts";
 import { Effect } from "effect";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 import { testLibsqlConnectionUrl } from "./test-libsql-connection.ts";
 import { testPgConnectionUrl } from "./test-pg-connection.ts";
 

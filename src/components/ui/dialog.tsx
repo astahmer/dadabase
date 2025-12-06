@@ -1,11 +1,10 @@
-import * as React from "react";
-
 import { Dialog as DialogPrimitive, dialogAnatomy } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
 import { XIcon } from "lucide-react";
+import * as React from "react";
 
 import { cn } from "#src/lib/utils";
-import { dialogContentVariants, dialogBackdropVariants } from "./dialog.styles";
+import { dialogBackdropVariants, dialogContentVariants } from "./dialog.styles";
 
 const parts = dialogAnatomy.extendWith("header").build();
 

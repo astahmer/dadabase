@@ -1,9 +1,9 @@
 import { PgLiteClient } from "@dadabase/effect-pglite";
-import { LibsqlClient } from "@effect/sql-libsql";
-import { getAllTablesColumns } from "#src/server/introspection/introspection.ts";
 import { SqlClient } from "@effect/sql";
+import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+import { getAllTablesColumns } from "#src/server/introspection/introspection.ts";
 
 interface TestConfig {
 	defaultSchema: string;

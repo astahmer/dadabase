@@ -1,9 +1,8 @@
-import * as React from "react";
-
 import { Combobox as ComboboxPrimitive } from "@ark-ui/react/combobox";
 import { Portal } from "@ark-ui/react/portal";
-import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import { type VariantProps } from "class-variance-authority";
+import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
+import * as React from "react";
 
 import { cn } from "#src/lib/utils";
 import { comboboxVariants } from "./combobox.styles";
@@ -173,14 +172,14 @@ export {
 };
 
 export {
-	createListCollection,
-	useCombobox,
 	type CollectionItem,
 	type ComboboxHighlightChangeDetails,
 	type ComboboxInputValueChangeDetails,
 	type ComboboxOpenChangeDetails,
 	type ComboboxValueChangeDetails,
+	createListCollection,
 	type ListCollection,
+	useCombobox,
 } from "@ark-ui/react/combobox";
 
 export { comboboxVariants } from "./combobox.styles";

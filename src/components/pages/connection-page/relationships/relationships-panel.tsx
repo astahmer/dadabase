@@ -2,19 +2,19 @@ import { Splitter } from "@ark-ui/react/splitter";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { useRef } from "react";
-import { getRelationshipsCountsQueryOptions } from "#src/server/introspection/start-fns/get-relationships-counts.start.ts";
-import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
-import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import { RelationshipViewMode } from "#src/components/pages/connection-page/relationships/relationship-view-mode.ts";
+import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import { useRelationshipsPanelState } from "#src/components/pages/connection-page/use-relationships-panel-state.ts";
 import { useStickyRelationshipTracking as useStickyTracking } from "#src/components/pages/connection-page/use-sticky-relationship-tracking.ts";
-import { RelatedDataSubrowTable } from "./related-data-subrow-table";
-import { RelationshipSubrowTable } from "./relationship-subrow-table";
+import { cn, tryFn } from "#src/lib/utils.ts";
+import { getRelationshipsCountsQueryOptions } from "#src/server/introspection/start-fns/get-relationships-counts.start.ts";
+import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
 import { Button } from "../../../ui/button.tsx";
 import { Checkbox, CheckboxControl } from "../../../ui/checkbox.tsx";
 import { HStack } from "../../../ui/layout.tsx";
 import { Spinner } from "../../../ui/spinner.tsx";
-import { cn, tryFn } from "#src/lib/utils.ts";
+import { RelatedDataSubrowTable } from "./related-data-subrow-table";
+import { RelationshipSubrowTable } from "./relationship-subrow-table";
 
 interface RelationshipsPanelProps {
 	connectionUrl: string;

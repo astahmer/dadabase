@@ -2,8 +2,8 @@
 import { Context, Effect, Layer } from "effect";
 import { type ColumnType, sql } from "kysely";
 import { describe, expect, test } from "vitest";
-import type { EffectKysely } from "./effect-kysely.ts";
 import { makeEffectKyselyPglite } from "./effect-kysely.pglite.ts";
+import type { EffectKysely } from "./effect-kysely.ts";
 
 class InMemoryPgliteDb extends Context.Tag("@dadabase/InMemoryPgliteDb")<
 	InMemoryPgliteDb,

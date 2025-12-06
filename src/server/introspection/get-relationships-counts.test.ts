@@ -1,9 +1,9 @@
 import { PgLiteClient } from "@dadabase/effect-pglite";
-import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
 import { SqlClient } from "@effect/sql";
+import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
-import { LibsqlClient } from "@effect/sql-libsql";
+import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
 
 // PgLite layer for introspection tests
 const pgliteLayer = PgLiteClient.layer({

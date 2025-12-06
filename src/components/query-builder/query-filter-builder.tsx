@@ -1,3 +1,7 @@
+import { useListCollection } from "@ark-ui/react";
+import { useFilter } from "@ark-ui/react/locale";
+import { Plus, X } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import type {
 	FilterConditionExpression,
 	FilterOperatorType,
@@ -9,10 +13,6 @@ import {
 	getOperatorSymbols,
 	nullOperators,
 } from "#src/components/query-builder/query-filter.ts";
-import { useListCollection } from "@ark-ui/react";
-import { useFilter } from "@ark-ui/react/locale";
-import { Plus, X } from "lucide-react";
-import { useEffect, useMemo } from "react";
 import { Button } from "../ui/button.tsx";
 import {
 	Combobox,
@@ -25,9 +25,9 @@ import {
 	createListCollection,
 } from "../ui/combobox.tsx";
 import { Input } from "../ui/input.tsx";
+import { Kbd } from "../ui/kbd.tsx";
 import { HStack, Stack } from "../ui/layout.tsx";
 import * as ArkSelect from "../ui/select.tsx";
-import { Kbd } from "../ui/kbd.tsx";
 
 interface QueryFilterBuilderProps {
 	conditions: readonly FilterConditionExpression[];

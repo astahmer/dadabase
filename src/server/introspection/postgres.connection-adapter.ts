@@ -1,18 +1,18 @@
 import type { DatabaseConnectionAdapterType } from "./connection-adapter.ts";
 import {
+	findColumnReferences,
+	findColumnReferencesWithCounts,
+	getAllTablesColumns,
 	getAvailableDatabases,
 	getAvailableSchemas,
 	getAvailableTables,
-	getTableForeignKeys,
-	getTableIndexes,
-	getAllTablesColumns,
-	getTableRelationships,
-	findColumnReferences,
-	findColumnReferencesWithCounts,
 	getRelationshipCardinality,
 	getRelationshipsCounts,
-	queryTableRows,
 	getTableColumns,
+	getTableForeignKeys,
+	getTableIndexes,
+	getTableRelationships,
+	queryTableRows,
 } from "./introspection.ts";
 
 export const createPostgresConnectionAdapter =

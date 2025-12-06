@@ -1,6 +1,6 @@
-import { DatabaseDialect } from "#src/db/dialect.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
 import { tryConnectionUrl } from "../try-connection.ts";
 

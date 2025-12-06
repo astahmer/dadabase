@@ -1,9 +1,9 @@
-import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
-import { getAllTablesColumns } from "#src/server/introspection/introspection.ts";
-import type { InferServerFnSchema } from "#src/types.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
+import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
+import { getAllTablesColumns } from "#src/server/introspection/introspection.ts";
+import type { InferServerFnSchema } from "#src/types.ts";
 
 const getAllTablesColumnsServerFn = createServerFn({ method: "POST" })
 	.inputValidator(

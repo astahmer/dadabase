@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import {
-	parseNaturalLanguageQuery,
 	type ParsedNLQuery,
+	parseNaturalLanguageQuery,
 } from "#src/components/query-builder/natural-language-parser.ts";
 
 interface UseNaturalLanguageSearchOptions {

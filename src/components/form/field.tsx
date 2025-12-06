@@ -1,6 +1,6 @@
 import { Field as ArkField } from "@ark-ui/react";
-import { Label } from "../ui/label.tsx";
 import type { ExposedComponentProps } from "../ui/component-props.ts";
+import { Label } from "../ui/label.tsx";
 
 export interface FieldProps
 	extends Omit<ArkField.RootBaseProps, "label">,

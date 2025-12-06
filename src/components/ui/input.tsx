@@ -1,8 +1,8 @@
 import { type VariantProps } from "class-variance-authority";
-import { cn } from "#src/lib/utils";
-import { inputVariants } from "./input.styles";
-import type { ExposedInputProps } from "./component-props.ts";
 import type { ComponentProps } from "react";
+import { cn } from "#src/lib/utils";
+import type { ExposedInputProps } from "./component-props.ts";
+import { inputVariants } from "./input.styles";
 
 interface InputProps
 	extends Omit<ExposedInputProps, "type">,

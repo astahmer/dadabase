@@ -26,23 +26,23 @@ import {
 import type { ReactNode } from "react";
 import { useRef } from "react";
 import { getColumnPinningStyles } from "../../lib/get-pinning-styles.ts";
+import { runIfFn } from "../../lib/run-if-fn.ts";
 import { cn } from "../../lib/utils.ts";
+import { PageLimitSelect } from "../app/page-limit.select.tsx";
+import { Button } from "../ui/button.tsx";
+import { HStack } from "../ui/layout.tsx";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
 import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import {
+	type DataTableSize,
 	tableCellStyles,
 	tableEmptyStateStyles,
 	tableHeaderCellStyles,
 	tableHeaderStyles,
 	tableStyles,
-	type DataTableSize,
 } from "./data-table.styles.ts";
 import { VirtualizedTableBody } from "./data-table.virtualized-table-body.tsx";
 import { DraggableColumnHeader } from "./draggable-column-header.tsx";
-import { PageLimitSelect } from "../app/page-limit.select.tsx";
-import { runIfFn } from "../../lib/run-if-fn.ts";
-import { Button } from "../ui/button.tsx";
-import { HStack } from "../ui/layout.tsx";
 
 const i18n = {
 	emptyText: "No results found.",

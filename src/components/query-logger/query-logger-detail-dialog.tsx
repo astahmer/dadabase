@@ -1,3 +1,13 @@
+import { Check, Copy } from "lucide-react";
+import { useState } from "react";
+import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
+import {
+	normalizeSql,
+	replaceSqlParameters,
+} from "#src/lib/replace-sql-parameters.ts";
+import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
+import { Badge } from "../ui/badge.tsx";
+import { Button } from "../ui/button.tsx";
 import {
 	Dialog,
 	DialogContent,
@@ -6,16 +16,6 @@ import {
 } from "../ui/dialog.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
-import { Button } from "../ui/button.tsx";
-import { Badge } from "../ui/badge.tsx";
-import { Copy, Check } from "lucide-react";
-import { useState } from "react";
-import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
-import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
-import {
-	replaceSqlParameters,
-	normalizeSql,
-} from "#src/lib/replace-sql-parameters.ts";
 import { QueryLogTypeBadge } from "./query-log-type-badge.tsx";
 
 interface QueryLoggerDetailDialogProps {

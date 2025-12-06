@@ -1,6 +1,6 @@
 import { SqlError } from "@effect/sql";
-import { Effect, Either } from "effect";
 import { createClient } from "@libsql/client";
+import { Effect, Either } from "effect";
 
 export const testLibsqlConnectionUrl = (url: string) =>
 	Effect.gen(function* () {

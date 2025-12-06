@@ -1,18 +1,17 @@
-import { useRowsColumnsAction } from "#src/components/pages/connection-page/use-rows-columns.actions.ts";
-import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import { Popover, Portal } from "@ark-ui/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { LogOut, Maximize2, Minimize, X } from "lucide-react";
 import { useMemo, useState } from "react";
-import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
-import { useRowsColumns } from "../use-rows-columns.tsx";
-import { useTableColumnMetadata } from "../use-table-column-metadata.ts";
+import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
+import { useRowsColumnsAction } from "#src/components/pages/connection-page/use-rows-columns.actions.ts";
 import { getRelationshipCardinalityQueryOptions } from "../../../../server/introspection/start-fns/get-relationship-cardinality.start.ts";
 import { queryRelationshipSubrowDataQueryOptions } from "../../../../server/introspection/start-fns/get-relationship-subrow-data.start.ts";
-import { DataTable } from "../../../data-table/data-table.tsx";
 import { PaginationPopoverContent } from "../../../app/pagination.popover-content.tsx";
+import { DataTable } from "../../../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../../../data-table/scroll-to-column.button.tsx";
+import { useDataTable } from "../../../data-table/use-data-table.ts";
+import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
 import { Button } from "../../../ui/button.tsx";
 import {
 	Sheet,
@@ -21,7 +20,8 @@ import {
 	SheetTitle,
 } from "../../../ui/sheet.tsx";
 import { Spinner } from "../../../ui/spinner.tsx";
-import { useDataTable } from "../../../data-table/use-data-table.ts";
+import { useRowsColumns } from "../use-rows-columns.tsx";
+import { useTableColumnMetadata } from "../use-table-column-metadata.ts";
 
 interface RelationshipSubrowTableProps {
 	relationship: TableRelationship;

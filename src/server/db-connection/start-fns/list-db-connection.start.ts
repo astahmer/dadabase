@@ -1,8 +1,8 @@
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect } from "effect";
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { AppRuntime } from "../../services/app.runtime.ts";
-import { queryOptions } from "@tanstack/react-query";
 
 const listDbConnectionServerFn = createServerFn({ method: "POST" }).handler(
 	async (_ctx) => {

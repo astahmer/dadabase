@@ -1,6 +1,6 @@
+import { useSearch } from "@tanstack/react-router";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { FileRouteTypes } from "#src/routeTree.gen.ts";
-import { useSearch } from "@tanstack/react-router";
 
 type ConnectionPage =
 	FileRouteTypes["fileRoutesByFullPath"]["/connections/$connectionName"];

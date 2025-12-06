@@ -149,10 +149,10 @@ export {
 };
 
 export {
-	useTagsInput,
-	useTagsInputContext,
-	useTagsInputItemContext,
 	type TagsInputHighlightChangeDetails,
 	type TagsInputValidityChangeDetails,
 	type TagsInputValueChangeDetails,
+	useTagsInput,
+	useTagsInputContext,
+	useTagsInputItemContext,
 } from "@ark-ui/react/tags-input";

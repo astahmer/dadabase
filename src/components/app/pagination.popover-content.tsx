@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button } from "../ui/button.tsx";
 import { RowsPerPageSelector } from "../pages/connection-page/rows-per-page.selector.tsx";
+import { Button } from "../ui/button.tsx";
 
 interface PaginationPopoverContentProps {
 	pageSize: number;

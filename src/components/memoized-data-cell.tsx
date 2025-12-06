@@ -1,11 +1,11 @@
 import type { CellContext } from "@tanstack/react-table";
 import { memo } from "react";
+import { InlineReferencesButton } from "./app/inline-references.button.tsx";
 import type { ForeignKeyInfo } from "./data-table/cell-context-menu.tsx";
 import { CellContextMenu } from "./data-table/cell-context-menu.tsx";
-import { InlineReferencesButton } from "./app/inline-references.button.tsx";
+import { formatTableValue } from "./pages/connection-page/format-table-value.ts";
 import { Badge } from "./ui/badge";
 import { JsonCell } from "./ui/json-cell";
-import { formatTableValue } from "./pages/connection-page/format-table-value.ts";
 
 export interface MemoizedDataCellProps {
 	ctx: CellContext<Record<string, unknown>, unknown>;

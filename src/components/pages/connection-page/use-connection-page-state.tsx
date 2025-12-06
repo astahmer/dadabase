@@ -1,3 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import type {
+	AccessorKeyColumnDef,
+	ColumnDef,
+	ColumnPinningState,
+	Row,
+} from "@tanstack/react-table";
+import { useCallback, useMemo, useState } from "react";
 import { RowContextMenu } from "#src/components/app/row-context-menu.tsx";
 import type { DataTableRowSubrow } from "#src/components/data-table/data-table.row.tsx";
 import { useDataTable } from "#src/components/data-table/use-data-table.ts";
@@ -17,15 +26,6 @@ import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import type {
-	AccessorKeyColumnDef,
-	ColumnDef,
-	ColumnPinningState,
-	Row,
-} from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
 
 interface UseConnectionPageStateProps {

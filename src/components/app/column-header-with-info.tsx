@@ -1,6 +1,6 @@
+import type { ReactNode } from "react";
 import { Tooltip } from "../ui/tooltip";
 import { DataTypeBadge } from "./data-type-badge";
-import type { ReactNode } from "react";
 
 interface ForeignKeyInfo {
 	referencedSchema: string;

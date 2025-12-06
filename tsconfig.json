@@ -3,14 +3,8 @@
 		"target": "ES2022",
 		"jsx": "react-jsx",
 		"module": "ESNext",
-		"lib": [
-			"ES2022",
-			"DOM",
-			"DOM.Iterable"
-		],
-		"types": [
-			"vite/client"
-		],
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"types": ["vite/client"],
 		/* Bundler mode */
 		"moduleResolution": "bundler",
 		"allowImportingTsExtensions": true,
@@ -24,12 +18,8 @@
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedSideEffectImports": true,
 		"paths": {
-			"#src/*": [
-				"./src/*"
-			],
-			"@dadabase/effect-pglite": [
-				"./packages/effect-pglite/src/mod.ts"
-			]
+			"#src/*": ["./src/*"],
+			"@dadabase/effect-pglite": ["./packages/effect-pglite/src/mod.ts"]
 		},
 		"plugins": [
 			{
@@ -38,8 +28,5 @@
 			}
 		]
 	},
-	"include": [
-		"src/**/*.ts",
-		"src/**/*.tsx"
-	]
+	"include": ["src/**/*.ts", "src/**/*.tsx"]
 }

@@ -1,6 +1,5 @@
-import type * as React from "react";
-
 import { createAnatomy } from "@ark-ui/react/anatomy";
+import type * as React from "react";
 
 import { cn } from "#src/lib/utils";
 

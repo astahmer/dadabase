@@ -1,5 +1,11 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useMemo } from "react";
+import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
+import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
+import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
+import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
+import { JsonViewer } from "../../ui/json-viewer.tsx";
 import {
 	Sheet,
 	SheetContent,
@@ -7,15 +13,9 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "../../ui/sheet.tsx";
-import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
-import { JsonViewer } from "../../ui/json-viewer.tsx";
-import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
-import { useMemo } from "react";
 import type { DbConnection } from "../connection.types.ts";
-import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
-import { formatTableValue } from "./format-table-value.ts";
 import { useActiveTabState } from "./create-tab-state.ts";
+import { formatTableValue } from "./format-table-value.ts";
 
 export const ConnectionRowJsonViewerDrawer = ({
 	connection,

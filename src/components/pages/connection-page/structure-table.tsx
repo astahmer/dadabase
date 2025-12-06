@@ -1,11 +1,11 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTypeBadge } from "../../app/data-type-badge.tsx";
-import { HStack } from "../../ui/layout.tsx";
 import { PrimaryKeyIcon } from "../../app/primary-key-icon.tsx";
 import { UniqueConstraintIcon } from "../../app/unique-constraint-icon.tsx";
+import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 import { DataTable } from "../../data-table/data-table.tsx";
 import { useDataTable } from "../../data-table/use-data-table.ts";
-import type { DataTableSize } from "../../data-table/data-table.styles.ts";
+import { HStack } from "../../ui/layout.tsx";
 
 interface StructureTableProps {
 	columnMetadata: Array<{

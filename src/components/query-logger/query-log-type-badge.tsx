@@ -1,5 +1,5 @@
-import { Badge } from "../ui/badge.tsx";
 import type { QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
+import { Badge } from "../ui/badge.tsx";
 
 const queryTypeColorMap: Record<
 	QueryLogType,

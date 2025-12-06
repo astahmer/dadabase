@@ -1,7 +1,7 @@
 import { Moon, Sun } from "lucide-react";
+import type { ComponentProps } from "react";
 import { useTheme } from "#src/hooks/use-theme";
 import { Button } from "./button";
-import type { ComponentProps } from "react";
 
 export const DarkModeToggle = (props: ComponentProps<typeof Button>) => {
 	const { theme, toggleTheme, mounted } = useTheme();
