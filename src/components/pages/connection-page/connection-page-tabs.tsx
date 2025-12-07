@@ -23,6 +23,7 @@ import {
 	createTabState,
 	scrollToTab,
 } from "./create-tab-state.ts";
+import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 
 interface ConnectionPageTabsProps {
 	activeConnectionUrl: string;
@@ -51,6 +52,16 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 		retry: 3,
 	});
 	const schemaList = schemaListQuery.data || [];
+
+	const tablesListQuery = useQuery({
+		...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
+		retry: 3,
+	});
+	const tableList = tablesListQuery.data || [];
+
+	const schemaWithTables = schemaList.filter((schema) =>
+		tableList.some((t) => t.schema === schema),
+	);
 
 	const prefetchTableData = (schema: string, table: string) => {
 		queryClient.prefetchQuery({
@@ -230,6 +241,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 		<TableTabsBar
 			tabs={tabs}
 			activeTabId={activeTabId}
+			hasMultipleSchemas={schemaWithTables.length > 1}
 			onTabHover={(tab) => {
 				if (tab.schema && tab.table) {
 					prefetchTableData(tab.schema, tab.table);
