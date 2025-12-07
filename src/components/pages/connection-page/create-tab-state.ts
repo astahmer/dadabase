@@ -60,6 +60,30 @@ export const updateTabState = (
 	} as ConnectionPageSearch;
 };
 
+export const addTabStateAfterCurrent = (
+	prev: ConnectionPageSearch,
+	newTab: TabState,
+) => {
+	const currentTabIndex = (prev.tabs ?? []).findIndex(
+		(t) => t.tabId === prev.activeTabId,
+	);
+	let tabs = prev.tabs ?? [];
+	if (currentTabIndex !== -1) {
+		tabs = [
+			...tabs.slice(0, currentTabIndex + 1),
+			newTab,
+			...tabs.slice(currentTabIndex + 1),
+		];
+	}
+
+	return {
+		...prev,
+		...newTab,
+		tabs: tabs,
+		activeTabId: newTab.tabId,
+	};
+};
+
 export const getActiveTabState = (search: ConnectionPageSearch) =>
 	search.tabs?.find((tab) => tab.tabId === search.activeTabId);
 

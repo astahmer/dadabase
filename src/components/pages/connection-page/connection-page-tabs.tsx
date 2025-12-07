@@ -18,6 +18,7 @@ import { listAvailableSchemasQueryOptions } from "#src/server/introspection/star
 import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { TableTabsBar } from "./table-tabs-bar.tsx";
+import { addTabStateAfterCurrent, createTabState } from "./create-tab-state.ts";
 
 interface ConnectionPageTabsProps {
 	activeConnectionUrl: string;
@@ -77,16 +78,12 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 		if (!tab) return;
 
 		const newTabId = `duplicate-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-		const duplicatedTab = {
-			...tab,
-			tabId: newTabId,
-		};
+		const duplicatedTab = { ...tab, tabId: newTabId };
 
 		navigate({
 			search: (prev) => ({
 				...prev,
-				tabs: [...(prev.tabs ?? []), duplicatedTab],
-				activeTabId: newTabId,
+				...addTabStateAfterCurrent(prev, duplicatedTab),
 			}),
 		});
 	};
@@ -320,31 +317,21 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			onAddTab={() => {
 				const currentTab = tabs.find((t) => t.tabId === activeTabId);
 				const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+				const schema =
+					currentTab?.schema ??
+					schemaList[0] ??
+					getDialectDefaultSchema(dialect);
 				const emptyTabState = {
+					...createTabState(schema, ""),
 					tabId,
-					schema:
-						currentTab?.schema ??
-						schemaList[0] ??
-						getDialectDefaultSchema(dialect),
 					table: "",
-					tableFilter: undefined,
-					orderBy: undefined,
-					orderDirection: undefined,
-					limit: 50,
-					offset: 0,
-					viewMode: "rows" as const,
-					tableSize: "cozy" as const,
-					hiddenColumnList: undefined,
-					filters: undefined,
-					filtersOpened: false,
-					relationshipRowId: undefined,
 				};
 				navigate({
 					search: (prev) => ({
 						...prev,
+						...emptyTabState,
 						tabs: [...(prev.tabs ?? []), emptyTabState],
 						activeTabId: tabId,
-						table: undefined,
 						relationshipRowId: undefined,
 					}),
 				});

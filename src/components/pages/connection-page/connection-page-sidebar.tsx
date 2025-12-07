@@ -17,6 +17,7 @@ import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import type { DbConnection } from "../connection.types";
 import { ConnectionSwitcher } from "./connection-switcher";
 import {
+	addTabStateAfterCurrent,
 	createTabState,
 	updateTabState,
 	useActiveTabState,
@@ -317,17 +318,12 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 								const tableName = details.value;
 								if (!tableName) return;
 
-								const schema = selectedSchema;
-								const tabState = createTabState(schema, tableName);
+								const newTabState = createTabState(selectedSchema, tableName);
 								navigate({
-									search: (prev) => {
-										return {
-											...prev,
-											...tabState,
-											tabs: [...(prev.tabs ?? []), tabState],
-											activeTabId: tabState.tabId,
-										};
-									},
+									search: (prev) => ({
+										...prev,
+										...addTabStateAfterCurrent(prev, newTabState),
+									}),
 								});
 							}}
 						>

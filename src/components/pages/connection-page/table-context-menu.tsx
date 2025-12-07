@@ -9,7 +9,11 @@ import {
 	MenuItemText,
 	MenuSeparator,
 } from "../../ui/menu.tsx";
-import { createTabState, updateTabState } from "./create-tab-state.ts";
+import {
+	addTabStateAfterCurrent,
+	createTabState,
+	updateTabState,
+} from "./create-tab-state.ts";
 
 interface TableContextMenuProps {
 	tableName: string;
@@ -27,14 +31,10 @@ export const TableContextMenu = ({
 	const handleOpenInNewTab = () => {
 		const tabState = createTabState(schema, tableName);
 		navigate({
-			search: (prev) => {
-				return {
-					...prev,
-					...tabState,
-					tabs: [...(prev.tabs ?? []), tabState],
-					activeTabId: tabState.tabId,
-				};
-			},
+			search: (prev) => ({
+				...prev,
+				...addTabStateAfterCurrent(prev, tabState),
+			}),
 		});
 	};
 
@@ -44,11 +44,9 @@ export const TableContextMenu = ({
 			search: (prev) => {
 				return {
 					...prev,
-					...tabState,
-					tabs: [...(prev.tabs ?? []), tabState],
+					...addTabStateAfterCurrent(prev, tabState),
 					activeTabId: tabState.tabId,
 					viewMode: "structure",
-					filtersOpened: false,
 				};
 			},
 		});

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 import { Suspense } from "react";
-import { ConnectionPage } from "#src/components/pages/connection.page";
+import { ConnectionPage } from "#src/components/pages/connection.page.tsx";
 import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
 import { FullCenter } from "../../components/ui/layout.tsx";
 import { Spinner } from "../../components/ui/spinner.tsx";

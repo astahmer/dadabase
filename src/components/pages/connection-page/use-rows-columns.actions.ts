@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useCallback } from "react";
 import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
 import {
+	addTabStateAfterCurrent,
 	createTabState,
 	updateTabState,
 } from "#src/components/pages/connection-page/create-tab-state.ts";
@@ -48,9 +49,7 @@ export const useRowsColumnsAction = (props: UseRowsColumnsActionOptions) => {
 			navigate({
 				search: (prev) => ({
 					...prev,
-					...newTabState,
-					tabs: [...(prev.tabs ?? []), newTabState],
-					activeTabId: newTabState.tabId,
+					...addTabStateAfterCurrent(prev, newTabState),
 				}),
 			});
 		},
