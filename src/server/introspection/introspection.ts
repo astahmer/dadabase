@@ -1544,7 +1544,7 @@ export const queryTableRows = <TData>(input: {
 
 		// Build ORDER BY clause
 		const orderClause = orderBy
-			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
+			? `ORDER BY ${sql(table).value}.${sql(orderBy).value} ${orderDirection.toUpperCase()}`
 			: "";
 
 		// Build JOIN clauses if joins exist
