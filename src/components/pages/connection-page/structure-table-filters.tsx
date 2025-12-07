@@ -1,152 +1,106 @@
-import {
-	LucideChevronDown,
-	LucideChevronUp,
-	LucideListFilter,
-	X,
-} from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
+import { Popover } from "@ark-ui/react/popover";
+import { Portal } from "@ark-ui/react/portal";
+import { ChevronsUpDown, X } from "lucide-react";
+import { useState } from "react";
 import { Button } from "../../ui/button";
-import { HStack, Stack } from "../../ui/layout.tsx";
-import { Tooltip } from "../../ui/tooltip.tsx";
+import { HStack } from "../../ui/layout.tsx";
 import { Input } from "../../ui/input";
-import { Checkbox } from "../../ui/checkbox";
-import { Label } from "../../ui/label";
 import type { StructureFilters } from "./use-structure-filter-state.ts";
 import {
-	getDefaultStructureFilters,
 	hasActiveStructureFilters,
 	useStructureFilters,
 } from "./use-structure-filter-state.ts";
 
-interface StructureTableFiltersProps {
-	filtersOpened: boolean;
-	onToggleFilters: () => void;
-	isLoading?: boolean;
-}
+const filterOptions: Array<{
+	key: keyof Omit<StructureFilters, "search">;
+	label: string;
+}> = [
+	{ key: "nullable", label: "Nullable" },
+	{ key: "primaryKey", label: "Primary Key" },
+	{ key: "unique", label: "Unique" },
+	{ key: "foreignKey", label: "Foreign Key" },
+	{ key: "hasDefaults", label: "Has Defaults" },
+];
 
-export const StructureTableFilters = (props: StructureTableFiltersProps) => {
-	const { filtersOpened, onToggleFilters, isLoading } = props;
+/**
+ * Structure filter controls with search input and dropdown for filter options
+ */
+export const StructureFilterControls = () => {
 	const { filters, updateFilters, clearFilters } = useStructureFilters();
 	const hasFilters = hasActiveStructureFilters(filters);
+	const [open, setOpen] = useState(false);
+
+	const activeCount = filterOptions.reduce((count, opt) => {
+		return count + (filters[opt.key] ? 1 : 0);
+	}, 0);
 
 	return (
-		<div className="space-y-2">
-			<HStack className="justify-between">
-				<Button
-					variant={hasFilters && !filtersOpened ? "default" : "outline"}
-					size="sm"
-					onClick={onToggleFilters}
-					disabled={isLoading}
-					className={hasFilters ? "gap-2" : ""}
-				>
-					<LucideListFilter className="h-3 w-3" />
-					{filtersOpened ? "Filters" : "Show filters"}
-					{hasFilters && (
-						<span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-xs font-semibold bg-background/20">
-							{Object.values(filters).filter(Boolean).length}
-						</span>
-					)}
-					{filtersOpened ? (
-						<LucideChevronUp className="h-3 w-3" />
-					) : (
-						<LucideChevronDown className="h-3 w-3" />
-					)}
-				</Button>
-				{hasFilters && (
+		<HStack className="gap-2">
+			{/* Search Input */}
+			<Input
+				placeholder="Search columns, types..."
+				value={filters.search}
+				onChange={(e) => updateFilters({ search: e.target.value })}
+				className="text-sm h-8 w-48"
+			/>
+
+			{/* Filters Dropdown */}
+			<Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
+				<Popover.Trigger asChild>
 					<Button
-						variant="ghost"
+						variant="outline"
 						size="sm"
-						onClick={clearFilters}
-						className="gap-2 text-muted-foreground hover:text-foreground"
+						className="h-8 px-2 gap-1 justify-between"
 					>
-						<X className="h-3 w-3" />
-						Clear all
+						<span className="text-xs font-medium text-foreground">
+							Filters {activeCount > 0 ? `(${activeCount})` : ""}
+						</span>
+						<ChevronsUpDown className="h-4 w-4 opacity-50" />
 					</Button>
-				)}
-			</HStack>
-
-			{filtersOpened && (
-				<Stack className="border rounded-lg p-3 space-y-3 bg-muted/20">
-					{/* Search Input */}
-					<div className="space-y-1.5">
-						<Label htmlFor="structure-search" className="text-xs font-medium">
-							Search
-						</Label>
-						<Input
-							id="structure-search"
-							placeholder="Column name, type, or foreign key..."
-							value={filters.search}
-							onChange={(e) => updateFilters({ search: e.target.value })}
-							className="text-sm h-8"
-						/>
-					</div>
-
-					{/* Checkboxes */}
-					<div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:gap-3">
-						<FilterCheckbox
-							id="nullable"
-							label="Nullable"
-							checked={filters.nullable}
-							onChange={() => updateFilters({ nullable: !filters.nullable })}
-						/>
-						<FilterCheckbox
-							id="primaryKey"
-							label="Primary Key"
-							checked={filters.primaryKey}
-							onChange={() =>
-								updateFilters({ primaryKey: !filters.primaryKey })
-							}
-						/>
-						<FilterCheckbox
-							id="unique"
-							label="Unique"
-							checked={filters.unique}
-							onChange={() => updateFilters({ unique: !filters.unique })}
-						/>
-						<FilterCheckbox
-							id="foreignKey"
-							label="Foreign Key"
-							checked={filters.foreignKey}
-							onChange={() =>
-								updateFilters({ foreignKey: !filters.foreignKey })
-							}
-						/>
-						<FilterCheckbox
-							id="hasDefaults"
-							label="Has Defaults"
-							checked={filters.hasDefaults}
-							onChange={() =>
-								updateFilters({ hasDefaults: !filters.hasDefaults })
-							}
-						/>
-					</div>
-				</Stack>
-			)}
-		</div>
+				</Popover.Trigger>
+				<Portal>
+					<Popover.Positioner>
+						<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50 min-w-56">
+							<div className="p-2 space-y-1">
+								{filterOptions.map((option) => (
+									<label
+										key={option.key}
+										className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted transition-colors"
+									>
+										<input
+											type="checkbox"
+											checked={filters[option.key]}
+											onChange={(e) =>
+												updateFilters({
+													[option.key]: e.target.checked,
+												})
+											}
+											className="rounded"
+										/>
+										<span className="flex-1">{option.label}</span>
+									</label>
+								))}
+							</div>
+							{hasFilters && (
+								<div className="border-t border-border px-2 py-1.5">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											clearFilters();
+											setOpen(false);
+										}}
+										className="w-full text-xs h-7 text-muted-foreground hover:text-foreground gap-2"
+									>
+										<X className="h-3 w-3" />
+										Clear All
+									</Button>
+								</div>
+							)}
+						</Popover.Content>
+					</Popover.Positioner>
+				</Portal>
+			</Popover.Root>
+		</HStack>
 	);
 };
-
-interface FilterCheckboxProps {
-	id: string;
-	label: string;
-	checked: boolean;
-	onChange: (checked: boolean) => void;
-}
-
-const FilterCheckbox = ({
-	id,
-	label,
-	checked,
-	onChange,
-}: FilterCheckboxProps) => (
-	<div className="flex items-center gap-2">
-		<Checkbox
-			id={id}
-			checked={checked}
-			onCheckedChange={(details) => onChange(Boolean(details.checked))}
-		/>
-		<Label htmlFor={id} className="text-xs font-normal cursor-pointer">
-			{label}
-		</Label>
-	</div>
-);

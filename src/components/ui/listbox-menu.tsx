@@ -7,7 +7,7 @@ import { Popover as PopoverPrimitive } from "@ark-ui/react/popover";
 import { type VariantProps } from "class-variance-authority";
 import { CheckIcon } from "lucide-react";
 import { type JSX } from "react";
-import { cn } from "#src/lib/utils";
+import { cn } from "#src/lib/utils.ts";
 import type { ExposedComponentProps } from "./component-props.ts";
 import { listboxMenuVariants } from "./listbox-menu.styles";
 

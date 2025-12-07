@@ -37,7 +37,6 @@ import {
 import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
 import { RowsTableErrorState } from "./connection-page/rows-table-error-state.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
-import { StructureTableFilters } from "./connection-page/structure-table-filters.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 
 interface ConnectionPageProps {
@@ -82,7 +81,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	});
 
 	const { filters: structureFilters } = useStructureFilters();
-	const [structureFiltersOpened, setStructureFiltersOpened] = useState(false);
 
 	const pageState = useConnectionPageState({ connection });
 	const {
@@ -202,22 +200,13 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 								{/* Content */}
 								<div className="flex-1 overflow-hidden flex flex-col h-full">
 									{search.viewMode === "structure" ? (
-										<div className="flex-1 flex flex-col h-full min-h-0 p-2 pt-0">
-											<StructureTableFilters
-												filtersOpened={structureFiltersOpened}
-												onToggleFilters={() =>
-													setStructureFiltersOpened(!structureFiltersOpened)
-												}
+										<div className="flex-1 overflow-auto p-2 pt-0">
+											<StructureTable
+												columnMetadata={columnMetadata}
 												isLoading={isColumnMetadataLoading}
+												tableSize={search.tableSize}
+												filters={structureFilters}
 											/>
-											<div className="flex-1 overflow-auto mt-2">
-												<StructureTable
-													columnMetadata={columnMetadata}
-													isLoading={isColumnMetadataLoading}
-													tableSize={search.tableSize}
-													filters={structureFilters}
-												/>
-											</div>
 										</div>
 									) : (
 										<div className="flex-1 flex flex-col h-full min-h-0 px-2">

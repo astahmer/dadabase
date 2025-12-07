@@ -14,6 +14,7 @@ import { NaturalLanguageSearch } from "../../query-builder/natural-language-sear
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
+import { StructureFilterControls } from "./structure-table-filters.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 
 interface ConnectionPageFiltersProps {
@@ -222,6 +223,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 						minimal
 					/>
 				)}
+				{viewMode === "structure" && <StructureFilterControls />}
 			</HStack>
 		</div>
 	);
