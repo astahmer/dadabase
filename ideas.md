@@ -25,7 +25,6 @@
 - add a way to favorite/save queries
 - operator IN
 - left/inner join one/more tables + add their columns prefixed with the table name: table1.col1, table1.col2, table2.col1, table2.col2, table3.col1, table3.col2
-- search in table structure / see only nullable/primary/unique/fk/with defaults
 
 - investigate using the lib that allows to move/reorder components in a gridlike manner with snap, like dashboard widgets, for full customization -> https://dockview.dev/ ?
 - expandable table row with nested entity

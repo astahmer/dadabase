@@ -162,10 +162,20 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 						className="h-full min-h-0 flex-1 flex flex-col overflow-hidden"
 					>
 						{/* Tabs */}
-						<ConnectionPageTabs
-							activeConnectionUrl={activeConnectionUrl}
-							dialect={connection.dialect}
-						/>
+						<Splitter.Context>
+							{(ctx) => (
+								<ConnectionPageTabs
+									activeConnectionUrl={activeConnectionUrl}
+									dialect={connection.dialect}
+									onToggleSidebar={() => {
+										ctx.isPanelExpanded("sidebar")
+											? ctx.collapsePanel("sidebar")
+											: ctx.expandPanel("sidebar");
+									}}
+									isSidebarCollapsed={ctx.isPanelCollapsed("sidebar")}
+								/>
+							)}
+						</Splitter.Context>
 
 						{search.table && search.schema ? (
 							<>

@@ -6,11 +6,13 @@ import {
 	ArrowRightFromLine,
 	ClipboardIcon,
 	CopyPlus,
+	PanelLeft,
 	Plus,
 	X,
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Menu, MenuContent, MenuContextTrigger, MenuItem } from "../../ui/menu";
+import { Tooltip } from "../../ui/tooltip.tsx";
 
 export interface TableTab {
 	tabId: string; // Explicit unique identifier
@@ -32,6 +34,8 @@ interface TableTabsBarProps {
 	onCloseTabsOnRight?: (tabId: string) => void;
 	onCloseOtherTabs?: (tabId: string) => void;
 	onCopyTabUrl?: (tabId: string) => void;
+	onToggleSidebar?: () => void;
+	isSidebarCollapsed?: boolean;
 }
 
 export const TableTabsBar = (props: TableTabsBarProps) => {
@@ -47,6 +51,8 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
 		onCloseTabsOnRight,
 		onCloseOtherTabs,
 		onCopyTabUrl,
+		onToggleSidebar,
+		isSidebarCollapsed,
 	} = props;
 
 	if (tabs.length === 0) {
@@ -63,6 +69,24 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
 				className="flex flex-col gap-0"
 			>
 				<div className="flex items-baseline gap-1 px-2 py-2 bg-muted/50">
+					{onToggleSidebar && (
+						<Tooltip
+							content={isSidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+						>
+							<Button
+								onClick={onToggleSidebar}
+								variant="ghost"
+								size="xs"
+								className="shrink-0 relative top-[3px]"
+								aria-label={
+									isSidebarCollapsed ? "Show sidebar" : "Hide sidebar"
+								}
+								type="button"
+							>
+								<PanelLeft className="h-4 w-4" />
+							</Button>
+						</Tooltip>
+					)}
 					<Tabs.List className="flex items-center gap-1 overflow-x-auto min-w-0">
 						{tabs.map((tab, index) => {
 							const title =

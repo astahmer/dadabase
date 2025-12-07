@@ -28,6 +28,8 @@ import { listAvailableTablesQueryOptions } from "#src/server/introspection/start
 interface ConnectionPageTabsProps {
 	activeConnectionUrl: string;
 	dialect: DatabaseDialect;
+	onToggleSidebar?: () => void;
+	isSidebarCollapsed?: boolean;
 }
 
 export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
@@ -242,6 +244,8 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			tabs={tabs}
 			activeTabId={activeTabId}
 			hasMultipleSchemas={schemaWithTables.length > 1}
+			onToggleSidebar={props.onToggleSidebar}
+			isSidebarCollapsed={props.isSidebarCollapsed}
 			onTabHover={(tab) => {
 				if (tab.schema && tab.table) {
 					prefetchTableData(tab.schema, tab.table);
