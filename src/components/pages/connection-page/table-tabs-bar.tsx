@@ -59,8 +59,8 @@ export const TableTabsBar = ({
 				}}
 				className="flex flex-col gap-0"
 			>
-				<div className="flex items-baseline justify-between gap-1 px-2 py-2 bg-muted/50">
-					<Tabs.List className="flex items-center gap-1 overflow-x-auto">
+				<div className="flex items-baseline gap-1 px-2 py-2 bg-muted/50">
+					<Tabs.List className="flex items-center gap-1 overflow-x-auto min-w-0">
 						{tabs.map((tab, index) => (
 							<Menu key={tab.tabId}>
 								<MenuContextTrigger asChild>
@@ -168,19 +168,19 @@ export const TableTabsBar = ({
 								</Portal>
 							</Menu>
 						))}
-						{onAddTab && (
-							<Button
-								onClick={onAddTab}
-								variant="ghost"
-								size="xs"
-								className="shrink-0"
-								aria-label="Add new tab"
-								type="button"
-							>
-								<Plus className="h-4 w-4" />
-							</Button>
-						)}
 					</Tabs.List>
+					{onAddTab && (
+						<Button
+							onClick={onAddTab}
+							variant="ghost"
+							size="xs"
+							className="shrink-0 relative top-[3px]"
+							aria-label="Add new tab"
+							type="button"
+						>
+							<Plus className="h-4 w-4" />
+						</Button>
+					)}
 				</div>
 			</Tabs.Root>
 		</div>

@@ -102,11 +102,9 @@ export const useRowsColumnsAction = (props: UseRowsColumnsActionOptions) => {
 			navigate({
 				search: (prev) => ({
 					...prev,
-					...newTabState,
-					activeTabId: newTabState.tabId,
-					tabs: [...(prev.tabs ?? []), newTabState],
+					...addTabStateAfterCurrent(prev, newTabState),
 				}),
-			});
+			}).then(() => scrollToTab(newTabState.tabId));
 		},
 		[navigate],
 	);

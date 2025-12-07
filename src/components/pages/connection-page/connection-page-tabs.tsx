@@ -338,7 +338,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 						activeTabId: tabId,
 						relationshipRowId: undefined,
 					}),
-				});
+				}).then(() => scrollToTab(tabId));
 			}}
 		/>
 	);
