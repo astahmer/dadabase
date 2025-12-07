@@ -1,4 +1,5 @@
 import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { DataTypeBadge } from "../../app/data-type-badge.tsx";
 import { PrimaryKeyIcon } from "../../app/primary-key-icon.tsx";
 import { UniqueConstraintIcon } from "../../app/unique-constraint-icon.tsx";
@@ -6,6 +7,7 @@ import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 import { DataTable } from "../../data-table/data-table.tsx";
 import { useDataTable } from "../../data-table/use-data-table.ts";
 import { HStack } from "../../ui/layout.tsx";
+import type { StructureFilters } from "./use-structure-filter-state.ts";
 
 interface StructureTableProps {
 	columnMetadata: Array<{
@@ -24,10 +26,56 @@ interface StructureTableProps {
 	}>;
 	isLoading: boolean;
 	tableSize: DataTableSize;
+	filters?: StructureFilters;
 }
 
+const filterColumnMetadata = (
+	columns: StructureTableProps["columnMetadata"],
+	filters: StructureFilters | undefined,
+): StructureTableProps["columnMetadata"] => {
+	if (!filters) return columns;
+
+	return columns.filter((col) => {
+		// Search filter (case-insensitive)
+		if (filters.search) {
+			const searchLower = filters.search.toLowerCase();
+			const matchesSearch =
+				col.name.toLowerCase().includes(searchLower) ||
+				col.dataType.toLowerCase().includes(searchLower) ||
+				(col.foreignKey &&
+					`${col.foreignKey.referencedSchema}.${col.foreignKey.referencedTable}.${col.foreignKey.referencedColumn}`
+						.toLowerCase()
+						.includes(searchLower));
+
+			if (!matchesSearch) return false;
+		}
+
+		// Nullable filter
+		if (filters.nullable && !col.nullable) return false;
+
+		// Primary Key filter
+		if (filters.primaryKey && !col.primaryKey) return false;
+
+		// Unique filter
+		if (filters.unique && !col.unique) return false;
+
+		// Foreign Key filter
+		if (filters.foreignKey && !col.isForeignKey) return false;
+
+		// Has Defaults filter
+		if (filters.hasDefaults && !col.defaultValue) return false;
+
+		return true;
+	});
+};
+
 export const StructureTable = (props: StructureTableProps) => {
-	const { columnMetadata } = props;
+	const { columnMetadata, filters } = props;
+
+	const filteredMetadata = useMemo(
+		() => filterColumnMetadata(columnMetadata, filters),
+		[columnMetadata, filters],
+	);
 
 	const structureColumns: Array<ColumnDef<(typeof columnMetadata)[number]>> = [
 		{
@@ -112,10 +160,10 @@ export const StructureTable = (props: StructureTableProps) => {
 	];
 
 	const structureTable = useDataTable({
-		data: columnMetadata,
+		data: filteredMetadata,
 		columns: structureColumns,
 		manualPagination: true,
-		rowCount: columnMetadata.length,
+		rowCount: filteredMetadata.length,
 	});
 
 	return (

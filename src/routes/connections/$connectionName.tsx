@@ -14,6 +14,23 @@ const tableSize = Schema.Literal(
 	"cozy",
 	"comfortable",
 );
+
+// Schema for structure table filters
+const StructureFiltersSchema = Schema.Struct({
+	search: Schema.String.pipe(Schema.optionalWith({ default: () => "" })),
+	nullable: Schema.Boolean.pipe(Schema.optionalWith({ default: () => false })),
+	primaryKey: Schema.Boolean.pipe(
+		Schema.optionalWith({ default: () => false }),
+	),
+	unique: Schema.Boolean.pipe(Schema.optionalWith({ default: () => false })),
+	foreignKey: Schema.Boolean.pipe(
+		Schema.optionalWith({ default: () => false }),
+	),
+	hasDefaults: Schema.Boolean.pipe(
+		Schema.optionalWith({ default: () => false }),
+	),
+});
+
 const TabStateSchema = Schema.Struct({
 	tabId: Schema.String, // Explicit unique identifier for the tab
 	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
@@ -45,6 +62,7 @@ const searchSchema = Schema.Struct({
 	activeTabId: Schema.String.pipe(Schema.optional), // Explicit active tab ID
 	tabs: TabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
 	tableFilter: Schema.String.pipe(Schema.optional),
+	structureFilters: StructureFiltersSchema.pipe(Schema.optional), // Structure view filters
 	quickReferencesOpen: Schema.Boolean.pipe(
 		Schema.optionalWith({ default: () => false }),
 	),
