@@ -88,7 +88,8 @@ export function OrderBySelect(props: OrderBySelectProps) {
 				<Popover.Trigger asChild>
 					<Button variant="outline" size="sm" className={buttonClassName}>
 						<span className="text-xs font-medium text-foreground uppercase tracking-wide flex items-center gap-1">
-							<ArrowDownUp /> Sort
+							{orderBy ? null : <ArrowDownUp />}
+							Sort
 							{orderBy && (
 								<>
 									<span className="font-normal text-foreground/70">
