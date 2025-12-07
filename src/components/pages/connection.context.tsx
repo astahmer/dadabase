@@ -4,8 +4,9 @@ export interface ConnectionContextValue {
 	schema: string;
 	table: string;
 	connectionUrl: string;
+	hasMultipleSchemas: boolean;
 }
 
 export const ConnectionContext = createContext<
 	ConnectionContextValue | undefined
->(undefined);
+>({ schema: "", table: "", connectionUrl: "", hasMultipleSchemas: false });

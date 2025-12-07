@@ -1,7 +1,11 @@
 import { CheckCircle2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "#src/components/ui/button.tsx";
-import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
+import {
+	Checkbox,
+	CheckboxControl,
+	CheckboxLabel,
+} from "#src/components/ui/checkbox.tsx";
 import { createListCollection } from "@ark-ui/react";
 import {
 	Select,
@@ -111,7 +115,7 @@ export const JoinedTableRow = ({
 			<div className="space-y-2">
 				<div className="flex items-center justify-between">
 					<div className="text-xs font-medium text-muted-foreground">
-						Columns:
+						Columns ({columnLabel}):
 					</div>
 					<Button
 						variant="ghost"
@@ -119,27 +123,49 @@ export const JoinedTableRow = ({
 						onClick={() => setShowColumnSelector(!showColumnSelector)}
 						className="h-6 px-2 text-xs"
 					>
-						{showColumnSelector ? "Hide" : "Edit"} ({columnLabel})
+						{showColumnSelector ? "Hide" : "Edit"}
 					</Button>
 				</div>
 
 				{showColumnSelector && (
 					<div className="p-2 border rounded bg-muted/30 space-y-2 max-h-48 overflow-y-auto">
+						<Checkbox
+							checked={
+								selectedColumns.size === availableColumns.length
+									? true
+									: selectedColumns.size > 0
+										? "indeterminate"
+										: false
+							}
+							onCheckedChange={() =>
+								setSelectedColumns(
+									selectedColumns.size === availableColumns.length
+										? new Set()
+										: new Set(availableColumns.map((c) => c.name)),
+								)
+							}
+							className="flex gap-2 w-full"
+						>
+							<CheckboxControl />
+							<CheckboxLabel className="text-xs cursor-pointer flex-1">
+								<span className="font-medium">Select All</span>
+							</CheckboxLabel>
+						</Checkbox>
 						{availableColumns.map((col) => (
 							<div key={col.name} className="flex items-center gap-2">
 								<Checkbox
 									checked={selectedColumns.has(col.name)}
 									onCheckedChange={() => handleToggleColumn(col.name)}
-									className="h-4 w-4"
+									className="flex gap-2 w-full"
 								>
 									<CheckboxControl />
+									<CheckboxLabel className="text-xs cursor-pointer flex-1">
+										<span className="font-medium">{col.name}</span>
+										<span className="text-muted-foreground ml-1">
+											({col.dataType})
+										</span>
+									</CheckboxLabel>
 								</Checkbox>
-							<label className="text-xs cursor-pointer flex-1">
-								<span className="font-medium">{col.name}</span>
-								<span className="text-muted-foreground ml-1">
-									({col.dataType})
-								</span>
-							</label>
 							</div>
 						))}
 

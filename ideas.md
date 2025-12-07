@@ -54,3 +54,4 @@
 - cmd+k
 - investigate using the lib that allows to move/reorder components in a gridlike manner with snap, like dashboard widgets, for full customization -> https://dockview.dev/ ?
 - expandable table row with nested entity -> kinda solved already with bottom relationship panel but some people might prefer inline expansion
+- move sidebar state in URL (isSidebarCollapsed)

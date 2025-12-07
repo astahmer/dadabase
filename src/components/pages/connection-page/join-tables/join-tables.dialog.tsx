@@ -3,21 +3,30 @@ import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
+	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "#src/components/ui/dialog.tsx";
 import { Stack } from "#src/components/ui/layout.tsx";
+import {
+	ListboxMenuFilterInput,
+	ListboxMenuItem,
+	ListboxMenuList,
+	ListboxRoot,
+} from "#src/components/ui/listbox-menu.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
+import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
+import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
+import { createListCollection, useFilter } from "@ark-ui/react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { TableName } from "../table-name.tsx";
 import type {
 	JoinableTableOption,
-	JoinedTable,
 	JoinTablesConfig,
 } from "./join-tables.types";
-import { JoinableTableSelector } from "./joinable-table-selector.tsx";
 import { JoinedTableRow } from "./joined-table-row.tsx";
 import { useJoinTablesState } from "./use-join-tables-state.ts";
 
@@ -86,17 +95,19 @@ export const JoinTablesDialog = ({
 		(j) => `${j.schema}.${j.table}`,
 	);
 
-	const handleAddJoin = (option: JoinableTableOption) => {
-		const join: JoinedTable = {
-			table: option.table,
-			schema: option.schema,
-			type: "left",
-			columns: "all",
-			referencingColumn: option.referencingColumn,
-			referencedColumn: option.referencedColumn,
-		};
-		addJoin(join);
-	};
+	const unselectedTables = joinableTables.filter(
+		(t) => !selectedTableIds.includes(`${t.schema}.${t.table}`),
+	);
+
+	const filters = useFilter({ sensitivity: "base" });
+	const [searchInput, setSearchInput] = useState("");
+	const tableCollection = createListCollection({
+		items: unselectedTables.map((join) => ({
+			label: `${join.schema}.${join.table}`,
+			value: `${join.schema}:${join.table}:${join.referencingColumn}:${join.referencedColumn}:${join.direction}`,
+			join: join,
+		})),
+	});
 
 	const handleApply = () => {
 		onApply(joinConfig);
@@ -109,42 +120,102 @@ export const JoinTablesDialog = ({
 	};
 
 	const isLoadingRelationships = relationshipsQuery.isLoading;
-	const isLoadingColumns = columnQueries.some((q) => q.isLoading);
+
+	const schemaListQuery = useQuery({
+		...listAvailableSchemasQueryOptions({ url: url }),
+		retry: 3,
+	});
+	const schemaList = schemaListQuery.data || [];
+
+	const tablesListQuery = useQuery({
+		...listAvailableTablesQueryOptions({ url: url }),
+		retry: 3,
+	});
+	const tableList = tablesListQuery.data || [];
+
+	const schemaWithTables = schemaList.filter((schema) =>
+		tableList.some((t) => t.schema === schema),
+	);
+	const hasMultipleSchemas = schemaWithTables.length > 1;
 
 	return (
 		<Dialog
 			open={isOpen}
 			onOpenChange={(details) => onOpenChange(details.open)}
 		>
-			<DialogContent className="max-w-xl max-h-[80vh] overflow-y-auto">
+			<DialogContent className="min-h-[450px] flex flex-col h-full" size="2xl">
 				<DialogHeader>
 					<DialogTitle>Join Tables</DialogTitle>
 					<DialogDescription>
 						Configure joins for{" "}
 						<span className="font-mono font-medium">
-							{schema}.{table}
+							<TableName
+								schema={schema}
+								table={table}
+								hasMultipleSchemas={hasMultipleSchemas}
+							/>
 						</span>
 					</DialogDescription>
 				</DialogHeader>
 
-				<Stack gap="4" className="py-4">
+				<Stack gap="4" className="h-full overflow-y-auto py-4">
 					{/* Joinable table selector */}
 					{isLoadingRelationships ? (
 						<div className="flex items-center justify-center py-4">
 							<Spinner className="h-5 w-5" />
 						</div>
-					) : joinableTables.length === 0 ? (
+					) : unselectedTables.length === 0 ? (
 						<div className="text-sm text-muted-foreground p-3 border border-dashed rounded">
 							No relationships found for this table
 						</div>
 					) : (
-						<JoinableTableSelector
-							availableTables={joinableTables}
-							selectedTableIds={selectedTableIds}
-							onSelect={handleAddJoin}
-						/>
-					)}
-
+						<div className="space-y-2">
+							<div className="text-sm font-medium">Add Table to Join</div>
+							<ListboxRoot collection={tableCollection} selectionMode="none">
+								<ListboxMenuFilterInput
+									placeholder="Search tables..."
+									onChange={(e) => {
+										setSearchInput(e.target.value);
+									}}
+								/>
+								<ListboxMenuList className="max-h-32">
+									{unselectedTables
+										.filter((join) => filters.contains(join.table, searchInput))
+										.map((join) => (
+											<ListboxMenuItem
+												key={`${join.schema}.${join.table}`}
+												item={`${join.schema}:${join.table}:${join.referencingColumn}:${join.referencedColumn}:${join.direction}`}
+												onClick={() => {
+													addJoin({
+														schema: join.schema,
+														table: join.table,
+														type: "left",
+														columns: "all",
+														referencingColumn: join.referencingColumn,
+														referencedColumn: join.referencedColumn,
+													});
+												}}
+											>
+												<div className="flex items-center gap-2">
+													<span className="truncate">
+														<TableName
+															schema={join.schema}
+															table={join.table}
+															hasMultipleSchemas={hasMultipleSchemas}
+														/>
+													</span>
+													<span className="ml-auto text-xs text-muted-foreground italic">
+														{join.direction === "outgoing"
+															? "Outgoing: Foreign key"
+															: "Incoming: Referenced by"}
+													</span>
+												</div>
+											</ListboxMenuItem>
+										))}
+								</ListboxMenuList>
+							</ListboxRoot>
+						</div>
+					)}{" "}
 					{/* Joined tables list */}
 					{joinConfig.joins.length > 0 && (
 						<Stack gap="3">
@@ -172,7 +243,6 @@ export const JoinTablesDialog = ({
 							})}
 						</Stack>
 					)}
-
 					{/* Result preview */}
 					{joinConfig.joins.length > 0 && (
 						<div className="p-3 bg-muted rounded text-xs space-y-2">
@@ -183,14 +253,25 @@ export const JoinTablesDialog = ({
 								{/* Original table columns */}
 								<div>
 									<span className="text-muted-foreground">
-										• {schema}.{table}.*
+										•{" "}
+										<TableName
+											schema={schema}
+											table={table}
+											hasMultipleSchemas={hasMultipleSchemas}
+										/>
+										.*
 									</span>
 								</div>
 								{/* Joined table columns */}
 								{joinConfig.joins.map((join) => (
 									<div key={`${join.schema}.${join.table}`}>
 										<span className="text-muted-foreground">
-											• {join.schema}.{join.table}
+											•{" "}
+											<TableName
+												schema={join.schema}
+												table={join.table}
+												hasMultipleSchemas={hasMultipleSchemas}
+											/>
 											{join.columns === "all"
 												? ".*"
 												: ` (${join.columns.length} cols)`}
@@ -201,16 +282,16 @@ export const JoinTablesDialog = ({
 						</div>
 					)}
 				</Stack>
-
-				{/* Dialog actions */}
-				<div className="flex gap-2 justify-end pt-4">
-					<Button variant="outline" onClick={handleCancel}>
-						Cancel
-					</Button>
-					<Button onClick={handleApply} disabled={!joinConfig.joins.length}>
-						Apply Joins
-					</Button>
-				</div>
+				<DialogFooter>
+					<div className="flex gap-2 justify-end pt-4">
+						<Button variant="outline" onClick={handleCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleApply} disabled={!joinConfig.joins.length}>
+							Apply Joins
+						</Button>
+					</div>
+				</DialogFooter>
 			</DialogContent>
 		</Dialog>
 	);
