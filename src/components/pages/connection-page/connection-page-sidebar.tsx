@@ -397,6 +397,23 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 																					: "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
 																			}`}
 																			title={table.name}
+																			onDoubleClick={() => {
+																				const newTabState = createTabState(
+																					selectedSchema,
+																					table.name,
+																				);
+																				navigate({
+																					search: (prev) => ({
+																						...prev,
+																						...addTabStateAfterCurrent(
+																							prev,
+																							newTabState,
+																						),
+																					}),
+																				}).then(() =>
+																					scrollToTab(newTabState.tabId),
+																				);
+																			}}
 																		>
 																			<Listbox.ItemText className="flex-1 truncate">
 																				{table.name}

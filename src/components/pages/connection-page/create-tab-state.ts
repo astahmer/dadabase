@@ -19,7 +19,7 @@ export const createTabState = (
 		fkValue?: string;
 	},
 ): TabState => ({
-	tabId: `${schema}.${table}:${options?.fkValue ?? ""}`,
+	tabId: `${schema}.${table}:${options?.fkValue ?? ""}:${Math.random().toString(36).substr(2, 4)}`,
 	schema,
 	table,
 	orderBy: undefined,
@@ -74,6 +74,8 @@ export const addTabStateAfterCurrent = (
 			newTab,
 			...tabs.slice(currentTabIndex + 1),
 		];
+	} else {
+		tabs = [...tabs, newTab];
 	}
 
 	return {

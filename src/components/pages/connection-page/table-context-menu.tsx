@@ -13,7 +13,6 @@ import {
 	addTabStateAfterCurrent,
 	createTabState,
 	scrollToTab,
-	updateTabState,
 } from "./create-tab-state.ts";
 
 interface TableContextMenuProps {
