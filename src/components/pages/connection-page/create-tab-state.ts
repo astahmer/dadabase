@@ -1,5 +1,6 @@
 import { useSearch } from "@tanstack/react-router";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
+import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types";
 import { FileRouteTypes } from "#src/routeTree.gen.ts";
 
 type ConnectionPage =
@@ -17,6 +18,7 @@ export const createTabState = (
 		limit?: number;
 		filtersOpened?: boolean;
 		fkValue?: string;
+		joins?: JoinTablesConfig;
 	},
 ): TabState => ({
 	tabId: `${schema}.${table}:${options?.fkValue ?? ""}:${Math.random().toString(36).substr(2, 4)}`,
@@ -33,6 +35,7 @@ export const createTabState = (
 	filters: options?.filters,
 	filtersOpened: options?.filtersOpened ?? false,
 	fkValue: options?.fkValue,
+	joins: options?.joins,
 });
 
 export const updateTabState = (

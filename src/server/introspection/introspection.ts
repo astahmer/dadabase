@@ -1478,6 +1478,31 @@ const escapeValue = (value: unknown): string => {
 /**
  * Query table rows with filtering, pagination, and ordering
  * - PostgreSQL: Uses schema.table notation, ILIKE, ANY/ALL for arrays
+ */
+const buildSelectWithJoins = (schema: string, table: string, joins: any[]) => {
+	const columns: string[] = [];
+
+	// Add original table columns with table prefix
+	columns.push(`${schema}."${table}".* `);
+
+	// Add joined table columns
+	for (const join of joins) {
+		if (join.columns === "all") {
+			columns.push(`${join.schema}."${join.table}".*`);
+		} else {
+			const selectedCols = join.columns
+				.map((col: string) => `${join.schema}."${join.table}"."${col}"`)
+				.join(", ");
+			columns.push(selectedCols);
+		}
+	}
+
+	return columns.join(", ");
+};
+
+/**
+ * Query table rows with filtering, pagination, ordering, and joins
+ * - PostgreSQL: Uses schema.table notation, ILIKE, ANY/ALL for arrays
  * - SQLite: Uses table only (no schema), LIKE with COLLATE NOCASE, IN for arrays
  */
 export const queryTableRows = <TData>(input: {
@@ -1488,6 +1513,7 @@ export const queryTableRows = <TData>(input: {
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
 	filters?: QueryFilterType;
+	joins?: any[]; // JoinTablesConfig['joins']
 }): Effect.Effect<
 	{
 		rows: TData[];
@@ -1507,6 +1533,7 @@ export const queryTableRows = <TData>(input: {
 			orderBy,
 			orderDirection = "asc",
 			filters,
+			joins = [],
 		} = input;
 
 		// Build WHERE clause if filters exist
@@ -1520,6 +1547,14 @@ export const queryTableRows = <TData>(input: {
 			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
 			: "";
 
+		// Build JOIN clauses if joins exist
+		const joinClauses = joins
+			.map((join) => {
+				const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
+				return `${joinType} ${join.schema}."${join.table}" ON ${join.schema}."${join.table}"."${join.referencedColumn}" = ${schema}."${table}"."${join.referencingColumn}"`;
+			})
+			.join("\n");
+
 		// Get count and rows
 		const result = yield* sql.onDialectOrElse({
 			pg: () =>
@@ -1527,22 +1562,27 @@ export const queryTableRows = <TData>(input: {
 					const tableRef = sql`${sql(schema)}.${sql(table)}`;
 					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
 
-					// Get total count
+					// Get total count (COUNT DISTINCT to handle joins properly)
 					const countRows = yield* sql<{ count: bigint }>`
-						SELECT COUNT(*)::bigint as count
+						SELECT COUNT(DISTINCT ${sql(schema)}.${sql(table)}.*)::bigint as count
 						FROM ${tableRef}
+						${sql.unsafe(joinClauses ? `\n${joinClauses}` : "")}
 						${sql.unsafe(whereFragment)}
 					`;
 					const rowCount = Number(countRows[0]?.count ?? 0);
 
-					// Get rows
-					const rows = yield* sql`
-						SELECT *
-						FROM ${tableRef}
-						${sql.unsafe(whereFragment)}
-						${sql.unsafe(orderClause)}
+					// Get rows with proper column selection and prefixing
+					const selectPart =
+						joins.length > 0 ? buildSelectWithJoins(schema, table, joins) : "*";
+
+					const rows = yield* sql.unsafe(`
+						SELECT ${selectPart}
+						FROM ${schema}."${table}"
+						${joinClauses ? `\n${joinClauses}` : ""}
+						${whereFragment}
+						${orderClause}
 						LIMIT ${limit} OFFSET ${offset}
-					`;
+					`);
 
 					return {
 						rows: rows as TData[],
@@ -1568,18 +1608,23 @@ export const queryTableRows = <TData>(input: {
 					const countRows = yield* sql<{ count: number }>`
 						SELECT COUNT(*) as count
 						FROM ${tableRef}
+						${sql.unsafe(joinClauses ? `\n${joinClauses}` : "")}
 						${sql.unsafe(whereFragment)}
 					`;
 					const rowCount = Number(countRows[0]?.count ?? 0);
 
 					// Get rows
-					const rows = yield* sql`
-						SELECT *
-						FROM ${tableRef}
-						${sql.unsafe(whereFragment)}
-						${sql.unsafe(orderClause)}
+					const selectPart =
+						joins.length > 0 ? buildSelectWithJoins(schema, table, joins) : "*";
+
+					const rows = yield* sql.unsafe(`
+						SELECT ${selectPart}
+						FROM ${table}
+						${joinClauses ? `\n${joinClauses}` : ""}
+						${whereFragment}
+						${orderClause}
 						LIMIT ${limit} OFFSET ${offset}
-					`;
+					`);
 
 					return {
 						rows: rows as TData[],
@@ -1596,18 +1641,23 @@ export const queryTableRows = <TData>(input: {
 					const countRows = yield* sql<{ count: number }>`
 						SELECT COUNT(*) as count
 						FROM ${tableRef}
+						${sql.unsafe(joinClauses ? `\n${joinClauses}` : "")}
 						${sql.unsafe(whereFragment)}
 					`;
 					const rowCount = Number(countRows[0]?.count ?? 0);
 
 					// Get rows
-					const rows = yield* sql`
-						SELECT *
+					const selectPart =
+						joins.length > 0 ? buildSelectWithJoins(schema, table, joins) : "*";
+
+					const rows = yield* sql.unsafe(`
+						SELECT ${selectPart}
 						FROM ${tableRef}
-						${sql.unsafe(whereFragment)}
-						${sql.unsafe(orderClause)}
+						${joinClauses ? `\n${joinClauses}` : ""}
+						${whereFragment}
+						${orderClause}
 						LIMIT ${limit} OFFSET ${offset}
-					`;
+					`);
 
 					return {
 						rows: rows as TData[],

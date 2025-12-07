@@ -8,6 +8,16 @@ import {
 } from "#src/components/query-builder/query-filter.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
+import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types";
+
+const JoinSchema = Schema.Struct({
+	table: Schema.String,
+	schema: Schema.String,
+	type: Schema.Literal("left", "inner"),
+	columns: Schema.Union(Schema.Literal("all"), Schema.Array(Schema.String)),
+	referencingColumn: Schema.String,
+	referencedColumn: Schema.String,
+});
 
 const InputSchema = Schema.Struct({
 	url: Schema.String,
@@ -21,6 +31,7 @@ const InputSchema = Schema.Struct({
 	limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
 	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
 	filters: QueryFilter.pipe(Schema.optional),
+	joins: Schema.Array(JoinSchema).pipe(Schema.optional),
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
 	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
@@ -45,6 +56,7 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 						conditions: [],
 						logicalOperator: "and",
 					},
+					joins: input.joins ?? [],
 				});
 
 				const endTime = Date.now();
@@ -67,6 +79,7 @@ export type QueryTableDataInput = {
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
 	filters?: QueryFilterType;
+	joins?: JoinTablesConfig["joins"];
 };
 
 export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {

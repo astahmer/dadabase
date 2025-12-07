@@ -185,6 +185,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 									table={rowsDataTable}
 									isLoading={rowsQuery.isLoading || isColumnMetadataLoading}
 									queryBuilder={queryBuilder}
+									url={activeConnectionUrl}
+									schema={search.schema}
+									tableName={search.table}
 								/>
 
 								{/* Query Filter Builder */}

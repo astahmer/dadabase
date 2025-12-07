@@ -5,9 +5,12 @@ import {
 	LucideChevronDown,
 	LucideChevronUp,
 	LucideListFilter,
+	Link2,
 	Rows,
 } from "lucide-react";
+import { useState } from "react";
 import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
+import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
 import { OrderBySelect } from "../../app/order-by-select.tsx";
 import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
 import { NaturalLanguageSearch } from "../../query-builder/natural-language-search.tsx";
@@ -22,17 +25,23 @@ interface ConnectionPageFiltersProps {
 	isLoading: boolean;
 	table: TanstackTable<any>;
 	queryBuilder: QueryFilterBuilderReturn;
+	url: string;
+	schema: string;
+	tableName: string;
 }
 
 export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
-	const { columnList, isLoading, table, queryBuilder } = props;
+	const { columnList, isLoading, table, queryBuilder, url, schema, tableName } =
+		props;
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
+	const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
 
 	const viewMode = useActiveTabState((s) => s.viewMode);
 	const filtersOpened = useActiveTabState((s) => s.filtersOpened);
 	const filterConditions = useActiveTabState(
 		(s) => s.filters?.conditions ?? [],
 	);
+	const joinConfig = useActiveTabState((s) => s.joins);
 	const orderBy = useActiveTabState((s) => s.orderBy);
 	const orderDirection = useActiveTabState((s) => s.orderDirection);
 
@@ -125,77 +134,115 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 							) : null}
 						</Button>
 					)}
+					{viewMode === "rows" && (
+						<Tooltip content="Join tables">
+							<Button
+								variant={joinConfig?.joins?.length ? "default" : "outline"}
+								size="sm"
+								onClick={() => setIsJoinDialogOpen(true)}
+								disabled={isLoading}
+								className={joinConfig?.joins?.length ? "gap-2" : ""}
+							>
+								<Link2 className="h-3 w-3" />
+								{joinConfig?.joins?.length ? "Joins" : "Join tables"}
+								{joinConfig?.joins?.length ? (
+									<span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-xs font-semibold bg-background/20">
+										{joinConfig.joins.length}
+									</span>
+								) : null}
+							</Button>
+						</Tooltip>
+					)}
 				</div>
 				{viewMode === "rows" && (
-					<NaturalLanguageSearch
-						className="w-full"
-						availableColumns={columnList}
-						onApplyFilters={(parsed) => {
-							const { filters = [], orderBy, limit } = parsed;
-							console.log("onApplyFilters", filters);
-							const operatorMap: Record<string, any> = {
-								eq: "equals",
-								gt: "greater_than",
-								lt: "less_than",
-								gte: "greater_than_or_equal",
-								lte: "less_than_or_equal",
-								contains: "contains",
-								in: "in",
-								not_eq: "not_equals",
-								not_contains: "not_contains",
-							};
-
-							if (filters.length) {
-								if (parsed.clear) {
-									queryBuilder.updateManyConditions(
-										filterConditions.filter((current) => {
-											return filters.some(
-												(removed) =>
-													current.column === removed.field &&
-													current.operator === removed.operator &&
-													current.value === removed.value,
-											);
+					<>
+						<JoinTablesDialog
+							isOpen={isJoinDialogOpen}
+							onOpenChange={setIsJoinDialogOpen}
+							url={url}
+							schema={schema}
+							table={tableName}
+							initialConfig={joinConfig}
+							onApply={(config) => {
+								navigate({
+									search: (prev) =>
+										updateTabState(prev, {
+											joins: config,
+											offset: 0,
 										}),
-									);
-								} else {
-									queryBuilder.updateManyConditions(
-										filterConditions
-											.map((f) => ({
-												column: f.column,
-												operator: f.operator,
-												value: f.value as string,
-											}))
-											.concat(
-												filters.map((f) => ({
-													column: f.field,
-													operator: operatorMap[f.operator] || "equals",
+								});
+							}}
+						/>
+						<NaturalLanguageSearch
+							className="w-full"
+							availableColumns={columnList}
+							onApplyFilters={(parsed) => {
+								const { filters = [], orderBy, limit } = parsed;
+								console.log("onApplyFilters", filters);
+								const operatorMap: Record<string, any> = {
+									eq: "equals",
+									gt: "greater_than",
+									lt: "less_than",
+									gte: "greater_than_or_equal",
+									lte: "less_than_or_equal",
+									contains: "contains",
+									in: "in",
+									not_eq: "not_equals",
+									not_contains: "not_contains",
+								};
+
+								if (filters.length) {
+									if (parsed.clear) {
+										queryBuilder.updateManyConditions(
+											filterConditions.filter((current) => {
+												return filters.some(
+													(removed) =>
+														current.column === removed.field &&
+														current.operator === removed.operator &&
+														current.value === removed.value,
+												);
+											}),
+										);
+									} else {
+										queryBuilder.updateManyConditions(
+											filterConditions
+												.map((f) => ({
+													column: f.column,
+													operator: f.operator,
 													value: f.value as string,
-												})),
-											),
-									);
+												}))
+												.concat(
+													filters.map((f) => ({
+														column: f.field,
+														operator: operatorMap[f.operator] || "equals",
+														value: f.value as string,
+													})),
+												),
+										);
+									}
 								}
-							}
 
-							if (orderBy) {
-								navigate({
-									search: (prev) =>
-										updateTabState(prev, {
-											orderBy: orderBy.field,
-											orderDirection: orderBy.direction,
-										}),
-								});
-							}
+								if (orderBy) {
+									navigate({
+										search: (prev) =>
+											updateTabState(prev, {
+												orderBy: orderBy.field,
+												orderDirection: orderBy.direction,
+											}),
+									});
+								}
 
-							if (limit) {
-								navigate({
-									search: (prev) =>
-										updateTabState(prev, {
-											limit: limit,
-										}),
-								});
-							}
-						}}
-					/>
+								if (limit) {
+									navigate({
+										search: (prev) =>
+											updateTabState(prev, {
+												limit: limit,
+											}),
+									});
+								}
+							}}
+						/>
+					</>
 				)}
 				{viewMode === "rows" && (
 					<ColumnVisibilityControls

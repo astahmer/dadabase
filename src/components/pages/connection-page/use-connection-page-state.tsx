@@ -58,6 +58,7 @@ export const useConnectionPageState = ({
 			columnPinning: s.columnPinning,
 			columnOrder: s.columnOrder,
 			relationshipRowId: s.relationshipRowId,
+			joins: s.joins,
 		};
 	});
 
@@ -107,6 +108,7 @@ export const useConnectionPageState = ({
 				conditions: [],
 				logicalOperator: "and",
 			},
+			joins: search.joins?.joins ?? [],
 		}),
 		enabled: !!search.schema && !!search.table,
 	});
