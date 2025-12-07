@@ -12,7 +12,11 @@ import { ErrorBoundaryCard } from "../../shared/error-boundary-card.tsx";
 import { Button } from "../../ui/button";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import type { DbConnection } from "../connection.types";
-import { createTabState, useActiveTabState } from "./create-tab-state.ts";
+import {
+	createTabState,
+	updateTabState,
+	useActiveTabState,
+} from "./create-tab-state.ts";
 
 interface RowsTableErrorStateProps {
 	activeConnectionUrl: string;
@@ -138,30 +142,23 @@ const NoTableSelectedState = ({
 				);
 				const isCurrentTabEmpty = !currentTab?.table;
 
+				// Replace the empty tab
 				if (isCurrentTabEmpty && currentTab) {
-					// Replace the empty tab
-					const updatedTabs = (prev.tabs ?? []).map((t) =>
-						t.tabId === currentTab.tabId
-							? { ...newTab, tabId: currentTab.tabId }
-							: t,
-					);
 					return {
 						...prev,
-						tabs: updatedTabs,
+						...updateTabState(prev, { ...newTab, tabId: currentTab.tabId }),
 						schema,
 						table: tableName,
 						offset: 0,
 					};
 				}
 
-				// Add a new tab
+				// Add a new tab otherwise (?)
 				return {
 					...prev,
+					...newTab,
 					tabs: [...(prev.tabs ?? []), newTab],
 					activeTabId: newTab.tabId,
-					schema,
-					table: tableName,
-					offset: 0,
 				};
 			},
 		});

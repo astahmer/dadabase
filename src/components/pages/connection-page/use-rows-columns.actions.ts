@@ -48,26 +48,9 @@ export const useRowsColumnsAction = (props: UseRowsColumnsActionOptions) => {
 			navigate({
 				search: (prev) => ({
 					...prev,
-					schema: fkInfo.referencedSchema,
-					table: fkInfo.referencedTable,
-					activeTabId: newTabState.tabId,
+					...newTabState,
 					tabs: [...(prev.tabs ?? []), newTabState],
-					filters: {
-						conditions: [
-							{
-								column: fkInfo.referencedColumn,
-								operator: "equals",
-								value: String(cellValue),
-							},
-						],
-						logicalOperator: "and",
-					},
-					filtersOpened: true,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					orderDirection: undefined,
-					relationshipRowId: undefined,
+					activeTabId: newTabState.tabId,
 				}),
 			});
 		},

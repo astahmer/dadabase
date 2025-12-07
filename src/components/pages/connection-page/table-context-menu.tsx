@@ -9,7 +9,7 @@ import {
 	MenuItemText,
 	MenuSeparator,
 } from "../../ui/menu.tsx";
-import { createTabState } from "./create-tab-state.ts";
+import { createTabState, updateTabState } from "./create-tab-state.ts";
 
 interface TableContextMenuProps {
 	tableName: string;
@@ -28,30 +28,11 @@ export const TableContextMenu = ({
 		const tabState = createTabState(schema, tableName);
 		navigate({
 			search: (prev) => {
-				const existingTab = (prev.tabs ?? []).find(
-					(t) => t.tabId === tabState.tabId,
-				);
-
-				const updatedTabs = existingTab
-					? (prev.tabs ?? [])
-					: [...(prev.tabs ?? []), tabState];
-
 				return {
 					...prev,
-					schema,
-					table: tableName,
+					...tabState,
+					tabs: [...(prev.tabs ?? []), tabState],
 					activeTabId: tabState.tabId,
-					tabs: updatedTabs,
-					filters: undefined,
-					filtersOpened: false,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					relationshipRowId: existingTab?.relationshipRowId,
-					orderDirection: undefined,
-					quickReferencesOpen: false,
-					quickReferencesColumnName: undefined,
-					quickReferencesCellValue: undefined,
 				};
 			},
 		});
@@ -61,31 +42,13 @@ export const TableContextMenu = ({
 		const tabState = createTabState(schema, tableName);
 		navigate({
 			search: (prev) => {
-				const existingTab = (prev.tabs ?? []).find(
-					(t) => t.tabId === tabState.tabId,
-				);
-
-				const updatedTabs = existingTab
-					? (prev.tabs ?? [])
-					: [...(prev.tabs ?? []), tabState];
-
 				return {
 					...prev,
-					schema,
-					table: tableName,
+					...tabState,
+					tabs: [...(prev.tabs ?? []), tabState],
 					activeTabId: tabState.tabId,
-					tabs: updatedTabs,
 					viewMode: "structure",
-					filters: undefined,
 					filtersOpened: false,
-					offset: 0,
-					limit: 50,
-					orderBy: undefined,
-					relationshipRowId: existingTab?.relationshipRowId,
-					orderDirection: undefined,
-					quickReferencesOpen: false,
-					quickReferencesColumnName: undefined,
-					quickReferencesCellValue: undefined,
 				};
 			},
 		});

@@ -118,13 +118,22 @@ export const TableTabsBar = ({
 											<X className="h-3! w-3!" />
 											<span>Close</span>
 										</MenuItem>
+										{tabs.length > 1 && (
+											<MenuItem
+												value="close-others"
+												onClick={() => onCloseOtherTabs?.(tab.tabId)}
+											>
+												<ArrowLeftRight className="h-3! w-3!" />
+												<span>Close others</span>
+											</MenuItem>
+										)}
 										{index > 0 && (
 											<MenuItem
 												value="close-left"
 												onClick={() => onCloseTabsOnLeft?.(tab.tabId)}
 											>
 												<ArrowLeftFromLine className="h-3! w-3!" />
-												<span>Close Tabs on Left</span>
+												<span>Close to the left</span>
 											</MenuItem>
 										)}
 										{index < tabs.length - 1 && (
@@ -133,16 +142,7 @@ export const TableTabsBar = ({
 												onClick={() => onCloseTabsOnRight?.(tab.tabId)}
 											>
 												<ArrowRightFromLine className="h-3! w-3!" />
-												<span>Close Tabs on Right</span>
-											</MenuItem>
-										)}
-										{tabs.length > 1 && (
-											<MenuItem
-												value="close-others"
-												onClick={() => onCloseOtherTabs?.(tab.tabId)}
-											>
-												<ArrowLeftRight className="h-3! w-3!" />
-												<span>Close Other Tabs</span>
+												<span>Close to the right</span>
 											</MenuItem>
 										)}
 										<div className="my-1 h-px bg-border" />

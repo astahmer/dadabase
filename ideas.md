@@ -23,7 +23,6 @@
 - add a way to view (explicit/manual) query history
 - query history (persisted across sessions; only saves successful queries that were made by a user action) with a Badge distinction for the saved/favorites queries
 - add a way to favorite/save queries
-- show list of tables on opening new tab rather than blank page
 - double click on tab in sidebar to open another one on this table
 - operator IN
 - left/inner join one/more tables + add their columns prefixed with the table name: table1.col1, table1.col2, table2.col1, table2.col2, table3.col1, table3.col2

@@ -3,7 +3,11 @@ import { useTableColumnMetadata } from "#src/components/pages/connection-page/us
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { Sheet, SheetContent } from "../../ui/sheet.tsx";
 import type { DbConnection } from "../connection.types.ts";
-import { createTabState, useActiveTabState } from "./create-tab-state.ts";
+import {
+	createTabState,
+	updateTabState,
+	useActiveTabState,
+} from "./create-tab-state.ts";
 import { QuickReferencesPanel } from "./relationships/quick-references-panel.tsx";
 
 export const ConnectionQuickReferencesDrawer = ({
@@ -94,11 +98,8 @@ export const ConnectionQuickReferencesDrawer = ({
 									search: (prev) => ({
 										...prev,
 										...newTabState,
+										...updateTabState(prev, newTabState),
 										activeTabId: newTabState.tabId,
-										tabs: [...(prev.tabs ?? []), newTabState],
-										quickReferencesOpen: false,
-										quickReferencesColumnName: undefined,
-										quickReferencesCellValue: undefined,
 									}),
 								});
 							}}

@@ -321,30 +321,11 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 								const tabState = createTabState(schema, tableName);
 								navigate({
 									search: (prev) => {
-										const existingTab = (prev.tabs ?? []).find(
-											(t) => t.tabId === tabState.tabId,
-										);
-
-										const updatedTabs = existingTab
-											? (prev.tabs ?? [])
-											: [...(prev.tabs ?? []), tabState];
-
 										return {
 											...prev,
-											schema,
-											table: tableName,
+											...tabState,
+											tabs: [...(prev.tabs ?? []), tabState],
 											activeTabId: tabState.tabId,
-											tabs: updatedTabs,
-											filters: undefined,
-											filtersOpened: false,
-											offset: 0,
-											limit: 50,
-											orderBy: undefined,
-											relationshipRowId: existingTab?.relationshipRowId,
-											orderDirection: undefined,
-											quickReferencesOpen: false,
-											quickReferencesColumnName: undefined,
-											quickReferencesCellValue: undefined,
 										};
 									},
 								});
