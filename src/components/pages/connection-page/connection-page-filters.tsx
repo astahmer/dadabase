@@ -41,7 +41,9 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 	const filterConditions = useActiveTabState(
 		(s) => s.filters?.conditions ?? [],
 	);
-	const joinConfig = useActiveTabState((s) => s.joins);
+	const joinConfig = useActiveTabState((s) => ({
+		joins: Array.from(s.joins ?? []),
+	}));
 	const orderBy = useActiveTabState((s) => s.orderBy);
 	const orderDirection = useActiveTabState((s) => s.orderDirection);
 
@@ -167,7 +169,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 								navigate({
 									search: (prev) =>
 										updateTabState(prev, {
-											joins: config,
+											joins: config.joins,
 											offset: 0,
 										}),
 								});

@@ -1,5 +1,3 @@
-import { useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "#src/components/ui/button.tsx";
 import {
 	Dialog,
@@ -12,16 +10,16 @@ import { Stack } from "#src/components/ui/layout.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
 import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
-import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
-import { JoinedTableRow } from "./joined-table-row.tsx";
-import { JoinableTableSelector } from "./joinable-table-selector.tsx";
-import { useJoinTablesState } from "./use-join-tables-state.ts";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import type {
 	JoinableTableOption,
 	JoinedTable,
 	JoinTablesConfig,
 } from "./join-tables.types";
+import { JoinableTableSelector } from "./joinable-table-selector.tsx";
+import { JoinedTableRow } from "./joined-table-row.tsx";
+import { useJoinTablesState } from "./use-join-tables-state.ts";
 
 interface JoinTablesDialogProps {
 	isOpen: boolean;
@@ -65,7 +63,7 @@ export const JoinTablesDialog = ({
 		);
 	}, [joinConfig.joins, url]);
 
-	const columnQueries = joinedTableColumnsQueries.map((opts) => useQuery(opts));
+	const columnQueries = useQueries({ queries: joinedTableColumnsQueries });
 
 	// Build list of joinable tables from relationships
 	const joinableTables = useMemo<JoinableTableOption[]>(() => {

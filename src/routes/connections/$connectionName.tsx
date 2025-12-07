@@ -5,8 +5,8 @@ import { ConnectionPage } from "#src/components/pages/connection.page.tsx";
 import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
 import { FullCenter } from "../../components/ui/layout.tsx";
 import { Spinner } from "../../components/ui/spinner.tsx";
+import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 
-// Schema for individual tab state
 const tableSize = Schema.Literal(
 	"excel",
 	"minimal",
@@ -15,7 +15,6 @@ const tableSize = Schema.Literal(
 	"comfortable",
 );
 
-// Schema for structure table filters
 const StructureFiltersSchema = Schema.Struct({
 	search: Schema.String.pipe(Schema.optionalWith({ default: () => "" })),
 	nullable: Schema.Boolean.pipe(Schema.optionalWith({ default: () => false })),
@@ -30,6 +29,21 @@ const StructureFiltersSchema = Schema.Struct({
 		Schema.optionalWith({ default: () => false }),
 	),
 });
+
+const JoinedTableSchema = Schema.Struct({
+	table: Schema.String,
+	schema: Schema.String,
+	type: Schema.Literal("left", "inner"),
+	columns: Schema.Union(
+		Schema.Literal("all"),
+		Schema.Array(Schema.String).pipe(Schema.mutable),
+	),
+	referencingColumn: Schema.String,
+	referencedColumn: Schema.String,
+});
+type JoinedTableType = typeof JoinedTableSchema.Type;
+const _lint = {} as JoinedTableType satisfies JoinedTable;
+_lint;
 
 const TabStateSchema = Schema.Struct({
 	tabId: Schema.String, // Explicit unique identifier for the tab
@@ -55,6 +69,7 @@ const TabStateSchema = Schema.Struct({
 	columnOrder: Schema.String.pipe(Schema.Array, Schema.optional), // JSON-stringified column order array
 	fkValue: Schema.String.pipe(Schema.optional), // FK value used when navigating to this tab
 	relationshipRowId: Schema.String.pipe(Schema.optional), // Row ID for expanded relationships panel
+	joins: Schema.Array(JoinedTableSchema).pipe(Schema.optional),
 });
 
 const searchSchema = Schema.Struct({

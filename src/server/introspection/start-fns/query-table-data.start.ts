@@ -8,7 +8,7 @@ import {
 } from "#src/components/query-builder/query-filter.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
-import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types";
+import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 
 const JoinSchema = Schema.Struct({
 	table: Schema.String,
@@ -56,7 +56,7 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 						conditions: [],
 						logicalOperator: "and",
 					},
-					joins: input.joins ?? [],
+					joins: Array.from(input.joins ?? []),
 				});
 
 				const endTime = Date.now();

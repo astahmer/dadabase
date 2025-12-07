@@ -108,7 +108,7 @@ export const useConnectionPageState = ({
 				conditions: [],
 				logicalOperator: "and",
 			},
-			joins: search.joins?.joins ?? [],
+			joins: Array.from(search.joins ?? []),
 		}),
 		enabled: !!search.schema && !!search.table,
 	});

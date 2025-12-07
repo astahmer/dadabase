@@ -4,7 +4,7 @@ import { type VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import * as React from "react";
 
-import { cn } from "#src/lib/utils";
+import { cn } from "#src/lib/utils.ts";
 import type { ExposedComponentProps } from "./component-props.ts";
 import { selectVariants } from "./select.styles";
 

@@ -1,6 +1,4 @@
-import { sql } from "@effect/sql";
-import type { Statement } from "@effect/sql";
-import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types";
+import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 
 /**
  * Build JOIN clauses from join configuration
@@ -16,8 +14,8 @@ export const buildJoinClauses = (
 
 	for (const join of joins) {
 		const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
-		const joinTableRef = `${join.schema}.${join.table}`;
-		const joinCondition = `${joinTableRef}.${join.referencedColumn} = ${originalSchema}.${originalTable}.${join.referencingColumn}`;
+		const joinTableRef = `"${join.schema}"."${join.table}"`;
+		const joinCondition = `${joinTableRef}."${join.referencedColumn}" = "${originalSchema}"."${originalTable}"."${join.referencingColumn}"`;
 
 		joinClauses.push(`${joinType} ${joinTableRef} ON ${joinCondition}`);
 	}
@@ -44,7 +42,7 @@ export const getJoinedColumnsSelection = (
 	// Add original table columns with prefix
 	for (const col of originalColumns) {
 		selectedColumns.push(
-			`${originalSchema}.${originalTable}.${col} as "${originalTable}.${col}"`,
+			`"${originalSchema}"."${originalTable}"."${col}" as "${originalTable}.${col}"`,
 		);
 	}
 
@@ -60,7 +58,7 @@ export const getJoinedColumnsSelection = (
 
 		for (const col of colsToSelect) {
 			selectedColumns.push(
-				`${join.schema}.${join.table}.${col} as "${join.table}.${col}"`,
+				`"${join.schema}"."${join.table}"."${col}" as "${join.table}.${col}"`,
 			);
 		}
 	}
