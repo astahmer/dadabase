@@ -444,7 +444,7 @@ export const useConnectionPageState = ({
 		if (!state.left.some((col) => col === "__select")) {
 			state.left.unshift(
 				// ...(staticColumns.map((col) => col.id).filter(Boolean) as string[]),
-				"__rowIndex",
+				// "__rowIndex",
 				"__select",
 			);
 		}

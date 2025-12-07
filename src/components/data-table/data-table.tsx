@@ -13,7 +13,11 @@ import {
 	horizontalListSortingStrategy,
 	SortableContext,
 } from "@dnd-kit/sortable";
-import type { Row, Table as TanstackTable } from "@tanstack/react-table";
+import type {
+	Row,
+	Table as TanstackTable,
+	Header,
+} from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
 import {
 	ArrowDownNarrowWide,
@@ -127,6 +131,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		useSensor(KeyboardSensor),
 	);
 
+	console.log(columns);
+
 	const TableContainer = (
 		<div
 			className={`overflow-x-auto h-full ${virtualized ? "overflow-y-auto" : ""} ${className || ""}`}
@@ -143,7 +149,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		>
 			<table
 				className={tableStyles({ variant })}
-				// style={{ width: table.getCenterTotalSize() }}
+				style={{ width: table.getTotalSize() }}
 			>
 				<thead className={tableHeaderStyles({ stickyHeader, variant })}>
 					{table.getHeaderGroups().map((headerGroup) => {
@@ -251,10 +257,21 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 													key={headerCell.id}
 													colSpan={headerCell.colSpan}
 													data-column-id={headerCell.column.id}
+													data-draggable
 													ref={dragCtx.setNodeRef}
 													style={{
 														width: `${headerCell.getSize()}px`,
 														...dragCtx.style,
+														zIndex:
+															headerCell.index + (dragCtx.isDragging ? 2 : 1),
+														position: "sticky",
+														// ...(headerCell.depth === 0 && {
+														// 	left: "50px",
+														// 	backgroundColor: "var(--color-background)",
+														// 	zIndex:
+														// 		headerCell.index + (dragCtx.isDragging ? 2 : 1),
+														// 	position: "sticky",
+														// }),
 													}}
 													className={cn(
 														tableHeaderCellStyles({
@@ -262,7 +279,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 															showColumnBorder,
 															textAlign: hasBulkActions ? "right" : textAlign,
 														}),
-														"relative",
+														"sticky left-[50px] z-1 bg-background",
 													)}
 												>
 													<div
@@ -306,6 +323,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 								);
 							}
 
+							const headerSize = headerCell.column.getSize();
 							return (
 								<th
 									key={headerCell.id}
@@ -313,8 +331,10 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 									data-column-id={headerCell.column.id}
 									data-column-pinned={headerCell.column.getIsPinned()}
 									style={{
-										width: `${headerCell.getSize()}px`,
 										...getColumnPinningStyles(column),
+										width: headerCell.isPlaceholder
+											? `${(headerSize / table.getTotalSize()) * 100}%`
+											: `${headerCell.getSize()}px`,
 									}}
 									className={cn(
 										tableHeaderCellStyles({
