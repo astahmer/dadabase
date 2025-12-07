@@ -116,6 +116,7 @@ export const JoinTablesDialog = ({
 
 	const handleCancel = () => {
 		clearJoins();
+		onApply({ joins: [] });
 		onOpenChange(false);
 	};
 
@@ -285,10 +286,10 @@ export const JoinTablesDialog = ({
 				<DialogFooter>
 					<div className="flex gap-2 justify-end pt-4">
 						<Button variant="outline" onClick={handleCancel}>
-							Cancel
+							Clear joins
 						</Button>
 						<Button onClick={handleApply} disabled={!joinConfig.joins.length}>
-							Apply Joins
+							Apply joins
 						</Button>
 					</div>
 				</DialogFooter>

@@ -326,6 +326,7 @@ export const useConnectionPageState = ({
 		columnMetadata: tableMetadata.columnMetadata,
 		schema: search.schema || "",
 		table: search.table || "",
+		joins: Array.from(search.joins ?? []),
 		activeConnectionUrl,
 		enableSorting: true,
 		onFollowFK: rowActions.onFollowFK,

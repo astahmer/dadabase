@@ -5,6 +5,7 @@ import type { TableRelationship } from "#src/components/pages/connection-page/re
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
+import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.
@@ -1479,7 +1480,11 @@ const escapeValue = (value: unknown): string => {
  * Query table rows with filtering, pagination, and ordering
  * - PostgreSQL: Uses schema.table notation, ILIKE, ANY/ALL for arrays
  */
-const buildSelectWithJoins = (schema: string, table: string, joins: any[]) => {
+const buildSelectWithJoins = (
+	schema: string,
+	table: string,
+	joins: JoinTablesConfig["joins"],
+) => {
 	const columns: string[] = [];
 
 	// Add original table columns with table prefix
@@ -1491,7 +1496,10 @@ const buildSelectWithJoins = (schema: string, table: string, joins: any[]) => {
 			columns.push(`${join.schema}."${join.table}".*`);
 		} else {
 			const selectedCols = join.columns
-				.map((col: string) => `${join.schema}."${join.table}"."${col}"`)
+				.map(
+					(col) =>
+						`${join.schema}."${join.table}"."${col}" as "${join.table}.${col}"`,
+				)
 				.join(", ");
 			columns.push(selectedCols);
 		}
@@ -1513,7 +1521,7 @@ export const queryTableRows = <TData>(input: {
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
 	filters?: QueryFilterType;
-	joins?: any[]; // JoinTablesConfig['joins']
+	joins?: JoinTablesConfig["joins"];
 }): Effect.Effect<
 	{
 		rows: TData[];

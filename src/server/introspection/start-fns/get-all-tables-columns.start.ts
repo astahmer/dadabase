@@ -26,5 +26,6 @@ export const getAllTablesColumnsQueryOptions = (
 	queryOptions({
 		queryKey: ["remote", "allTableColumns", input],
 		queryFn: () => getAllTablesColumnsServerFn({ data: input }),
-		staleTime: 60 * 1000, // 1 minute
+		staleTime: 5 * 60 * 1000, // 5 minutes
+		enabled: Boolean(input.url && input.schema),
 	});

@@ -2,7 +2,7 @@ import { Pagination } from "@ark-ui/react/pagination";
 import { useNavigate } from "@tanstack/react-router";
 import type { Table as TanstackTable } from "@tanstack/react-table";
 import { DateTime } from "effect";
-import { RefreshCw } from "lucide-react";
+import { Layers, RefreshCw } from "lucide-react";
 import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
@@ -53,6 +53,10 @@ export const ConnectionPageStatusBar = (
 	const offset = useActiveTabState((s) => s.offset);
 	const limit = useActiveTabState((s) => s.limit);
 	const tableSize = useActiveTabState((s) => s.tableSize);
+	// const groupByTable = useActiveTabState((s) => s.groupByTable);
+	// TODO
+	const groupByTable = false;
+	const joins = useActiveTabState((s) => s.joins);
 
 	return (
 		<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
@@ -192,6 +196,32 @@ export const ConnectionPageStatusBar = (
 							</ArkSelect.SelectContent>
 						</ArkSelect.Select>
 					</div>
+					{(joins?.length ?? 0) > 0 && (
+						<Tooltip
+							content={
+								groupByTable
+									? "Disable grouping by table"
+									: "Group columns by table"
+							}
+						>
+							<Button
+								variant={groupByTable ? "default" : "ghost"}
+								size="sm"
+								onClick={() => {
+									navigate({
+										search: (prev) =>
+											updateTabState(prev, {
+												groupByTable: !groupByTable,
+											}),
+									});
+								}}
+								className="h-6 px-2"
+								title="Group columns by table"
+							>
+								<Layers className="h-3.5 w-3.5" />
+							</Button>
+						</Tooltip>
+					)}
 					<Button
 						variant="ghost"
 						size="sm"
