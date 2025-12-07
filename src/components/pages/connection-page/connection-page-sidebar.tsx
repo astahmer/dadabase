@@ -19,6 +19,7 @@ import { ConnectionSwitcher } from "./connection-switcher";
 import {
 	addTabStateAfterCurrent,
 	createTabState,
+	scrollToTab,
 	updateTabState,
 	useActiveTabState,
 } from "./create-tab-state.ts";
@@ -324,7 +325,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 										...prev,
 										...addTabStateAfterCurrent(prev, newTabState),
 									}),
-								});
+								}).then(() => scrollToTab(newTabState.tabId));
 							}}
 						>
 							<div className="flex-1 overflow-hidden flex flex-col h-full">

@@ -5,6 +5,7 @@ import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-men
 import {
 	addTabStateAfterCurrent,
 	createTabState,
+	scrollToTab,
 	updateTabState,
 } from "#src/components/pages/connection-page/create-tab-state.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
@@ -51,7 +52,7 @@ export const useRowsColumnsAction = (props: UseRowsColumnsActionOptions) => {
 					...prev,
 					...addTabStateAfterCurrent(prev, newTabState),
 				}),
-			});
+			}).then(() => scrollToTab(newTabState.tabId));
 		},
 		[navigate],
 	);

@@ -12,6 +12,7 @@ import {
 import {
 	addTabStateAfterCurrent,
 	createTabState,
+	scrollToTab,
 	updateTabState,
 } from "./create-tab-state.ts";
 
@@ -29,27 +30,27 @@ export const TableContextMenu = ({
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
 	const handleOpenInNewTab = () => {
-		const tabState = createTabState(schema, tableName);
+		const newTabState = createTabState(schema, tableName);
 		navigate({
 			search: (prev) => ({
 				...prev,
-				...addTabStateAfterCurrent(prev, tabState),
+				...addTabStateAfterCurrent(prev, newTabState),
 			}),
-		});
+		}).then(() => scrollToTab(newTabState.tabId));
 	};
 
 	const handleViewStructure = () => {
-		const tabState = createTabState(schema, tableName);
+		const newTabState = createTabState(schema, tableName);
 		navigate({
 			search: (prev) => {
 				return {
 					...prev,
-					...addTabStateAfterCurrent(prev, tabState),
-					activeTabId: tabState.tabId,
+					...addTabStateAfterCurrent(prev, newTabState),
+					activeTabId: newTabState.tabId,
 					viewMode: "structure",
 				};
 			},
-		});
+		}).then(() => scrollToTab(newTabState.tabId));
 	};
 
 	return (

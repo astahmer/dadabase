@@ -84,6 +84,13 @@ export const addTabStateAfterCurrent = (
 	};
 };
 
+export const scrollToTab = (tabId: string) => {
+	const tab = document.querySelector(`[data-table-tab="${tabId}"]`);
+	if (!tab) return;
+
+	tab.scrollIntoView({ behavior: "smooth", inline: "center", block: "center" });
+};
+
 export const getActiveTabState = (search: ConnectionPageSearch) =>
 	search.tabs?.find((tab) => tab.tabId === search.activeTabId);
 

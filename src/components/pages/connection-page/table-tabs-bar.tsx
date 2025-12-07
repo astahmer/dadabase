@@ -73,6 +73,10 @@ export const TableTabsBar = ({
 										}`}
 										onMouseEnter={() => onTabHover?.(tab)}
 										asChild
+										data-table-tab={tab.tabId}
+										data-table-tab-active={
+											activeTabId === tab.tabId ? true : undefined
+										}
 									>
 										<div
 											title={

@@ -18,7 +18,11 @@ import { listAvailableSchemasQueryOptions } from "#src/server/introspection/star
 import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { TableTabsBar } from "./table-tabs-bar.tsx";
-import { addTabStateAfterCurrent, createTabState } from "./create-tab-state.ts";
+import {
+	addTabStateAfterCurrent,
+	createTabState,
+	scrollToTab,
+} from "./create-tab-state.ts";
 
 interface ConnectionPageTabsProps {
 	activeConnectionUrl: string;
@@ -85,7 +89,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 				...prev,
 				...addTabStateAfterCurrent(prev, duplicatedTab),
 			}),
-		});
+		}).then(() => scrollToTab(duplicatedTab.tabId));
 	};
 
 	const handleDeleteTabsOnLeft = (tabId: string) => {
