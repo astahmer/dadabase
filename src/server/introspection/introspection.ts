@@ -1508,6 +1508,30 @@ const buildSelectWithJoins = (
 	return columns.join(", ");
 };
 
+const buildSelectWithJoinsSqlite = (
+	table: string,
+	joins: JoinTablesConfig["joins"],
+) => {
+	const columns: string[] = [];
+
+	// Add original table columns
+	columns.push(`"${table}".* `);
+
+	// Add joined table columns
+	for (const join of joins) {
+		if (join.columns === "all") {
+			columns.push(`"${join.table}".*`);
+		} else {
+			const selectedCols = join.columns
+				.map((col) => `"${join.table}"."${col}" as "${join.table}.${col}"`)
+				.join(", ");
+			columns.push(selectedCols);
+		}
+	}
+
+	return columns.join(", ");
+};
+
 /**
  * Query table rows with filtering, pagination, ordering, and joins
  * - PostgreSQL: Uses schema.table notation, ILIKE, ANY/ALL for arrays
@@ -1552,45 +1576,59 @@ export const queryTableRows = <TData>(input: {
 
 		// Build ORDER BY clause
 		const orderClause = orderBy
-			? `ORDER BY ${sql(table).value}.${sql(orderBy).value} ${orderDirection.toUpperCase()}`
+			? `ORDER BY "${table}".${sql(orderBy).value} ${orderDirection.toUpperCase()}`
 			: "";
 
-		// Build JOIN clauses if joins exist
-		const joinClauses = joins
-			.map((join) => {
-				const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
-				return `${joinType} ${join.schema}."${join.table}" ON ${join.schema}."${join.table}"."${join.referencedColumn}" = ${schema}."${table}"."${join.referencingColumn}"`;
-			})
-			.join("\n");
+		// Build JOIN clauses if joins exist (will use different versions per dialect)
+		const buildPgJoinClauses = () =>
+			joins
+				.map((join) => {
+					const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
+					return `${joinType} ${join.schema}.${join.table} ON ${join.schema}.${join.table}.${join.referencedColumn} = ${schema}.${table}.${join.referencingColumn}`;
+				})
+				.join("\n");
+
+		const buildSqliteJoinClauses = () =>
+			joins
+				.map((join) => {
+					const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
+					return `${joinType} ${join.table} ON ${join.table}.${join.referencedColumn} = ${schema}.${table}.${join.referencingColumn}`;
+				})
+				.join("\n");
 
 		// Get count and rows
 		const result = yield* sql.onDialectOrElse({
 			pg: () =>
 				Effect.gen(function* () {
-					const tableRef = sql`${sql(schema)}.${sql(table)}`;
 					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
+					const pgJoinClauses = buildPgJoinClauses();
 
-					// Get total count (COUNT DISTINCT to handle joins properly)
-					const countRows = yield* sql<{ count: bigint }>`
-						SELECT COUNT(DISTINCT ${sql(schema)}.${sql(table)}.*)::bigint as count
-						FROM ${tableRef}
-						${sql.unsafe(joinClauses ? `\n${joinClauses}` : "")}
+					// Get total count
+					const countQuery = sql`
+						SELECT COUNT(*) as count
+						FROM ${sql(schema)}.${sql(table)}
+						${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
 						${sql.unsafe(whereFragment)}
 					`;
-					const rowCount = Number(countRows[0]?.count ?? 0);
+					// console.log(countQuery.compile());
+
+					const countResult = yield* countQuery;
+					const rowCount = Number(countResult[0]?.count ?? 0);
 
 					// Get rows with proper column selection and prefixing
 					const selectPart =
 						joins.length > 0 ? buildSelectWithJoins(schema, table, joins) : "*";
 
-					const rows = yield* sql.unsafe(`
-						SELECT ${selectPart}
-						FROM ${schema}."${table}"
-						${joinClauses ? `\n${joinClauses}` : ""}
-						${whereFragment}
-						${orderClause}
+					const query = sql`
+						SELECT ${sql.unsafe(selectPart)}
+						FROM ${sql(schema)}.${sql(table)}
+						${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
+						${sql.unsafe(whereFragment)}
+						${sql.unsafe(orderClause)}
 						LIMIT ${limit} OFFSET ${offset}
-					`);
+					`;
+					// console.log(query.compile());
+					const rows = yield* query;
 
 					return {
 						rows: rows as TData[],
@@ -1600,7 +1638,6 @@ export const queryTableRows = <TData>(input: {
 				}),
 			sqlite: () =>
 				Effect.gen(function* () {
-					const tableRef = sql(table);
 					const sqliteWhereClause =
 						filters && filters.conditions.length > 0
 							? buildSqliteWhereFragment(
@@ -1611,28 +1648,33 @@ export const queryTableRows = <TData>(input: {
 					const whereFragment = sqliteWhereClause
 						? `WHERE ${sqliteWhereClause}`
 						: "";
+					const sqliteJoinClauses = buildSqliteJoinClauses();
 
 					// Get total count
-					const countRows = yield* sql<{ count: number }>`
+					const countQuery = sql`
 						SELECT COUNT(*) as count
-						FROM ${tableRef}
-						${sql.unsafe(joinClauses ? `\n${joinClauses}` : "")}
+						FROM ${sql(table)}
+						${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
 						${sql.unsafe(whereFragment)}
 					`;
-					const rowCount = Number(countRows[0]?.count ?? 0);
+					console.log(countQuery.compile());
+					const countResult = yield* countQuery;
+					const rowCount = Number(countResult[0]?.count ?? 0);
 
 					// Get rows
 					const selectPart =
-						joins.length > 0 ? buildSelectWithJoins(schema, table, joins) : "*";
+						joins.length > 0 ? buildSelectWithJoinsSqlite(table, joins) : "*";
 
-					const rows = yield* sql.unsafe(`
-						SELECT ${selectPart}
-						FROM ${table}
-						${joinClauses ? `\n${joinClauses}` : ""}
-						${whereFragment}
-						${orderClause}
+					const query = sql`
+						SELECT ${sql.unsafe(selectPart)}
+						FROM ${sql(table)}
+						${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
+						${sql.unsafe(whereFragment)}
+						${sql.unsafe(orderClause)}
 						LIMIT ${limit} OFFSET ${offset}
-					`);
+					`;
+					console.log(query.compile());
+					const rows = yield* query;
 
 					return {
 						rows: rows as TData[],
@@ -1642,30 +1684,30 @@ export const queryTableRows = <TData>(input: {
 				}),
 			orElse: () =>
 				Effect.gen(function* () {
-					const tableRef = `"${schema}"."${table}"`;
 					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
+					const pgJoinClauses = buildPgJoinClauses();
 
 					// Get total count
-					const countRows = yield* sql<{ count: number }>`
+					const countResult = yield* sql`
 						SELECT COUNT(*) as count
-						FROM ${tableRef}
-						${sql.unsafe(joinClauses ? `\n${joinClauses}` : "")}
+						FROM ${sql(schema)}.${sql(table)}
+						${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
 						${sql.unsafe(whereFragment)}
 					`;
-					const rowCount = Number(countRows[0]?.count ?? 0);
+					const rowCount = Number(countResult[0]?.count ?? 0);
 
 					// Get rows
 					const selectPart =
 						joins.length > 0 ? buildSelectWithJoins(schema, table, joins) : "*";
 
-					const rows = yield* sql.unsafe(`
-						SELECT ${selectPart}
-						FROM ${tableRef}
-						${joinClauses ? `\n${joinClauses}` : ""}
-						${whereFragment}
-						${orderClause}
+					const rows = yield* sql`
+						SELECT ${sql.unsafe(selectPart)}
+						FROM ${sql(schema)}.${sql(table)}
+						${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
+						${sql.unsafe(whereFragment)}
+						${sql.unsafe(orderClause)}
 						LIMIT ${limit} OFFSET ${offset}
-					`);
+					`;
 
 					return {
 						rows: rows as TData[],

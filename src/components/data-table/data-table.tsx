@@ -131,8 +131,6 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		useSensor(KeyboardSensor),
 	);
 
-	console.log(columns);
-
 	const TableContainer = (
 		<div
 			className={`overflow-x-auto h-full ${virtualized ? "overflow-y-auto" : ""} ${className || ""}`}

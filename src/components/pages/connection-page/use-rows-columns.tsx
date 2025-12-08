@@ -124,7 +124,7 @@ export const useRowsColumns = ({
 							columns: columnMetadata.map((col) => ({
 								...col,
 								table: table,
-								name: `${table}.${col.name}`,
+								// name: `${table}.${col.name}`,
 							})),
 						},
 					],
