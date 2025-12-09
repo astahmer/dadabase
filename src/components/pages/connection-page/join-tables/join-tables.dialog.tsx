@@ -144,7 +144,10 @@ export const JoinTablesDialog = ({
 			open={isOpen}
 			onOpenChange={(details) => onOpenChange(details.open)}
 		>
-			<DialogContent className="min-h-[450px] flex flex-col h-full" size="2xl">
+			<DialogContent
+				className="min-h-[420px] max-h-80vh flex flex-col"
+				size="2xl"
+			>
 				<DialogHeader>
 					<DialogTitle>Join Tables</DialogTitle>
 					<DialogDescription>

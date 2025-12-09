@@ -93,7 +93,7 @@ export const useRowsColumns = ({
 									.map((col) => ({
 										...col,
 										table: join.table,
-										name: `${join.table}.${col.name}`,
+										accessorKey: `${join.table}.${col.name}`,
 									}))
 							: [],
 				);
@@ -110,11 +110,11 @@ export const useRowsColumns = ({
 			joins?.length
 				? [
 						{
-							header: table,
+							header: `${table} (${columnMetadata.length} columns)`,
 							columns: columnMetadata.map((col) => ({
 								...col,
 								table: table,
-								name: `${table}.${col.name}`,
+								accessorKey: `${table}.${col.name}`,
 							})),
 						},
 					].concat(joinedTablesColumnsMetadata)
@@ -124,7 +124,7 @@ export const useRowsColumns = ({
 							columns: columnMetadata.map((col) => ({
 								...col,
 								table: table,
-								// name: `${table}.${col.name}`,
+								accessorKey: col.name,
 							})),
 						},
 					],
@@ -134,107 +134,109 @@ export const useRowsColumns = ({
 	return useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
 		if (!displayedColumns.length) return [];
 
-		const renderColumnList = (list: ColumnMetadata[]) =>
-			list.map(
-				(col) =>
-					({
-						accessorKey: col.name,
-						header: () => (
-							<ColumnHeaderWithInfo
-								columnName={col.name}
-								dataType={col.dataType}
-								showBadge
-								isPrimaryKey={col.primaryKey}
-								isUnique={col.unique}
-								isForeignKey={col.isForeignKey}
-								foreignKey={col.foreignKey}
-							>
-								<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
-								<UniqueConstraintIcon isUnique={col.unique} />
-								<ForeignKeyIcon isForeignKey={col.isForeignKey ?? false} />
-							</ColumnHeaderWithInfo>
-						),
-						meta: {
-							textAlign: getColumnTextAlignment(col.dataType),
-						},
-						size: 150,
-						minSize: 100,
-						cell: col.dataType.toLowerCase().includes("json")
-							? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
-							: (ctx) => {
-									const cellValue = ctx.row.original[col.name];
-									return (
-										<MemoizedDataCell
-											ctx={ctx}
-											col={col}
-											schema={schema}
-											table={table}
-											activeConnectionUrl={activeConnectionUrl}
-											onFollowFK={onFollowFK}
-											onFindReferences={onFindReferences}
-											onShowQuickReferences={() => {
-												onShowQuickReferences?.(col.name, cellValue);
-											}}
-											onPrefetchReferences={() => {
-												const referenceTarget = col.foreignKey
-													? {
-															referencedSchema: col.foreignKey.referencedSchema,
-															referencedTable: col.foreignKey.referencedTable,
-															referencedColumn: col.foreignKey.referencedColumn,
-														}
-													: {
-															referencedSchema: schema,
-															referencedTable: table,
-															referencedColumn: col.name,
-														};
+		const renderColumnList = (
+			list: Array<ColumnMetadata & { table: string; accessorKey: string }>,
+		) =>
+			list.map((col) => {
+				return {
+					id: col.accessorKey,
+					accessorFn: (row) => row[col.accessorKey] as string,
+					header: () => (
+						<ColumnHeaderWithInfo
+							columnName={col.name}
+							dataType={col.dataType}
+							showBadge
+							isPrimaryKey={col.primaryKey}
+							isUnique={col.unique}
+							isForeignKey={col.isForeignKey}
+							foreignKey={col.foreignKey}
+						>
+							<PrimaryKeyIcon isPrimaryKey={col.primaryKey} />
+							<UniqueConstraintIcon isUnique={col.unique} />
+							<ForeignKeyIcon isForeignKey={col.isForeignKey ?? false} />
+						</ColumnHeaderWithInfo>
+					),
+					meta: {
+						textAlign: getColumnTextAlignment(col.dataType),
+					},
+					size: 150,
+					minSize: 100,
+					cell: col.dataType.toLowerCase().includes("json")
+						? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
+						: (ctx) => {
+								const cellValue = ctx.row.original[col.name];
+								return (
+									<MemoizedDataCell
+										ctx={ctx}
+										col={col}
+										schema={schema}
+										table={table}
+										activeConnectionUrl={activeConnectionUrl}
+										onFollowFK={onFollowFK}
+										onFindReferences={onFindReferences}
+										onShowQuickReferences={() => {
+											onShowQuickReferences?.(col.name, cellValue);
+										}}
+										onPrefetchReferences={() => {
+											const referenceTarget = col.foreignKey
+												? {
+														referencedSchema: col.foreignKey.referencedSchema,
+														referencedTable: col.foreignKey.referencedTable,
+														referencedColumn: col.foreignKey.referencedColumn,
+													}
+												: {
+														referencedSchema: schema,
+														referencedTable: table,
+														referencedColumn: col.name,
+													};
 
-												queryClient.prefetchQuery(
-													findColumnReferencesWithCountsQueryOptions({
-														url: activeConnectionUrl,
-														referencedSchema: referenceTarget.referencedSchema,
-														referencedTable: referenceTarget.referencedTable,
-														referencedColumn: referenceTarget.referencedColumn,
-														cellValue,
-													}),
-												);
-												onPrefetchReferences?.(col.name, cellValue);
-											}}
-											onNavigateToFK={onNavigateToFK}
-											onNavigateToReference={onNavigateToReference}
-											onExpandToSheet={() => {
-												onExpandToSheet?.(col.name, cellValue);
-											}}
-											onMenuOpen={() => {
-												const referenceTarget = col.foreignKey
-													? {
-															referencedSchema: col.foreignKey.referencedSchema,
-															referencedTable: col.foreignKey.referencedTable,
-															referencedColumn: col.foreignKey.referencedColumn,
-														}
-													: {
-															referencedSchema: schema,
-															referencedTable: table,
-															referencedColumn: col.name,
-														};
+											queryClient.prefetchQuery(
+												findColumnReferencesWithCountsQueryOptions({
+													url: activeConnectionUrl,
+													referencedSchema: referenceTarget.referencedSchema,
+													referencedTable: referenceTarget.referencedTable,
+													referencedColumn: referenceTarget.referencedColumn,
+													cellValue,
+												}),
+											);
+											onPrefetchReferences?.(col.name, cellValue);
+										}}
+										onNavigateToFK={onNavigateToFK}
+										onNavigateToReference={onNavigateToReference}
+										onExpandToSheet={() => {
+											onExpandToSheet?.(col.name, cellValue);
+										}}
+										onMenuOpen={() => {
+											const referenceTarget = col.foreignKey
+												? {
+														referencedSchema: col.foreignKey.referencedSchema,
+														referencedTable: col.foreignKey.referencedTable,
+														referencedColumn: col.foreignKey.referencedColumn,
+													}
+												: {
+														referencedSchema: schema,
+														referencedTable: table,
+														referencedColumn: col.name,
+													};
 
-												queryClient.prefetchQuery(
-													findColumnReferencesWithCountsQueryOptions({
-														url: activeConnectionUrl,
-														referencedSchema: referenceTarget.referencedSchema,
-														referencedTable: referenceTarget.referencedTable,
-														referencedColumn: referenceTarget.referencedColumn,
-														cellValue,
-													}),
-												);
-												onMenuOpen?.(col.name, cellValue);
-											}}
-										/>
-									);
-								},
-						enableResizing: true,
-						enableSorting,
-					}) as ColumnDef<any> as any,
-			);
+											queryClient.prefetchQuery(
+												findColumnReferencesWithCountsQueryOptions({
+													url: activeConnectionUrl,
+													referencedSchema: referenceTarget.referencedSchema,
+													referencedTable: referenceTarget.referencedTable,
+													referencedColumn: referenceTarget.referencedColumn,
+													cellValue,
+												}),
+											);
+											onMenuOpen?.(col.name, cellValue);
+										}}
+									/>
+								);
+							},
+					enableResizing: true,
+					enableSorting,
+				} as ColumnDef<any> as any;
+			});
 		if (displayedColumns.length === 1) {
 			return renderColumnList(displayedColumns[0].columns);
 		}

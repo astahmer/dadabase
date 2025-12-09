@@ -258,8 +258,11 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 													data-draggable
 													ref={dragCtx.setNodeRef}
 													style={{
-														width: `${headerCell.getSize()}px`,
 														...dragCtx.style,
+														width:
+															headerCell.subHeaders.length === 0
+																? `${headerCell.getSize()}px`
+																: "auto",
 														zIndex:
 															headerCell.index + (dragCtx.isDragging ? 2 : 1),
 														position: "sticky",

@@ -1094,9 +1094,9 @@ const testSuite =
 				// All 7 posts have corresponding users, so we should get 7 rows (one per post)
 				expect(result.rows.length).toBe(7);
 				expect(result.rowCount).toBe(7);
-				// Each row should have user columns and post columns
-				expect(result.rows[0]).toHaveProperty("id"); // user id
-				expect(result.rows[0]).toHaveProperty("name"); // user name
+				// Each row should have user columns and post columns, aliased with table.column
+				expect(result.rows[0]).toHaveProperty("users.id"); // user id
+				expect(result.rows[0]).toHaveProperty("users.name"); // user name
 			}).pipe(Effect.provide(sqlLayer));
 		});
 
@@ -1155,10 +1155,12 @@ const testSuite =
 				});
 
 				expect(result.rows.length).toBe(7);
-				// Verify that we have user columns and selected post columns
-				expect(result.rows[0]).toHaveProperty("id");
-				expect(result.rows[0]).toHaveProperty("name");
-				// Joined columns should be accessible (possibly with alias like "posts.title")
+				// Verify that we have user columns and selected post columns, all aliased
+				expect(result.rows[0]).toHaveProperty("users.id");
+				expect(result.rows[0]).toHaveProperty("users.name");
+				// Joined columns should be accessible with alias like "posts.title"
+				expect(result.rows[0]).toHaveProperty("posts.title");
+				expect(result.rows[0]).toHaveProperty("posts.published");
 			}).pipe(Effect.provide(sqlLayer));
 		});
 
@@ -1227,8 +1229,8 @@ const testSuite =
 				});
 
 				expect(result.rows.length).toBe(7);
-				// Verify ordering by name
-				const names: string[] = result.rows.map((r) => String(r.name));
+				// Verify ordering by name (aliased as users.name)
+				const names: string[] = result.rows.map((r) => String(r["users.name"]));
 				// With INNER JOIN, we get multiple rows per user (one per post)
 				// First rows should be from Alice (alphabetically first)
 				expect(names[0]).toBe("Alice");
@@ -1271,8 +1273,10 @@ const testSuite =
 				});
 
 				expect(resultPage2.rows.length).toBe(3);
-				// Verify different rows on different pages
-				expect(resultPage1.rows[0].id).not.toBe(resultPage2.rows[0].id);
+				// Verify different rows on different pages (using aliased id)
+				expect(resultPage1.rows[0]["users.id"]).not.toBe(
+					resultPage2.rows[0]["users.id"],
+				);
 			}).pipe(Effect.provide(sqlLayer));
 		});
 
@@ -1361,7 +1365,7 @@ const testSuite =
 				// Alice has 2 posts
 				expect(result.rowCount).toBe(2);
 				expect(result.rows.length).toBe(2);
-				expect(result.rows.every((r) => r.user_id === 1)).toBe(true);
+				expect(result.rows.every((r) => r["posts.user_id"] === 1)).toBe(true);
 			}).pipe(Effect.provide(sqlLayer));
 		});
 

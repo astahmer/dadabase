@@ -338,6 +338,7 @@ export const useConnectionPageState = ({
 		onExpandToSheet: rowActions.onExpandToSheet,
 		onMenuOpen: rowActions.onMenuOpen,
 	});
+	console.log(dataColumns, formattedTableRowsData);
 
 	// Relationship integration
 	const relationshipsQuery = useTableRelationships({

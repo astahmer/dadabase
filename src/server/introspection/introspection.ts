@@ -1477,23 +1477,50 @@ const escapeValue = (value: unknown): string => {
 };
 
 /**
- * Query table rows with filtering, pagination, and ordering
- * - PostgreSQL: Uses schema.table notation, ILIKE, ANY/ALL for arrays
+ * Build select clause with explicitly selected and aliased columns
+ * All columns are aliased with dot-delimited path (table.col)
+ * For 'all' columns, we fetch and explicitly select all columns instead of using *
  */
 const buildSelectWithJoins = (
 	schema: string,
 	table: string,
 	joins: JoinTablesConfig["joins"],
+	tableColumnsMap: Map<string, TableColumnMetadata[]>,
 ) => {
 	const columns: string[] = [];
 
-	// Add original table columns with table prefix
-	columns.push(`${schema}."${table}".* `);
+	// Add original table columns with dot-delimited aliases
+	const baseTableColumns = tableColumnsMap.get(`${schema}.${table}`) || [];
+	if (baseTableColumns.length > 0) {
+		const baseCols = baseTableColumns
+			.map(
+				(col) => `${schema}."${table}"."${col.name}" as "${table}.${col.name}"`,
+			)
+			.join(", ");
+		columns.push(baseCols);
+	} else {
+		// Fallback to * if columns not available
+		columns.push(`${schema}."${table}".*`);
+	}
 
 	// Add joined table columns
 	for (const join of joins) {
+		const joinKey = `${join.schema}.${join.table}`;
+		const joinedTableColumns = tableColumnsMap.get(joinKey) || [];
+
 		if (join.columns === "all") {
-			columns.push(`${join.schema}."${join.table}".*`);
+			if (joinedTableColumns.length > 0) {
+				const joinedCols = joinedTableColumns
+					.map(
+						(col) =>
+							`${join.schema}."${join.table}"."${col.name}" as "${join.table}.${col.name}"`,
+					)
+					.join(", ");
+				columns.push(joinedCols);
+			} else {
+				// Fallback to * if columns not available
+				columns.push(`${join.schema}."${join.table}".*`);
+			}
 		} else {
 			const selectedCols = join.columns
 				.map(
@@ -1511,16 +1538,40 @@ const buildSelectWithJoins = (
 const buildSelectWithJoinsSqlite = (
 	table: string,
 	joins: JoinTablesConfig["joins"],
+	tableColumnsMap: Map<string, TableColumnMetadata[]>,
 ) => {
 	const columns: string[] = [];
 
-	// Add original table columns
-	columns.push(`"${table}".* `);
+	// Add original table columns with dot-delimited aliases
+	const baseTableColumns = tableColumnsMap.get(table) || [];
+	if (baseTableColumns.length > 0) {
+		const baseCols = baseTableColumns
+			.map((col) => `"${table}"."${col.name}" as "${table}.${col.name}"`)
+			.join(", ");
+		columns.push(baseCols);
+	} else {
+		// Fallback to * if columns not available
+		columns.push(`"${table}".*`);
+	}
 
 	// Add joined table columns
 	for (const join of joins) {
+		const joinKey = join.table;
+		const joinedTableColumns = tableColumnsMap.get(joinKey) || [];
+
 		if (join.columns === "all") {
-			columns.push(`"${join.table}".*`);
+			if (joinedTableColumns.length > 0) {
+				const joinedCols = joinedTableColumns
+					.map(
+						(col) =>
+							`"${join.table}"."${col.name}" as "${join.table}.${col.name}"`,
+					)
+					.join(", ");
+				columns.push(joinedCols);
+			} else {
+				// Fallback to * if columns not available
+				columns.push(`"${join.table}".*`);
+			}
 		} else {
 			const selectedCols = join.columns
 				.map((col) => `"${join.table}"."${col}" as "${join.table}.${col}"`)
@@ -1529,7 +1580,8 @@ const buildSelectWithJoinsSqlite = (
 		}
 	}
 
-	return columns.join(", ");
+	const result = columns.join(", ");
+	return result;
 };
 
 /**
@@ -1567,6 +1619,37 @@ export const queryTableRows = <TData>(input: {
 			filters,
 			joins = [],
 		} = input;
+
+		// Fetch table columns for proper aliasing when using joins
+		// Build list of tables we need columns for
+		const tablesToFetch = [{ schema, table }];
+		if (joins.length > 0) {
+			tablesToFetch.push(
+				...joins.map((j) => ({ schema: j.schema, table: j.table })),
+			);
+		}
+
+		// Fetch columns for all tables in parallel using Effect.all
+		const columnResults = yield* Effect.all(
+			tablesToFetch.map((t) =>
+				Effect.andThen(
+					getTableColumns({ schema: t.schema, table: t.table }),
+					(columns) => ({
+						schemaTable: `${t.schema}.${t.table}`,
+						tableOnly: t.table,
+						columns,
+					}),
+				),
+			),
+		);
+
+		// Build a map of table identifiers -> columns for quick lookup
+		// Store both schema.table and table-only keys for PostgreSQL and SQLite compatibility
+		const tableColumnsMap = new Map<string, TableColumnMetadata[]>();
+		for (const result of columnResults) {
+			tableColumnsMap.set(result.schemaTable, result.columns);
+			tableColumnsMap.set(result.tableOnly, result.columns);
+		}
 
 		// Build WHERE clause if filters exist
 		const pgWhereClause =
@@ -1617,7 +1700,9 @@ export const queryTableRows = <TData>(input: {
 
 					// Get rows with proper column selection and prefixing
 					const selectPart =
-						joins.length > 0 ? buildSelectWithJoins(schema, table, joins) : "*";
+						joins.length > 0
+							? buildSelectWithJoins(schema, table, joins, tableColumnsMap)
+							: "*";
 
 					const query = sql`
 						SELECT ${sql.unsafe(selectPart)}
@@ -1652,30 +1737,27 @@ export const queryTableRows = <TData>(input: {
 
 					// Get total count
 					const countQuery = sql`
-						SELECT COUNT(*) as count
-						FROM ${sql(table)}
-						${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
-						${sql.unsafe(whereFragment)}
-					`;
-					console.log(countQuery.compile());
+					SELECT COUNT(*) as count
+					FROM ${sql(table)}
+					${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
+					${sql.unsafe(whereFragment)}
+				`;
 					const countResult = yield* countQuery;
-					const rowCount = Number(countResult[0]?.count ?? 0);
-
-					// Get rows
+					const rowCount = Number(countResult[0]?.count ?? 0); // Get rows
 					const selectPart =
-						joins.length > 0 ? buildSelectWithJoinsSqlite(table, joins) : "*";
+						joins.length > 0
+							? buildSelectWithJoinsSqlite(table, joins, tableColumnsMap)
+							: "*";
 
 					const query = sql`
 						SELECT ${sql.unsafe(selectPart)}
 						FROM ${sql(table)}
-						${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
-						${sql.unsafe(whereFragment)}
-						${sql.unsafe(orderClause)}
-						LIMIT ${limit} OFFSET ${offset}
-					`;
-					console.log(query.compile());
+					${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
+					${sql.unsafe(whereFragment)}
+					${sql.unsafe(orderClause)}
+					LIMIT ${limit} OFFSET ${offset}
+				`;
 					const rows = yield* query;
-
 					return {
 						rows: rows as TData[],
 						rowCount,
@@ -1698,7 +1780,9 @@ export const queryTableRows = <TData>(input: {
 
 					// Get rows
 					const selectPart =
-						joins.length > 0 ? buildSelectWithJoins(schema, table, joins) : "*";
+						joins.length > 0
+							? buildSelectWithJoins(schema, table, joins, tableColumnsMap)
+							: "*";
 
 					const rows = yield* sql`
 						SELECT ${sql.unsafe(selectPart)}

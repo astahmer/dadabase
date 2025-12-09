@@ -196,6 +196,7 @@ export const ConnectionPageStatusBar = (
 							</ArkSelect.SelectContent>
 						</ArkSelect.Select>
 					</div>
+					{/* TODO */}
 					{(joins?.length ?? 0) > 0 && (
 						<Tooltip
 							content={
@@ -211,7 +212,7 @@ export const ConnectionPageStatusBar = (
 									navigate({
 										search: (prev) =>
 											updateTabState(prev, {
-												groupByTable: !groupByTable,
+												// groupByTable: !groupByTable,
 											}),
 									});
 								}}

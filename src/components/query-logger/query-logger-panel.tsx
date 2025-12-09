@@ -128,6 +128,7 @@ export const QueryLoggerPanel = ({ connectionUrl }: QueryLoggerPanelProps) => {
 					>
 						<Trash2 className="h-4 w-4" />
 					</Button>
+					{/* TODO button + on click */}
 					{isOpen ? (
 						<ChevronDown className="h-4 w-4" />
 					) : (

@@ -416,6 +416,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 													timeTaken={queryResponse.timeTaken}
 													ranAt={queryResponse.ranAt}
 													totalRowCount={totalRowCount}
+													// TODO if joins show subheaders
 													rowsColumnsCount={rowsColumns.length}
 												/>
 											</div>
