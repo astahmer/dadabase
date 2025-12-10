@@ -8,5 +8,5 @@ if (typeof __dirname === "undefined") {
 const dbFilePath = path.resolve(path.join(__dirname, "../../app.db"));
 
 export const DatabaseUrl = Config.redacted("DB_URL").pipe(
-	Config.withDefault(Redacted.make(`file://${dbFilePath}`)),
+	Config.withDefault(Redacted.make(dbFilePath)),
 );
