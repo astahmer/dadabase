@@ -1,3 +1,4 @@
+import { scan } from "react-scan";
 import type { QueryClient } from "@tanstack/react-query";
 // import { TanStackDevtools } from "@tanstack/react-devtools";
 // import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
@@ -8,6 +9,10 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
+
+scan({
+	enabled: true,
+});
 
 interface MyRouterContext {
 	queryClient: QueryClient;

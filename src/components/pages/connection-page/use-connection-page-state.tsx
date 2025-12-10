@@ -338,7 +338,6 @@ export const useConnectionPageState = ({
 		onExpandToSheet: rowActions.onExpandToSheet,
 		onMenuOpen: rowActions.onMenuOpen,
 	});
-	console.log(dataColumns, formattedTableRowsData);
 
 	// Relationship integration
 	const relationshipsQuery = useTableRelationships({
@@ -473,8 +472,13 @@ export const useConnectionPageState = ({
 		hasUuid,
 	});
 
-	// Data table setup
+	const primaryCols = tableMetadata.columnMetadata
+		.filter((col) => col.primaryKey)
+		.map((col) => col.name);
 	const rowsDataTable = useDataTable({
+		getRowId: primaryCols.length
+			? (row) => primaryCols.map((col) => row[col]).join("-")
+			: undefined,
 		data: formattedTableRowsData,
 		columns: rowsColumns,
 		state: {
