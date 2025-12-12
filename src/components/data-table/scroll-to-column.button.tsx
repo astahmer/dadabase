@@ -54,23 +54,39 @@ export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
 	);
 
 	const handleColumnSelect = (columnName: string) => {
-		// Just scroll to the column - the parent component handles visibility
-		setTimeout(() => {
-			if (containerRef.current) {
-				const tableEl = containerRef.current.querySelector("table");
-				if (tableEl) {
-					const columnHeader = tableEl.querySelector(
-						`th[data-column-id="${columnName}"]`,
-					);
-					if (columnHeader) {
-						const scrollLeft =
-							(columnHeader as HTMLElement).offsetLeft -
-							containerRef.current!.clientWidth / 2;
-						containerRef.current!.scrollLeft = Math.max(0, scrollLeft);
-					}
-				}
+		// Scroll to the column
+		if (containerRef.current) {
+			const container = containerRef.current;
+			const columnHeader = container.querySelector(
+				`th[data-column-id="${columnName}"]`,
+			) as HTMLElement | null;
+
+			if (columnHeader) {
+				// Reset scroll to 0 first to get accurate measurements
+				container.scrollLeft = 0;
+
+				// Use requestAnimationFrame to ensure DOM has updated
+				requestAnimationFrame(() => {
+					const headerRect = columnHeader.getBoundingClientRect();
+					const containerRect = container.getBoundingClientRect();
+
+					// Now headerRect.left - containerRect.left gives us the true position from left
+					const headerLeft = headerRect.left - containerRect.left;
+					const headerWidth = headerRect.width;
+					const containerWidth = containerRect.width;
+
+					// Calculate scroll position to center the column
+					const headerCenter = headerLeft + headerWidth / 2;
+					const newScrollLeft = headerCenter - containerWidth / 2;
+
+					// Scroll to position
+					container.scrollTo({
+						left: Math.max(0, newScrollLeft),
+						behavior: "instant",
+					});
+				});
 			}
-		}, 0);
+		}
 	};
 
 	if (!isOverflowing) {
