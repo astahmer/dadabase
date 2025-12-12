@@ -1,5 +1,9 @@
 import { useCallback, useState } from "react";
-import type { JoinTablesConfig, JoinedTable } from "./join-tables.types";
+import type {
+	JoinTablesConfig,
+	JoinedTable,
+	JoinConditionMode,
+} from "./join-tables.types";
 
 /**
  * Manages join tables configuration state
@@ -46,6 +50,69 @@ export const useJoinTablesState = (initialConfig?: JoinTablesConfig) => {
 		setConfig({ joins: [] });
 	}, []);
 
+	const updateJoinConditionMode = useCallback(
+		(table: string, schema: string, mode: JoinConditionMode) => {
+			setConfig((prev) => ({
+				...prev,
+				joins: prev.joins.map((j) => {
+					if (j.table === table && j.schema === schema) {
+						const currentMode = j.joinCondition.mode;
+						// If switching modes, preserve FK info but may reset custom conditions
+						if (currentMode === mode) return j;
+
+						if (mode === "standard" && currentMode === "custom") {
+							// Switch to standard - keep original FK data if available
+							return {
+								...j,
+								joinCondition: {
+									mode: "standard",
+									referencingColumn: j.joinCondition.referencingColumn ?? "",
+									referencedColumn: j.joinCondition.referencedColumn ?? "",
+								},
+							};
+						} else if (mode === "custom" && currentMode === "standard") {
+							// Switch to custom - preserve FK info
+							return {
+								...j,
+								joinCondition: {
+									mode: "custom",
+									referencingColumn: j.joinCondition.referencingColumn,
+									referencedColumn: j.joinCondition.referencedColumn,
+									conditions: [],
+								},
+							};
+						}
+					}
+					return j;
+				}),
+			}));
+		},
+		[],
+	);
+
+	const updateCustomJoinConditions = useCallback(
+		(table: string, schema: string, conditions: string[]) => {
+			setConfig((prev) => ({
+				...prev,
+				joins: prev.joins.map((j) => {
+					if (j.table === table && j.schema === schema) {
+						if (j.joinCondition.mode === "custom") {
+							return {
+								...j,
+								joinCondition: {
+									...j.joinCondition,
+									conditions,
+								},
+							};
+						}
+					}
+					return j;
+				}),
+			}));
+		},
+		[],
+	);
+
 	const hasJoins = config.joins.length > 0;
 
 	return {
@@ -54,6 +121,8 @@ export const useJoinTablesState = (initialConfig?: JoinTablesConfig) => {
 		add: add,
 		remove: remove,
 		update: update,
+		updateJoinConditionMode,
+		updateCustomJoinConditions,
 		clear: clear,
 		hasJoins,
 	};

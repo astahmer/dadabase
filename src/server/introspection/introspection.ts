@@ -1676,7 +1676,22 @@ export const queryTableRows = <TData>(input: {
 			joins
 				.map((join) => {
 					const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
-					return `${joinType} ${join.schema}."${join.table}" ON ${join.schema}."${join.table}"."${join.referencedColumn}" = ${schema}."${table}"."${join.referencingColumn}"`;
+					let joinCondition: string;
+
+					if (join.joinCondition.mode === "standard") {
+						joinCondition = `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+					} else {
+						// Custom join conditions
+						const conditions = join.joinCondition.conditions
+							.filter((cond) => cond && cond.trim().length > 0)
+							.map((cond) => cond.trim());
+						joinCondition =
+							conditions.length > 0
+								? conditions.join(" AND ")
+								: `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+					}
+
+					return `${joinType} ${join.schema}."${join.table}" ON ${joinCondition}`;
 				})
 				.join("\n");
 
@@ -1684,7 +1699,22 @@ export const queryTableRows = <TData>(input: {
 			joins
 				.map((join) => {
 					const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
-					return `${joinType} ${join.table} ON ${join.table}."${join.referencedColumn}" = ${schema}."${table}"."${join.referencingColumn}"`;
+					let joinCondition: string;
+
+					if (join.joinCondition.mode === "standard") {
+						joinCondition = `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+					} else {
+						// Custom join conditions
+						const conditions = join.joinCondition.conditions
+							.filter((cond) => cond && cond.trim().length > 0)
+							.map((cond) => cond.trim());
+						joinCondition =
+							conditions.length > 0
+								? conditions.join(" AND ")
+								: `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+					}
+
+					return `${joinType} ${join.table} ON ${joinCondition}`;
 				})
 				.join("\n");
 

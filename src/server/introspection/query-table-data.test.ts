@@ -1080,8 +1080,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: "all",
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 					},
 				];
 
@@ -1113,8 +1116,11 @@ const testSuite =
 							schema: config.defaultSchema,
 							type: "left",
 							columns: "all",
-							referencingColumn: "id",
-							referencedColumn: "user_id",
+							joinCondition: {
+								mode: "standard",
+								referencingColumn: "id",
+								referencedColumn: "user_id",
+							},
 						},
 					];
 
@@ -1143,8 +1149,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: ["title", "published"],
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 					},
 				];
 
@@ -1175,8 +1184,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: "all",
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 					},
 				];
 
@@ -1215,8 +1227,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: "all",
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 					},
 				];
 
@@ -1248,8 +1263,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: "all",
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 					},
 				];
 
@@ -1293,8 +1311,11 @@ const testSuite =
 							schema: config.defaultSchema,
 							type: "inner",
 							columns: "all",
-							referencingColumn: "id",
-							referencedColumn: "user_id",
+							joinCondition: {
+								mode: "standard",
+								referencingColumn: "id",
+								referencedColumn: "user_id",
+							},
 						},
 					];
 
@@ -1339,8 +1360,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: "all",
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 					},
 				];
 
@@ -1382,8 +1406,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: ["title"],
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 					},
 				];
 
@@ -1413,8 +1440,11 @@ const testSuite =
 							schema: config.defaultSchema,
 							type: "inner",
 							columns: ["title", "published"],
-							referencingColumn: "id",
-							referencedColumn: "user_id",
+							joinCondition: {
+								mode: "standard",
+								referencingColumn: "id",
+								referencedColumn: "user_id",
+							},
 							filters: {
 								conditions: [
 									{
@@ -1453,8 +1483,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: ["title"],
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 						filters: {
 							conditions: [
 								{
@@ -1493,8 +1526,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: ["title", "published"],
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 						filters: {
 							conditions: [
 								{
@@ -1541,8 +1577,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: ["title", "published"],
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 						filters: {
 							conditions: [
 								{
@@ -1598,8 +1637,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: ["title", "published"],
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 						filters: {
 							conditions: [
 								{
@@ -1656,8 +1698,11 @@ const testSuite =
 							schema: config.defaultSchema,
 							type: "left",
 							columns: ["title", "published"],
-							referencingColumn: "id",
-							referencedColumn: "user_id",
+							joinCondition: {
+								mode: "standard",
+								referencingColumn: "id",
+								referencedColumn: "user_id",
+							},
 							filters: {
 								conditions: [
 									{
@@ -1702,8 +1747,11 @@ const testSuite =
 							schema: config.defaultSchema,
 							type: "inner",
 							columns: ["title", "id"],
-							referencingColumn: "id",
-							referencedColumn: "user_id",
+							joinCondition: {
+								mode: "standard",
+								referencingColumn: "id",
+								referencedColumn: "user_id",
+							},
 							filters: {
 								conditions: [
 									{
@@ -1742,8 +1790,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: ["title"],
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 						filters: {
 							conditions: [],
 							logicalOperator: "and",
@@ -1773,8 +1824,11 @@ const testSuite =
 						schema: config.defaultSchema,
 						type: "inner",
 						columns: ["content"],
-						referencingColumn: "id",
-						referencedColumn: "user_id",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
 						filters: {
 							conditions: [
 								{
@@ -1797,6 +1851,179 @@ const testSuite =
 				// Posts with NULL content: 1 post (Charlie's second post)
 				expect(result.rowCount).toBe(1);
 				expect(result.rows[0]["posts.content"]).toBeNull();
+			}).pipe(Effect.provide(sqlLayer));
+		});
+
+		// Tests for custom join conditions
+		it.effect("custom join condition with single SQL expression", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "inner",
+						columns: ["title"],
+						joinCondition: {
+							mode: "custom",
+							referencingColumn: "id", // preserved from FK
+							referencedColumn: "user_id", // preserved from FK
+							conditions: [`posts.user_id = ${config.defaultSchema}.users.id`],
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// Should work just like standard FK join when conditions replicate FK logic
+				expect(result.rowCount).toBe(7);
+				expect(result.rows.length).toBe(7);
+			}).pipe(Effect.provide(sqlLayer));
+		});
+
+		it.effect(
+			"custom join condition with multiple conditions combined with AND",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const joins: JoinedTable[] = [
+						{
+							table: "posts",
+							schema: config.defaultSchema,
+							type: "inner",
+							columns: ["title", "published"],
+							joinCondition: {
+								mode: "custom",
+								conditions: [
+									`posts.user_id = ${config.defaultSchema}.users.id`,
+									"posts.published = true",
+								],
+							},
+						},
+					];
+
+					const result = yield* queryTableRows<Record<string, unknown>>({
+						schema: config.defaultSchema,
+						table: "users",
+						joins,
+					});
+
+					// FK condition + published=true filter
+					// Alice: 2 published, Charlie: 1, Diana: 1 = 4 rows
+					expect(result.rowCount).toBe(4);
+					expect(result.rows.every((r) => r["posts.published"])).toBe(true);
+				}).pipe(Effect.provide(sqlLayer));
+			},
+		);
+
+		it.effect(
+			"custom join condition fallback to standard FK when conditions empty",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const joins: JoinedTable[] = [
+						{
+							table: "posts",
+							schema: config.defaultSchema,
+							type: "inner",
+							columns: ["title"],
+							joinCondition: {
+								mode: "custom",
+								referencingColumn: "id", // FK info available for fallback
+								referencedColumn: "user_id",
+								conditions: [], // Empty conditions array
+							},
+						},
+					];
+
+					const result = yield* queryTableRows<Record<string, unknown>>({
+						schema: config.defaultSchema,
+						table: "users",
+						joins,
+					});
+
+					// Should fallback to FK and work normally
+					expect(result.rowCount).toBe(7);
+					expect(result.rows.length).toBe(7);
+				}).pipe(Effect.provide(sqlLayer));
+			},
+		);
+
+		it.effect("custom join condition with is null expression", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "inner",
+						columns: ["title", "content"],
+						joinCondition: {
+							mode: "custom",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+							conditions: [
+								`posts.user_id = ${config.defaultSchema}.users.id`,
+								"posts.content IS NULL",
+							],
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// Only the one post with NULL content
+				expect(result.rowCount).toBe(1);
+				expect(result.rows[0]["posts.content"]).toBeNull();
+			}).pipe(Effect.provide(sqlLayer));
+		});
+
+		it.effect("custom join condition mode switching preserves FK info", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				// When switching from custom to standard, FK info should be available
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "inner",
+						columns: ["title"],
+						joinCondition: {
+							mode: "custom",
+							referencingColumn: "id", // Preserved for potential switch to standard
+							referencedColumn: "user_id",
+							conditions: [`posts.user_id = ${config.defaultSchema}.users.id`],
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// Should work with the custom condition
+				expect(result.rowCount).toBe(7);
+				// FK info is still available in joinCondition for UI to allow switching back
 			}).pipe(Effect.provide(sqlLayer));
 		});
 	};

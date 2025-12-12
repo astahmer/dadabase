@@ -10,6 +10,7 @@ import {
 	CheckboxControl,
 	CheckboxLabel,
 } from "#src/components/ui/checkbox.tsx";
+import { Input } from "#src/components/ui/input.tsx";
 import type {
 	FilterConditionExpression,
 	FilterOperatorType,
@@ -29,24 +30,31 @@ import {
 	ComboboxTrigger,
 	createListCollection,
 } from "#src/components/ui/combobox.tsx";
-import { Input } from "#src/components/ui/input.tsx";
-import type { JoinedTable } from "./join-tables.types";
+import type { JoinedTable, JoinConditionMode } from "./join-tables.types";
 
 interface JoinedTableRowProps {
 	joined: JoinedTable;
 	availableColumns: TableColumnMetadata[];
+	parentSchema: string;
+	parentTable: string;
 	onUpdateType: (type: "left" | "inner") => void;
 	onUpdateColumns: (columns: "all" | string[]) => void;
 	onUpdateFilters: (filters: QueryFilterType | undefined) => void;
+	onUpdateJoinConditionMode: (mode: JoinConditionMode) => void;
+	onUpdateCustomJoinConditions: (conditions: string[]) => void;
 	onRemove: () => void;
 }
 
 export const JoinedTableRow = ({
 	joined,
 	availableColumns,
+	parentSchema,
+	parentTable,
 	onUpdateType,
 	onUpdateColumns,
 	onUpdateFilters,
+	onUpdateJoinConditionMode,
+	onUpdateCustomJoinConditions,
 	onRemove,
 }: JoinedTableRowProps) => {
 	const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
@@ -63,6 +71,16 @@ export const JoinedTableRow = ({
 
 	const [logicalOperator, setLogicalOperator] = useState<"and" | "or">(
 		joined.filters?.logicalOperator || "and",
+	);
+
+	const [joinConditionMode, setJoinConditionMode] = useState<JoinConditionMode>(
+		joined.joinCondition.mode,
+	);
+
+	const [customJoinConditions, setCustomJoinConditions] = useState<string[]>(
+		joined.joinCondition.mode === "custom"
+			? joined.joinCondition.conditions
+			: [],
 	);
 
 	const handleToggleColumn = (column: string) => {
@@ -163,6 +181,42 @@ export const JoinedTableRow = ({
 		}
 	};
 
+	const handleSwitchJoinConditionMode = (mode: JoinConditionMode) => {
+		setJoinConditionMode(mode);
+		onUpdateJoinConditionMode(mode);
+		if (mode === "custom") {
+			// When switching to custom, clear any previously set custom conditions
+			if (customJoinConditions.length === 0) {
+				setCustomJoinConditions([""]);
+			}
+		}
+	};
+
+	const handleAddCustomCondition = () => {
+		const updated = [...customJoinConditions, ""];
+		setCustomJoinConditions(updated);
+		onUpdateCustomJoinConditions(updated);
+	};
+
+	const handleUpdateCustomCondition = (index: number, value: string) => {
+		const updated = customJoinConditions.map((cond, i) =>
+			i === index ? value : cond,
+		);
+		setCustomJoinConditions(updated);
+		onUpdateCustomJoinConditions(updated);
+	};
+
+	const handleRemoveCustomCondition = (index: number) => {
+		const updated = customJoinConditions.filter((_, i) => i !== index);
+		setCustomJoinConditions(updated);
+		onUpdateCustomJoinConditions(updated);
+	};
+
+	const handleClearCustomConditions = () => {
+		setCustomJoinConditions([]);
+		onUpdateCustomJoinConditions([]);
+	};
+
 	return (
 		<div className="border rounded-md bg-background">
 			<div className="p-3 space-y-2">
@@ -172,7 +226,19 @@ export const JoinedTableRow = ({
 							{joined.schema}.{joined.table}
 						</div>
 						<div className="text-xs text-muted-foreground mt-0.5">
-							ON {joined.schema}.{joined.table}.{joined.referencedColumn}
+							{joined.joinCondition.mode === "standard" ? (
+								<>
+									ON {joined.schema}.{joined.table}.
+									{joined.joinCondition.referencingColumn} = {parentSchema}.
+									{parentTable}.{joined.joinCondition.referencedColumn}
+								</>
+							) : (
+								<>
+									{joined.joinCondition.conditions.length > 0
+										? `ON ${joined.joinCondition.conditions.length} condition(s)`
+										: "ON (no conditions)"}
+								</>
+							)}
 						</div>
 					</div>
 					<Button
@@ -209,9 +275,93 @@ export const JoinedTableRow = ({
 						</Button>
 					</div>
 				</div>
+
+				<div className="flex gap-2 items-center pt-2">
+					<div className="text-xs font-medium text-muted-foreground">
+						Join condition:
+					</div>
+					<div className="flex gap-1">
+						<Button
+							variant={joinConditionMode === "standard" ? "default" : "outline"}
+							size="sm"
+							onClick={() => handleSwitchJoinConditionMode("standard")}
+							className="h-7 px-2 text-xs"
+						>
+							Standard
+						</Button>
+						<Button
+							variant={joinConditionMode === "custom" ? "default" : "outline"}
+							size="sm"
+							onClick={() => handleSwitchJoinConditionMode("custom")}
+							className="h-7 px-2 text-xs"
+						>
+							Custom SQL
+						</Button>
+					</div>
+				</div>
 			</div>
 
 			<Accordion collapsible multiple={false}>
+				{joinConditionMode === "custom" && (
+					<AccordionItem value="custom-join">
+						<AccordionItemTrigger className="px-3 py-2">
+							Custom Join Conditions ({customJoinConditions.length})
+						</AccordionItemTrigger>
+						<AccordionItemContent className="px-3 py-2">
+							<div className="space-y-3">
+								<p className="text-xs text-muted-foreground">
+									Enter SQL expressions for the ON clause. Multiple conditions
+									will be combined with AND.
+								</p>
+								<div className="space-y-2">
+									{customJoinConditions.map((condition, index) => (
+										<div key={index} className="flex gap-2 items-start">
+											<Input
+												placeholder={`e.g., ${joined.table}.deleted_at IS NULL`}
+												value={condition}
+												onChange={(e) =>
+													handleUpdateCustomCondition(index, e.target.value)
+												}
+												className="flex-1 h-8 text-xs"
+											/>
+											<Button
+												size="sm"
+												variant="ghost"
+												onClick={() => handleRemoveCustomCondition(index)}
+												className="h-8 w-8 p-0"
+												aria-label="Remove condition"
+											>
+												<X className="h-3 w-3" />
+											</Button>
+										</div>
+									))}
+								</div>
+								<div className="flex gap-2 pt-2">
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={handleAddCustomCondition}
+										className="h-7 flex-1 text-xs"
+									>
+										<Plus className="h-3 w-3 mr-1" />
+										Add Condition
+									</Button>
+									{customJoinConditions.length > 0 && (
+										<Button
+											size="sm"
+											variant="ghost"
+											onClick={handleClearCustomConditions}
+											className="h-7 px-2 text-xs"
+										>
+											<X className="h-3 w-3" />
+										</Button>
+									)}
+								</div>
+							</div>
+						</AccordionItemContent>
+					</AccordionItem>
+				)}
+
 				<AccordionItem value="columns">
 					<AccordionItemTrigger className="px-3 py-2">
 						Columns ({columnLabel})

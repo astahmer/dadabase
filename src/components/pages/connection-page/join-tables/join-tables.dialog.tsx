@@ -186,8 +186,11 @@ export const JoinTablesDialog = ({
 														table: join.table,
 														type: "left",
 														columns: "all",
-														referencingColumn: join.referencingColumn,
-														referencedColumn: join.referencedColumn,
+														joinCondition: {
+															mode: "standard",
+															referencingColumn: join.referencingColumn,
+															referencedColumn: join.referencedColumn,
+														},
 													});
 												}}
 											>
@@ -226,6 +229,8 @@ export const JoinTablesDialog = ({
 										key={`${join.schema}.${join.table}`}
 										joined={join}
 										availableColumns={columns}
+										parentSchema={schema}
+										parentTable={table}
 										onUpdateType={(type) =>
 											joinState.update(join.table, join.schema, { type })
 										}
@@ -238,6 +243,20 @@ export const JoinTablesDialog = ({
 											joinState.update(join.table, join.schema, {
 												filters,
 											})
+										}
+										onUpdateJoinConditionMode={(mode) =>
+											joinState.updateJoinConditionMode(
+												join.table,
+												join.schema,
+												mode,
+											)
+										}
+										onUpdateCustomJoinConditions={(conditions) =>
+											joinState.updateCustomJoinConditions(
+												join.table,
+												join.schema,
+												conditions,
+											)
 										}
 										onRemove={() => joinState.remove(join.table, join.schema)}
 									/>

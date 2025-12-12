@@ -6,6 +6,36 @@ import type { QueryFilterType } from "#src/components/query-builder/query-filter
 
 export type JoinType = "left" | "inner";
 
+/**
+ * Join condition modes: standard FK-based or custom SQL expressions
+ */
+export type JoinConditionMode = "standard" | "custom";
+
+/**
+ * Standard join condition using foreign key relationships
+ */
+export interface StandardJoinCondition {
+	mode: "standard";
+	/** Foreign key column in the referencing table */
+	referencingColumn: string;
+	/** Column in the referenced table that's being joined on */
+	referencedColumn: string;
+}
+
+/**
+ * Custom join condition using SQL expressions
+ * Multiple conditions are combined with AND (INNER) or allowed NULLs (LEFT)
+ */
+export interface CustomJoinCondition {
+	mode: "custom";
+	/** Foreign key column in the referencing table (preserved for potential mode switch) */
+	referencingColumn?: string;
+	/** Column in the referenced table (preserved for potential mode switch) */
+	referencedColumn?: string;
+	/** Custom SQL ON clause expressions, e.g., ["products.deleted_at IS NULL", "vendors.status = 'active'"] */
+	conditions: string[];
+}
+
 export interface JoinedTable {
 	/** Table name to join */
 	table: string;
@@ -15,11 +45,9 @@ export interface JoinedTable {
 	type: JoinType;
 	/** Columns to include from this table - "all" or specific column names */
 	columns: "all" | string[];
-	/** Foreign key column in the referencing table */
-	referencingColumn: string;
-	/** Column in the referenced table that's being joined on */
-	referencedColumn: string;
-	/** Optional filter conditions to apply to the joined table */
+	/** Join condition configuration (standard FK or custom SQL) */
+	joinCondition: StandardJoinCondition | CustomJoinCondition;
+	/** Optional filter conditions to apply to the joined table (WHERE clause) */
 	filters?: QueryFilterType;
 }
 

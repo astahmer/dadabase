@@ -10,6 +10,24 @@ import { createRemoteIntrospectionHandler } from "#src/server/create-remote-serv
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 
+const StandardJoinConditionSchema = Schema.Struct({
+	mode: Schema.Literal("standard"),
+	referencingColumn: Schema.String,
+	referencedColumn: Schema.String,
+}).pipe(Schema.mutable);
+
+const CustomJoinConditionSchema = Schema.Struct({
+	mode: Schema.Literal("custom"),
+	referencingColumn: Schema.String.pipe(Schema.optional),
+	referencedColumn: Schema.String.pipe(Schema.optional),
+	conditions: Schema.Array(Schema.String).pipe(Schema.mutable),
+}).pipe(Schema.mutable);
+
+const JoinConditionSchema = Schema.Union(
+	StandardJoinConditionSchema,
+	CustomJoinConditionSchema,
+);
+
 const JoinSchema = Schema.Struct({
 	table: Schema.String,
 	schema: Schema.String,
@@ -18,10 +36,9 @@ const JoinSchema = Schema.Struct({
 		Schema.Literal("all"),
 		Schema.Array(Schema.String),
 	).pipe(Schema.mutable),
-	referencingColumn: Schema.String,
-	referencedColumn: Schema.String,
+	joinCondition: JoinConditionSchema,
 	filters: QueryFilter.pipe(Schema.optional),
-});
+}).pipe(Schema.mutable);
 
 const InputSchema = Schema.Struct({
 	url: Schema.String,

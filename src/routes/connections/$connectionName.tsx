@@ -30,6 +30,24 @@ const StructureFiltersSchema = Schema.Struct({
 	),
 });
 
+const StandardJoinConditionSchema = Schema.Struct({
+	mode: Schema.Literal("standard"),
+	referencingColumn: Schema.String,
+	referencedColumn: Schema.String,
+}).pipe(Schema.mutable);
+
+const CustomJoinConditionSchema = Schema.Struct({
+	mode: Schema.Literal("custom"),
+	referencingColumn: Schema.String.pipe(Schema.optional),
+	referencedColumn: Schema.String.pipe(Schema.optional),
+	conditions: Schema.Array(Schema.String).pipe(Schema.mutable),
+});
+
+const JoinConditionSchema = Schema.Union(
+	StandardJoinConditionSchema,
+	CustomJoinConditionSchema,
+);
+
 const JoinedTableSchema = Schema.Struct({
 	table: Schema.String,
 	schema: Schema.String,
@@ -38,8 +56,7 @@ const JoinedTableSchema = Schema.Struct({
 		Schema.Literal("all"),
 		Schema.Array(Schema.String).pipe(Schema.mutable),
 	),
-	referencingColumn: Schema.String,
-	referencedColumn: Schema.String,
+	joinCondition: JoinConditionSchema,
 	filters: QueryFilter.pipe(Schema.optional),
 });
 type JoinedTableType = typeof JoinedTableSchema.Type;

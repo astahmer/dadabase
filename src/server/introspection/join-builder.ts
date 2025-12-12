@@ -176,7 +176,7 @@ export const buildSqliteJoinFilters = (joins: JoinedTable[]): string => {
 
 /**
  * Build JOIN clauses from join configuration
- * Supports both PostgreSQL and SQLite syntax
+ * Supports both standard FK-based joins and custom SQL join conditions
  */
 export const buildJoinClauses = (
 	joins: JoinedTable[],
@@ -189,7 +189,28 @@ export const buildJoinClauses = (
 	for (const join of joins) {
 		const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
 		const joinTableRef = `"${join.schema}"."${join.table}"`;
-		const joinCondition = `${joinTableRef}."${join.referencedColumn}" = "${originalSchema}"."${originalTable}"."${join.referencingColumn}"`;
+
+		// Build ON clause based on condition mode
+		let joinCondition: string;
+
+		if (join.joinCondition.mode === "standard") {
+			// Standard FK-based join
+			joinCondition = `${joinTableRef}."${join.joinCondition.referencedColumn}" = "${originalSchema}"."${originalTable}"."${join.joinCondition.referencingColumn}"`;
+		} else {
+			// Custom join condition - combine multiple expressions with AND
+			const conditions = join.joinCondition.conditions
+				.filter((cond) => cond && cond.trim().length > 0)
+				.map((cond) => cond.trim());
+
+			if (conditions.length === 0) {
+				// Fallback to standard if no custom conditions provided
+				joinCondition = `${joinTableRef}."${join.joinCondition.referencedColumn}" = "${originalSchema}"."${originalTable}"."${join.joinCondition.referencingColumn}"`;
+			} else if (conditions.length === 1) {
+				joinCondition = conditions[0];
+			} else {
+				joinCondition = conditions.join(" AND ");
+			}
+		}
 
 		joinClauses.push(`${joinType} ${joinTableRef} ON ${joinCondition}`);
 	}
