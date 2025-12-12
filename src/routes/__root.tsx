@@ -1,18 +1,11 @@
-import { scan } from "react-scan";
 import type { QueryClient } from "@tanstack/react-query";
-// import { TanStackDevtools } from "@tanstack/react-devtools";
-// import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
-// import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import {
 	createRootRouteWithContext,
 	HeadContent,
 	Scripts,
 } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
-
-scan({
-	enabled: true,
-});
+import { WithDevtools } from "./-devtools.tsx";
 
 interface MyRouterContext {
 	queryClient: QueryClient;
@@ -57,21 +50,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			</head>
 			<body className="bg-background text-foreground">
 				<div className="flex flex-col min-h-screen h-full">{children}</div>
-				{/* <TanStackDevtools
-					config={{
-						position: "bottom-right",
-					}}
-					plugins={[
-						{
-							name: "Tanstack Router",
-							render: <TanStackRouterDevtoolsPanel />,
-						},
-						{
-							name: "Tanstack Query",
-							render: <ReactQueryDevtoolsPanel />,
-						},
-					]}
-				/> */}
+				<WithDevtools />
 				<Scripts />
 			</body>
 		</html>
