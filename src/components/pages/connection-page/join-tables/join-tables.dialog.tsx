@@ -1,3 +1,6 @@
+import { createListCollection, useFilter } from "@ark-ui/react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { Button } from "#src/components/ui/button.tsx";
 import {
 	Dialog,
@@ -18,9 +21,6 @@ import { Spinner } from "#src/components/ui/spinner.tsx";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
-import { createListCollection, useFilter } from "@ark-ui/react";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
 import { TableName } from "../table-name.tsx";
 import type {
 	JoinableTableOption,
@@ -165,6 +165,7 @@ export const JoinTablesDialog = ({
 						</div>
 					) : (
 						<div className="space-y-2">
+							{/* TODO show relationship name like in bottom panel */}
 							<div className="text-sm font-medium">Add Table to Join</div>
 							<ListboxRoot collection={tableCollection} selectionMode="none">
 								<ListboxMenuFilterInput
@@ -178,7 +179,7 @@ export const JoinTablesDialog = ({
 										.filter((join) => filters.contains(join.table, searchInput))
 										.map((join) => (
 											<ListboxMenuItem
-												key={`${join.schema}.${join.table}`}
+												key={`${join.schema}:${join.table}:${join.referencingColumn}:${join.referencedColumn}:${join.direction}`}
 												item={`${join.schema}:${join.table}:${join.referencingColumn}:${join.referencedColumn}:${join.direction}`}
 												onClick={() => {
 													joinState.add({
