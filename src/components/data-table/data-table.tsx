@@ -182,152 +182,150 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 	);
 }
 
-const TableContainer = memo(
-	(
-		props: Pick<
-			DataTableProps<any>,
-			| "table"
-			| "className"
-			| "containerRef"
-			| "getTableContainer"
-			| "emptyState"
-			| "isLoading"
-			| "hasError"
-			| "onRowClick"
-			| "onColumnFilterClick"
-			| "stickyHeader"
-			| "withRowContextMenu"
-			| "ExpandedRow"
-			| "resizable"
-			| "onExpandRowJson"
-			| "virtualized"
-			| "estimateItemSize"
-			| "overscan"
-			| "renderSubrows"
-			| "hideColumnPinIconUnlessHovered"
-		> &
-			Pick<
-				Required<DataTableProps<any>>,
-				| "size"
-				| "variant"
-				| "interactive"
-				| "striped"
-				| "showColumnBorder"
-				| "enableColumnOrdering"
-			>,
-	) => {
-		const table = props.table;
-		const state = props.table.getState();
+const TableContainer = (
+	props: Pick<
+		DataTableProps<any>,
+		| "table"
+		| "className"
+		| "containerRef"
+		| "getTableContainer"
+		| "emptyState"
+		| "isLoading"
+		| "hasError"
+		| "onRowClick"
+		| "onColumnFilterClick"
+		| "stickyHeader"
+		| "withRowContextMenu"
+		| "ExpandedRow"
+		| "resizable"
+		| "onExpandRowJson"
+		| "virtualized"
+		| "estimateItemSize"
+		| "overscan"
+		| "renderSubrows"
+		| "hideColumnPinIconUnlessHovered"
+	> &
+		Pick<
+			Required<DataTableProps<any>>,
+			| "size"
+			| "variant"
+			| "interactive"
+			| "striped"
+			| "showColumnBorder"
+			| "enableColumnOrdering"
+		>,
+) => {
+	const table = props.table;
+	const state = props.table.getState();
 
-		const tableContainerRef = useRef<HTMLDivElement>(null);
+	const tableContainerRef = useRef<HTMLDivElement>(null);
 
-		return (
-			<div
-				className={`overflow-x-auto h-full ${props.virtualized ? "overflow-y-auto" : ""} ${props.className || ""}`}
-				ref={(el) => {
-					if (props.containerRef) {
-						props.containerRef.current = el;
-					}
+	return (
+		<div
+			className={`overflow-x-auto h-full ${props.virtualized ? "overflow-y-auto" : ""} ${props.className || ""}`}
+			ref={(el) => {
+				if (props.containerRef) {
+					props.containerRef.current = el;
+				}
 
-					if (el) {
-						tableContainerRef.current = el;
-						props.getTableContainer?.(el);
-					}
-				}}
+				if (el) {
+					tableContainerRef.current = el;
+					props.getTableContainer?.(el);
+				}
+			}}
+		>
+			<table
+				className={tableStyles({ variant: props.variant })}
+				style={{ width: table.getTotalSize() }}
 			>
-				<table
-					className={tableStyles({ variant: props.variant })}
-					style={{ width: table.getTotalSize() }}
+				<thead
+					className={tableHeaderStyles({
+						stickyHeader: props.stickyHeader,
+						variant: props.variant,
+					})}
 				>
-					<thead
-						className={tableHeaderStyles({
-							stickyHeader: props.stickyHeader,
-							variant: props.variant,
-						})}
-					>
-						{table.getHeaderGroups().map((headerGroup) => {
-							const HeaderCellList = headerGroup.headers.map((headerCell) => (
-								<HeaderCell
-									table={table}
-									headerGroup={headerGroup}
-									headerCell={headerCell}
-									enableColumnOrdering={props.enableColumnOrdering}
-									size={props.size}
-									showColumnBorder={props.showColumnBorder}
-									hideColumnPinIconUnlessHovered={
-										props.hideColumnPinIconUnlessHovered
-									}
-									onColumnFilterClick={props.onColumnFilterClick}
-									resizable={props.resizable}
-								/>
-							));
+					{table.getHeaderGroups().map((headerGroup) => {
+						const HeaderCellList = headerGroup.headers.map((headerCell) => (
+							<HeaderCell
+								table={table}
+								headerGroup={headerGroup}
+								headerCell={headerCell}
+								enableColumnOrdering={props.enableColumnOrdering}
+								size={props.size}
+								showColumnBorder={props.showColumnBorder}
+								hideColumnPinIconUnlessHovered={
+									props.hideColumnPinIconUnlessHovered
+								}
+								onColumnFilterClick={props.onColumnFilterClick}
+								resizable={props.resizable}
+							/>
+						));
 
-							if (props.enableColumnOrdering) {
-								return (
-									<tr key={headerGroup.id}>
-										<SortableContext
-											items={state.columnOrder}
-											strategy={horizontalListSortingStrategy}
-										>
-											{HeaderCellList}
-										</SortableContext>
-									</tr>
-								);
-							}
+						if (props.enableColumnOrdering) {
+							return (
+								<tr key={headerGroup.id}>
+									<SortableContext
+										items={state.columnOrder}
+										strategy={horizontalListSortingStrategy}
+									>
+										{HeaderCellList}
+									</SortableContext>
+								</tr>
+							);
+						}
 
-							return <tr key={headerGroup.id}>{HeaderCellList}</tr>;
-						})}
-					</thead>
-					{table.getState().columnSizingInfo.isResizingColumn ? (
-						<MemoizedTableBody
-							table={table}
-							tableContainerRef={tableContainerRef}
-							isLoading={props.isLoading}
-							virtualized={props.virtualized}
-							onRowClick={props.onRowClick}
-							withRowContextMenu={props.withRowContextMenu}
-							ExpandedRow={props.ExpandedRow}
-							onExpandRowJson={props.onExpandRowJson}
-							estimateItemSize={props.estimateItemSize}
-							overscan={props.overscan}
-							renderSubrows={props.renderSubrows}
-							emptyState={props.emptyState}
-							hasError={props.hasError}
-							size={props.size}
-							variant={props.variant}
-							interactive={props.interactive}
-							striped={props.striped}
-							showColumnBorder={props.showColumnBorder}
-							enableColumnOrdering={props.enableColumnOrdering}
-						/>
-					) : (
-						<TableBody
-							table={table}
-							tableContainerRef={tableContainerRef}
-							isLoading={props.isLoading}
-							virtualized={props.virtualized}
-							onRowClick={props.onRowClick}
-							withRowContextMenu={props.withRowContextMenu}
-							ExpandedRow={props.ExpandedRow}
-							onExpandRowJson={props.onExpandRowJson}
-							estimateItemSize={props.estimateItemSize}
-							overscan={props.overscan}
-							renderSubrows={props.renderSubrows}
-							emptyState={props.emptyState}
-							hasError={props.hasError}
-							size={props.size}
-							variant={props.variant}
-							interactive={props.interactive}
-							striped={props.striped}
-							showColumnBorder={props.showColumnBorder}
-							enableColumnOrdering={props.enableColumnOrdering}
-						/>
-					)}
-				</table>
-			</div>
-		);
-	},
-);
+						return <tr key={headerGroup.id}>{HeaderCellList}</tr>;
+					})}
+				</thead>
+				{table.getState().columnSizingInfo.isResizingColumn ? (
+					<MemoizedTableBody
+						table={table}
+						tableContainerRef={tableContainerRef}
+						isLoading={props.isLoading}
+						virtualized={props.virtualized}
+						onRowClick={props.onRowClick}
+						withRowContextMenu={props.withRowContextMenu}
+						ExpandedRow={props.ExpandedRow}
+						onExpandRowJson={props.onExpandRowJson}
+						estimateItemSize={props.estimateItemSize}
+						overscan={props.overscan}
+						renderSubrows={props.renderSubrows}
+						emptyState={props.emptyState}
+						hasError={props.hasError}
+						size={props.size}
+						variant={props.variant}
+						interactive={props.interactive}
+						striped={props.striped}
+						showColumnBorder={props.showColumnBorder}
+						enableColumnOrdering={props.enableColumnOrdering}
+					/>
+				) : (
+					<TableBody
+						table={table}
+						tableContainerRef={tableContainerRef}
+						isLoading={props.isLoading}
+						virtualized={props.virtualized}
+						onRowClick={props.onRowClick}
+						withRowContextMenu={props.withRowContextMenu}
+						ExpandedRow={props.ExpandedRow}
+						onExpandRowJson={props.onExpandRowJson}
+						estimateItemSize={props.estimateItemSize}
+						overscan={props.overscan}
+						renderSubrows={props.renderSubrows}
+						emptyState={props.emptyState}
+						hasError={props.hasError}
+						size={props.size}
+						variant={props.variant}
+						interactive={props.interactive}
+						striped={props.striped}
+						showColumnBorder={props.showColumnBorder}
+						enableColumnOrdering={props.enableColumnOrdering}
+					/>
+				)}
+			</table>
+		</div>
+	);
+};
 
 const TableBody = (
 	props: {
@@ -637,6 +635,7 @@ const HeaderCell = memo(
 		const textAlign =
 			(meta?.textAlign as "left" | "right" | "center" | undefined) || "left";
 		const isDragDisabled =
+			props.enableColumnOrdering === false ||
 			meta?.enableColumnOrdering === false ||
 			Boolean(column.getIsPinned()) ||
 			headerCell.subHeaders.length;

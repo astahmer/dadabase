@@ -14,8 +14,11 @@ export const useStructureFilters = () => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const structureFilters = useSearch({
 		from: "/connections/$connectionName",
-		select: (s) => s.structureFilters ?? getDefaultStructureFilters(),
+		select: (s) => s.structureFilters,
 	});
+
+	// Provide default filters if undefined
+	const filters = structureFilters ?? getDefaultStructureFilters();
 
 	const updateStructureFilters = useCallback(
 		(updates: Partial<StructureFilters>) => {
@@ -23,7 +26,7 @@ export const useStructureFilters = () => {
 				search: (prev) => ({
 					...prev,
 					structureFilters: {
-						...structureFilters,
+						...(structureFilters ?? getDefaultStructureFilters()),
 						...updates,
 					},
 				}),
@@ -42,7 +45,7 @@ export const useStructureFilters = () => {
 	}, [navigate]);
 
 	return {
-		filters: structureFilters,
+		filters,
 		updateFilters: updateStructureFilters,
 		clearFilters: clearStructureFilters,
 	};
