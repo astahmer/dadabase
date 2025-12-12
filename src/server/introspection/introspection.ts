@@ -1680,17 +1680,27 @@ export const queryTableRows = <TData>(input: {
 
 					if (join.joinCondition.mode === "standard") {
 						joinCondition = `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
-					} else {
+					} else if (join.joinCondition.mode === "custom") {
 						// Custom join conditions
 						const conditions = join.joinCondition.conditions
-							.filter((cond) => cond && cond.trim().length > 0)
-							.map((cond) => cond.trim());
+							.filter((cond: string) => cond && cond.trim().length > 0)
+							.map((cond: string) => cond.trim());
 						joinCondition =
 							conditions.length > 0
 								? conditions.join(" AND ")
 								: `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+					} else {
+						// Filter-based join conditions
+						if (
+							!join.joinCondition.filters ||
+							join.joinCondition.filters.conditions.length === 0
+						) {
+							joinCondition = `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+						} else {
+							// TODO: Convert filter conditions to SQL
+							joinCondition = `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+						}
 					}
-
 					return `${joinType} ${join.schema}."${join.table}" ON ${joinCondition}`;
 				})
 				.join("\n");
@@ -1703,7 +1713,7 @@ export const queryTableRows = <TData>(input: {
 
 					if (join.joinCondition.mode === "standard") {
 						joinCondition = `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
-					} else {
+					} else if (join.joinCondition.mode === "custom") {
 						// Custom join conditions
 						const conditions = join.joinCondition.conditions
 							.filter((cond) => cond && cond.trim().length > 0)
@@ -1712,8 +1722,18 @@ export const queryTableRows = <TData>(input: {
 							conditions.length > 0
 								? conditions.join(" AND ")
 								: `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+					} else {
+						// Filter-based join conditions
+						if (
+							!join.joinCondition.filters ||
+							join.joinCondition.filters.conditions.length === 0
+						) {
+							joinCondition = `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+						} else {
+							// TODO: Convert filter conditions to SQL for SQLite
+							joinCondition = `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+						}
 					}
-
 					return `${joinType} ${join.table} ON ${joinCondition}`;
 				})
 				.join("\n");
@@ -1732,7 +1752,7 @@ export const queryTableRows = <TData>(input: {
 						${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
 						${sql.unsafe(whereFragment)}
 					`;
-					// console.log(countQuery.compile());
+					console.log(countQuery.compile());
 
 					const countResult = yield* countQuery;
 					const rowCount = Number(countResult[0]?.count ?? 0);

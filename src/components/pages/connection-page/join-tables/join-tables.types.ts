@@ -7,9 +7,9 @@ import type { QueryFilterType } from "#src/components/query-builder/query-filter
 export type JoinType = "left" | "inner";
 
 /**
- * Join condition modes: standard FK-based or custom SQL expressions
+ * Join condition modes: standard FK-based, custom SQL expressions, or filter-based
  */
-export type JoinConditionMode = "standard" | "custom";
+export type JoinConditionMode = "standard" | "custom" | "filters";
 
 /**
  * Standard join condition using foreign key relationships
@@ -36,6 +36,20 @@ export interface CustomJoinCondition {
 	conditions: string[];
 }
 
+/**
+ * Filter-based join condition using QueryFilterBuilder
+ * Conditions are applied as ON clause filters on the joined table
+ */
+export interface FilterJoinCondition {
+	mode: "filters";
+	/** Foreign key column in the referencing table (preserved for potential mode switch) */
+	referencingColumn?: string;
+	/** Column in the referenced table (preserved for potential mode switch) */
+	referencedColumn?: string;
+	/** Filter conditions to apply to the joined table in the ON clause */
+	filters?: QueryFilterType;
+}
+
 export interface JoinedTable {
 	/** Table name to join */
 	table: string;
@@ -45,8 +59,11 @@ export interface JoinedTable {
 	type: JoinType;
 	/** Columns to include from this table - "all" or specific column names */
 	columns: "all" | string[];
-	/** Join condition configuration (standard FK or custom SQL) */
-	joinCondition: StandardJoinCondition | CustomJoinCondition;
+	/** Join condition configuration (standard FK, custom SQL, or filter-based) */
+	joinCondition:
+		| StandardJoinCondition
+		| CustomJoinCondition
+		| FilterJoinCondition;
 	/** Optional filter conditions to apply to the joined table (WHERE clause) */
 	filters?: QueryFilterType;
 }

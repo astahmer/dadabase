@@ -43,9 +43,17 @@ const CustomJoinConditionSchema = Schema.Struct({
 	conditions: Schema.Array(Schema.String).pipe(Schema.mutable),
 });
 
+const FilterJoinConditionSchema = Schema.Struct({
+	mode: Schema.Literal("filters"),
+	referencingColumn: Schema.String.pipe(Schema.optional),
+	referencedColumn: Schema.String.pipe(Schema.optional),
+	filters: QueryFilter.pipe(Schema.optional),
+});
+
 const JoinConditionSchema = Schema.Union(
 	StandardJoinConditionSchema,
 	CustomJoinConditionSchema,
+	FilterJoinConditionSchema,
 );
 
 const JoinedTableSchema = Schema.Struct({

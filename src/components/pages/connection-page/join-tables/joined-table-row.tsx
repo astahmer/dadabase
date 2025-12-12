@@ -1,8 +1,10 @@
-import { QueryFilterBuilder } from "#src/components/query-builder/query-filter-builder.tsx";
+import { Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import type {
 	FilterConditionExpression,
 	QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
+import { QueryFilterBuilder } from "#src/components/query-builder/query-filter-builder.tsx";
 import {
 	Accordion,
 	AccordionItem,
@@ -17,8 +19,6 @@ import {
 } from "#src/components/ui/checkbox.tsx";
 import { Input } from "#src/components/ui/input.tsx";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
-import { Plus, Trash2, X } from "lucide-react";
-import { useState } from "react";
 import type { JoinConditionMode, JoinedTable } from "./join-tables.types";
 
 interface JoinedTableRowProps {
@@ -70,6 +70,22 @@ export const JoinedTableRow = ({
 		joined.joinCondition.mode === "custom"
 			? joined.joinCondition.conditions
 			: [],
+	);
+
+	const [joinFilterConditions, setJoinFilterConditions] = useState<
+		FilterConditionExpression[]
+	>(
+		joined.joinCondition.mode === "filters" && joined.joinCondition.filters
+			? joined.joinCondition.filters.conditions
+			: [],
+	);
+
+	const [joinFilterLogicalOperator, setJoinFilterLogicalOperator] = useState<
+		"and" | "or"
+	>(
+		joined.joinCondition.mode === "filters" && joined.joinCondition.filters
+			? joined.joinCondition.filters.logicalOperator
+			: "and",
 	);
 
 	// QueryFilterBuilder callbacks using index-based IDs
@@ -179,6 +195,10 @@ export const JoinedTableRow = ({
 				setCustomJoinConditions([""]);
 				onUpdateCustomJoinConditions([""]);
 			}
+		} else if (mode === "filters") {
+			// When switching to filters, clear custom SQL conditions
+			setCustomJoinConditions([]);
+			onUpdateCustomJoinConditions([]);
 		}
 	};
 
@@ -207,6 +227,78 @@ export const JoinedTableRow = ({
 		onUpdateCustomJoinConditions([]);
 	};
 
+	// Filter-based join condition handlers
+	const handleUpdateJoinFilterCondition = (
+		id: string,
+		updates: Partial<FilterConditionExpression>,
+	) => {
+		const index = parseInt(id, 10);
+		const updated = joinFilterConditions.map((cond, i) =>
+			i === index ? { ...cond, ...updates } : cond,
+		);
+		setJoinFilterConditions(updated);
+		if (updated.length === 0) {
+			// Clear the filter when all conditions are removed
+			onUpdateCustomJoinConditions([]);
+		} else {
+			// Update via custom join conditions callback (convert filters to SQL)
+			const filterObj: QueryFilterType = {
+				conditions: updated,
+				logicalOperator: joinFilterLogicalOperator,
+			};
+			// Store filter object - will be converted to SQL by parent
+			onUpdateCustomJoinConditions([JSON.stringify(filterObj)]);
+		}
+	};
+
+	const handleRemoveJoinFilterCondition = (id: string) => {
+		const index = parseInt(id, 10);
+		const updated = joinFilterConditions.filter((_, i) => i !== index);
+		setJoinFilterConditions(updated);
+		if (updated.length === 0) {
+			onUpdateCustomJoinConditions([]);
+		} else {
+			const filterObj: QueryFilterType = {
+				conditions: updated,
+				logicalOperator: joinFilterLogicalOperator,
+			};
+			onUpdateCustomJoinConditions([JSON.stringify(filterObj)]);
+		}
+	};
+
+	const handleAddJoinFilterCondition = () => {
+		const updated = [
+			...joinFilterConditions,
+			{
+				column: "",
+				operator: "equals" as const,
+				value: "",
+			},
+		];
+		setJoinFilterConditions(updated);
+		const filterObj: QueryFilterType = {
+			conditions: updated,
+			logicalOperator: joinFilterLogicalOperator,
+		};
+		onUpdateCustomJoinConditions([JSON.stringify(filterObj)]);
+	};
+
+	const handleClearJoinFilterConditions = () => {
+		setJoinFilterConditions([]);
+		onUpdateCustomJoinConditions([]);
+	};
+
+	const handleJoinFilterLogicalOperatorChange = (operator: "and" | "or") => {
+		setJoinFilterLogicalOperator(operator);
+		if (joinFilterConditions.length > 0) {
+			const filterObj: QueryFilterType = {
+				conditions: joinFilterConditions,
+				logicalOperator: operator,
+			};
+			onUpdateCustomJoinConditions([JSON.stringify(filterObj)]);
+		}
+	};
+
 	return (
 		<div className="border rounded-md bg-background">
 			<div className="p-3 space-y-2">
@@ -222,11 +314,17 @@ export const JoinedTableRow = ({
 									{joined.joinCondition.referencingColumn} = {parentSchema}.
 									{parentTable}.{joined.joinCondition.referencedColumn}
 								</>
-							) : (
+							) : joined.joinCondition.mode === "custom" ? (
 								<>
 									{joined.joinCondition.conditions.length > 0
 										? `ON ${joined.joinCondition.conditions.length} condition(s)`
 										: "ON (no conditions)"}
+								</>
+							) : (
+								<>
+									{joinFilterConditions.length > 0
+										? `ON ${joinFilterConditions.length} filter(s)`
+										: "ON (no filters)"}
 								</>
 							)}
 						</div>
@@ -286,6 +384,14 @@ export const JoinedTableRow = ({
 							className="h-7 px-2 text-xs"
 						>
 							Custom SQL
+						</Button>
+						<Button
+							variant={joinConditionMode === "filters" ? "default" : "outline"}
+							size="sm"
+							onClick={() => handleSwitchJoinConditionMode("filters")}
+							className="h-7 px-2 text-xs"
+						>
+							Filters
 						</Button>
 					</div>
 				</div>
@@ -348,6 +454,42 @@ export const JoinedTableRow = ({
 									)}
 								</div>
 							</div>
+						</AccordionItemContent>
+					</AccordionItem>
+				)}
+
+				{joinConditionMode === "filters" && (
+					<AccordionItem value="filter-join">
+						<AccordionItemTrigger className="px-3 py-2">
+							Join Filters ({joinFilterConditions.length})
+						</AccordionItemTrigger>
+						<AccordionItemContent className="px-3 py-2">
+							{joinFilterConditions.length === 0 ? (
+								<div className="py-4">
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={handleAddJoinFilterCondition}
+										className="w-full text-xs"
+									>
+										<Plus className="h-3 w-3 mr-1" />
+										Add Filter
+									</Button>
+								</div>
+							) : (
+								<QueryFilterBuilder
+									conditions={joinFilterConditions}
+									onUpdateCondition={handleUpdateJoinFilterCondition}
+									onRemoveCondition={handleRemoveJoinFilterCondition}
+									onAddCondition={handleAddJoinFilterCondition}
+									onClearAll={handleClearJoinFilterConditions}
+									onLogicalOperatorChange={
+										handleJoinFilterLogicalOperatorChange
+									}
+									logicalOperator={joinFilterLogicalOperator}
+									availableColumns={availableColumns.map((c) => c.name)}
+								/>
+							)}
 						</AccordionItemContent>
 					</AccordionItem>
 				)}
