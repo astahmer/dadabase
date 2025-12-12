@@ -46,13 +46,27 @@ export const JoinedTableRow = ({
 			updated.add(column);
 		}
 		setSelectedColumns(updated);
-	};
-
-	const handleApplyColumns = () => {
-		if (selectedColumns.size === availableColumns.length) {
+		// Apply immediately
+		if (updated.size === availableColumns.length) {
 			onUpdateColumns("all");
 		} else {
-			onUpdateColumns(Array.from(selectedColumns));
+			onUpdateColumns(Array.from(updated));
+		}
+	};
+
+	const handleSelectAll = (selectAll: boolean) => {
+		let updated: Set<string>;
+		if (selectAll) {
+			updated = new Set(availableColumns.map((c) => c.name));
+		} else {
+			updated = new Set();
+		}
+		setSelectedColumns(updated);
+		// Apply immediately
+		if (updated.size === availableColumns.length) {
+			onUpdateColumns("all");
+		} else {
+			onUpdateColumns(Array.from(updated));
 		}
 	};
 
@@ -124,12 +138,8 @@ export const JoinedTableRow = ({
 											? "indeterminate"
 											: false
 								}
-								onCheckedChange={() =>
-									setSelectedColumns(
-										selectedColumns.size === availableColumns.length
-											? new Set()
-											: new Set(availableColumns.map((c) => c.name)),
-									)
+								onCheckedChange={(details) =>
+									handleSelectAll(details.checked === true)
 								}
 								className="flex gap-2 w-full"
 							>
@@ -161,33 +171,6 @@ export const JoinedTableRow = ({
 									No columns available
 								</div>
 							)}
-
-							<div className="flex gap-2 pt-2 border-t">
-								<Button
-									size="sm"
-									variant="default"
-									onClick={handleApplyColumns}
-									className="flex-1 h-7 text-xs"
-								>
-									Apply
-								</Button>
-								<Button
-									size="sm"
-									variant="outline"
-									onClick={() =>
-										setSelectedColumns(
-											new Set(
-												joined.columns === "all"
-													? availableColumns.map((c) => c.name)
-													: joined.columns,
-											),
-										)
-									}
-									className="flex-1 h-7 text-xs"
-								>
-									Cancel
-								</Button>
-							</div>
 						</div>
 					</AccordionItemContent>
 				</AccordionItem>
