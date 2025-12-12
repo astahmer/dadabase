@@ -1,5 +1,3 @@
-import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
-import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
 import { useNavigate } from "@tanstack/react-router";
 import type { Table as TanstackTable } from "@tanstack/react-table";
 import {
@@ -11,6 +9,8 @@ import {
 	Rows,
 } from "lucide-react";
 import { useState } from "react";
+import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
+import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
 import { OrderBySelect } from "../../app/order-by-select.tsx";
 import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
 import { NaturalLanguageSearch } from "../../query-builder/natural-language-search.tsx";

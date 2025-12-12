@@ -1,7 +1,7 @@
 import {
 	Dialog as DialogPrimitive,
-	dialogAnatomy,
 	type DialogRootProps,
+	dialogAnatomy,
 } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
 import { XIcon } from "lucide-react";

@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
+import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import {
 	filterQueryValidConditions,
 	QueryFilter,
@@ -8,7 +9,6 @@ import {
 } from "#src/components/query-builder/query-filter.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
-import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 
 const StandardJoinConditionSchema = Schema.Struct({
 	mode: Schema.Literal("standard"),

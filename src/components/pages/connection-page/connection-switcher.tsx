@@ -19,6 +19,7 @@ import {
 	MenuItemText,
 	MenuTrigger,
 } from "#src/components/ui/menu.tsx";
+import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { queryClient } from "#src/query-client.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { Button } from "../../ui/button";
@@ -26,7 +27,6 @@ import { HStack } from "../../ui/layout.tsx";
 import * as ListboxMenu from "../../ui/listbox-menu";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import type { DbConnection } from "../connection.types";
-import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 
 interface ConnectionSwitcherProps {
 	connection: DbConnection;

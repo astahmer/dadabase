@@ -2,6 +2,7 @@ import { createListCollection, Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import type { Virtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
@@ -24,7 +25,6 @@ import {
 	useActiveTabState,
 } from "./create-tab-state.ts";
 import { TableContextMenu } from "./table-context-menu.tsx";
-import type { Virtualizer } from "@tanstack/react-virtual";
 
 interface ConnectionPageSidebarProps {
 	connection: DbConnection;

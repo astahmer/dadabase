@@ -1,5 +1,3 @@
-import { Plus } from "lucide-react";
-import { createListCollection } from "@ark-ui/react";
 import {
 	Select,
 	SelectContent,
@@ -7,9 +5,8 @@ import {
 	SelectTrigger,
 	SelectValueText,
 } from "#src/components/ui/select.tsx";
-import { Button } from "#src/components/ui/button.tsx";
-import { Stack } from "#src/components/ui/layout.tsx";
-import type { JoinableTableOption, JoinedTable } from "./join-tables.types";
+import { createListCollection } from "@ark-ui/react";
+import type { JoinableTableOption } from "./join-tables.types";
 
 interface JoinableTableSelectorProps {
 	availableTables: JoinableTableOption[];

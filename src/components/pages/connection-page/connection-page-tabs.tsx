@@ -15,15 +15,15 @@ import {
 import { encodeToBinary } from "#src/router.encode.ts";
 import type { FileRoutesByTo } from "#src/routeTree.gen.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
+import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { TableTabsBar } from "./table-tabs-bar.tsx";
 import {
 	addTabStateAfterCurrent,
 	createTabState,
 	scrollToTab,
 } from "./create-tab-state.ts";
-import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
+import { TableTabsBar } from "./table-tabs-bar.tsx";
 
 interface ConnectionPageTabsProps {
 	activeConnectionUrl: string;

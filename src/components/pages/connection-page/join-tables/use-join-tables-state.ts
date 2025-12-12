@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import type {
-	JoinTablesConfig,
-	JoinedTable,
 	JoinConditionMode,
+	JoinedTable,
+	JoinTablesConfig,
 } from "./join-tables.types";
 
 /**

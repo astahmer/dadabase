@@ -1,11 +1,11 @@
-import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
-import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
-import { cn, tryFn } from "#src/lib/utils.ts";
-import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { Splitter } from "@ark-ui/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
+import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
+import { cn, tryFn } from "#src/lib/utils.ts";
+import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
@@ -20,6 +20,8 @@ import {
 	SheetTitle,
 } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
+import { ConnectionForm } from "./connection.form.tsx";
+import type { DbConnection } from "./connection.types";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
@@ -34,8 +36,6 @@ import { RelationshipsPanel } from "./connection-page/relationships/relationship
 import { RowsTableErrorState } from "./connection-page/rows-table-error-state.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
-import { ConnectionForm } from "./connection.form.tsx";
-import type { DbConnection } from "./connection.types";
 
 interface ConnectionPageProps {
 	connectionName: string;

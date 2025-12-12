@@ -11,8 +11,8 @@ import { JsonCell } from "#src/components/ui/json-cell.tsx";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
-import type { JoinTablesConfig } from "./join-tables/join-tables.types.ts";
 import { useActiveTabState } from "./create-tab-state.ts";
+import type { JoinTablesConfig } from "./join-tables/join-tables.types.ts";
 
 interface ColumnMetadata {
 	name: string;

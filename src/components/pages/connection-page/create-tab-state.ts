@@ -1,9 +1,9 @@
 import { useSearch } from "@tanstack/react-router";
-import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import type {
 	JoinedTable,
 	JoinTablesConfig,
 } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { FileRouteTypes } from "#src/routeTree.gen.ts";
 
 type ConnectionPage =
