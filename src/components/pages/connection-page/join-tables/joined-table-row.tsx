@@ -432,7 +432,7 @@ export const JoinedTableRow = ({
 										}`}
 										onClick={() => handleLogicalOperatorChange("and")}
 									>
-										ALL
+										AND
 									</button>
 									<button
 										className={`text-xs px-2 py-1 rounded border ${
@@ -442,7 +442,7 @@ export const JoinedTableRow = ({
 										}`}
 										onClick={() => handleLogicalOperatorChange("or")}
 									>
-										ANY
+										OR
 									</button>
 								</div>
 							)}
