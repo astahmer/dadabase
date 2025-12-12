@@ -159,8 +159,6 @@ export const useRowsColumns = ({
 					meta: {
 						textAlign: getColumnTextAlignment(col.dataType),
 					},
-					size: 150,
-					minSize: 100,
 					cell: col.dataType.toLowerCase().includes("json")
 						? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
 						: (ctx) => {

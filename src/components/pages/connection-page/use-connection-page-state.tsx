@@ -499,8 +499,8 @@ export const useConnectionPageState = ({
 		onRowSelectionChange: setRowSelection,
 		rowCount: totalRowCount,
 		defaultColumn: {
-			size: defaultColumnSize,
 			minSize: 100,
+			size: defaultColumnSize,
 			maxSize: 1000,
 		},
 		onSortingChange: (updater) => {

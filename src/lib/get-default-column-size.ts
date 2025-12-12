@@ -5,15 +5,15 @@ export const getDefaultColumnSize = (props: {
 	hasUuid: boolean;
 }) => {
 	const { tableSize, hasUuid } = props;
-	let defaultColumnSize = 150;
+	let defaultColumnSize = 230;
 	if (tableSize === "excel") {
-		defaultColumnSize = 125;
+		defaultColumnSize = hasUuid ? 270 : 205;
 	} else if (tableSize === "minimal") {
-		defaultColumnSize = 135;
+		defaultColumnSize = hasUuid ? 280 : 215;
 	} else if (tableSize === "compact") {
-		defaultColumnSize = 150;
+		defaultColumnSize = hasUuid ? 305 : 230;
 	} else if (tableSize === "cozy") {
-		defaultColumnSize = hasUuid ? 180 : 150; // default
+		defaultColumnSize = hasUuid ? 330 : 220; // default
 	} else if (tableSize === "comfortable") {
 		defaultColumnSize = hasUuid ? 350 : 230;
 	}
