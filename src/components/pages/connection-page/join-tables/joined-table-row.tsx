@@ -1,22 +1,13 @@
-import { CheckCircle2, Trash2 } from "lucide-react";
-import { useState } from "react";
 import { Button } from "#src/components/ui/button.tsx";
 import {
 	Checkbox,
 	CheckboxControl,
 	CheckboxLabel,
 } from "#src/components/ui/checkbox.tsx";
-import { createListCollection } from "@ark-ui/react";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValueText,
-} from "#src/components/ui/select.tsx";
-import { Stack } from "#src/components/ui/layout.tsx";
-import type { JoinableTableOption, JoinedTable } from "./join-tables.types";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import type { JoinedTable } from "./join-tables.types";
 
 interface JoinedTableRowProps {
 	joined: JoinedTable;
@@ -63,7 +54,7 @@ export const JoinedTableRow = ({
 
 	const columnLabel =
 		joined.columns === "all"
-			? "All columns"
+			? `All ${availableColumns.length} columns`
 			: `${joined.columns.length} column${joined.columns.length === 1 ? "" : "s"}`;
 
 	return (

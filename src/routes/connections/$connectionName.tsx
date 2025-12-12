@@ -70,6 +70,7 @@ const TabStateSchema = Schema.Struct({
 	fkValue: Schema.String.pipe(Schema.optional), // FK value used when navigating to this tab
 	relationshipRowId: Schema.String.pipe(Schema.optional), // Row ID for expanded relationships panel
 	joins: Schema.Array(JoinedTableSchema).pipe(Schema.optional),
+	prefixWithTable: Schema.Boolean.pipe(Schema.optional),
 });
 
 const searchSchema = Schema.Struct({

@@ -637,9 +637,11 @@ const HeaderCell = memo(
 		const textAlign =
 			(meta?.textAlign as "left" | "right" | "center" | undefined) || "left";
 		const isDragDisabled =
-			meta?.enableColumnOrdering === false || Boolean(column.getIsPinned());
+			meta?.enableColumnOrdering === false ||
+			Boolean(column.getIsPinned()) ||
+			headerCell.subHeaders.length;
 
-		if (props.enableColumnOrdering && !isDragDisabled) {
+		if (!isDragDisabled) {
 			return (
 				<DraggableColumnHeader key={headerCell.id} column={column}>
 					{(dragCtx) => {
@@ -733,6 +735,7 @@ const HeaderCell = memo(
 						textAlign: hasBulkActions ? "right" : textAlign,
 					}),
 					"relative",
+					headerCell.subHeaders.length && "py-1.5 pl-10",
 					props.hideColumnPinIconUnlessHovered && "group",
 				)}
 			>

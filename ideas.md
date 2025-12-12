@@ -31,7 +31,6 @@
 - double clicking a cell value should copy it to the clipboard (?)
 - cmd+f in table (virtualized rows needs it) -> highlight/filter?
 - store limit (50 etc) in localstorage and use that as default instead of hardcoded 50
-- left/inner join one/more tables + add their columns prefixed with the table name: table1.col1, table1.col2, table2.col1, table2.col2, table3.col1, table3.col2
 
 ## ai
 

@@ -53,9 +53,7 @@ export const ConnectionPageStatusBar = (
 	const offset = useActiveTabState((s) => s.offset);
 	const limit = useActiveTabState((s) => s.limit);
 	const tableSize = useActiveTabState((s) => s.tableSize);
-	// const groupByTable = useActiveTabState((s) => s.groupByTable);
-	// TODO
-	const groupByTable = false;
+	const prefixWithTable = useActiveTabState((s) => s.prefixWithTable);
 	const joins = useActiveTabState((s) => s.joins);
 
 	return (
@@ -200,37 +198,41 @@ export const ConnectionPageStatusBar = (
 					{(joins?.length ?? 0) > 0 && (
 						<Tooltip
 							content={
-								groupByTable
-									? "Disable grouping by table"
-									: "Group columns by table"
+								prefixWithTable
+									? "Disable table prefix"
+									: "Prefix columns with table"
 							}
 						>
 							<Button
-								variant={groupByTable ? "default" : "ghost"}
+								variant={prefixWithTable ? "default" : "ghost"}
 								size="sm"
 								onClick={() => {
 									navigate({
 										search: (prev) =>
-											updateTabState(prev, {
-												// groupByTable: !groupByTable,
-											}),
+											updateTabState(prev, (tab) => ({
+												prefixWithTable: !tab.prefixWithTable,
+											})),
 									});
 								}}
 								className="h-6 px-2"
-								title="Group columns by table"
+								title="Prefix column names by table"
 							>
 								<Layers className="h-3.5 w-3.5" />
 							</Button>
 						</Tooltip>
 					)}
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => refetch()}
-						className="h-6 px-2"
+					<Tooltip
+						content={`Refresh rows (last ran at ${DateTime.formatIso(DateTime.unsafeMake(props.ranAt))})`}
 					>
-						<RefreshCw className="h-3 w-3" />
-					</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => refetch()}
+							className="h-6 px-2"
+						>
+							<RefreshCw className="h-3 w-3" />
+						</Button>
+					</Tooltip>
 				</div>
 			</div>
 		</div>

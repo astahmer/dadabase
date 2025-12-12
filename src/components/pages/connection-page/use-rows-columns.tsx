@@ -12,6 +12,7 @@ import { getColumnTextAlignment } from "#src/lib/data-type-utils.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 import type { JoinTablesConfig } from "./join-tables/join-tables.types.ts";
+import { useActiveTabState } from "./create-tab-state.ts";
 
 interface ColumnMetadata {
 	name: string;
@@ -78,6 +79,8 @@ export const useRowsColumns = ({
 			schema: schema || "",
 		}),
 	);
+
+	const prefixWithTable = useActiveTabState((tab) => tab.prefixWithTable);
 	const joinedTablesColumnsMetadata = useMemo(
 		() =>
 			(joins ?? []).map((join) => {
@@ -94,16 +97,23 @@ export const useRowsColumns = ({
 										...col,
 										table: join.table,
 										accessorKey: `${join.table}.${col.name}`,
+										name: prefixWithTable
+											? `${join.table}.${col.name}`
+											: col.name,
 									}))
 							: [],
 				);
 
+				const tableWithCol = (allTablesColumnsQuery.data ?? [])?.find(
+					(t) => t.table === join.table,
+				);
+
 				return {
-					header: join.table,
+					header: `${join.table} (${join.columns === "all" ? tableWithCol?.columns.length : join.columns.length} columns)`,
 					columns: columnList,
 				};
 			}),
-		[joins, allTablesColumnsQuery.data],
+		[joins, allTablesColumnsQuery.data, prefixWithTable],
 	);
 	const displayedColumns = useMemo(
 		() =>
@@ -115,6 +125,7 @@ export const useRowsColumns = ({
 								...col,
 								table: table,
 								accessorKey: `${table}.${col.name}`,
+								name: prefixWithTable ? `${table}.${col.name}` : col.name,
 							})),
 						},
 					].concat(joinedTablesColumnsMetadata)
@@ -128,7 +139,14 @@ export const useRowsColumns = ({
 							})),
 						},
 					],
-		[joins, columnMetadata, joinedTablesColumnsMetadata, schema, table],
+		[
+			joins,
+			columnMetadata,
+			joinedTablesColumnsMetadata,
+			schema,
+			table,
+			prefixWithTable,
+		],
 	);
 
 	return useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
