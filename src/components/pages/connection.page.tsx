@@ -60,6 +60,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	return <ConnectionPageInner connection={connection} />;
 };
 
+const panels = {
+	sidebar: "sidebar",
+	mainContent: "main-content",
+};
+
 const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
@@ -67,14 +72,15 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		null,
 	);
 
-	const search = useActiveTabState((s) => {
+	const search = useActiveTabState((tab, search) => {
 		return {
-			schema: s.schema,
-			table: s.table,
-			filtersOpened: s.filtersOpened,
-			viewMode: s.viewMode,
-			tableSize: s.tableSize,
-			limit: s.limit,
+			schema: tab.schema,
+			table: tab.table,
+			filtersOpened: tab.filtersOpened,
+			viewMode: tab.viewMode,
+			tableSize: tab.tableSize,
+			limit: tab.limit,
+			sidebarSize: search.sidebarSize,
 		};
 	});
 
@@ -98,7 +104,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 	const relationshipPanelSize = fromPixelToPercentage(50);
 	const windowWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
-	const minSize = fromPixelToPercentage(224, windowWidth);
+	const sidebarMinSize = fromPixelToPercentage(224, windowWidth);
 
 	return (
 		<div className="h-screen bg-background flex flex-col">
@@ -106,25 +112,53 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			<div className="flex-1 flex h-full min-h-0 flex-col">
 				<Splitter.Root
 					orientation="horizontal"
-					defaultSize={[minSize, 100 - minSize]}
+					defaultSize={[
+						search.sidebarSize ?? sidebarMinSize,
+						100 - sidebarMinSize,
+					]}
 					panels={[
 						{
-							id: "sidebar",
+							id: panels.sidebar,
 							collapsible: true,
-							minSize: minSize,
+							minSize: sidebarMinSize,
 							maxSize: fromPixelToPercentage(400, windowWidth),
 						},
 						{
-							id: "main-content",
+							id: panels.mainContent,
 							collapsible: false,
 						},
 					]}
+					onResizeEnd={(details) => {
+						void navigate({
+							from: "/connections/$connectionName",
+							to: ".",
+							search: (prev) => ({ ...prev, sidebarSize: details.size[0] }),
+						});
+					}}
+					onExpand={(details) => {
+						if (details.panelId === panels.sidebar) {
+							void navigate({
+								from: "/connections/$connectionName",
+								to: ".",
+								search: (prev) => ({ ...prev, sidebarSize: details.size }),
+							});
+						}
+					}}
+					onCollapse={(details) => {
+						if (details.panelId === panels.sidebar) {
+							void navigate({
+								from: "/connections/$connectionName",
+								to: ".",
+								search: (prev) => ({ ...prev, sidebarSize: details.size }),
+							});
+						}
+					}}
 					// className="h-full flex flex-col min-h-0 w-full"
 					className="flex-1 flex h-full min-h-0"
 				>
 					{/* Sidebar Panel */}
 					<Splitter.Panel
-						id="sidebar"
+						id={panels.sidebar}
 						className="bg-muted/30 border-r h-full flex flex-col overflow-hidden shrink-0"
 					>
 						{/* Sidebar */}
@@ -139,18 +173,18 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 					<Splitter.Context>
 						{(ctx) => (
 							<Splitter.ResizeTrigger
-								id="sidebar:main-content"
+								id={`${panels.sidebar}:${panels.mainContent}`}
 								className={cn(
-									tryFn(() => ctx.isPanelCollapsed("sidebar"))
+									tryFn(() => ctx.isPanelCollapsed(panels.sidebar))
 										? "w-3"
 										: "w-1.5",
 									"h-full bg-border hover:bg-primary/50 cursor-row-resize transition-colors",
 								)}
 								title="Drag to resize, double-click to toggle"
 								onDoubleClick={() => {
-									ctx.isPanelExpanded("sidebar")
-										? ctx.collapsePanel("sidebar")
-										: ctx.expandPanel("sidebar");
+									ctx.isPanelExpanded(panels.sidebar)
+										? ctx.collapsePanel(panels.sidebar)
+										: ctx.expandPanel(panels.sidebar);
 								}}
 							/>
 						)}
@@ -158,7 +192,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 					{/* Main Content Panel */}
 					<Splitter.Panel
-						id="main-content"
+						id={panels.mainContent}
 						className="h-full min-h-0 flex-1 flex flex-col overflow-hidden"
 					>
 						{/* Tabs */}
@@ -168,11 +202,27 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 									activeConnectionUrl={activeConnectionUrl}
 									dialect={connection.dialect}
 									onToggleSidebar={() => {
-										ctx.isPanelExpanded("sidebar")
-											? ctx.collapsePanel("sidebar")
-											: ctx.expandPanel("sidebar");
+										if (ctx.isPanelExpanded(panels.sidebar)) {
+											ctx.collapsePanel(panels.sidebar);
+											void navigate({
+												from: "/connections/$connectionName",
+												to: ".",
+												search: (prev) => ({ ...prev, sidebarSize: 0 }),
+											});
+											return;
+										}
+
+										ctx.expandPanel(panels.sidebar);
+										void navigate({
+											from: "/connections/$connectionName",
+											to: ".",
+											search: (prev) => ({
+												...prev,
+												sidebarSize: ctx.getPanelSize(panels.sidebar),
+											}),
+										});
 									}}
-									isSidebarCollapsed={ctx.isPanelCollapsed("sidebar")}
+									isSidebarCollapsed={ctx.isPanelCollapsed(panels.sidebar)}
 								/>
 							)}
 						</Splitter.Context>
