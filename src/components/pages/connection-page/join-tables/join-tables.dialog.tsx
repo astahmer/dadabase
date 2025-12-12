@@ -17,10 +17,9 @@ import {
 import { Spinner } from "#src/components/ui/spinner.tsx";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
-import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
 import { createListCollection, useFilter } from "@ark-ui/react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { TableName } from "../table-name.tsx";
 import type {
@@ -50,8 +49,7 @@ export const JoinTablesDialog = ({
 	onApply,
 	initialConfig,
 }: JoinTablesDialogProps) => {
-	const { joinConfig, addJoin, removeJoin, updateJoin, clearJoins } =
-		useJoinTablesState(initialConfig);
+	const joinState = useJoinTablesState(initialConfig);
 
 	const relationshipsQuery = useQuery(
 		getTableRelationshipsQueryOptions({
@@ -61,7 +59,10 @@ export const JoinTablesDialog = ({
 		}),
 	);
 
-	const columnQueries = useJoinedTables({ url: url, joins: joinConfig.joins });
+	const columnQueries = useJoinedTables({
+		url: url,
+		joins: joinState.config.joins,
+	});
 
 	// Build list of joinable tables from relationships
 	const joinableTables = useMemo<JoinableTableOption[]>(() => {
@@ -80,7 +81,7 @@ export const JoinTablesDialog = ({
 		}));
 	}, [relationshipsQuery.data]);
 
-	const selectedTableIds = joinConfig.joins.map(
+	const selectedTableIds = joinState.config.joins.map(
 		(j) => `${j.schema}.${j.table}`,
 	);
 
@@ -99,12 +100,12 @@ export const JoinTablesDialog = ({
 	});
 
 	const handleApply = () => {
-		onApply(joinConfig);
+		onApply(joinState.config);
 		onOpenChange(false);
 	};
 
 	const handleCancel = () => {
-		clearJoins();
+		joinState.clear();
 		onApply({ joins: [] });
 		onOpenChange(false);
 	};
@@ -180,7 +181,7 @@ export const JoinTablesDialog = ({
 												key={`${join.schema}.${join.table}`}
 												item={`${join.schema}:${join.table}:${join.referencingColumn}:${join.referencedColumn}:${join.direction}`}
 												onClick={() => {
-													addJoin({
+													joinState.add({
 														schema: join.schema,
 														table: join.table,
 														type: "left",
@@ -211,12 +212,12 @@ export const JoinTablesDialog = ({
 						</div>
 					)}{" "}
 					{/* Joined tables list */}
-					{joinConfig.joins.length > 0 && (
+					{joinState.config.joins.length > 0 && (
 						<Stack gap="3">
 							<div className="text-sm font-medium">
-								Selected Joins ({joinConfig.joins.length})
+								Selected Joins ({joinState.config.joins.length})
 							</div>
-							{joinConfig.joins.map((join, index) => {
+							{joinState.config.joins.map((join, index) => {
 								const columnsQuery = columnQueries[index];
 								const columns = columnsQuery.data || [];
 
@@ -226,19 +227,21 @@ export const JoinTablesDialog = ({
 										joined={join}
 										availableColumns={columns}
 										onUpdateType={(type) =>
-											updateJoin(join.table, join.schema, { type })
+											joinState.update(join.table, join.schema, { type })
 										}
 										onUpdateColumns={(cols) =>
-											updateJoin(join.table, join.schema, { columns: cols })
+											joinState.update(join.table, join.schema, {
+												columns: cols,
+											})
 										}
-										onRemove={() => removeJoin(join.table, join.schema)}
+										onRemove={() => joinState.remove(join.table, join.schema)}
 									/>
 								);
 							})}
 						</Stack>
 					)}
 					{/* Result preview */}
-					{joinConfig.joins.length > 0 && (
+					{joinState.config.joins.length > 0 && (
 						<div className="p-3 bg-muted rounded text-xs space-y-2">
 							<div className="font-medium text-muted-foreground">
 								Result columns:
@@ -257,7 +260,7 @@ export const JoinTablesDialog = ({
 									</span>
 								</div>
 								{/* Joined table columns */}
-								{joinConfig.joins.map((join) => (
+								{joinState.config.joins.map((join) => (
 									<div key={`${join.schema}.${join.table}`}>
 										<span className="text-muted-foreground">
 											•{" "}
@@ -281,7 +284,10 @@ export const JoinTablesDialog = ({
 						<Button variant="outline" onClick={handleCancel}>
 							Clear joins
 						</Button>
-						<Button onClick={handleApply} disabled={!joinConfig.joins.length}>
+						<Button
+							onClick={handleApply}
+							disabled={!joinState.config.joins.length}
+						>
 							Apply joins
 						</Button>
 					</div>

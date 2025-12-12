@@ -5,12 +5,12 @@ import type { JoinTablesConfig, JoinedTable } from "./join-tables.types";
  * Manages join tables configuration state
  */
 export const useJoinTablesState = (initialConfig?: JoinTablesConfig) => {
-	const [joinConfig, setJoinConfig] = useState<JoinTablesConfig>(
+	const [config, setConfig] = useState<JoinTablesConfig>(
 		initialConfig ?? { joins: [] },
 	);
 
-	const addJoin = useCallback((join: JoinedTable) => {
-		setJoinConfig((prev) => ({
+	const add = useCallback((join: JoinedTable) => {
+		setConfig((prev) => ({
 			...prev,
 			joins: [
 				...prev.joins.filter(
@@ -21,8 +21,8 @@ export const useJoinTablesState = (initialConfig?: JoinTablesConfig) => {
 		}));
 	}, []);
 
-	const removeJoin = useCallback((table: string, schema: string) => {
-		setJoinConfig((prev) => ({
+	const remove = useCallback((table: string, schema: string) => {
+		setConfig((prev) => ({
 			...prev,
 			joins: prev.joins.filter(
 				(j) => !(j.table === table && j.schema === schema),
@@ -30,9 +30,9 @@ export const useJoinTablesState = (initialConfig?: JoinTablesConfig) => {
 		}));
 	}, []);
 
-	const updateJoin = useCallback(
+	const update = useCallback(
 		(table: string, schema: string, updates: Partial<JoinedTable>) => {
-			setJoinConfig((prev) => ({
+			setConfig((prev) => ({
 				...prev,
 				joins: prev.joins.map((j) =>
 					j.table === table && j.schema === schema ? { ...j, ...updates } : j,
@@ -42,19 +42,19 @@ export const useJoinTablesState = (initialConfig?: JoinTablesConfig) => {
 		[],
 	);
 
-	const clearJoins = useCallback(() => {
-		setJoinConfig({ joins: [] });
+	const clear = useCallback(() => {
+		setConfig({ joins: [] });
 	}, []);
 
-	const hasJoins = joinConfig.joins.length > 0;
+	const hasJoins = config.joins.length > 0;
 
 	return {
-		joinConfig,
-		setJoinConfig,
-		addJoin,
-		removeJoin,
-		updateJoin,
-		clearJoins,
+		config: config,
+		setConfig: setConfig,
+		add: add,
+		remove: remove,
+		update: update,
+		clear: clear,
 		hasJoins,
 	};
 };
