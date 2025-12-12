@@ -20,6 +20,7 @@ const JoinSchema = Schema.Struct({
 	).pipe(Schema.mutable),
 	referencingColumn: Schema.String,
 	referencedColumn: Schema.String,
+	filters: QueryFilter.pipe(Schema.optional),
 });
 
 const InputSchema = Schema.Struct({

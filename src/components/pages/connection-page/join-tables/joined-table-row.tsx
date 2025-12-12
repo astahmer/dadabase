@@ -10,9 +10,26 @@ import {
 	CheckboxControl,
 	CheckboxLabel,
 } from "#src/components/ui/checkbox.tsx";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
-import { Trash2 } from "lucide-react";
+import type {
+	FilterConditionExpression,
+	FilterOperatorType,
+	QueryFilterType,
+} from "#src/components/query-builder/query-filter.ts";
+import { Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
+import { HStack } from "#src/components/ui/layout.tsx";
+import {
+	Combobox,
+	ComboboxContent,
+	ComboboxControl,
+	ComboboxInput,
+	ComboboxItem,
+	ComboboxList,
+	ComboboxTrigger,
+	createListCollection,
+} from "#src/components/ui/combobox.tsx";
+import { Input } from "#src/components/ui/input.tsx";
 import type { JoinedTable } from "./join-tables.types";
 
 interface JoinedTableRowProps {
@@ -20,6 +37,7 @@ interface JoinedTableRowProps {
 	availableColumns: TableColumnMetadata[];
 	onUpdateType: (type: "left" | "inner") => void;
 	onUpdateColumns: (columns: "all" | string[]) => void;
+	onUpdateFilters: (filters: QueryFilterType | undefined) => void;
 	onRemove: () => void;
 }
 
@@ -28,6 +46,7 @@ export const JoinedTableRow = ({
 	availableColumns,
 	onUpdateType,
 	onUpdateColumns,
+	onUpdateFilters,
 	onRemove,
 }: JoinedTableRowProps) => {
 	const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
@@ -36,6 +55,14 @@ export const JoinedTableRow = ({
 				? availableColumns.map((c) => c.name)
 				: joined.columns,
 		),
+	);
+
+	const [filterConditions, setFilterConditions] = useState<
+		FilterConditionExpression[]
+	>(joined.filters?.conditions || []);
+
+	const [logicalOperator, setLogicalOperator] = useState<"and" | "or">(
+		joined.filters?.logicalOperator || "and",
 	);
 
 	const handleToggleColumn = (column: string) => {
@@ -74,6 +101,67 @@ export const JoinedTableRow = ({
 		joined.columns === "all"
 			? `All ${availableColumns.length} columns`
 			: `${joined.columns.length} column${joined.columns.length === 1 ? "" : "s"}`;
+
+	const filterLabel =
+		filterConditions.length === 0
+			? "No filters"
+			: `${filterConditions.length} filter${filterConditions.length === 1 ? "" : "s"}`;
+
+	const handleAddCondition = () => {
+		const newCondition: FilterConditionExpression = {
+			column: "",
+			operator: "equals",
+		};
+		const updated = [...filterConditions, newCondition];
+		setFilterConditions(updated);
+		// Update parent with new filters
+		onUpdateFilters({
+			conditions: updated,
+			logicalOperator,
+		});
+	};
+
+	const handleUpdateCondition = (
+		index: number,
+		updates: Partial<FilterConditionExpression>,
+	) => {
+		const updated = filterConditions.map((cond, i) =>
+			i === index ? { ...cond, ...updates } : cond,
+		);
+		setFilterConditions(updated);
+		onUpdateFilters({
+			conditions: updated,
+			logicalOperator,
+		});
+	};
+
+	const handleRemoveCondition = (index: number) => {
+		const updated = filterConditions.filter((_, i) => i !== index);
+		setFilterConditions(updated);
+		if (updated.length === 0) {
+			onUpdateFilters(undefined);
+		} else {
+			onUpdateFilters({
+				conditions: updated,
+				logicalOperator,
+			});
+		}
+	};
+
+	const handleClearAllFilters = () => {
+		setFilterConditions([]);
+		onUpdateFilters(undefined);
+	};
+
+	const handleLogicalOperatorChange = (operator: "and" | "or") => {
+		setLogicalOperator(operator);
+		if (filterConditions.length > 0) {
+			onUpdateFilters({
+				conditions: filterConditions,
+				logicalOperator: operator,
+			});
+		}
+	};
 
 	return (
 		<div className="border rounded-md bg-background">
@@ -174,7 +262,180 @@ export const JoinedTableRow = ({
 						</div>
 					</AccordionItemContent>
 				</AccordionItem>
+
+				<AccordionItem value="filters">
+					<AccordionItemTrigger className="px-3 py-2">
+						Filters ({filterLabel})
+					</AccordionItemTrigger>
+					<AccordionItemContent className="px-3 py-2">
+						<div className="space-y-3">
+							{filterConditions.length > 0 && (
+								<div className="flex items-center gap-2">
+									<span className="text-xs font-medium text-muted-foreground">
+										Match
+									</span>
+									<button
+										className={`text-xs px-2 py-1 rounded border ${
+											logicalOperator === "and"
+												? "bg-primary text-primary-foreground border-primary"
+												: "border-input hover:bg-muted"
+										}`}
+										onClick={() => handleLogicalOperatorChange("and")}
+									>
+										ALL
+									</button>
+									<button
+										className={`text-xs px-2 py-1 rounded border ${
+											logicalOperator === "or"
+												? "bg-primary text-primary-foreground border-primary"
+												: "border-input hover:bg-muted"
+										}`}
+										onClick={() => handleLogicalOperatorChange("or")}
+									>
+										ANY
+									</button>
+								</div>
+							)}
+
+							<div className="space-y-2">
+								{filterConditions.map((condition, index) => (
+									<FilterConditionRowCompact
+										key={index}
+										condition={condition}
+										index={index}
+										availableColumns={availableColumns.map((c) => c.name)}
+										onUpdate={(updates) =>
+											handleUpdateCondition(index, updates)
+										}
+										onRemove={() => handleRemoveCondition(index)}
+									/>
+								))}
+							</div>
+
+							<div className="flex gap-2 pt-2">
+								<Button
+									size="sm"
+									variant="outline"
+									onClick={handleAddCondition}
+									className="h-7 flex-1 text-xs"
+								>
+									<Plus className="h-3 w-3 mr-1" />
+									Add Filter
+								</Button>
+								{filterConditions.length > 0 && (
+									<Button
+										size="sm"
+										variant="ghost"
+										onClick={handleClearAllFilters}
+										className="h-7 px-2 text-xs"
+									>
+										<X className="h-3 w-3" />
+									</Button>
+								)}
+							</div>
+						</div>
+					</AccordionItemContent>
+				</AccordionItem>
 			</Accordion>
 		</div>
+	);
+};
+
+/**
+ * Compact filter condition row for use in join tables
+ */
+const FilterConditionRowCompact = ({
+	condition,
+	index,
+	availableColumns,
+	onUpdate,
+	onRemove,
+}: {
+	condition: FilterConditionExpression;
+	index: number;
+	availableColumns: string[];
+	onUpdate: (updates: Partial<FilterConditionExpression>) => void;
+	onRemove: () => void;
+}) => {
+	const columnCollection = createListCollection({
+		items: availableColumns.map((col) => ({
+			label: col,
+			value: col,
+		})),
+	});
+
+	const conditionValue =
+		typeof condition.value === "boolean"
+			? String(condition.value)
+			: condition.value || "";
+
+	return (
+		<HStack gap="2" className="items-end">
+			<Combobox
+				collection={columnCollection}
+				value={condition.column ? [condition.column] : []}
+				onValueChange={(details) => onUpdate({ column: details.value[0] })}
+				className="flex-1"
+			>
+				<ComboboxControl>
+					<ComboboxInput placeholder="Column" className="h-7 text-xs" />
+					<ComboboxTrigger />
+				</ComboboxControl>
+				<ComboboxContent>
+					<ComboboxList>
+						{availableColumns.map((col) => (
+							<ComboboxItem key={col} item={col}>
+								{col}
+							</ComboboxItem>
+						))}
+					</ComboboxList>
+				</ComboboxContent>
+			</Combobox>
+
+			<select
+				value={condition.operator}
+				onChange={(e) =>
+					onUpdate({ operator: e.target.value as FilterOperatorType })
+				}
+				className="h-7 text-xs rounded border border-input bg-background px-2 py-1 shrink-0"
+				aria-label="operator"
+			>
+				<option value="equals">=</option>
+				<option value="not_equals">≠</option>
+				<option value="greater_than">&gt;</option>
+				<option value="greater_than_or_equal">≥</option>
+				<option value="less_than">&lt;</option>
+				<option value="less_than_or_equal">≤</option>
+				<option value="contains">contains</option>
+				<option value="not_contains">not contains</option>
+				<option value="starts_with">starts with</option>
+				<option value="in">in</option>
+				<option value="not_in">not in</option>
+				<option value="is_null">is null</option>
+				<option value="is_not_null">is not null</option>
+				<option value="between">between</option>
+			</select>
+
+			{condition.operator !== "is_null" &&
+				condition.operator !== "is_not_null" && (
+					<Input
+						type="text"
+						placeholder="Value"
+						value={conditionValue}
+						onChange={(e) => onUpdate({ value: e.target.value })}
+						className="h-7 text-xs flex-1"
+					/>
+				)}
+
+			<Button
+				size="sm"
+				variant="ghost"
+				onClick={onRemove}
+				className="h-7 w-7 p-0 shrink-0"
+				aria-label="Remove filter"
+			>
+				<X className="h-3 w-3" />
+			</Button>
+		</HStack>
 	);
 };

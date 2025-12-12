@@ -1398,6 +1398,407 @@ const testSuite =
 				expect(result.rowCount).toBe(7);
 			}).pipe(Effect.provide(sqlLayer));
 		});
+
+		// Join filter tests
+		it.effect(
+			"filters joined table with equals operator on boolean column",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const joins: JoinedTable[] = [
+						{
+							table: "posts",
+							schema: config.defaultSchema,
+							type: "inner",
+							columns: ["title", "published"],
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+							filters: {
+								conditions: [
+									{
+										column: "published",
+										operator: "equals",
+										value: true,
+									},
+								],
+								logicalOperator: "and",
+							},
+						},
+					];
+
+					const result = yield* queryTableRows<Record<string, unknown>>({
+						schema: config.defaultSchema,
+						table: "users",
+						joins,
+					});
+
+					// Only users who have published posts (Alice, Charlie, Diana)
+					// Alice: 2 published posts, Charlie: 1, Diana: 1 = 4 total rows
+					expect(result.rowCount).toBe(4);
+					expect(result.rows.every((r) => r["posts.published"])).toBe(true);
+				}).pipe(Effect.provide(sqlLayer));
+			},
+		);
+
+		it.effect("filters joined table with contains operator", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "inner",
+						columns: ["title"],
+						referencingColumn: "id",
+						referencedColumn: "user_id",
+						filters: {
+							conditions: [
+								{
+									column: "title",
+									operator: "contains",
+									value: "Post",
+								},
+							],
+							logicalOperator: "and",
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// All posts have "Post" in title (7 total)
+				expect(result.rowCount).toBe(7);
+				expect(
+					result.rows.every((r) => String(r["posts.title"]).includes("Post")),
+				).toBe(true);
+			}).pipe(Effect.provide(sqlLayer));
+		});
+
+		it.effect("filters joined table with multiple conditions using AND", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "inner",
+						columns: ["title", "published"],
+						referencingColumn: "id",
+						referencedColumn: "user_id",
+						filters: {
+							conditions: [
+								{
+									column: "published",
+									operator: "equals",
+									value: true,
+								},
+								{
+									column: "title",
+									operator: "contains",
+									value: "Post",
+								},
+							],
+							logicalOperator: "and",
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// Published posts with "Post" in title: Alice (2), Charlie (1), Diana (1) = 4
+				expect(result.rowCount).toBe(4);
+				expect(
+					result.rows.every(
+						(r) =>
+							r["posts.published"] && String(r["posts.title"]).includes("Post"),
+					),
+				).toBe(true);
+			}).pipe(Effect.provide(sqlLayer));
+		});
+
+		it.effect("filters joined table with multiple conditions using OR", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "inner",
+						columns: ["title", "published"],
+						referencingColumn: "id",
+						referencedColumn: "user_id",
+						filters: {
+							conditions: [
+								{
+									column: "title",
+									operator: "contains",
+									value: "First",
+								},
+								{
+									column: "title",
+									operator: "contains",
+									value: "Another",
+								},
+							],
+							logicalOperator: "or",
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// Posts with "First" OR "Another" in title: 2 posts
+				expect(result.rowCount).toBe(2);
+				const titles = result.rows.map((r) => String(r["posts.title"]));
+				expect(
+					titles.some((t) => t.includes("First") || t.includes("Another")),
+				).toBe(true);
+			}).pipe(Effect.provide(sqlLayer));
+		});
+
+		it.effect("combines main table filters with join filters using AND", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const mainFilters: QueryFilterType = {
+					conditions: [
+						{
+							column: "age",
+							operator: "greater_than",
+							value: 25,
+						},
+					],
+					logicalOperator: "and",
+				};
+
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "inner",
+						columns: ["title", "published"],
+						referencingColumn: "id",
+						referencedColumn: "user_id",
+						filters: {
+							conditions: [
+								{
+									column: "published",
+									operator: "equals",
+									value: true,
+								},
+							],
+							logicalOperator: "and",
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					filters: mainFilters,
+					joins,
+				});
+
+				// Users with age > 25 (Alice 30, Charlie 35, Diana 28, Eve 32)
+				// AND have published posts (Alice, Charlie, Diana)
+				// Alice: 2 published, Charlie: 1, Diana: 1 = 4 total
+				expect(result.rowCount).toBe(4);
+				// Check that all rows have published=true (join filter worked)
+				const publishedStatus = result.rows.map((r) => r["posts.published"]);
+				expect(publishedStatus.every((p) => p === true || p === 1)).toBe(true);
+				// Verify the join filter is applied correctly
+				expect(result.rows.length).toBeLessThanOrEqual(4);
+			}).pipe(Effect.provide(sqlLayer));
+		});
+
+		it.effect(
+			"join filter with LEFT JOIN acts like INNER JOIN when filtering",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					// Create a user with no posts
+					const sql = yield* SqlClient.SqlClient;
+					yield* sql.onDialectOrElse({
+						pg: () =>
+							sql`INSERT INTO users (name, email, age) VALUES ('Frank', 'frank@example.com', 40)`,
+						sqlite: () =>
+							sql`INSERT INTO users (name, email, age) VALUES ('Frank', 'frank@example.com', 40)`,
+						orElse: () =>
+							sql`INSERT INTO users (name, email, age) VALUES ('Frank', 'frank@example.com', 40)`,
+					});
+
+					const joins: JoinedTable[] = [
+						{
+							table: "posts",
+							schema: config.defaultSchema,
+							type: "left",
+							columns: ["title", "published"],
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+							filters: {
+								conditions: [
+									{
+										column: "published",
+										operator: "equals",
+										value: true,
+									},
+								],
+								logicalOperator: "and",
+							},
+						},
+					];
+
+					const result = yield* queryTableRows<Record<string, unknown>>({
+						schema: config.defaultSchema,
+						table: "users",
+						joins,
+					});
+
+					// Note: Filters on joined columns are applied in WHERE clause, which converts
+					// LEFT JOIN to INNER JOIN behavior. So Frank won't appear even with LEFT JOIN.
+					// Alice: 2 published, Charlie: 1, Diana: 1 = 4 rows
+					expect(result.rowCount).toBe(4);
+					const publishedStatus = result.rows.map((r) => r["posts.published"]);
+					expect(publishedStatus.every((p) => p === true || p === 1)).toBe(
+						true,
+					);
+				}).pipe(Effect.provide(sqlLayer));
+			},
+		);
+
+		it.effect(
+			"join filter with greater_than operator on numeric column",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const joins: JoinedTable[] = [
+						{
+							table: "posts",
+							schema: config.defaultSchema,
+							type: "inner",
+							columns: ["title", "id"],
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+							filters: {
+								conditions: [
+									{
+										column: "id",
+										operator: "greater_than",
+										value: 3,
+									},
+								],
+								logicalOperator: "and",
+							},
+						},
+					];
+
+					const result = yield* queryTableRows<Record<string, unknown>>({
+						schema: config.defaultSchema,
+						table: "users",
+						joins,
+					});
+
+					// Posts with id > 3: posts 4, 5, 6, 7 = 4 rows
+					expect(result.rowCount).toBe(4);
+					const postIds = result.rows.map((r) => r["posts.id"] as number);
+					expect(postIds.every((id) => id > 3)).toBe(true);
+				}).pipe(Effect.provide(sqlLayer));
+			},
+		);
+
+		it.effect("join filter with empty conditions (no filtering)", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "inner",
+						columns: ["title"],
+						referencingColumn: "id",
+						referencedColumn: "user_id",
+						filters: {
+							conditions: [],
+							logicalOperator: "and",
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// No filters applied, should get all 7 posts
+				expect(result.rowCount).toBe(7);
+			}).pipe(Effect.provide(sqlLayer));
+		});
+
+		it.effect("join filter with is_null operator", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "inner",
+						columns: ["content"],
+						referencingColumn: "id",
+						referencedColumn: "user_id",
+						filters: {
+							conditions: [
+								{
+									column: "content",
+									operator: "is_null",
+									value: null,
+								},
+							],
+							logicalOperator: "and",
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// Posts with NULL content: 1 post (Charlie's second post)
+				expect(result.rowCount).toBe(1);
+				expect(result.rows[0]["posts.content"]).toBeNull();
+			}).pipe(Effect.provide(sqlLayer));
+		});
 	};
 
 describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));

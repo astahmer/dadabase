@@ -2,6 +2,8 @@
  * Types for join tables feature
  */
 
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
+
 export type JoinType = "left" | "inner";
 
 export interface JoinedTable {
@@ -17,6 +19,8 @@ export interface JoinedTable {
 	referencingColumn: string;
 	/** Column in the referenced table that's being joined on */
 	referencedColumn: string;
+	/** Optional filter conditions to apply to the joined table */
+	filters?: QueryFilterType;
 }
 
 export interface JoinTablesConfig {

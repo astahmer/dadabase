@@ -234,6 +234,11 @@ export const JoinTablesDialog = ({
 												columns: cols,
 											})
 										}
+										onUpdateFilters={(filters) =>
+											joinState.update(join.table, join.schema, {
+												filters,
+											})
+										}
 										onRemove={() => joinState.remove(join.table, join.schema)}
 									/>
 								);

@@ -6,6 +6,7 @@ import type { QueryFilterType } from "#src/components/query-builder/query-filter
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
+import { buildPgJoinFilters, buildSqliteJoinFilters } from "./join-builder.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.
@@ -1652,10 +1653,18 @@ export const queryTableRows = <TData>(input: {
 		}
 
 		// Build WHERE clause if filters exist
-		const pgWhereClause =
+		const pgMainFilter =
 			filters && filters.conditions.length > 0
 				? buildPgWhereFragment(filters.conditions, filters.logicalOperator)
 				: "";
+
+		// Build WHERE clause for join filters
+		const pgJoinFilter = joins.length > 0 ? buildPgJoinFilters(joins) : "";
+
+		// Combine main table filters with join filters
+		const pgWhereClause = [pgMainFilter, pgJoinFilter]
+			.filter(Boolean)
+			.join(" AND ");
 
 		// Build ORDER BY clause
 		const orderClause = orderBy
@@ -1723,13 +1732,23 @@ export const queryTableRows = <TData>(input: {
 				}),
 			sqlite: () =>
 				Effect.gen(function* () {
-					const sqliteWhereClause =
+					const sqliteMainFilter =
 						filters && filters.conditions.length > 0
 							? buildSqliteWhereFragment(
 									filters.conditions,
 									filters.logicalOperator,
 								)
 							: "";
+
+					// Build WHERE clause for join filters
+					const sqliteJoinFilter =
+						joins.length > 0 ? buildSqliteJoinFilters(joins) : "";
+
+					// Combine main table filters with join filters
+					const sqliteWhereClause = [sqliteMainFilter, sqliteJoinFilter]
+						.filter(Boolean)
+						.join(" AND ");
+
 					const whereFragment = sqliteWhereClause
 						? `WHERE ${sqliteWhereClause}`
 						: "";

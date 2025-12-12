@@ -1,4 +1,178 @@
 import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
+
+/**
+ * Escape SQL identifiers (table/column names)
+ */
+const escapeIdentifier = (identifier: string): string => {
+	if (!identifier) return '""';
+	if (identifier.includes(".")) {
+		const parts = identifier.split(".");
+		return parts.map((p) => `"${p.replace(/"/g, '""')}"`).join(".");
+	}
+	return `"${identifier.replace(/"/g, '""')}"`;
+};
+
+/**
+ * Escape SQL string values
+ */
+const escapeValue = (value: any): string => {
+	if (value === null || value === undefined) return "";
+	if (typeof value === "boolean") return value ? "true" : "false";
+	return String(value).replace(/'/g, "''");
+};
+
+/**
+ * Build a WHERE clause fragment for joined table filters (PostgreSQL)
+ */
+export const buildPgJoinFilters = (joins: JoinedTable[]): string => {
+	const joinFilterClauses: string[] = [];
+
+	for (const join of joins) {
+		if (!join.filters || join.filters.conditions.length === 0) continue;
+
+		const validConditions = join.filters.conditions.filter((c) => {
+			if (c.operator === "is_null" || c.operator === "is_not_null") return true;
+			return c.value !== undefined && c.value !== null;
+		});
+
+		if (validConditions.length === 0) continue;
+
+		const expressions = validConditions.map((c) => {
+			// Prefix column with joined table name
+			const col = escapeIdentifier(`${join.table}.${c.column}`);
+			const isBoolValue = typeof c.value === "boolean";
+			const valueStr = isBoolValue
+				? String(c.value)
+				: `'${escapeValue(c.value)}'`;
+
+			switch (c.operator) {
+				case "equals":
+					return `${col} = ${valueStr}`;
+				case "not_equals":
+					return `${col} != ${valueStr}`;
+				case "contains":
+					return `${col} ILIKE '%${escapeValue(c.value)}%'`;
+				case "not_contains":
+					return `${col} NOT ILIKE '%${escapeValue(c.value)}%'`;
+				case "starts_with":
+					return `${col} ILIKE '${escapeValue(c.value)}%'`;
+				case "ends_with":
+					return `${col} ILIKE '%${escapeValue(c.value)}'`;
+				case "greater_than":
+					return `${col} > '${escapeValue(c.value)}'`;
+				case "greater_than_or_equal":
+					return `${col} >= '${escapeValue(c.value)}'`;
+				case "less_than":
+					return `${col} < '${escapeValue(c.value)}'`;
+				case "less_than_or_equal":
+					return `${col} <= '${escapeValue(c.value)}'`;
+				case "is_null":
+					return `${col} IS NULL`;
+				case "is_not_null":
+					return `${col} IS NOT NULL`;
+				case "in": {
+					const values = Array.isArray(c.value) ? c.value : [c.value];
+					return `${col} = ANY(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
+				}
+				case "not_in": {
+					const values = Array.isArray(c.value) ? c.value : [c.value];
+					return `${col} != ALL(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
+				}
+				default:
+					return;
+			}
+		});
+
+		const joiner = join.filters.logicalOperator === "and" ? " AND " : " OR ";
+		const filterClause = expressions.filter(Boolean).join(joiner);
+		if (filterClause) {
+			joinFilterClauses.push(`(${filterClause})`);
+		}
+	}
+
+	return joinFilterClauses.length > 0 ? joinFilterClauses.join(" AND ") : "";
+};
+
+/**
+ * Build a WHERE clause fragment for joined table filters (SQLite)
+ */
+export const buildSqliteJoinFilters = (joins: JoinedTable[]): string => {
+	const joinFilterClauses: string[] = [];
+
+	for (const join of joins) {
+		if (!join.filters || join.filters.conditions.length === 0) continue;
+
+		const validConditions = join.filters.conditions.filter((c) => {
+			if (c.operator === "is_null" || c.operator === "is_not_null") return true;
+			return c.value !== undefined && c.value !== null;
+		});
+
+		if (validConditions.length === 0) continue;
+
+		const expressions = validConditions.map((c) => {
+			// Prefix column with joined table name
+			const col = escapeIdentifier(`${join.table}.${c.column}`);
+			const sqliteValue =
+				typeof c.value === "boolean" ? (c.value ? 1 : 0) : c.value;
+			const formatValue = (val: any): string => {
+				if (typeof val === "number") return String(val);
+				return `'${escapeValue(val)}'`;
+			};
+
+			switch (c.operator) {
+				case "equals":
+					return `${col} = ${formatValue(sqliteValue)}`;
+				case "not_equals":
+					return `${col} != ${formatValue(sqliteValue)}`;
+				case "contains":
+					return `${col} LIKE '%${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
+				case "not_contains":
+					return `${col} NOT LIKE '%${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
+				case "starts_with":
+					return `${col} LIKE '${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
+				case "ends_with":
+					return `${col} LIKE '%${escapeValue(sqliteValue)}' COLLATE NOCASE`;
+				case "greater_than":
+					return `${col} > ${formatValue(sqliteValue)}`;
+				case "greater_than_or_equal":
+					return `${col} >= ${formatValue(sqliteValue)}`;
+				case "less_than":
+					return `${col} < ${formatValue(sqliteValue)}`;
+				case "less_than_or_equal":
+					return `${col} <= ${formatValue(sqliteValue)}`;
+				case "is_null":
+					return `${col} IS NULL`;
+				case "is_not_null":
+					return `${col} IS NOT NULL`;
+				case "in": {
+					const values = Array.isArray(c.value) ? c.value : [c.value];
+					const sqliteValues = values.map((v) =>
+						typeof v === "boolean" ? (v ? 1 : 0) : v,
+					);
+					return `${col} IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
+				}
+				case "not_in": {
+					const values = Array.isArray(c.value) ? c.value : [c.value];
+					const sqliteValues = values.map((v) =>
+						typeof v === "boolean" ? (v ? 1 : 0) : v,
+					);
+					return `${col} NOT IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
+				}
+				default:
+					return;
+			}
+		});
+
+		const joiner = join.filters.logicalOperator === "and" ? " AND " : " OR ";
+		const filterClause = expressions.filter(Boolean).join(joiner);
+		if (filterClause) {
+			joinFilterClauses.push(`(${filterClause})`);
+		}
+	}
+
+	return joinFilterClauses.length > 0 ? joinFilterClauses.join(" AND ") : "";
+};
 
 /**
  * Build JOIN clauses from join configuration

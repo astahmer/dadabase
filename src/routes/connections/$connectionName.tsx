@@ -40,6 +40,7 @@ const JoinedTableSchema = Schema.Struct({
 	),
 	referencingColumn: Schema.String,
 	referencedColumn: Schema.String,
+	filters: QueryFilter.pipe(Schema.optional),
 });
 type JoinedTableType = typeof JoinedTableSchema.Type;
 const _lint = {} as JoinedTableType satisfies JoinedTable;
