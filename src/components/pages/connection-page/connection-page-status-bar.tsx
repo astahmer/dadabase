@@ -194,7 +194,6 @@ export const ConnectionPageStatusBar = (
 							</ArkSelect.SelectContent>
 						</ArkSelect.Select>
 					</div>
-					{/* TODO */}
 					{(joins?.length ?? 0) > 0 && (
 						<Tooltip
 							content={

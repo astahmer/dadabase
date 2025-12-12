@@ -94,7 +94,7 @@ export const useConnectionPageState = ({
 		},
 	);
 
-	// Fetch rows data
+	const joins = Array.from(search.joins ?? []);
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
 			url: activeConnectionUrl,
@@ -108,7 +108,7 @@ export const useConnectionPageState = ({
 				conditions: [],
 				logicalOperator: "and",
 			},
-			joins: Array.from(search.joins ?? []),
+			joins: joins,
 		}),
 		enabled: !!search.schema && !!search.table,
 	});
@@ -326,7 +326,7 @@ export const useConnectionPageState = ({
 		columnMetadata: tableMetadata.columnMetadata,
 		schema: search.schema || "",
 		table: search.table || "",
-		joins: Array.from(search.joins ?? []),
+		joins: joins,
 		activeConnectionUrl,
 		enableSorting: true,
 		onFollowFK: rowActions.onFollowFK,
@@ -586,6 +586,7 @@ export const useConnectionPageState = ({
 		totalRowCount,
 		rowsDataTable,
 		rowsColumns,
+		joins,
 		hasUuid,
 		relationshipRowId: search.relationshipRowId,
 		relationships,

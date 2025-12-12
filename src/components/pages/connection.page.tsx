@@ -87,20 +87,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const { filters: structureFilters } = useStructureFilters();
 
 	const pageState = useConnectionPageState({ connection });
-	const {
-		activeConnectionUrl,
-		queryBuilder,
-		rowsQuery,
-		columnMetadata,
-		columnList,
-		isColumnMetadataLoading,
-		queryResponse,
-		totalRowCount,
-		rowsDataTable,
-		rowsColumns,
-		hasUuid,
-		relationshipRowId,
-	} = pageState;
 
 	const relationshipPanelSize = fromPixelToPercentage(50);
 	const windowWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
@@ -164,7 +150,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 						{/* Sidebar */}
 						<ConnectionPageSidebar
 							connection={connection}
-							activeConnectionUrl={activeConnectionUrl}
+							activeConnectionUrl={pageState.activeConnectionUrl}
 							onAddConnection={() => setShowAddConnectionDrawer(true)}
 						/>
 					</Splitter.Panel>
@@ -199,7 +185,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 						<Splitter.Context>
 							{(ctx) => (
 								<ConnectionPageTabs
-									activeConnectionUrl={activeConnectionUrl}
+									activeConnectionUrl={pageState.activeConnectionUrl}
 									dialect={connection.dialect}
 									onToggleSidebar={() => {
 										if (ctx.isPanelExpanded(panels.sidebar)) {
@@ -231,30 +217,39 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 							<>
 								{/* Filters */}
 								<ConnectionPageFilters
-									columnList={columnList}
-									table={rowsDataTable}
-									isLoading={rowsQuery.isLoading || isColumnMetadataLoading}
-									queryBuilder={queryBuilder}
-									url={activeConnectionUrl}
+									columnList={pageState.columnList}
+									table={pageState.rowsDataTable}
+									isLoading={
+										pageState.rowsQuery.isLoading ||
+										pageState.isColumnMetadataLoading
+									}
+									queryBuilder={pageState.queryBuilder}
+									url={pageState.activeConnectionUrl}
 									schema={search.schema}
 									tableName={search.table}
 								/>
 
 								{/* Query Filter Builder */}
 								{search.viewMode === "rows" &&
-									rowsColumns.length > 0 &&
+									pageState.rowsColumns.length > 0 &&
 									search.filtersOpened && (
 										<QueryFilterBuilder
 											key={search.table}
-											conditions={queryBuilder.filter.conditions}
-											onUpdateCondition={queryBuilder.updateCondition}
-											onRemoveCondition={queryBuilder.removeCondition}
-											onLogicalOperatorChange={queryBuilder.setLogicalOperator}
-											onAddCondition={queryBuilder.addCondition}
-											onClearAll={queryBuilder.clearConditions}
-											logicalOperator={queryBuilder.filter.logicalOperator}
-											availableColumns={columnMetadata.map((col) => col.name)}
-											isLoading={rowsQuery.isLoading}
+											conditions={pageState.queryBuilder.filter.conditions}
+											onUpdateCondition={pageState.queryBuilder.updateCondition}
+											onRemoveCondition={pageState.queryBuilder.removeCondition}
+											onLogicalOperatorChange={
+												pageState.queryBuilder.setLogicalOperator
+											}
+											onAddCondition={pageState.queryBuilder.addCondition}
+											onClearAll={pageState.queryBuilder.clearConditions}
+											logicalOperator={
+												pageState.queryBuilder.filter.logicalOperator
+											}
+											availableColumns={pageState.columnMetadata.map(
+												(col) => col.name,
+											)}
+											isLoading={pageState.rowsQuery.isLoading}
 										/>
 									)}
 
@@ -263,36 +258,38 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 									{search.viewMode === "structure" ? (
 										<div className="flex-1 overflow-auto p-2 pt-0">
 											<StructureTable
-												columnMetadata={columnMetadata}
-												isLoading={isColumnMetadataLoading}
+												columnMetadata={pageState.columnMetadata}
+												isLoading={pageState.isColumnMetadataLoading}
 												tableSize={search.tableSize}
 												filters={structureFilters}
 											/>
 										</div>
 									) : (
 										<div className="flex-1 flex flex-col h-full min-h-0 px-2">
-											{rowsQuery.isLoading ? (
+											{pageState.rowsQuery.isLoading ? (
 												<Stack className="flex-1 flex items-center justify-center">
 													<Spinner />
 													<span className="text-muted-foreground">
-														{rowsQuery.failureCount > 0 ? (
+														{pageState.rowsQuery.failureCount > 0 ? (
 															<>
-																Failed {rowsQuery.failureCount} time
-																{rowsQuery.failureCount > 1 ? "s" : ""},
-																retrying...
+																Failed {pageState.rowsQuery.failureCount} time
+																{pageState.rowsQuery.failureCount > 1
+																	? "s"
+																	: ""}
+																, retrying...
 															</>
 														) : (
 															"Loading table data..."
 														)}
 													</span>
 												</Stack>
-											) : rowsQuery.isError ? (
+											) : pageState.rowsQuery.isError ? (
 												<div className="flex-1 flex items-center justify-center p-4">
 													<Stack className="max-w-2xl w-full">
 														<ErrorBoundaryCard
-															error={rowsQuery.error}
+															error={pageState.rowsQuery.error}
 															title="Error loading table data"
-															onRetry={() => rowsQuery.refetch()}
+															onRetry={() => pageState.rowsQuery.refetch()}
 														/>
 													</Stack>
 												</div>
@@ -323,10 +320,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																// virtualized={search.limit > 100}
 																virtualized
 																enableColumnOrdering
-																table={rowsDataTable}
+																table={pageState.rowsDataTable}
 																getTableContainer={setTableContainer}
 																isLoading={
-																	rowsQuery.isLoading || isColumnMetadataLoading
+																	pageState.rowsQuery.isLoading ||
+																	pageState.isColumnMetadataLoading
 																}
 																size={search.tableSize}
 																onColumnFilterClick={(columnId) => {
@@ -350,9 +348,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																	});
 																}}
 																onExpandRowJson={(row) => {
-																	const primaryKeyColumn = columnMetadata.find(
-																		(col) => col.primaryKey,
-																	);
+																	const primaryKeyColumn =
+																		pageState.columnMetadata.find(
+																			(col) => col.primaryKey,
+																		);
 																	const rowId = primaryKeyColumn
 																		? String(row[primaryKeyColumn.name])
 																		: undefined;
@@ -365,10 +364,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																	});
 																}}
 															/>
-															{!rowsQuery.isLoading &&
-																!isColumnMetadataLoading && (
+															{!pageState.rowsQuery.isLoading &&
+																!pageState.isColumnMetadataLoading && (
 																	<ScrollToColumnButton
-																		columnList={columnMetadata.map(
+																		columnList={pageState.columnMetadata.map(
 																			(col) => col.name,
 																		)}
 																		containerRef={{ current: tableContainer }}
@@ -376,7 +375,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																)}
 														</Splitter.Panel>
 
-														{relationshipRowId && search.table && (
+														{pageState.relationshipRowId && search.table && (
 															<>
 																<Splitter.Context>
 																	{(ctx) => (
@@ -414,22 +413,25 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																			return (
 																				<RelationshipsPanel
 																					key={
-																						activeConnectionUrl +
+																						pageState.activeConnectionUrl +
 																						search.table +
-																						relationshipRowId
+																						pageState.relationshipRowId
 																					}
-																					connectionUrl={activeConnectionUrl}
+																					connectionUrl={
+																						pageState.activeConnectionUrl
+																					}
 																					schema={search.schema}
 																					table={search.table!}
 																					selectedRowId={
-																						relationshipRowId ?? null
+																						pageState.relationshipRowId ?? null
 																					}
 																					rowData={
-																						rowsDataTable
+																						pageState.rowsDataTable
 																							.getRowModel()
 																							.rows.find(
 																								(row) =>
-																									row.id === relationshipRowId,
+																									row.id ===
+																									pageState.relationshipRowId,
 																							)?.original ?? {}
 																					}
 																					isPanelExpanded={isPanelExpanded}
@@ -460,15 +462,14 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											{/* Status Bar */}
 											<div className="shrink-0 border-t">
 												<ConnectionPageStatusBar
-													table={rowsDataTable}
-													hasUuid={hasUuid}
-													isLoading={rowsQuery.isLoading}
-													refetch={rowsQuery.refetch}
-													timeTaken={queryResponse.timeTaken}
-													ranAt={queryResponse.ranAt}
-													totalRowCount={totalRowCount}
-													// TODO if joins show subheaders
-													rowsColumnsCount={rowsColumns.length}
+													table={pageState.rowsDataTable}
+													hasUuid={pageState.hasUuid}
+													isLoading={pageState.rowsQuery.isLoading}
+													refetch={pageState.rowsQuery.refetch}
+													timeTaken={pageState.queryResponse.timeTaken}
+													ranAt={pageState.queryResponse.ranAt}
+													totalRowCount={pageState.totalRowCount}
+													rowsColumnsCount={pageState.rowsColumns.length - 1} // minus select column
 												/>
 											</div>
 										</div>
@@ -477,7 +478,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 							</>
 						) : (
 							<RowsTableErrorState
-								activeConnectionUrl={activeConnectionUrl}
+								activeConnectionUrl={pageState.activeConnectionUrl}
 								connection={connection}
 							/>
 						)}
@@ -485,7 +486,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 				</Splitter.Root>
 
 				{/* Query Logger Panel */}
-				<QueryLoggerPanel connectionUrl={activeConnectionUrl} />
+				<QueryLoggerPanel connectionUrl={pageState.activeConnectionUrl} />
 			</div>
 
 			{/* Add Connection Drawer */}
