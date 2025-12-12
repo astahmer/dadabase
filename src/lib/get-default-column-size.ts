@@ -13,9 +13,9 @@ export const getDefaultColumnSize = (props: {
 	} else if (tableSize === "compact") {
 		defaultColumnSize = hasUuid ? 305 : 230;
 	} else if (tableSize === "cozy") {
-		defaultColumnSize = hasUuid ? 330 : 220; // default
+		defaultColumnSize = hasUuid ? 330 : 230; // default
 	} else if (tableSize === "comfortable") {
-		defaultColumnSize = hasUuid ? 350 : 230;
+		defaultColumnSize = hasUuid ? 350 : 250;
 	}
 	return defaultColumnSize;
 };
