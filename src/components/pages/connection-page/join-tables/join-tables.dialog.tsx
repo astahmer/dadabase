@@ -132,6 +132,7 @@ export const JoinTablesDialog = ({
 		<Dialog
 			open={isOpen}
 			onOpenChange={(details) => onOpenChange(details.open)}
+			lazyMount
 		>
 			<DialogContent
 				className="min-h-[420px] max-h-80vh flex flex-col"

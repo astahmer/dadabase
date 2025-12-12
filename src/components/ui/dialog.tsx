@@ -1,4 +1,8 @@
-import { Dialog as DialogPrimitive, dialogAnatomy } from "@ark-ui/react/dialog";
+import {
+	Dialog as DialogPrimitive,
+	dialogAnatomy,
+	type DialogRootProps,
+} from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
 import { XIcon } from "lucide-react";
 import * as React from "react";
@@ -8,7 +12,9 @@ import { dialogBackdropVariants, dialogContentVariants } from "./dialog.styles";
 
 const parts = dialogAnatomy.extendWith("header").build();
 
-const Dialog = DialogPrimitive.Root;
+const Dialog = (props: DialogRootProps) => (
+	<DialogPrimitive.Root lazyMount {...props} />
+);
 
 const DialogBackdrop = ({
 	className,

@@ -2,7 +2,7 @@ import { createListCollection, Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { listAvailableDatabase } from "#src/server/introspection/start-fns/get-available-database-list.start.ts";
@@ -24,6 +24,7 @@ import {
 	useActiveTabState,
 } from "./create-tab-state.ts";
 import { TableContextMenu } from "./table-context-menu.tsx";
+import type { Virtualizer } from "@tanstack/react-virtual";
 
 interface ConnectionPageSidebarProps {
 	connection: DbConnection;
@@ -91,6 +92,10 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 					(isNotSqlite ? selectedSchema === table.schema : true),
 			),
 		[tableList, tableFilter, selectedSchema, contains],
+	);
+	const filteredTablesNames = useMemo(
+		() => filteredTables.map((t) => t.name),
+		[filteredTables],
 	);
 
 	const tableCollection = useMemo(
@@ -360,23 +365,25 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 											count={filteredTables.length}
 											className="overflow-y-auto flex-1 mr-4 h-full max-h-full"
 										>
-											{({
-												virtualItems,
-												totalSize,
-												paddingTop,
-												paddingBottom,
-											}) => (
+											{(virtualCtx) => (
 												<div
-													style={{ height: `${totalSize}px` }}
+													style={{ height: `${virtualCtx.totalSize}px` }}
 													className="relative"
 												>
-													{paddingTop > 0 && (
-														<div style={{ height: `${paddingTop}px` }} />
+													<ScrollToSidebarTable
+														selectedTable={selectedTable}
+														tableList={filteredTablesNames}
+														virtualizer={virtualCtx.virtualizer}
+													/>
+													{virtualCtx.paddingTop > 0 && (
+														<div
+															style={{ height: `${virtualCtx.paddingTop}px` }}
+														/>
 													)}
 
 													<Listbox.Content className="block">
 														<Listbox.ItemGroup>
-															{virtualItems.map((virtualItem) => {
+															{virtualCtx.virtualItems.map((virtualItem) => {
 																const table = filteredTables[virtualItem.index];
 																if (!table) return null;
 
@@ -425,8 +432,12 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 														</Listbox.ItemGroup>
 													</Listbox.Content>
 
-													{paddingBottom > 0 && (
-														<div style={{ height: `${paddingBottom}px` }} />
+													{virtualCtx.paddingBottom > 0 && (
+														<div
+															style={{
+																height: `${virtualCtx.paddingBottom}px`,
+															}}
+														/>
 													)}
 												</div>
 											)}
@@ -440,4 +451,23 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 			</div>
 		</>
 	);
+};
+
+const ScrollToSidebarTable = (props: {
+	selectedTable: string;
+	tableList: string[];
+	virtualizer: Virtualizer<HTMLDivElement, HTMLDivElement>;
+}) => {
+	useEffect(() => {
+		if (!props.selectedTable) return;
+		const tableIndex = props.tableList.indexOf(props.selectedTable);
+		if (tableIndex !== -1) {
+			props.virtualizer.scrollToIndex(tableIndex, {
+				align: "center",
+				behavior: "smooth",
+			});
+		}
+	}, [props.virtualizer, props.selectedTable, props.tableList]);
+
+	return null;
 };
