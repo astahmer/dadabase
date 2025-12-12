@@ -1224,7 +1224,7 @@ const testSuite =
 					schema: config.defaultSchema,
 					table: "users",
 					joins,
-					orderBy: "name",
+					orderBy: "users.name",
 					orderDirection: "asc",
 				});
 
@@ -1314,7 +1314,7 @@ const testSuite =
 						table: "users",
 						joins,
 						filters,
-						orderBy: "id",
+						orderBy: "users.id",
 						orderDirection: "desc",
 						limit: 2,
 						offset: 0,

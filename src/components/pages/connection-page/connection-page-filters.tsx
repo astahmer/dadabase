@@ -273,7 +273,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 				)}
 				{viewMode === "rows" && (
 					<OrderBySelect
-						columnList={columnList}
+						columnList={allColumnList}
 						orderBy={orderBy}
 						orderDirection={orderDirection}
 						onOrderChange={(orderBy, direction) => {

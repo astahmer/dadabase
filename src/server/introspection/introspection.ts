@@ -1659,7 +1659,7 @@ export const queryTableRows = <TData>(input: {
 
 		// Build ORDER BY clause
 		const orderClause = orderBy
-			? `ORDER BY "${table}".${sql(orderBy).value} ${orderDirection.toUpperCase()}`
+			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
 			: "";
 
 		// Build JOIN clauses if joins exist (will use different versions per dialect)
@@ -1712,7 +1712,7 @@ export const queryTableRows = <TData>(input: {
 						${sql.unsafe(orderClause)}
 						LIMIT ${limit} OFFSET ${offset}
 					`;
-					// console.log(query.compile());
+					console.log(query.compile());
 					const rows = yield* query;
 
 					return {
