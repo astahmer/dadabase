@@ -48,12 +48,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 		<html lang="en">
 			<head>
 				<HeadContent />
-				{import.meta.env.DEV && (
+				{/* {import.meta.env.DEV && (
 					<script
 						crossOrigin="anonymous"
 						src="//unpkg.com/react-scan/dist/auto.global.js"
 					></script>
-				)}
+				)} */}
 			</head>
 			<body className="bg-background text-foreground">
 				<div className="flex flex-col min-h-screen h-full">{children}</div>
