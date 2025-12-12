@@ -81,6 +81,17 @@ export const useJoinTablesState = (initialConfig?: JoinTablesConfig) => {
 									conditions: [],
 								},
 							};
+						} else if (mode === "filters") {
+							// Switch to filters - preserve FK info for fallback
+							return {
+								...j,
+								joinCondition: {
+									mode: "filters",
+									referencingColumn: j.joinCondition.referencingColumn,
+									referencedColumn: j.joinCondition.referencedColumn,
+									filters: undefined,
+								},
+							};
 						}
 					}
 					return j;

@@ -137,7 +137,7 @@ export const JoinTablesDialog = ({
 		>
 			<DialogContent
 				className="min-h-[420px] max-h-80vh flex flex-col"
-				size="2xl"
+				size="4xl"
 			>
 				<DialogHeader>
 					<DialogTitle>Join Tables</DialogTitle>
@@ -258,6 +258,9 @@ export const JoinTablesDialog = ({
 												join.schema,
 												conditions,
 											)
+										}
+										onUpdateJoinCondition={(updates) =>
+											joinState.update(join.table, join.schema, updates)
 										}
 										onRemove={() => joinState.remove(join.table, join.schema)}
 									/>

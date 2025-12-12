@@ -6,7 +6,12 @@ import type { TableRelationship } from "#src/components/pages/connection-page/re
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
-import { buildPgJoinFilters, buildSqliteJoinFilters } from "./join-builder.ts";
+import {
+	buildJoinClauses,
+	buildPgJoinFilters,
+	buildSqliteJoinFilters,
+	buildWhereExpressionFromFilters,
+} from "./join-builder.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.
@@ -1690,15 +1695,26 @@ export const queryTableRows = <TData>(input: {
 								? conditions.join(" AND ")
 								: `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
 					} else {
-						// Filter-based join conditions
+						// Filter-based join conditions - combine FK condition with filter conditions
+						const fkCondition = `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
 						if (
 							!join.joinCondition.filters ||
 							join.joinCondition.filters.conditions.length === 0
 						) {
-							joinCondition = `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+							joinCondition = fkCondition;
 						} else {
-							// TODO: Convert filter conditions to SQL
-							joinCondition = `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+							const filterExpression = buildWhereExpressionFromFilters(
+								join.joinCondition.filters.conditions,
+								join.joinCondition.filters.logicalOperator,
+								join.schema,
+								join.table,
+							);
+							// Combine FK condition with filter conditions
+							if (!filterExpression || filterExpression.trim() === "") {
+								joinCondition = fkCondition;
+							} else {
+								joinCondition = `${fkCondition} AND ${filterExpression}`;
+							}
 						}
 					}
 					return `${joinType} ${join.schema}."${join.table}" ON ${joinCondition}`;
@@ -1730,8 +1746,20 @@ export const queryTableRows = <TData>(input: {
 						) {
 							joinCondition = `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
 						} else {
-							// TODO: Convert filter conditions to SQL for SQLite
-							joinCondition = `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+							// Filter-based join conditions - combine FK condition with filter conditions
+							const fkCondition = `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
+							const filterExpression = buildWhereExpressionFromFilters(
+								join.joinCondition.filters.conditions,
+								join.joinCondition.filters.logicalOperator,
+								"main",
+								join.table,
+							);
+							// Combine FK condition with filter conditions
+							if (!filterExpression || filterExpression.trim() === "") {
+								joinCondition = fkCondition;
+							} else {
+								joinCondition = `${fkCondition} AND ${filterExpression}`;
+							}
 						}
 					}
 					return `${joinType} ${join.table} ON ${joinCondition}`;

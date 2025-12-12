@@ -177,7 +177,10 @@ export const buildSqliteJoinFilters = (joins: JoinedTable[]): string => {
 /**
  * Build WHERE clause expression from filter conditions for use in JOIN ON clauses
  */
-const buildWhereExpressionFromFilters = (
+/**
+ * Convert filter conditions to SQL WHERE expression with proper schema/table prefixing
+ */
+export const buildWhereExpressionFromFilters = (
 	conditions: Array<{ column: string; operator: string; value?: any }>,
 	logicalOperator: "and" | "or",
 	schema: string,
@@ -187,16 +190,21 @@ const buildWhereExpressionFromFilters = (
 		.filter((c) => c && c.column)
 		.map((c) => {
 			const col = `"${schema}"."${table}"."${c.column}"`;
+			// Check if value is boolean and don't quote it
+			const isBoolValue = typeof c.value === "boolean";
+			const valueStr = isBoolValue
+				? c.value
+					? "true"
+					: "false"
+				: `'${escapeValue(c.value)}'`;
 
 			switch (c.operator) {
 				case "equals":
-					return c.value === null
-						? `${col} IS NULL`
-						: `${col} = '${escapeValue(c.value)}'`;
+					return c.value === null ? `${col} IS NULL` : `${col} = ${valueStr}`;
 				case "not_equals":
 					return c.value === null
 						? `${col} IS NOT NULL`
-						: `${col} != '${escapeValue(c.value)}'`;
+						: `${col} != ${valueStr}`;
 				case "contains":
 					return `${col} LIKE '%${escapeValue(c.value)}%'`;
 				case "not_contains":
@@ -206,13 +214,13 @@ const buildWhereExpressionFromFilters = (
 				case "ends_with":
 					return `${col} LIKE '%${escapeValue(c.value)}'`;
 				case "greater_than":
-					return `${col} > ${escapeValue(c.value)}`;
+					return `${col} > ${valueStr}`;
 				case "greater_than_or_equal":
-					return `${col} >= ${escapeValue(c.value)}`;
+					return `${col} >= ${valueStr}`;
 				case "less_than":
-					return `${col} < ${escapeValue(c.value)}`;
+					return `${col} < ${valueStr}`;
 				case "less_than_or_equal":
-					return `${col} <= ${escapeValue(c.value)}`;
+					return `${col} <= ${valueStr}`;
 				case "is_null":
 					return `${col} IS NULL`;
 				case "is_not_null":
@@ -226,12 +234,14 @@ const buildWhereExpressionFromFilters = (
 					return `${col} NOT IN (${values.map((v) => `'${escapeValue(v)}'`).join(",")})`;
 				}
 				default:
-					return;
+					return "";
 			}
-		});
+		})
+		.filter((expr): expr is string => expr !== "");
 
+	// If no valid expressions, return empty string (caller should handle fallback)
 	const joiner = logicalOperator === "and" ? " AND " : " OR ";
-	return expressions.filter(Boolean).join(joiner);
+	return expressions.join(joiner);
 };
 
 /**
@@ -259,35 +269,8 @@ export const buildJoinClauses = (
 		} else if (join.joinCondition.mode === "custom") {
 			// Custom join condition - combine multiple expressions with AND
 			const conditions = join.joinCondition.conditions
-				.filter((cond) => {
-					// Check if it's a JSON-stringified filter object or raw SQL
-					if (cond.startsWith("{")) {
-						try {
-							const parsed = JSON.parse(cond);
-							return parsed.conditions && parsed.conditions.length > 0;
-						} catch {
-							return false;
-						}
-					}
-					return cond && cond.trim().length > 0;
-				})
-				.map((cond) => {
-					// If it's a JSON filter object, convert to SQL
-					if (cond.startsWith("{")) {
-						try {
-							const filterObj = JSON.parse(cond);
-							return buildWhereExpressionFromFilters(
-								filterObj.conditions,
-								filterObj.logicalOperator || "and",
-								join.schema,
-								join.table,
-							);
-						} catch {
-							return cond.trim();
-						}
-					}
-					return cond.trim();
-				});
+				.filter((cond) => cond && cond.trim().length > 0)
+				.map((cond) => cond.trim());
 
 			if (conditions.length === 0) {
 				// Fallback to standard if no custom conditions provided
@@ -306,12 +289,18 @@ export const buildJoinClauses = (
 				// Fallback to standard if no filters provided
 				joinCondition = `${joinTableRef}."${join.joinCondition.referencedColumn}" = "${originalSchema}"."${originalTable}"."${join.joinCondition.referencingColumn}"`;
 			} else {
-				joinCondition = buildWhereExpressionFromFilters(
+				const filterExpression = buildWhereExpressionFromFilters(
 					join.joinCondition.filters.conditions,
 					join.joinCondition.filters.logicalOperator,
 					join.schema,
 					join.table,
 				);
+				// If no valid filter conditions, fallback to standard FK-based join
+				if (!filterExpression || filterExpression.trim() === "") {
+					joinCondition = `${joinTableRef}."${join.joinCondition.referencedColumn}" = "${originalSchema}"."${originalTable}"."${join.joinCondition.referencingColumn}"`;
+				} else {
+					joinCondition = filterExpression;
+				}
 			}
 		}
 

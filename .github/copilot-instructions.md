@@ -282,6 +282,7 @@ components/pages/connection-page/
 - **Config**: `vitest.config.ts` (passWithNoTests, hideSkippedTests)
 - **Test patterns**: Natural language parser tests in `src/lib/natural-language-parser.test.ts`
 - **Run**: `pnpm test` (watch) or `pnpm test:run` (once)
+- Never use vague assertions like `toBeGreaterThanOrEqual(2)`; always be specific like `toBe(3)`
 
 ---
 
@@ -324,6 +325,8 @@ components/pages/connection-page/
 - **Effect errors not caught**: Wrap in `Effect.catchAll()` or use `Effect.either()` to capture errors
 - **Table not rendering**: Check TanStack Table columns array matches data shape; verify virtualization settings if large
 - **Relationship panel empty**: Verify foreign keys exist in schema; check `get-table-foreign-keys.ts` query
+- When debugging a test file: Use `pnpm test --run` so it doesnt run it watch mode
+- When debugging a single test: use `it.only` to run only that test (faster iterations)
 
 ---
 

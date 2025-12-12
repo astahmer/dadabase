@@ -56,6 +56,7 @@
 - expandable table row with nested entity -> kinda solved already with bottom relationship panel but some people might prefer inline expansion
 - row selection with checkboxes + bulk actions (delete, export, copy etc)
 - a page to view (and export) one/many/all table structures
+- cancellable queries (+ rm disabled state for buttons while a query is running)
 
 ## bugs
 
