@@ -153,7 +153,7 @@ export const JoinTablesDialog = ({
 					</DialogDescription>
 				</DialogHeader>
 
-				<Stack gap="4" className="h-full overflow-y-auto py-4">
+				<Stack gap="4" className="flex-1 overflow-y-auto py-4">
 					{/* Joinable table selector */}
 					{isLoadingRelationships ? (
 						<div className="flex items-center justify-center py-4">
@@ -279,7 +279,8 @@ export const JoinTablesDialog = ({
 						</div>
 					)}
 				</Stack>
-				<DialogFooter>
+
+				<DialogFooter className="shrink-0">
 					<div className="flex gap-2 justify-end pt-4">
 						<Button variant="outline" onClick={handleCancel}>
 							Clear joins

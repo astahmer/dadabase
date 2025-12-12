@@ -1,5 +1,11 @@
 import { Button } from "#src/components/ui/button.tsx";
 import {
+	Accordion,
+	AccordionItem,
+	AccordionItemContent,
+	AccordionItemTrigger,
+} from "#src/components/ui/accordion.tsx";
+import {
 	Checkbox,
 	CheckboxControl,
 	CheckboxLabel,
@@ -24,7 +30,6 @@ export const JoinedTableRow = ({
 	onUpdateColumns,
 	onRemove,
 }: JoinedTableRowProps) => {
-	const [showColumnSelector, setShowColumnSelector] = useState(false);
 	const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
 		new Set(
 			joined.columns === "all"
@@ -49,7 +54,6 @@ export const JoinedTableRow = ({
 		} else {
 			onUpdateColumns(Array.from(selectedColumns));
 		}
-		setShowColumnSelector(false);
 	};
 
 	const columnLabel =
@@ -58,135 +62,136 @@ export const JoinedTableRow = ({
 			: `${joined.columns.length} column${joined.columns.length === 1 ? "" : "s"}`;
 
 	return (
-		<div className="p-3 border rounded-md space-y-2 bg-background">
-			<div className="flex items-center justify-between">
-				<div className="flex-1">
-					<div className="font-medium text-sm">
-						{joined.schema}.{joined.table}
-					</div>
-					<div className="text-xs text-muted-foreground mt-0.5">
-						ON {joined.schema}.{joined.table}.{joined.referencedColumn}
-					</div>
-				</div>
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={onRemove}
-					className="h-8 w-8 p-0"
-					aria-label="Remove join"
-				>
-					<Trash2 className="h-4 w-4" />
-				</Button>
-			</div>
-
-			<div className="flex gap-2 items-center">
-				<div className="text-xs font-medium text-muted-foreground">
-					Join type:
-				</div>
-				<div className="flex gap-1">
-					<Button
-						variant={joined.type === "left" ? "default" : "outline"}
-						size="sm"
-						onClick={() => onUpdateType("left")}
-						className="h-7 px-2 text-xs"
-					>
-						LEFT
-					</Button>
-					<Button
-						variant={joined.type === "inner" ? "default" : "outline"}
-						size="sm"
-						onClick={() => onUpdateType("inner")}
-						className="h-7 px-2 text-xs"
-					>
-						INNER
-					</Button>
-				</div>
-			</div>
-
-			<div className="space-y-2">
+		<div className="border rounded-md bg-background">
+			<div className="p-3 space-y-2">
 				<div className="flex items-center justify-between">
-					<div className="text-xs font-medium text-muted-foreground">
-						Columns ({columnLabel}):
+					<div className="flex-1">
+						<div className="font-medium text-sm">
+							{joined.schema}.{joined.table}
+						</div>
+						<div className="text-xs text-muted-foreground mt-0.5">
+							ON {joined.schema}.{joined.table}.{joined.referencedColumn}
+						</div>
 					</div>
 					<Button
 						variant="ghost"
 						size="sm"
-						onClick={() => setShowColumnSelector(!showColumnSelector)}
-						className="h-6 px-2 text-xs"
+						onClick={onRemove}
+						className="h-8 w-8 p-0"
+						aria-label="Remove join"
 					>
-						{showColumnSelector ? "Hide" : "Edit"}
+						<Trash2 className="h-4 w-4" />
 					</Button>
 				</div>
 
-				{showColumnSelector && (
-					<div className="p-2 border rounded bg-muted/30 space-y-2 max-h-48 overflow-y-auto">
-						<Checkbox
-							checked={
-								selectedColumns.size === availableColumns.length
-									? true
-									: selectedColumns.size > 0
-										? "indeterminate"
-										: false
-							}
-							onCheckedChange={() =>
-								setSelectedColumns(
-									selectedColumns.size === availableColumns.length
-										? new Set()
-										: new Set(availableColumns.map((c) => c.name)),
-								)
-							}
-							className="flex gap-2 w-full"
-						>
-							<CheckboxControl />
-							<CheckboxLabel className="text-xs cursor-pointer flex-1">
-								<span className="font-medium">Select All</span>
-							</CheckboxLabel>
-						</Checkbox>
-						{availableColumns.map((col) => (
-							<div key={col.name} className="flex items-center gap-2">
-								<Checkbox
-									checked={selectedColumns.has(col.name)}
-									onCheckedChange={() => handleToggleColumn(col.name)}
-									className="flex gap-2 w-full"
-								>
-									<CheckboxControl />
-									<CheckboxLabel className="text-xs cursor-pointer flex-1">
-										<span className="font-medium">{col.name}</span>
-										<span className="text-muted-foreground ml-1">
-											({col.dataType})
-										</span>
-									</CheckboxLabel>
-								</Checkbox>
-							</div>
-						))}
-
-						{availableColumns.length === 0 && (
-							<div className="text-xs text-muted-foreground py-2">
-								No columns available
-							</div>
-						)}
-
-						<div className="flex gap-2 pt-2 border-t">
-							<Button
-								size="sm"
-								variant="default"
-								onClick={handleApplyColumns}
-								className="flex-1 h-7 text-xs"
-							>
-								Apply
-							</Button>
-							<Button
-								size="sm"
-								variant="outline"
-								onClick={() => setShowColumnSelector(false)}
-								className="flex-1 h-7 text-xs"
-							>
-								Cancel
-							</Button>
-						</div>
+				<div className="flex gap-2 items-center">
+					<div className="text-xs font-medium text-muted-foreground">
+						Join type:
 					</div>
-				)}
+					<div className="flex gap-1">
+						<Button
+							variant={joined.type === "left" ? "default" : "outline"}
+							size="sm"
+							onClick={() => onUpdateType("left")}
+							className="h-7 px-2 text-xs"
+						>
+							LEFT
+						</Button>
+						<Button
+							variant={joined.type === "inner" ? "default" : "outline"}
+							size="sm"
+							onClick={() => onUpdateType("inner")}
+							className="h-7 px-2 text-xs"
+						>
+							INNER
+						</Button>
+					</div>
+				</div>
 			</div>
+
+			<Accordion collapsible multiple={false}>
+				<AccordionItem value="columns">
+					<AccordionItemTrigger className="px-3 py-2">
+						Columns ({columnLabel})
+					</AccordionItemTrigger>
+					<AccordionItemContent className="px-3 py-2">
+						<div className="space-y-2">
+							<Checkbox
+								checked={
+									selectedColumns.size === availableColumns.length
+										? true
+										: selectedColumns.size > 0
+											? "indeterminate"
+											: false
+								}
+								onCheckedChange={() =>
+									setSelectedColumns(
+										selectedColumns.size === availableColumns.length
+											? new Set()
+											: new Set(availableColumns.map((c) => c.name)),
+									)
+								}
+								className="flex gap-2 w-full"
+							>
+								<CheckboxControl />
+								<CheckboxLabel className="text-xs cursor-pointer flex-1">
+									<span className="font-medium">Select All</span>
+								</CheckboxLabel>
+							</Checkbox>
+							{availableColumns.map((col) => (
+								<div key={col.name} className="flex items-center gap-2">
+									<Checkbox
+										checked={selectedColumns.has(col.name)}
+										onCheckedChange={() => handleToggleColumn(col.name)}
+										className="flex gap-2 w-full"
+									>
+										<CheckboxControl />
+										<CheckboxLabel className="text-xs cursor-pointer flex-1">
+											<span className="font-medium">{col.name}</span>
+											<span className="text-muted-foreground ml-1">
+												({col.dataType})
+											</span>
+										</CheckboxLabel>
+									</Checkbox>
+								</div>
+							))}
+
+							{availableColumns.length === 0 && (
+								<div className="text-xs text-muted-foreground py-2">
+									No columns available
+								</div>
+							)}
+
+							<div className="flex gap-2 pt-2 border-t">
+								<Button
+									size="sm"
+									variant="default"
+									onClick={handleApplyColumns}
+									className="flex-1 h-7 text-xs"
+								>
+									Apply
+								</Button>
+								<Button
+									size="sm"
+									variant="outline"
+									onClick={() =>
+										setSelectedColumns(
+											new Set(
+												joined.columns === "all"
+													? availableColumns.map((c) => c.name)
+													: joined.columns,
+											),
+										)
+									}
+									className="flex-1 h-7 text-xs"
+								>
+									Cancel
+								</Button>
+							</div>
+						</div>
+					</AccordionItemContent>
+				</AccordionItem>
+			</Accordion>
 		</div>
 	);
 };
