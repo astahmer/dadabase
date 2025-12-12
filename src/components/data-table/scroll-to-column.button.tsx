@@ -86,7 +86,7 @@ export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
 				<Button
 					variant="outline"
 					size="sm"
-					className="absolute right-2 top-12 -translate-y-1/2 z-1 h-9 w-9 p-0 flex items-center justify-center"
+					className="absolute right-2 top-12 -translate-y-1/2 z-10 h-9 w-9 p-0 flex items-center justify-center"
 				>
 					<ChevronRight className="h-4 w-4" />
 				</Button>

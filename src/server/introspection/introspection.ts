@@ -1667,7 +1667,7 @@ export const queryTableRows = <TData>(input: {
 			joins
 				.map((join) => {
 					const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
-					return `${joinType} ${join.schema}.${join.table} ON ${join.schema}.${join.table}.${join.referencedColumn} = ${schema}.${table}.${join.referencingColumn}`;
+					return `${joinType} ${join.schema}."${join.table}" ON ${join.schema}."${join.table}"."${join.referencedColumn}" = ${schema}."${table}"."${join.referencingColumn}"`;
 				})
 				.join("\n");
 
@@ -1675,7 +1675,7 @@ export const queryTableRows = <TData>(input: {
 			joins
 				.map((join) => {
 					const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
-					return `${joinType} ${join.table} ON ${join.table}.${join.referencedColumn} = ${schema}.${table}.${join.referencingColumn}`;
+					return `${joinType} ${join.table} ON ${join.table}."${join.referencedColumn}" = ${schema}."${table}"."${join.referencingColumn}"`;
 				})
 				.join("\n");
 

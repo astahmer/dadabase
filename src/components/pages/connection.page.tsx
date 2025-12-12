@@ -217,7 +217,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 							<>
 								{/* Filters */}
 								<ConnectionPageFilters
-									columnList={pageState.columnList}
+									columnList={pageState.columnNameList}
 									table={pageState.rowsDataTable}
 									isLoading={
 										pageState.rowsQuery.isLoading ||
@@ -246,9 +246,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											logicalOperator={
 												pageState.queryBuilder.filter.logicalOperator
 											}
-											availableColumns={pageState.columnMetadata.map(
-												(col) => col.name,
-											)}
+											availableColumns={pageState.columnNameList}
 											isLoading={pageState.rowsQuery.isLoading}
 										/>
 									)}
@@ -367,9 +365,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															{!pageState.rowsQuery.isLoading &&
 																!pageState.isColumnMetadataLoading && (
 																	<ScrollToColumnButton
-																		columnList={pageState.columnMetadata.map(
-																			(col) => col.name,
-																		)}
+																		columnList={pageState.columnNameList}
 																		containerRef={{ current: tableContainer }}
 																	/>
 																)}

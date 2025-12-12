@@ -27,6 +27,7 @@ import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
+import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
 
 interface UseConnectionPageStateProps {
 	connection: {
@@ -575,12 +576,32 @@ export const useConnectionPageState = ({
 		},
 	});
 
+	const columnQueries = useJoinedTables({
+		url: activeConnectionUrl,
+		joins: joins,
+	});
+	const columnNameList = joins
+		? tableMetadata.columnList
+				.map((col) => `${search.table}.${col}`)
+				.concat(
+					joins?.length
+						? joins.flatMap((join, joinIndex) =>
+								join.columns === "all"
+									? (columnQueries[joinIndex].data ?? []).map(
+											(col) => `${join.table}.${col.name}`,
+										)
+									: join.columns.map((col) => `${join.table}.${col}`),
+							)
+						: [],
+				)
+		: tableMetadata.columnList;
+
 	return {
 		activeConnectionUrl,
 		queryBuilder,
 		rowsQuery,
 		columnMetadata: tableMetadata.columnMetadata,
-		columnList: tableMetadata.columnList,
+		columnNameList: columnNameList,
 		isColumnMetadataLoading: tableMetadata.isLoading,
 		queryResponse,
 		totalRowCount,

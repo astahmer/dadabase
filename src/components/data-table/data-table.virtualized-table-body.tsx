@@ -68,7 +68,7 @@ export function VirtualizedTableBody<TData>({
 
 				return (
 					<DataTableRow
-						key={row.id}
+						key={virtualRow.key}
 						index={virtualRow.index}
 						getRow={() => row}
 						onRowClick={onRowClick}

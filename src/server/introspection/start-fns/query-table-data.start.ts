@@ -14,7 +14,10 @@ const JoinSchema = Schema.Struct({
 	table: Schema.String,
 	schema: Schema.String,
 	type: Schema.Literal("left", "inner"),
-	columns: Schema.Union(Schema.Literal("all"), Schema.Array(Schema.String)),
+	columns: Schema.Union(
+		Schema.Literal("all"),
+		Schema.Array(Schema.String),
+	).pipe(Schema.mutable),
 	referencingColumn: Schema.String,
 	referencedColumn: Schema.String,
 });

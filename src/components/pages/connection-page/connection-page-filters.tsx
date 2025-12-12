@@ -1,25 +1,24 @@
+import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
+import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
 import { useNavigate } from "@tanstack/react-router";
 import type { Table as TanstackTable } from "@tanstack/react-table";
 import {
 	LayoutGrid,
+	Link2,
 	LucideChevronDown,
 	LucideChevronUp,
 	LucideListFilter,
-	Link2,
 	Rows,
 } from "lucide-react";
 import { useState } from "react";
-import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
-import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
 import { OrderBySelect } from "../../app/order-by-select.tsx";
 import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
 import { NaturalLanguageSearch } from "../../query-builder/natural-language-search.tsx";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
-import { StructureFilterControls } from "./structure-table-filters.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
-import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
+import { StructureFilterControls } from "./structure-table-filters.tsx";
 
 interface ConnectionPageFiltersProps {
 	columnList: string[];
@@ -47,23 +46,6 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 	}));
 	const orderBy = useActiveTabState((s) => s.orderBy);
 	const orderDirection = useActiveTabState((s) => s.orderDirection);
-
-	const columnQueries = useJoinedTables({ url: url, joins: joinConfig.joins });
-	const allColumnList = joinConfig?.joins?.length
-		? columnList
-				.map((col) => `${tableName}.${col}`)
-				.concat(
-					joinConfig?.joins?.length
-						? joinConfig.joins.flatMap((join, joinIndex) =>
-								join.columns === "all"
-									? (columnQueries[joinIndex].data ?? []).map(
-											(col) => `${join.table}.${col.name}`,
-										)
-									: join.columns.map((col) => `${join.table}.${col}`),
-							)
-						: [],
-				)
-		: columnList;
 
 	return (
 		<div className="relative border-b bg-muted/50">
@@ -267,13 +249,13 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 				{viewMode === "rows" && (
 					<ColumnVisibilityControls
 						table={table}
-						columnList={allColumnList}
+						columnList={columnList}
 						minimal={true}
 					/>
 				)}
 				{viewMode === "rows" && (
 					<OrderBySelect
-						columnList={allColumnList}
+						columnList={columnList}
 						orderBy={orderBy}
 						orderDirection={orderDirection}
 						onOrderChange={(orderBy, direction) => {

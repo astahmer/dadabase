@@ -28,10 +28,14 @@ export function ColumnVisibilityControls<TData>(
 		[props.columnList],
 	);
 
+	// https://github.com/TanStack/table/discussions/5505 / https://github.com/TanStack/table/pull/5964
+	const getColumn = (columnId: string) =>
+		table._getAllFlatColumnsById()[columnId];
+
 	const visibleCount = useMemo(
 		() =>
 			allColumns.reduce((acc, col) => {
-				const tableCol = table.getColumn(col.value);
+				const tableCol = getColumn(col.value);
 				if (!tableCol) return acc;
 				return acc + ((tableCol.getIsVisible?.() ?? true) ? 1 : 0);
 			}, 0),
@@ -41,7 +45,7 @@ export function ColumnVisibilityControls<TData>(
 
 	const handleSelectAll = () => {
 		allColumns.forEach((col) => {
-			const column = table.getColumn(col.value);
+			const column = getColumn(col.value);
 			if (!column) return;
 			const isVisible = column.getIsVisible?.() ?? true;
 			if (allVisible && isVisible) {
@@ -117,9 +121,7 @@ export function ColumnVisibilityControls<TData>(
 														value: string;
 													};
 													if (e.key === "Enter" && highlightedItem) {
-														const column = table.getColumn(
-															highlightedItem.value,
-														);
+														const column = getColumn(highlightedItem.value);
 														column?.toggleVisibility?.();
 													}
 												}}
@@ -131,7 +133,7 @@ export function ColumnVisibilityControls<TData>(
 									{list.collection.items.length > 0 ? (
 										<Listbox.ItemGroup>
 											{list.collection.items.map((item) => {
-												const column = table.getColumn(item.value);
+												const column = getColumn(item.value);
 												const isVisible = column?.getIsVisible?.() ?? true;
 
 												return (

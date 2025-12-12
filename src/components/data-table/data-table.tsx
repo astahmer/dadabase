@@ -247,6 +247,7 @@ const TableContainer = (
 					{table.getHeaderGroups().map((headerGroup) => {
 						const HeaderCellList = headerGroup.headers.map((headerCell) => (
 							<HeaderCell
+								key={headerCell.id}
 								table={table}
 								headerGroup={headerGroup}
 								headerCell={headerCell}
