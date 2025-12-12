@@ -59,5 +59,4 @@
 
 ## bugs
 
-- drag/drop columns
 - column visibility control -> unselect all

@@ -452,6 +452,26 @@ export const useConnectionPageState = ({
 		return state;
 	}, [search.columnPinning]);
 
+	const columnQueries = useJoinedTables({
+		url: activeConnectionUrl,
+		joins: joins,
+	});
+	const columnNameList = joins
+		? tableMetadata.columnList
+				.map((col) => `${search.table}.${col}`)
+				.concat(
+					joins?.length
+						? joins.flatMap((join, joinIndex) =>
+								join.columns === "all"
+									? (columnQueries[joinIndex].data ?? []).map(
+											(col) => `${join.table}.${col.name}`,
+										)
+									: join.columns.map((col) => `${join.table}.${col}`),
+							)
+						: [],
+				)
+		: tableMetadata.columnList;
+
 	// Column order state
 	const columnOrderState = useMemo(() => {
 		const fromSearch = Array.from(search.columnOrder ?? []);
@@ -461,9 +481,9 @@ export const useConnectionPageState = ({
 
 		return staticColumns
 			.map((col) => col.id)
-			.concat(tableMetadata.columnList)
+			.concat(columnNameList)
 			.filter(Boolean) as string[];
-	}, [search.columnOrder, staticColumns, tableMetadata.columnList]);
+	}, [search.columnOrder, staticColumns, columnNameList]);
 
 	const hasUuid = tableMetadata.columnMetadata.some((col) =>
 		col.dataType.includes("uuid"),
@@ -575,26 +595,6 @@ export const useConnectionPageState = ({
 			});
 		},
 	});
-
-	const columnQueries = useJoinedTables({
-		url: activeConnectionUrl,
-		joins: joins,
-	});
-	const columnNameList = joins
-		? tableMetadata.columnList
-				.map((col) => `${search.table}.${col}`)
-				.concat(
-					joins?.length
-						? joins.flatMap((join, joinIndex) =>
-								join.columns === "all"
-									? (columnQueries[joinIndex].data ?? []).map(
-											(col) => `${join.table}.${col.name}`,
-										)
-									: join.columns.map((col) => `${join.table}.${col}`),
-							)
-						: [],
-				)
-		: tableMetadata.columnList;
 
 	return {
 		activeConnectionUrl,
