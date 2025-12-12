@@ -407,20 +407,20 @@ export const JoinedTableRow = ({
 							Standard
 						</Button>
 						<Button
-							variant={joinConditionMode === "custom" ? "default" : "outline"}
-							size="sm"
-							onClick={() => handleSwitchJoinConditionMode("custom")}
-							className="h-7 px-2 text-xs"
-						>
-							Custom SQL
-						</Button>
-						<Button
 							variant={joinConditionMode === "filters" ? "default" : "outline"}
 							size="sm"
 							onClick={() => handleSwitchJoinConditionMode("filters")}
 							className="h-7 px-2 text-xs"
 						>
 							Filters
+						</Button>
+						<Button
+							variant={joinConditionMode === "custom" ? "default" : "outline"}
+							size="sm"
+							onClick={() => handleSwitchJoinConditionMode("custom")}
+							className="h-7 px-2 text-xs"
+						>
+							Custom SQL
 						</Button>
 					</div>
 				</div>
