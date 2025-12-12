@@ -82,7 +82,6 @@ export function ColumnVisibilityControls<TData>(
 			>
 				<Popover.Trigger asChild>
 					<Button variant="outline" size="sm" className={buttonClassName}>
-						{/* TODO */}
 						<span className="text-xs font-medium text-foreground uppercase tracking-wide">
 							📋 Visible Columns{" "}
 							{allVisible ? "" : `(${visibleCount}/${allColumns.length})`}

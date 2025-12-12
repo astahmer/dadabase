@@ -29,6 +29,7 @@ import type {
 } from "./join-tables.types";
 import { JoinedTableRow } from "./joined-table-row.tsx";
 import { useJoinTablesState } from "./use-join-tables-state.ts";
+import { useJoinedTables } from "./use-joined-tables.ts";
 
 interface JoinTablesDialogProps {
 	isOpen: boolean;
@@ -52,7 +53,6 @@ export const JoinTablesDialog = ({
 	const { joinConfig, addJoin, removeJoin, updateJoin, clearJoins } =
 		useJoinTablesState(initialConfig);
 
-	// Fetch relationships for the current table
 	const relationshipsQuery = useQuery(
 		getTableRelationshipsQueryOptions({
 			url,
@@ -61,18 +61,7 @@ export const JoinTablesDialog = ({
 		}),
 	);
 
-	// Fetch columns for each joined table
-	const joinedTableColumnsQueries = useMemo(() => {
-		return joinConfig.joins.map((join) =>
-			getTableColumnsQueryOptions({
-				url,
-				schema: join.schema,
-				table: join.table,
-			}),
-		);
-	}, [joinConfig.joins, url]);
-
-	const columnQueries = useQueries({ queries: joinedTableColumnsQueries });
+	const columnQueries = useJoinedTables({ url: url, joins: joinConfig.joins });
 
 	// Build list of joinable tables from relationships
 	const joinableTables = useMemo<JoinableTableOption[]>(() => {

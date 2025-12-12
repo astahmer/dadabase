@@ -19,6 +19,7 @@ import { HStack } from "../../ui/layout.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import { StructureFilterControls } from "./structure-table-filters.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
+import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
 
 interface ConnectionPageFiltersProps {
 	columnList: string[];
@@ -46,6 +47,23 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 	}));
 	const orderBy = useActiveTabState((s) => s.orderBy);
 	const orderDirection = useActiveTabState((s) => s.orderDirection);
+
+	const columnQueries = useJoinedTables({ url: url, joins: joinConfig.joins });
+	const allColumnList = joinConfig?.joins?.length
+		? columnList
+				.map((col) => `${tableName}.${col}`)
+				.concat(
+					joinConfig?.joins?.length
+						? joinConfig.joins.flatMap((join, joinIndex) =>
+								join.columns === "all"
+									? (columnQueries[joinIndex].data ?? []).map(
+											(col) => `${join.table}.${col.name}`,
+										)
+									: join.columns.map((col) => `${join.table}.${col}`),
+							)
+						: [],
+				)
+		: columnList;
 
 	return (
 		<div className="relative border-b bg-muted/50">
@@ -249,7 +267,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 				{viewMode === "rows" && (
 					<ColumnVisibilityControls
 						table={table}
-						columnList={columnList}
+						columnList={allColumnList}
 						minimal={true}
 					/>
 				)}
