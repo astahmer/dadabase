@@ -9,6 +9,7 @@ import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-men
 import { MemoizedDataCell } from "#src/components/memoized-data-cell.tsx";
 import { JsonCell } from "#src/components/ui/json-cell.tsx";
 import { getColumnTextAlignment } from "#src/lib/data-type-utils.ts";
+import { getJoinColorClassName } from "#src/lib/join-color-palette.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 import { useActiveTabState } from "./create-tab-state.ts";
@@ -154,9 +155,10 @@ export const useRowsColumns = ({
 
 		const renderColumnList = (
 			list: Array<ColumnMetadata & { table: string; accessorKey: string }>,
-			isJoinedTable: boolean = false,
+			joinIndex: number | null = null,
 		) =>
 			list.map((col) => {
+				const isJoinedTable = joinIndex !== null;
 				return {
 					id: col.accessorKey,
 					accessorFn: (row) => row[col.accessorKey] as string,
@@ -178,7 +180,7 @@ export const useRowsColumns = ({
 					meta: {
 						textAlign: getColumnTextAlignment(col.dataType),
 						className: isJoinedTable
-							? "bg-blue-50 dark:bg-[#0f1429]"
+							? getJoinColorClassName(joinIndex!)
 							: undefined,
 						table: col.table,
 					},
@@ -259,14 +261,14 @@ export const useRowsColumns = ({
 				} as ColumnDef<any> as any;
 			});
 		if (displayedColumns.length === 1) {
-			return renderColumnList(displayedColumns[0].columns, false);
+			return renderColumnList(displayedColumns[0].columns, null);
 		}
 
 		return displayedColumns.map((col, index) => ({
 			header: col.header,
-			columns: renderColumnList(col.columns, index > 0),
+			columns: renderColumnList(col.columns, index > 0 ? index - 1 : null),
 			meta: {
-				className: index > 0 ? "bg-blue-50 dark:bg-[#0f1429]" : undefined,
+				className: index > 0 ? getJoinColorClassName(index - 1) : undefined,
 			},
 		}));
 	}, [

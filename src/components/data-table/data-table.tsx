@@ -103,7 +103,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		size = "cozy",
 		virtualized = false,
 		estimateItemSize,
-		overscan = 30,
+		overscan = 15,
 		enableColumnOrdering = false,
 		hideColumnPinIconUnlessHovered = true,
 	} = props;
