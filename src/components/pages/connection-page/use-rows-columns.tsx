@@ -177,7 +177,9 @@ export const useRowsColumns = ({
 					),
 					meta: {
 						textAlign: getColumnTextAlignment(col.dataType),
-						isJoinedTable: isJoinedTable,
+						className: isJoinedTable
+							? "bg-blue-50 dark:bg-[#0f1429]"
+							: undefined,
 						table: col.table,
 					},
 					cell: col.dataType.toLowerCase().includes("json")
@@ -264,7 +266,7 @@ export const useRowsColumns = ({
 			header: col.header,
 			columns: renderColumnList(col.columns, index > 0),
 			meta: {
-				isJoinedTable: index > 0,
+				className: index > 0 ? "bg-blue-50 dark:bg-[#0f1429]" : undefined,
 			},
 		}));
 	}, [

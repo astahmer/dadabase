@@ -64,8 +64,7 @@ export const DataTableRow = memo(function TableRow({
 				isPinned;
 			const textAlign =
 				(cell.column.columnDef.meta as any)?.textAlign || "left";
-			const isJoinedTable =
-				(cell.column.columnDef.meta as any)?.isJoinedTable ?? false;
+			const className = (cell.column.columnDef.meta as any)?.className;
 
 			return (
 				<DataTableCell
@@ -79,7 +78,7 @@ export const DataTableRow = memo(function TableRow({
 					size={size}
 					showColumnBorder={showColumnBorder}
 					enableColumnOrdering={enableColumnOrdering}
-					isJoinedTable={isJoinedTable}
+					className={className}
 					style={isPinned ? getColumnPinningStyles(cell.column) : undefined}
 				>
 					{flexRender(cell.column.columnDef.cell, cell.getContext())}

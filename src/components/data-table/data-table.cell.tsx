@@ -19,7 +19,7 @@ export const DataTableCell = memo(function TableCell(props: {
 	enableColumnOrdering: boolean;
 	isDragDisabled: boolean;
 	textAlign: "left" | "right" | "center";
-	isJoinedTable?: boolean;
+	className?: string;
 	style?: CSSProperties;
 }) {
 	const {
@@ -31,7 +31,7 @@ export const DataTableCell = memo(function TableCell(props: {
 		enableColumnOrdering,
 		textAlign,
 		isDragDisabled,
-		isJoinedTable = false,
+		className,
 		style,
 	} = props;
 
@@ -54,7 +54,7 @@ export const DataTableCell = memo(function TableCell(props: {
 				ref={sortable.setNodeRef}
 				className={cn(
 					tableCellStyles({ size, showColumnBorder, textAlign }),
-					isJoinedTable ? "bg-blue-50 dark:bg-[#0f1429]" : "",
+					className,
 				)}
 				data-testid={`cell-${index}-${columnId}`}
 				style={{
@@ -74,7 +74,7 @@ export const DataTableCell = memo(function TableCell(props: {
 		<td
 			className={cn(
 				tableCellStyles({ size, showColumnBorder, textAlign }),
-				isJoinedTable ? "bg-blue-50 dark:bg-[#0f1429]" : "",
+				className,
 			)}
 			data-testid={`cell-${index}-${columnId}`}
 			style={{
