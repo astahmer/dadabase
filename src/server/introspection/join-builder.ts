@@ -290,6 +290,68 @@ export const buildJoinSqlPreview = (
 };
 
 /**
+ * Helper function to build SELECT clause with joined table columns
+ * Abstracted to support both PostgreSQL and SQLite with different quoting/prefixing rules
+ */
+const buildSelectWithJoinsGeneric = (
+	schema: string,
+	table: string,
+	joins: JoinTablesConfig["joins"],
+	tableColumnsMap: Map<string, { name: string }[]>,
+	formatters: {
+		baseTableRef: (schema: string, table: string) => string;
+		baseTableKey: (schema: string, table: string) => string;
+		joinTableRef: (schema: string, table: string) => string;
+		joinTableKey: (schema: string, table: string) => string;
+	},
+): string => {
+	const columns: string[] = [];
+	const baseTableRef = formatters.baseTableRef(schema, table);
+	const baseTableKey = formatters.baseTableKey(schema, table);
+
+	// Add original table columns with dot-delimited aliases
+	const baseTableColumns = tableColumnsMap.get(baseTableKey) || [];
+	if (baseTableColumns.length > 0) {
+		const baseCols = baseTableColumns
+			.map((col) => `${baseTableRef}."${col.name}" as "${table}.${col.name}"`)
+			.join(", ");
+		columns.push(baseCols);
+	} else {
+		// Fallback to * if columns not available
+		columns.push(`${baseTableRef}.*`);
+	}
+
+	// Add joined table columns
+	for (const join of joins) {
+		const joinTableRef = formatters.joinTableRef(join.schema, join.table);
+		const joinTableKey = formatters.joinTableKey(join.schema, join.table);
+		const joinedTableColumns = tableColumnsMap.get(joinTableKey) || [];
+
+		if (join.columns === "all") {
+			if (joinedTableColumns.length > 0) {
+				const joinedCols = joinedTableColumns
+					.map(
+						(col) =>
+							`${joinTableRef}."${col.name}" as "${join.table}.${col.name}"`,
+					)
+					.join(", ");
+				columns.push(joinedCols);
+			} else {
+				// Fallback to * if columns not available
+				columns.push(`${joinTableRef}.*`);
+			}
+		} else {
+			const selectedCols = join.columns
+				.map((col) => `${joinTableRef}."${col}" as "${join.table}.${col}"`)
+				.join(", ");
+			columns.push(selectedCols);
+		}
+	}
+
+	return columns.join(", ");
+};
+
+/**
  * Build SELECT clause with joined table columns for PostgreSQL
  * Explicitly selects and aliases all columns with table prefix (e.g., "table.column")
  */
@@ -299,52 +361,12 @@ export const buildPgSelectWithJoins = (
 	joins: JoinTablesConfig["joins"],
 	tableColumnsMap: Map<string, { name: string }[]>,
 ): string => {
-	const columns: string[] = [];
-
-	// Add original table columns with dot-delimited aliases
-	const baseTableColumns = tableColumnsMap.get(`${schema}.${table}`) || [];
-	if (baseTableColumns.length > 0) {
-		const baseCols = baseTableColumns
-			.map(
-				(col) => `${schema}."${table}"."${col.name}" as "${table}.${col.name}"`,
-			)
-			.join(", ");
-		columns.push(baseCols);
-	} else {
-		// Fallback to * if columns not available
-		columns.push(`${schema}."${table}".*`);
-	}
-
-	// Add joined table columns
-	for (const join of joins) {
-		const joinKey = `${join.schema}.${join.table}`;
-		const joinedTableColumns = tableColumnsMap.get(joinKey) || [];
-
-		if (join.columns === "all") {
-			if (joinedTableColumns.length > 0) {
-				const joinedCols = joinedTableColumns
-					.map(
-						(col) =>
-							`${join.schema}."${join.table}"."${col.name}" as "${join.table}.${col.name}"`,
-					)
-					.join(", ");
-				columns.push(joinedCols);
-			} else {
-				// Fallback to * if columns not available
-				columns.push(`${join.schema}."${join.table}".*`);
-			}
-		} else {
-			const selectedCols = join.columns
-				.map(
-					(col) =>
-						`${join.schema}."${join.table}"."${col}" as "${join.table}.${col}"`,
-				)
-				.join(", ");
-			columns.push(selectedCols);
-		}
-	}
-
-	return columns.join(", ");
+	return buildSelectWithJoinsGeneric(schema, table, joins, tableColumnsMap, {
+		baseTableRef: (s, t) => `${s}."${t}"`,
+		baseTableKey: (s, t) => `${s}.${t}`,
+		joinTableRef: (s, t) => `${s}."${t}"`,
+		joinTableKey: (s, t) => `${s}.${t}`,
+	});
 };
 
 /**
@@ -356,45 +378,16 @@ export const buildSqliteSelectWithJoins = (
 	joins: JoinTablesConfig["joins"],
 	tableColumnsMap: Map<string, { name: string }[]>,
 ): string => {
-	const columns: string[] = [];
-
-	// Add original table columns with dot-delimited aliases
-	const baseTableColumns = tableColumnsMap.get(table) || [];
-	if (baseTableColumns.length > 0) {
-		const baseCols = baseTableColumns
-			.map((col) => `"${table}"."${col.name}" as "${table}.${col.name}"`)
-			.join(", ");
-		columns.push(baseCols);
-	} else {
-		// Fallback to * if columns not available
-		columns.push(`"${table}".*`);
-	}
-
-	// Add joined table columns
-	for (const join of joins) {
-		const joinKey = join.table;
-		const joinedTableColumns = tableColumnsMap.get(joinKey) || [];
-
-		if (join.columns === "all") {
-			if (joinedTableColumns.length > 0) {
-				const joinedCols = joinedTableColumns
-					.map(
-						(col) =>
-							`"${join.table}"."${col.name}" as "${join.table}.${col.name}"`,
-					)
-					.join(", ");
-				columns.push(joinedCols);
-			} else {
-				// Fallback to * if columns not available
-				columns.push(`"${join.table}".*`);
-			}
-		} else {
-			const selectedCols = join.columns
-				.map((col) => `"${join.table}"."${col}" as "${join.table}.${col}"`)
-				.join(", ");
-			columns.push(selectedCols);
-		}
-	}
-
-	return columns.join(", ");
+	return buildSelectWithJoinsGeneric(
+		"", // schema not used in SQLite
+		table,
+		joins,
+		tableColumnsMap,
+		{
+			baseTableRef: (_s, t) => `"${t}"`,
+			baseTableKey: (_s, t) => t,
+			joinTableRef: (_s, t) => `"${t}"`,
+			joinTableKey: (_s, t) => t,
+		},
+	);
 };
