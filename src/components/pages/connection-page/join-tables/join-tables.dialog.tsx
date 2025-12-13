@@ -89,7 +89,9 @@ export const JoinTablesDialog = ({
 			label: `${rel.type === "outgoing" ? rel.referencedSchema : rel.referencingSchema}.${rel.type === "outgoing" ? rel.referencedTable : rel.referencingTable}`,
 			value: rel.constraintName,
 			rel: rel,
+			type: rel.type,
 		})),
+		groupBy: (item) => item.type,
 	});
 
 	const handleApply = () => {
@@ -167,77 +169,93 @@ export const JoinTablesDialog = ({
 									}}
 								/>
 								<ListboxMenuList className="max-h-40">
-									{unselectedRelationships
-										.filter((rel) => {
-											const targetTable =
-												rel.type === "outgoing"
-													? rel.referencedTable
-													: rel.referencingTable;
-											return filters.contains(targetTable, searchInput);
-										})
-										.map((rel) => {
-											const targetTable =
-												rel.type === "outgoing"
-													? rel.referencedTable
-													: rel.referencingTable;
-											const targetSchema =
-												rel.type === "outgoing"
-													? rel.referencedSchema
-													: rel.referencingSchema;
-											const firstLabel =
-												rel.type === "outgoing"
-													? `${rel.referencingTable}.${rel.referencingColumn}`
-													: `${rel.referencingTable}.${rel.referencingColumn}`;
-											const secondLabel =
-												rel.type === "outgoing"
-													? `${rel.referencedTable}.${rel.referencedColumn}`
-													: `${rel.referencedTable}.${rel.referencedColumn}`;
+									{tableCollection.group().map(([type, group]) => {
+										const filteredGroup = group.filter((item) =>
+											filters.contains(
+												item.rel.referencedTable ?? item.rel.referencingTable,
+												searchInput,
+											),
+										);
 
-											return (
-												<ListboxMenuItem
-													key={`${rel.constraintName}.${rel.referencingColumn}.${rel.referencedColumn}.${rel.referencingTable}.${rel.referencedTable}.${rel.type}`}
-													item={rel.constraintName}
-													onClick={() => {
-														const referencingCol =
-															rel.type === "outgoing"
-																? rel.referencingColumn
-																: rel.referencedColumn;
-														const referencedCol =
-															rel.type === "outgoing"
-																? rel.referencedColumn
-																: rel.referencingColumn;
+										if (filteredGroup.length === 0) return null;
 
-														joinState.add({
-															schema: targetSchema,
-															table: targetTable,
-															type: "left",
-															columns: "all",
-															joinCondition: {
-																mode: "standard",
-																referencingColumn: referencingCol,
-																referencedColumn: referencedCol,
-															},
-														});
-													}}
-												>
-													<HStack
-														className="flex-1 min-w-0"
-														align="center"
-														title={`${firstLabel} › ${secondLabel}`}
-													>
-														<div className="font-medium truncate">
-															{firstLabel}
-														</div>
-														<div className="text-muted-foreground shrink-0">
-															›
-														</div>
-														<div className="text-muted-foreground truncate text-xs">
-															{secondLabel}
-														</div>
-													</HStack>
-												</ListboxMenuItem>
-											);
-										})}
+										const typeLabel =
+											type === "outgoing"
+												? `Outgoing: Foreign keys (${filteredGroup.length})`
+												: `Incoming: Referenced by (${filteredGroup.length})`;
+
+										return (
+											<div key={type}>
+												<div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/30">
+													{typeLabel}
+												</div>
+												{filteredGroup.map((item) => {
+													const rel = item.rel;
+													const targetTable =
+														rel.type === "outgoing"
+															? rel.referencedTable
+															: rel.referencingTable;
+													const targetSchema =
+														rel.type === "outgoing"
+															? rel.referencedSchema
+															: rel.referencingSchema;
+													const firstLabel =
+														rel.type === "outgoing"
+															? `${rel.referencingTable}.${rel.referencingColumn}`
+															: `${rel.referencingTable}.${rel.referencingColumn}`;
+													const secondLabel =
+														rel.type === "outgoing"
+															? `${rel.referencedTable}.${rel.referencedColumn}`
+															: `${rel.referencedTable}.${rel.referencedColumn}`;
+
+													return (
+														<ListboxMenuItem
+															key={`${rel.constraintName}.${rel.referencingColumn}.${rel.referencedColumn}.${rel.referencingTable}.${rel.referencedTable}.${rel.type}`}
+															item={rel.constraintName}
+															onClick={() => {
+																const referencingCol =
+																	rel.type === "outgoing"
+																		? rel.referencingColumn
+																		: rel.referencedColumn;
+																const referencedCol =
+																	rel.type === "outgoing"
+																		? rel.referencedColumn
+																		: rel.referencingColumn;
+
+																joinState.add({
+																	schema: targetSchema,
+																	table: targetTable,
+																	type: "left",
+																	columns: "all",
+																	joinCondition: {
+																		mode: "standard",
+																		referencingColumn: referencingCol,
+																		referencedColumn: referencedCol,
+																	},
+																});
+															}}
+														>
+															<HStack
+																className="flex-1 min-w-0"
+																align="center"
+																title={`${firstLabel} › ${secondLabel}`}
+															>
+																<div className="font-medium truncate">
+																	{firstLabel}
+																</div>
+																<div className="text-muted-foreground shrink-0">
+																	›
+																</div>
+																<div className="text-muted-foreground truncate text-xs">
+																	{secondLabel}
+																</div>
+															</HStack>
+														</ListboxMenuItem>
+													);
+												})}
+											</div>
+										);
+									})}
 								</ListboxMenuList>
 							</ListboxRoot>
 						</div>
