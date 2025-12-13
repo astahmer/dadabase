@@ -18,6 +18,7 @@ import {
 	ListboxRoot,
 } from "#src/components/ui/listbox-menu.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
+import { buildJoinSqlPreview } from "#src/lib/build-join-sql-preview.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
@@ -267,6 +268,20 @@ export const JoinTablesDialog = ({
 								);
 							})}
 						</Stack>
+					)}
+					{/* SQL preview */}
+					{joinState.config.joins.length > 0 && (
+						<div className="space-y-2">
+							<div className="text-sm font-medium">Generated SQL:</div>
+							<div className="p-3 bg-slate-900 rounded text-xs font-mono text-slate-100 overflow-x-auto whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+								{buildJoinSqlPreview(
+									schema,
+									table,
+									joinState.config.joins,
+									"postgres",
+								)}
+							</div>
+						</div>
 					)}
 					{/* Result preview */}
 					{joinState.config.joins.length > 0 && (
