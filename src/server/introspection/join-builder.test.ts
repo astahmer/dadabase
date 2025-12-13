@@ -4,8 +4,10 @@ import {
 	buildJoinSqlPreview,
 	buildJoinSummary,
 	buildWhereExpressionFromFilters,
+	buildPgSelectWithJoins,
+	buildSqliteSelectWithJoins,
 } from "./join-builder.ts";
-import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types";
+import type { JoinedTable, JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types";
 
 describe("sql-join-builder", () => {
 	describe("buildWhereExpressionFromFilters", () => {
@@ -480,5 +482,263 @@ describe("sql-join-builder", () => {
 				"2. public.products [INNER filters (1 condition)]",
 			);
 		});
+	});
+});
+
+describe("buildPgSelectWithJoins", () => {
+	it("builds select with base table columns when metadata available", () => {
+		const tableColumnsMap = new Map([
+			[
+				"public.users",
+				[{ name: "id" }, { name: "name" }, { name: "email" }],
+			],
+		]);
+		const joins: JoinTablesConfig["joins"] = [];
+		const result = buildPgSelectWithJoins(
+			"public",
+			"users",
+			joins,
+			tableColumnsMap,
+		);
+		expect(result).toContain('public."users"."id" as "users.id"');
+		expect(result).toContain('public."users"."name" as "users.name"');
+		expect(result).toContain('public."users"."email" as "users.email"');
+	});
+
+	it("falls back to * when base table metadata not available", () => {
+		const tableColumnsMap = new Map();
+		const joins: JoinTablesConfig["joins"] = [];
+		const result = buildPgSelectWithJoins(
+			"public",
+			"users",
+			joins,
+			tableColumnsMap,
+		);
+		expect(result).toBe('public."users".*');
+	});
+
+	it("includes joined table columns with all columns selection", () => {
+		const tableColumnsMap = new Map([
+			[
+				"public.users",
+				[{ name: "id" }, { name: "name" }],
+			],
+			[
+				"public.posts",
+				[{ name: "id" }, { name: "title" }, { name: "published" }],
+			],
+		]);
+		const joins: JoinTablesConfig["joins"] = [
+			{
+				schema: "public",
+				table: "posts",
+				type: "inner" as const,
+				columns: "all" as const,
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "user_id",
+					referencedColumn: "id",
+				},
+			},
+		];
+		const result = buildPgSelectWithJoins(
+			"public",
+			"users",
+			joins,
+			tableColumnsMap,
+		);
+		expect(result).toContain('public."posts"."id" as "posts.id"');
+		expect(result).toContain('public."posts"."title" as "posts.title"');
+		expect(result).toContain('public."posts"."published" as "posts.published"');
+	});
+
+	it("includes only selected columns from joined table", () => {
+		const tableColumnsMap = new Map([
+			[
+				"public.users",
+				[{ name: "id" }, { name: "name" }],
+			],
+			[
+				"public.posts",
+				[{ name: "id" }, { name: "title" }, { name: "content" }],
+			],
+		]);
+		const joins: JoinTablesConfig["joins"] = [
+			{
+				schema: "public",
+				table: "posts",
+				type: "inner",
+				columns: ["id", "title"] as string[],
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "user_id",
+					referencedColumn: "id",
+				},
+			},
+		];
+		const result = buildPgSelectWithJoins(
+			"public",
+			"users",
+			joins,
+			tableColumnsMap,
+		);
+		expect(result).toContain('public."posts"."id" as "posts.id"');
+		expect(result).toContain('public."posts"."title" as "posts.title"');
+		expect(result).not.toContain("posts.content");
+	});
+
+	it("falls back to * for joined table when metadata not available", () => {
+		const tableColumnsMap = new Map([
+			[
+				"public.users",
+				[{ name: "id" }],
+			],
+		]);
+		const joins: JoinTablesConfig["joins"] = [
+			{
+				schema: "public",
+				table: "posts",
+				type: "inner",
+				columns: "all" as const,
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "user_id",
+					referencedColumn: "id",
+				},
+			},
+		];
+		const result = buildPgSelectWithJoins(
+			"public",
+			"users",
+			joins,
+			tableColumnsMap,
+		);
+		expect(result).toContain('public."posts".*');
+	});
+});
+
+describe("buildSqliteSelectWithJoins", () => {
+	it("builds select with base table columns when metadata available", () => {
+		const tableColumnsMap = new Map([
+			["users", [{ name: "id" }, { name: "name" }, { name: "email" }]],
+		]);
+		const joins: JoinTablesConfig["joins"] = [];
+		const result = buildSqliteSelectWithJoins("users", joins, tableColumnsMap);
+		expect(result).toContain('"users"."id" as "users.id"');
+		expect(result).toContain('"users"."name" as "users.name"');
+		expect(result).toContain('"users"."email" as "users.email"');
+	});
+
+	it("falls back to * when base table metadata not available", () => {
+		const tableColumnsMap = new Map();
+		const joins: JoinTablesConfig["joins"] = [];
+		const result = buildSqliteSelectWithJoins("users", joins, tableColumnsMap);
+		expect(result).toBe('"users".*');
+	});
+
+	it("includes joined table columns with all columns selection (no schema prefix)", () => {
+		const tableColumnsMap = new Map([
+			["users", [{ name: "id" }, { name: "name" }]],
+			["posts", [{ name: "id" }, { name: "title" }, { name: "published" }]],
+		]);
+		const joins: JoinTablesConfig["joins"] = [
+			{
+				schema: "main",
+				table: "posts",
+				type: "inner",
+				columns: "all" as const,
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "user_id",
+					referencedColumn: "id",
+				},
+			},
+		];
+		const result = buildSqliteSelectWithJoins("users", joins, tableColumnsMap);
+		expect(result).toContain('"posts"."id" as "posts.id"');
+		expect(result).toContain('"posts"."title" as "posts.title"');
+		expect(result).toContain('"posts"."published" as "posts.published"');
+		// Should not have schema prefix for SQLite
+		expect(result).not.toContain("main.posts");
+	});
+
+	it("includes only selected columns from joined table", () => {
+		const tableColumnsMap = new Map([
+			["users", [{ name: "id" }, { name: "name" }]],
+			["posts", [{ name: "id" }, { name: "title" }, { name: "content" }]],
+		]);
+		const joins: JoinTablesConfig["joins"] = [
+			{
+				schema: "main",
+				table: "posts",
+				type: "inner",
+				columns: ["id", "title"] as string[],
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "user_id",
+					referencedColumn: "id",
+				},
+			},
+		];
+		const result = buildSqliteSelectWithJoins("users", joins, tableColumnsMap);
+		expect(result).toContain('"posts"."id" as "posts.id"');
+		expect(result).toContain('"posts"."title" as "posts.title"');
+		expect(result).not.toContain("posts.content");
+	});
+
+	it("falls back to * for joined table when metadata not available", () => {
+		const tableColumnsMap = new Map([["users", [{ name: "id" }]]]);
+		const joins: JoinTablesConfig["joins"] = [
+			{
+				schema: "main",
+				table: "posts",
+				type: "inner",
+				columns: "all" as const,
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "user_id",
+					referencedColumn: "id",
+				},
+			},
+		];
+		const result = buildSqliteSelectWithJoins("users", joins, tableColumnsMap);
+		expect(result).toContain('"posts".*');
+	});
+
+	it("differs from PostgreSQL by not including schema prefix", () => {
+		const tableColumnsMap = new Map([
+			["users", [{ name: "id" }]],
+			["posts", [{ name: "id" }]],
+		]);
+		const joins: JoinTablesConfig["joins"] = [
+			{
+				schema: "public",
+				table: "posts",
+				type: "inner",
+				columns: "all" as const,
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "user_id",
+					referencedColumn: "id",
+				},
+			},
+		];
+		// SQLite version should not have schema prefix
+		const sqliteResult = buildSqliteSelectWithJoins(
+			"users",
+			joins,
+			tableColumnsMap,
+		);
+		expect(sqliteResult).not.toContain("public.");
+
+		// PostgreSQL version should have schema prefix
+		const pgResult = buildPgSelectWithJoins(
+			"public",
+			"users",
+			joins,
+			tableColumnsMap,
+		);
+		expect(pgResult).toContain('public."users"');
+		expect(pgResult).toContain('public."posts"');
 	});
 });

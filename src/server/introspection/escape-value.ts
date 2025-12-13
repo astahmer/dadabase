@@ -4,9 +4,11 @@
 export const escapeValue = (value: any): string => {
 	if (value === null || value === undefined) return "";
 	if (typeof value === "boolean") return value ? "true" : "false";
+	// Escape single quotes by doubling them
 	return String(value).replace(/'/g, "''");
 };
 
+// const escapeIdentifier = Statement.defaultEscape('"');
 /**
  * Escape SQL identifiers (table/column names)
  */

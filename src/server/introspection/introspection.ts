@@ -5,9 +5,15 @@ import type { JoinTablesConfig } from "#src/components/pages/connection-page/joi
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
-import { buildJoinSqlClauses } from "#src/server/introspection/join-builder.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
-import { buildPgJoinFilters, buildSqliteJoinFilters } from "./join-builder.ts";
+import {
+	buildJoinSqlClauses,
+	buildPgJoinFilters,
+	buildSqliteJoinFilters,
+	buildPgSelectWithJoins,
+	buildSqliteSelectWithJoins,
+} from "./join-builder.ts";
+import { buildPgWhereFragment, buildSqliteWhereFragment } from "./build-where.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.
@@ -1331,262 +1337,6 @@ export interface FilterCondition {
 }
 
 /**
- * Build a WHERE clause fragment for PostgreSQL
- */
-const buildPgWhereFragment = (
-	conditions: QueryFilterType["conditions"],
-	logicalOp: "and" | "or",
-) => {
-	if (conditions.length === 0) return;
-
-	const validConditions = conditions.filter((c) => {
-		if (c.operator === "is_null" || c.operator === "is_not_null") return true;
-		return c.value !== undefined && c.value !== null;
-	});
-
-	if (validConditions.length === 0) return;
-
-	const expressions = validConditions.map((c) => {
-		const col = escapeIdentifier(c.column);
-		switch (c.operator) {
-			case "equals":
-				return `${col} = '${escapeValue(c.value)}'`;
-			case "not_equals":
-				return `${col} != '${escapeValue(c.value)}'`;
-			case "contains":
-				return `${col} ILIKE '%${escapeValue(c.value)}%'`;
-			case "not_contains":
-				return `${col} NOT ILIKE '%${escapeValue(c.value)}%'`;
-			case "starts_with":
-				return `${col} ILIKE '${escapeValue(c.value)}%'`;
-			case "ends_with":
-				return `${col} ILIKE '%${escapeValue(c.value)}'`;
-			case "greater_than":
-				return `${col} > '${escapeValue(c.value)}'`;
-			case "greater_than_or_equal":
-				return `${col} >= '${escapeValue(c.value)}'`;
-			case "less_than":
-				return `${col} < '${escapeValue(c.value)}'`;
-			case "less_than_or_equal":
-				return `${col} <= '${escapeValue(c.value)}'`;
-			case "is_null":
-				return `${col} IS NULL`;
-			case "is_not_null":
-				return `${col} IS NOT NULL`;
-			case "in": {
-				const values = Array.isArray(c.value) ? c.value : [c.value];
-				return `${col} = ANY(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
-			}
-			case "not_in": {
-				const values = Array.isArray(c.value) ? c.value : [c.value];
-				return `${col} != ALL(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
-			}
-			default:
-				return;
-		}
-	});
-
-	const joiner = logicalOp === "and" ? " AND " : " OR ";
-	return expressions.filter(Boolean).join(joiner);
-};
-
-/**
- * Build a WHERE clause fragment for SQLite
- */
-const buildSqliteWhereFragment = (
-	conditions: QueryFilterType["conditions"],
-	logicalOp: "and" | "or",
-): string => {
-	if (conditions.length === 0) return "";
-
-	const validConditions = conditions.filter((c) => {
-		if (c.operator === "is_null" || c.operator === "is_not_null") return true;
-		return c.value !== undefined && c.value !== null;
-	});
-
-	if (validConditions.length === 0) return "";
-
-	const expressions = validConditions.map((c) => {
-		const col = escapeIdentifier(c.column);
-		// Convert boolean values to integers for SQLite (0/1 instead of false/true)
-		const sqliteValue =
-			typeof c.value === "boolean" ? (c.value ? 1 : 0) : c.value;
-		// Helper function to format values - numbers without quotes, strings with quotes
-		const formatValue = (val: any): string => {
-			if (typeof val === "number") return String(val);
-			return `'${escapeValue(val)}'`;
-		};
-
-		switch (c.operator) {
-			case "equals":
-				return `${col} = ${formatValue(sqliteValue)}`;
-			case "not_equals":
-				return `${col} != ${formatValue(sqliteValue)}`;
-			case "contains":
-				// SQLite uses LIKE (case-insensitive with COLLATE NOCASE)
-				return `${col} LIKE '%${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
-			case "not_contains":
-				return `${col} NOT LIKE '%${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
-			case "starts_with":
-				return `${col} LIKE '${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
-			case "ends_with":
-				return `${col} LIKE '%${escapeValue(sqliteValue)}' COLLATE NOCASE`;
-			case "greater_than":
-				return `${col} > ${formatValue(sqliteValue)}`;
-			case "greater_than_or_equal":
-				return `${col} >= ${formatValue(sqliteValue)}`;
-			case "less_than":
-				return `${col} < ${formatValue(sqliteValue)}`;
-			case "less_than_or_equal":
-				return `${col} <= ${formatValue(sqliteValue)}`;
-			case "is_null":
-				return `${col} IS NULL`;
-			case "is_not_null":
-				return `${col} IS NOT NULL`;
-			case "in": {
-				const values = Array.isArray(c.value) ? c.value : [c.value];
-				const sqliteValues = values.map((v) =>
-					typeof v === "boolean" ? (v ? 1 : 0) : v,
-				);
-				return `${col} IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
-			}
-			case "not_in": {
-				const values = Array.isArray(c.value) ? c.value : [c.value];
-				const sqliteValues = values.map((v) =>
-					typeof v === "boolean" ? (v ? 1 : 0) : v,
-				);
-				return `${col} NOT IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
-			}
-			default:
-				return "";
-		}
-	});
-
-	const joiner = logicalOp === "and" ? " AND " : " OR ";
-	return expressions.filter(Boolean).join(joiner);
-};
-
-const escapeIdentifier = Statement.defaultEscape('"');
-
-/**
- * Escape a value for SQL queries to prevent SQL injection
- */
-const escapeValue = (value: unknown): string => {
-	if (value === null || value === undefined) return "";
-	const str = String(value);
-	// Escape single quotes by doubling them
-	return str.replace(/'/g, "''");
-};
-
-/**
- * Build select clause with explicitly selected and aliased columns
- * All columns are aliased with dot-delimited path (table.col)
- * For 'all' columns, we fetch and explicitly select all columns instead of using *
- */
-const buildSelectWithJoins = (
-	schema: string,
-	table: string,
-	joins: JoinTablesConfig["joins"],
-	tableColumnsMap: Map<string, TableColumnMetadata[]>,
-) => {
-	const columns: string[] = [];
-
-	// Add original table columns with dot-delimited aliases
-	const baseTableColumns = tableColumnsMap.get(`${schema}.${table}`) || [];
-	if (baseTableColumns.length > 0) {
-		const baseCols = baseTableColumns
-			.map(
-				(col) => `${schema}."${table}"."${col.name}" as "${table}.${col.name}"`,
-			)
-			.join(", ");
-		columns.push(baseCols);
-	} else {
-		// Fallback to * if columns not available
-		columns.push(`${schema}."${table}".*`);
-	}
-
-	// Add joined table columns
-	for (const join of joins) {
-		const joinKey = `${join.schema}.${join.table}`;
-		const joinedTableColumns = tableColumnsMap.get(joinKey) || [];
-
-		if (join.columns === "all") {
-			if (joinedTableColumns.length > 0) {
-				const joinedCols = joinedTableColumns
-					.map(
-						(col) =>
-							`${join.schema}."${join.table}"."${col.name}" as "${join.table}.${col.name}"`,
-					)
-					.join(", ");
-				columns.push(joinedCols);
-			} else {
-				// Fallback to * if columns not available
-				columns.push(`${join.schema}."${join.table}".*`);
-			}
-		} else {
-			const selectedCols = join.columns
-				.map(
-					(col) =>
-						`${join.schema}."${join.table}"."${col}" as "${join.table}.${col}"`,
-				)
-				.join(", ");
-			columns.push(selectedCols);
-		}
-	}
-
-	return columns.join(", ");
-};
-
-const buildSelectWithJoinsSqlite = (
-	table: string,
-	joins: JoinTablesConfig["joins"],
-	tableColumnsMap: Map<string, TableColumnMetadata[]>,
-) => {
-	const columns: string[] = [];
-
-	// Add original table columns with dot-delimited aliases
-	const baseTableColumns = tableColumnsMap.get(table) || [];
-	if (baseTableColumns.length > 0) {
-		const baseCols = baseTableColumns
-			.map((col) => `"${table}"."${col.name}" as "${table}.${col.name}"`)
-			.join(", ");
-		columns.push(baseCols);
-	} else {
-		// Fallback to * if columns not available
-		columns.push(`"${table}".*`);
-	}
-
-	// Add joined table columns
-	for (const join of joins) {
-		const joinKey = join.table;
-		const joinedTableColumns = tableColumnsMap.get(joinKey) || [];
-
-		if (join.columns === "all") {
-			if (joinedTableColumns.length > 0) {
-				const joinedCols = joinedTableColumns
-					.map(
-						(col) =>
-							`"${join.table}"."${col.name}" as "${join.table}.${col.name}"`,
-					)
-					.join(", ");
-				columns.push(joinedCols);
-			} else {
-				// Fallback to * if columns not available
-				columns.push(`"${join.table}".*`);
-			}
-		} else {
-			const selectedCols = join.columns
-				.map((col) => `"${join.table}"."${col}" as "${join.table}.${col}"`)
-				.join(", ");
-			columns.push(selectedCols);
-		}
-	}
-
-	const result = columns.join(", ");
-	return result;
-};
-
-/**
  * Query table rows with filtering, pagination, ordering, and joins
  * - PostgreSQL: Uses schema.table notation, ILIKE, ANY/ALL for arrays
  * - SQLite: Uses table only (no schema), LIKE with COLLATE NOCASE, IN for arrays
@@ -1706,24 +1456,22 @@ export const queryTableRows = <TData>(input: {
 					const countResult = yield* countQuery;
 					const rowCount = Number(countResult[0]?.count ?? 0);
 
-					// Get rows with proper column selection and prefixing
-					const selectPart =
-						joins.length > 0
-							? buildSelectWithJoins(schema, table, joins, tableColumnsMap)
-							: "*";
+				// Get rows with proper column selection and prefixing
+				const selectPart =
+					joins.length > 0
+						? buildPgSelectWithJoins(schema, table, joins, tableColumnsMap)
+						: "*";
 
-					const query = sql`
-						SELECT ${sql.unsafe(selectPart)}
-						FROM ${sql(schema)}.${sql(table)}
-						${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
-						${sql.unsafe(whereFragment)}
-						${sql.unsafe(orderClause)}
-						LIMIT ${limit} OFFSET ${offset}
-					`;
-					console.log(query.compile());
-					const rows = yield* query;
-
-					return {
+				const query = sql`
+					SELECT ${sql.unsafe(selectPart)}
+					FROM ${sql(schema)}.${sql(table)}
+					${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
+					${sql.unsafe(whereFragment)}
+					${sql.unsafe(orderClause)}
+					LIMIT ${limit} OFFSET ${offset}
+				`;
+				console.log(query.compile());
+				const rows = yield* query;					return {
 						rows: rows as TData[],
 						rowCount,
 						hasNextPage: offset + limit < rowCount,
@@ -1759,21 +1507,21 @@ export const queryTableRows = <TData>(input: {
 					${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
 					${sql.unsafe(whereFragment)}
 				`;
-					const countResult = yield* countQuery;
-					const rowCount = Number(countResult[0]?.count ?? 0); // Get rows
-					const selectPart =
-						joins.length > 0
-							? buildSelectWithJoinsSqlite(table, joins, tableColumnsMap)
-							: "*";
+				const countResult = yield* countQuery;
+				const rowCount = Number(countResult[0]?.count ?? 0); // Get rows
+				const selectPart =
+					joins.length > 0
+						? buildSqliteSelectWithJoins(table, joins, tableColumnsMap)
+						: "*";
 
-					const query = sql`
-						SELECT ${sql.unsafe(selectPart)}
-						FROM ${sql(table)}
-					${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
-					${sql.unsafe(whereFragment)}
-					${sql.unsafe(orderClause)}
-					LIMIT ${limit} OFFSET ${offset}
-				`;
+				const query = sql`
+					SELECT ${sql.unsafe(selectPart)}
+					FROM ${sql(table)}
+				${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
+				${sql.unsafe(whereFragment)}
+				${sql.unsafe(orderClause)}
+				LIMIT ${limit} OFFSET ${offset}
+			`;
 					const rows = yield* query;
 					return {
 						rows: rows as TData[],
@@ -1794,20 +1542,21 @@ export const queryTableRows = <TData>(input: {
 					`;
 					const rowCount = Number(countResult[0]?.count ?? 0);
 
-					// Get rows
-					const selectPart =
-						joins.length > 0
-							? buildSelectWithJoins(schema, table, joins, tableColumnsMap)
-							: "*";
 
-					const rows = yield* sql`
-						SELECT ${sql.unsafe(selectPart)}
-						FROM ${sql(schema)}.${sql(table)}
-						${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
-						${sql.unsafe(whereFragment)}
-						${sql.unsafe(orderClause)}
-						LIMIT ${limit} OFFSET ${offset}
-					`;
+				// Get rows
+				const selectPart =
+					joins.length > 0
+						? buildPgSelectWithJoins(schema, table, joins, tableColumnsMap)
+						: "*";
+
+				const rows = yield* sql`
+					SELECT ${sql.unsafe(selectPart)}
+					FROM ${sql(schema)}.${sql(table)}
+					${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
+					${sql.unsafe(whereFragment)}
+					${sql.unsafe(orderClause)}
+					LIMIT ${limit} OFFSET ${offset}
+				`;
 
 					return {
 						rows: rows as TData[],

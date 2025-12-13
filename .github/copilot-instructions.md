@@ -107,7 +107,7 @@ DataTable
 pnpm dev                 # Start dev server (port 3005)
 pnpm build              # Build for production
 pnpm test               # Run Vitest in watch mode
-pnpm test:run           # Run tests once
+pnpm test --run           # Run tests once
 ```
 
 ### Database & Migrations
@@ -281,7 +281,7 @@ components/pages/connection-page/
 - **Framework**: Vitest
 - **Config**: `vitest.config.ts` (passWithNoTests, hideSkippedTests)
 - **Test patterns**: Natural language parser tests in `src/lib/natural-language-parser.test.ts`
-- **Run**: `pnpm test` (watch) or `pnpm test:run` (once)
+- **Run**: `pnpm test` (watch) or `pnpm test --run` (once)
 - Never use vague assertions like `toBeGreaterThanOrEqual(2)`; always be specific like `toBe(3)`
 
 ---
