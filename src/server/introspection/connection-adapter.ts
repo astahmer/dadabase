@@ -101,7 +101,7 @@ export interface DatabaseConnectionAdapterType {
 		table: string;
 		relationships: TableRelationshipInput[];
 		rowData: Record<string, unknown>;
-	}) => Effect.Effect<Record<string, number>, never, SqlClient.SqlClient>;
+	}) => Effect.Effect<Record<string, number>, SqlError, SqlClient.SqlClient>;
 
 	// Query execution
 	readonly queryTableRows: <

@@ -8,6 +8,8 @@ import { escapeIdentifier, escapeValue } from "./escape-value";
 export const buildPgWhereFragment = (
 	conditions: QueryFilterType["conditions"],
 	logicalOp: "and" | "or",
+	schema: string,
+	table: string,
 ): string | undefined => {
 	if (conditions.length === 0) return;
 
@@ -19,7 +21,7 @@ export const buildPgWhereFragment = (
 	if (validConditions.length === 0) return;
 
 	const expressions = validConditions.map((c) => {
-		const col = escapeIdentifier(c.column);
+		const col = `${escapeIdentifier(schema)}.${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`;
 		switch (c.operator) {
 			case "equals":
 				return `${col} = '${escapeValue(c.value)}'`;
@@ -69,6 +71,7 @@ export const buildPgWhereFragment = (
 export const buildSqliteWhereFragment = (
 	conditions: QueryFilterType["conditions"],
 	logicalOp: "and" | "or",
+	table: string,
 ): string => {
 	if (conditions.length === 0) return "";
 
@@ -80,7 +83,7 @@ export const buildSqliteWhereFragment = (
 	if (validConditions.length === 0) return "";
 
 	const expressions = validConditions.map((c) => {
-		const col = escapeIdentifier(c.column);
+		const col = `${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`;
 		// Convert boolean values to integers for SQLite (0/1 instead of false/true)
 		const sqliteValue =
 			typeof c.value === "boolean" ? (c.value ? 1 : 0) : c.value;

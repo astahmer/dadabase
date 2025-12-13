@@ -2,152 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
 	buildJoinSqlClauses,
 	buildJoinSqlPreview,
-	buildJoinSummary,
-	buildWhereExpressionFromFilters,
 	buildPgSelectWithJoins,
 	buildSqliteSelectWithJoins,
 } from "./join-builder.ts";
-import type { JoinedTable, JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types";
+import type {
+	JoinedTable,
+	JoinTablesConfig,
+} from "#src/components/pages/connection-page/join-tables/join-tables.types";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 
 describe("sql-join-builder", () => {
-	describe("buildWhereExpressionFromFilters", () => {
-		it("builds simple equals condition", () => {
-			const conditions = [
-				{ column: "quantity", operator: "equals" as const, value: "1" },
-			];
-			const result = buildWhereExpressionFromFilters(
-				conditions,
-				"and",
-				"public",
-				"lineItems",
-			);
-			expect(result).toContain('"public"."lineItems"."quantity" = \'1\'');
-		});
-
-		it("builds not_equals condition with null handling", () => {
-			const conditions = [
-				{ column: "status", operator: "not_equals" as const, value: null },
-			];
-			const result = buildWhereExpressionFromFilters(
-				conditions,
-				"and",
-				"public",
-				"products",
-			);
-			expect(result).toContain('"public"."products"."status" IS NOT NULL');
-		});
-
-		it("builds contains condition with LIKE", () => {
-			const conditions = [
-				{ column: "name", operator: "contains" as const, value: "john" },
-			];
-			const result = buildWhereExpressionFromFilters(
-				conditions,
-				"and",
-				"public",
-				"users",
-			);
-			expect(result).toContain("LIKE '%john%'");
-		});
-		it("combines multiple conditions with AND", () => {
-			const conditions = [
-				{ column: "quantity", operator: "greater_than" as const, value: "5" },
-				{ column: "status", operator: "equals" as const, value: "active" },
-			];
-			const result = buildWhereExpressionFromFilters(
-				conditions,
-				"and",
-				"public",
-				"orders",
-			);
-			expect(result).toContain("AND");
-			expect(result).toContain("> '5'");
-			expect(result).toContain("= 'active'");
-		});
-
-		it("combines multiple conditions with OR", () => {
-			const conditions = [
-				{ column: "type", operator: "equals" as const, value: "premium" },
-				{ column: "type", operator: "equals" as const, value: "standard" },
-			];
-			const result = buildWhereExpressionFromFilters(
-				conditions,
-				"or",
-				"public",
-				"accounts",
-			);
-			expect(result).toContain(" OR ");
-		});
-
-		it("handles is_null operator", () => {
-			const conditions = [
-				{ column: "deleted_at", operator: "is_null" as const },
-			];
-			const result = buildWhereExpressionFromFilters(
-				conditions,
-				"and",
-				"public",
-				"users",
-			);
-			expect(result).toContain("IS NULL");
-		});
-
-		it("handles is_not_null operator", () => {
-			const conditions = [
-				{ column: "verified_at", operator: "is_not_null" as const },
-			];
-			const result = buildWhereExpressionFromFilters(
-				conditions,
-				"and",
-				"public",
-				"users",
-			);
-			expect(result).toContain("IS NOT NULL");
-		});
-
-		it("handles in operator with array values", () => {
-			const conditions = [
-				{
-					column: "status",
-					operator: "in" as const,
-					value: ["active", "pending"],
-				},
-			];
-			const result = buildWhereExpressionFromFilters(
-				conditions,
-				"and",
-				"public",
-				"tasks",
-			);
-			expect(result).toContain("IN");
-			expect(result).toContain("'active'");
-			expect(result).toContain("'pending'");
-		});
-
-		it("returns empty string for empty conditions", () => {
-			const result = buildWhereExpressionFromFilters(
-				[],
-				"and",
-				"public",
-				"items",
-			);
-			expect(result).toBe("");
-		});
-
-		it("handles special characters and escapes single quotes", () => {
-			const conditions = [
-				{ column: "name", operator: "equals" as const, value: "O'Reilly" },
-			];
-			const result = buildWhereExpressionFromFilters(
-				conditions,
-				"and",
-				"public",
-				"authors",
-			);
-			expect(result).toContain("O''Reilly");
-		});
-	});
-
 	describe("buildJoinSqlClauses", () => {
 		it("builds standard FK-based join for PostgreSQL", () => {
 			const joins: JoinedTable[] = [
@@ -168,7 +32,7 @@ describe("sql-join-builder", () => {
 				joins,
 				"public",
 				"commitments",
-				"postgres",
+				DatabaseDialect.Postgres,
 			);
 			expect(clauses).toHaveLength(1);
 			expect(clauses[0]).toContain("LEFT JOIN");
@@ -195,7 +59,7 @@ describe("sql-join-builder", () => {
 				joins,
 				"main",
 				"commitments",
-				"sqlite",
+				DatabaseDialect.SQLite,
 			);
 			expect(clauses).toHaveLength(1);
 			expect(clauses[0]).toContain("INNER JOIN");
@@ -224,7 +88,7 @@ describe("sql-join-builder", () => {
 				joins,
 				"public",
 				"commitments",
-				"postgres",
+				DatabaseDialect.Postgres,
 			);
 			expect(clauses[0]).toContain("commitment_id = commitments.id");
 			expect(clauses[0]).toContain("quantity > 0");
@@ -255,7 +119,7 @@ describe("sql-join-builder", () => {
 				joins,
 				"public",
 				"commitments",
-				"postgres",
+				DatabaseDialect.Postgres,
 			);
 			expect(clauses[0]).toContain("AND");
 			expect(clauses[0]).toContain("commitment_id");
@@ -291,7 +155,7 @@ describe("sql-join-builder", () => {
 				joins,
 				"public",
 				"commitments",
-				"postgres",
+				DatabaseDialect.Postgres,
 			);
 			expect(clauses).toHaveLength(2);
 			expect(clauses[0]).toContain("LEFT JOIN");
@@ -319,7 +183,7 @@ describe("sql-join-builder", () => {
 				"public",
 				"commitments",
 				joins,
-				"postgres",
+				DatabaseDialect.Postgres,
 			);
 			expect(preview).toContain("SELECT");
 			expect(preview).toContain('public."commitments".*');
@@ -333,7 +197,7 @@ describe("sql-join-builder", () => {
 				"public",
 				"commitments",
 				[],
-				"postgres",
+				DatabaseDialect.Postgres,
 			);
 			expect(preview).toContain("SELECT");
 			expect(preview).toContain("FROM");
@@ -359,128 +223,10 @@ describe("sql-join-builder", () => {
 				"main",
 				"commitments",
 				joins,
-				"sqlite",
+				DatabaseDialect.SQLite,
 			);
 			expect(preview).toContain('FROM "commitments"');
 			expect(preview).not.toContain('FROM main."commitments"');
-		});
-	});
-
-	describe("buildJoinSummary", () => {
-		it("returns 'No joins configured' for empty array", () => {
-			expect(buildJoinSummary([])).toBe("No joins configured");
-		});
-
-		it("generates summary for single standard join", () => {
-			const joins: JoinedTable[] = [
-				{
-					table: "lineItems",
-					schema: "public",
-					type: "left",
-					columns: "all",
-					joinCondition: {
-						mode: "standard",
-						referencingColumn: "id",
-						referencedColumn: "commitment_id",
-					},
-				},
-			];
-
-			const summary = buildJoinSummary(joins);
-			expect(summary).toContain("1. public.lineItems");
-			expect(summary).toContain("LEFT");
-			expect(summary).toContain("standard FK");
-		});
-
-		it("generates summary with filter condition count", () => {
-			const joins: JoinedTable[] = [
-				{
-					table: "lineItems",
-					schema: "public",
-					type: "inner",
-					columns: "all",
-					joinCondition: {
-						mode: "filters",
-						referencingColumn: "id",
-						referencedColumn: "commitment_id",
-						filters: {
-							conditions: [
-								{ column: "quantity", operator: "equals" as const, value: "1" },
-								{
-									column: "status",
-									operator: "equals" as const,
-									value: "active",
-								},
-							],
-							logicalOperator: "and",
-						},
-					},
-				},
-			];
-
-			const summary = buildJoinSummary(joins);
-			expect(summary).toContain("filters (2 conditions)");
-		});
-
-		it("correctly pluralizes condition singular form", () => {
-			const joins: JoinedTable[] = [
-				{
-					table: "lineItems",
-					schema: "public",
-					type: "left",
-					columns: "all",
-					joinCondition: {
-						mode: "custom",
-						conditions: ["lineItems.id = commitments.line_id"],
-					},
-				},
-			];
-
-			const summary = buildJoinSummary(joins);
-			expect(summary).toContain("custom (1 condition)");
-		});
-
-		it("generates summary for multiple joins", () => {
-			const joins: JoinedTable[] = [
-				{
-					table: "lineItems",
-					schema: "public",
-					type: "left",
-					columns: "all",
-					joinCondition: {
-						mode: "standard",
-						referencingColumn: "id",
-						referencedColumn: "commitment_id",
-					},
-				},
-				{
-					table: "products",
-					schema: "public",
-					type: "inner",
-					columns: "all",
-					joinCondition: {
-						mode: "filters",
-						referencingColumn: "id",
-						referencedColumn: "product_id",
-						filters: {
-							conditions: [
-								{
-									column: "active",
-									operator: "equals" as const,
-									value: "true",
-								},
-							],
-							logicalOperator: "and",
-						},
-					},
-				},
-			];
-
-			const summary = buildJoinSummary(joins);
-			expect(summary).toContain("1. public.lineItems [LEFT standard FK]");
-			expect(summary).toContain(
-				"2. public.products [INNER filters (1 condition)]",
-			);
 		});
 	});
 });
@@ -488,10 +234,7 @@ describe("sql-join-builder", () => {
 describe("buildPgSelectWithJoins", () => {
 	it("builds select with base table columns when metadata available", () => {
 		const tableColumnsMap = new Map([
-			[
-				"public.users",
-				[{ name: "id" }, { name: "name" }, { name: "email" }],
-			],
+			["public.users", [{ name: "id" }, { name: "name" }, { name: "email" }]],
 		]);
 		const joins: JoinTablesConfig["joins"] = [];
 		const result = buildPgSelectWithJoins(
@@ -519,10 +262,7 @@ describe("buildPgSelectWithJoins", () => {
 
 	it("includes joined table columns with all columns selection", () => {
 		const tableColumnsMap = new Map([
-			[
-				"public.users",
-				[{ name: "id" }, { name: "name" }],
-			],
+			["public.users", [{ name: "id" }, { name: "name" }]],
 			[
 				"public.posts",
 				[{ name: "id" }, { name: "title" }, { name: "published" }],
@@ -554,10 +294,7 @@ describe("buildPgSelectWithJoins", () => {
 
 	it("includes only selected columns from joined table", () => {
 		const tableColumnsMap = new Map([
-			[
-				"public.users",
-				[{ name: "id" }, { name: "name" }],
-			],
+			["public.users", [{ name: "id" }, { name: "name" }]],
 			[
 				"public.posts",
 				[{ name: "id" }, { name: "title" }, { name: "content" }],
@@ -588,12 +325,7 @@ describe("buildPgSelectWithJoins", () => {
 	});
 
 	it("falls back to * for joined table when metadata not available", () => {
-		const tableColumnsMap = new Map([
-			[
-				"public.users",
-				[{ name: "id" }],
-			],
-		]);
+		const tableColumnsMap = new Map([["public.users", [{ name: "id" }]]]);
 		const joins: JoinTablesConfig["joins"] = [
 			{
 				schema: "public",

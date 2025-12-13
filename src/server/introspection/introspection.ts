@@ -1,19 +1,22 @@
-import { SqlClient, Statement } from "@effect/sql";
-import { SqlError } from "@effect/sql/SqlError";
-import { Effect } from "effect";
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { SqlClient } from "@effect/sql";
+import { SqlError } from "@effect/sql/SqlError";
+import { Effect } from "effect";
+import {
+	buildPgWhereFragment,
+	buildSqliteWhereFragment,
+} from "./build-where.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
 import {
 	buildJoinSqlClauses,
 	buildPgJoinFilters,
-	buildSqliteJoinFilters,
 	buildPgSelectWithJoins,
+	buildSqliteJoinFilters,
 	buildSqliteSelectWithJoins,
 } from "./join-builder.ts";
-import { buildPgWhereFragment, buildSqliteWhereFragment } from "./build-where.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.
@@ -41,10 +44,7 @@ export const getAvailableDatabases = () =>
 				sql<{ name: string }>`
 					PRAGMA database_list
 				`,
-			orElse: () =>
-				sql<{ datname: string }>`
-					SELECT datname as name FROM pg_catalog.pg_database ORDER BY datname
-				`,
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
 
 		return result as Array<{ name: string }>;
@@ -71,11 +71,7 @@ export const getAvailableSchemas = () =>
 					SELECT 'main' as schema_name
 					UNION SELECT 'temp' as schema_name
 				`,
-			orElse: () =>
-				sql<{ schema_name: string }>`
-					SELECT schema_name FROM information_schema.schemata
-					ORDER BY schema_name
-				`,
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
 
 		return result.map((row) => row.schema_name);
@@ -107,12 +103,7 @@ export const getAvailableTables = (input?: { schema?: string }) =>
 					AND name NOT LIKE 'sqlite_%'
 					ORDER BY name
 				`,
-			orElse: () =>
-				sql`
-					SELECT table_name as name, table_schema as schema FROM information_schema.tables
-					WHERE table_schema = ${input?.schema || getDialectDefaultSchema(DatabaseDialect.Postgres)}
-					ORDER BY table_name
-				`,
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
 
 		return result as Array<{ name: string; schema: string }>;
@@ -291,11 +282,7 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 						foreignKey: fkMap.get(col.name),
 					}));
 				}),
-			orElse: () =>
-				Effect.gen(function* () {
-					// Fallback for unknown databases
-					return [];
-				}),
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
 		return output as Array<TableColumnMetadata>;
 	});
@@ -379,11 +366,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 							return posA - posB;
 						}) as ForeignKeyInfo[];
 				}),
-			orElse: () =>
-				sql<ForeignKeyInfo>`
-					SELECT constraint_name, column_name FROM information_schema.key_column_usage
-					WHERE table_schema = ${schema} AND table_name = ${table}
-				`,
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
 
 		return result as Array<ForeignKeyInfo>;
@@ -463,11 +446,7 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 
 					return results as IndexInfo[];
 				}),
-			orElse: () =>
-				sql<IndexInfo>`
-					SELECT index_name, column_name FROM information_schema.statistics
-					WHERE table_schema = ${schema} AND table_name = ${table}
-				`,
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
 
 		return result as Array<IndexInfo>;
@@ -709,26 +688,7 @@ export const getTableRelationships = (input: {
 
 					return combined;
 				}),
-			orElse: () =>
-				sql<TableRelationship>`
-					SELECT
-						'outgoing' as type,
-						${schema} as "referencingSchema",
-						${table} as "referencingTable",
-						kcu.column_name as "referencingColumn",
-						ccu.table_schema as "referencedSchema",
-						ccu.table_name as "referencedTable",
-						ccu.column_name as "referencedColumn",
-						tc.constraint_name as "constraintName"
-					FROM information_schema.table_constraints tc
-					JOIN information_schema.key_column_usage kcu
-						ON tc.constraint_name = kcu.constraint_name
-					JOIN information_schema.constraint_column_usage ccu
-						ON tc.constraint_name = ccu.constraint_name
-					WHERE tc.constraint_type = 'FOREIGN KEY'
-					AND tc.table_schema = ${schema}
-					AND tc.table_name = ${table}
-				`,
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
 
 		return output as Array<TableRelationship>;
@@ -820,31 +780,7 @@ export const findColumnReferences = (input: {
 						return a.column.localeCompare(b.column);
 					});
 				}),
-			orElse: () =>
-				sql`
-					SELECT
-						kcu1.table_schema AS schema,
-						kcu1.table_name AS table,
-						kcu1.column_name AS column,
-						kcu2.column_name AS "referencedColumn",
-						kcu1.constraint_name AS "constraintName"
-					FROM
-						information_schema.key_column_usage kcu1
-						LEFT JOIN information_schema.referential_constraints rc ON kcu1.constraint_name = rc.constraint_name
-						LEFT JOIN information_schema.key_column_usage kcu2 ON rc.unique_constraint_name = kcu2.constraint_name
-					WHERE
-						kcu1.constraint_name IN (
-							SELECT constraint_name
-							FROM information_schema.table_constraints
-							WHERE constraint_type = 'FOREIGN KEY'
-						)
-						AND kcu2.table_schema = ${referencedSchema}
-						AND kcu2.table_name = ${referencedTable}
-						AND kcu2.column_name = ${referencedColumn}
-					ORDER BY
-						kcu1.table_name,
-						kcu1.column_name
-				`,
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
 
 		return output as Array<ColumnReference>;
@@ -968,42 +904,7 @@ export const findColumnReferencesWithCounts = (input: {
 							),
 						);
 					},
-					orElse: () => {
-						if (normalizedCellValue === null) {
-							return sql<{ count: number }>`
-								SELECT COUNT(*) as count
-								FROM ${tableRef}
-								WHERE ${column} IS NULL
-							`.pipe(
-								Effect.map((rows) => ({
-									...ref,
-									matchingRowCount: Number(rows[0]?.count ?? 0),
-								})),
-								Effect.catchAll(() =>
-									Effect.succeed({
-										...ref,
-										matchingRowCount: -1,
-									}),
-								),
-							);
-						}
-						return sql<{ count: number }>`
-							SELECT COUNT(*) as count
-							FROM ${tableRef}
-							WHERE ${column} = ${normalizedCellValue}
-						`.pipe(
-							Effect.map((rows) => ({
-								...ref,
-								matchingRowCount: Number(rows[0]?.count ?? 0),
-							})),
-							Effect.catchAll(() =>
-								Effect.succeed({
-									...ref,
-									matchingRowCount: -1,
-								}),
-							),
-						);
-					},
+					orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 				});
 			}),
 		);
@@ -1189,9 +1090,7 @@ export const getRelationshipCardinality = (input: {
 
 					return [{ cardinality }];
 				}),
-			orElse: () =>
-				// Default fallback - assume many-to-one
-				Effect.succeed([{ cardinality: "many-to-one" }]),
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
 		const result = output as Array<{ cardinality: string }>;
 
@@ -1285,15 +1184,7 @@ export const getRelationshipsCounts = (input: {
 								Effect.map((rows) => Number(rows[0]?.count ?? 0)),
 								Effect.catchAll(() => Effect.succeed(0)),
 							),
-						orElse: () =>
-							sql<{ count: number }>`
-								SELECT COUNT(*) as count
-								FROM ${tableRef}
-								WHERE ${referencingColumn} = ${String(filterValue)}
-							`.pipe(
-								Effect.map((rows) => Number(rows[0]?.count ?? 0)),
-								Effect.catchAll(() => Effect.succeed(0)),
-							),
+						orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 					});
 
 					return {
@@ -1403,45 +1294,42 @@ export const queryTableRows = <TData>(input: {
 			tableColumnsMap.set(result.tableOnly, result.columns);
 		}
 
-		// Build WHERE clause if filters exist
-		const pgMainFilter =
-			filters && filters.conditions.length > 0
-				? buildPgWhereFragment(filters.conditions, filters.logicalOperator)
-				: "";
-
-		// Build WHERE clause for join filters
-		const pgJoinFilter = joins.length > 0 ? buildPgJoinFilters(joins) : "";
-
-		// Combine main table filters with join filters
-		const pgWhereClause = [pgMainFilter, pgJoinFilter]
-			.filter(Boolean)
-			.join(" AND ");
-
 		// Build ORDER BY clause
 		const orderClause = orderBy
 			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
 			: "";
 
-		// Build JOIN clauses using shared function
-		const pgJoinClauses = buildJoinSqlClauses(
-			joins,
-			schema,
-			table,
-			"postgres",
-		).join("\n");
-
-		// Build JOIN clauses using shared function
-		const sqliteJoinClauses = buildJoinSqlClauses(
-			joins,
-			schema,
-			table,
-			"sqlite",
-		).join("\n");
-
 		// Get count and rows
 		const result = yield* sql.onDialectOrElse({
 			pg: () =>
 				Effect.gen(function* () {
+					// Build JOIN clauses using shared function
+					const pgJoinClauses = buildJoinSqlClauses(
+						joins,
+						schema,
+						table,
+						DatabaseDialect.Postgres,
+					).join("\n");
+
+					// Build WHERE clause if filters exist
+					const pgMainFilter =
+						filters && filters.conditions.length > 0
+							? buildPgWhereFragment(
+									filters.conditions,
+									filters.logicalOperator,
+									schema,
+									table,
+								)
+							: "";
+
+					// Build WHERE clause for join filters
+					const pgJoinFilter =
+						joins.length > 0 ? buildPgJoinFilters(joins) : "";
+
+					// Combine main table filters with join filters
+					const pgWhereClause = [pgMainFilter, pgJoinFilter]
+						.filter(Boolean)
+						.join(" AND ");
 					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
 
 					// Get total count
@@ -1456,13 +1344,13 @@ export const queryTableRows = <TData>(input: {
 					const countResult = yield* countQuery;
 					const rowCount = Number(countResult[0]?.count ?? 0);
 
-				// Get rows with proper column selection and prefixing
-				const selectPart =
-					joins.length > 0
-						? buildPgSelectWithJoins(schema, table, joins, tableColumnsMap)
-						: "*";
+					// Get rows with proper column selection and prefixing
+					const selectPart =
+						joins.length > 0
+							? buildPgSelectWithJoins(schema, table, joins, tableColumnsMap)
+							: "*";
 
-				const query = sql`
+					const query = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(schema)}.${sql(table)}
 					${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
@@ -1470,8 +1358,9 @@ export const queryTableRows = <TData>(input: {
 					${sql.unsafe(orderClause)}
 					LIMIT ${limit} OFFSET ${offset}
 				`;
-				console.log(query.compile());
-				const rows = yield* query;					return {
+					console.log(query.compile());
+					const rows = yield* query;
+					return {
 						rows: rows as TData[],
 						rowCount,
 						hasNextPage: offset + limit < rowCount,
@@ -1479,11 +1368,20 @@ export const queryTableRows = <TData>(input: {
 				}),
 			sqlite: () =>
 				Effect.gen(function* () {
+					// Build JOIN clauses using shared function
+					const sqliteJoinClauses = buildJoinSqlClauses(
+						joins,
+						schema,
+						table,
+						DatabaseDialect.SQLite,
+					).join("\n");
+
 					const sqliteMainFilter =
 						filters && filters.conditions.length > 0
 							? buildSqliteWhereFragment(
 									filters.conditions,
 									filters.logicalOperator,
+									table,
 								)
 							: "";
 
@@ -1507,14 +1405,14 @@ export const queryTableRows = <TData>(input: {
 					${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
 					${sql.unsafe(whereFragment)}
 				`;
-				const countResult = yield* countQuery;
-				const rowCount = Number(countResult[0]?.count ?? 0); // Get rows
-				const selectPart =
-					joins.length > 0
-						? buildSqliteSelectWithJoins(table, joins, tableColumnsMap)
-						: "*";
+					const countResult = yield* countQuery;
+					const rowCount = Number(countResult[0]?.count ?? 0); // Get rows
+					const selectPart =
+						joins.length > 0
+							? buildSqliteSelectWithJoins(table, joins, tableColumnsMap)
+							: "*";
 
-				const query = sql`
+					const query = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(table)}
 				${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
@@ -1529,41 +1427,7 @@ export const queryTableRows = <TData>(input: {
 						hasNextPage: offset + limit < rowCount,
 					};
 				}),
-			orElse: () =>
-				Effect.gen(function* () {
-					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
-
-					// Get total count
-					const countResult = yield* sql`
-						SELECT COUNT(*) as count
-						FROM ${sql(schema)}.${sql(table)}
-						${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
-						${sql.unsafe(whereFragment)}
-					`;
-					const rowCount = Number(countResult[0]?.count ?? 0);
-
-
-				// Get rows
-				const selectPart =
-					joins.length > 0
-						? buildPgSelectWithJoins(schema, table, joins, tableColumnsMap)
-						: "*";
-
-				const rows = yield* sql`
-					SELECT ${sql.unsafe(selectPart)}
-					FROM ${sql(schema)}.${sql(table)}
-					${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
-					${sql.unsafe(whereFragment)}
-					${sql.unsafe(orderClause)}
-					LIMIT ${limit} OFFSET ${offset}
-				`;
-
-					return {
-						rows: rows as TData[],
-						rowCount,
-						hasNextPage: offset + limit < rowCount,
-					};
-				}),
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
 
 		return result;

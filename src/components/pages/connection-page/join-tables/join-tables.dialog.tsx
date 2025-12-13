@@ -30,6 +30,7 @@ import type {
 import { JoinedTableRow } from "./joined-table-row.tsx";
 import { useJoinTablesState } from "./use-join-tables-state.ts";
 import { useJoinedTables } from "./use-joined-tables.ts";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 
 interface JoinTablesDialogProps {
 	isOpen: boolean;
@@ -278,7 +279,7 @@ export const JoinTablesDialog = ({
 									schema,
 									table,
 									joinState.config.joins,
-									"postgres",
+									DatabaseDialect.Postgres, // TODO
 								)}
 							</div>
 						</div>
