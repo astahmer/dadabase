@@ -4,6 +4,7 @@ import type { CSSProperties, PropsWithChildren } from "react";
 import { memo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { type DataTableSize, tableCellStyles } from "./data-table.styles.ts";
+import { cn } from "#src/lib/utils.ts";
 
 const fallbackRender = () => "An error happened";
 
@@ -18,6 +19,7 @@ export const DataTableCell = memo(function TableCell(props: {
 	enableColumnOrdering: boolean;
 	isDragDisabled: boolean;
 	textAlign: "left" | "right" | "center";
+	isJoinedTable?: boolean;
 	style?: CSSProperties;
 }) {
 	const {
@@ -29,6 +31,7 @@ export const DataTableCell = memo(function TableCell(props: {
 		enableColumnOrdering,
 		textAlign,
 		isDragDisabled,
+		isJoinedTable = false,
 		style,
 	} = props;
 
@@ -49,7 +52,10 @@ export const DataTableCell = memo(function TableCell(props: {
 		return (
 			<td
 				ref={sortable.setNodeRef}
-				className={tableCellStyles({ size, showColumnBorder, textAlign })}
+				className={cn(
+					tableCellStyles({ size, showColumnBorder, textAlign }),
+					isJoinedTable ? "bg-blue-50 dark:bg-[#0f1429]" : "",
+				)}
 				data-testid={`cell-${index}-${columnId}`}
 				style={{
 					width: `${props.columnSize}px`,
@@ -66,7 +72,10 @@ export const DataTableCell = memo(function TableCell(props: {
 
 	return (
 		<td
-			className={tableCellStyles({ size, showColumnBorder, textAlign })}
+			className={cn(
+				tableCellStyles({ size, showColumnBorder, textAlign }),
+				isJoinedTable ? "bg-blue-50 dark:bg-[#0f1429]" : "",
+			)}
 			data-testid={`cell-${index}-${columnId}`}
 			style={{
 				width: `${props.columnSize}px`,

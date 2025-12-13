@@ -154,6 +154,7 @@ export const useRowsColumns = ({
 
 		const renderColumnList = (
 			list: Array<ColumnMetadata & { table: string; accessorKey: string }>,
+			isJoinedTable: boolean = false,
 		) =>
 			list.map((col) => {
 				return {
@@ -176,6 +177,8 @@ export const useRowsColumns = ({
 					),
 					meta: {
 						textAlign: getColumnTextAlignment(col.dataType),
+						isJoinedTable: isJoinedTable,
+						table: col.table,
 					},
 					cell: col.dataType.toLowerCase().includes("json")
 						? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
@@ -254,12 +257,15 @@ export const useRowsColumns = ({
 				} as ColumnDef<any> as any;
 			});
 		if (displayedColumns.length === 1) {
-			return renderColumnList(displayedColumns[0].columns);
+			return renderColumnList(displayedColumns[0].columns, false);
 		}
 
-		return displayedColumns.map((col) => ({
+		return displayedColumns.map((col, index) => ({
 			header: col.header,
-			columns: renderColumnList(col.columns),
+			columns: renderColumnList(col.columns, index > 0),
+			meta: {
+				isJoinedTable: index > 0,
+			},
 		}));
 	}, [
 		displayedColumns,

@@ -635,6 +635,7 @@ const HeaderCell = memo(
 			| undefined;
 		const textAlign =
 			(meta?.textAlign as "left" | "right" | "center" | undefined) || "left";
+		const isJoinedTable = (meta?.isJoinedTable as boolean) ?? false;
 		const isDragDisabled =
 			props.enableColumnOrdering === false ||
 			meta?.enableColumnOrdering === false ||
@@ -668,6 +669,7 @@ const HeaderCell = memo(
 										textAlign: hasBulkActions ? "right" : textAlign,
 									}),
 									"sticky left-[50px] z-1 bg-background",
+									isJoinedTable ? "bg-blue-50 dark:bg-[#0f1429]" : "",
 								)}
 							>
 								<div
@@ -734,6 +736,7 @@ const HeaderCell = memo(
 						showColumnBorder: props.showColumnBorder,
 						textAlign: hasBulkActions ? "right" : textAlign,
 					}),
+					isJoinedTable ? "bg-blue-50 dark:bg-[#0f1429]" : "",
 					"relative",
 					headerCell.subHeaders.length && "py-1.5 pl-10",
 					props.hideColumnPinIconUnlessHovered && "group",
