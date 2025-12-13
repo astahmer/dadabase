@@ -270,6 +270,14 @@ export const JoinTablesDialog = ({
 								const columnsQuery = columnQueries[index];
 								const columns = columnsQuery.data || [];
 
+								if (columnsQuery.isLoading) {
+									return (
+										<Stack key={index}>
+											<Spinner className="h-4 w-4" />
+										</Stack>
+									);
+								}
+
 								return (
 									<JoinedTableRow
 										key={`${join.schema}.${join.table}.${join.type}.${index}`}
