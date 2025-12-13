@@ -5,13 +5,9 @@ import type { JoinTablesConfig } from "#src/components/pages/connection-page/joi
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { buildJoinSqlClauses } from "#src/server/introspection/join-builder.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
-import {
-	buildJoinClauses,
-	buildPgJoinFilters,
-	buildSqliteJoinFilters,
-	buildWhereExpressionFromFilters,
-} from "./join-builder.ts";
+import { buildPgJoinFilters, buildSqliteJoinFilters } from "./join-builder.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.
@@ -1676,102 +1672,27 @@ export const queryTableRows = <TData>(input: {
 			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
 			: "";
 
-		// Build JOIN clauses if joins exist (will use different versions per dialect)
-		const buildPgJoinClauses = () =>
-			joins
-				.map((join) => {
-					const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
-					let joinCondition: string;
+		// Build JOIN clauses using shared function
+		const pgJoinClauses = buildJoinSqlClauses(
+			joins,
+			schema,
+			table,
+			"postgres",
+		).join("\n");
 
-					if (join.joinCondition.mode === "standard") {
-						joinCondition = `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
-					} else if (join.joinCondition.mode === "custom") {
-						// Custom join conditions
-						const conditions = join.joinCondition.conditions
-							.filter((cond: string) => cond && cond.trim().length > 0)
-							.map((cond: string) => cond.trim());
-						joinCondition =
-							conditions.length > 0
-								? conditions.join(" AND ")
-								: `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
-					} else {
-						// Filter-based join conditions - combine FK condition with filter conditions
-						const fkCondition = `${join.schema}."${join.table}"."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
-						if (
-							!join.joinCondition.filters ||
-							join.joinCondition.filters.conditions.length === 0
-						) {
-							joinCondition = fkCondition;
-						} else {
-							const filterExpression = buildWhereExpressionFromFilters(
-								join.joinCondition.filters.conditions,
-								join.joinCondition.filters.logicalOperator,
-								join.schema,
-								join.table,
-							);
-							// Combine FK condition with filter conditions
-							if (!filterExpression || filterExpression.trim() === "") {
-								joinCondition = fkCondition;
-							} else {
-								joinCondition = `${fkCondition} AND ${filterExpression}`;
-							}
-						}
-					}
-					return `${joinType} ${join.schema}."${join.table}" ON ${joinCondition}`;
-				})
-				.join("\n");
-
-		const buildSqliteJoinClauses = () =>
-			joins
-				.map((join) => {
-					const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
-					let joinCondition: string;
-
-					if (join.joinCondition.mode === "standard") {
-						joinCondition = `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
-					} else if (join.joinCondition.mode === "custom") {
-						// Custom join conditions
-						const conditions = join.joinCondition.conditions
-							.filter((cond) => cond && cond.trim().length > 0)
-							.map((cond) => cond.trim());
-						joinCondition =
-							conditions.length > 0
-								? conditions.join(" AND ")
-								: `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
-					} else {
-						// Filter-based join conditions
-						if (
-							!join.joinCondition.filters ||
-							join.joinCondition.filters.conditions.length === 0
-						) {
-							joinCondition = `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
-						} else {
-							// Filter-based join conditions - combine FK condition with filter conditions
-							const fkCondition = `${join.table}."${join.joinCondition.referencedColumn}" = ${schema}."${table}"."${join.joinCondition.referencingColumn}"`;
-							const filterExpression = buildWhereExpressionFromFilters(
-								join.joinCondition.filters.conditions,
-								join.joinCondition.filters.logicalOperator,
-								"main",
-								join.table,
-							);
-							// Combine FK condition with filter conditions
-							if (!filterExpression || filterExpression.trim() === "") {
-								joinCondition = fkCondition;
-							} else {
-								joinCondition = `${fkCondition} AND ${filterExpression}`;
-							}
-						}
-					}
-					return `${joinType} ${join.table} ON ${joinCondition}`;
-				})
-				.join("\n");
+		// Build JOIN clauses using shared function
+		const sqliteJoinClauses = buildJoinSqlClauses(
+			joins,
+			schema,
+			table,
+			"sqlite",
+		).join("\n");
 
 		// Get count and rows
 		const result = yield* sql.onDialectOrElse({
 			pg: () =>
 				Effect.gen(function* () {
 					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
-					const pgJoinClauses = buildPgJoinClauses();
 
 					// Get total count
 					const countQuery = sql`
@@ -1830,7 +1751,6 @@ export const queryTableRows = <TData>(input: {
 					const whereFragment = sqliteWhereClause
 						? `WHERE ${sqliteWhereClause}`
 						: "";
-					const sqliteJoinClauses = buildSqliteJoinClauses();
 
 					// Get total count
 					const countQuery = sql`
@@ -1864,7 +1784,6 @@ export const queryTableRows = <TData>(input: {
 			orElse: () =>
 				Effect.gen(function* () {
 					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
-					const pgJoinClauses = buildPgJoinClauses();
 
 					// Get total count
 					const countResult = yield* sql`

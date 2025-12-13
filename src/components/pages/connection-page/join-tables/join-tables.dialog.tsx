@@ -18,7 +18,7 @@ import {
 	ListboxRoot,
 } from "#src/components/ui/listbox-menu.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
-import { buildJoinSqlPreview } from "#src/lib/build-join-sql-preview.ts";
+import { buildJoinSqlPreview } from "#src/server/introspection/join-builder.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
