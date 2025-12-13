@@ -124,6 +124,15 @@ export const useJoinTablesState = (initialConfig?: JoinTablesConfig) => {
 		[],
 	);
 
+	const reorder = useCallback((fromIndex: number, toIndex: number) => {
+		setConfig((prev) => {
+			const newJoins = Array.from(prev.joins);
+			const [removed] = newJoins.splice(fromIndex, 1);
+			newJoins.splice(toIndex, 0, removed);
+			return { ...prev, joins: newJoins };
+		});
+	}, []);
+
 	const hasJoins = config.joins.length > 0;
 
 	return {
@@ -134,6 +143,7 @@ export const useJoinTablesState = (initialConfig?: JoinTablesConfig) => {
 		update: update,
 		updateJoinConditionMode,
 		updateCustomJoinConditions,
+		reorder,
 		clear: clear,
 		hasJoins,
 	};

@@ -1,6 +1,3 @@
-import { createListCollection, useFilter } from "@ark-ui/react";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
 import { Button } from "#src/components/ui/button.tsx";
 import {
 	Dialog,
@@ -23,9 +20,26 @@ import { buildJoinSqlPreview } from "#src/server/introspection/join-builder.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
+import { createListCollection, useFilter } from "@ark-ui/react";
+import {
+	closestCenter,
+	DndContext,
+	KeyboardSensor,
+	PointerSensor,
+	useSensor,
+	useSensors,
+	type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+	SortableContext,
+	sortableKeyboardCoordinates,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { TableName } from "../table-name.tsx";
 import type { JoinTablesConfig } from "./join-tables.types";
-import { JoinedTableRow } from "./joined-table-row.tsx";
+import { SortableJoinedTableRow } from "./sortable-joined-table-row.tsx";
 import { useJoinTablesState } from "./use-join-tables-state.ts";
 import { useJoinedTables } from "./use-joined-tables.ts";
 
@@ -83,6 +97,29 @@ export const JoinTablesDialog = ({
 
 	const filters = useFilter({ sensitivity: "base" });
 	const [searchInput, setSearchInput] = useState("");
+
+	const sensors = useSensors(
+		useSensor(PointerSensor),
+		useSensor(KeyboardSensor, {
+			coordinateGetter: sortableKeyboardCoordinates,
+		}),
+	);
+
+	const handleDragEnd = (event: DragEndEvent) => {
+		const { active, over } = event;
+		if (over && active.id !== over.id) {
+			const oldIndex = joinState.config.joins.findIndex(
+				(j) => `${j.schema}.${j.table}` === active.id,
+			);
+			const newIndex = joinState.config.joins.findIndex(
+				(j) => `${j.schema}.${j.table}` === over.id,
+			);
+			if (oldIndex !== -1 && newIndex !== -1) {
+				joinState.reorder(oldIndex, newIndex);
+			}
+		}
+	};
+
 	const tableCollection = createListCollection({
 		items: unselectedRelationships.map((rel) => ({
 			label: `${rel.type === "outgoing" ? rel.referencedSchema : rel.referencingSchema}.${rel.type === "outgoing" ? rel.referencedTable : rel.referencingTable}`,
@@ -258,64 +295,80 @@ export const JoinTablesDialog = ({
 					)}{" "}
 					{/* Joined tables list */}
 					{joinState.config.joins.length > 0 && (
-						<Stack gap="3">
-							<div className="text-sm font-medium">
-								Selected Joins ({joinState.config.joins.length})
-							</div>
-							{joinState.config.joins.map((join, index) => {
-								const columnsQuery = columnQueries[index];
-								const columns = columnsQuery.data || [];
+						<DndContext
+							sensors={sensors}
+							collisionDetection={closestCenter}
+							onDragEnd={handleDragEnd}
+						>
+							<Stack gap="3">
+								<div className="text-sm font-medium">
+									Selected Joins ({joinState.config.joins.length})
+								</div>
+								<SortableContext
+									items={joinState.config.joins.map(
+										(j) => `${j.schema}.${j.table}`,
+									)}
+									strategy={verticalListSortingStrategy}
+								>
+									{joinState.config.joins.map((join, index) => {
+										const columnsQuery = columnQueries[index];
+										const columns = columnsQuery.data || [];
 
-								if (columnsQuery.isLoading) {
-									return (
-										<Stack key={index}>
-											<Spinner className="h-4 w-4" />
-										</Stack>
-									);
-								}
+										if (columnsQuery.isLoading) {
+											return (
+												<Stack key={index}>
+													<Spinner className="h-4 w-4" />
+												</Stack>
+											);
+										}
 
-								return (
-									<JoinedTableRow
-										key={`${join.schema}.${join.table}.${join.type}.${index}`}
-										joined={join}
-										availableColumns={columns}
-										parentSchema={schema}
-										parentTable={table}
-										onUpdateType={(type) =>
-											joinState.update(join.table, join.schema, { type })
-										}
-										onUpdateColumns={(cols) =>
-											joinState.update(join.table, join.schema, {
-												columns: cols,
-											})
-										}
-										onUpdateFilters={(filters) =>
-											joinState.update(join.table, join.schema, {
-												filters,
-											})
-										}
-										onUpdateJoinConditionMode={(mode) =>
-											joinState.updateJoinConditionMode(
-												join.table,
-												join.schema,
-												mode,
-											)
-										}
-										onUpdateCustomJoinConditions={(conditions) =>
-											joinState.updateCustomJoinConditions(
-												join.table,
-												join.schema,
-												conditions,
-											)
-										}
-										onUpdateJoinCondition={(updates) =>
-											joinState.update(join.table, join.schema, updates)
-										}
-										onRemove={() => joinState.remove(join.table, join.schema)}
-									/>
-								);
-							})}
-						</Stack>
+										return (
+											<SortableJoinedTableRow
+												key={`${join.schema}.${join.table}.${join.type}.${index}`}
+												joined={join}
+												availableColumns={columns}
+												parentSchema={schema}
+												parentTable={table}
+												index={index}
+												onUpdateType={(type) =>
+													joinState.update(join.table, join.schema, { type })
+												}
+												onUpdateColumns={(cols) =>
+													joinState.update(join.table, join.schema, {
+														columns: cols,
+													})
+												}
+												onUpdateFilters={(filters) =>
+													joinState.update(join.table, join.schema, {
+														filters,
+													})
+												}
+												onUpdateJoinConditionMode={(mode) =>
+													joinState.updateJoinConditionMode(
+														join.table,
+														join.schema,
+														mode,
+													)
+												}
+												onUpdateCustomJoinConditions={(conditions) =>
+													joinState.updateCustomJoinConditions(
+														join.table,
+														join.schema,
+														conditions,
+													)
+												}
+												onUpdateJoinCondition={(updates) =>
+													joinState.update(join.table, join.schema, updates)
+												}
+												onRemove={() =>
+													joinState.remove(join.table, join.schema)
+												}
+											/>
+										);
+									})}
+								</SortableContext>
+							</Stack>
+						</DndContext>
 					)}
 					{/* SQL preview */}
 					{joinState.config.joins.length > 0 && (
