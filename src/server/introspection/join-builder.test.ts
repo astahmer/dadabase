@@ -94,6 +94,120 @@ describe("sql-join-builder", () => {
 			expect(clauses[0]).toContain("quantity > 0");
 		});
 
+		it("builds pure custom SQL join without FK requirement", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "products",
+					schema: "public",
+					type: "inner",
+					columns: "all",
+					joinCondition: {
+						mode: "custom",
+						// No referencingColumn or referencedColumn - pure custom condition
+						conditions: [
+							"products.id = (procurement_projects.entity_id)::uuid",
+							"products.deleted_at IS NULL",
+						],
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"procurement_projects",
+				DatabaseDialect.Postgres,
+			);
+			expect(clauses).toHaveLength(1);
+			expect(clauses[0]).toContain("INNER JOIN");
+			expect(clauses[0]).toContain("(procurement_projects.entity_id)::uuid");
+			expect(clauses[0]).toContain("products.deleted_at IS NULL");
+			// Should NOT contain referencingColumn or referencedColumn
+			expect(clauses[0]).not.toContain("undefined");
+		});
+
+		it("builds pure custom SQL join for SQLite without FK requirement", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "products",
+					schema: "main",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "custom",
+						conditions: [
+							"products.vendor_id = vendors.id",
+							"vendors.status = 'active'",
+						],
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"main",
+				"vendors",
+				DatabaseDialect.SQLite,
+			);
+			expect(clauses).toHaveLength(1);
+			expect(clauses[0]).toContain("LEFT JOIN");
+			expect(clauses[0]).toContain("vendor_id = vendors.id");
+			expect(clauses[0]).toContain("status = 'active'");
+			expect(clauses[0]).not.toContain("main.products");
+		});
+
+		it("throws error when custom join has no conditions and no FK info", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "lineItems",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "custom",
+						conditions: [], // Empty conditions
+						// No FK info
+					},
+				},
+			];
+
+			expect(() => {
+				buildJoinSqlClauses(
+					joins,
+					"public",
+					"commitments",
+					DatabaseDialect.Postgres,
+				);
+			}).toThrow();
+		});
+
+		it("falls back to FK when custom join has no conditions but FK info is provided", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "lineItems",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "custom",
+						conditions: [], // Empty conditions
+						referencingColumn: "id",
+						referencedColumn: "commitment_id",
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"commitments",
+				DatabaseDialect.Postgres,
+			);
+			// Should fallback to FK join
+			expect(clauses[0]).toContain('"commitment_id" = ');
+			expect(clauses[0]).toContain('"id"');
+		});
+
 		it("builds filter-based join conditions with FK prefix", () => {
 			const joins: JoinedTable[] = [
 				{
