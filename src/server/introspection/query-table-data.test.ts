@@ -2215,6 +2215,110 @@ const testSuite =
 				}).pipe(Effect.provide(sqlLayer));
 			},
 		);
+
+		it.effect(
+			"filters with ambiguous column names specify table explicitly",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const sql = yield* SqlClient.SqlClient;
+
+					// Add an 'id' column to posts table (it already has one, but demonstrate disambiguation)
+					// Create a comments table that also has 'id' and 'title' to test ambiguity
+					yield* sql.onDialectOrElse({
+						pg: () =>
+							Effect.gen(function* () {
+								yield* sql`
+					CREATE TABLE IF NOT EXISTS comments (
+						id SERIAL PRIMARY KEY,
+						post_id INTEGER NOT NULL REFERENCES posts(id),
+						title TEXT NOT NULL,
+						content TEXT
+					)
+				`;
+								// Insert test comments
+								yield* sql`
+					INSERT INTO comments (post_id, title, content) VALUES
+					(1, 'Comment on Post 1', 'Great post!'),
+					(2, 'Comment on Post 2', 'Really good'),
+					(3, 'Comment on Post 3', 'Nice work')
+				`;
+							}),
+						sqlite: () =>
+							Effect.gen(function* () {
+								yield* sql`
+					CREATE TABLE IF NOT EXISTS comments (
+						id INTEGER PRIMARY KEY AUTOINCREMENT,
+						post_id INTEGER NOT NULL REFERENCES posts(id),
+						title TEXT NOT NULL,
+						content TEXT
+					)
+				`;
+								// Insert test comments
+								yield* sql`
+					INSERT INTO comments (post_id, title, content) VALUES
+					(1, 'Comment on Post 1', 'Great post!'),
+					(2, 'Comment on Post 2', 'Really good'),
+					(3, 'Comment on Post 3', 'Nice work')
+				`;
+							}),
+						orElse: () =>
+							Effect.gen(function* () {
+								return Effect.fail(new Error("Unsupported database"));
+							}),
+					});
+
+					// Create joins to both posts and comments
+					const joins: JoinedTable[] = [
+						{
+							table: "comments",
+							schema: config.defaultSchema,
+							type: "inner",
+							columns: "all",
+							joinCondition: {
+								mode: "standard",
+								referencingColumn: "id",
+								referencedColumn: "post_id",
+							},
+						},
+					];
+
+					// Filter by 'title' which exists in BOTH posts and comments
+					// Without specifying table, this could be ambiguous.
+					// We filter for comments with title containing "Post"
+					const filters: QueryFilterType = {
+						conditions: [
+							{
+								column: "title",
+								table: "comments", // Explicitly specify we want comments.title
+								operator: "contains",
+								value: "Post",
+							},
+						],
+						logicalOperator: "and",
+					};
+
+					const result = yield* queryTableRows<Record<string, unknown>>({
+						schema: config.defaultSchema,
+						table: "posts",
+						joins,
+						filters,
+					});
+
+					// Should match all 3 comments (all have "Post" in their titles)
+					expect(result.rowCount).toBe(3);
+					// Verify we got the comment data
+					expect(result.rows[0]).toHaveProperty("comments.title");
+					expect(
+						result.rows.every((r) =>
+							String(r["comments.title"]).includes("Post"),
+						),
+					).toBe(true);
+				}).pipe(Effect.provide(sqlLayer));
+			},
+		);
 	};
 
 describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));

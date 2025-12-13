@@ -8,7 +8,6 @@ import {
 	buildPgWhereFragment,
 	buildSqliteWhereFragment,
 } from "./build-where.ts";
-import { escapeValue } from "./escape-value";
 
 /**
  * Build a WHERE clause fragment for joined table filters (PostgreSQL)

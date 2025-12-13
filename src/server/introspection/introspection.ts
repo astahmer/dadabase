@@ -1317,8 +1317,6 @@ export const queryTableRows = <TData>(input: {
 							? buildPgWhereFragment(
 									filters.conditions,
 									filters.logicalOperator,
-									schema,
-									table,
 								)
 							: "";
 
@@ -1381,7 +1379,6 @@ export const queryTableRows = <TData>(input: {
 							? buildSqliteWhereFragment(
 									filters.conditions,
 									filters.logicalOperator,
-									table,
 								)
 							: "";
 

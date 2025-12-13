@@ -3,13 +3,14 @@ import { escapeIdentifier, escapeValue } from "./escape-value";
 
 /**
  * Build a WHERE clause fragment for main table filters (PostgreSQL)
- * Does not include join table filters - those are handled separately by buildPgJoinFilters
+ * Supports specifying table in condition for joined table filters
+ * If condition.table is provided, it takes precedence over the default schema/table
  */
 export const buildPgWhereFragment = (
 	conditions: QueryFilterType["conditions"],
 	logicalOp: "and" | "or",
-	schema: string,
-	table: string,
+	schema?: string,
+	table?: string,
 ): string | undefined => {
 	if (conditions.length === 0) return;
 
@@ -21,7 +22,19 @@ export const buildPgWhereFragment = (
 	if (validConditions.length === 0) return;
 
 	const expressions = validConditions.map((c) => {
-		const col = `${escapeIdentifier(schema)}.${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`;
+		// If condition specifies a table, use it. Otherwise use the provided schema/table or just the column
+		let col: string;
+		if (c.table) {
+			// Explicit table in condition (for joined tables)
+			col = `${escapeIdentifier(c.table)}.${escapeIdentifier(c.column)}`;
+		} else if (schema && table) {
+			// Use provided schema and table
+			col = `${escapeIdentifier(schema)}.${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`;
+		} else {
+			// Just the column name
+			col = `${escapeIdentifier(c.column)}`;
+		}
+
 		switch (c.operator) {
 			case "equals":
 				return `${col} = '${escapeValue(c.value)}'`;
@@ -66,12 +79,13 @@ export const buildPgWhereFragment = (
 
 /**
  * Build a WHERE clause fragment for main table filters (SQLite)
- * Does not include join table filters - those are handled separately by buildSqliteJoinFilters
+ * Supports specifying table in condition for joined table filters
+ * If condition.table is provided, it takes precedence over the default table
  */
 export const buildSqliteWhereFragment = (
 	conditions: QueryFilterType["conditions"],
 	logicalOp: "and" | "or",
-	table: string,
+	table?: string,
 ): string => {
 	if (conditions.length === 0) return "";
 
@@ -83,7 +97,19 @@ export const buildSqliteWhereFragment = (
 	if (validConditions.length === 0) return "";
 
 	const expressions = validConditions.map((c) => {
-		const col = `${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`;
+		// If condition specifies a table, use it. Otherwise use the provided table or just the column
+		let col: string;
+		if (c.table) {
+			// Explicit table in condition (for joined tables)
+			col = `${escapeIdentifier(c.table)}.${escapeIdentifier(c.column)}`;
+		} else if (table) {
+			// Use provided table
+			col = `${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`;
+		} else {
+			// Just the column name
+			col = `${escapeIdentifier(c.column)}`;
+		}
+
 		// Convert boolean values to integers for SQLite (0/1 instead of false/true)
 		const sqliteValue =
 			typeof c.value === "boolean" ? (c.value ? 1 : 0) : c.value;
