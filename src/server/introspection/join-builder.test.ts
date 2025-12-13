@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
-import {
-	buildJoinSqlClauses,
-	buildJoinSqlPreview,
-	buildPgSelectWithJoins,
-	buildSqliteSelectWithJoins,
-	buildPgJoinFilters,
-	buildSqliteJoinFilters,
-} from "./join-builder.ts";
 import type {
 	JoinedTable,
 	JoinTablesConfig,
 } from "#src/components/pages/connection-page/join-tables/join-tables.types";
 import { DatabaseDialect } from "#src/db/dialect.ts";
+import {
+	buildJoinSqlClauses,
+	buildJoinSqlPreview,
+	buildPgJoinFilters,
+	buildPgSelectWithJoins,
+	buildSqliteJoinFilters,
+	buildSqliteSelectWithJoins,
+} from "./join-builder.ts";
 
 describe("sql-join-builder", () => {
 	describe("buildJoinSqlClauses", () => {

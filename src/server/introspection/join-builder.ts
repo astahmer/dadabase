@@ -1,16 +1,16 @@
+import { SqlError } from "@effect/sql";
 import type {
 	CustomJoinCondition,
 	FilterJoinCondition,
 	JoinedTable,
 	JoinTablesConfig,
 } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
-import { onDialectOrElse, type DatabaseDialect } from "#src/db/dialect.ts";
-import { SqlError } from "@effect/sql";
+import type { LogicalOperatorType } from "#src/components/query-builder/query-filter.ts";
+import { type DatabaseDialect, onDialectOrElse } from "#src/db/dialect.ts";
 import {
 	buildPgWhereFragment,
 	buildSqliteWhereFragment,
 } from "./build-where.ts";
-import type { LogicalOperatorType } from "#src/components/query-builder/query-filter.ts";
 
 /**
  * Build a WHERE clause fragment for joined table filters (PostgreSQL)

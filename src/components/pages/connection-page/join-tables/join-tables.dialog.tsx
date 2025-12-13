@@ -18,6 +18,7 @@ import {
 	ListboxRoot,
 } from "#src/components/ui/listbox-menu.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 import { buildJoinSqlPreview } from "#src/server/introspection/join-builder.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
@@ -27,8 +28,6 @@ import type { JoinTablesConfig } from "./join-tables.types";
 import { JoinedTableRow } from "./joined-table-row.tsx";
 import { useJoinTablesState } from "./use-join-tables-state.ts";
 import { useJoinedTables } from "./use-joined-tables.ts";
-import { DatabaseDialect } from "#src/db/dialect.ts";
-import type { TableRelationship } from "../relationships/relationships.ts";
 
 interface JoinTablesDialogProps {
 	isOpen: boolean;
