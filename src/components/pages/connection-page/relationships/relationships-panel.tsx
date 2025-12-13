@@ -295,7 +295,7 @@ export const RelationshipsPanel = ({
 										<div className="space-y-0">
 											{rels.map((rel) => (
 												<RelationshipListItem
-													key={rel.constraintName}
+													key={`${rel.constraintName}.${rel.referencingColumn}.${rel.referencedColumn}.${rel.referencingTable}.${rel.referencedTable}`}
 													rel={rel}
 													rowCount={Number(counts[rel.constraintName]) ?? 0}
 													isCountLoading={countsQuery.isLoading}

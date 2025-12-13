@@ -10,7 +10,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "#src/components/ui/dialog.tsx";
-import { Stack } from "#src/components/ui/layout.tsx";
+import { HStack, Stack } from "#src/components/ui/layout.tsx";
 import {
 	ListboxMenuFilterInput,
 	ListboxMenuItem,
@@ -23,14 +23,12 @@ import { listAvailableSchemasQueryOptions } from "#src/server/introspection/star
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
 import { TableName } from "../table-name.tsx";
-import type {
-	JoinableTableOption,
-	JoinTablesConfig,
-} from "./join-tables.types";
+import type { JoinTablesConfig } from "./join-tables.types";
 import { JoinedTableRow } from "./joined-table-row.tsx";
 import { useJoinTablesState } from "./use-join-tables-state.ts";
 import { useJoinedTables } from "./use-joined-tables.ts";
 import { DatabaseDialect } from "#src/db/dialect.ts";
+import type { TableRelationship } from "../relationships/relationships.ts";
 
 interface JoinTablesDialogProps {
 	isOpen: boolean;
@@ -66,38 +64,31 @@ export const JoinTablesDialog = ({
 		joins: joinState.config.joins,
 	});
 
-	// Build list of joinable tables from relationships
-	const joinableTables = useMemo<JoinableTableOption[]>(() => {
+	// Build list of joinable tables from relationships - keep the full relationship data
+	const joinableTables = useMemo(() => {
 		if (!relationshipsQuery.data) return [];
-
-		return relationshipsQuery.data.map((rel) => ({
-			table:
-				rel.type === "outgoing" ? rel.referencedTable : rel.referencingTable,
-			schema:
-				rel.type === "outgoing" ? rel.referencedSchema : rel.referencingSchema,
-			referencingColumn:
-				rel.type === "outgoing" ? rel.referencingColumn : rel.referencedColumn,
-			referencedColumn:
-				rel.type === "outgoing" ? rel.referencedColumn : rel.referencingColumn,
-			direction: rel.type,
-		}));
+		return relationshipsQuery.data;
 	}, [relationshipsQuery.data]);
 
 	const selectedTableIds = joinState.config.joins.map(
 		(j) => `${j.schema}.${j.table}`,
 	);
 
-	const unselectedTables = joinableTables.filter(
-		(t) => !selectedTableIds.includes(`${t.schema}.${t.table}`),
-	);
+	const unselectedRelationships = joinableTables.filter((rel) => {
+		const targetTable =
+			rel.type === "outgoing" ? rel.referencedTable : rel.referencingTable;
+		const targetSchema =
+			rel.type === "outgoing" ? rel.referencedSchema : rel.referencingSchema;
+		return !selectedTableIds.includes(`${targetSchema}.${targetTable}`);
+	});
 
 	const filters = useFilter({ sensitivity: "base" });
 	const [searchInput, setSearchInput] = useState("");
 	const tableCollection = createListCollection({
-		items: unselectedTables.map((join) => ({
-			label: `${join.schema}.${join.table}`,
-			value: `${join.schema}:${join.table}:${join.referencingColumn}:${join.referencedColumn}:${join.direction}`,
-			join: join,
+		items: unselectedRelationships.map((rel) => ({
+			label: `${rel.type === "outgoing" ? rel.referencedSchema : rel.referencingSchema}.${rel.type === "outgoing" ? rel.referencedTable : rel.referencingTable}`,
+			value: rel.constraintName,
+			rel: rel,
 		})),
 	});
 
@@ -161,13 +152,12 @@ export const JoinTablesDialog = ({
 						<div className="flex items-center justify-center py-4">
 							<Spinner className="h-5 w-5" />
 						</div>
-					) : unselectedTables.length === 0 ? (
+					) : unselectedRelationships.length === 0 ? (
 						<div className="text-sm text-muted-foreground p-3 border border-dashed rounded">
 							No relationships found for this table
 						</div>
 					) : (
 						<div className="space-y-2">
-							{/* TODO show relationship name like in bottom panel */}
 							<div className="text-sm font-medium">Add Table to Join</div>
 							<ListboxRoot collection={tableCollection} selectionMode="none">
 								<ListboxMenuFilterInput
@@ -176,43 +166,78 @@ export const JoinTablesDialog = ({
 										setSearchInput(e.target.value);
 									}}
 								/>
-								<ListboxMenuList className="max-h-32">
-									{unselectedTables
-										.filter((join) => filters.contains(join.table, searchInput))
-										.map((join) => (
-											<ListboxMenuItem
-												key={`${join.schema}:${join.table}:${join.referencingColumn}:${join.referencedColumn}:${join.direction}`}
-												item={`${join.schema}:${join.table}:${join.referencingColumn}:${join.referencedColumn}:${join.direction}`}
-												onClick={() => {
-													joinState.add({
-														schema: join.schema,
-														table: join.table,
-														type: "left",
-														columns: "all",
-														joinCondition: {
-															mode: "standard",
-															referencingColumn: join.referencingColumn,
-															referencedColumn: join.referencedColumn,
-														},
-													});
-												}}
-											>
-												<div className="flex items-center gap-2">
-													<span className="truncate">
-														<TableName
-															schema={join.schema}
-															table={join.table}
-															hasMultipleSchemas={hasMultipleSchemas}
-														/>
-													</span>
-													<span className="ml-auto text-xs text-muted-foreground italic">
-														{join.direction === "outgoing"
-															? "Outgoing: Foreign key"
-															: "Incoming: Referenced by"}
-													</span>
-												</div>
-											</ListboxMenuItem>
-										))}
+								<ListboxMenuList className="max-h-40">
+									{unselectedRelationships
+										.filter((rel) => {
+											const targetTable =
+												rel.type === "outgoing"
+													? rel.referencedTable
+													: rel.referencingTable;
+											return filters.contains(targetTable, searchInput);
+										})
+										.map((rel) => {
+											const targetTable =
+												rel.type === "outgoing"
+													? rel.referencedTable
+													: rel.referencingTable;
+											const targetSchema =
+												rel.type === "outgoing"
+													? rel.referencedSchema
+													: rel.referencingSchema;
+											const firstLabel =
+												rel.type === "outgoing"
+													? `${rel.referencingTable}.${rel.referencingColumn}`
+													: `${rel.referencingTable}.${rel.referencingColumn}`;
+											const secondLabel =
+												rel.type === "outgoing"
+													? `${rel.referencedTable}.${rel.referencedColumn}`
+													: `${rel.referencedTable}.${rel.referencedColumn}`;
+
+											return (
+												<ListboxMenuItem
+													key={`${rel.constraintName}.${rel.referencingColumn}.${rel.referencedColumn}.${rel.referencingTable}.${rel.referencedTable}.${rel.type}`}
+													item={rel.constraintName}
+													onClick={() => {
+														const referencingCol =
+															rel.type === "outgoing"
+																? rel.referencingColumn
+																: rel.referencedColumn;
+														const referencedCol =
+															rel.type === "outgoing"
+																? rel.referencedColumn
+																: rel.referencingColumn;
+
+														joinState.add({
+															schema: targetSchema,
+															table: targetTable,
+															type: "left",
+															columns: "all",
+															joinCondition: {
+																mode: "standard",
+																referencingColumn: referencingCol,
+																referencedColumn: referencedCol,
+															},
+														});
+													}}
+												>
+													<HStack
+														className="flex-1 min-w-0"
+														align="center"
+														title={`${firstLabel} › ${secondLabel}`}
+													>
+														<div className="font-medium truncate">
+															{firstLabel}
+														</div>
+														<div className="text-muted-foreground shrink-0">
+															›
+														</div>
+														<div className="text-muted-foreground truncate text-xs">
+															{secondLabel}
+														</div>
+													</HStack>
+												</ListboxMenuItem>
+											);
+										})}
 								</ListboxMenuList>
 							</ListboxRoot>
 						</div>
@@ -229,7 +254,7 @@ export const JoinTablesDialog = ({
 
 								return (
 									<JoinedTableRow
-										key={`${join.schema}.${join.table}`}
+										key={`${join.schema}.${join.table}.${join.type}.${index}`}
 										joined={join}
 										availableColumns={columns}
 										parentSchema={schema}

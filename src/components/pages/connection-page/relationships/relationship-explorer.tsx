@@ -227,7 +227,7 @@ const RenderRelationshipValue = memo(function RenderRelationshipValue({
 						{/* Inline relationships - merged into the object */}
 						{relationships.map((rel) => (
 							<RelationshipField
-								key={rel.constraintName}
+								key={`${rel.constraintName}.${rel.referencingColumn}.${rel.referencedColumn}.${rel.referencingTable}.${rel.referencedTable}`}
 								relationship={rel}
 								rowData={obj}
 								count={counts[rel.constraintName] ?? 0}
