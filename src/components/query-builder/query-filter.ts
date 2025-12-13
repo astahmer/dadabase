@@ -51,7 +51,7 @@ export const LogicalOperator = Schema.Union(
 	Schema.Literal("or"),
 );
 
-export type LogicalOperator = Schema.Schema.Type<typeof LogicalOperator>;
+export type LogicalOperatorType = Schema.Schema.Type<typeof LogicalOperator>;
 
 /**
  * Query filter configuration
@@ -320,6 +320,6 @@ export const whereClauseParamsToQueryFilter = (
 
 	return {
 		conditions,
-		logicalOperator: params.logicalOperator as LogicalOperator,
+		logicalOperator: params.logicalOperator as LogicalOperatorType,
 	};
 };

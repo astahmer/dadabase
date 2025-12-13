@@ -1,4 +1,7 @@
-import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
+import type {
+	LogicalOperatorType,
+	QueryFilterType,
+} from "#src/components/query-builder/query-filter.ts";
 import { escapeIdentifier, escapeValue } from "./escape-value";
 
 /**
@@ -8,7 +11,7 @@ import { escapeIdentifier, escapeValue } from "./escape-value";
  */
 export const buildPgWhereFragment = (
 	conditions: QueryFilterType["conditions"],
-	logicalOp: "and" | "or",
+	logicalOp: LogicalOperatorType,
 	schema?: string,
 	table?: string,
 ): string | undefined => {
@@ -84,7 +87,7 @@ export const buildPgWhereFragment = (
  */
 export const buildSqliteWhereFragment = (
 	conditions: QueryFilterType["conditions"],
-	logicalOp: "and" | "or",
+	logicalOp: LogicalOperatorType,
 	table?: string,
 ): string => {
 	if (conditions.length === 0) return "";

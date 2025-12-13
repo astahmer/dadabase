@@ -2,6 +2,7 @@ import { Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import type {
 	FilterConditionExpression,
+	LogicalOperatorType,
 	QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
 import { QueryFilterBuilder } from "#src/components/query-builder/query-filter-builder.tsx";
@@ -60,7 +61,7 @@ export const JoinedTableRow = ({
 		FilterConditionExpression[]
 	>(joined.filters?.conditions || []);
 
-	const [logicalOperator, setLogicalOperator] = useState<"and" | "or">(
+	const [logicalOperator, setLogicalOperator] = useState<LogicalOperatorType>(
 		joined.filters?.logicalOperator || "and",
 	);
 
@@ -82,13 +83,12 @@ export const JoinedTableRow = ({
 			: [],
 	);
 
-	const [joinFilterLogicalOperator, setJoinFilterLogicalOperator] = useState<
-		"and" | "or"
-	>(
-		joined.joinCondition.mode === "filters" && joined.joinCondition.filters
-			? joined.joinCondition.filters.logicalOperator
-			: "and",
-	);
+	const [joinFilterLogicalOperator, setJoinFilterLogicalOperator] =
+		useState<LogicalOperatorType>(
+			joined.joinCondition.mode === "filters" && joined.joinCondition.filters
+				? joined.joinCondition.filters.logicalOperator
+				: "and",
+		);
 
 	// QueryFilterBuilder callbacks using index-based IDs
 	const handleUpdateFilterCondition = (
@@ -138,7 +138,7 @@ export const JoinedTableRow = ({
 		onUpdateFilters(undefined);
 	};
 
-	const handleFilterLogicalOperatorChange = (operator: "and" | "or") => {
+	const handleFilterLogicalOperatorChange = (operator: LogicalOperatorType) => {
 		setLogicalOperator(operator);
 		if (filterConditions.length > 0) {
 			onUpdateFilters({
@@ -310,7 +310,9 @@ export const JoinedTableRow = ({
 		});
 	};
 
-	const handleJoinFilterLogicalOperatorChange = (operator: "and" | "or") => {
+	const handleJoinFilterLogicalOperatorChange = (
+		operator: LogicalOperatorType,
+	) => {
 		setJoinFilterLogicalOperator(operator);
 		if (joinFilterConditions.length > 0) {
 			const filterObj: QueryFilterType = {

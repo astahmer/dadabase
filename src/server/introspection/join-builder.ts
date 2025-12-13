@@ -1,4 +1,6 @@
 import type {
+	CustomJoinCondition,
+	FilterJoinCondition,
 	JoinedTable,
 	JoinTablesConfig,
 } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
@@ -8,6 +10,7 @@ import {
 	buildPgWhereFragment,
 	buildSqliteWhereFragment,
 } from "./build-where.ts";
+import type { LogicalOperatorType } from "#src/components/query-builder/query-filter.ts";
 
 /**
  * Build a WHERE clause fragment for joined table filters (PostgreSQL)
@@ -55,6 +58,193 @@ export const buildSqliteJoinFilters = (joins: JoinedTable[]): string => {
 };
 
 /**
+ * Get the table reference for a given schema and table name based on dialect
+ */
+const getTableRef = (
+	schema: string,
+	table: string,
+	dialect: DatabaseDialect,
+): string => {
+	return onDialectOrElse(dialect, {
+		postgres: () => `${schema}."${table}"`,
+		sqlite: () => `"${table}"`,
+		libsql: () => `"${table}"`,
+		orElse: () => {
+			throw new SqlError.SqlError({ cause: "Unsupported dialect" });
+		},
+	});
+};
+
+/**
+ * Build FK-based join condition: originalTable.referencingColumn = joinTable.referencedColumn
+ */
+const buildFkCondition = (
+	joinTableRef: string,
+	referencedColumn: string,
+	originalTableRef: string,
+	referencingColumn: string,
+): string => {
+	return `${joinTableRef}."${referencedColumn}" = ${originalTableRef}."${referencingColumn}"`;
+};
+
+/**
+ * Build filter expression based on dialect
+ */
+const buildFilterExpression = (
+	conditions: any[],
+	logicalOperator: LogicalOperatorType,
+	schema: string,
+	table: string,
+	dialect: DatabaseDialect,
+): string => {
+	return (
+		onDialectOrElse(dialect, {
+			postgres: () =>
+				buildPgWhereFragment(conditions, logicalOperator, schema, table),
+			sqlite: () =>
+				buildSqliteWhereFragment(conditions, logicalOperator, table),
+			libsql: () =>
+				buildSqliteWhereFragment(conditions, logicalOperator, table),
+			orElse: () => {
+				throw new SqlError.SqlError({ cause: "Unsupported dialect" });
+			},
+		}) || ""
+	);
+};
+
+/**
+ * Build ON clause for standard FK-based join
+ */
+const buildStandardJoinCondition = (
+	join: JoinedTable,
+	joinTableRef: string,
+	originalTableRef: string,
+): string => {
+	if (
+		!join.joinCondition.referencingColumn ||
+		!join.joinCondition.referencedColumn
+	) {
+		throw new SqlError.SqlError({
+			cause: `Standard join mode requires referencingColumn and referencedColumn for table ${join.table}`,
+		});
+	}
+
+	return buildFkCondition(
+		joinTableRef,
+		join.joinCondition.referencedColumn,
+		originalTableRef,
+		join.joinCondition.referencingColumn,
+	);
+};
+
+/**
+ * Build ON clause for custom SQL join
+ */
+const buildCustomJoinCondition = (
+	join: JoinedTable,
+	joinTableRef: string,
+	originalTableRef: string,
+): string => {
+	const conditions = (
+		(join.joinCondition as CustomJoinCondition).conditions || []
+	)
+		.filter((cond) => cond && cond.trim().length > 0)
+		.map((cond) => cond.trim());
+
+	if (conditions.length > 0) {
+		// Use custom conditions
+		return conditions.join(" AND ");
+	}
+
+	// Fallback to FK if available
+	if (
+		join.joinCondition.referencingColumn &&
+		join.joinCondition.referencedColumn
+	) {
+		return buildFkCondition(
+			joinTableRef,
+			join.joinCondition.referencedColumn,
+			originalTableRef,
+			join.joinCondition.referencingColumn,
+		);
+	}
+
+	// No conditions and no FK info
+	throw new SqlError.SqlError({
+		cause: `Custom join mode requires either custom conditions or FK columns (referencingColumn, referencedColumn) for table ${join.table}`,
+	});
+};
+
+/**
+ * Build ON clause for filter-based join
+ */
+const buildFilterJoinCondition = ({
+	join,
+	joinTableRef,
+	originalTableRef,
+	dialect,
+}: {
+	join: JoinedTable;
+	joinTableRef: string;
+	originalTableRef: string;
+	dialect: DatabaseDialect;
+}): string => {
+	const joinCondition = join.joinCondition as FilterJoinCondition;
+	const hasFilters =
+		joinCondition.filters && joinCondition.filters.conditions.length > 0;
+	const hasFkInfo =
+		joinCondition.referencingColumn && joinCondition.referencedColumn;
+
+	// No filters and no FK info
+	if (!hasFilters && !hasFkInfo) {
+		throw new SqlError.SqlError({
+			cause: `Filter-based join without filters requires FK columns (referencingColumn, referencedColumn) for table ${join.table}`,
+		});
+	}
+
+	// No filters but has FK info
+	if (!hasFilters) {
+		return buildFkCondition(
+			joinTableRef,
+			joinCondition.referencedColumn!,
+			originalTableRef,
+			joinCondition.referencingColumn!,
+		);
+	}
+
+	// Has filters
+	const filterExpression = buildFilterExpression(
+		joinCondition.filters!.conditions,
+		joinCondition.filters!.logicalOperator,
+		join.schema,
+		join.table,
+		dialect,
+	);
+
+	// Combine with FK if available
+	if (hasFkInfo) {
+		const fkCondition = buildFkCondition(
+			joinTableRef,
+			joinCondition.referencedColumn!,
+			originalTableRef,
+			joinCondition.referencingColumn!,
+		);
+		return filterExpression
+			? `${fkCondition} AND ${filterExpression}`
+			: fkCondition;
+	}
+
+	// Filters alone
+	if (!filterExpression || filterExpression.trim() === "") {
+		throw new SqlError.SqlError({
+			cause: `Filter-based join has no valid filter expressions for table ${join.table}`,
+		});
+	}
+
+	return filterExpression;
+};
+
+/**
  * Build SQL JOIN clauses from join configuration for a specific dialect
  * Supports three join condition modes: standard (FK-based), custom (SQL expressions), and filters (QueryFilterBuilder)
  *
@@ -72,170 +262,41 @@ export const buildJoinSqlClauses = (
 ): string[] => {
 	return joins.map((join) => {
 		const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
+		const joinTableRef = getTableRef(join.schema, join.table, dialect);
+		const originalTableRef = getTableRef(
+			originalSchema,
+			originalTable,
+			dialect,
+		);
 
-		// Build the table reference based on dialect
-		const joinTableRef = onDialectOrElse(dialect, {
-			postgres: () => `${join.schema}."${join.table}"`,
-			sqlite: () => `"${join.table}"`,
-			libsql: () => `"${join.table}"`,
-			orElse: () => {
-				throw new SqlError.SqlError({ cause: "Unsupported dialect" });
-			},
-		});
-
-		// Build ON clause based on condition mode
 		let joinCondition: string;
-
-		if (join.joinCondition.mode === "standard") {
-			// Standard FK-based join
-			if (
-				!join.joinCondition.referencingColumn ||
-				!join.joinCondition.referencedColumn
-			) {
+		switch (join.joinCondition.mode) {
+			case "standard":
+				joinCondition = buildStandardJoinCondition(
+					join,
+					joinTableRef,
+					originalTableRef,
+				);
+				break;
+			case "custom":
+				joinCondition = buildCustomJoinCondition(
+					join,
+					joinTableRef,
+					originalTableRef,
+				);
+				break;
+			case "filters":
+				joinCondition = buildFilterJoinCondition({
+					join,
+					joinTableRef,
+					originalTableRef,
+					dialect,
+				});
+				break;
+			default:
 				throw new SqlError.SqlError({
-					cause: `Standard join mode requires referencingColumn and referencedColumn for table ${join.table}`,
+					cause: "Unsupported join condition mode",
 				});
-			}
-
-			const originalTableRef = onDialectOrElse(dialect, {
-				postgres: () => `${originalSchema}."${originalTable}"`,
-				sqlite: () => `"${originalTable}"`,
-				libsql: () => `"${originalTable}"`,
-				orElse: () => {
-					throw new SqlError.SqlError({ cause: "Unsupported dialect" });
-				},
-			});
-
-			joinCondition =
-				dialect === "postgres"
-					? `${joinTableRef}."${join.joinCondition.referencedColumn}" = ${originalTableRef}."${join.joinCondition.referencingColumn}"`
-					: `${joinTableRef}."${join.joinCondition.referencedColumn}" = ${originalTableRef}."${join.joinCondition.referencingColumn}"`;
-		} else if (join.joinCondition.mode === "custom") {
-			// Custom join condition - can be completely independent of FK
-			const conditions = join.joinCondition.conditions
-				.filter((cond) => cond && cond.trim().length > 0)
-				.map((cond) => cond.trim());
-
-			if (conditions.length === 0) {
-				// If no custom conditions and no FK info, this is an error
-				if (
-					!join.joinCondition.referencingColumn ||
-					!join.joinCondition.referencedColumn
-				) {
-					throw new SqlError.SqlError({
-						cause: `Custom join mode requires either custom conditions or FK columns (referencingColumn, referencedColumn) for table ${join.table}`,
-					});
-				}
-				// Fallback to FK join if FK info is provided
-				const originalTableRef = onDialectOrElse(dialect, {
-					postgres: () => `${originalSchema}."${originalTable}"`,
-					sqlite: () => `"${originalTable}"`,
-					libsql: () => `"${originalTable}"`,
-					orElse: () => {
-						throw new SqlError.SqlError({ cause: "Unsupported dialect" });
-					},
-				});
-				joinCondition = `${joinTableRef}."${join.joinCondition.referencedColumn}" = ${originalTableRef}."${join.joinCondition.referencingColumn}"`;
-			} else {
-				// Use the custom conditions as-is (no FK fallback)
-				joinCondition = conditions.join(" AND ");
-			}
-		} else {
-			// Filter-based join condition - FK is optional if no filters are provided
-			if (
-				!join.joinCondition.filters ||
-				join.joinCondition.filters.conditions.length === 0
-			) {
-				// No filters - must have FK info
-				if (
-					!join.joinCondition.referencingColumn ||
-					!join.joinCondition.referencedColumn
-				) {
-					throw new SqlError.SqlError({
-						cause: `Filter-based join without filters requires FK columns (referencingColumn, referencedColumn) for table ${join.table}`,
-					});
-				}
-
-				const originalTableRef = onDialectOrElse(dialect, {
-					postgres: () => `${originalSchema}."${originalTable}"`,
-					sqlite: () => `"${originalTable}"`,
-					libsql: () => `"${originalTable}"`,
-					orElse: () => {
-						throw new SqlError.SqlError({ cause: "Unsupported dialect" });
-					},
-				});
-
-				joinCondition = `${joinTableRef}."${join.joinCondition.referencedColumn}" = ${originalTableRef}."${join.joinCondition.referencingColumn}"`;
-			} else {
-				// Has filters
-				if (
-					join.joinCondition.referencingColumn &&
-					join.joinCondition.referencedColumn
-				) {
-					// FK info available - combine with filters
-					const originalTableRef = onDialectOrElse(dialect, {
-						postgres: () => `${originalSchema}."${originalTable}"`,
-						sqlite: () => `"${originalTable}"`,
-						libsql: () => `"${originalTable}"`,
-						orElse: () => {
-							throw new SqlError.SqlError({ cause: "Unsupported dialect" });
-						},
-					});
-
-					const fkCondition = `${joinTableRef}."${join.joinCondition.referencedColumn}" = ${originalTableRef}."${join.joinCondition.referencingColumn}"`;
-					const conditions = join.joinCondition.filters.conditions;
-					const logicalOperator = join.joinCondition.filters.logicalOperator;
-					const filterExpression = onDialectOrElse(dialect, {
-						postgres: () =>
-							buildPgWhereFragment(
-								conditions,
-								logicalOperator,
-								join.schema,
-								join.table,
-							),
-						sqlite: () =>
-							buildSqliteWhereFragment(conditions, logicalOperator, join.table),
-						libsql: () =>
-							buildSqliteWhereFragment(conditions, logicalOperator, join.table),
-						orElse: () => {
-							throw new SqlError.SqlError({ cause: "Unsupported dialect" });
-						},
-					});
-
-					if (!filterExpression || filterExpression.trim() === "") {
-						joinCondition = fkCondition;
-					} else {
-						joinCondition = `${fkCondition} AND ${filterExpression}`;
-					}
-				} else {
-					// No FK info - use filters alone as the join condition
-					const conditions = join.joinCondition.filters.conditions;
-					const logicalOperator = join.joinCondition.filters.logicalOperator;
-					const filterExpression = onDialectOrElse(dialect, {
-						postgres: () =>
-							buildPgWhereFragment(
-								conditions,
-								logicalOperator,
-								join.schema,
-								join.table,
-							),
-						sqlite: () =>
-							buildSqliteWhereFragment(conditions, logicalOperator, join.table),
-						libsql: () =>
-							buildSqliteWhereFragment(conditions, logicalOperator, join.table),
-						orElse: () => {
-							throw new SqlError.SqlError({ cause: "Unsupported dialect" });
-						},
-					});
-
-					if (!filterExpression || filterExpression.trim() === "") {
-						throw new SqlError.SqlError({
-							cause: `Filter-based join has no valid filter expressions for table ${join.table}`,
-						});
-					}
-					joinCondition = filterExpression;
-				}
-			}
 		}
 
 		return `${joinType} ${joinTableRef} ON ${joinCondition}`;

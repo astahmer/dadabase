@@ -5,6 +5,7 @@ import { useEffect, useMemo } from "react";
 import type {
 	FilterConditionExpression,
 	FilterOperatorType,
+	LogicalOperatorType,
 } from "#src/components/query-builder/query-filter.ts";
 import {
 	allOperators,
@@ -38,8 +39,8 @@ interface QueryFilterBuilderProps {
 	onRemoveCondition: (id: string) => void;
 	onAddCondition: () => void;
 	onClearAll: () => void;
-	onLogicalOperatorChange: (operator: "and" | "or") => void;
-	logicalOperator: "and" | "or";
+	onLogicalOperatorChange: (operator: LogicalOperatorType) => void;
+	logicalOperator: LogicalOperatorType;
 	availableColumns: string[];
 	isLoading?: boolean;
 }
@@ -127,13 +128,13 @@ interface FilterConditionRowProps {
 	onRemove: (id: string) => void;
 	onAdd: () => void;
 	onClearAll: () => void;
-	onLogicalOperatorChange: (operator: "and" | "or") => void;
+	onLogicalOperatorChange: (operator: LogicalOperatorType) => void;
 	isLoading?: boolean;
 	isFirst: boolean;
 	hasMultipleConditions: boolean;
 	isLast: boolean;
 	showLogicalLabel?: boolean;
-	logicalOperator?: "and" | "or";
+	logicalOperator?: LogicalOperatorType;
 }
 
 const FilterConditionRow = (props: FilterConditionRowProps) => {
@@ -297,7 +298,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 							positioning={{ sameWidth: true }}
 							onValueChange={(details: { value?: string[] }) => {
 								props.onLogicalOperatorChange?.(
-									(details.value?.[0] as "and" | "or") || "and",
+									(details.value?.[0] as LogicalOperatorType) || "and",
 								);
 							}}
 						>
