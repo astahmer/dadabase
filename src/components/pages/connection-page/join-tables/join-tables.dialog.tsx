@@ -170,10 +170,7 @@ export const JoinTablesDialog = ({
 								<ListboxMenuList className="max-h-40">
 									{tableCollection.group().map(([type, group]) => {
 										const filteredGroup = group.filter((item) =>
-											filters.contains(
-												item.rel.referencedTable ?? item.rel.referencingTable,
-												searchInput,
-											),
+											filters.contains(item.value, searchInput),
 										);
 
 										if (filteredGroup.length === 0) return null;
