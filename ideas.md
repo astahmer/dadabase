@@ -57,7 +57,9 @@
 - row selection with checkboxes + bulk actions (delete, export, copy etc)
 - a page to view (and export) one/many/all table structures
 - cancellable queries (+ rm disabled state for buttons while a query is running)
+- join aliases
 
 ## bugs
 
 - column visibility control -> unselect all
+- [cause]: error: table name "commitments" specified more than once -> join on same table twice
