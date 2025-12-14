@@ -11,6 +11,7 @@ import {
 	buildPgSelectWithJoins,
 	buildSqliteJoinFilters,
 	buildSqliteSelectWithJoins,
+	generateJoinAliases,
 } from "./join-builder.ts";
 
 describe("sql-join-builder", () => {
@@ -648,7 +649,9 @@ describe("sql-join-builder", () => {
 			// Should use the custom alias in the SELECT clause
 			expect(selectClause).toContain('"recent_posts"."title"');
 			expect(selectClause).toContain('"recent_posts"."content"');
-			expect(selectClause).toMatchInlineSnapshot(`"public."users"."id" as "users.id", public."users"."name" as "users.name", public."users"."email" as "users.email", "recent_posts"."title" as "recent_posts.title", "recent_posts"."content" as "recent_posts.content""`);
+			expect(selectClause).toMatchInlineSnapshot(
+				`"public."users"."id" as "users.id", public."users"."name" as "users.name", public."users"."email" as "users.email", "recent_posts"."title" as "recent_posts.title", "recent_posts"."content" as "recent_posts.content""`,
+			);
 		});
 
 		it("same table multiple times generates alias for non-provided joins", () => {
@@ -898,6 +901,280 @@ describe("sql-join-builder", () => {
 
 			const result = buildPgJoinFilters(joins);
 			expect(result).toMatchInlineSnapshot(`""`);
+		});
+	});
+
+	describe("buildPgJoinFilters & buildSqliteJoinFilters with aliases", () => {
+		it("applies filters using auto-generated aliases on same-table joins (PostgreSQL)", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "commitments",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "commitment_id",
+					},
+					filters: {
+						conditions: [
+							{
+								column: "status",
+								operator: "equals" as const,
+								value: "active",
+							},
+						],
+						logicalOperator: "and",
+					},
+				},
+				{
+					table: "commitments",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "parent_commitment_id",
+					},
+					filters: {
+						conditions: [
+							{
+								column: "status",
+								operator: "equals" as const,
+								value: "completed",
+							},
+						],
+						logicalOperator: "and",
+					},
+				},
+			];
+
+			const aliases = generateJoinAliases(joins, "commitments", "public");
+			const result = buildPgJoinFilters(joins, aliases);
+
+			// Should use commitments_1 and commitments_2 aliases
+			expect(result).toContain("commitments_1");
+			expect(result).toContain("commitments_2");
+			expect(result).toContain("'active'");
+			expect(result).toContain("'completed'");
+		});
+
+		it("applies filters using custom aliases (PostgreSQL)", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "commitments",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					alias: "parent_commitments",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "parent_commitment_id",
+					},
+					filters: {
+						conditions: [
+							{
+								column: "status",
+								operator: "equals" as const,
+								value: "archived",
+							},
+						],
+						logicalOperator: "and",
+					},
+				},
+			];
+
+			const aliases = generateJoinAliases(joins);
+			const result = buildPgJoinFilters(joins, aliases);
+
+			// Should use custom alias
+			expect(result).toContain("parent_commitments");
+			expect(result).toContain("'archived'");
+		});
+
+		it("applies filters using auto-generated aliases on same-table joins (SQLite)", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "commitments",
+					schema: "main",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "commitment_id",
+					},
+					filters: {
+						conditions: [
+							{
+								column: "amount",
+								operator: "greater_than" as const,
+								value: "1000",
+							},
+						],
+						logicalOperator: "and",
+					},
+				},
+				{
+					table: "commitments",
+					schema: "main",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "parent_commitment_id",
+					},
+					filters: {
+						conditions: [
+							{
+								column: "amount",
+								operator: "less_than" as const,
+								value: "500",
+							},
+						],
+						logicalOperator: "and",
+					},
+				},
+			];
+
+			const aliases = generateJoinAliases(joins, "commitments", "main");
+			const result = buildSqliteJoinFilters(joins, aliases);
+
+			// Should use commitments_1 and commitments_2 aliases
+			expect(result).toContain("commitments_1");
+			expect(result).toContain("commitments_2");
+			expect(result).toContain("1000");
+			expect(result).toContain("500");
+		});
+
+		it("applies filters using custom aliases (SQLite)", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "commitments",
+					schema: "main",
+					type: "left",
+					columns: "all",
+					alias: "related_commitments",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "commitment_id",
+					},
+					filters: {
+						conditions: [
+							{
+								column: "status",
+								operator: "equals" as const,
+								value: "pending",
+							},
+						],
+						logicalOperator: "and",
+					},
+				},
+			];
+
+			const aliases = generateJoinAliases(joins);
+			const result = buildSqliteJoinFilters(joins, aliases);
+
+			// Should use custom alias
+			expect(result).toContain("related_commitments");
+			expect(result).toContain("'pending'");
+		});
+
+		it("mixes custom and auto-generated aliases with filters (PostgreSQL)", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "commitments",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					alias: "child_commitments",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "commitment_id",
+					},
+					filters: {
+						conditions: [
+							{
+								column: "status",
+								operator: "equals" as const,
+								value: "active",
+							},
+						],
+						logicalOperator: "and",
+					},
+				},
+				{
+					table: "commitments",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "parent_commitment_id",
+					},
+					filters: {
+						conditions: [
+							{
+								column: "status",
+								operator: "equals" as const,
+								value: "archived",
+							},
+						],
+						logicalOperator: "and",
+					},
+				},
+			];
+
+			const aliases = generateJoinAliases(joins, "commitments", "public");
+			const result = buildPgJoinFilters(joins, aliases);
+
+			// Should use custom alias for first, auto-generated for second
+			expect(result).toContain("child_commitments");
+			expect(result).toContain("commitments_1");
+			expect(result).toContain("'active'");
+			expect(result).toContain("'archived'");
+		});
+
+		it("filters without aliases when provided aliases map is undefined", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "lineItems",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "commitment_id",
+					},
+					filters: {
+						conditions: [
+							{
+								column: "quantity",
+								operator: "greater_than" as const,
+								value: "5",
+							},
+						],
+						logicalOperator: "and",
+					},
+				},
+			];
+
+			// Pass undefined aliases - should use table name directly
+			const result = buildPgJoinFilters(joins, undefined);
+
+			// Should use direct table name
+			expect(result).toContain("public");
+			expect(result).toContain("lineItems");
+			expect(result).toContain("quantity");
+			expect(result).toContain("5");
 		});
 	});
 

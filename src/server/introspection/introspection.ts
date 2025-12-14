@@ -1350,9 +1350,7 @@ export const queryTableRows = <TData>(input: {
 							: "";
 
 					const pgJoinFilter =
-						joins.length > 0 ? buildPgJoinFilters(joins) : "";
-
-					// Combine main table filters with join filters
+						joins.length > 0 ? buildPgJoinFilters(joins, pgJoinAliases) : ""; // Combine main table filters with join filters
 					const pgWhereClause = [pgMainFilter, pgJoinFilter]
 						.filter(Boolean)
 						.join(" AND ");
@@ -1417,7 +1415,9 @@ export const queryTableRows = <TData>(input: {
 							: "";
 
 					const sqliteJoinFilter =
-						joins.length > 0 ? buildSqliteJoinFilters(joins) : "";
+						joins.length > 0
+							? buildSqliteJoinFilters(joins, sqliteJoinAliases)
+							: "";
 
 					const sqliteWhereClause = [sqliteMainFilter, sqliteJoinFilter]
 						.filter(Boolean)

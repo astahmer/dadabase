@@ -57,7 +57,9 @@
 - row selection with checkboxes + bulk actions (delete, export, copy etc)
 - a page to view (and export) one/many/all table structures
 - cancellable queries (+ rm disabled state for buttons while a query is running)
-- join aliases
+- custom join aliases in frontend join-tables.dialog.tsx
+- column list / filters using defined aliases
+- join table auto alias based on relationship name (e.g., "previous_commitment_id".replace("_id", "") instead of "commitments_1")
 
 ## bugs
 

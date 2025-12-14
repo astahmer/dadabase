@@ -99,18 +99,36 @@ export const generateJoinAliases = (
 
 /**
  * Build a WHERE clause fragment for joined table filters (PostgreSQL)
+ * Uses aliases when available (from generateJoinAliases)
  */
-export const buildPgJoinFilters = (joins: JoinedTable[]): string => {
+export const buildPgJoinFilters = (
+	joins: JoinedTable[],
+	aliases?: Map<number, string>,
+): string => {
 	const joinFilterClauses: string[] = [];
 
-	for (const join of joins) {
+	for (let i = 0; i < joins.length; i++) {
+		const join = joins[i];
 		if (!join.filters || join.filters.conditions.length === 0) continue;
 
+		// Use alias if available, otherwise use the actual table name
+		const alias = aliases?.get(i);
+
+		// If we have an alias, add it to each condition so buildPgWhereFragment uses it
+		// Otherwise, pass schema and table to buildPgWhereFragment
+		let conditions = join.filters.conditions;
+		if (alias) {
+			conditions = conditions.map((c) => ({
+				...c,
+				table: alias,
+			}));
+		}
+
 		const filterClause = buildPgWhereFragment(
-			join.filters.conditions,
+			conditions,
 			join.filters.logicalOperator,
-			join.schema,
-			join.table,
+			alias ? undefined : join.schema,
+			alias ? undefined : join.table,
 		);
 		if (filterClause) {
 			joinFilterClauses.push(`(${filterClause})`);
@@ -122,17 +140,35 @@ export const buildPgJoinFilters = (joins: JoinedTable[]): string => {
 
 /**
  * Build a WHERE clause fragment for joined table filters (SQLite)
+ * Uses aliases when available (from generateJoinAliases)
  */
-export const buildSqliteJoinFilters = (joins: JoinedTable[]): string => {
+export const buildSqliteJoinFilters = (
+	joins: JoinedTable[],
+	aliases?: Map<number, string>,
+): string => {
 	const joinFilterClauses: string[] = [];
 
-	for (const join of joins) {
+	for (let i = 0; i < joins.length; i++) {
+		const join = joins[i];
 		if (!join.filters || join.filters.conditions.length === 0) continue;
 
+		// Use alias if available, otherwise use the actual table name
+		const alias = aliases?.get(i);
+
+		// If we have an alias, add it to each condition so buildSqliteWhereFragment uses it
+		// Otherwise, pass the table name to buildSqliteWhereFragment
+		let conditions = join.filters.conditions;
+		if (alias) {
+			conditions = conditions.map((c) => ({
+				...c,
+				table: alias,
+			}));
+		}
+
 		const filterClause = buildSqliteWhereFragment(
-			join.filters.conditions,
+			conditions,
 			join.filters.logicalOperator,
-			join.table,
+			alias ? undefined : join.table,
 		);
 		if (filterClause) {
 			joinFilterClauses.push(`(${filterClause})`);
