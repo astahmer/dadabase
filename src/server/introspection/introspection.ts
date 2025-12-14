@@ -16,6 +16,7 @@ import {
 	buildPgSelectWithJoins,
 	buildSqliteJoinFilters,
 	buildSqliteSelectWithJoins,
+	generateJoinAliases,
 } from "./join-builder.ts";
 
 /**
@@ -1318,7 +1319,6 @@ export const queryTableRows = <TData>(input: {
 			),
 		);
 
-		// Build ORDER BY clause
 		const orderClause = orderBy
 			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
 			: "";
@@ -1327,15 +1327,20 @@ export const queryTableRows = <TData>(input: {
 		const result = yield* sql.onDialectOrElse({
 			pg: () =>
 				Effect.gen(function* () {
-					// Build JOIN clauses using shared function
+					const pgJoinAliases = generateJoinAliases(
+						joinsRemapped,
+						input.table,
+						baseSchema,
+					);
+
 					const pgJoinClauses = buildJoinSqlClauses(
 						joinsRemapped,
 						baseSchema,
 						input.table,
 						DatabaseDialect.Postgres,
+						pgJoinAliases,
 					).join("\n");
 
-					// Build WHERE clause if filters exist
 					const pgMainFilter =
 						filters && filters.conditions.length > 0
 							? buildPgWhereFragment(
@@ -1344,7 +1349,6 @@ export const queryTableRows = <TData>(input: {
 								)
 							: "";
 
-					// Build WHERE clause for join filters
 					const pgJoinFilter =
 						joins.length > 0 ? buildPgJoinFilters(joins) : "";
 
@@ -1354,7 +1358,6 @@ export const queryTableRows = <TData>(input: {
 						.join(" AND ");
 					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
 
-					// Get total count
 					const countQuery = sql`
 						SELECT COUNT(*) as count
 						FROM ${sql(input.schema)}.${sql(input.table)}
@@ -1362,7 +1365,6 @@ export const queryTableRows = <TData>(input: {
 						${sql.unsafe(whereFragment)}
 					`;
 
-					// Get rows with proper column selection and prefixing
 					const selectPart =
 						joins.length > 0
 							? buildPgSelectWithJoins(
@@ -1370,9 +1372,9 @@ export const queryTableRows = <TData>(input: {
 									input.table,
 									joinsRemapped,
 									tableColumnsMap,
+									pgJoinAliases,
 								)
 							: "*";
-
 					const query = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(input.schema)}.${sql(input.table)}
@@ -1382,7 +1384,7 @@ export const queryTableRows = <TData>(input: {
 					LIMIT ${limit} OFFSET ${offset}
 				`;
 					// console.log(countQuery.compile());
-					console.log(query.compile());
+					// console.log(query.compile());
 					const [rows, countResult] = yield* Effect.all([query, countQuery]);
 					const rowCount = Number(countResult[0]?.count ?? 0);
 					return {
@@ -1394,14 +1396,18 @@ export const queryTableRows = <TData>(input: {
 				}),
 			sqlite: () =>
 				Effect.gen(function* () {
-					// Build JOIN clauses using shared function
+					const sqliteJoinAliases = generateJoinAliases(
+						joins,
+						input.table,
+						input.schema,
+					);
 					const sqliteJoinClauses = buildJoinSqlClauses(
 						joins,
 						input.schema,
 						input.table,
 						DatabaseDialect.SQLite,
+						sqliteJoinAliases,
 					).join("\n");
-
 					const sqliteMainFilter =
 						filters && filters.conditions.length > 0
 							? buildSqliteWhereFragment(
@@ -1410,11 +1416,9 @@ export const queryTableRows = <TData>(input: {
 								)
 							: "";
 
-					// Build WHERE clause for join filters
 					const sqliteJoinFilter =
 						joins.length > 0 ? buildSqliteJoinFilters(joins) : "";
 
-					// Combine main table filters with join filters
 					const sqliteWhereClause = [sqliteMainFilter, sqliteJoinFilter]
 						.filter(Boolean)
 						.join(" AND ");
@@ -1423,7 +1427,6 @@ export const queryTableRows = <TData>(input: {
 						? `WHERE ${sqliteWhereClause}`
 						: "";
 
-					// Get total count
 					const countQuery = sql`
 					SELECT COUNT(*) as count
 					FROM ${sql(input.table)}
@@ -1432,9 +1435,13 @@ export const queryTableRows = <TData>(input: {
 				`;
 					const selectPart =
 						joins.length > 0
-							? buildSqliteSelectWithJoins(input.table, joins, tableColumnsMap)
+							? buildSqliteSelectWithJoins(
+									input.table,
+									joins,
+									tableColumnsMap,
+									sqliteJoinAliases,
+								)
 							: "*";
-
 					const query = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(input.table)}
@@ -1443,7 +1450,7 @@ export const queryTableRows = <TData>(input: {
 				${sql.unsafe(orderClause)}
 				LIMIT ${limit} OFFSET ${offset}
 			`;
-					console.log(query.compile());
+					// console.log(query.compile());
 					const [rows, countResult] = yield* Effect.all([query, countQuery]);
 					const rowCount = Number(countResult[0]?.count ?? 0);
 

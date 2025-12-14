@@ -2319,6 +2319,139 @@ const testSuite =
 				}).pipe(Effect.provide(sqlLayer));
 			},
 		);
+
+		// Join alias tests
+		it.effect(
+			"multiple same-table joins use aliases to avoid SQL conflicts",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					// Join posts table twice with different ON conditions
+					// This would cause "table 'posts' specified more than once" without aliases
+					const joins: JoinedTable[] = [
+						{
+							table: "posts",
+							schema: config.defaultSchema,
+							type: "left",
+							columns: ["id", "title"],
+							joinCondition: {
+								mode: "custom",
+								conditions: [
+									`posts_1.user_id = ${config.defaultSchema}.users.id`,
+								],
+								referencingColumn: "id",
+								referencedColumn: "user_id",
+							},
+						},
+						{
+							table: "posts",
+							schema: config.defaultSchema,
+							type: "left",
+							columns: ["id", "content"],
+							joinCondition: {
+								mode: "custom",
+								conditions: [
+									`posts_2.user_id = ${config.defaultSchema}.users.id`,
+								],
+								referencingColumn: "id",
+								referencedColumn: "user_id",
+							},
+						},
+					];
+
+					const result = yield* queryTableRows<Record<string, unknown>>({
+						schema: config.defaultSchema,
+						table: "users",
+						joins,
+					});
+
+					// Should successfully execute despite same table appearing twice
+					// Should return rows with both post aliases
+					expect(result.rowCount).toBeGreaterThan(0);
+					expect(result.rows.length).toBeGreaterThan(0);
+					// Verify we got columns from both joined posts tables
+					const firstRow = result.rows[0];
+					expect(firstRow).toBeDefined();
+				}).pipe(Effect.provide(sqlLayer));
+			},
+		);
+
+		it.effect(
+			"join with base table appearing in joins list uses aliases correctly",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					// Test scenario: query on users, then join to posts
+					// This demonstrates joins working correctly even when multiple relationships exist
+					const joins: JoinedTable[] = [
+						{
+							table: "posts",
+							schema: config.defaultSchema,
+							type: "left",
+							columns: ["title", "published"],
+							joinCondition: {
+								mode: "standard",
+								referencingColumn: "id",
+								referencedColumn: "user_id",
+							},
+						},
+					];
+
+					const result = yield* queryTableRows<Record<string, unknown>>({
+						schema: config.defaultSchema,
+						table: "users",
+						joins,
+					});
+
+					// Should successfully execute and return joined data
+					expect(result.rowCount).toBe(7); // 7 posts from 5 users
+					expect(result.rows.length).toBe(7);
+					// Verify we got columns from both tables
+					const firstRow = result.rows[0];
+					expect(firstRow).toBeDefined();
+					expect(firstRow).toHaveProperty("posts.title");
+				}).pipe(Effect.provide(sqlLayer));
+			},
+		);
+
+		it.effect("different tables in joins do not receive aliases", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				// Join two different tables - no aliases needed
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "left",
+						columns: "all",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// Should work without aliases since only one join
+				expect(result.rowCount).toBe(7); // 7 total posts from 5 users
+				expect(result.rows.length).toBe(7);
+				// Verify joined columns are present
+				const firstRow = result.rows[0];
+				expect(firstRow).toHaveProperty("posts.title");
+			}).pipe(Effect.provide(sqlLayer));
+		});
 	};
 
 describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));

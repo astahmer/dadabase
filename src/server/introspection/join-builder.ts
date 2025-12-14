@@ -13,6 +13,66 @@ import {
 } from "./build-where.ts";
 
 /**
+ * Generate aliases for joins to handle multiple joins on the same table,
+ * or when a joined table is the same as the base table.
+ * Returns a map of join index to alias (or undefined if no alias needed)
+ *
+ * @param joins Array of joined table configurations
+ * @param baseTable The name of the base table being queried
+ * @param baseSchema The schema of the base table
+ * @returns Map from join index to alias name (e.g., "posts_1", "posts_2")
+ */
+export const generateJoinAliases = (
+	joins: JoinedTable[],
+	baseTable?: string,
+	baseSchema?: string,
+): Map<number, string> => {
+	const aliases = new Map<number, string>();
+
+	// Check which tables appear multiple times in joins array
+	const tableCountMap = new Map<string, number>();
+	for (let i = 0; i < joins.length; i++) {
+		const join = joins[i];
+		const tableKey = `${join.schema}.${join.table}`;
+		tableCountMap.set(tableKey, (tableCountMap.get(tableKey) ?? 0) + 1);
+	}
+
+	// Identify tables that appear multiple times in joins
+	const tablesWithDuplicates = new Set<string>();
+	for (const [tableKey, count] of tableCountMap) {
+		if (count > 1) {
+			tablesWithDuplicates.add(tableKey);
+		}
+	}
+
+	// Also check if base table appears in joins (this also requires aliases)
+	if (baseTable && baseSchema) {
+		const baseTableKey = `${baseSchema}.${baseTable}`;
+		const baseTableCount = tableCountMap.get(baseTableKey) ?? 0;
+		if (baseTableCount > 0) {
+			// Base table appears in joins, so all occurrences need aliases
+			tablesWithDuplicates.add(baseTableKey);
+		}
+	}
+
+	// Assign aliases to joins that need them
+	// Counter starts from 1 for each table that needs aliases
+	const tableCounterMap = new Map<string, number>();
+	for (let i = 0; i < joins.length; i++) {
+		const join = joins[i];
+		const tableKey = `${join.schema}.${join.table}`;
+
+		if (tablesWithDuplicates.has(tableKey)) {
+			const counter = (tableCounterMap.get(tableKey) ?? 0) + 1;
+			tableCounterMap.set(tableKey, counter);
+			aliases.set(i, `${join.table}_${counter}`);
+		}
+	}
+
+	return aliases;
+};
+
+/**
  * Build a WHERE clause fragment for joined table filters (PostgreSQL)
  */
 export const buildPgJoinFilters = (joins: JoinedTable[]): string => {
@@ -247,11 +307,13 @@ const buildFilterJoinCondition = ({
 /**
  * Build SQL JOIN clauses from join configuration for a specific dialect
  * Supports three join condition modes: standard (FK-based), custom (SQL expressions), and filters (QueryFilterBuilder)
+ * Automatically handles duplicate table joins with aliases.
  *
  * @param joins Array of joined table configurations
  * @param originalSchema Schema of the original table
  * @param originalTable Name of the original table
  * @param dialect SQL dialect - "postgres" or "sqlite"
+ * @param joinAliases Optional map from join index to alias name (generated if not provided)
  * @returns Array of JOIN clause SQL strings
  */
 export const buildJoinSqlClauses = (
@@ -259,10 +321,17 @@ export const buildJoinSqlClauses = (
 	originalSchema: string,
 	originalTable: string,
 	dialect: DatabaseDialect,
+	joinAliases?: Map<number, string>,
 ): string[] => {
-	return joins.map((join) => {
+	const aliases =
+		joinAliases ?? generateJoinAliases(joins, originalTable, originalSchema);
+
+	return joins.map((join, index) => {
 		const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
-		const joinTableRef = getTableRef(join.schema, join.table, dialect);
+		const alias = aliases.get(index);
+		const baseTableRef = getTableRef(join.schema, join.table, dialect);
+		// Use alias in the JOIN clause if available
+		const joinTableRef = alias ? `${baseTableRef} AS "${alias}"` : baseTableRef;
 		const originalTableRef = getTableRef(
 			originalSchema,
 			originalTable,
@@ -274,21 +343,21 @@ export const buildJoinSqlClauses = (
 			case "standard":
 				joinCondition = buildStandardJoinCondition(
 					join,
-					joinTableRef,
+					alias ? `"${alias}"` : baseTableRef,
 					originalTableRef,
 				);
 				break;
 			case "custom":
 				joinCondition = buildCustomJoinCondition(
 					join,
-					joinTableRef,
+					alias ? `"${alias}"` : baseTableRef,
 					originalTableRef,
 				);
 				break;
 			case "filters":
 				joinCondition = buildFilterJoinCondition({
 					join,
-					joinTableRef,
+					joinTableRef: alias ? `"${alias}"` : baseTableRef,
 					originalTableRef,
 					dialect,
 				});
@@ -313,6 +382,7 @@ export const buildJoinSqlPreview = (
 	joins: JoinedTable[],
 	dialect: DatabaseDialect,
 ): string => {
+	const aliases = generateJoinAliases(joins, table, schema);
 	const tableRef = onDialectOrElse(dialect, {
 		postgres: () => `${schema}."${table}"`,
 		sqlite: () => `"${table}"`,
@@ -325,16 +395,30 @@ export const buildJoinSqlPreview = (
 	// Build select clause with all columns from all tables
 	const selectParts = [`SELECT ${tableRef}.*`];
 
-	for (const join of joins) {
+	for (let i = 0; i < joins.length; i++) {
+		const join = joins[i];
+		const alias = aliases.get(i);
 		const joinTableRef = onDialectOrElse(dialect, {
-			postgres: () => `${join.schema}."${join.table}"`,
-			sqlite: () => `"${join.table}"`,
-			libsql: () => `"${join.table}"`,
+			postgres: () => {
+				const baseRef = `${join.schema}."${join.table}"`;
+				return alias ? `${baseRef} AS "${alias}"` : baseRef;
+			},
+			sqlite: () => {
+				const baseRef = `"${join.table}"`;
+				return alias ? `${baseRef} AS "${alias}"` : baseRef;
+			},
+			libsql: () => {
+				const baseRef = `"${join.table}"`;
+				return alias ? `${baseRef} AS "${alias}"` : baseRef;
+			},
 			orElse: () => {
 				throw new SqlError.SqlError({ cause: "Unsupported dialect" });
 			},
 		});
-		selectParts.push(`${joinTableRef}.*`);
+
+		// For select preview, use the actual table/alias reference
+		const selectRef = alias ? `"${alias}"` : joinTableRef;
+		selectParts.push(`${selectRef}.*`);
 	}
 
 	const selectClause = selectParts.join(", ");
@@ -343,7 +427,13 @@ export const buildJoinSqlPreview = (
 	const fromClause = `FROM ${tableRef}`;
 
 	// Build JOIN clauses
-	const joinClauses = buildJoinSqlClauses(joins, schema, table, dialect);
+	const joinClauses = buildJoinSqlClauses(
+		joins,
+		schema,
+		table,
+		dialect,
+		aliases,
+	);
 	const joinClausesText =
 		joinClauses.length > 0 ? `\n${joinClauses.join("\n")}` : "";
 
@@ -362,10 +452,12 @@ const buildSelectWithJoinsGeneric = (
 	formatters: {
 		baseTableRef: (schema: string, table: string) => string;
 		baseTableKey: (schema: string, table: string) => string;
-		joinTableRef: (schema: string, table: string) => string;
-		joinTableKey: (schema: string, table: string) => string;
+		joinTableRef: (schema: string, table: string, alias?: string) => string;
+		joinTableKey: (schema: string, table: string, alias?: string) => string;
 	},
+	joinAliases?: Map<number, string>,
 ): string => {
+	const aliases = joinAliases ?? generateJoinAliases(joins);
 	const columns: string[] = [];
 	const baseTableRef = formatters.baseTableRef(schema, table);
 	const baseTableKey = formatters.baseTableKey(schema, table);
@@ -383,17 +475,30 @@ const buildSelectWithJoinsGeneric = (
 	}
 
 	// Add joined table columns
-	for (const join of joins) {
-		const joinTableRef = formatters.joinTableRef(join.schema, join.table);
-		const joinTableKey = formatters.joinTableKey(join.schema, join.table);
+	for (let i = 0; i < joins.length; i++) {
+		const join = joins[i];
+		const alias = aliases.get(i);
+		const joinTableRef = formatters.joinTableRef(
+			join.schema,
+			join.table,
+			alias,
+		);
+		const joinTableKey = formatters.joinTableKey(
+			join.schema,
+			join.table,
+			alias,
+		);
 		const joinedTableColumns = tableColumnsMap.get(joinTableKey) || [];
+
+		// For column aliasing, use the alias if present, otherwise use the table name
+		const columnAlias = alias || join.table;
 
 		if (join.columns === "all") {
 			if (joinedTableColumns.length > 0) {
 				const joinedCols = joinedTableColumns
 					.map(
 						(col) =>
-							`${joinTableRef}."${col.name}" as "${join.table}.${col.name}"`,
+							`${joinTableRef}."${col.name}" as "${columnAlias}.${col.name}"`,
 					)
 					.join(", ");
 				columns.push(joinedCols);
@@ -403,7 +508,7 @@ const buildSelectWithJoinsGeneric = (
 			}
 		} else {
 			const selectedCols = join.columns
-				.map((col) => `${joinTableRef}."${col}" as "${join.table}.${col}"`)
+				.map((col) => `${joinTableRef}."${col}" as "${columnAlias}.${col}"`)
 				.join(", ");
 			columns.push(selectedCols);
 		}
@@ -415,29 +520,46 @@ const buildSelectWithJoinsGeneric = (
 /**
  * Build SELECT clause with joined table columns for PostgreSQL
  * Explicitly selects and aliases all columns with table prefix (e.g., "table.column")
+ * Handles duplicate table joins with aliases (e.g., "table_1.column", "table_2.column")
  */
 export const buildPgSelectWithJoins = (
 	schema: string,
 	table: string,
 	joins: JoinTablesConfig["joins"],
 	tableColumnsMap: Map<string, { name: string }[]>,
+	joinAliases?: Map<number, string>,
 ): string => {
-	return buildSelectWithJoinsGeneric(schema, table, joins, tableColumnsMap, {
-		baseTableRef: (s, t) => (s ? `${s}."${t}"` : `"${t}"`),
-		baseTableKey: (s, t) => (s ? `${s}.${t}` : t),
-		joinTableRef: (s, t) => (s ? `${s}."${t}"` : `"${t}"`),
-		joinTableKey: (s, t) => (s ? `${s}.${t}` : t),
-	});
+	return buildSelectWithJoinsGeneric(
+		schema,
+		table,
+		joins,
+		tableColumnsMap,
+		{
+			baseTableRef: (s, t) => (s ? `${s}."${t}"` : `"${t}"`),
+			baseTableKey: (s, t) => (s ? `${s}.${t}` : t),
+			joinTableRef: (s, t, alias) => {
+				const baseRef = s ? `${s}."${t}"` : `"${t}"`;
+				return alias ? `"${alias}"` : baseRef;
+			},
+			joinTableKey: (s, t, alias) => {
+				if (alias) return alias;
+				return s ? `${s}.${t}` : t;
+			},
+		},
+		joinAliases,
+	);
 };
 
 /**
  * Build SELECT clause with joined table columns for SQLite
  * Explicitly selects and aliases all columns with table prefix (e.g., "table.column")
+ * Handles duplicate table joins with aliases (e.g., "table_1.column", "table_2.column")
  */
 export const buildSqliteSelectWithJoins = (
 	table: string,
 	joins: JoinTablesConfig["joins"],
 	tableColumnsMap: Map<string, { name: string }[]>,
+	joinAliases?: Map<number, string>,
 ): string => {
 	return buildSelectWithJoinsGeneric(
 		"", // schema not used in SQLite
@@ -447,8 +569,9 @@ export const buildSqliteSelectWithJoins = (
 		{
 			baseTableRef: (_s, t) => `"${t}"`,
 			baseTableKey: (_s, t) => t,
-			joinTableRef: (_s, t) => `"${t}"`,
-			joinTableKey: (_s, t) => t,
+			joinTableRef: (_s, t, alias) => (alias ? `"${alias}"` : `"${t}"`),
+			joinTableKey: (_s, t, alias) => (alias ? alias : t),
 		},
+		joinAliases,
 	);
 };

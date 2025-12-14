@@ -316,6 +316,174 @@ describe("sql-join-builder", () => {
 			expect(clauses[0]).toContain("LEFT JOIN");
 			expect(clauses[1]).toContain("INNER JOIN");
 		});
+
+		it("handles multiple JOINs on same table with aliases for PostgreSQL", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "posts",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "author_id",
+					},
+				},
+				{
+					table: "posts",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "editor_id",
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"users",
+				DatabaseDialect.Postgres,
+			);
+
+			expect(clauses).toHaveLength(2);
+			// Both JOINs should reference the same table but use aliases to distinguish
+			expect(clauses[0]).toContain('LEFT JOIN public."posts" AS "posts_1"');
+			expect(clauses[0]).toContain('"posts_1"."author_id"');
+			expect(clauses[1]).toContain('LEFT JOIN public."posts" AS "posts_2"');
+			expect(clauses[1]).toContain('"posts_2"."editor_id"');
+		});
+		it("handles multiple JOINs on same table with aliases for SQLite", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "posts",
+					schema: "main",
+					type: "inner",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "author_id",
+					},
+				},
+				{
+					table: "posts",
+					schema: "main",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "editor_id",
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"main",
+				"users",
+				DatabaseDialect.SQLite,
+			);
+
+			expect(clauses).toHaveLength(2);
+			// Both JOINs should reference the same table but use aliases to distinguish
+			// SQLite doesn't include schema prefix
+			expect(clauses[0]).toContain('INNER JOIN "posts" AS "posts_1"');
+			expect(clauses[0]).toContain('"posts_1"."author_id"');
+			expect(clauses[1]).toContain('LEFT JOIN "posts" AS "posts_2"');
+			expect(clauses[1]).toContain('"posts_2"."editor_id"');
+		});
+
+		it("does not add aliases when joining different tables", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "posts",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "user_id",
+					},
+				},
+				{
+					table: "comments",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "user_id",
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"users",
+				DatabaseDialect.Postgres,
+			);
+
+			expect(clauses).toHaveLength(2);
+			// No aliases should be generated for different tables
+			expect(clauses[0]).not.toContain(" AS ");
+			expect(clauses[1]).not.toContain(" AS ");
+			expect(clauses[0]).toContain('LEFT JOIN public."posts"');
+			expect(clauses[1]).toContain('LEFT JOIN public."comments"');
+		});
+
+		it("handles multiple joins with table appearing in both base and joins", () => {
+			// User scenario: commitments table with lineItems and then commitments again
+			const joins: JoinedTable[] = [
+				{
+					table: "lineItems",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "commitment_id",
+					},
+				},
+				{
+					table: "commitments",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "previous_commitment_id",
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"commitments",
+				DatabaseDialect.Postgres,
+			);
+
+			expect(clauses).toHaveLength(2);
+			// First join: lineItems (not duplicated, no alias)
+			expect(clauses[0]).toContain('LEFT JOIN public."lineItems"');
+			expect(clauses[0]).not.toContain(" AS ");
+			// Second join: commitments (the base table, needs alias as it's duplicated)
+			expect(clauses[1]).toContain(
+				'LEFT JOIN public."commitments" AS "commitments_1"',
+			);
+			expect(clauses[1]).toContain('"commitments_1"."previous_commitment_id"');
+		});
 	});
 
 	describe("buildPgJoinFilters & buildSqliteJoinFilters", () => {
@@ -762,6 +930,57 @@ describe("buildPgSelectWithJoins", () => {
 		expect(result).toContain('public."users"."id"');
 		expect(result).toContain('public."users"."name"');
 	});
+
+	it("uses aliases for multiple joins on same table", () => {
+		const tableColumnsMap = new Map([
+			["public.users", [{ name: "id" }, { name: "name" }]],
+			["posts_1", [{ name: "id" }, { name: "title" }, { name: "author_id" }]],
+			["posts_2", [{ name: "id" }, { name: "title" }, { name: "editor_id" }]],
+		]);
+		const joins: JoinTablesConfig["joins"] = [
+			{
+				table: "posts",
+				schema: "public",
+				type: "left",
+				columns: "all",
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "id",
+					referencedColumn: "author_id",
+				},
+			},
+			{
+				table: "posts",
+				schema: "public",
+				type: "left",
+				columns: "all",
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "id",
+					referencedColumn: "editor_id",
+				},
+			},
+		];
+
+		const result = buildPgSelectWithJoins(
+			"public",
+			"users",
+			joins,
+			tableColumnsMap,
+		);
+
+		// Should use aliases "posts_1" and "posts_2" in SELECT
+		expect(result).toContain('public."users"."id" as "users.id"');
+		expect(result).toContain('public."users"."name" as "users.name"');
+		// First join uses posts_1 alias
+		expect(result).toContain('"posts_1"."id" as "posts_1.id"');
+		expect(result).toContain('"posts_1"."title" as "posts_1.title"');
+		expect(result).toContain('"posts_1"."author_id" as "posts_1.author_id"');
+		// Second join uses posts_2 alias
+		expect(result).toContain('"posts_2"."id" as "posts_2.id"');
+		expect(result).toContain('"posts_2"."title" as "posts_2.title"');
+		expect(result).toContain('"posts_2"."editor_id" as "posts_2.editor_id"');
+	});
 });
 
 describe("buildSqliteSelectWithJoins", () => {
@@ -931,5 +1150,51 @@ describe("buildSqliteSelectWithJoins", () => {
 		);
 		expect(sqliteResult).toContain('"posts"."id"');
 		expect(sqliteResult).not.toContain("public.");
+	});
+
+	it("uses aliases for multiple joins on same table (SQLite)", () => {
+		const tableColumnsMap = new Map([
+			["users", [{ name: "id" }, { name: "name" }]],
+			["posts_1", [{ name: "id" }, { name: "title" }, { name: "author_id" }]],
+			["posts_2", [{ name: "id" }, { name: "title" }, { name: "editor_id" }]],
+		]);
+		const joins: JoinTablesConfig["joins"] = [
+			{
+				table: "posts",
+				schema: "main",
+				type: "left",
+				columns: "all",
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "id",
+					referencedColumn: "author_id",
+				},
+			},
+			{
+				table: "posts",
+				schema: "main",
+				type: "left",
+				columns: "all",
+				joinCondition: {
+					mode: "standard" as const,
+					referencingColumn: "id",
+					referencedColumn: "editor_id",
+				},
+			},
+		];
+
+		const result = buildSqliteSelectWithJoins("users", joins, tableColumnsMap);
+
+		// Should use aliases "posts_1" and "posts_2" in SELECT
+		expect(result).toContain('"users"."id" as "users.id"');
+		expect(result).toContain('"users"."name" as "users.name"');
+		// First join uses posts_1 alias
+		expect(result).toContain('"posts_1"."id" as "posts_1.id"');
+		expect(result).toContain('"posts_1"."title" as "posts_1.title"');
+		expect(result).toContain('"posts_1"."author_id" as "posts_1.author_id"');
+		// Second join uses posts_2 alias
+		expect(result).toContain('"posts_2"."id" as "posts_2.id"');
+		expect(result).toContain('"posts_2"."title" as "posts_2.title"');
+		expect(result).toContain('"posts_2"."editor_id" as "posts_2.editor_id"');
 	});
 });
