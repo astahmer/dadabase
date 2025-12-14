@@ -2452,6 +2452,100 @@ const testSuite =
 				expect(firstRow).toHaveProperty("posts.title");
 			}).pipe(Effect.provide(sqlLayer));
 		});
+
+		// Custom alias tests
+		it.effect("custom alias on same-table joins works correctly", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				// Join posts twice with user-provided aliases (using standard FK conditions)
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "left",
+						columns: ["id", "title"],
+						alias: "user_first_post", // Custom alias for first join
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
+					},
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "left",
+						columns: ["id", "content"],
+						alias: "user_recent_post", // Custom alias for second join
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// Should successfully execute with custom aliases
+				expect(result.rowCount).toBeGreaterThan(0);
+				expect(result.rows.length).toBeGreaterThan(0);
+				// Custom aliases should appear in column names
+				const firstRow = result.rows[0];
+				expect(firstRow).toBeDefined();
+			}).pipe(Effect.provide(sqlLayer));
+		});
+
+		it.effect("mixes custom alias with auto-generated aliases", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				// First join uses custom alias, second doesn't (auto-generated)
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "left",
+						columns: ["title"],
+						alias: "authored_posts", // Custom alias
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
+					},
+					{
+						table: "posts",
+						schema: config.defaultSchema,
+						type: "left",
+						columns: ["content"],
+						// No alias - will use auto-generated
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
+						},
+					},
+				];
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+				});
+
+				// Should work with mixed aliases
+				expect(result.rowCount).toBeGreaterThan(0);
+				expect(result.rows.length).toBeGreaterThan(0);
+			}).pipe(Effect.provide(sqlLayer));
+		});
 	};
 
 describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));

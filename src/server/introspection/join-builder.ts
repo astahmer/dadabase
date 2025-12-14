@@ -15,6 +15,7 @@ import {
 /**
  * Generate aliases for joins to handle multiple joins on the same table,
  * or when a joined table is the same as the base table.
+ * Respects user-provided aliases and only generates them when needed.
  * Returns a map of join index to alias (or undefined if no alias needed)
  *
  * @param joins Array of joined table configurations
@@ -29,15 +30,36 @@ export const generateJoinAliases = (
 ): Map<number, string> => {
 	const aliases = new Map<number, string>();
 
-	// Check which tables appear multiple times in joins array
+	// First pass: collect user-provided aliases
+	const userProvidedAliases = new Set<number>();
+	const userProvidedTables = new Set<string>();
+
+	for (let i = 0; i < joins.length; i++) {
+		const join = joins[i];
+
+		// If user provided an alias, use it
+		if (join.alias) {
+			aliases.set(i, join.alias);
+			userProvidedAliases.add(i);
+			userProvidedTables.add(`${join.schema}.${join.table}`);
+		}
+	}
+
+	// Second pass: count tables that need auto-generation
+	// (excluding those where user provided an alias)
 	const tableCountMap = new Map<string, number>();
 	for (let i = 0; i < joins.length; i++) {
+		// Skip if user provided an alias - they're handling it
+		if (userProvidedAliases.has(i)) {
+			continue;
+		}
+
 		const join = joins[i];
 		const tableKey = `${join.schema}.${join.table}`;
 		tableCountMap.set(tableKey, (tableCountMap.get(tableKey) ?? 0) + 1);
 	}
 
-	// Identify tables that appear multiple times in joins
+	// Identify tables that appear multiple times (excluding user-provided ones)
 	const tablesWithDuplicates = new Set<string>();
 	for (const [tableKey, count] of tableCountMap) {
 		if (count > 1) {
@@ -45,20 +67,23 @@ export const generateJoinAliases = (
 		}
 	}
 
-	// Also check if base table appears in joins (this also requires aliases)
+	// Also check if base table appears in non-aliased joins
 	if (baseTable && baseSchema) {
 		const baseTableKey = `${baseSchema}.${baseTable}`;
 		const baseTableCount = tableCountMap.get(baseTableKey) ?? 0;
 		if (baseTableCount > 0) {
-			// Base table appears in joins, so all occurrences need aliases
 			tablesWithDuplicates.add(baseTableKey);
 		}
 	}
 
-	// Assign aliases to joins that need them
-	// Counter starts from 1 for each table that needs aliases
+	// Third pass: Assign auto-generated aliases
 	const tableCounterMap = new Map<string, number>();
 	for (let i = 0; i < joins.length; i++) {
+		// Skip if user provided an alias
+		if (userProvidedAliases.has(i)) {
+			continue;
+		}
+
 		const join = joins[i];
 		const tableKey = `${join.schema}.${join.table}`;
 

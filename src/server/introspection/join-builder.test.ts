@@ -235,6 +235,11 @@ describe("sql-join-builder", () => {
 			// Should fallback to FK join
 			expect(clauses[0]).toContain('"commitment_id" = ');
 			expect(clauses[0]).toContain('"id"');
+			expect(clauses).toMatchInlineSnapshot(`
+				[
+				  "LEFT JOIN public."lineItems" ON public."lineItems"."commitment_id" = public."commitments"."id"",
+				]
+			`);
 		});
 
 		it("builds filter-based join conditions with FK prefix", () => {
@@ -356,6 +361,12 @@ describe("sql-join-builder", () => {
 			expect(clauses[0]).toContain('"posts_1"."author_id"');
 			expect(clauses[1]).toContain('LEFT JOIN public."posts" AS "posts_2"');
 			expect(clauses[1]).toContain('"posts_2"."editor_id"');
+			expect(clauses).toMatchInlineSnapshot(`
+				[
+				  "LEFT JOIN public."posts" AS "posts_1" ON "posts_1"."author_id" = public."users"."id"",
+				  "LEFT JOIN public."posts" AS "posts_2" ON "posts_2"."editor_id" = public."users"."id"",
+				]
+			`);
 		});
 		it("handles multiple JOINs on same table with aliases for SQLite", () => {
 			const joins: JoinedTable[] = [
@@ -397,6 +408,12 @@ describe("sql-join-builder", () => {
 			expect(clauses[0]).toContain('"posts_1"."author_id"');
 			expect(clauses[1]).toContain('LEFT JOIN "posts" AS "posts_2"');
 			expect(clauses[1]).toContain('"posts_2"."editor_id"');
+			expect(clauses).toMatchInlineSnapshot(`
+				[
+				  "INNER JOIN "posts" AS "posts_1" ON "posts_1"."author_id" = "users"."id"",
+				  "LEFT JOIN "posts" AS "posts_2" ON "posts_2"."editor_id" = "users"."id"",
+				]
+			`);
 		});
 
 		it("does not add aliases when joining different tables", () => {
@@ -438,6 +455,12 @@ describe("sql-join-builder", () => {
 			expect(clauses[1]).not.toContain(" AS ");
 			expect(clauses[0]).toContain('LEFT JOIN public."posts"');
 			expect(clauses[1]).toContain('LEFT JOIN public."comments"');
+			expect(clauses).toMatchInlineSnapshot(`
+				[
+				  "LEFT JOIN public."posts" ON public."posts"."user_id" = public."users"."id"",
+				  "LEFT JOIN public."comments" ON public."comments"."user_id" = public."users"."id"",
+				]
+			`);
 		});
 
 		it("handles multiple joins with table appearing in both base and joins", () => {
@@ -483,6 +506,197 @@ describe("sql-join-builder", () => {
 				'LEFT JOIN public."commitments" AS "commitments_1"',
 			);
 			expect(clauses[1]).toContain('"commitments_1"."previous_commitment_id"');
+			expect(clauses).toMatchInlineSnapshot(`
+				[
+				  "LEFT JOIN public."lineItems" ON public."lineItems"."commitment_id" = public."commitments"."id"",
+				  "LEFT JOIN public."commitments" AS "commitments_1" ON "commitments_1"."previous_commitment_id" = public."commitments"."id"",
+				]
+			`);
+		});
+
+		it("uses user-provided alias instead of auto-generated one", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "posts",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					alias: "author_posts", // User provides custom alias
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "author_id",
+					},
+				},
+				{
+					table: "posts",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					alias: "editor_posts", // User provides custom alias for second join
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "editor_id",
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"users",
+				DatabaseDialect.Postgres,
+			);
+
+			expect(clauses).toHaveLength(2);
+			// Should use user-provided aliases instead of auto-generated ones
+			expect(clauses[0]).toContain(
+				'LEFT JOIN public."posts" AS "author_posts"',
+			);
+			expect(clauses[0]).toContain('"author_posts"."author_id"');
+			expect(clauses[1]).toContain(
+				'LEFT JOIN public."posts" AS "editor_posts"',
+			);
+			expect(clauses[1]).toContain('"editor_posts"."editor_id"');
+			expect(clauses).toMatchInlineSnapshot(`
+				[
+				  "LEFT JOIN public."posts" AS "author_posts" ON "author_posts"."author_id" = public."users"."id"",
+				  "LEFT JOIN public."posts" AS "editor_posts" ON "editor_posts"."editor_id" = public."users"."id"",
+				]
+			`);
+		});
+
+		it("mixes user-provided and auto-generated aliases", () => {
+			// When user provides alias for one posts join, second posts join without alias
+			// doesn't get auto-aliased (user is responsible for disambiguating the first)
+			const joins: JoinedTable[] = [
+				{
+					table: "posts",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					alias: "user_posts", // User provides custom alias
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "user_id",
+					},
+				},
+				{
+					table: "posts",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					// No alias provided
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "author_id",
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"users",
+				DatabaseDialect.Postgres,
+			);
+
+			expect(clauses).toHaveLength(2);
+			// First should use user-provided alias
+			expect(clauses[0]).toContain('LEFT JOIN public."posts" AS "user_posts"');
+			// Second should not have an alias (user provided one for first, so only 1 non-aliased occurrence)
+			expect(clauses[1]).toContain('LEFT JOIN public."posts"');
+			expect(clauses[1]).not.toContain(" AS ");
+			expect(clauses).toMatchInlineSnapshot(`
+				[
+				  "LEFT JOIN public."posts" AS "user_posts" ON "user_posts"."user_id" = public."users"."id"",
+				  "LEFT JOIN public."posts" ON public."posts"."author_id" = public."users"."id"",
+				]
+			`);
+		});
+
+		it("respects custom alias in SELECT clause with user-provided alias", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "posts",
+					schema: "public",
+					type: "left",
+					columns: ["title", "content"],
+					alias: "recent_posts",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "author_id",
+					},
+				},
+			];
+
+			const tableColumnsMap = new Map([
+				["public.users", [{ name: "id" }, { name: "name" }, { name: "email" }]],
+				["public.posts", [{ name: "title" }, { name: "content" }]],
+			]);
+			const selectClause = buildPgSelectWithJoins(
+				"public",
+				"users",
+				joins,
+				tableColumnsMap,
+			);
+
+			// Should use the custom alias in the SELECT clause
+			expect(selectClause).toContain('"recent_posts"."title"');
+			expect(selectClause).toContain('"recent_posts"."content"');
+			expect(selectClause).toMatchInlineSnapshot(`"public."users"."id" as "users.id", public."users"."name" as "users.name", public."users"."email" as "users.email", "recent_posts"."title" as "recent_posts.title", "recent_posts"."content" as "recent_posts.content""`);
+		});
+
+		it("same table multiple times generates alias for non-provided joins", () => {
+			// When BOTH joins of same table don't have user aliases, both get auto-generated
+			const joins: JoinedTable[] = [
+				{
+					table: "posts",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					// No user alias
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "author_id",
+					},
+				},
+				{
+					table: "posts",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					// No user alias, should be auto-aliased since same table appears twice
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "editor_id",
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"users",
+				DatabaseDialect.Postgres,
+			);
+
+			expect(clauses).toHaveLength(2);
+			// Both should get auto-generated aliases (posts_1 and posts_2)
+			expect(clauses[0]).toContain('LEFT JOIN public."posts" AS "posts_1"');
+			expect(clauses[1]).toContain('LEFT JOIN public."posts" AS "posts_2"');
+			expect(clauses).toMatchInlineSnapshot(`
+				[
+				  "LEFT JOIN public."posts" AS "posts_1" ON "posts_1"."author_id" = public."users"."id"",
+				  "LEFT JOIN public."posts" AS "posts_2" ON "posts_2"."editor_id" = public."users"."id"",
+				]
+			`);
 		});
 	});
 

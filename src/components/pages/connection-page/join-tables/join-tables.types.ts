@@ -66,6 +66,8 @@ export interface JoinedTable {
 		| FilterJoinCondition;
 	/** Optional filter conditions to apply to the joined table (WHERE clause) */
 	filters?: QueryFilterType;
+	/** Optional custom alias for this join. If not provided, auto-generated as {tableName}_{index} when needed */
+	alias?: string;
 }
 
 export interface JoinTablesConfig {
