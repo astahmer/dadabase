@@ -2655,7 +2655,7 @@ const testSuite =
 			}).pipe(Effect.provide(sqlLayer));
 		});
 
-		it.effect.only(
+		it.effect(
 			"applies root filters on aliased joined tables with auto-generated aliases",
 			() => {
 				return Effect.gen(function* () {
@@ -2717,52 +2717,49 @@ const testSuite =
 			},
 		);
 
-		it.effect.only(
-			"applies root filters on custom aliased joined tables",
-			() => {
-				return Effect.gen(function* () {
-					yield* setupSchema;
-					yield* insertTestData;
+		it.effect("applies root filters on custom aliased joined tables", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
 
-					// Join with custom alias and apply filter
-					const joins: JoinedTable[] = [
-						{
-							table: "posts",
-							schema: config.defaultSchema,
-							type: "left",
-							columns: "all",
-							alias: "published_posts",
-							joinCondition: {
-								mode: "standard",
-								referencingColumn: "id",
-								referencedColumn: "user_id",
-							},
-						},
-					];
-
-					const result = yield* queryTableRows<Record<string, unknown>>({
+				// Join with custom alias and apply filter
+				const joins: JoinedTable[] = [
+					{
+						table: "posts",
 						schema: config.defaultSchema,
-						table: "users",
-						joins,
-						filters: {
-							conditions: [
-								{
-									table: "published_posts",
-									column: "published",
-									operator: "equals",
-									value: "true",
-								},
-							],
-							logicalOperator: "and",
+						type: "left",
+						columns: "all",
+						alias: "published_posts",
+						joinCondition: {
+							mode: "standard",
+							referencingColumn: "id",
+							referencedColumn: "user_id",
 						},
-					});
+					},
+				];
 
-					// Should successfully execute with filters on custom alias
-					expect(result.rowCount).toBeDefined();
-					expect(Array.isArray(result.rows)).toBe(true);
-				}).pipe(Effect.provide(sqlLayer));
-			},
-		);
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "users",
+					joins,
+					filters: {
+						conditions: [
+							{
+								table: "published_posts",
+								column: "published",
+								operator: "equals",
+								value: "true",
+							},
+						],
+						logicalOperator: "and",
+					},
+				});
+
+				// Should successfully execute with filters on custom alias
+				expect(result.rowCount).toBeDefined();
+				expect(Array.isArray(result.rows)).toBe(true);
+			}).pipe(Effect.provide(sqlLayer));
+		});
 	};
 describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));
 describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));

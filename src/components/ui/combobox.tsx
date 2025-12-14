@@ -12,7 +12,7 @@ const Combobox = <T extends ComboboxPrimitive.CollectionItem>(
 	props: ComboboxPrimitive.RootBaseProps<T> &
 		React.RefAttributes<React.ElementRef<typeof ComboboxPrimitive.Root>> &
 		ExposedComponentProps<"div">,
-) => <ComboboxPrimitive.Root {...props} />;
+) => <ComboboxPrimitive.Root lazyMount {...props} />;
 Combobox.displayName = "Combobox";
 
 const ComboboxClearTrigger = ({

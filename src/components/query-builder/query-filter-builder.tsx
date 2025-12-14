@@ -43,6 +43,8 @@ interface QueryFilterBuilderProps {
 	logicalOperator: LogicalOperatorType;
 	availableColumns: string[];
 	isLoading?: boolean;
+	/** Optional table name/alias for display in column headers (useful for joined table filters) */
+	tableReference?: string;
 }
 
 const operatorCollection = createListCollection({
@@ -69,16 +71,17 @@ export const QueryFilterBuilder = ({
 	logicalOperator,
 	availableColumns,
 	isLoading = false,
+	tableReference,
 }: QueryFilterBuilderProps) => {
 	const columnCollection = useMemo(
 		() =>
 			createListCollection({
 				items: availableColumns.map((col) => ({
-					label: col,
+					label: tableReference ? `${tableReference}.${col}` : col,
 					value: col,
 				})),
 			}),
-		[availableColumns],
+		[availableColumns, tableReference],
 	);
 
 	if (conditions.length === 0) {
@@ -106,6 +109,7 @@ export const QueryFilterBuilder = ({
 						isFirst={index === 0}
 						isLast={index === conditions.length - 1}
 						hasMultipleConditions={conditions.length > 1}
+						tableReference={tableReference}
 					/>
 				))}
 			</Stack>
@@ -135,6 +139,7 @@ interface FilterConditionRowProps {
 	isLast: boolean;
 	showLogicalLabel?: boolean;
 	logicalOperator?: LogicalOperatorType;
+	tableReference?: string;
 }
 
 const FilterConditionRow = (props: FilterConditionRowProps) => {

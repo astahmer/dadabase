@@ -210,6 +210,7 @@ const buildFkCondition = (
 
 /**
  * Build filter expression based on dialect
+ * If alias is provided, it will be used instead of schema and table
  */
 const buildFilterExpression = (
 	conditions: any[],
@@ -217,15 +218,29 @@ const buildFilterExpression = (
 	schema: string,
 	table: string,
 	dialect: DatabaseDialect,
+	alias?: string,
 ): string => {
+	// If alias is provided, add it to each condition for proper table reference
+	if (alias) {
+		conditions = conditions.map((c) => ({
+			...c,
+			table: alias,
+		}));
+	}
+
 	return (
 		onDialectOrElse(dialect, {
 			postgres: () =>
-				buildPgWhereFragment(conditions, logicalOperator, schema, table),
+				buildPgWhereFragment(
+					conditions,
+					logicalOperator,
+					alias ? undefined : schema,
+					alias ? undefined : table,
+				),
 			sqlite: () =>
-				buildSqliteWhereFragment(conditions, logicalOperator, table),
+				buildSqliteWhereFragment(conditions, logicalOperator, alias || table),
 			libsql: () =>
-				buildSqliteWhereFragment(conditions, logicalOperator, table),
+				buildSqliteWhereFragment(conditions, logicalOperator, alias || table),
 			orElse: () => {
 				throw new SqlError.SqlError({ cause: "Unsupported dialect" });
 			},
@@ -304,11 +319,13 @@ const buildFilterJoinCondition = ({
 	joinTableRef,
 	originalTableRef,
 	dialect,
+	alias,
 }: {
 	join: JoinedTable;
 	joinTableRef: string;
 	originalTableRef: string;
 	dialect: DatabaseDialect;
+	alias?: string;
 }): string => {
 	const joinCondition = join.joinCondition as FilterJoinCondition;
 	const hasFilters =
@@ -333,13 +350,14 @@ const buildFilterJoinCondition = ({
 		);
 	}
 
-	// Has filters
+	// Has filters - use alias if available
 	const filterExpression = buildFilterExpression(
 		joinCondition.filters!.conditions,
 		joinCondition.filters!.logicalOperator,
 		join.schema,
 		join.table,
 		dialect,
+		alias,
 	);
 
 	// Combine with FK if available
@@ -421,6 +439,7 @@ export const buildJoinSqlClauses = (
 					joinTableRef: alias ? `"${alias}"` : baseTableRef,
 					originalTableRef,
 					dialect,
+					alias,
 				});
 				break;
 			default:

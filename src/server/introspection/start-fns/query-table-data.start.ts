@@ -1,7 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
-import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
+import type {
+	JoinedTable,
+	JoinTablesConfig,
+} from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import {
 	filterQueryValidConditions,
 	QueryFilter,
@@ -36,17 +39,22 @@ const JoinConditionSchema = Schema.Union(
 	FilterJoinConditionSchema,
 );
 
-const JoinSchema = Schema.Struct({
+export const JoinedTableSchema = Schema.Struct({
 	table: Schema.String,
 	schema: Schema.String,
+	alias: Schema.String.pipe(Schema.optional),
 	type: Schema.Literal("left", "inner"),
 	columns: Schema.Union(
 		Schema.Literal("all"),
-		Schema.Array(Schema.String),
+		Schema.Array(Schema.String).pipe(Schema.mutable),
 	).pipe(Schema.mutable),
 	joinCondition: JoinConditionSchema,
 	filters: QueryFilter.pipe(Schema.optional),
 }).pipe(Schema.mutable);
+
+type JoinedTableType = typeof JoinedTableSchema.Type;
+const _lint = {} as JoinedTableType satisfies JoinedTable;
+_lint;
 
 const InputSchema = Schema.Struct({
 	url: Schema.String,
@@ -60,7 +68,7 @@ const InputSchema = Schema.Struct({
 	limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
 	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
 	filters: QueryFilter.pipe(Schema.optional),
-	joins: Schema.Array(JoinSchema).pipe(Schema.optional),
+	joins: Schema.Array(JoinedTableSchema).pipe(Schema.optional),
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
 	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))

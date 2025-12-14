@@ -57,6 +57,8 @@ export const JoinedTableRow = ({
 		),
 	);
 
+	const [alias, setAlias] = useState<string>(joined.alias || "");
+
 	const [filterConditions, setFilterConditions] = useState<
 		FilterConditionExpression[]
 	>(joined.filters?.conditions || []);
@@ -146,6 +148,13 @@ export const JoinedTableRow = ({
 				logicalOperator: operator,
 			});
 		}
+	};
+
+	const handleAliasChange = (newAlias: string) => {
+		setAlias(newAlias);
+		onUpdateJoinCondition({
+			alias: newAlias || undefined,
+		});
 	};
 
 	const handleToggleColumn = (column: string) => {
@@ -395,6 +404,20 @@ export const JoinedTableRow = ({
 					</div>
 				</div>
 
+				<div className="flex gap-2 items-end">
+					<div className="flex-1">
+						<label className="text-xs font-medium text-muted-foreground block mb-1">
+							Alias (optional):
+						</label>
+						<Input
+							placeholder={`e.g., ${joined.table}_alias`}
+							value={alias}
+							onChange={(e) => handleAliasChange(e.target.value)}
+							className="h-7 text-xs"
+						/>
+					</div>
+				</div>
+
 				<div className="flex gap-2 items-center pt-2">
 					<div className="text-xs font-medium text-muted-foreground">
 						Join condition:
@@ -519,6 +542,7 @@ export const JoinedTableRow = ({
 									}
 									logicalOperator={joinFilterLogicalOperator}
 									availableColumns={availableColumns.map((c) => c.name)}
+									tableReference={alias || joined.table}
 								/>
 							)}
 						</AccordionItemContent>

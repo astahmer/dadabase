@@ -2,10 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 import { Suspense } from "react";
 import { ConnectionPage } from "#src/components/pages/connection.page.tsx";
-import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
 import { FullCenter } from "../../components/ui/layout.tsx";
 import { Spinner } from "../../components/ui/spinner.tsx";
+import { JoinedTableSchema } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 
 const tableSize = Schema.Literal(
 	"excel",
@@ -29,47 +29,6 @@ const StructureFiltersSchema = Schema.Struct({
 		Schema.optionalWith({ default: () => false }),
 	),
 });
-
-const StandardJoinConditionSchema = Schema.Struct({
-	mode: Schema.Literal("standard"),
-	referencingColumn: Schema.String,
-	referencedColumn: Schema.String,
-}).pipe(Schema.mutable);
-
-const CustomJoinConditionSchema = Schema.Struct({
-	mode: Schema.Literal("custom"),
-	referencingColumn: Schema.String.pipe(Schema.optional),
-	referencedColumn: Schema.String.pipe(Schema.optional),
-	conditions: Schema.Array(Schema.String).pipe(Schema.mutable),
-});
-
-const FilterJoinConditionSchema = Schema.Struct({
-	mode: Schema.Literal("filters"),
-	referencingColumn: Schema.String.pipe(Schema.optional),
-	referencedColumn: Schema.String.pipe(Schema.optional),
-	filters: QueryFilter.pipe(Schema.optional),
-});
-
-const JoinConditionSchema = Schema.Union(
-	StandardJoinConditionSchema,
-	CustomJoinConditionSchema,
-	FilterJoinConditionSchema,
-);
-
-const JoinedTableSchema = Schema.Struct({
-	table: Schema.String,
-	schema: Schema.String,
-	type: Schema.Literal("left", "inner"),
-	columns: Schema.Union(
-		Schema.Literal("all"),
-		Schema.Array(Schema.String).pipe(Schema.mutable),
-	),
-	joinCondition: JoinConditionSchema,
-	filters: QueryFilter.pipe(Schema.optional),
-});
-type JoinedTableType = typeof JoinedTableSchema.Type;
-const _lint = {} as JoinedTableType satisfies JoinedTable;
-_lint;
 
 const TabStateSchema = Schema.Struct({
 	tabId: Schema.String, // Explicit unique identifier for the tab

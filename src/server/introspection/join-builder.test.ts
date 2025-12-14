@@ -280,6 +280,118 @@ describe("sql-join-builder", () => {
 			expect(clauses[0]).toContain("quantity");
 		});
 
+		it("builds filter-based join conditions with auto-generated aliases for PostgreSQL", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "lineItems",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "filters",
+						referencingColumn: "id",
+						referencedColumn: "commitment_id",
+						filters: {
+							conditions: [
+								{
+									column: "quantity",
+									operator: "greater_than" as const,
+									value: "10",
+								},
+							],
+							logicalOperator: "and",
+						},
+					},
+				},
+				{
+					table: "lineItems",
+					schema: "public",
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "filters",
+						referencingColumn: "id",
+						referencedColumn: "invoice_line_id",
+						filters: {
+							conditions: [
+								{
+									column: "quantity",
+									operator: "less_than" as const,
+									value: "5",
+								},
+							],
+							logicalOperator: "and",
+						},
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"commitments",
+				DatabaseDialect.Postgres,
+			);
+
+			expect(clauses).toHaveLength(2);
+			// First join should use lineItems_1 alias
+			expect(clauses[0]).toContain(
+				'LEFT JOIN public."lineItems" AS "lineItems_1"',
+			);
+			expect(clauses[0]).toContain('"lineItems_1"."commitment_id"');
+			expect(clauses[0]).toContain('"lineItems_1"."quantity" > \'10\'');
+			// Second join should use lineItems_2 alias
+			expect(clauses[1]).toContain(
+				'LEFT JOIN public."lineItems" AS "lineItems_2"',
+			);
+			expect(clauses[1]).toContain('"lineItems_2"."invoice_line_id"');
+			expect(clauses[1]).toContain('"lineItems_2"."quantity" < \'5\'');
+			expect(clauses).toMatchInlineSnapshot();
+		});
+
+		it("builds filter-based join conditions with manually-provided alias", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "lineItems",
+					schema: "public",
+					type: "inner",
+					columns: "all",
+					alias: "invoice_items",
+					joinCondition: {
+						mode: "filters",
+						referencingColumn: "id",
+						referencedColumn: "commitment_id",
+						filters: {
+							conditions: [
+								{ column: "quantity", operator: "equals" as const, value: "5" },
+							],
+							logicalOperator: "and",
+						},
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"commitments",
+				DatabaseDialect.Postgres,
+			);
+
+			expect(clauses).toHaveLength(1);
+			// Should use the manually-provided alias
+			expect(clauses[0]).toContain(
+				'INNER JOIN public."lineItems" AS "invoice_items"',
+			);
+			expect(clauses[0]).toContain('"invoice_items"."commitment_id"');
+			expect(clauses[0]).toContain('"invoice_items"."quantity" = \'5\'');
+			expect(clauses).toMatchInlineSnapshot(`
+				[
+				  "INNER JOIN public."lineItems" AS "invoice_items" ON "invoice_items"."commitment_id" = public."commitments"."id" AND "invoice_items"."quantity" = '5'",
+				]
+			`);
+		});
+
 		it("handles multiple joins", () => {
 			const joins: JoinedTable[] = [
 				{
