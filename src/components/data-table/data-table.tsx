@@ -20,6 +20,7 @@ import type {
 	Table as TanstackTable,
 } from "@tanstack/react-table";
 import { flexRender } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
 	ArrowDownNarrowWide,
 	ArrowUpNarrowWide,
@@ -29,7 +30,7 @@ import {
 	PinOff,
 } from "lucide-react";
 import type { ReactNode, Ref, RefObject } from "react";
-import { memo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { getColumnPinningStyles } from "../../lib/get-pinning-styles.ts";
 import { runIfFn } from "../../lib/run-if-fn.ts";
 import { cn } from "../../lib/utils.ts";
@@ -38,6 +39,7 @@ import { Button } from "../ui/button.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
 import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
+import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
 import {
 	type DataTableSize,
 	tableCellStyles,
@@ -79,12 +81,13 @@ export interface DataTableProps<TData> {
 	ExpandedRow?: (props: { row: Row<TData> }) => ReactNode;
 	resizable?: boolean;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
-	virtualized?: boolean;
+	virtualized?: boolean; // TODO rename enableRowVirtualization
 	estimateItemSize?: number;
 	overscan?: number;
 	enableColumnOrdering?: boolean;
 	renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
 	hideColumnPinIconUnlessHovered?: boolean;
+	virtualizeColumns?: boolean; // TODO rename enableColumnVirtualization
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -106,6 +109,8 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		overscan = 15,
 		enableColumnOrdering = false,
 		hideColumnPinIconUnlessHovered = true,
+		// TODO based on number of columns
+		virtualizeColumns = true,
 	} = props;
 
 	const state = table.getState();
@@ -139,6 +144,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 			overscan={overscan}
 			renderSubrows={props.renderSubrows}
 			hideColumnPinIconUnlessHovered={hideColumnPinIconUnlessHovered}
+			virtualizeColumns={virtualizeColumns}
 			size={size}
 			variant={variant}
 			interactive={interactive}
@@ -204,6 +210,7 @@ const TableContainer = (
 		| "overscan"
 		| "renderSubrows"
 		| "hideColumnPinIconUnlessHovered"
+		| "virtualizeColumns"
 	> &
 		Pick<
 			Required<DataTableProps<any>>,
@@ -219,6 +226,73 @@ const TableContainer = (
 	const state = props.table.getState();
 
 	const tableContainerRef = useRef<HTMLDivElement>(null);
+
+	const hasGroupedHeaders = useMemo(() => {
+		return table
+			.getHeaderGroups()
+			.some((hg) => hg.headers.some((h) => h.subHeaders.length > 0));
+	}, [table]);
+
+	const leafColumns = table.getVisibleLeafColumns();
+	const centerLeafColumns =
+		table.getCenterVisibleLeafColumns?.() ??
+		leafColumns.filter((c) => !c.getIsPinned());
+
+	const columnVirtualizer = useVirtualizer({
+		enabled: props.virtualizeColumns,
+		horizontal: true,
+		count: centerLeafColumns.length,
+		getScrollElement: () => tableContainerRef.current,
+		estimateSize: (index) => centerLeafColumns[index]?.getSize() ?? 0,
+		overscan: 1,
+	});
+
+	// Keep measurements fresh when column sizes change (resize, order, pinning)
+	useEffect(() => {
+		columnVirtualizer.measure();
+	}, [
+		columnVirtualizer,
+		state.columnSizing,
+		state.columnSizingInfo,
+		state.columnOrder,
+		state.columnPinning,
+	]);
+
+	const enabledColumnVirtualization =
+		props.virtualizeColumns === true &&
+		!hasGroupedHeaders &&
+		centerLeafColumns.length > 0 &&
+		tableContainerRef.current != null;
+
+	const centerVirtualItems = enabledColumnVirtualization
+		? columnVirtualizer.getVirtualItems()
+		: [];
+
+	const columnVirtualization: ColumnVirtualizationState = useMemo(() => {
+		if (enabledColumnVirtualization && centerVirtualItems.length > 0) {
+			const startIndex = centerVirtualItems[0]?.index ?? 0;
+			const endIndex = centerVirtualItems.at(-1)?.index ?? 0;
+			const totalSize = columnVirtualizer.getTotalSize();
+			const leftPaddingPx = centerVirtualItems[0]?.start ?? 0;
+			const rightPaddingPx = totalSize - (centerVirtualItems.at(-1)?.end ?? 0);
+
+			return {
+				enabled: true,
+				virtualCenterColumnIds: centerVirtualItems
+					.map((v) => centerLeafColumns[v.index]?.id)
+					.filter(Boolean) as string[],
+				centerPaddingLeftPx: leftPaddingPx,
+				centerPaddingRightPx: rightPaddingPx,
+				centerPaddingLeftColSpan: Math.max(0, startIndex),
+				centerPaddingRightColSpan: Math.max(
+					0,
+					centerLeafColumns.length - (endIndex + 1),
+				),
+			};
+		}
+
+		return { enabled: false };
+	}, [enabledColumnVirtualization, centerVirtualItems, centerLeafColumns]);
 
 	return (
 		<div
@@ -245,7 +319,21 @@ const TableContainer = (
 					})}
 				>
 					{table.getHeaderGroups().map((headerGroup) => {
-						const HeaderCellList = headerGroup.headers.map((headerCell) => (
+						const headerById = new Map(
+							headerGroup.headers.map((h) => [h.column.id, h]),
+						);
+
+						const leftHeaders = headerGroup.headers.filter(
+							(h) => h.column.getIsPinned() === "left",
+						);
+						const rightHeaders = headerGroup.headers.filter(
+							(h) => h.column.getIsPinned() === "right",
+						);
+						const centerHeaders = headerGroup.headers.filter(
+							(h) => !h.column.getIsPinned(),
+						);
+
+						const renderHeaderCell = (headerCell: Header<any, any>) => (
 							<HeaderCell
 								key={headerCell.id}
 								table={table}
@@ -260,7 +348,46 @@ const TableContainer = (
 								onColumnFilterClick={props.onColumnFilterClick}
 								resizable={props.resizable}
 							/>
-						));
+						);
+
+						const HeaderCellList =
+							columnVirtualization.enabled === true
+								? [
+										...leftHeaders.map(renderHeaderCell),
+										columnVirtualization.centerPaddingLeftColSpan > 0 ? (
+											<th
+												key={`${headerGroup.id}-center-padding-left`}
+												aria-hidden
+												colSpan={columnVirtualization.centerPaddingLeftColSpan}
+												className="p-0"
+												style={{
+													width: columnVirtualization.centerPaddingLeftPx,
+												}}
+											/>
+										) : null,
+										...columnVirtualization.virtualCenterColumnIds
+											.map((columnId) => headerById.get(columnId))
+											.filter(Boolean)
+											.map((h) => renderHeaderCell(h as Header<any, any>)),
+										columnVirtualization.centerPaddingRightColSpan > 0 ? (
+											<th
+												key={`${headerGroup.id}-center-padding-right`}
+												aria-hidden
+												colSpan={columnVirtualization.centerPaddingRightColSpan}
+												className="p-0"
+												style={{
+													width: columnVirtualization.centerPaddingRightPx,
+												}}
+											/>
+										) : null,
+										...rightHeaders.map(renderHeaderCell),
+									]
+								: // Fallback: render all headers
+									[
+										...leftHeaders.map(renderHeaderCell),
+										...centerHeaders.map(renderHeaderCell),
+										...rightHeaders.map(renderHeaderCell),
+									];
 
 						if (props.enableColumnOrdering) {
 							return (
@@ -299,6 +426,7 @@ const TableContainer = (
 						striped={props.striped}
 						showColumnBorder={props.showColumnBorder}
 						enableColumnOrdering={props.enableColumnOrdering}
+						columnVirtualization={columnVirtualization}
 					/>
 				) : (
 					<TableBody
@@ -306,6 +434,7 @@ const TableContainer = (
 						tableContainerRef={tableContainerRef}
 						isLoading={props.isLoading}
 						virtualized={props.virtualized}
+						columnVirtualization={columnVirtualization}
 						onRowClick={props.onRowClick}
 						withRowContextMenu={props.withRowContextMenu}
 						ExpandedRow={props.ExpandedRow}
@@ -332,6 +461,7 @@ const TableBody = (
 	props: {
 		table: TanstackTable<any>;
 		tableContainerRef: RefObject<HTMLDivElement | null>;
+		columnVirtualization: ColumnVirtualizationState;
 	} & Pick<
 		DataTableProps<any>,
 		| "isLoading"
@@ -359,8 +489,17 @@ const TableBody = (
 	const { table, tableContainerRef } = props;
 	const state = props.table.getState();
 
-	const columns = table.getAllColumns();
 	const rows = table.getRowModel().rows;
+	const columnVirtualization = props.columnVirtualization;
+
+	const leafColumns = table.getVisibleLeafColumns();
+	const leftPinnedLeafColumns = leafColumns.filter(
+		(c) => c.getIsPinned() === "left",
+	);
+	const rightPinnedLeafColumns = leafColumns.filter(
+		(c) => c.getIsPinned() === "right",
+	);
+	const centerLeafColumns = leafColumns.filter((c) => !c.getIsPinned());
 
 	return props.isLoading ? (
 		<tbody>
@@ -368,10 +507,51 @@ const TableBody = (
 				.fill(state.pagination.pageSize)
 				.map((_, index) => (
 					<tr className="border-b border-border" key={index} data-skeleton>
-						{columns.map((col) => (
+						{leftPinnedLeafColumns.map((col) => (
 							<td
 								key={col.id}
 								className={tableCellStyles({ size: props.size })}
+								style={getColumnPinningStyles(col)}
+							>
+								<div className="h-3 bg-muted rounded animate-pulse" />
+							</td>
+						))}
+						{columnVirtualization.enabled === true &&
+						columnVirtualization.centerPaddingLeftColSpan > 0 ? (
+							<td
+								key={`skeleton-${index}-center-padding-left`}
+								aria-hidden
+								colSpan={columnVirtualization.centerPaddingLeftColSpan}
+								className="p-0"
+								style={{ width: columnVirtualization.centerPaddingLeftPx }}
+							/>
+						) : null}
+						{(columnVirtualization.enabled === true
+							? columnVirtualization.virtualCenterColumnIds
+							: centerLeafColumns.map((c) => c.id)
+						).map((columnId) => (
+							<td
+								key={`skeleton-${index}-${columnId}`}
+								className={tableCellStyles({ size: props.size })}
+							>
+								<div className="h-3 bg-muted rounded animate-pulse" />
+							</td>
+						))}
+						{columnVirtualization.enabled === true &&
+						columnVirtualization.centerPaddingRightColSpan > 0 ? (
+							<td
+								key={`skeleton-${index}-center-padding-right`}
+								aria-hidden
+								colSpan={columnVirtualization.centerPaddingRightColSpan}
+								className="p-0"
+								style={{ width: columnVirtualization.centerPaddingRightPx }}
+							/>
+						) : null}
+						{rightPinnedLeafColumns.map((col) => (
+							<td
+								key={col.id}
+								className={tableCellStyles({ size: props.size })}
+								style={getColumnPinningStyles(col)}
 							>
 								<div className="h-3 bg-muted rounded animate-pulse" />
 							</td>
@@ -390,6 +570,7 @@ const TableBody = (
 				showColumnBorder={props.showColumnBorder}
 				enableColumnOrdering={props.enableColumnOrdering}
 				columnOrder={state.columnOrder}
+				columnVirtualization={columnVirtualization}
 				withRowContextMenu={props.withRowContextMenu}
 				ExpandedRow={props.ExpandedRow}
 				onExpandRowJson={props.onExpandRowJson}
@@ -416,6 +597,7 @@ const TableBody = (
 						showColumnBorder={props.showColumnBorder}
 						enableColumnOrdering={props.enableColumnOrdering}
 						columnOrder={state.columnOrder}
+						columnVirtualization={columnVirtualization}
 						withRowContextMenu={props.withRowContextMenu}
 						ExpandedRow={props.ExpandedRow}
 						onExpandRowJson={props.onExpandRowJson}
@@ -425,7 +607,7 @@ const TableBody = (
 			) : (
 				<tr>
 					{props.emptyState ? (
-						<td className="text-center" colSpan={columns.length}>
+						<td className="text-center" colSpan={leafColumns.length}>
 							<div className={tableEmptyStateStyles()}>
 								<span>{props.hasError ? i18n.errorText : i18n.emptyText}</span>
 							</div>
