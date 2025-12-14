@@ -365,7 +365,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															{!pageState.rowsQuery.isLoading &&
 																!pageState.isColumnMetadataLoading && (
 																	<ScrollToColumnButton
-																		columnList={pageState.columnNameList}
+																		table={pageState.rowsDataTable}
 																		containerRef={{ current: tableContainer }}
 																	/>
 																)}

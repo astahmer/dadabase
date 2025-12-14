@@ -1,17 +1,18 @@
 import { createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
+import type { Table as TanstackTable } from "@tanstack/react-table";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import * as ListboxMenu from "../ui/listbox-menu";
 
 interface ScrollToColumnButtonProps {
-	columnList: string[];
+	table: TanstackTable<any>;
 	containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
-	const { columnList, containerRef } = props;
+	const { table, containerRef } = props;
 
 	const [isOpen, setIsOpen] = useState(false);
 	const [isOverflowing, setIsOverflowing] = useState(false);
@@ -43,50 +44,63 @@ export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
 		};
 	}, [containerRef]);
 
+	const visibleNonPinnedColumnIds = table
+		.getVisibleLeafColumns()
+		.filter((c) => !c.getIsPinned())
+		.map((c) => c.id);
+
 	const columnCollection = createListCollection({
-		items: columnList.map((colName) => ({
-			label: colName,
-			value: colName,
+		items: visibleNonPinnedColumnIds.map((colId) => ({
+			label: colId,
+			value: colId,
 		})),
 	});
-	const filteredColumns = columnList.filter((colName) =>
-		contains(colName, filterValue),
+	const filteredColumns = visibleNonPinnedColumnIds.filter((colId) =>
+		contains(colId, filterValue),
 	);
 
 	const handleColumnSelect = (columnName: string) => {
-		// Scroll to the column
-		if (containerRef.current) {
-			const container = containerRef.current;
-			const columnHeader = container.querySelector(
-				`th[data-column-id="${columnName}"]`,
-			) as HTMLElement | null;
+		const container = containerRef.current;
+		if (!container) return;
 
-			if (columnHeader) {
-				// Reset scroll to 0 first to get accurate measurements
-				container.scrollLeft = 0;
+		const allLeafColumnsInOrder = table.getVisibleLeafColumns();
+		const targetIndex = allLeafColumnsInOrder.findIndex(
+			(c) => c.id === columnName,
+		);
+		if (targetIndex === -1) return;
 
-				// Use requestAnimationFrame to ensure DOM has updated
-				requestAnimationFrame(() => {
-					const headerRect = columnHeader.getBoundingClientRect();
-					const containerRect = container.getBoundingClientRect();
+		const leftPinnedWidth = allLeafColumnsInOrder
+			.filter((c) => c.getIsPinned() === "left")
+			.reduce((acc, c) => acc + c.getSize(), 0);
+		const rightPinnedWidth = allLeafColumnsInOrder
+			.filter((c) => c.getIsPinned() === "right")
+			.reduce((acc, c) => acc + c.getSize(), 0);
 
-					// Now headerRect.left - containerRect.left gives us the true position from left
-					const headerLeft = headerRect.left - containerRect.left;
-					const headerWidth = headerRect.width;
-					const containerWidth = containerRect.width;
+		const targetStart = allLeafColumnsInOrder
+			.slice(0, targetIndex)
+			.reduce((acc, c) => acc + c.getSize(), 0);
+		const targetSize = allLeafColumnsInOrder[targetIndex]?.getSize() ?? 0;
+		const targetEnd = targetStart + targetSize;
 
-					// Calculate scroll position to center the column
-					const headerCenter = headerLeft + headerWidth / 2;
-					const newScrollLeft = headerCenter - containerWidth / 2;
+		const currentScrollLeft = container.scrollLeft;
+		const viewportStart = currentScrollLeft + leftPinnedWidth;
+		const viewportEnd =
+			currentScrollLeft + container.clientWidth - rightPinnedWidth;
 
-					// Scroll to position
-					container.scrollTo({
-						left: Math.max(0, newScrollLeft),
-						behavior: "instant",
-					});
-				});
-			}
+		let nextScrollLeft = currentScrollLeft;
+		if (targetStart < viewportStart) {
+			nextScrollLeft = targetStart - leftPinnedWidth;
+		} else if (targetEnd > viewportEnd) {
+			nextScrollLeft = targetEnd - (container.clientWidth - rightPinnedWidth);
 		}
+
+		const maxScrollLeft = Math.max(
+			0,
+			container.scrollWidth - container.clientWidth,
+		);
+		nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, nextScrollLeft));
+
+		container.scrollTo({ left: nextScrollLeft, behavior: "auto" });
 	};
 
 	if (!isOverflowing) {
