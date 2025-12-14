@@ -1,6 +1,6 @@
 import { SqlClient } from "@effect/sql";
 import { SqlError } from "@effect/sql/SqlError";
-import { Effect } from "effect";
+import { Cache, Duration, Effect } from "effect";
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
@@ -1245,6 +1245,7 @@ export const queryTableRows = <TData>(input: {
 	{
 		rows: TData[];
 		rowCount: number;
+		columnList: string[];
 		hasNextPage: boolean;
 	},
 	SqlError,
@@ -1253,38 +1254,55 @@ export const queryTableRows = <TData>(input: {
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const {
-			schema,
-			table,
 			limit = 50,
 			offset = 0,
 			orderBy,
 			orderDirection = "asc",
 			filters,
-			joins = [],
 		} = input;
+
+		const defaultSchema = yield* sql.onDialectOrElse({
+			pg: () =>
+				Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Postgres)),
+			sqlite: () =>
+				Effect.succeed(getDialectDefaultSchema(DatabaseDialect.SQLite)),
+			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+		});
+		const baseSchema = input.schema === defaultSchema ? "" : input.schema;
+
+		const joins = input.joins ?? [];
+		const joinsRemapped = joins.map((j) => ({
+			...j,
+			schema: j.schema === defaultSchema ? "" : j.schema,
+		}));
 
 		// Fetch table columns for proper aliasing when using joins
 		// Build list of tables we need columns for
-		const tablesToFetch = [{ schema, table }];
+		const tablesToFetch = [{ schema: input.schema, table: input.table }];
 		if (joins.length > 0) {
 			tablesToFetch.push(
 				...joins.map((j) => ({ schema: j.schema, table: j.table })),
 			);
 		}
 
-		// Fetch columns for all tables in parallel using Effect.all
+		// TODO cache
+		// console.time("fetch columns");
 		const columnResults = yield* Effect.all(
 			tablesToFetch.map((t) =>
 				Effect.andThen(
 					getTableColumns({ schema: t.schema, table: t.table }),
 					(columns) => ({
-						schemaTable: `${t.schema}.${t.table}`,
+						schemaTable:
+							!t.schema || t.schema === defaultSchema
+								? t.table
+								: `${t.schema}.${t.table}`,
 						tableOnly: t.table,
 						columns,
 					}),
 				),
 			),
 		);
+		// console.timeEnd("fetch columns");
 
 		// Build a map of table identifiers -> columns for quick lookup
 		// Store both schema.table and table-only keys for PostgreSQL and SQLite compatibility
@@ -1293,6 +1311,12 @@ export const queryTableRows = <TData>(input: {
 			tableColumnsMap.set(result.schemaTable, result.columns);
 			tableColumnsMap.set(result.tableOnly, result.columns);
 		}
+
+		const columnList = columnResults.flatMap((r) =>
+			r.columns.map((c) =>
+				(input.joins ?? []).length > 0 ? `${r.tableOnly}.${c.name}` : c.name,
+			),
+		);
 
 		// Build ORDER BY clause
 		const orderClause = orderBy
@@ -1305,9 +1329,9 @@ export const queryTableRows = <TData>(input: {
 				Effect.gen(function* () {
 					// Build JOIN clauses using shared function
 					const pgJoinClauses = buildJoinSqlClauses(
-						joins,
-						schema,
-						table,
+						joinsRemapped,
+						baseSchema,
+						input.table,
 						DatabaseDialect.Postgres,
 					).join("\n");
 
@@ -1333,33 +1357,37 @@ export const queryTableRows = <TData>(input: {
 					// Get total count
 					const countQuery = sql`
 						SELECT COUNT(*) as count
-						FROM ${sql(schema)}.${sql(table)}
+						FROM ${sql(input.schema)}.${sql(input.table)}
 						${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
 						${sql.unsafe(whereFragment)}
 					`;
-					console.log(countQuery.compile());
-
-					const countResult = yield* countQuery;
-					const rowCount = Number(countResult[0]?.count ?? 0);
 
 					// Get rows with proper column selection and prefixing
 					const selectPart =
 						joins.length > 0
-							? buildPgSelectWithJoins(schema, table, joins, tableColumnsMap)
+							? buildPgSelectWithJoins(
+									baseSchema,
+									input.table,
+									joinsRemapped,
+									tableColumnsMap,
+								)
 							: "*";
 
 					const query = sql`
 					SELECT ${sql.unsafe(selectPart)}
-					FROM ${sql(schema)}.${sql(table)}
+					FROM ${sql(input.schema)}.${sql(input.table)}
 					${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
 					${sql.unsafe(whereFragment)}
 					${sql.unsafe(orderClause)}
 					LIMIT ${limit} OFFSET ${offset}
 				`;
+					// console.log(countQuery.compile());
 					console.log(query.compile());
-					const rows = yield* query;
+					const [rows, countResult] = yield* Effect.all([query, countQuery]);
+					const rowCount = Number(countResult[0]?.count ?? 0);
 					return {
 						rows: rows as TData[],
+						columnList,
 						rowCount,
 						hasNextPage: offset + limit < rowCount,
 					};
@@ -1369,8 +1397,8 @@ export const queryTableRows = <TData>(input: {
 					// Build JOIN clauses using shared function
 					const sqliteJoinClauses = buildJoinSqlClauses(
 						joins,
-						schema,
-						table,
+						input.schema,
+						input.table,
 						DatabaseDialect.SQLite,
 					).join("\n");
 
@@ -1398,28 +1426,30 @@ export const queryTableRows = <TData>(input: {
 					// Get total count
 					const countQuery = sql`
 					SELECT COUNT(*) as count
-					FROM ${sql(table)}
+					FROM ${sql(input.table)}
 					${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
 					${sql.unsafe(whereFragment)}
 				`;
-					const countResult = yield* countQuery;
-					const rowCount = Number(countResult[0]?.count ?? 0); // Get rows
 					const selectPart =
 						joins.length > 0
-							? buildSqliteSelectWithJoins(table, joins, tableColumnsMap)
+							? buildSqliteSelectWithJoins(input.table, joins, tableColumnsMap)
 							: "*";
 
 					const query = sql`
 					SELECT ${sql.unsafe(selectPart)}
-					FROM ${sql(table)}
+					FROM ${sql(input.table)}
 				${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
 				${sql.unsafe(whereFragment)}
 				${sql.unsafe(orderClause)}
 				LIMIT ${limit} OFFSET ${offset}
 			`;
-					const rows = yield* query;
+					console.log(query.compile());
+					const [rows, countResult] = yield* Effect.all([query, countQuery]);
+					const rowCount = Number(countResult[0]?.count ?? 0);
+
 					return {
 						rows: rows as TData[],
+						columnList,
 						rowCount,
 						hasNextPage: offset + limit < rowCount,
 					};

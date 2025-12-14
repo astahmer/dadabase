@@ -124,6 +124,7 @@ export const useConnectionPageState = ({
 	// Format row data
 	const queryResponse = rowsQuery.data || {
 		rows: [],
+		columns: [],
 		rowCount: 0,
 		timeTaken: 0,
 		ranAt: 0,

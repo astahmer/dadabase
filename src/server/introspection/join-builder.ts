@@ -66,7 +66,7 @@ const getTableRef = (
 	dialect: DatabaseDialect,
 ): string => {
 	return onDialectOrElse(dialect, {
-		postgres: () => `${schema}."${table}"`,
+		postgres: () => (schema ? `${schema}."${table}"` : `"${table}"`),
 		sqlite: () => `"${table}"`,
 		libsql: () => `"${table}"`,
 		orElse: () => {
@@ -423,10 +423,10 @@ export const buildPgSelectWithJoins = (
 	tableColumnsMap: Map<string, { name: string }[]>,
 ): string => {
 	return buildSelectWithJoinsGeneric(schema, table, joins, tableColumnsMap, {
-		baseTableRef: (s, t) => `${s}."${t}"`,
-		baseTableKey: (s, t) => `${s}.${t}`,
-		joinTableRef: (s, t) => `${s}."${t}"`,
-		joinTableKey: (s, t) => `${s}.${t}`,
+		baseTableRef: (s, t) => (s ? `${s}."${t}"` : `"${t}"`),
+		baseTableKey: (s, t) => (s ? `${s}.${t}` : t),
+		joinTableRef: (s, t) => (s ? `${s}."${t}"` : `"${t}"`),
+		joinTableKey: (s, t) => (s ? `${s}.${t}` : t),
 	});
 };
 

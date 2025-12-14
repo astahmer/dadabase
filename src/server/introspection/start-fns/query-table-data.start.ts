@@ -90,8 +90,9 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 
 				const endTime = Date.now();
 				return {
-					rows: output.rows as any[],
+					rows: output.rows.map((row) => Object.values(row as any)) as any[],
 					rowCount: output.rowCount,
+					columns: output.columnList,
 					timeTaken: endTime - startTime,
 					ranAt: startTime,
 				};
@@ -117,5 +118,15 @@ export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
 		queryKey: ["remote", "rows", input],
 		queryFn: async () => queryTableDataServerFn({ data: input }),
 		meta: { loggable: true },
+		select: (data) => ({
+			...data,
+			rows: data.rows.map((row) => {
+				const record: Record<string, unknown> = {};
+				data.columns.forEach((col, colIndex) => {
+					record[col] = row[colIndex];
+				});
+				return record;
+			}),
+		}),
 	});
 };
