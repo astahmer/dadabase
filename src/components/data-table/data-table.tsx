@@ -81,13 +81,13 @@ export interface DataTableProps<TData> {
 	ExpandedRow?: (props: { row: Row<TData> }) => ReactNode;
 	resizable?: boolean;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
-	virtualized?: boolean; // TODO rename enableRowVirtualization
-	estimateItemSize?: number;
-	overscan?: number;
+	enableRowVirtualization?: boolean;
+	rowEstimateItemSize?: number;
+	rowOverscan?: number;
 	enableColumnOrdering?: boolean;
 	renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
 	hideColumnPinIconUnlessHovered?: boolean;
-	virtualizeColumns?: boolean; // TODO rename enableColumnVirtualization
+	enableColumnVirtualization?: boolean;
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -104,18 +104,17 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 		resizable = true,
 		variant = "line",
 		size = "cozy",
-		virtualized = false,
-		estimateItemSize,
-		overscan = 15,
+		enableRowVirtualization = false,
+		rowEstimateItemSize: estimateItemSize,
+		rowOverscan = 10,
 		enableColumnOrdering = false,
 		hideColumnPinIconUnlessHovered = true,
-		// TODO based on number of columns
-		virtualizeColumns = true,
 	} = props;
 
 	const state = table.getState();
 	const { pagination } = state;
 	const rows = table.getRowModel().rows;
+	const enableColumnVirtualization = table.getVisibleLeafColumns().length >= 8;
 
 	const sensors = useSensors(
 		useSensor(PointerSensor),
@@ -139,12 +138,12 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
 			ExpandedRow={props.ExpandedRow}
 			resizable={resizable}
 			onExpandRowJson={props.onExpandRowJson}
-			virtualized={virtualized}
-			estimateItemSize={estimateItemSize}
-			overscan={overscan}
+			enableRowVirtualization={enableRowVirtualization}
+			rowEstimateItemSize={estimateItemSize}
+			rowOverscan={rowOverscan}
 			renderSubrows={props.renderSubrows}
 			hideColumnPinIconUnlessHovered={hideColumnPinIconUnlessHovered}
-			virtualizeColumns={virtualizeColumns}
+			enableColumnVirtualization={enableColumnVirtualization}
 			size={size}
 			variant={variant}
 			interactive={interactive}
@@ -205,12 +204,12 @@ const TableContainer = (
 		| "ExpandedRow"
 		| "resizable"
 		| "onExpandRowJson"
-		| "virtualized"
-		| "estimateItemSize"
-		| "overscan"
+		| "enableRowVirtualization"
+		| "rowEstimateItemSize"
+		| "rowOverscan"
 		| "renderSubrows"
 		| "hideColumnPinIconUnlessHovered"
-		| "virtualizeColumns"
+		| "enableColumnVirtualization"
 	> &
 		Pick<
 			Required<DataTableProps<any>>,
@@ -239,7 +238,7 @@ const TableContainer = (
 		leafColumns.filter((c) => !c.getIsPinned());
 
 	const columnVirtualizer = useVirtualizer({
-		enabled: props.virtualizeColumns,
+		enabled: props.enableColumnVirtualization,
 		horizontal: true,
 		count: centerLeafColumns.length,
 		getScrollElement: () => tableContainerRef.current,
@@ -259,7 +258,7 @@ const TableContainer = (
 	]);
 
 	const enabledColumnVirtualization =
-		props.virtualizeColumns === true &&
+		props.enableColumnVirtualization === true &&
 		centerLeafColumns.length > 0 &&
 		tableContainerRef.current != null;
 
@@ -300,7 +299,7 @@ const TableContainer = (
 
 	return (
 		<div
-			className={`overflow-x-auto h-full ${props.virtualized ? "overflow-y-auto" : ""} ${props.className || ""}`}
+			className={`overflow-x-auto h-full ${props.enableRowVirtualization ? "overflow-y-auto" : ""} ${props.className || ""}`}
 			ref={(el) => {
 				if (props.containerRef) {
 					props.containerRef.current = el;
@@ -489,13 +488,13 @@ const TableContainer = (
 						table={table}
 						tableContainerRef={tableContainerRef}
 						isLoading={props.isLoading}
-						virtualized={props.virtualized}
+						enableRowVirtualization={props.enableRowVirtualization}
 						onRowClick={props.onRowClick}
 						withRowContextMenu={props.withRowContextMenu}
 						ExpandedRow={props.ExpandedRow}
 						onExpandRowJson={props.onExpandRowJson}
-						estimateItemSize={props.estimateItemSize}
-						overscan={props.overscan}
+						rowEstimateItemSize={props.rowEstimateItemSize}
+						rowOverscan={props.rowOverscan}
 						renderSubrows={props.renderSubrows}
 						emptyState={props.emptyState}
 						hasError={props.hasError}
@@ -512,14 +511,14 @@ const TableContainer = (
 						table={table}
 						tableContainerRef={tableContainerRef}
 						isLoading={props.isLoading}
-						virtualized={props.virtualized}
+						enableRowVirtualization={props.enableRowVirtualization}
 						columnVirtualization={columnVirtualization}
 						onRowClick={props.onRowClick}
 						withRowContextMenu={props.withRowContextMenu}
 						ExpandedRow={props.ExpandedRow}
 						onExpandRowJson={props.onExpandRowJson}
-						estimateItemSize={props.estimateItemSize}
-						overscan={props.overscan}
+						rowEstimateItemSize={props.rowEstimateItemSize}
+						rowOverscan={props.rowOverscan}
 						renderSubrows={props.renderSubrows}
 						emptyState={props.emptyState}
 						hasError={props.hasError}
@@ -544,13 +543,13 @@ const TableBody = (
 	} & Pick<
 		DataTableProps<any>,
 		| "isLoading"
-		| "virtualized"
+		| "enableRowVirtualization"
 		| "onRowClick"
 		| "withRowContextMenu"
 		| "ExpandedRow"
 		| "onExpandRowJson"
-		| "estimateItemSize"
-		| "overscan"
+		| "rowEstimateItemSize"
+		| "rowOverscan"
 		| "renderSubrows"
 		| "emptyState"
 		| "hasError"
@@ -638,7 +637,9 @@ const TableBody = (
 					</tr>
 				))}
 		</tbody>
-	) : props.virtualized && rows.length && tableContainerRef.current ? (
+	) : props.enableRowVirtualization &&
+		rows.length &&
+		tableContainerRef.current ? (
 		<tbody>
 			<VirtualizedTableBody
 				rows={rows}
@@ -654,9 +655,9 @@ const TableBody = (
 				ExpandedRow={props.ExpandedRow}
 				onExpandRowJson={props.onExpandRowJson}
 				estimateItemSize={
-					props.estimateItemSize ?? estimateSizeByTableSize(props.size)
+					props.rowEstimateItemSize ?? estimateSizeByTableSize(props.size)
 				}
-				overscan={props.overscan}
+				overscan={props.rowOverscan}
 				scrollElement={tableContainerRef.current}
 				renderSubrows={props.renderSubrows}
 			/>

@@ -316,7 +316,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 														>
 															<DataTable
 																// virtualized={search.limit > 100}
-																virtualized
+																enableRowVirtualization
 																enableColumnOrdering
 																table={pageState.rowsDataTable}
 																getTableContainer={setTableContainer}
