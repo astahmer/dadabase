@@ -159,6 +159,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 				{viewMode === "rows" && (
 					<>
 						<JoinTablesDialog
+							key={`${url}-${schema}-${tableName}`}
 							isOpen={isJoinDialogOpen}
 							onOpenChange={setIsJoinDialogOpen}
 							url={url}
