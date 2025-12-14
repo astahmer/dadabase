@@ -260,7 +260,6 @@ const TableContainer = (
 
 	const enabledColumnVirtualization =
 		props.virtualizeColumns === true &&
-		!hasGroupedHeaders &&
 		centerLeafColumns.length > 0 &&
 		tableContainerRef.current != null;
 
@@ -292,7 +291,12 @@ const TableContainer = (
 		}
 
 		return { enabled: false };
-	}, [enabledColumnVirtualization, centerVirtualItems, centerLeafColumns]);
+	}, [
+		enabledColumnVirtualization,
+		centerVirtualItems,
+		centerLeafColumns,
+		columnVirtualizer,
+	]);
 
 	return (
 		<div
@@ -323,22 +327,60 @@ const TableContainer = (
 							headerGroup.headers.map((h) => [h.column.id, h]),
 						);
 
+						const getPinningSideForHeader = (
+							headerCell: Header<any, any>,
+						): "left" | "right" | false => {
+							const leaves = headerCell.getLeafHeaders();
+							const sides = new Set(
+								leaves
+									.map((h: Header<any, any>) => h.column.getIsPinned())
+									.filter(
+										(side): side is "left" | "right" =>
+											side === "left" || side === "right",
+									),
+							);
+							if (sides.size === 1) {
+								return (Array.from(sides)[0] as "left" | "right") ?? false;
+							}
+							return false;
+						};
+
 						const leftHeaders = headerGroup.headers.filter(
-							(h) => h.column.getIsPinned() === "left",
+							(h) => getPinningSideForHeader(h) === "left",
 						);
 						const rightHeaders = headerGroup.headers.filter(
-							(h) => h.column.getIsPinned() === "right",
+							(h) => getPinningSideForHeader(h) === "right",
 						);
 						const centerHeaders = headerGroup.headers.filter(
-							(h) => !h.column.getIsPinned(),
+							(h) => getPinningSideForHeader(h) === false,
 						);
 
-						const renderHeaderCell = (headerCell: Header<any, any>) => (
+						const centerIndexByColumnId = new Map(
+							centerLeafColumns.map((c, i) => [c.id, i]),
+						);
+
+						const getCenterLeafIndicesForHeader = (
+							headerCell: Header<any, any>,
+						): number[] => {
+							return headerCell
+								.getLeafHeaders()
+								.map((h: Header<any, any>) =>
+									centerIndexByColumnId.get(h.column.id),
+								)
+								.filter((v): v is number => v != null);
+						};
+
+						const renderHeaderCell = (
+							headerCell: Header<any, any>,
+							overrides?: { colSpan?: number; sizePx?: number },
+						) => (
 							<HeaderCell
 								key={headerCell.id}
 								table={table}
 								headerGroup={headerGroup}
 								headerCell={headerCell}
+								colSpanOverride={overrides?.colSpan}
+								sizeOverridePx={overrides?.sizePx}
 								enableColumnOrdering={props.enableColumnOrdering}
 								size={props.size}
 								showColumnBorder={props.showColumnBorder}
@@ -352,41 +394,78 @@ const TableContainer = (
 
 						const HeaderCellList =
 							columnVirtualization.enabled === true
-								? [
-										...leftHeaders.map(renderHeaderCell),
-										columnVirtualization.centerPaddingLeftColSpan > 0 ? (
-											<th
-												key={`${headerGroup.id}-center-padding-left`}
-												aria-hidden
-												colSpan={columnVirtualization.centerPaddingLeftColSpan}
-												className="p-0"
-												style={{
-													width: columnVirtualization.centerPaddingLeftPx,
-												}}
-											/>
-										) : null,
-										...columnVirtualization.virtualCenterColumnIds
-											.map((columnId) => headerById.get(columnId))
-											.filter(Boolean)
-											.map((h) => renderHeaderCell(h as Header<any, any>)),
-										columnVirtualization.centerPaddingRightColSpan > 0 ? (
-											<th
-												key={`${headerGroup.id}-center-padding-right`}
-												aria-hidden
-												colSpan={columnVirtualization.centerPaddingRightColSpan}
-												className="p-0"
-												style={{
-													width: columnVirtualization.centerPaddingRightPx,
-												}}
-											/>
-										) : null,
-										...rightHeaders.map(renderHeaderCell),
-									]
+								? (() => {
+										const startIndex =
+											columnVirtualization.centerPaddingLeftColSpan;
+										const endIndex =
+											centerLeafColumns.length -
+											columnVirtualization.centerPaddingRightColSpan -
+											1;
+
+										const slicedCenterHeaders = hasGroupedHeaders
+											? centerHeaders
+													.map((h) => {
+														const indices = getCenterLeafIndicesForHeader(h);
+														const visibleIndices = indices.filter(
+															(i) => i >= startIndex && i <= endIndex,
+														);
+
+														if (visibleIndices.length === 0) return null;
+
+														const sizePx = visibleIndices.reduce(
+															(acc, i) =>
+																acc + (centerLeafColumns[i]?.getSize() ?? 0),
+															0,
+														);
+
+														return renderHeaderCell(h, {
+															colSpan: visibleIndices.length,
+															sizePx,
+														});
+													})
+													.filter(Boolean)
+											: columnVirtualization.virtualCenterColumnIds
+													.map((columnId) => headerById.get(columnId))
+													.filter(Boolean)
+													.map((h) => renderHeaderCell(h as Header<any, any>));
+
+										return [
+											...leftHeaders.map((h) => renderHeaderCell(h)),
+											columnVirtualization.centerPaddingLeftColSpan > 0 ? (
+												<th
+													key={`${headerGroup.id}-center-padding-left`}
+													aria-hidden
+													colSpan={
+														columnVirtualization.centerPaddingLeftColSpan
+													}
+													className="p-0"
+													style={{
+														width: columnVirtualization.centerPaddingLeftPx,
+													}}
+												/>
+											) : null,
+											...slicedCenterHeaders,
+											columnVirtualization.centerPaddingRightColSpan > 0 ? (
+												<th
+													key={`${headerGroup.id}-center-padding-right`}
+													aria-hidden
+													colSpan={
+														columnVirtualization.centerPaddingRightColSpan
+													}
+													className="p-0"
+													style={{
+														width: columnVirtualization.centerPaddingRightPx,
+													}}
+												/>
+											) : null,
+											...rightHeaders.map((h) => renderHeaderCell(h)),
+										];
+									})()
 								: // Fallback: render all headers
 									[
-										...leftHeaders.map(renderHeaderCell),
-										...centerHeaders.map(renderHeaderCell),
-										...rightHeaders.map(renderHeaderCell),
+										...leftHeaders.map((h) => renderHeaderCell(h)),
+										...centerHeaders.map((h) => renderHeaderCell(h)),
+										...rightHeaders.map((h) => renderHeaderCell(h)),
 									];
 
 						if (props.enableColumnOrdering) {
@@ -797,6 +876,8 @@ const HeaderCell = memo(
 		table: TanstackTable<any>;
 		headerGroup: HeaderGroup<any>;
 		headerCell: Header<any, any>;
+		colSpanOverride?: number;
+		sizeOverridePx?: number;
 		enableColumnOrdering?: boolean;
 		size?: DataTableSize;
 		showColumnBorder?: boolean;
@@ -831,7 +912,7 @@ const HeaderCell = memo(
 						return (
 							<th
 								key={headerCell.id}
-								colSpan={headerCell.colSpan}
+								colSpan={props.colSpanOverride ?? headerCell.colSpan}
 								data-column-id={headerCell.column.id}
 								data-draggable
 								ref={dragCtx.setNodeRef}
@@ -839,7 +920,7 @@ const HeaderCell = memo(
 									...dragCtx.style,
 									width:
 										headerCell.subHeaders.length === 0
-											? `${headerCell.getSize()}px`
+											? `${props.sizeOverridePx ?? headerCell.getSize()}px`
 											: "auto",
 									zIndex: headerCell.index + (dragCtx.isDragging ? 2 : 1),
 									position: "sticky",
@@ -903,14 +984,17 @@ const HeaderCell = memo(
 		return (
 			<th
 				key={headerCell.id}
-				colSpan={headerCell.colSpan}
+				colSpan={props.colSpanOverride ?? headerCell.colSpan}
 				data-column-id={headerCell.column.id}
 				data-column-pinned={headerCell.column.getIsPinned()}
 				style={{
 					...getColumnPinningStyles(column),
-					width: headerCell.isPlaceholder
-						? `${(headerSize / table.getTotalSize()) * 100}%`
-						: `${headerCell.getSize()}px`,
+					width:
+						props.sizeOverridePx != null
+							? `${props.sizeOverridePx}px`
+							: headerCell.isPlaceholder
+								? `${(headerSize / table.getTotalSize()) * 100}%`
+								: `${headerCell.getSize()}px`,
 				}}
 				className={cn(
 					tableHeaderCellStyles({
