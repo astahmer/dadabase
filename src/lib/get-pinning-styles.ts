@@ -23,7 +23,7 @@ export function getPinningStyles(input: {
 		opacity: isPinned ? 0.95 : 1,
 		position: isPinned ? "sticky" : ("relative" as const),
 		width: input.columnSize,
-		zIndex: isPinned ? 1 : 0,
+		zIndex: isPinned ? 100 : 0,
 	};
 }
 
