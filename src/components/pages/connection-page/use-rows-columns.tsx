@@ -110,7 +110,7 @@ export const useRowsColumns = ({
 				);
 
 				return {
-					header: `${join.alias || join.table} (${join.columns === "all" ? tableWithCol?.columns.length : join.columns.length} columns)`,
+					header: `${join.alias || join.table} (${join.columns === "all" && tableWithCol?.columns.length ? tableWithCol?.columns.length : join.columns.length} columns)`,
 					columns: columnList,
 				};
 			}),
