@@ -2760,6 +2760,158 @@ const testSuite =
 				expect(Array.isArray(result.rows)).toBe(true);
 			}).pipe(Effect.provide(sqlLayer));
 		});
+
+		it.effect("columnList uses custom aliases for joined tables", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const result = yield* queryTableRows({
+					schema: config.defaultSchema,
+					table: "posts",
+					joins: [
+						{
+							schema: config.defaultSchema,
+							table: "users",
+							type: "inner",
+							alias: "post_author",
+							joinCondition: {
+								mode: "standard",
+								referencingColumn: "user_id",
+								referencedColumn: "id",
+							},
+							columns: "all",
+						},
+					],
+					limit: 10,
+					offset: 0,
+				});
+
+				// columnList should use the custom alias instead of the table name
+				expect(result.columnList).toContain("post_author.id");
+				expect(result.columnList).toContain("post_author.name");
+				expect(result.columnList).not.toContain("users.id");
+				expect(result.columnList).not.toContain("users.name");
+				expect(result.columnList).toMatchInlineSnapshot(`
+					[
+					  "posts.id",
+					  "posts.user_id",
+					  "posts.title",
+					  "posts.content",
+					  "posts.published",
+					  "post_author.id",
+					  "post_author.name",
+					  "post_author.email",
+					  "post_author.age",
+					]
+				`);
+			}).pipe(Effect.provide(sqlLayer));
+		});
+
+		it.effect(
+			"columnList uses auto-generated aliases for duplicate table joins",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const result = yield* queryTableRows({
+						schema: config.defaultSchema,
+						table: "posts",
+						joins: [
+							{
+								schema: config.defaultSchema,
+								table: "posts",
+								type: "inner",
+								joinCondition: {
+									mode: "standard",
+									referencingColumn: "id",
+									referencedColumn: "id",
+								},
+								columns: "all",
+							},
+							{
+								schema: config.defaultSchema,
+								table: "posts",
+								type: "inner",
+								joinCondition: {
+									mode: "standard",
+									referencingColumn: "id",
+									referencedColumn: "id",
+								},
+								columns: "all",
+							},
+						],
+						limit: 10,
+						offset: 0,
+					});
+
+					// columnList should use auto-generated aliases (posts_1, posts_2) instead of raw table name
+					// columnList should include base table columns with prefix and joined table columns with aliases
+					expect(result.columnList).toContain("posts.id");
+					expect(result.columnList).toContain("posts.title");
+					expect(result.columnList).toContain("posts_1.id");
+					expect(result.columnList).toContain("posts_1.title");
+					expect(result.columnList).toContain("posts_2.id");
+					expect(result.columnList).toContain("posts_2.title");
+					expect(result.columnList).toMatchInlineSnapshot(`
+					[
+					  "posts.id",
+					  "posts.user_id",
+					  "posts.title",
+					  "posts.content",
+					  "posts.published",
+					  "posts_1.id",
+					  "posts_1.user_id",
+					  "posts_1.title",
+					  "posts_1.content",
+					  "posts_1.published",
+					  "posts_2.id",
+					  "posts_2.user_id",
+					  "posts_2.title",
+					  "posts_2.content",
+					  "posts_2.published",
+					]
+				`);
+				}).pipe(Effect.provide(sqlLayer));
+			},
+		);
+
+		it.effect(
+			"columnList includes base table prefix when joins present",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					// With a join, base table columns should have table prefix
+					const resultWithJoin = yield* queryTableRows({
+						schema: config.defaultSchema,
+						table: "posts",
+						joins: [
+							{
+								schema: config.defaultSchema,
+								table: "users",
+								type: "inner",
+								joinCondition: {
+									mode: "standard",
+									referencingColumn: "user_id",
+									referencedColumn: "id",
+								},
+								columns: "all",
+							},
+						],
+						limit: 10,
+						offset: 0,
+					});
+
+					// Base table should also have prefix
+					expect(resultWithJoin.columnList).toContain("posts.id");
+					expect(resultWithJoin.columnList).toContain("posts.title");
+					expect(resultWithJoin.columnList).toContain("users.id");
+				}).pipe(Effect.provide(sqlLayer));
+			},
+		);
 	};
 describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));
 describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));

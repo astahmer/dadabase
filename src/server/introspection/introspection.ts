@@ -1305,6 +1305,12 @@ export const queryTableRows = <TData>(input: {
 		);
 		// console.timeEnd("fetch columns");
 
+		// Generate aliases for joins early so we can use them in columnList
+		const joinAliases =
+			joins.length > 0
+				? generateJoinAliases(joinsRemapped, input.table, baseSchema)
+				: new Map<number, string>();
+
 		// Build a map of table identifiers -> columns for quick lookup
 		// Store both schema.table and table-only keys for PostgreSQL and SQLite compatibility
 		const tableColumnsMap = new Map<string, TableColumnMetadata[]>();
@@ -1313,11 +1319,24 @@ export const queryTableRows = <TData>(input: {
 			tableColumnsMap.set(result.tableOnly, result.columns);
 		}
 
-		const columnList = columnResults.flatMap((r) =>
-			r.columns.map((c) =>
-				(input.joins ?? []).length > 0 ? `${r.tableOnly}.${c.name}` : c.name,
-			),
-		);
+		// Build columnList with proper aliases for joined tables
+		const columnList = columnResults.flatMap((r, tableIndex) => {
+			// tableIndex 0 = base table, tableIndex 1+ = joined tables
+			if (tableIndex === 0) {
+				// Base table
+				if (joins.length === 0) {
+					// No joins: return columns without prefix
+					return r.columns.map((c) => c.name);
+				}
+				// With joins: always include base table columns with prefix
+				return r.columns.map((c) => `${input.table}.${c.name}`);
+			}
+
+			// Joined tables: use alias if available, otherwise use table name
+			const joinIndex = tableIndex - 1; // Convert to join array index
+			const alias = joinAliases.get(joinIndex) || r.tableOnly;
+			return r.columns.map((c) => `${alias}.${c.name}`);
+		});
 
 		const orderClause = orderBy
 			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
@@ -1327,18 +1346,12 @@ export const queryTableRows = <TData>(input: {
 		const result = yield* sql.onDialectOrElse({
 			pg: () =>
 				Effect.gen(function* () {
-					const pgJoinAliases = generateJoinAliases(
-						joinsRemapped,
-						input.table,
-						baseSchema,
-					);
-
 					const pgJoinClauses = buildJoinSqlClauses(
 						joinsRemapped,
 						baseSchema,
 						input.table,
 						DatabaseDialect.Postgres,
-						pgJoinAliases,
+						joinAliases,
 					).join("\n");
 
 					const pgMainFilter =
@@ -1350,7 +1363,7 @@ export const queryTableRows = <TData>(input: {
 							: "";
 
 					const pgJoinFilter =
-						joins.length > 0 ? buildPgJoinFilters(joins, pgJoinAliases) : ""; // Combine main table filters with join filters
+						joins.length > 0 ? buildPgJoinFilters(joins, joinAliases) : ""; // Combine main table filters with join filters
 					const pgWhereClause = [pgMainFilter, pgJoinFilter]
 						.filter(Boolean)
 						.join(" AND ");
@@ -1370,7 +1383,7 @@ export const queryTableRows = <TData>(input: {
 									input.table,
 									joinsRemapped,
 									tableColumnsMap,
-									pgJoinAliases,
+									joinAliases,
 								)
 							: "*";
 					const query = sql`
@@ -1394,17 +1407,12 @@ export const queryTableRows = <TData>(input: {
 				}),
 			sqlite: () =>
 				Effect.gen(function* () {
-					const sqliteJoinAliases = generateJoinAliases(
-						joins,
-						input.table,
-						input.schema,
-					);
 					const sqliteJoinClauses = buildJoinSqlClauses(
 						joins,
 						input.schema,
 						input.table,
 						DatabaseDialect.SQLite,
-						sqliteJoinAliases,
+						joinAliases,
 					).join("\n");
 					const sqliteMainFilter =
 						filters && filters.conditions.length > 0
@@ -1415,9 +1423,7 @@ export const queryTableRows = <TData>(input: {
 							: "";
 
 					const sqliteJoinFilter =
-						joins.length > 0
-							? buildSqliteJoinFilters(joins, sqliteJoinAliases)
-							: "";
+						joins.length > 0 ? buildSqliteJoinFilters(joins, joinAliases) : "";
 
 					const sqliteWhereClause = [sqliteMainFilter, sqliteJoinFilter]
 						.filter(Boolean)
@@ -1439,7 +1445,7 @@ export const queryTableRows = <TData>(input: {
 									input.table,
 									joins,
 									tableColumnsMap,
-									sqliteJoinAliases,
+									joinAliases,
 								)
 							: "*";
 					const query = sql`

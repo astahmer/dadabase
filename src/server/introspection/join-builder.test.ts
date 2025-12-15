@@ -346,7 +346,12 @@ describe("sql-join-builder", () => {
 			);
 			expect(clauses[1]).toContain('"lineItems_2"."invoice_line_id"');
 			expect(clauses[1]).toContain('"lineItems_2"."quantity" < \'5\'');
-			expect(clauses).toMatchInlineSnapshot();
+			expect(clauses).toMatchInlineSnapshot(`
+				[
+				  "LEFT JOIN public."lineItems" AS "lineItems_1" ON "lineItems_1"."commitment_id" = public."commitments"."id" AND "lineItems_1"."quantity" > '10'",
+				  "LEFT JOIN public."lineItems" AS "lineItems_2" ON "lineItems_2"."invoice_line_id" = public."commitments"."id" AND "lineItems_2"."quantity" < '5'",
+				]
+			`);
 		});
 
 		it("builds filter-based join conditions with manually-provided alias", () => {
