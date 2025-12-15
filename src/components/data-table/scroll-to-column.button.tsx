@@ -134,7 +134,7 @@ export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
 				>
 					<ListboxMenu.ListboxMenuFilterContainer>
 						<ListboxMenu.ListboxMenuFilterInput
-							placeholder="Filter columns..."
+							placeholder="Search columns to scroll to..."
 							value={filterValue}
 							onChange={(e) => setFilterValue(e.currentTarget.value)}
 						/>
