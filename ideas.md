@@ -63,5 +63,4 @@
 
 ## bugs
 
-- column visibility control -> unselect all
 - [cause]: error: table name "commitments" specified more than once -> join on same table twice

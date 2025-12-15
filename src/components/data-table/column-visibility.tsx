@@ -38,18 +38,19 @@ export function ColumnVisibilityControls<TData>(
 	const allVisible = visibleColumns.length === allColumns.length;
 
 	const handleSelectAll = () => {
-		allColumns.forEach((col) => {
-			const column = getColumn(col.value);
-			if (!column) return;
-			const isVisible = column.getIsVisible?.() ?? true;
-			if (allVisible && isVisible) {
-				// Unselect all
-				column.toggleVisibility?.(false);
-			} else if (!allVisible && !isVisible) {
-				// Select all
-				column.toggleVisibility?.(true);
-			}
-		});
+		if (allVisible) {
+			table.setColumnVisibility((_current) =>
+				Object.fromEntries(
+					table.getAllLeafColumns().map((col) => [col.id, false]),
+				),
+			);
+		} else {
+			table.setColumnVisibility((_current) =>
+				Object.fromEntries(
+					table.getAllLeafColumns().map((col) => [col.id, true]),
+				),
+			);
+		}
 	};
 
 	const filters = useFilter({ sensitivity: "base" });
