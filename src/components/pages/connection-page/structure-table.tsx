@@ -157,7 +157,8 @@ const structureColumns: Array<ColumnDef<any>> = [
 			const fk = row.foreignKey;
 			return (
 				<span className="text-xs font-mono">
-					{fk.referencedSchema}.{fk.referencedTable}.{fk.referencedColumn}
+					{fk.referencedSchema ? `${fk.referencedSchema}.` : ""}
+					{fk.referencedTable}.{fk.referencedColumn}
 				</span>
 			);
 		},
