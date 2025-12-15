@@ -26,8 +26,8 @@ import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
+import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
 
 interface UseConnectionPageStateProps {
 	connection: {
@@ -465,9 +465,11 @@ export const useConnectionPageState = ({
 						? joins.flatMap((join, joinIndex) =>
 								join.columns === "all"
 									? (columnQueries[joinIndex].data ?? []).map(
-											(col) => `${join.table}.${col.name}`,
+											(col) => `${join.alias || join.table}.${col.name}`,
 										)
-									: join.columns.map((col) => `${join.table}.${col}`),
+									: join.columns.map(
+											(col) => `${join.alias || join.table}.${col}`,
+										),
 							)
 						: [],
 				)

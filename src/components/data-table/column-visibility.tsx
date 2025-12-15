@@ -32,16 +32,10 @@ export function ColumnVisibilityControls<TData>(
 	const getColumn = (columnId: string) =>
 		table._getAllFlatColumnsById()[columnId];
 
-	const visibleCount = useMemo(
-		() =>
-			allColumns.reduce((acc, col) => {
-				const tableCol = getColumn(col.value);
-				if (!tableCol) return acc;
-				return acc + ((tableCol.getIsVisible?.() ?? true) ? 1 : 0);
-			}, 0),
-		[allColumns, table],
-	);
-	const allVisible = visibleCount === allColumns.length;
+	const visibleColumns = table
+		.getVisibleLeafColumns()
+		.filter((col) => col.id !== "__select");
+	const allVisible = visibleColumns.length === allColumns.length;
 
 	const handleSelectAll = () => {
 		allColumns.forEach((col) => {
@@ -88,7 +82,9 @@ export function ColumnVisibilityControls<TData>(
 					<Button variant="outline" size="sm" className={buttonClassName}>
 						<span className="text-xs font-medium text-foreground uppercase tracking-wide">
 							📋 Visible Columns{" "}
-							{allVisible ? "" : `(${visibleCount}/${allColumns.length})`}
+							{allVisible
+								? ""
+								: `(${visibleColumns.length}/${allColumns.length})`}
 						</span>
 						<ChevronsUpDown className="h-4 w-4 opacity-50" />
 					</Button>
