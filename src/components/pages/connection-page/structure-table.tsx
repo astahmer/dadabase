@@ -14,7 +14,7 @@ interface StructureTableProps {
 		name: string;
 		dataType: string;
 		nullable: boolean;
-		primaryKey?: boolean|undefined;
+		primaryKey?: boolean | undefined;
 		unique: boolean;
 		defaultValue: string | null;
 		isForeignKey?: boolean;
