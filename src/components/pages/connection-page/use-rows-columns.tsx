@@ -97,9 +97,9 @@ export const useRowsColumns = ({
 									.map((col) => ({
 										...col,
 										table: join.table,
-										accessorKey: `${join.table}.${col.name}`,
+										accessorKey: `${join.alias || join.table}.${col.name}`,
 										name: prefixWithTable
-											? `${join.table}.${col.name}`
+											? `${join.alias || join.table}.${col.name}`
 											: col.name,
 									}))
 							: [],
@@ -110,7 +110,7 @@ export const useRowsColumns = ({
 				);
 
 				return {
-					header: `${join.table} (${join.columns === "all" ? tableWithCol?.columns.length : join.columns.length} columns)`,
+					header: `${join.alias || join.table} (${join.columns === "all" ? tableWithCol?.columns.length : join.columns.length} columns)`,
 					columns: columnList,
 				};
 			}),
