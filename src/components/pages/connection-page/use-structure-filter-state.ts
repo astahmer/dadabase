@@ -4,10 +4,10 @@ import { useCallback } from "react";
 export interface StructureFilters {
 	search: string;
 	nullable: boolean;
-	primaryKey: boolean;
+	primaryKey?: boolean;
 	unique: boolean;
-	foreignKey: boolean;
-	hasDefaults: boolean;
+	foreignKey?: boolean;
+	hasDefaults?: boolean;
 }
 
 export const useStructureFilters = () => {
@@ -66,9 +66,9 @@ export const hasActiveStructureFilters = (
 	return (
 		filters.search.length > 0 ||
 		filters.nullable ||
-		filters.primaryKey ||
+		Boolean(filters.primaryKey) ||
 		filters.unique ||
-		filters.foreignKey ||
-		filters.hasDefaults
+		Boolean(filters.foreignKey) ||
+		Boolean(filters.hasDefaults)
 	);
 };
