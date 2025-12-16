@@ -687,7 +687,7 @@ const TableBody = (
 			) : (
 				<tr>
 					{props.emptyState ? (
-						<td className="text-center" colSpan={leafColumns.length}>
+						<td className="text-center fixed ml-12 text-2xl">
 							<div className={tableEmptyStateStyles()}>
 								<span>{props.hasError ? i18n.errorText : i18n.emptyText}</span>
 							</div>
