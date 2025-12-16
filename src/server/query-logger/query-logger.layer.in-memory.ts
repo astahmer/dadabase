@@ -23,6 +23,13 @@ export const QueryLoggerInMemoryLayer = Layer.effect(
 				filtered = filtered.filter((e) => types.includes(e.type));
 			}
 
+			if (filters?.level) {
+				const levels = Array.isArray(filters.level)
+					? filters.level
+					: [filters.level];
+				filtered = filtered.filter((e) => levels.includes(e.level));
+			}
+
 			if (filters?.status) {
 				const statuses = Array.isArray(filters.status)
 					? filters.status
@@ -45,7 +52,15 @@ export const QueryLoggerInMemoryLayer = Layer.effect(
 			get: (filters?: QueryLogFilters) =>
 				Effect.gen(function* () {
 					const entries = yield* Ref.get(entriesRef);
-					return applyFilters(entries, filters);
+					const rows = applyFilters(entries, filters);
+					return {
+						rows,
+						counts: {
+							success: rows.filter((e) => e.status === "success").length,
+							pending: rows.filter((e) => e.status === "pending").length,
+							error: rows.filter((e) => e.status === "error").length,
+						},
+					};
 				}),
 			push: (entry: Omit<QueryLogEntryType, "id">) =>
 				Effect.gen(function* () {

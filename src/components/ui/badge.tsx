@@ -14,8 +14,10 @@ const badgeVariants = cva(
 			},
 			// Color scheme
 			colorPalette: {
-				default: "bg-primary/10 text-primary dark:text-primary",
-				secondary: "bg-secondary/10 text-secondary dark:text-secondary",
+				default:
+					"bg-purple-400 dark:bg-purple-400/80 text-background dark:text-primary",
+				secondary:
+					"bg-primary/10 text-primary dark:bg-blue-950/80 dark:text-primary",
 				destructive: "bg-destructive/10 text-destructive dark:text-destructive",
 				success:
 					"bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200",

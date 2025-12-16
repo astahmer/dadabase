@@ -3,7 +3,7 @@ import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { scan } from "react-scan";
 
-const enabled = true;
+const enabled = false;
 
 scan({ enabled: false });
 

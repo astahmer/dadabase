@@ -1,5 +1,5 @@
-import { Effect, Layer } from "effect";
 import { AppDatabase } from "#src/db/app.db.ts";
+import { Effect, Layer } from "effect";
 import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
 import { NanoId } from "../services/nano-id.ts";
 import {
@@ -31,7 +31,10 @@ export const QueryLoggerPersistentLayer = Layer.effect(
 								err,
 							),
 						),
-						Effect.orElseSucceed(() => []),
+						Effect.orElseSucceed(() => ({
+							rows: [],
+							counts: { success: 0, pending: 0, error: 0 },
+						})),
 					);
 				}).pipe(Effect.provideService(AppDatabase, db)),
 			push: function (

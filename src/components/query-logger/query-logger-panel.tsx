@@ -1,31 +1,26 @@
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useQueryLogger } from "#src/components/query-logger/use-query-logger.ts";
-import type {
-	QueryLogEntryType,
-	QueryLogStatus,
+import {
+	QueryLogLevel,
+	QueryLogType,
+	type QueryLogEntryType,
+	type QueryLogStatus,
 } from "#src/server/query-logger/query-logger.types.ts";
-import { Button } from "../ui/button.tsx";
+import { Button, buttonVariants } from "../ui/button.tsx";
 import { QueryLogEntry } from "./query-log-entry.tsx";
-import { queryLoggerPanelStyles } from "./query-logger.styles.ts";
 import { QueryLoggerDetailDialog } from "./query-logger-detail-dialog.tsx";
+import * as Select from "../ui/select.tsx";
+import { Accordion, createListCollection } from "@ark-ui/react";
+import { cx } from "class-variance-authority";
+import { HStack } from "../ui/layout.tsx";
 
 interface QueryLoggerPanelProps {
 	connectionUrl: string;
 }
 
 export const QueryLoggerPanel = ({ connectionUrl }: QueryLoggerPanelProps) => {
-	const {
-		history,
-		isOpen,
-		toggleOpen,
-		clearHistory,
-		filters,
-		setFilters,
-		isClearing,
-	} = useQueryLogger({
-		connectionUrl,
-	});
+	const queryLogger = useQueryLogger({ connectionUrl });
 	const [selectedEntry, setSelectedEntry] = useState<QueryLogEntryType | null>(
 		null,
 	);
@@ -36,126 +31,238 @@ export const QueryLoggerPanel = ({ connectionUrl }: QueryLoggerPanelProps) => {
 		setDialogOpen(true);
 	};
 
-	const successCount = history.filter((e) => e.status === "success").length;
-	const errorCount = history.filter((e) => e.status === "error").length;
-	// const pendingCount = history.filter((e) => e.status === "pending").length;
-	// const totalCount = history.length;
-
 	const toggleStatusFilter = (status: QueryLogStatus) => {
-		setFilters({
-			...filters,
-			status: filters?.status === status ? undefined : status,
+		queryLogger.setFilters({
+			...queryLogger.filters,
+			status: queryLogger.filters?.status === status ? undefined : status,
 		});
 	};
 
 	const isSuccessFiltered =
-		filters?.status &&
-		(Array.isArray(filters.status)
-			? filters.status.includes("success")
-			: filters.status === "success");
+		queryLogger.filters?.status &&
+		(Array.isArray(queryLogger.filters.status)
+			? queryLogger.filters.status.includes("success")
+			: queryLogger.filters.status === "success");
+
+	const isPendingFiltered =
+		queryLogger.filters?.status &&
+		(Array.isArray(queryLogger.filters.status)
+			? queryLogger.filters.status.includes("pending")
+			: queryLogger.filters.status === "pending");
 
 	const isErrorFiltered =
-		filters?.status &&
-		(Array.isArray(filters.status)
-			? filters.status.includes("error")
-			: filters.status === "error");
+		queryLogger.filters?.status &&
+		(Array.isArray(queryLogger.filters.status)
+			? queryLogger.filters.status.includes("error")
+			: queryLogger.filters.status === "error");
 
 	return (
 		<>
-			<div className={queryLoggerPanelStyles({ isOpen })}>
-				<div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50 h-12 shrink-0">
-					<div
-						onClick={toggleOpen}
-						className="flex items-center gap-2 flex-1 text-left font-medium hover:bg-muted transition-colors rounded px-2 py-1"
-					>
-						<span>Query Logger</span>
-						{!isOpen && (
-							<span className="text-xs text-muted-foreground mr-auto flex gap-2 mx-2">
-								<span className="inline-flex items-center gap-1">
-									<div className="h-2 w-2 rounded-full bg-green-500" />
-									{successCount}
-								</span>
-								<span className="inline-flex items-center gap-1 text-red-600">
-									<div className="h-2 w-2 rounded-full bg-red-500" />
-									{errorCount}
-								</span>
-								{/* <span className="inline-flex items-center gap-1 text-yellow-600">
-									<div className="h-2 w-2 rounded-full bg-yellow-500" />
-									{pendingCount}
-								</span> */}
-							</span>
-						)}
-						{isOpen && (
-							<div className="flex items-center gap-1">
-								<Button
-									size="sm"
-									variant="ghost"
-									onClick={() => toggleStatusFilter("success")}
-									title="Filter by success"
-									className={`transition-all rounded-md px-2 py-1.5 flex items-center gap-1.5 ${
-										isSuccessFiltered
-											? "bg-green-500/20 text-green-700 hover:bg-green-500/30"
-											: "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-									}`}
+			<Accordion.Root
+				className="border-t bg-background transition-all duration-300 flex flex-col overflow-hidden"
+				collapsible
+			>
+				<Accordion.Context>
+					{(ctx) => {
+						const isOpen = ctx.value.includes("query-logger");
+						if (!isOpen) {
+							return (
+								<Accordion.Item
+									value="query-logger"
+									className="flex flex-col overflow-hidden"
 								>
-									<div className="h-2.5 w-2.5 rounded-full bg-green-500" />
-									<span className="text-xs font-medium">{successCount}</span>
-								</Button>
-								<Button
-									size="sm"
-									variant="ghost"
-									onClick={() => toggleStatusFilter("error")}
-									title="Filter by error"
-									className={`transition-all rounded-md px-2 py-1.5 flex items-center gap-1.5 ${
-										isErrorFiltered
-											? "bg-red-500/20 text-red-700 hover:bg-red-500/30"
-											: "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-									}`}
-								>
-									<div className="h-2.5 w-2.5 rounded-full bg-red-500" />
-									<span className="text-xs font-medium">{errorCount}</span>
-								</Button>
-							</div>
-						)}
-					</div>
-					<Button
-						size="sm"
-						variant="ghost"
-						onClick={clearHistory}
-						disabled={isClearing}
-						title="Clear history"
-						className="text-muted-foreground hover:text-foreground ml-auto"
-					>
-						<Trash2 className="h-4 w-4" />
-					</Button>
-					{/* TODO button + on click */}
-					{isOpen ? (
-						<ChevronDown className="h-4 w-4" />
-					) : (
-						<ChevronUp className="h-4 w-4" />
-					)}
-				</div>
+									<Accordion.ItemTrigger className="flex items-center justify-between px-4 py-2 border-b bg-muted/50 h-12 shrink-0 hover:bg-muted transition-colors group">
+										<div className="flex items-center gap-2 flex-1 font-medium">
+											<span>Query Logger</span>
+											<span className="text-xs text-muted-foreground mr-auto flex gap-2 mx-2">
+												<span className="inline-flex items-center gap-1">
+													<div className="h-2 w-2 rounded-full bg-green-500" />
+													{queryLogger.counts.success}
+												</span>
+												<span className="inline-flex items-center gap-1 text-amber-600">
+													<div className="h-2 w-2 rounded-full bg-amber-500" />
+													{queryLogger.counts.pending}
+												</span>
+												<span className="inline-flex items-center gap-1 text-red-600">
+													<div className="h-2 w-2 rounded-full bg-red-500" />
+													{queryLogger.counts.error}
+												</span>
+											</span>
+										</div>
+										<Accordion.ItemIndicator className="ml-2 transition-transform group-data-[state=open]:rotate-180">
+											<ChevronUp className="h-4 w-4" />
+										</Accordion.ItemIndicator>
+									</Accordion.ItemTrigger>
+								</Accordion.Item>
+							);
+						}
 
-				{isOpen && (
-					<div className="flex-1 overflow-y-auto min-h-0">
-						{history.length === 0 ? (
-							<div className="flex items-center justify-center h-52 text-muted-foreground">
-								No queries executed yet
-							</div>
-						) : (
-							<div className="divide-y">
-								{[...history].reverse().map((entry) => (
-									<QueryLogEntry
-										key={entry.id}
-										entry={entry}
-										onExpand={handleExpand}
-									/>
-								))}
-							</div>
-						)}
-					</div>
-				)}
-			</div>
+						return (
+							<Accordion.Item
+								value="query-logger"
+								className="flex flex-col overflow-hidden h-96"
+							>
+								<div className="flex items-center px-4 py-2 border-b bg-muted/50 h-12 shrink-0 hover:bg-muted transition-colors group">
+									<div className="flex items-center gap-2 font-medium">
+										<span>Query Logger</span>
+									</div>
+									<HStack className="ml-2 gap-1 mr-auto">
+										<div
+											onClick={() => toggleStatusFilter("success")}
+											title="Filter by success"
+											className={cx(
+												buttonVariants({ size: "sm", variant: "ghost" }),
+												"transition-all rounded-md px-2 py-1.5 flex items-center gap-1.5",
+												isSuccessFiltered
+													? "bg-green-500/20 text-green-700 hover:bg-green-500/30"
+													: "text-muted-foreground hover:text-foreground hover:bg-green-200/50",
+											)}
+										>
+											<div className="h-2.5 w-2.5 rounded-full bg-green-500" />
+											<span className="text-xs font-medium">
+												{queryLogger.counts.success}
+											</span>
+										</div>
+										<div
+											onClick={() => toggleStatusFilter("pending")}
+											title="Filter by pending"
+											className={cx(
+												buttonVariants({ size: "sm", variant: "ghost" }),
+												"transition-all rounded-md px-2 py-1.5 flex items-center gap-1.5",
+												isPendingFiltered
+													? "bg-amber-500/20 text-amber-700 hover:bg-amber-500/30"
+													: "text-muted-foreground hover:text-foreground hover:bg-amber-200/50",
+											)}
+										>
+											<div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+											<span className="text-xs font-medium">
+												{queryLogger.counts.pending}
+											</span>
+										</div>
+										<div
+											onClick={() => toggleStatusFilter("error")}
+											title="Filter by error"
+											className={cx(
+												buttonVariants({ size: "sm", variant: "ghost" }),
+												"transition-all rounded-md px-2 py-1.5 flex items-center gap-1.5",
+												isErrorFiltered
+													? "bg-red-500/20 text-red-700 hover:bg-red-500/30"
+													: "text-muted-foreground hover:text-foreground hover:bg-red-200/50",
+											)}
+										>
+											<div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+											<span className="text-xs font-medium">
+												{queryLogger.counts.error}
+											</span>
+										</div>
+									</HStack>
+									<HStack align="center">
+										<Select.SelectRoot
+											className="w-full min-w-64"
+											collection={logTypeCollection}
+											positioning={{ sameWidth: true }}
+											multiple
+											defaultValue={
+												queryLogger.filters?.type
+													? Array.isArray(queryLogger.filters.type)
+														? (queryLogger.filters.type as any[])
+														: ([queryLogger.filters.type] as any[])
+													: undefined
+											}
+											onValueChange={(details) => {
+												queryLogger.setFilters((prev) => ({
+													...prev,
+													type: details.value as any[],
+												}));
+											}}
+										>
+											<Select.SelectControl size="sm">
+												<Select.SelectTrigger>
+													<Select.SelectValueText placeholder="Type: All" />
+													<Select.SelectIndicator />
+												</Select.SelectTrigger>
+											</Select.SelectControl>
+											<Select.SelectContent>
+												{logTypeCollection.items.map((item) => (
+													<Select.SelectItem key={item.value} item={item}>
+														{item.label}
+													</Select.SelectItem>
+												))}
+											</Select.SelectContent>
+										</Select.SelectRoot>
+										<Select.SelectRoot
+											className="w-full min-w-48"
+											collection={logLevelCollection}
+											positioning={{ sameWidth: true }}
+											multiple
+											defaultValue={
+												queryLogger.filters?.level
+													? Array.isArray(queryLogger.filters.level)
+														? (queryLogger.filters.level as any[])
+														: ([queryLogger.filters.level] as any[])
+													: undefined
+											}
+											onValueChange={(details) => {
+												queryLogger.setFilters((prev) => ({
+													...prev,
+													level: details.value as any[],
+												}));
+											}}
+										>
+											<Select.SelectControl size="sm">
+												<Select.SelectTrigger>
+													<Select.SelectValueText placeholder="Log level: All" />
+													<Select.SelectIndicator />
+												</Select.SelectTrigger>
+											</Select.SelectControl>
+											<Select.SelectContent>
+												{logLevelCollection.items.map((item) => (
+													<Select.SelectItem key={item.value} item={item}>
+														{item.label}
+													</Select.SelectItem>
+												))}
+											</Select.SelectContent>
+										</Select.SelectRoot>
+										<Button
+											size="sm"
+											variant="ghost"
+											onClick={() => {
+												queryLogger.clearHistory();
+											}}
+											disabled={queryLogger.isClearing}
+											title="Clear history"
+											className="text-muted-foreground hover:text-foreground"
+										>
+											<Trash2 className="h-4 w-4" />
+										</Button>
+										<Accordion.ItemTrigger className="ml-2 transition-transform group-data-[state=open]:rotate-180">
+											<ChevronDown className="h-4 w-4" />
+										</Accordion.ItemTrigger>
+									</HStack>
+								</div>
+
+								<Accordion.ItemContent className="flex-1 overflow-y-auto min-h-0">
+									{history.length === 0 ? (
+										<div className="flex items-center justify-center h-52 text-muted-foreground">
+											No queries executed yet
+										</div>
+									) : (
+										<div className="divide-y">
+											{[...queryLogger.history].reverse().map((entry) => (
+												<QueryLogEntry
+													key={entry.id}
+													entry={entry}
+													onExpand={handleExpand}
+												/>
+											))}
+										</div>
+									)}
+								</Accordion.ItemContent>
+							</Accordion.Item>
+						);
+					}}
+				</Accordion.Context>
+			</Accordion.Root>
 
 			<QueryLoggerDetailDialog
 				entry={selectedEntry}
@@ -165,3 +272,21 @@ export const QueryLoggerPanel = ({ connectionUrl }: QueryLoggerPanelProps) => {
 		</>
 	);
 };
+
+const logTypeCollection = createListCollection({
+	items: Object.entries(QueryLogType)
+		.filter(([key]) => isNaN(Number(key)))
+		.map(([label, value]) => ({
+			label: label,
+			value: value as QueryLogType,
+		})),
+});
+
+const logLevelCollection = createListCollection({
+	items: Object.entries(QueryLogLevel)
+		.filter(([key]) => isNaN(Number(key)))
+		.map(([label, value]) => ({
+			label: label,
+			value: value as QueryLogLevel,
+		})),
+});

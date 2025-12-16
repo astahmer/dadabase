@@ -20,7 +20,7 @@ const makeAppDatabaseLayer = (url: string) =>
 				// 	url: url,
 				// 	// authToken: "<token>", // optional
 				// }),
-				// log: ["query"],
+				log: ["query"],
 			});
 
 			yield* Effect.addFinalizer(() =>

@@ -45,6 +45,7 @@ export const query_logs = sqlite.sqliteTable(
 		type: sqlite.text().notNull(), // QueryLogType
 		schema: sqlite.text(),
 		table: sqlite.text(),
+		level: sqlite.integer().notNull(),
 		status: sqlite.text().notNull(),
 		start_time: sqlite.integer().notNull().$type<number>(),
 		end_time: sqlite.integer().$type<number>(),

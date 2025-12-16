@@ -6,6 +6,11 @@ import { Effect, Layer } from "effect";
 import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
+import { QueryLoggerNoopLayer } from "../query-logger/query-logger.layer.noop.ts";
+import {
+	makeRemoteConnectionLayer,
+	RemoteConnectionId,
+} from "../db-connection/remote-connection.tag.ts";
 
 interface User {
 	id: number;
@@ -50,6 +55,11 @@ const libsqlLayer = LibsqlClient.layer({
 
 const testSuite =
 	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) => () => {
+		const testLayer = Layer.mergeAll(
+			sqlLayer,
+			QueryLoggerNoopLayer,
+			makeRemoteConnectionLayer(RemoteConnectionId.make("123")),
+		);
 		const setupSchema = Effect.gen(function* () {
 			const sql = yield* SqlClient.SqlClient;
 
@@ -153,7 +163,7 @@ const testSuite =
 				expect(result.rows[0]).toHaveProperty("name");
 				expect(result.rows[0]).toHaveProperty("email");
 				expect(result.rows[0]).toHaveProperty("age");
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("applies limit correctly", () => {
@@ -170,7 +180,7 @@ const testSuite =
 				expect(result.rows.length).toBe(2);
 				// But rowCount should still reflect total count
 				expect(result.rowCount).toBe(5);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("applies offset correctly", () => {
@@ -195,7 +205,7 @@ const testSuite =
 					offset: 0,
 				});
 				expect(result.rows[0].id).not.toBe(firstResult.rows[0].id);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("applies default limit of 50 when not specified", () => {
@@ -210,7 +220,7 @@ const testSuite =
 
 				// We have 5 rows, which is less than default limit of 50
 				expect(result.rows.length).toBe(5);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("applies default offset of 0 when not specified", () => {
@@ -225,7 +235,7 @@ const testSuite =
 
 				// Should get first rows when no offset is provided
 				expect(result.rows[0].id).toBe(1);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("orders by ascending when orderDirection not specified", () => {
@@ -242,7 +252,7 @@ const testSuite =
 				// Should be ordered by age ascending: 25, 28, 30, 32, 35
 				const ages = result.rows.map((r) => r.age);
 				expect(ages).toEqual([25, 28, 30, 32, 35]);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("orders by ascending direction explicitly", () => {
@@ -259,7 +269,7 @@ const testSuite =
 
 				const names = result.rows.map((r) => r.name);
 				expect(names).toEqual(["Alice", "Bob", "Charlie", "Diana", "Eve"]);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("orders by descending direction", () => {
@@ -277,7 +287,7 @@ const testSuite =
 				// Should be ordered by age descending: 35, 32, 30, 28, 25
 				const ages = result.rows.map((r) => r.age);
 				expect(ages).toEqual([35, 32, 30, 28, 25]);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with equals operator", () => {
@@ -305,7 +315,7 @@ const testSuite =
 				expect(result.rows.length).toBe(1);
 				expect(result.rowCount).toBe(1);
 				expect(result.rows[0].name).toBe("Alice");
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with contains operator (case-insensitive)", () => {
@@ -332,7 +342,7 @@ const testSuite =
 
 				expect(result.rows.length).toBe(1);
 				expect(result.rows[0].name).toBe("Alice");
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with greater_than operator", () => {
@@ -361,7 +371,7 @@ const testSuite =
 				expect(result.rowCount).toBe(2);
 				const ages = result.rows.map((r) => r.age);
 				expect(ages.every((age) => age > 30)).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with less_than operator", () => {
@@ -388,7 +398,7 @@ const testSuite =
 
 				expect(result.rows.length).toBe(2); // Age 25 and 28
 				expect(result.rowCount).toBe(2);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with starts_with operator", () => {
@@ -415,7 +425,7 @@ const testSuite =
 
 				expect(result.rows.length).toBe(1);
 				expect(result.rows[0].name).toBe("Charlie");
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with multiple AND conditions", () => {
@@ -449,7 +459,7 @@ const testSuite =
 				expect(result.rows.length).toBe(3);
 				const ages = result.rows.map((r) => r.age);
 				expect(ages.every((age) => age > 25 && age < 35)).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with multiple OR conditions", () => {
@@ -482,7 +492,7 @@ const testSuite =
 				expect(result.rows.length).toBe(2);
 				const names = result.rows.map((r) => r.name).sort();
 				expect(names).toEqual(["Alice", "Bob"]);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("combines filters with ordering and pagination", () => {
@@ -515,7 +525,7 @@ const testSuite =
 				expect(result.rowCount).toBe(4); // Age 28, 30, 32, 35
 				const ages = result.rows.map((r) => r.age);
 				expect(ages).toEqual([35, 32]); // Ordered descending, limited to 2
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("returns correct row count even with filters applied", () => {
@@ -543,7 +553,7 @@ const testSuite =
 
 				expect(result.rows.length).toBe(2);
 				expect(result.rowCount).toBe(4); // But total count after filter is 4
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("queries from different table with relationships", () => {
@@ -560,7 +570,7 @@ const testSuite =
 				expect(result.rowCount).toBe(7);
 				expect(result.rows[0]).toHaveProperty("user_id");
 				expect(result.rows[0]).toHaveProperty("title");
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters posts by published status", () => {
@@ -589,7 +599,7 @@ const testSuite =
 				expect(result.rowCount).toBe(4);
 				// SQLite returns 0/1, PostgreSQL returns true/false
 				expect(result.rows.every((row) => row.published)).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with not_equals operator", () => {
@@ -616,7 +626,7 @@ const testSuite =
 
 				expect(result.rows.length).toBe(4); // All except Alice
 				expect(result.rows.every((row) => row.name !== "Alice")).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters posts by nullable content field", () => {
@@ -642,7 +652,7 @@ const testSuite =
 
 				expect(result.rowCount).toBe(1); // One post has NULL content
 				expect(result.rows[0].content).toBeNull();
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters posts by non-null content", () => {
@@ -668,7 +678,7 @@ const testSuite =
 
 				expect(result.rowCount).toBe(6); // 6 posts have content
 				expect(result.rows.every((row) => row.content !== null)).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("orders and filters together correctly", () => {
@@ -700,7 +710,7 @@ const testSuite =
 				expect(result.rows[1].user_id).toBe(1);
 				// Ordered desc, so higher id first
 				expect(result.rows[0].id).toBeGreaterThan(result.rows[1].id);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("handles case-sensitive ID filtering correctly", () => {
@@ -728,7 +738,7 @@ const testSuite =
 				expect(result.rows.length).toBe(1);
 				expect(result.rows[0].id).toBe(3);
 				expect(result.rows[0].name).toBe("Charlie");
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("applies pagination with large dataset", () => {
@@ -768,7 +778,7 @@ const testSuite =
 				expect(page2.rowCount).toBe(100);
 				// Verify different rows on different pages
 				expect(page1.rows[0].id).not.toBe(page2.rows[0].id);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("ignores filter conditions with undefined values", () => {
@@ -796,7 +806,7 @@ const testSuite =
 				// When filter value is undefined, it should be ignored and return all users
 				expect(result.rows.length).toBe(5);
 				expect(result.rowCount).toBe(5);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("ignores filter conditions with null values", () => {
@@ -824,7 +834,7 @@ const testSuite =
 				// When filter value is null, it should be ignored and return all users
 				expect(result.rows.length).toBe(5);
 				expect(result.rowCount).toBe(5);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("handles mixed valid and invalid filter conditions", () => {
@@ -857,7 +867,7 @@ const testSuite =
 				// Should only apply the age filter, ignoring the undefined name filter
 				expect(result.rows.length).toBe(4); // Age > 25: 28, 30, 32, 35
 				expect(result.rowCount).toBe(4);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect(
@@ -892,7 +902,7 @@ const testSuite =
 					// When all filter values are invalid, no filters should be applied
 					expect(result.rows.length).toBe(5);
 					expect(result.rowCount).toBe(5);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -922,7 +932,7 @@ const testSuite =
 					// is_null should work without a value
 					expect(result.rowCount).toBe(1);
 					expect(result.rows[0].content).toBeNull();
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -951,7 +961,7 @@ const testSuite =
 				// Alice, Charlie, Eve
 				expect(result.rows.length).toBe(3);
 				expect(result.rows.every((row) => row.name.endsWith("e"))).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with not_contains operator", () => {
@@ -981,7 +991,7 @@ const testSuite =
 				expect(
 					result.rows.every((row) => !row.name.toLowerCase().includes("a")),
 				).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with in operator", () => {
@@ -1009,7 +1019,7 @@ const testSuite =
 				expect(result.rows.length).toBe(3);
 				const names = result.rows.map((r) => r.name).sort();
 				expect(names).toEqual(["Alice", "Bob", "Charlie"]);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with greater_than_or_equal operator", () => {
@@ -1037,7 +1047,7 @@ const testSuite =
 				// Alice (30), Eve (32), Charlie (35)
 				expect(result.rows.length).toBe(3);
 				expect(result.rows.every((row) => row.age >= 30)).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters with less_than_or_equal operator", () => {
@@ -1065,7 +1075,7 @@ const testSuite =
 				// Bob (25), Diana (28)
 				expect(result.rows.length).toBe(2);
 				expect(result.rows.every((row) => row.age <= 28)).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		// Tests for JOIN functionality
@@ -1100,7 +1110,7 @@ const testSuite =
 				// Each row should have user columns and post columns, aliased with table.column
 				expect(result.rows[0]).toHaveProperty("users.id"); // user id
 				expect(result.rows[0]).toHaveProperty("users.name"); // user name
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect(
@@ -1134,7 +1144,7 @@ const testSuite =
 					// Alice: 2 posts, Bob: 1 post, Charlie: 2 posts, Diana: 1 post, Eve: 1 post = 7 rows
 					expect(result.rows.length).toBe(7);
 					expect(result.rowCount).toBe(7);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -1170,7 +1180,7 @@ const testSuite =
 				// Joined columns should be accessible with alias like "posts.title"
 				expect(result.rows[0]).toHaveProperty("posts.title");
 				expect(result.rows[0]).toHaveProperty("posts.published");
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("JOIN with filters applies WHERE clause correctly", () => {
@@ -1213,7 +1223,7 @@ const testSuite =
 				// Should only return published posts (4 posts total)
 				expect(result.rowCount).toBe(4);
 				expect(result.rows.length).toBe(4);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("JOIN with ordering sorts correctly", () => {
@@ -1249,7 +1259,7 @@ const testSuite =
 				// With INNER JOIN, we get multiple rows per user (one per post)
 				// First rows should be from Alice (alphabetically first)
 				expect(names[0]).toBe("Alice");
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("JOIN with pagination limits rows correctly", () => {
@@ -1295,7 +1305,7 @@ const testSuite =
 				expect(resultPage1.rows[0]["users.id"]).not.toBe(
 					resultPage2.rows[0]["users.id"],
 				);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect(
@@ -1345,7 +1355,7 @@ const testSuite =
 					expect(result.rowCount).toBe(4);
 					// But we limit to 2
 					expect(result.rows.length).toBe(2);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -1390,7 +1400,7 @@ const testSuite =
 				expect(result.rowCount).toBe(2);
 				expect(result.rows.length).toBe(2);
 				expect(result.rows.every((r) => r["posts.user_id"] === 1)).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("multiple JOINs on same table (should still work)", () => {
@@ -1423,7 +1433,7 @@ const testSuite =
 				// Should still work and return joined results
 				expect(result.rows.length).toBe(7);
 				expect(result.rowCount).toBe(7);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		// Join filter tests
@@ -1468,7 +1478,7 @@ const testSuite =
 					// Alice: 2 published posts, Charlie: 1, Diana: 1 = 4 total rows
 					expect(result.rowCount).toBe(4);
 					expect(result.rows.every((r) => r["posts.published"])).toBe(true);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -1512,7 +1522,7 @@ const testSuite =
 				expect(
 					result.rows.every((r) => String(r["posts.title"]).includes("Post")),
 				).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters joined table with multiple conditions using AND", () => {
@@ -1563,7 +1573,7 @@ const testSuite =
 							r["posts.published"] && String(r["posts.title"]).includes("Post"),
 					),
 				).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("filters joined table with multiple conditions using OR", () => {
@@ -1612,7 +1622,7 @@ const testSuite =
 				expect(
 					titles.some((t) => t.includes("First") || t.includes("Another")),
 				).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("combines main table filters with join filters using AND", () => {
@@ -1671,7 +1681,7 @@ const testSuite =
 				expect(publishedStatus.every((p) => p === true || p === 1)).toBe(true);
 				// Verify the join filter is applied correctly
 				expect(result.rows.length).toBeLessThanOrEqual(4);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect(
@@ -1730,7 +1740,7 @@ const testSuite =
 					expect(publishedStatus.every((p) => p === true || p === 1)).toBe(
 						true,
 					);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -1775,7 +1785,7 @@ const testSuite =
 					expect(result.rowCount).toBe(4);
 					const postIds = result.rows.map((r) => r["posts.id"] as number);
 					expect(postIds.every((id) => id > 3)).toBe(true);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -1810,7 +1820,7 @@ const testSuite =
 
 				// No filters applied, should get all 7 posts
 				expect(result.rowCount).toBe(7);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("join filter with is_null operator", () => {
@@ -1851,7 +1861,7 @@ const testSuite =
 				// Posts with NULL content: 1 post (Charlie's second post)
 				expect(result.rowCount).toBe(1);
 				expect(result.rows[0]["posts.content"]).toBeNull();
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		// Tests for custom join conditions
@@ -1884,7 +1894,7 @@ const testSuite =
 				// Should work just like standard FK join when conditions replicate FK logic
 				expect(result.rowCount).toBe(7);
 				expect(result.rows.length).toBe(7);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect(
@@ -1920,7 +1930,7 @@ const testSuite =
 					// Alice: 2 published, Charlie: 1, Diana: 1 = 4 rows
 					expect(result.rowCount).toBe(4);
 					expect(result.rows.every((r) => r["posts.published"])).toBe(true);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -1955,7 +1965,7 @@ const testSuite =
 					// Should fallback to FK and work normally
 					expect(result.rowCount).toBe(7);
 					expect(result.rows.length).toBe(7);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -1991,7 +2001,7 @@ const testSuite =
 				// Only the one post with NULL content
 				expect(result.rowCount).toBe(1);
 				expect(result.rows[0]["posts.content"]).toBeNull();
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("custom join condition mode switching preserves FK info", () => {
@@ -2024,7 +2034,7 @@ const testSuite =
 				// Should work with the custom condition
 				expect(result.rowCount).toBe(7);
 				// FK info is still available in joinCondition for UI to allow switching back
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		// Filter-based join conditions/clauses
@@ -2072,7 +2082,7 @@ const testSuite =
 				expect(
 					publishedValues.every((val: any) => val === true || val === 1),
 				).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect(
@@ -2124,7 +2134,7 @@ const testSuite =
 						(r) => r["posts.published"] === true || r["posts.published"] === 1,
 					);
 					expect(allPublished).toBe(true);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -2161,7 +2171,7 @@ const testSuite =
 
 					// Should return all 7 posts (fallback to FK join)
 					expect(result.rowCount).toBe(7);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -2212,7 +2222,7 @@ const testSuite =
 					// INNER JOIN: 2 posts × 5 users = 10? No wait, it's FK join so only matching users
 					// Bob (user 2) has 1 post, Charlie (user 3) has 2 posts, so 1 + 2 = 3 rows for those users
 					expect(result.rowCount).toBeGreaterThanOrEqual(1);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -2316,7 +2326,7 @@ const testSuite =
 							String(r["comments.title"]).includes("Post"),
 						),
 					).toBe(true);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -2374,7 +2384,7 @@ const testSuite =
 					// Verify we got columns from both joined posts tables
 					const firstRow = result.rows[0];
 					expect(firstRow).toBeDefined();
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -2414,7 +2424,7 @@ const testSuite =
 					const firstRow = result.rows[0];
 					expect(firstRow).toBeDefined();
 					expect(firstRow).toHaveProperty("posts.title");
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -2450,7 +2460,7 @@ const testSuite =
 				// Verify joined columns are present
 				const firstRow = result.rows[0];
 				expect(firstRow).toHaveProperty("posts.title");
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		// Custom alias tests
@@ -2499,7 +2509,7 @@ const testSuite =
 				// Custom aliases should appear in column names
 				const firstRow = result.rows[0];
 				expect(firstRow).toBeDefined();
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("mixes custom alias with auto-generated aliases", () => {
@@ -2544,7 +2554,7 @@ const testSuite =
 				// Should work with mixed aliases
 				expect(result.rowCount).toBeGreaterThan(0);
 				expect(result.rows.length).toBeGreaterThan(0);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect(
@@ -2608,7 +2618,7 @@ const testSuite =
 					// Should successfully execute with filters on joined table
 					expect(result.rowCount).toBeDefined();
 					expect(Array.isArray(result.rows)).toBe(true);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -2652,7 +2662,7 @@ const testSuite =
 				// Should successfully execute with filters on custom alias
 				expect(result.rowCount).toBeDefined();
 				expect(Array.isArray(result.rows)).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect(
@@ -2713,7 +2723,7 @@ const testSuite =
 					// Should successfully execute with filters on joined table
 					expect(result.rowCount).toBeDefined();
 					expect(Array.isArray(result.rows)).toBe(true);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -2758,7 +2768,7 @@ const testSuite =
 				// Should successfully execute with filters on custom alias
 				expect(result.rowCount).toBeDefined();
 				expect(Array.isArray(result.rows)).toBe(true);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect("columnList uses custom aliases for joined tables", () => {
@@ -2805,7 +2815,7 @@ const testSuite =
 					  "post_author.age",
 					]
 				`);
-			}).pipe(Effect.provide(sqlLayer));
+			}).pipe(Effect.provide(testLayer));
 		});
 
 		it.effect(
@@ -2873,7 +2883,7 @@ const testSuite =
 					  "posts_2.published",
 					]
 				`);
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 
@@ -2909,7 +2919,7 @@ const testSuite =
 					expect(resultWithJoin.columnList).toContain("posts.id");
 					expect(resultWithJoin.columnList).toContain("posts.title");
 					expect(resultWithJoin.columnList).toContain("users.id");
-				}).pipe(Effect.provide(sqlLayer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		);
 	};

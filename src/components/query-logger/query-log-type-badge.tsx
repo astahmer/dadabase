@@ -12,7 +12,7 @@ const queryTypeColorMap: Record<
 	| "info"
 	| "muted"
 > = {
-	table_rows: "info",
+	table_rows: "default",
 	table_count: "info",
 	schema_introspection: "warning",
 	column_metadata: "destructive",

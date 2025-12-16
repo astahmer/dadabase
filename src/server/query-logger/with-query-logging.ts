@@ -1,6 +1,10 @@
 import { Effect } from "effect";
 import { QueryLogger } from "./query-logger.ts";
-import type { QueryLogEntryType, QueryLogType } from "./query-logger.types.ts";
+import type {
+	QueryLogEntryType,
+	QueryLogLevel,
+	QueryLogType,
+} from "./query-logger.types.ts";
 
 export interface WithQueryLoggingOptions {
 	type: QueryLogType;
@@ -8,6 +12,7 @@ export interface WithQueryLoggingOptions {
 	schema?: string;
 	table?: string;
 	params: Record<string, any> | ReadonlyArray<any>;
+	level: QueryLogLevel;
 	/**
 	 * Connection ID for database persistence.
 	 * Logs will be automatically persisted to the database.
@@ -57,6 +62,7 @@ export const withQueryLogging =
 				type: options.type,
 				schema: options.schema,
 				table: options.table,
+				level: options.level,
 				status: "pending",
 				startTime,
 			};

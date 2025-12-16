@@ -18,6 +18,13 @@ import {
 	buildSqliteSelectWithJoins,
 	generateJoinAliases,
 } from "./join-builder.ts";
+import {
+	QueryLogLevel,
+	QueryLogType,
+} from "../query-logger/query-logger.types.ts";
+import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
+import { withQueryLogging } from "../query-logger/with-query-logging.ts";
+import type { QueryLogger } from "../query-logger/query-logger.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.
@@ -1250,9 +1257,10 @@ export const queryTableRows = <TData>(input: {
 		hasNextPage: boolean;
 	},
 	SqlError,
-	SqlClient.SqlClient
+	RemoteConnection | QueryLogger | SqlClient.SqlClient
 > =>
 	Effect.gen(function* () {
+		const connectionId = yield* RemoteConnection;
 		const sql = yield* SqlClient.SqlClient;
 		const {
 			limit = 50,
@@ -1386,7 +1394,7 @@ export const queryTableRows = <TData>(input: {
 									joinAliases,
 								)
 							: "*";
-					const query = sql`
+					const rowsQuery = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(input.schema)}.${sql(input.table)}
 					${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
@@ -1396,7 +1404,34 @@ export const queryTableRows = <TData>(input: {
 				`;
 					// console.log(countQuery.compile());
 					// console.log(query.compile());
-					const [rows, countResult] = yield* Effect.all([query, countQuery]);
+
+					const rowsCompiledQuery = rowsQuery.compile();
+					const countCompiledQuery = countQuery.compile();
+
+					const [rows, countResult] = yield* Effect.all([
+						rowsQuery.pipe(
+							withQueryLogging({
+								type: QueryLogType.TableRows,
+								sql: rowsCompiledQuery[0],
+								params: rowsCompiledQuery[1],
+								schema: input.schema,
+								table: input.table,
+								level: QueryLogLevel.Info,
+								connectionId: connectionId,
+							}),
+						),
+						countQuery.pipe(
+							withQueryLogging({
+								type: QueryLogType.TableCount,
+								sql: countCompiledQuery[0],
+								params: countCompiledQuery[1],
+								schema: input.schema,
+								table: input.table,
+								level: QueryLogLevel.Trace,
+								connectionId: connectionId,
+							}),
+						),
+					]);
 					const rowCount = Number(countResult[0]?.count ?? 0);
 					return {
 						rows: rows as TData[],
