@@ -62,3 +62,4 @@
 
 ## issues
 - dont reload whole table when order by changes
+- empty state if no rows -> dont center it; or make it sticky/fixed so that its always visible

@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 import type {
@@ -126,6 +126,7 @@ export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
 		queryKey: ["remote", "rows", input],
 		queryFn: async () => queryTableDataServerFn({ data: input }),
 		meta: { loggable: true },
+		placeholderData: keepPreviousData,
 		select: (data) => ({
 			...data,
 			rows: data.rows.map((row) => {

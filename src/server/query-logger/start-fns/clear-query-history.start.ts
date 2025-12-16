@@ -19,7 +19,8 @@ const clearQueryHistoryServerFn = createServerFn({ method: "POST" })
 			return yield* queryLogger.clearAll();
 		}).pipe(withRemoteConnectionLayersFromUrl(ctx.data.url));
 
-		return AppRuntime.runPromise(program);
+		await AppRuntime.runPromise(program);
+		return true;
 	});
 
 export const clearQueryHistoryQueryOptions = (
@@ -28,12 +29,10 @@ export const clearQueryHistoryQueryOptions = (
 	queryOptions({
 		queryKey: ["remote", "clearQueryHistory", input],
 		queryFn: (ctx) =>
-			clearQueryHistoryServerFn({ data: input })
-				.then(() =>
-					ctx.client.invalidateQueries(
-						getQueryHistoryQueryOptions({ url: input.url }),
-					),
-				)
-				.then(() => Math.random()),
+			clearQueryHistoryServerFn({ data: input }).then(() =>
+				ctx.client.invalidateQueries(
+					getQueryHistoryQueryOptions({ url: input.url }),
+				),
+			),
 		enabled: false,
 	});

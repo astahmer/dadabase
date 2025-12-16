@@ -45,6 +45,7 @@ export interface QueryLogEntryType {
 		message: string;
 		stack?: string;
 	};
+	meta?: Record<string, any>;
 }
 
 export interface QueryLoggerContext {

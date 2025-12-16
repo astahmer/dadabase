@@ -81,7 +81,7 @@ export const getQueryLogs = (
 
 		const [rows, counts] = yield* Effect.all([
 			db.execute(query.orderBy("created_at", "desc").limit(limit)),
-			db.executeTakeFirstUnsafe(countQuery),
+			db.executeTakeFirstOrUndefined(countQuery),
 		]);
 
 		return {
@@ -96,20 +96,22 @@ export const getQueryLogs = (
 							schema: row.schema ?? undefined,
 							table: row.table ?? undefined,
 							status: row.status as "pending" | "success" | "error",
+							level: row.level,
 							startTime: new Date(row.start_time),
 							endTime: row.end_time ? new Date(row.end_time) : undefined,
 							timeTaken: row.time_taken ?? undefined,
 							rowsReturned: row.rows_returned ?? undefined,
 							rowsAffected: row.rows_affected ?? undefined,
 							error: row.error ? JSON.parse(row.error) : undefined,
+							meta: row.meta ? JSON.parse(row.meta) : undefined,
 						}) as QueryLogEntryType,
 				)
 				// Reverse to get chronological order (oldest first),
 				.reverse(),
 			counts: {
-				pending: counts.pending_count,
-				success: counts.success_count,
-				error: counts.error_count,
+				pending: counts?.pending_count ?? 0,
+				success: counts?.success_count ?? 0,
+				error: counts?.error_count ?? 0,
 			},
 		};
 	});
@@ -168,6 +170,7 @@ export const persistQueryLog = (
 				rows_affected: entry.rowsAffected ?? null,
 				error: entry.error ? JSON.stringify(entry.error) : null,
 				created_at: Date.now(),
+				meta: entry.meta ? JSON.stringify(entry.meta) : null,
 			}),
 		);
 		// Cleanup old logs to keep only the last 1000
@@ -191,6 +194,7 @@ export const updatePersistedQueryLog = (
 					rows_returned: updates.rowsReturned ?? undefined,
 					rows_affected: updates.rowsAffected ?? undefined,
 					error: updates.error ? JSON.stringify(updates.error) : undefined,
+					meta: updates.meta ? JSON.stringify(updates.meta) : undefined,
 				})
 				.where("id", "=", id),
 		);

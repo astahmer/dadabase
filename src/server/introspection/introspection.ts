@@ -1298,16 +1298,15 @@ export const queryTableRows = <TData>(input: {
 		// console.time("fetch columns");
 		const columnResults = yield* Effect.all(
 			tablesToFetch.map((t) =>
-				Effect.andThen(
-					getTableColumns({ schema: t.schema, table: t.table }),
-					(columns) => ({
+				getTableColumns({ schema: t.schema, table: t.table }).pipe(
+					Effect.map((columns) => ({
 						schemaTable:
 							!t.schema || t.schema === defaultSchema
 								? t.table
 								: `${t.schema}.${t.table}`,
 						tableOnly: t.table,
 						columns,
-					}),
+					})),
 				),
 			),
 		);
@@ -1418,6 +1417,7 @@ export const queryTableRows = <TData>(input: {
 								table: input.table,
 								level: QueryLogLevel.Info,
 								connectionId: connectionId,
+								meta: { input },
 							}),
 						),
 						countQuery.pipe(
@@ -1429,12 +1429,13 @@ export const queryTableRows = <TData>(input: {
 								table: input.table,
 								level: QueryLogLevel.Trace,
 								connectionId: connectionId,
+								meta: { input },
 							}),
 						),
 					]);
-					const rowCount = Number(countResult[0]?.count ?? 0);
+					const rowCount = Number(countResult?.[0]?.count ?? 0);
 					return {
-						rows: rows as TData[],
+						rows: (rows ?? []) as TData[],
 						columnList,
 						rowCount,
 						hasNextPage: offset + limit < rowCount,

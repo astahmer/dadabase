@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Cause, Effect } from "effect";
 import { QueryLogger } from "./query-logger.ts";
 import type {
 	QueryLogEntryType,
@@ -13,6 +13,7 @@ export interface WithQueryLoggingOptions {
 	table?: string;
 	params: Record<string, any> | ReadonlyArray<any>;
 	level: QueryLogLevel;
+	meta?: Record<string, any>;
 	/**
 	 * Connection ID for database persistence.
 	 * Logs will be automatically persisted to the database.
@@ -63,6 +64,7 @@ export const withQueryLogging =
 				schema: options.schema,
 				table: options.table,
 				level: options.level,
+				meta: options.meta,
 				status: "pending",
 				startTime,
 			};
@@ -94,15 +96,21 @@ export const withQueryLogging =
 				}),
 				Effect.catchAll((error) => {
 					const endTime = new Date();
-					const errorMessage =
-						error instanceof Error ? error.message : String(error);
-					const errorStack = error instanceof Error ? error.stack : undefined;
+					const errorMessage = getErrorMessage(error);
+
+					const errorStack =
+						error instanceof Error
+							? Cause.pretty(
+									Cause.isCause(error.cause) ? error.cause : Cause.fail(error),
+									{ renderErrorCause: true },
+								)
+							: String(error);
 					const updates = {
 						status: "error" as const,
 						endTime,
 						timeTaken: endTime.getTime() - startTime.getTime(),
 						error: {
-							message: errorMessage,
+							message: errorMessage!,
 							stack: errorStack,
 						},
 					};
@@ -112,3 +120,20 @@ export const withQueryLogging =
 			);
 		}) as Effect.Effect<TOutput, E, R | QueryLogger>;
 	};
+
+function getErrorMessage(error: unknown): string {
+	let errorMessage: string | undefined;
+	if (error instanceof Error && error.cause) {
+		if (Cause.isCause(error.cause)) {
+			errorMessage = Cause.pretty(error.cause);
+		} else if (error.cause instanceof Error) {
+			errorMessage = getErrorMessage(error.cause);
+		}
+	}
+
+	if (!errorMessage) {
+		errorMessage = String(error);
+	}
+
+	return errorMessage;
+}
