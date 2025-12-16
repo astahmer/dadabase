@@ -37,18 +37,15 @@ export function ColumnVisibilityControls<TData>(
 		.filter((col) => col.id !== "__select");
 	const allVisible = visibleColumns.length === allColumns.length;
 
+	const leafColumns = table.getAllLeafColumns();
 	const handleSelectAll = () => {
 		if (allVisible) {
 			table.setColumnVisibility((_current) =>
-				Object.fromEntries(
-					table.getAllLeafColumns().map((col) => [col.id, false]),
-				),
+				Object.fromEntries(leafColumns.map((col) => [col.id, false])),
 			);
 		} else {
 			table.setColumnVisibility((_current) =>
-				Object.fromEntries(
-					table.getAllLeafColumns().map((col) => [col.id, true]),
-				),
+				Object.fromEntries(leafColumns.map((col) => [col.id, true])),
 			);
 		}
 	};
@@ -118,7 +115,17 @@ export function ColumnVisibilityControls<TData>(
 														value: string;
 													};
 													if (e.key === "Enter" && highlightedItem) {
-														const column = getColumn(highlightedItem.value);
+														const column = leafColumns.find(
+															(col) => col.id === highlightedItem.value,
+														);
+														if (!column) {
+															console.warn(
+																`Could not find column with id ${highlightedItem.value}`,
+																leafColumns,
+															);
+															return;
+														}
+
 														column?.toggleVisibility?.();
 													}
 												}}
@@ -130,7 +137,16 @@ export function ColumnVisibilityControls<TData>(
 									{list.collection.items.length > 0 ? (
 										<Listbox.ItemGroup>
 											{list.collection.items.map((item) => {
-												const column = getColumn(item.value);
+												const column = leafColumns.find(
+													(col) => col.id === item.value,
+												);
+												if (!column) {
+													// console.warn(
+													// 	`Could not find column with id ${item.value}`,
+													// 	leafColumns,
+													// );
+													return;
+												}
 												const isVisible = column?.getIsVisible?.() ?? true;
 
 												return (

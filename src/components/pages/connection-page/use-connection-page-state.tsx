@@ -457,7 +457,7 @@ export const useConnectionPageState = ({
 		url: activeConnectionUrl,
 		joins: joins,
 	});
-	const columnNameList = joins
+	const columnNameList = joins?.length
 		? tableMetadata.columnList
 				.map((col) => `${search.table}.${col}`)
 				.concat(
