@@ -74,7 +74,7 @@ const JoinTablesDialogContent = (
 	props: Omit<JoinTablesDialogProps, "isOpen">,
 ) => {
 	const { onOpenChange, url, schema, table, onApply, initialConfig } = props;
-	const joinState = useJoinTablesState(initialConfig);
+	const joinState = useJoinTablesState(table, initialConfig);
 
 	const relationshipsQuery = useQuery(
 		getTableRelationshipsQueryOptions({

@@ -8,19 +8,26 @@ import type {
 /**
  * Manages join tables configuration state
  */
-export const useJoinTablesState = (initialConfig?: JoinTablesConfig) => {
+export const useJoinTablesState = (
+	parentTable: string,
+	initialConfig?: JoinTablesConfig,
+) => {
 	const [config, setConfig] = useState<JoinTablesConfig>(
-		initialConfig ?? { joins: [] },
+		() => initialConfig ?? { joins: [] },
 	);
 
 	const add = useCallback((join: JoinedTable) => {
+		let alias: string | undefined;
+		if (join.table === parentTable && join.joinCondition.referencedColumn) {
+			alias = join.joinCondition.referencedColumn.replace(/_id$/, "");
+		}
 		setConfig((prev) => ({
 			...prev,
 			joins: [
 				...prev.joins.filter(
 					(j) => !(j.table === join.table && j.schema === join.schema),
 				),
-				join,
+				{ ...join, alias: alias || join.alias },
 			],
 		}));
 	}, []);

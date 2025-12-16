@@ -57,13 +57,7 @@ export const JoinedTableRow = ({
 		),
 	);
 
-	const [alias, setAlias] = useState<string>(
-		joined.alias ||
-			// If the table is the same as the parent table, use the referenced column name as default alias
-			(joined.table === parentTable && joined.joinCondition.referencedColumn
-				? joined.joinCondition.referencedColumn.replace(/_id$/, "")
-				: ""),
-	);
+	const [alias, setAlias] = useState<string>(joined.alias || "");
 
 	const [filterConditions, setFilterConditions] = useState<
 		FilterConditionExpression[]
