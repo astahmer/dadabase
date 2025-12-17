@@ -4,6 +4,7 @@ import type {
 	JoinedTable,
 	JoinTablesConfig,
 } from "./join-tables.types";
+import { cascadeRemoveJoins } from "./cascade-remove-joins.ts";
 
 /**
  * Manages join tables configuration state
@@ -33,12 +34,15 @@ export const useJoinTablesState = (
 	}, []);
 
 	const remove = useCallback((table: string, schema: string) => {
-		setConfig((prev) => ({
-			...prev,
-			joins: prev.joins.filter(
-				(j) => !(j.table === table && j.schema === schema),
-			),
-		}));
+		setConfig((prev) => {
+			return {
+				...prev,
+				joins: cascadeRemoveJoins({
+					joins: prev.joins,
+					remove: { schema, table },
+				}),
+			};
+		});
 	}, []);
 
 	const update = useCallback(
