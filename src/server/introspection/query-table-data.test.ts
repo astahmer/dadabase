@@ -1155,6 +1155,96 @@ const testSuite =
 			}).pipe(Effect.provide(testLayer));
 		});
 
+		it.effect(
+			"supports transitive joins via joinFrom (users -> posts -> comments)",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const sql = yield* SqlClient.SqlClient;
+
+					yield* sql.onDialectOrElse({
+						pg: () =>
+							Effect.gen(function* () {
+								yield* sql`
+								CREATE TABLE IF NOT EXISTS comments (
+									id SERIAL PRIMARY KEY,
+									post_id INTEGER NOT NULL REFERENCES posts(id),
+									title TEXT NOT NULL,
+									content TEXT
+								)
+							`;
+								yield* sql`
+								INSERT INTO comments (post_id, title, content) VALUES
+								(1, 'Comment on Post 1', 'Great post!'),
+								(2, 'Comment on Post 2', 'Really good'),
+								(3, 'Comment on Post 3', 'Nice work')
+							`;
+							}),
+						sqlite: () =>
+							Effect.gen(function* () {
+								yield* sql`
+								CREATE TABLE IF NOT EXISTS comments (
+									id INTEGER PRIMARY KEY AUTOINCREMENT,
+									post_id INTEGER NOT NULL REFERENCES posts(id),
+									title TEXT NOT NULL,
+									content TEXT
+								)
+							`;
+								yield* sql`
+								INSERT INTO comments (post_id, title, content) VALUES
+								(1, 'Comment on Post 1', 'Great post!'),
+								(2, 'Comment on Post 2', 'Really good'),
+								(3, 'Comment on Post 3', 'Nice work')
+							`;
+							}),
+						orElse: () => Effect.fail(new Error("Unsupported database")),
+					});
+
+					// Intentionally put comments first to prove join ordering is derived from joinFrom.
+					const joins: JoinedTable[] = [
+						{
+							table: "comments",
+							schema: config.defaultSchema,
+							joinFrom: { schema: config.defaultSchema, table: "posts" },
+							type: "inner",
+							columns: "all",
+							joinCondition: {
+								mode: "standard",
+								referencingColumn: "id",
+								referencedColumn: "post_id",
+							},
+						},
+						{
+							table: "posts",
+							schema: config.defaultSchema,
+							type: "inner",
+							columns: "all",
+							joinCondition: {
+								mode: "standard",
+								referencingColumn: "id",
+								referencedColumn: "user_id",
+							},
+						},
+					];
+
+					const result = yield* queryTableRows<Record<string, unknown>>({
+						schema: config.defaultSchema,
+						table: "users",
+						joins,
+					});
+
+					// We inserted 3 comments that each map to a post -> user.
+					expect(result.rowCount).toBe(3);
+					expect(result.rows.length).toBe(3);
+					expect(result.rows[0]).toHaveProperty("users.id");
+					expect(result.rows[0]).toHaveProperty("posts.id");
+					expect(result.rows[0]).toHaveProperty("comments.id");
+				}).pipe(Effect.provide(testLayer));
+			},
+		);
+
 		it.effect("JOIN with filters applies WHERE clause correctly", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;

@@ -347,12 +347,30 @@ export const JoinedTableRow = ({
 						<div className="font-medium text-sm">
 							{joined.schema}.{joined.table}
 						</div>
+						{joined.joinFrom &&
+							!(
+								joined.joinFrom.schema === parentSchema &&
+								joined.joinFrom.table === parentTable
+							) && (
+								<div className="text-xs text-muted-foreground mt-0.5">
+									Join from {joined.joinFrom.schema}.{joined.joinFrom.table}
+								</div>
+							)}
 						<div className="text-xs text-muted-foreground mt-0.5">
 							{joined.joinCondition.mode === "standard" ? (
 								<>
-									ON {joined.schema}.{joined.table}.
-									{joined.joinCondition.referencingColumn} = {parentSchema}.
-									{parentTable}.{joined.joinCondition.referencedColumn}
+									{(() => {
+										const anchorSchema =
+											joined.joinFrom?.schema ?? parentSchema;
+										const anchorTable = joined.joinFrom?.table ?? parentTable;
+										return (
+											<>
+												ON {joined.schema}.{joined.table}.
+												{joined.joinCondition.referencedColumn} = {anchorSchema}
+												.{anchorTable}.{joined.joinCondition.referencingColumn}
+											</>
+										);
+									})()}
 								</>
 							) : joined.joinCondition.mode === "custom" ? (
 								<>
