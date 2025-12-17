@@ -31,7 +31,7 @@
 - double clicking a cell value should copy it to the clipboard (?)
 - cmd+f in table (virtualized rows needs it) -> highlight/filter?
 - store limit (50 etc) in localstorage and use that as default instead of hardcoded 50
-- left/inner join one/more tables + add their columns prefixed with the table name: table1.col1, table1.col2, table2.col1, table2.col2, table3.col1, table3.col2
+- complex join configuration (conditional)
 
 ## ai
 
@@ -54,3 +54,11 @@
 - cmd+k
 - investigate using the lib that allows to move/reorder components in a gridlike manner with snap, like dashboard widgets, for full customization -> https://dockview.dev/ ?
 - expandable table row with nested entity -> kinda solved already with bottom relationship panel but some people might prefer inline expansion
+- row selection with checkboxes + bulk actions (delete, export, copy etc)
+- a page to view (and export) one/many/all table structures
+- cancellable queries (+ rm disabled state for buttons while a query is running)
+- order by nulls first/last with sort select/right-click on column header
+- checkbox to toggle visible columns in client or server (remove from select query)
+
+## issues
+- import join config from SQL query

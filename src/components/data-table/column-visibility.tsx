@@ -28,30 +28,26 @@ export function ColumnVisibilityControls<TData>(
 		[props.columnList],
 	);
 
-	const visibleCount = useMemo(
-		() =>
-			allColumns.reduce((acc, col) => {
-				const tableCol = table.getColumn(col.value);
-				if (!tableCol) return acc;
-				return acc + ((tableCol.getIsVisible?.() ?? true) ? 1 : 0);
-			}, 0),
-		[allColumns, table],
-	);
-	const allVisible = visibleCount === allColumns.length;
+	// https://github.com/TanStack/table/discussions/5505 / https://github.com/TanStack/table/pull/5964
+	const getColumn = (columnId: string) =>
+		table._getAllFlatColumnsById()[columnId];
 
+	const visibleColumns = table
+		.getVisibleLeafColumns()
+		.filter((col) => col.id !== "__select");
+	const allVisible = visibleColumns.length === allColumns.length;
+
+	const leafColumns = table.getAllLeafColumns();
 	const handleSelectAll = () => {
-		allColumns.forEach((col) => {
-			const column = table.getColumn(col.value);
-			if (!column) return;
-			const isVisible = column.getIsVisible?.() ?? true;
-			if (allVisible && isVisible) {
-				// Unselect all
-				column.toggleVisibility?.(false);
-			} else if (!allVisible && !isVisible) {
-				// Select all
-				column.toggleVisibility?.(true);
-			}
-		});
+		if (allVisible) {
+			table.setColumnVisibility((_current) =>
+				Object.fromEntries(leafColumns.map((col) => [col.id, false])),
+			);
+		} else {
+			table.setColumnVisibility((_current) =>
+				Object.fromEntries(leafColumns.map((col) => [col.id, true])),
+			);
+		}
 	};
 
 	const filters = useFilter({ sensitivity: "base" });
@@ -84,7 +80,9 @@ export function ColumnVisibilityControls<TData>(
 					<Button variant="outline" size="sm" className={buttonClassName}>
 						<span className="text-xs font-medium text-foreground uppercase tracking-wide">
 							📋 Visible Columns{" "}
-							{allVisible ? "" : `(${visibleCount}/${allColumns.length})`}
+							{allVisible
+								? ""
+								: `(${visibleColumns.length}/${allColumns.length})`}
 						</span>
 						<ChevronsUpDown className="h-4 w-4 opacity-50" />
 					</Button>
@@ -117,9 +115,17 @@ export function ColumnVisibilityControls<TData>(
 														value: string;
 													};
 													if (e.key === "Enter" && highlightedItem) {
-														const column = table.getColumn(
-															highlightedItem.value,
+														const column = leafColumns.find(
+															(col) => col.id === highlightedItem.value,
 														);
+														if (!column) {
+															console.warn(
+																`Could not find column with id ${highlightedItem.value}`,
+																leafColumns,
+															);
+															return;
+														}
+
 														column?.toggleVisibility?.();
 													}
 												}}
@@ -131,7 +137,16 @@ export function ColumnVisibilityControls<TData>(
 									{list.collection.items.length > 0 ? (
 										<Listbox.ItemGroup>
 											{list.collection.items.map((item) => {
-												const column = table.getColumn(item.value);
+												const column = leafColumns.find(
+													(col) => col.id === item.value,
+												);
+												if (!column) {
+													// console.warn(
+													// 	`Could not find column with id ${item.value}`,
+													// 	leafColumns,
+													// );
+													return;
+												}
 												const isVisible = column?.getIsVisible?.() ?? true;
 
 												return (

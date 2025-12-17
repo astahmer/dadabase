@@ -2,7 +2,7 @@ import { Pagination } from "@ark-ui/react/pagination";
 import { useNavigate } from "@tanstack/react-router";
 import type { Table as TanstackTable } from "@tanstack/react-table";
 import { DateTime } from "effect";
-import { RefreshCw } from "lucide-react";
+import { Layers, RefreshCw } from "lucide-react";
 import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
@@ -53,6 +53,8 @@ export const ConnectionPageStatusBar = (
 	const offset = useActiveTabState((s) => s.offset);
 	const limit = useActiveTabState((s) => s.limit);
 	const tableSize = useActiveTabState((s) => s.tableSize);
+	const prefixWithTable = useActiveTabState((s) => s.prefixWithTable);
+	const joins = useActiveTabState((s) => s.joins);
 
 	return (
 		<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
@@ -192,14 +194,44 @@ export const ConnectionPageStatusBar = (
 							</ArkSelect.SelectContent>
 						</ArkSelect.Select>
 					</div>
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={() => refetch()}
-						className="h-6 px-2"
+					{(joins?.length ?? 0) > 0 && (
+						<Tooltip
+							content={
+								prefixWithTable
+									? "Disable table prefix"
+									: "Prefix columns with table"
+							}
+						>
+							<Button
+								variant={prefixWithTable ? "default" : "ghost"}
+								size="sm"
+								onClick={() => {
+									navigate({
+										search: (prev) =>
+											updateTabState(prev, (tab) => ({
+												prefixWithTable: !tab.prefixWithTable,
+											})),
+									});
+								}}
+								className="h-6 px-2"
+								title="Prefix column names by table"
+							>
+								<Layers className="h-3.5 w-3.5" />
+							</Button>
+						</Tooltip>
+					)}
+					<Tooltip
+						content={`Refresh rows (last ran at ${DateTime.formatIso(DateTime.unsafeMake(props.ranAt))})`}
 					>
-						<RefreshCw className="h-3 w-3" />
-					</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => refetch()}
+							className="h-6 px-2"
+						>
+							<RefreshCw className="h-3 w-3" />
+						</Button>
+					</Tooltip>
 				</div>
 			</div>
 		</div>

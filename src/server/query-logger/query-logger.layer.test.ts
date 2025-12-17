@@ -12,7 +12,7 @@ import { QueryLoggerInMemoryLayer } from "./query-logger.layer.in-memory.ts";
 import { QueryLoggerNoopLayer } from "./query-logger.layer.noop.ts";
 import { QueryLoggerPersistentLayer } from "./query-logger.layer.persisted.ts";
 import { QueryLogger } from "./query-logger.ts";
-import { QueryLogType } from "./query-logger.types.ts";
+import { QueryLogLevel, QueryLogType } from "./query-logger.types.ts";
 
 describe("QueryLoggerNoopLayer", () => {
 	it.effect("provides a no-op implementation that always succeeds", () => {
@@ -24,6 +24,7 @@ describe("QueryLoggerNoopLayer", () => {
 			const id = yield* queryLogger.push({
 				sql: "SELECT 1",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "success",
 				startTime: DateTime.toDate(now),
 			});
@@ -34,7 +35,7 @@ describe("QueryLoggerNoopLayer", () => {
 			const logs = yield* queryLogger.get();
 
 			expect(id).toEqual("xxx");
-			expect(logs).toEqual([]);
+			expect(logs.rows).toEqual([]);
 		}).pipe(Effect.provide(QueryLoggerNoopLayer));
 	});
 });
@@ -48,6 +49,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 			const id = yield* queryLogger.push({
 				sql: "SELECT * FROM users",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "success",
 				startTime: DateTime.toDate(now),
 			});
@@ -55,11 +57,12 @@ describe("QueryLoggerInMemoryLayer", () => {
 			const logs = yield* queryLogger.get();
 
 			expect(id).toMatch(/^ql_/);
-			expect(logs).toHaveLength(1);
-			expect(logs[0]).toMatchObject({
+			expect(logs.rows).toHaveLength(1);
+			expect(logs.rows[0]).toMatchObject({
 				id,
 				sql: "SELECT * FROM users",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "success",
 			});
 		}).pipe(Effect.provide(QueryLoggerInMemoryLayer));
@@ -73,6 +76,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 			const id = yield* queryLogger.push({
 				sql: "SELECT 1",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "pending",
 				startTime: DateTime.toDate(now),
 			});
@@ -85,8 +89,8 @@ describe("QueryLoggerInMemoryLayer", () => {
 
 			const logs = yield* queryLogger.get();
 
-			expect(logs).toHaveLength(1);
-			expect(logs[0]).toMatchObject({
+			expect(logs.rows).toHaveLength(1);
+			expect(logs.rows[0]).toMatchObject({
 				id,
 				status: "success",
 				endTime: DateTime.toDate(DateTime.add(now, { seconds: 1 })),
@@ -103,6 +107,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 			const id1 = yield* queryLogger.push({
 				sql: "SELECT 1",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "success",
 				startTime: DateTime.toDate(now),
 			});
@@ -110,6 +115,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 			const id2 = yield* queryLogger.push({
 				sql: "SELECT 2",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "success",
 				startTime: DateTime.toDate(DateTime.add(now, { seconds: 1 })),
 			});
@@ -118,8 +124,8 @@ describe("QueryLoggerInMemoryLayer", () => {
 
 			const logs = yield* queryLogger.get();
 
-			expect(logs).toHaveLength(1);
-			expect(logs[0]).toMatchObject({ id: id2, sql: "SELECT 2" });
+			expect(logs.rows).toHaveLength(1);
+			expect(logs.rows[0]).toMatchObject({ id: id2, sql: "SELECT 2" });
 		}).pipe(Effect.provide(QueryLoggerInMemoryLayer));
 	});
 
@@ -131,6 +137,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 			yield* queryLogger.push({
 				sql: "SELECT 1",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "success",
 				startTime: DateTime.toDate(now),
 			});
@@ -138,6 +145,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 			yield* queryLogger.push({
 				sql: "SELECT 2",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "success",
 				startTime: DateTime.toDate(DateTime.add(now, { seconds: 1 })),
 			});
@@ -146,7 +154,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 
 			const logs = yield* queryLogger.get();
 
-			expect(logs).toEqual([]);
+			expect(logs.rows).toEqual([]);
 		}).pipe(Effect.provide(QueryLoggerInMemoryLayer));
 	});
 
@@ -158,6 +166,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 			const id = yield* queryLogger.push({
 				sql: "SELECT * FROM invalid_table",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "pending",
 				startTime: DateTime.toDate(now),
 			});
@@ -176,8 +185,8 @@ describe("QueryLoggerInMemoryLayer", () => {
 
 			const logs = yield* queryLogger.get();
 
-			expect(logs).toHaveLength(1);
-			expect(logs[0]).toMatchObject({
+			expect(logs.rows).toHaveLength(1);
+			expect(logs.rows[0]).toMatchObject({
 				id,
 				status: "error",
 				error: {
@@ -196,22 +205,23 @@ describe("QueryLoggerInMemoryLayer", () => {
 			yield* queryLogger.push({
 				sql: "SELECT * FROM users",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "pending",
 				startTime: DateTime.toDate(now),
 			});
 
 			const logs = yield* queryLogger.get();
 
-			expect(logs).toHaveLength(1);
-			expect(logs[0]).toMatchObject({
+			expect(logs.rows).toHaveLength(1);
+			expect(logs.rows[0]).toMatchObject({
 				sql: "SELECT * FROM users",
 				status: "pending",
 			});
 			// Optional fields should be undefined
-			expect(logs[0].endTime).toBeUndefined();
-			expect(logs[0].timeTaken).toBeUndefined();
-			expect(logs[0].rowsReturned).toBeUndefined();
-			expect(logs[0].rowsAffected).toBeUndefined();
+			expect(logs.rows[0].endTime).toBeUndefined();
+			expect(logs.rows[0].timeTaken).toBeUndefined();
+			expect(logs.rows[0].rowsReturned).toBeUndefined();
+			expect(logs.rows[0].rowsAffected).toBeUndefined();
 		}).pipe(Effect.provide(QueryLoggerInMemoryLayer));
 	});
 
@@ -225,14 +235,15 @@ describe("QueryLoggerInMemoryLayer", () => {
 				sql: "SELECT * FROM users WHERE id = ? AND name = ? AND active = ?",
 				params,
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "success",
 				startTime: DateTime.toDate(now),
 			});
 
 			const logs = yield* queryLogger.get();
 
-			expect(logs).toHaveLength(1);
-			expect(logs[0]).toMatchObject({
+			expect(logs.rows).toHaveLength(1);
+			expect(logs.rows[0]).toMatchObject({
 				params,
 			});
 		}).pipe(Effect.provide(QueryLoggerInMemoryLayer));
@@ -246,6 +257,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 			yield* queryLogger.push({
 				sql: "SELECT * FROM users",
 				type: QueryLogType.TableRows,
+				level: QueryLogLevel.Info,
 				status: "success",
 				startTime: DateTime.toDate(now),
 			});
@@ -254,6 +266,7 @@ describe("QueryLoggerInMemoryLayer", () => {
 				sql: "SELECT COUNT(*) FROM posts",
 				type: QueryLogType.TableCount,
 				status: "success",
+				level: QueryLogLevel.Info,
 				startTime: DateTime.toDate(DateTime.add(now, { seconds: 1 })),
 			});
 
@@ -261,13 +274,14 @@ describe("QueryLoggerInMemoryLayer", () => {
 				sql: "PRAGMA foreign_keys",
 				type: QueryLogType.SchemaIntrospection,
 				status: "success",
+				level: QueryLogLevel.Info,
 				startTime: DateTime.toDate(DateTime.add(now, { seconds: 2 })),
 			});
 
 			const logs = yield* queryLogger.get();
 
-			expect(logs).toHaveLength(3);
-			expect(logs.map((l) => l.type)).toEqual([
+			expect(logs.rows).toHaveLength(3);
+			expect(logs.rows.map((l) => l.type)).toEqual([
 				QueryLogType.TableRows,
 				QueryLogType.TableCount,
 				QueryLogType.SchemaIntrospection,
@@ -286,6 +300,7 @@ interface TestDbSchema {
 		sql: ColumnType<string, string, never>;
 		params: ColumnType<string | null, string | null, never>;
 		type: ColumnType<string, string, never>;
+		level: ColumnType<string, string, never>;
 		schema: ColumnType<string | null, string | null, never>;
 		table: ColumnType<string | null, string | null, never>;
 		status: ColumnType<string, string, never>;
@@ -295,6 +310,7 @@ interface TestDbSchema {
 		rows_returned: ColumnType<number | null, number | null, never>;
 		rows_affected: ColumnType<number | null, number | null, never>;
 		error: ColumnType<string | null, string | null, never>;
+		meta: ColumnType<string | null, string | null, never>;
 		created_at: ColumnType<Date, string, never>;
 	};
 }
@@ -312,6 +328,7 @@ const InMemoryDatabaseLayer = Layer.effect(
 				.addColumn("sql", "text", (col) => col.notNull())
 				.addColumn("params", "text")
 				.addColumn("type", "text", (col) => col.notNull())
+				.addColumn("level", "text", (col) => col.notNull())
 				.addColumn("schema", "text")
 				.addColumn("table", "text")
 				.addColumn("status", "text", (col) => col.notNull())
@@ -321,6 +338,7 @@ const InMemoryDatabaseLayer = Layer.effect(
 				.addColumn("rows_returned", "integer")
 				.addColumn("rows_affected", "integer")
 				.addColumn("error", "text")
+				.addColumn("meta", "text")
 				.addColumn("created_at", "date", (col) => col.notNull())
 				.execute();
 		},
@@ -342,7 +360,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				const queryLogger = yield* QueryLogger;
 				const logs = yield* queryLogger.get();
 
-				expect(logs).toEqual([]);
+				expect(logs.rows).toEqual([]);
 			}).pipe(
 				Effect.provide(TestLayer),
 				Logger.withMinimumLogLevel(LogLevel.All),
@@ -360,6 +378,7 @@ describe("QueryLoggerPersistentLayer", () => {
 					const id1 = yield* queryLogger.push({
 						sql: "SELECT * FROM users",
 						type: QueryLogType.TableRows,
+						level: QueryLogLevel.Info,
 						status: "success",
 						startTime: DateTime.toDate(now),
 						endTime: DateTime.toDate(DateTime.add(now, { seconds: 1 })),
@@ -370,6 +389,7 @@ describe("QueryLoggerPersistentLayer", () => {
 						sql: "SELECT COUNT(*) FROM users",
 						type: QueryLogType.TableCount,
 						status: "success",
+						level: QueryLogLevel.Info,
 						startTime: DateTime.toDate(DateTime.add(now, { seconds: 2 })),
 						endTime: DateTime.toDate(DateTime.add(now, { seconds: 3 })),
 						timeTaken: 50,
@@ -378,11 +398,12 @@ describe("QueryLoggerPersistentLayer", () => {
 					// Retrieve logs
 					const logs = yield* queryLogger.get();
 
-					expect(logs).toEqual(
+					expect(logs.rows).toEqual(
 						expect.arrayContaining([
 							expect.objectContaining({
 								sql: "SELECT * FROM users",
 								type: QueryLogType.TableRows,
+								level: QueryLogLevel.Info,
 							}),
 							expect.objectContaining({
 								sql: "SELECT COUNT(*) FROM users",
@@ -406,13 +427,14 @@ describe("QueryLoggerPersistentLayer", () => {
 				yield* queryLogger.push({
 					sql: "SELECT * FROM users",
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					status: "success",
 					startTime: DateTime.toDate(now),
 				});
 
 				const logsForConnection = yield* queryLogger.get();
 
-				expect(logsForConnection).toHaveLength(1);
+				expect(logsForConnection.rows).toHaveLength(1);
 			}).pipe(
 				Effect.provide(TestLayer),
 				Logger.withMinimumLogLevel(LogLevel.All),
@@ -430,6 +452,7 @@ describe("QueryLoggerPersistentLayer", () => {
 					sql: "SELECT * FROM users WHERE id = ?",
 					params: [1],
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					schema: "public",
 					table: "users",
 					status: "success",
@@ -442,12 +465,13 @@ describe("QueryLoggerPersistentLayer", () => {
 				// Verify it was persisted
 				const logs = yield* queryLogger.get();
 
-				expect(logs).toEqual(
+				expect(logs.rows).toEqual(
 					expect.arrayContaining([
 						expect.objectContaining({
 							sql: "SELECT * FROM users WHERE id = ?",
 							params: [1],
 							type: QueryLogType.TableRows,
+							level: QueryLogLevel.Info,
 							schema: "public",
 							table: "users",
 							status: "success",
@@ -469,6 +493,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				const id1 = yield* queryLogger.push({
 					sql: "SELECT 1",
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					status: "success",
 					startTime: DateTime.toDate(now),
 				});
@@ -476,6 +501,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				const id2 = yield* queryLogger.push({
 					sql: "SELECT 2",
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					status: "success",
 					startTime: DateTime.toDate(DateTime.add(now, { seconds: 1 })),
 				});
@@ -495,13 +521,14 @@ describe("QueryLoggerPersistentLayer", () => {
 				yield* queryLogger.push({
 					sql: "SELECT * FROM users",
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					status: "pending",
 					startTime: DateTime.toDate(now),
 				});
 
 				const logs = yield* queryLogger.get();
 
-				expect(logs).toContainEqual(
+				expect(logs.rows).toContainEqual(
 					expect.objectContaining({
 						sql: "SELECT * FROM users",
 						status: "pending",
@@ -526,6 +553,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				const entryId = yield* queryLogger.push({
 					sql: "SELECT * FROM users",
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					status: "pending",
 					startTime: DateTime.toDate(now),
 				});
@@ -540,7 +568,7 @@ describe("QueryLoggerPersistentLayer", () => {
 
 				const logs = yield* queryLogger.get();
 
-				expect(logs).toContainEqual(
+				expect(logs.rows).toContainEqual(
 					expect.objectContaining({
 						sql: "SELECT * FROM users",
 						status: "success",
@@ -563,6 +591,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				const entryId = yield* queryLogger.push({
 					sql: "SELECT * FROM users",
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					status: "pending",
 					startTime: DateTime.toDate(now),
 				});
@@ -582,7 +611,7 @@ describe("QueryLoggerPersistentLayer", () => {
 
 				const logs = yield* queryLogger.get();
 
-				expect(logs).toContainEqual(
+				expect(logs.rows).toContainEqual(
 					expect.objectContaining({
 						status: "error",
 						error: {
@@ -607,6 +636,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				const id1 = yield* queryLogger.push({
 					sql: "SELECT 1",
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					status: "success",
 					startTime: DateTime.toDate(now),
 				});
@@ -614,6 +644,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				const id2 = yield* queryLogger.push({
 					sql: "SELECT 2",
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					status: "success",
 					startTime: DateTime.toDate(DateTime.add(now, { seconds: 1 })),
 				});
@@ -623,7 +654,7 @@ describe("QueryLoggerPersistentLayer", () => {
 
 				const logs = yield* queryLogger.get();
 
-				expect(logs).toEqual(
+				expect(logs.rows).toEqual(
 					expect.arrayContaining([
 						expect.objectContaining({
 							sql: "SELECT 2",
@@ -645,7 +676,7 @@ describe("QueryLoggerPersistentLayer", () => {
 
 				const logs = yield* queryLogger.get();
 
-				expect(logs).toEqual([]);
+				expect(logs.rows).toEqual([]);
 			}).pipe(
 				Effect.provide(TestLayer),
 				Logger.withMinimumLogLevel(LogLevel.All),
@@ -663,6 +694,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				yield* queryLogger.push({
 					sql: "SELECT 1",
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					status: "success",
 					startTime: DateTime.toDate(now),
 				});
@@ -670,6 +702,7 @@ describe("QueryLoggerPersistentLayer", () => {
 				yield* queryLogger.push({
 					sql: "SELECT 2",
 					type: QueryLogType.TableRows,
+					level: QueryLogLevel.Info,
 					status: "success",
 					startTime: DateTime.toDate(DateTime.add(now, { seconds: 1 })),
 				});
@@ -679,7 +712,7 @@ describe("QueryLoggerPersistentLayer", () => {
 
 				const logs = yield* queryLogger.get();
 
-				expect(logs).toEqual([]);
+				expect(logs.rows).toEqual([]);
 			}).pipe(
 				Effect.provide(TestLayer),
 				Logger.withMinimumLogLevel(LogLevel.All),

@@ -1,6 +1,6 @@
 import type {
 	FilterConditionExpression,
-	LogicalOperator,
+	LogicalOperatorType,
 	QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
 import { filterQueryValidConditions } from "#src/components/query-builder/query-filter.ts";
@@ -46,7 +46,7 @@ export const useQueryBuilder = (
 		});
 	};
 
-	const setLogicalOperator = (operator: LogicalOperator) => {
+	const setLogicalOperator = (operator: LogicalOperatorType) => {
 		setFilter({
 			...filter,
 			logicalOperator: operator,

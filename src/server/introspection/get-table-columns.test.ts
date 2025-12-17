@@ -1,41 +1,22 @@
-import { PgLiteClient } from "@dadabase/effect-pglite";
-import { SqlClient } from "@effect/sql";
-import { LibsqlClient } from "@effect/sql-libsql";
-import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
 import {
 	getTableColumns,
 	getTableForeignKeys,
 	getTableIndexes,
 } from "#src/server/introspection/introspection.ts";
-
-// PgLite layer for introspection tests
-const pgliteLayer = PgLiteClient.layer({
-	dataDir: "memory://",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-// LibSQL layer for SQLite tests
-const libsqlLayer = LibsqlClient.layer({
-	url: ":memory:",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-interface TestConfig {
-	defaultSchema: string;
-	isPostgres: boolean;
-}
-
-const postgresConfig: TestConfig = {
-	defaultSchema: "public",
-	isPostgres: true,
-};
-
-const sqliteConfig: TestConfig = {
-	defaultSchema: "main",
-	isPostgres: false,
-};
+import { SqlClient } from "@effect/sql";
+import { describe, expect, it } from "@effect/vitest";
+import { Effect, Layer } from "effect";
+import {
+	libsqlLayer,
+	makeTestLayer,
+	pgliteLayer,
+	postgresConfig,
+	sqliteConfig,
+	type DatabaseTestConfig,
+} from "./test.layer.ts";
 
 // Helper to set up test schema
-const createSetupSchema = (config: TestConfig) =>
+const createSetupSchema = (config: DatabaseTestConfig) =>
 	Effect.gen(function* () {
 		const client = yield* SqlClient.SqlClient;
 
@@ -127,8 +108,10 @@ PRIMARY KEY (post_id, tag_id)
 	});
 
 const testSuite =
-	(layer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) => () => {
+	(layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTestConfig) =>
+	() => {
 		const setupSchema = createSetupSchema(config);
+		const testLayer = makeTestLayer(layer);
 
 		it.effect("retrieves all columns from a simple table", () =>
 			Effect.gen(function* () {
@@ -142,7 +125,7 @@ const testSuite =
 				expect(columns).toHaveLength(3);
 				const columnNames = columns.map((c) => c.name).sort();
 				expect(columnNames).toEqual(["email", "id", "name"]);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("correctly identifies nullable columns", () =>
@@ -159,7 +142,7 @@ const testSuite =
 
 				const titleColumn = columns.find((c) => c.name === "title");
 				expect(titleColumn?.nullable).toBe(false);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("correctly identifies data types", () =>
@@ -183,7 +166,7 @@ const testSuite =
 				} else {
 					expect(publishedColumn?.dataType).toContain("integer");
 				}
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("returns empty array for non-existent table", () =>
@@ -194,7 +177,7 @@ const testSuite =
 				});
 
 				expect(result).toEqual([]);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("retrieves columns with nullable defaults", () =>
@@ -209,7 +192,7 @@ const testSuite =
 				const bioColumn = columns.find((c) => c.name === "bio");
 				expect(bioColumn?.nullable).toBe(true);
 				expect(bioColumn?.defaultValue).toBeNull();
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("retrieves columns with timestamp defaults", () =>
@@ -225,7 +208,7 @@ const testSuite =
 				expect(createdAtColumn?.nullable).toBe(false);
 				expect(createdAtColumn?.defaultValue).toBeDefined();
 				expect(createdAtColumn?.dataType).toContain("timestamp");
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("preserves column order from table definition", () =>
@@ -246,7 +229,7 @@ const testSuite =
 					"content",
 					"published",
 				]);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("does not return duplicate columns", () =>
@@ -262,7 +245,7 @@ const testSuite =
 				const columnNames = columns.map((c) => c.name);
 				const uniqueColumnNames = new Set(columnNames);
 				expect(columnNames.length).toBe(uniqueColumnNames.size);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("includes default values when present", () =>
@@ -277,7 +260,7 @@ const testSuite =
 				const publishedColumn = columns.find((c) => c.name === "published");
 				// The default value should contain '0'
 				expect(publishedColumn?.defaultValue).toBeDefined();
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("handles tables with multiple columns", () =>
@@ -292,7 +275,7 @@ const testSuite =
 				expect(columns.length).toBe(2);
 				const columnNames = columns.map((c) => c.name).sort();
 				expect(columnNames).toEqual(["post_id", "tag_id"]);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect(
@@ -333,13 +316,15 @@ const testSuite =
 					const hasUnique = userIdIndexes.some((idx) => idx.is_unique);
 					expect(hasPrimary).toBe(true);
 					expect(hasUnique).toBe(true);
-				}).pipe(Effect.provide(layer)),
+				}).pipe(Effect.provide(testLayer)),
 		);
 	};
 
 const tableColumnsTestSuite =
-	(layer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) => () => {
+	(layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTestConfig) =>
+	() => {
 		const setupSchema = createSetupSchema(config);
+		const testLayer = makeTestLayer(layer);
 
 		it.effect(
 			"correctly identifies primary key columns via getTableIndexes",
@@ -357,7 +342,7 @@ const tableColumnsTestSuite =
 					expect(pkIndex).toBeDefined();
 					// For SQLite, the primary key might be reported differently, so just check that we have one
 					expect(["id", "email"]).toContain(pkIndex?.column_name);
-				}).pipe(Effect.provide(layer)),
+				}).pipe(Effect.provide(testLayer)),
 		);
 		it.effect("correctly identifies unique columns via getTableIndexes", () =>
 			Effect.gen(function* () {
@@ -382,7 +367,7 @@ const tableColumnsTestSuite =
 						indexes.some((idx) => idx.is_unique && idx.column_name === "email"),
 					).toBe(true);
 				}
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("handles one-to-one relationships (unique FK)", () =>
@@ -407,7 +392,7 @@ const tableColumnsTestSuite =
 					(idx) => idx.is_primary && idx.column_name === "user_id",
 				);
 				expect(pkIndex).toBeDefined();
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("handles composite primary keys via getTableIndexes", () =>
@@ -422,13 +407,15 @@ const tableColumnsTestSuite =
 				// Find primary key indexes - there should be entries for both columns
 				const pkIndexes = indexes.filter((idx) => idx.is_primary);
 				expect(pkIndexes.length).toBeGreaterThanOrEqual(1);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 	};
 
 const tableIndexesTestSuite =
-	(layer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) => () => {
+	(layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTestConfig) =>
+	() => {
 		const setupSchema = createSetupSchema(config);
+		const testLayer = makeTestLayer(layer);
 
 		it.effect("correctly returns constraint names for foreign keys", () =>
 			Effect.gen(function* () {
@@ -448,7 +435,7 @@ const tableIndexesTestSuite =
 					expect(userIdFK?.constraint_name).toMatch(/^fk_\d+$/);
 					expect(userIdFK?.column_name).toBe("user_id");
 				}
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("retrieves foreign key information via getTableForeignKeys", () =>
@@ -465,7 +452,7 @@ const tableIndexesTestSuite =
 				expect(userIdFK?.referenced_table_name).toBe("users");
 				expect(userIdFK?.referenced_column_name).toBe("id");
 				expect(userIdFK?.referenced_table_schema).toBe(config.defaultSchema);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("returns empty foreign keys for tables without FKs", () =>
@@ -479,7 +466,7 @@ const tableIndexesTestSuite =
 
 				// users table has no foreign keys
 				expect(foreignKeys.length).toBe(0);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("handles tables with multiple foreign keys", () =>
@@ -498,7 +485,7 @@ const tableIndexesTestSuite =
 				const tagIdFK = foreignKeys.find((fk) => fk.column_name === "tag_id");
 				expect(tagIdFK).toBeDefined();
 				expect(tagIdFK?.referenced_table_name).toBe("tags");
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 	};
 

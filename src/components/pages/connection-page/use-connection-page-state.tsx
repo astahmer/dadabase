@@ -27,6 +27,7 @@ import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
+import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
 
 interface UseConnectionPageStateProps {
 	connection: {
@@ -58,6 +59,7 @@ export const useConnectionPageState = ({
 			columnPinning: s.columnPinning,
 			columnOrder: s.columnOrder,
 			relationshipRowId: s.relationshipRowId,
+			joins: s.joins,
 		};
 	});
 
@@ -93,7 +95,7 @@ export const useConnectionPageState = ({
 		},
 	);
 
-	// Fetch rows data
+	const joins = Array.from(search.joins ?? []);
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
 			url: activeConnectionUrl,
@@ -107,6 +109,7 @@ export const useConnectionPageState = ({
 				conditions: [],
 				logicalOperator: "and",
 			},
+			joins: joins,
 		}),
 		enabled: !!search.schema && !!search.table,
 	});
@@ -121,6 +124,7 @@ export const useConnectionPageState = ({
 	// Format row data
 	const queryResponse = rowsQuery.data || {
 		rows: [],
+		columns: [],
 		rowCount: 0,
 		timeTaken: 0,
 		ranAt: 0,
@@ -324,6 +328,7 @@ export const useConnectionPageState = ({
 		columnMetadata: tableMetadata.columnMetadata,
 		schema: search.schema || "",
 		table: search.table || "",
+		joins: joins,
 		activeConnectionUrl,
 		enableSorting: true,
 		onFollowFK: rowActions.onFollowFK,
@@ -441,12 +446,34 @@ export const useConnectionPageState = ({
 		if (!state.left.some((col) => col === "__select")) {
 			state.left.unshift(
 				// ...(staticColumns.map((col) => col.id).filter(Boolean) as string[]),
-				"__rowIndex",
+				// "__rowIndex",
 				"__select",
 			);
 		}
 		return state;
 	}, [search.columnPinning]);
+
+	const columnQueries = useJoinedTables({
+		url: activeConnectionUrl,
+		joins: joins,
+	});
+	const columnNameList = joins?.length
+		? tableMetadata.columnList
+				.map((col) => `${search.table}.${col}`)
+				.concat(
+					joins?.length
+						? joins.flatMap((join, joinIndex) =>
+								join.columns === "all"
+									? (columnQueries[joinIndex].data ?? []).map(
+											(col) => `${join.alias || join.table}.${col.name}`,
+										)
+									: join.columns.map(
+											(col) => `${join.alias || join.table}.${col}`,
+										),
+							)
+						: [],
+				)
+		: tableMetadata.columnList;
 
 	// Column order state
 	const columnOrderState = useMemo(() => {
@@ -457,9 +484,9 @@ export const useConnectionPageState = ({
 
 		return staticColumns
 			.map((col) => col.id)
-			.concat(tableMetadata.columnList)
+			.concat(columnNameList)
 			.filter(Boolean) as string[];
-	}, [search.columnOrder, staticColumns, tableMetadata.columnList]);
+	}, [search.columnOrder, staticColumns, columnNameList]);
 
 	const hasUuid = tableMetadata.columnMetadata.some((col) =>
 		col.dataType.includes("uuid"),
@@ -469,8 +496,13 @@ export const useConnectionPageState = ({
 		hasUuid,
 	});
 
-	// Data table setup
+	const primaryCols = tableMetadata.columnMetadata
+		.filter((col) => col.primaryKey)
+		.map((col) => col.name);
 	const rowsDataTable = useDataTable({
+		getRowId: primaryCols.length
+			? (row) => primaryCols.map((col) => row[col]).join("-")
+			: undefined,
 		data: formattedTableRowsData,
 		columns: rowsColumns,
 		state: {
@@ -491,8 +523,8 @@ export const useConnectionPageState = ({
 		onRowSelectionChange: setRowSelection,
 		rowCount: totalRowCount,
 		defaultColumn: {
-			size: defaultColumnSize,
 			minSize: 100,
+			size: defaultColumnSize,
 			maxSize: 1000,
 		},
 		onSortingChange: (updater) => {
@@ -572,12 +604,13 @@ export const useConnectionPageState = ({
 		queryBuilder,
 		rowsQuery,
 		columnMetadata: tableMetadata.columnMetadata,
-		columnList: tableMetadata.columnList,
+		columnNameList: columnNameList,
 		isColumnMetadataLoading: tableMetadata.isLoading,
 		queryResponse,
 		totalRowCount,
 		rowsDataTable,
 		rowsColumns,
+		joins,
 		hasUuid,
 		relationshipRowId: search.relationshipRowId,
 		relationships,

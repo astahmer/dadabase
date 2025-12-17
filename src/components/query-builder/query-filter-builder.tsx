@@ -5,6 +5,7 @@ import { useEffect, useMemo } from "react";
 import type {
 	FilterConditionExpression,
 	FilterOperatorType,
+	LogicalOperatorType,
 } from "#src/components/query-builder/query-filter.ts";
 import {
 	allOperators,
@@ -38,10 +39,12 @@ interface QueryFilterBuilderProps {
 	onRemoveCondition: (id: string) => void;
 	onAddCondition: () => void;
 	onClearAll: () => void;
-	onLogicalOperatorChange: (operator: "and" | "or") => void;
-	logicalOperator: "and" | "or";
+	onLogicalOperatorChange: (operator: LogicalOperatorType) => void;
+	logicalOperator: LogicalOperatorType;
 	availableColumns: string[];
 	isLoading?: boolean;
+	/** Optional table name/alias for display in column headers (useful for joined table filters) */
+	tableReference?: string;
 }
 
 const operatorCollection = createListCollection({
@@ -68,16 +71,17 @@ export const QueryFilterBuilder = ({
 	logicalOperator,
 	availableColumns,
 	isLoading = false,
+	tableReference,
 }: QueryFilterBuilderProps) => {
 	const columnCollection = useMemo(
 		() =>
 			createListCollection({
 				items: availableColumns.map((col) => ({
-					label: col,
+					label: tableReference ? `${tableReference}.${col}` : col,
 					value: col,
 				})),
 			}),
-		[availableColumns],
+		[availableColumns, tableReference],
 	);
 
 	if (conditions.length === 0) {
@@ -105,6 +109,7 @@ export const QueryFilterBuilder = ({
 						isFirst={index === 0}
 						isLast={index === conditions.length - 1}
 						hasMultipleConditions={conditions.length > 1}
+						tableReference={tableReference}
 					/>
 				))}
 			</Stack>
@@ -127,13 +132,14 @@ interface FilterConditionRowProps {
 	onRemove: (id: string) => void;
 	onAdd: () => void;
 	onClearAll: () => void;
-	onLogicalOperatorChange: (operator: "and" | "or") => void;
+	onLogicalOperatorChange: (operator: LogicalOperatorType) => void;
 	isLoading?: boolean;
 	isFirst: boolean;
 	hasMultipleConditions: boolean;
 	isLast: boolean;
 	showLogicalLabel?: boolean;
-	logicalOperator?: "and" | "or";
+	logicalOperator?: LogicalOperatorType;
+	tableReference?: string;
 }
 
 const FilterConditionRow = (props: FilterConditionRowProps) => {
@@ -297,7 +303,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 							positioning={{ sameWidth: true }}
 							onValueChange={(details: { value?: string[] }) => {
 								props.onLogicalOperatorChange?.(
-									(details.value?.[0] as "and" | "or") || "and",
+									(details.value?.[0] as LogicalOperatorType) || "and",
 								);
 							}}
 						>

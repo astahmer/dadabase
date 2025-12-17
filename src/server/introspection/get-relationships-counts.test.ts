@@ -1,34 +1,15 @@
-import { PgLiteClient } from "@dadabase/effect-pglite";
 import { SqlClient } from "@effect/sql";
-import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
-
-// PgLite layer for introspection tests
-const pgliteLayer = PgLiteClient.layer({
-	dataDir: "memory://",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-// LibSQL layer for SQLite tests
-const libsqlLayer = LibsqlClient.layer({
-	url: ":memory:",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-interface TestConfig {
-	defaultSchema: string;
-	isPostgres: boolean;
-}
-
-const postgresConfig: TestConfig = {
-	defaultSchema: "public",
-	isPostgres: true,
-};
-
-const sqliteConfig: TestConfig = {
-	defaultSchema: "main",
-	isPostgres: false,
-};
+import {
+	makeTestLayer,
+	pgliteLayer,
+	libsqlLayer,
+	postgresConfig,
+	sqliteConfig,
+	type DatabaseTestConfig,
+} from "./test.layer.ts";
 
 // Type for relationship input matching introspection module
 interface TableRelationship {
@@ -141,7 +122,9 @@ const insertTestData = Effect.gen(function* () {
 });
 
 const testSuite =
-	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) => () => {
+	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTestConfig) =>
+	() => {
+		const testLayer = makeTestLayer(sqlLayer);
 		it.effect(
 			"counts rows for incoming relationship (activity_rooms -> apps)",
 			() =>
@@ -173,7 +156,7 @@ const testSuite =
 
 					// app-1 has 3 activity_rooms
 					expect(counts["activity_rooms_app_id_fkey"]).toBe(3);
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect(
@@ -207,7 +190,7 @@ const testSuite =
 
 					// room-1 has 3 comments
 					expect(counts["comments_room_id_fkey"]).toBe(3);
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("counts multiple relationships at once", () =>
@@ -250,7 +233,7 @@ const testSuite =
 				// room-1 has 2 activity_logs and 3 comments
 				expect(counts["activity_logs_room_id_fkey"]).toBe(2);
 				expect(counts["comments_room_id_fkey"]).toBe(3);
-			}).pipe(Effect.provide(sqlLayer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect(
@@ -286,7 +269,7 @@ const testSuite =
 
 					// Count activity_rooms WHERE app_id = "app-1" (which includes room-1, room-2, room-3 = 3)
 					expect(counts["activity_rooms_app_id_fkey"]).toBe(3);
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("ignores relationships when filter value is null", () =>
@@ -317,7 +300,7 @@ const testSuite =
 
 				// Null relationships are not included in the result
 				expect(counts["activity_logs_room_id_fkey"]).toBeUndefined();
-			}).pipe(Effect.provide(sqlLayer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("returns zero count for rows with no related records", () =>
@@ -349,7 +332,7 @@ const testSuite =
 				});
 
 				expect(counts["activity_logs_room_id_fkey"]).toBe(0);
-			}).pipe(Effect.provide(sqlLayer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("returns empty object for empty relationships array", () =>
@@ -365,7 +348,7 @@ const testSuite =
 				});
 
 				expect(counts).toEqual({});
-			}).pipe(Effect.provide(sqlLayer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("counts relationships with numeric FK values correctly", () =>
@@ -397,7 +380,7 @@ const testSuite =
 				});
 
 				expect(counts["comments_user_id_fkey"]).toBe(2);
-			}).pipe(Effect.provide(sqlLayer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("correctly handles nullable foreign key columns", () =>
@@ -429,7 +412,7 @@ const testSuite =
 
 				// app-1 has 2 users (user-1 and user-2, user-4 has null app_id)
 				expect(counts["users_app_id_fkey"]).toBe(2);
-			}).pipe(Effect.provide(sqlLayer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("returns object keyed by constraint name", () =>
@@ -476,7 +459,7 @@ const testSuite =
 				]);
 				expect(typeof counts["activity_logs_room_id_fkey"]).toBe("number");
 				expect(typeof counts["comments_room_id_fkey"]).toBe("number");
-			}).pipe(Effect.provide(sqlLayer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 	};
 

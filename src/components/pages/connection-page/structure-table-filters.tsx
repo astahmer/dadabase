@@ -3,8 +3,8 @@ import { Portal } from "@ark-ui/react/portal";
 import { ChevronsUpDown, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../../ui/button";
-import { HStack } from "../../ui/layout.tsx";
 import { Input } from "../../ui/input";
+import { HStack } from "../../ui/layout.tsx";
 import type { StructureFilters } from "./use-structure-filter-state.ts";
 import {
 	hasActiveStructureFilters,

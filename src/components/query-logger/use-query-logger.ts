@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { getQueryHistoryQueryOptions } from "#src/server/introspection/start-fns/get-query-history.start.ts";
-import type { QueryLogFilters } from "#src/server/query-logger/query-logger.types.ts";
+import {
+	QueryLogLevel,
+	type QueryLogFilters,
+} from "#src/server/query-logger/query-logger.types.ts";
 import { clearQueryHistoryQueryOptions } from "#src/server/query-logger/start-fns/clear-query-history.start.ts";
 
 interface UseQueryLoggerProps {
@@ -10,9 +13,11 @@ interface UseQueryLoggerProps {
 
 export const useQueryLogger = ({ connectionUrl }: UseQueryLoggerProps) => {
 	const [isOpen, setIsOpen] = useState(false);
-	const [filters, setFilters] = useState<QueryLogFilters | undefined>();
+	const [filters, setFilters] = useState<QueryLogFilters | undefined>({
+		level: QueryLogLevel.Info,
+	});
 
-	const { data: history = [] } = useQuery(
+	const historyQuery = useQuery(
 		getQueryHistoryQueryOptions({ url: connectionUrl, filters }),
 	);
 
@@ -21,12 +26,15 @@ export const useQueryLogger = ({ connectionUrl }: UseQueryLoggerProps) => {
 	);
 
 	return {
-		history,
+		history: historyQuery.data?.logs ?? [],
+		counts: historyQuery.data?.counts ?? { success: 0, pending: 0, error: 0 },
 		isOpen,
 		toggleOpen: () => {
 			setIsOpen((prev) => !prev);
 		},
-		clearHistory: () => clearMutation.refetch(),
+		clearHistory: () => {
+			clearMutation.refetch().then(() => historyQuery.refetch());
+		},
 		filters,
 		setFilters,
 		isClearing: clearMutation.isLoading,

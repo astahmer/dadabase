@@ -165,7 +165,10 @@ export const make = <TExtensions extends Extensions = Extensions>(
 						},
 						(cause) => {
 							resume(
-								new SqlError({ cause, message: "Failed to execute statement" }),
+								new SqlError({
+									cause,
+									message: `Failed to execute statement: ${cause.message}`,
+								}),
 							);
 						},
 					);

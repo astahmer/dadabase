@@ -71,7 +71,7 @@ export const HomePage = () => {
 			},
 			{
 				id: "_connect",
-				size: 200,
+				size: 280,
 				cell: (ctx) => {
 					const testPgConnectionUrl = useServerFn(tryConnectionServerFn);
 					const [state, setState] = useState("idle");
@@ -164,7 +164,7 @@ export const HomePage = () => {
 			{
 				accessorKey: "url",
 				header: "URL",
-				size: 40,
+				size: 80,
 				cell: (ctx) => (
 					<Clipboard.Root value={ctx.row.original.url}>
 						<Tooltip content={ctx.row.original.url}>
@@ -182,7 +182,7 @@ export const HomePage = () => {
 			{
 				accessorKey: "actions",
 				header: "Actions",
-				size: 40,
+				size: 80,
 				cell: (ctx) => {
 					const deleteMutation = useMutation(deleteDbConnectionMutation);
 					return (

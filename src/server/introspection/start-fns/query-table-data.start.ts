@@ -1,6 +1,10 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
+import type {
+	JoinedTable,
+	JoinTablesConfig,
+} from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import {
 	filterQueryValidConditions,
 	QueryFilter,
@@ -8,6 +12,53 @@ import {
 } from "#src/components/query-builder/query-filter.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
+
+const StandardJoinConditionSchema = Schema.Struct({
+	mode: Schema.Literal("standard"),
+	referencingColumn: Schema.String,
+	referencedColumn: Schema.String,
+}).pipe(Schema.mutable);
+
+const CustomJoinConditionSchema = Schema.Struct({
+	mode: Schema.Literal("custom"),
+	referencingColumn: Schema.String.pipe(Schema.optional),
+	referencedColumn: Schema.String.pipe(Schema.optional),
+	conditions: Schema.Array(Schema.String).pipe(Schema.mutable),
+}).pipe(Schema.mutable);
+
+const FilterJoinConditionSchema = Schema.Struct({
+	mode: Schema.Literal("filters"),
+	referencingColumn: Schema.String.pipe(Schema.optional),
+	referencedColumn: Schema.String.pipe(Schema.optional),
+	filters: QueryFilter.pipe(Schema.optional),
+}).pipe(Schema.mutable);
+
+const JoinConditionSchema = Schema.Union(
+	StandardJoinConditionSchema,
+	CustomJoinConditionSchema,
+	FilterJoinConditionSchema,
+);
+
+export const JoinedTableSchema = Schema.Struct({
+	table: Schema.String,
+	schema: Schema.String,
+	joinFrom: Schema.Struct({
+		schema: Schema.String,
+		table: Schema.String,
+	}).pipe(Schema.optional),
+	alias: Schema.String.pipe(Schema.optional),
+	type: Schema.Literal("left", "inner"),
+	columns: Schema.Union(
+		Schema.Literal("all"),
+		Schema.Array(Schema.String).pipe(Schema.mutable),
+	).pipe(Schema.mutable),
+	joinCondition: JoinConditionSchema,
+	filters: QueryFilter.pipe(Schema.optional),
+}).pipe(Schema.mutable);
+
+type JoinedTableType = typeof JoinedTableSchema.Type;
+const _lint = {} as JoinedTableType satisfies JoinedTable;
+_lint;
 
 const InputSchema = Schema.Struct({
 	url: Schema.String,
@@ -21,6 +72,7 @@ const InputSchema = Schema.Struct({
 	limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
 	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
 	filters: QueryFilter.pipe(Schema.optional),
+	joins: Schema.Array(JoinedTableSchema).pipe(Schema.optional),
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
 	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
@@ -45,12 +97,14 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 						conditions: [],
 						logicalOperator: "and",
 					},
+					joins: Array.from(input.joins ?? []),
 				});
 
 				const endTime = Date.now();
 				return {
-					rows: output.rows as any[],
+					rows: output.rows.map((row) => Object.values(row as any)) as any[],
 					rowCount: output.rowCount,
+					columns: output.columnList,
 					timeTaken: endTime - startTime,
 					ranAt: startTime,
 				};
@@ -67,6 +121,7 @@ export type QueryTableDataInput = {
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
 	filters?: QueryFilterType;
+	joins?: JoinTablesConfig["joins"];
 };
 
 export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
@@ -75,5 +130,16 @@ export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
 		queryKey: ["remote", "rows", input],
 		queryFn: async () => queryTableDataServerFn({ data: input }),
 		meta: { loggable: true },
+		placeholderData: keepPreviousData,
+		select: (data) => ({
+			...data,
+			rows: data.rows.map((row) => {
+				const record: Record<string, unknown> = {};
+				data.columns.forEach((col, colIndex) => {
+					record[col] = row[colIndex];
+				});
+				return record;
+			}),
+		}),
 	});
 };

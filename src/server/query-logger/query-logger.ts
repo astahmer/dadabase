@@ -4,10 +4,21 @@ import type {
 	QueryLogFilters,
 } from "./query-logger.types.ts";
 
+export interface QueryLogCounts {
+	success: number;
+	pending: number;
+	error: number;
+}
+
 export interface QueryLoggerInterface {
-	get: (
-		filters?: QueryLogFilters,
-	) => Effect.Effect<QueryLogEntryType[], never, never>;
+	get: (filters?: QueryLogFilters) => Effect.Effect<
+		{
+			rows: QueryLogEntryType[];
+			counts: QueryLogCounts;
+		},
+		never,
+		never
+	>;
 	push: (
 		entry: Omit<QueryLogEntryType, "id">,
 	) => Effect.Effect<string, never, never>;

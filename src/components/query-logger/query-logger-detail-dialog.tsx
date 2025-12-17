@@ -1,4 +1,5 @@
-import { Check, Copy } from "lucide-react";
+import { JsonTreeView } from "@ark-ui/react";
+import { Check, ChevronRightIcon, Copy } from "lucide-react";
 import { useState } from "react";
 import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import {
@@ -16,7 +17,11 @@ import {
 } from "../ui/dialog.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
-import { QueryLogTypeBadge } from "./query-log-type-badge.tsx";
+import {
+	QueryLogLevelBadge,
+	QueryLogTypeBadge,
+} from "./query-log-type-badge.tsx";
+import { JsonViewer } from "../ui/json-viewer.tsx";
 
 interface QueryLoggerDetailDialogProps {
 	entry: QueryLogEntryType | null;
@@ -181,7 +186,13 @@ export const QueryLoggerDetailDialog = ({
 										Type
 									</p>
 									<QueryLogTypeBadge type={entry.type} size="sm" />
-								</div>{" "}
+								</div>
+								<div>
+									<p className="text-xs font-medium text-muted-foreground mb-1">
+										Level
+									</p>
+									<QueryLogLevelBadge level={entry.level} size="sm" />
+								</div>
 								{entry.schema && (
 									<div>
 										<p className="text-xs font-medium text-muted-foreground mb-1">
@@ -239,6 +250,20 @@ export const QueryLoggerDetailDialog = ({
 									</div>
 								)}
 							</div>
+							{entry.meta && (
+								// <JsonTreeView.Root
+								// 	data={entry.meta}
+								// 	defaultExpandedDepth={5}
+								// 	className="h-full"
+								// >
+								// 	<JsonTreeView.Tree arrow={<ChevronRightIcon />} />
+								// </JsonTreeView.Root>
+								<JsonViewer
+									data={entry.meta}
+									defaultExpanded
+									className="h-full"
+								/>
+							)}
 						</TabsContent>
 
 						{entry.error && (

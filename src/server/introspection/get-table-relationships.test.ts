@@ -4,34 +4,17 @@ import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { getTableRelationships } from "#src/server/introspection/introspection.ts";
-
-interface TestConfig {
-	defaultSchema: string;
-	isPostgres: boolean;
-}
-
-const postgresConfig: TestConfig = {
-	defaultSchema: "public",
-	isPostgres: true,
-};
-
-const sqliteConfig: TestConfig = {
-	defaultSchema: "main",
-	isPostgres: false,
-};
-
-// PgLite layer for introspection tests
-const pgliteLayer = PgLiteClient.layer({
-	dataDir: "memory://",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-// LibSQL layer for SQLite introspection tests
-const libsqlLayer = LibsqlClient.layer({
-	url: ":memory:",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
+import {
+	libsqlLayer,
+	makeTestLayer,
+	pgliteLayer,
+	postgresConfig,
+	sqliteConfig,
+	type DatabaseTestConfig,
+} from "./test.layer.ts";
 
 // Setup schema for PgLite/SqlClient tests
-const createSetupSchema = (config: TestConfig) =>
+const createSetupSchema = (config: DatabaseTestConfig) =>
 	Effect.gen(function* () {
 		const client = yield* SqlClient.SqlClient;
 
@@ -146,32 +129,31 @@ const createSetupSchema = (config: TestConfig) =>
 
 const testSuite = (
 	layer: Layer.Layer<SqlClient.SqlClient>,
-	config: TestConfig,
+	config: DatabaseTestConfig,
 ) => {
 	const setupSchema = createSetupSchema(config);
+	const testLayer = makeTestLayer(layer);
 
-	return [
-		it.effect(
-			"returns relationships for tables referenced in junction tables",
-			() =>
-				Effect.gen(function* () {
-					yield* setupSchema;
+	it.effect(
+		"returns relationships for tables referenced in junction tables",
+		() =>
+			Effect.gen(function* () {
+				yield* setupSchema;
 
-					// tags is referenced by post_tags junction table
-					const relationships = yield* getTableRelationships({
-						schema: config.defaultSchema,
-						table: "tags",
-					});
+				// tags is referenced by post_tags junction table
+				const relationships = yield* getTableRelationships({
+					schema: config.defaultSchema,
+					table: "tags",
+				});
 
-					// Should have incoming relationship from post_tags
-					expect(relationships.length).toBeGreaterThan(0);
-					const incomingFromJunction = relationships.find(
-						(r) => r.type === "incoming" && r.referencingTable === "post_tags",
-					);
-					expect(incomingFromJunction).toBeDefined();
-				}).pipe(Effect.provide(layer)),
-		),
-
+				// Should have incoming relationship from post_tags
+				expect(relationships.length).toBeGreaterThan(0);
+				const incomingFromJunction = relationships.find(
+					(r) => r.type === "incoming" && r.referencingTable === "post_tags",
+				);
+				expect(incomingFromJunction).toBeDefined();
+			}).pipe(Effect.provide(testLayer)),
+	),
 		it.effect("retrieves outgoing and incoming relationships for posts", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -192,9 +174,8 @@ const testSuite = (
 
 				const incoming = relationships.filter((r) => r.type === "incoming");
 				expect(incoming.length).toBe(2);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect(
 			"retrieves only incoming relationships for table being referenced",
 			() =>
@@ -218,9 +199,8 @@ const testSuite = (
 						expect(rel.referencedTable).toBe("users");
 						expect(rel.referencedColumn).toBe("id");
 					});
-				}).pipe(Effect.provide(layer)),
+				}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("retrieves both incoming and outgoing relationships", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -236,9 +216,8 @@ const testSuite = (
 
 				expect(outgoing.length).toBeGreaterThan(0);
 				expect(incoming.length).toBeGreaterThan(0);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect(
 			"includes correct schema information for outgoing relationships",
 			() =>
@@ -256,9 +235,8 @@ const testSuite = (
 					expect(outgoing?.referencingTable).toBe("posts");
 					expect(outgoing?.referencedSchema).toBe(config.defaultSchema);
 					expect(outgoing?.referencedTable).toBe("users");
-				}).pipe(Effect.provide(layer)),
+				}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect(
 			"includes correct schema information for incoming relationships",
 			() =>
@@ -276,9 +254,8 @@ const testSuite = (
 						expect(rel.referencedTable).toBe("users");
 						expect(rel.referencingSchema).toBe(config.defaultSchema);
 					});
-				}).pipe(Effect.provide(layer)),
+				}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("includes constraint names for all relationships", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -292,9 +269,8 @@ const testSuite = (
 					expect(rel.constraintName).toBeDefined();
 					expect(rel.constraintName.length).toBeGreaterThan(0);
 				});
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("handles table with multiple outgoing FKs", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -313,9 +289,8 @@ const testSuite = (
 
 				const userFk = outgoing.find((r) => r.referencingColumn === "user_id");
 				expect(userFk?.referencedTable).toBe("users");
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("handles one-to-one relationships", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -330,9 +305,8 @@ const testSuite = (
 				expect(relationships[0].type).toBe("outgoing");
 				expect(relationships[0].referencingColumn).toBe("user_id");
 				expect(relationships[0].referencedTable).toBe("users");
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect(
 			"handles many-to-many relationships through junction tables",
 			() =>
@@ -355,9 +329,8 @@ const testSuite = (
 
 					const tagFk = outgoing.find((r) => r.referencingColumn === "tag_id");
 					expect(tagFk?.referencedTable).toBe("tags");
-				}).pipe(Effect.provide(layer)),
+				}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("identifies junction table relationships correctly", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -385,9 +358,8 @@ const testSuite = (
 				);
 				expect(incomingFromJunctionToTags).toBeDefined();
 				expect(incomingFromJunctionToTags?.referencingColumn).toBe("tag_id");
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("orders results consistently", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -413,9 +385,8 @@ const testSuite = (
 						}
 					}
 				}
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("returns empty array for non-existent table", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -426,9 +397,8 @@ const testSuite = (
 				});
 
 				expect(relationships).toEqual([]);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("specifies correct relationship types", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -449,9 +419,8 @@ const testSuite = (
 						expect(rel.referencedTable).toBe("posts");
 					}
 				});
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("correctly identifies foreign key columns vs primary keys", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -470,9 +439,8 @@ const testSuite = (
 				incoming.forEach((rel) => {
 					expect(rel.referencedColumn).toBe("id");
 				});
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("retrieves only outgoing relationships for user_profiles", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -487,9 +455,8 @@ const testSuite = (
 				expect(relationships[0].type).toBe("outgoing");
 				expect(relationships[0].referencingColumn).toBe("user_id");
 				expect(relationships[0].referencedTable).toBe("users");
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("retrieves only incoming relationships for users", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -505,9 +472,8 @@ const testSuite = (
 
 				const incoming = relationships.filter((r) => r.type === "incoming");
 				expect(incoming.length).toBe(3); // user_profiles, posts, comments
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
-
 		it.effect("returns empty array for table with no relationships", () =>
 			Effect.gen(function* () {
 				yield* setupSchema;
@@ -536,19 +502,11 @@ const testSuite = (
 				});
 
 				expect(relationships).toEqual([]);
-			}).pipe(Effect.provide(layer)),
-		),
-	];
+			}).pipe(Effect.provide(testLayer)),
+		);
 };
 
-describe("getTableRelationships (pglite)", () => {
-	testSuite(pgliteLayer, postgresConfig).forEach((test) => {
-		test;
-	});
-});
-
-describe("getTableRelationships (libsql)", () => {
-	testSuite(libsqlLayer, sqliteConfig).forEach((test) => {
-		test;
-	});
-});
+describe("getTableRelationships (pglite)", () =>
+	testSuite(pgliteLayer, postgresConfig));
+describe("getTableRelationships (libsql)", () =>
+	testSuite(libsqlLayer, sqliteConfig));

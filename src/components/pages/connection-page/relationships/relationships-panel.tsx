@@ -295,7 +295,7 @@ export const RelationshipsPanel = ({
 										<div className="space-y-0">
 											{rels.map((rel) => (
 												<RelationshipListItem
-													key={rel.constraintName}
+													key={`${rel.constraintName}.${rel.referencingColumn}.${rel.referencedColumn}.${rel.referencingTable}.${rel.referencedTable}`}
 													rel={rel}
 													rowCount={Number(counts[rel.constraintName]) ?? 0}
 													isCountLoading={countsQuery.isLoading}
@@ -638,7 +638,7 @@ const RelationshipListItem = ({
 								? "bg-primary text-primary-foreground"
 								: "bg-muted hover:bg-muted/80 text-muted-foreground"
 						}`}
-						title="Show the record pointed to by the FK"
+						title={`Show the record pointed to by the FK (e.g ${rel.referencedTable} with the column ${rel.referencedColumn} matching the value found for the selected ${rel.referencingTable} ${rel.referencingColumn} column)`}
 					>
 						Related Data
 					</button>
@@ -652,7 +652,7 @@ const RelationshipListItem = ({
 								? "bg-primary text-primary-foreground"
 								: "bg-muted hover:bg-muted/80 text-muted-foreground"
 						}`}
-						title="Show rows with matching FK column value"
+						title={`Show rows with matching FK column value (e.g other ${rel.referencingTable} with the same value on the column ${rel.referencingColumn} as the selected row)`}
 					>
 						Reverse Lookup
 					</button>

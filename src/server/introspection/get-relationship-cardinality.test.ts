@@ -1,34 +1,15 @@
-import { PgLiteClient } from "@dadabase/effect-pglite";
+import { getRelationshipCardinality } from "#src/server/introspection/introspection.ts";
 import { SqlClient } from "@effect/sql";
-import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
-import { getRelationshipCardinality } from "#src/server/introspection/introspection.ts";
-
-// PgLite layer for introspection tests
-const pgliteLayer = PgLiteClient.layer({
-	dataDir: "memory://",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-// LibSQL layer for SQLite tests
-const libsqlLayer = LibsqlClient.layer({
-	url: ":memory:",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-interface TestConfig {
-	defaultSchema: string;
-	isPostgres: boolean;
-}
-
-const postgresConfig: TestConfig = {
-	defaultSchema: "public",
-	isPostgres: true,
-};
-
-const sqliteConfig: TestConfig = {
-	defaultSchema: "main",
-	isPostgres: false,
-};
+import {
+	libsqlLayer,
+	makeTestLayer,
+	pgliteLayer,
+	postgresConfig,
+	sqliteConfig,
+	type DatabaseTestConfig,
+} from "./test.layer.ts";
 
 // Setup schema for PgLite/SqlClient tests
 const setupTables = Effect.gen(function* () {
@@ -106,7 +87,9 @@ const setupTables = Effect.gen(function* () {
 });
 
 const testSuite =
-	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) => () => {
+	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTestConfig) =>
+	() => {
+		const testLayer = makeTestLayer(sqlLayer);
 		it.effect("detects one-to-one cardinality (user_profiles -> users)", () =>
 			Effect.gen(function* () {
 				yield* setupTables;
@@ -125,7 +108,7 @@ const testSuite =
 					// This is expected behavior and "many-to-one" is a safe fallback.
 					expect(cardinality).toBe("many-to-one");
 				}
-			}).pipe(Effect.provide(sqlLayer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("detects one-to-many cardinality (posts -> authors)", () =>
@@ -139,7 +122,7 @@ const testSuite =
 				});
 
 				expect(cardinality).toBe("many-to-one");
-			}).pipe(Effect.provide(sqlLayer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect("detects many-to-one cardinality (videos -> channels)", () =>
@@ -153,7 +136,7 @@ const testSuite =
 				});
 
 				expect(cardinality).toBe("many-to-one");
-			}).pipe(Effect.provide(sqlLayer)),
+			}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect(
@@ -179,7 +162,7 @@ const testSuite =
 
 					// This is many-to-one from the perspective of "many student_courses refer to one student"
 					expect(cardinality).toBe("many-to-one");
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 		);
 
 		it.effect(
@@ -198,7 +181,7 @@ const testSuite =
 					});
 
 					expect(cardinality).toBe("one-to-many");
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 		);
 	};
 

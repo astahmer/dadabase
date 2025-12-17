@@ -4,18 +4,21 @@ import { useCallback } from "react";
 export interface StructureFilters {
 	search: string;
 	nullable: boolean;
-	primaryKey: boolean;
+	primaryKey?: boolean;
 	unique: boolean;
-	foreignKey: boolean;
-	hasDefaults: boolean;
+	foreignKey?: boolean;
+	hasDefaults?: boolean;
 }
 
 export const useStructureFilters = () => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const structureFilters = useSearch({
 		from: "/connections/$connectionName",
-		select: (s) => s.structureFilters ?? getDefaultStructureFilters(),
+		select: (s) => s.structureFilters,
 	});
+
+	// Provide default filters if undefined
+	const filters = structureFilters ?? getDefaultStructureFilters();
 
 	const updateStructureFilters = useCallback(
 		(updates: Partial<StructureFilters>) => {
@@ -23,7 +26,7 @@ export const useStructureFilters = () => {
 				search: (prev) => ({
 					...prev,
 					structureFilters: {
-						...structureFilters,
+						...(structureFilters ?? getDefaultStructureFilters()),
 						...updates,
 					},
 				}),
@@ -42,7 +45,7 @@ export const useStructureFilters = () => {
 	}, [navigate]);
 
 	return {
-		filters: structureFilters,
+		filters,
 		updateFilters: updateStructureFilters,
 		clearFilters: clearStructureFilters,
 	};
@@ -63,9 +66,9 @@ export const hasActiveStructureFilters = (
 	return (
 		filters.search.length > 0 ||
 		filters.nullable ||
-		filters.primaryKey ||
+		Boolean(filters.primaryKey) ||
 		filters.unique ||
-		filters.foreignKey ||
-		filters.hasDefaults
+		Boolean(filters.foreignKey) ||
+		Boolean(filters.hasDefaults)
 	);
 };

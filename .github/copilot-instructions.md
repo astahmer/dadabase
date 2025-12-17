@@ -29,104 +29,19 @@ Database operations use Effect.ts for dependency injection, error handling, and 
 - **Effect Generators**: Use `Effect.gen(function* () { ... })` for sequencing operations
 - **Context Tags**: Define database access via `Context.Tag` (see `src/db/app.db.ts` using `AppDatabase` tag)
 
-Example query pattern:
-```typescript
-// Effect.fn wraps a generator that yields dependencies and operations
-export const queryTableData = <T>(input: { schema: string; table: string; ... }) =>
-  Effect.gen(function* () {
-    const db = yield* KyselyPgDatabase; // Inject database service
-    // ... build and execute query
-    return { rows, rowCount };
-  });
-```
-
-### Kysely with Effect Wrapper
-
-Database queries use **Kysely** (type-safe SQL builder) wrapped in Effect. The `EffectKysely<DB>` interface (in `src/db/effect-kysely.ts`) provides Effect-wrapped query methods:
-
-- `execute(query)` - Execute and return all rows
-- `executeTakeFirstOrUndefined(query)` - Single row or undefined
-- `executeTakeFirstOrError(query)` - Single row or error
-- `transaction()` - Wrap mutations in DB transactions
-
-All queries are typed against `AppDatabaseSchema` defined in `src/db/app.db.schema.ts`.
-
-### Query Filter Model
-
-Structured filter representation for building WHERE clauses (`src/lib/query-filter.ts`):
-
-```typescript
-type QueryFilterType = {
-  conditions: Array<{
-    column: string;
-    operator: "equals" | "contains" | "greater_than" | ... // 14 operators
-    value?: string | number | boolean | null | string[];
-  }>;
-  logicalOperator: "and" | "or";
-};
-```
-
-Converted to SQL via `buildWhereExpression()` in `src/server/pg/fns/build-where-expression.ts`.
-
-### Natural Language Parsing
-
-Separate rule-based parser (`src/lib/natural-language-parser.ts`) converts user text to structured filters without LLMs. Supports:
-- Comparison: `age > 25`, `price <= 100`
-- Ranges: `between 10 and 30`
-- Lists: `status in (active, pending)`
-- Sorting: `sort by name desc`
-- Fuzzy column matching: `nam contains john` → matches "name" column
-
-Returns `ParsedNLQuery` with filters, sort, and limit.
-
-### React Component Composition
-
-Components use **TanStack React Table v8** for headless table logic. Key patterns:
-
-- **useReactTable()** hook creates table instance with columns, data, features (pagination, sorting, filtering, column visibility)
-- **DataTable component** renders virtualized rows using `@dnd-kit` for drag-and-drop column reordering
-- **CVA (Class Variance Authority)** for styled variants (see `data-table.styles.ts`)
-- **Hooks for state**: `use-query-builder.ts`, `use-table-relationships.ts`, `use-rows-columns.tsx`
-
-Key component hierarchy:
-```
-DataTable
-├── ColumnHeaderContextMenu
-├── DraggableColumnHeader (with dnd-kit)
-├── VirtualizedTableBody (with react-virtual)
-├── QueryFilterBuilder
-└── RelationshipsPanel
-```
-
----
 
 ## Developer Workflows
 
-### Build & Dev
 ```bash
-pnpm dev                 # Start dev server (port 3005)
-pnpm build              # Build for production
-pnpm test               # Run Vitest in watch mode
-pnpm test:run           # Run tests once
-```
+pnpm test --run           # Run tests once
 
-### Database & Migrations
-```bash
 pnpm db:reset           # Recreate schema from scratch
 pnpm db push            # Apply schema changes
 pnpm studio             # Open Drizzle Studio
+
 pnpm migrate:gen        # Generate migration files
-```
+pnpm typecheck          # TypeScript check
 
-### Code Quality
-```bash
-pnpm fmt                # Format with Biome (tabs)
-pnpm check              # Lint and check with Biome
-pnpm typecheck          # TypeScript check (ESM mode)
-```
-
-### Docker
-```bash
 pnpm docker:build       # Build image
 pnpm docker:run         # Run container (port 3006)
 ```
@@ -281,7 +196,8 @@ components/pages/connection-page/
 - **Framework**: Vitest
 - **Config**: `vitest.config.ts` (passWithNoTests, hideSkippedTests)
 - **Test patterns**: Natural language parser tests in `src/lib/natural-language-parser.test.ts`
-- **Run**: `pnpm test` (watch) or `pnpm test:run` (once)
+- **Run**: `pnpm test` (watch) or `pnpm test --run` (once)
+- Never use vague assertions like `toBeGreaterThanOrEqual(2)`; always be specific like `toBe(3)`
 
 ---
 
@@ -324,6 +240,8 @@ components/pages/connection-page/
 - **Effect errors not caught**: Wrap in `Effect.catchAll()` or use `Effect.either()` to capture errors
 - **Table not rendering**: Check TanStack Table columns array matches data shape; verify virtualization settings if large
 - **Relationship panel empty**: Verify foreign keys exist in schema; check `get-table-foreign-keys.ts` query
+- When debugging a test file: Use `pnpm test --run` so it doesnt run it watch mode
+- When debugging a single test: use `it.only` to run only that test (faster iterations)
 
 ---
 

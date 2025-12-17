@@ -393,7 +393,7 @@ export const RelationshipSubrowTable = ({
 							/>
 							{!rowsQuery.isLoading && !tableMetadata.isLoading && (
 								<ScrollToColumnButton
-									columnList={tableMetadata.columnList}
+									table={table}
 									containerRef={{ current: tableContainer }}
 								/>
 							)}

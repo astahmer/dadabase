@@ -20,15 +20,18 @@ export const getQueryLogs = (
 		// Apply type filter
 		if (filters?.type) {
 			const types = Array.isArray(filters.type) ? filters.type : [filters.type];
-			query = query.where("type", "in", types);
+			if (types.length > 0) {
+				query = query.where("type", "in", types);
+			}
 		}
 
-		// Apply status filter
-		if (filters?.status) {
-			const statuses = Array.isArray(filters.status)
-				? filters.status
-				: [filters.status];
-			query = query.where("status", "in", statuses);
+		if (filters?.level) {
+			const levels = Array.isArray(filters.level)
+				? filters.level
+				: [filters.level];
+			if (levels.length > 0) {
+				query = query.where("level", "in", levels);
+			}
 		}
 
 		// Apply schema filter
@@ -41,29 +44,73 @@ export const getQueryLogs = (
 			query = query.where("table", "=", filters.table);
 		}
 
-		const rows = yield* db.execute(
-			query.orderBy("created_at", "desc").limit(limit),
-		);
-		return rows
-			.map(
-				(row) =>
-					({
-						id: row.id,
-						sql: row.sql,
-						params: row.params ? JSON.parse(row.params) : undefined,
-						type: row.type,
-						schema: row.schema ?? undefined,
-						table: row.table ?? undefined,
-						status: row.status as "pending" | "success" | "error",
-						startTime: new Date(row.start_time),
-						endTime: row.end_time ? new Date(row.end_time) : undefined,
-						timeTaken: row.time_taken ?? undefined,
-						rowsReturned: row.rows_returned ?? undefined,
-						rowsAffected: row.rows_affected ?? undefined,
-						error: row.error ? JSON.parse(row.error) : undefined,
-					}) as QueryLogEntryType,
-			)
-			.reverse(); // Reverse to get chronological order (oldest first)
+		const countQuery = query
+			.clearSelect()
+			.select((eb) => [
+				eb.fn
+					.countAll()
+					.filterWhere("status", "=", "pending")
+					.over()
+					.$castTo<number>()
+					.as("pending_count"),
+				eb.fn
+					.countAll()
+					.filterWhere("status", "=", "success")
+					.over()
+					.$castTo<number>()
+					.as("success_count"),
+				eb.fn
+					.countAll()
+					.filterWhere("status", "=", "error")
+					.over()
+					.$castTo<number>()
+					.as("error_count"),
+			]);
+
+		// Apply status filter
+		if (filters?.status) {
+			const statuses = Array.isArray(filters.status)
+				? filters.status
+				: [filters.status];
+			query = query.where("status", "in", statuses);
+		}
+
+		// console.log(query.compile());
+		const [rows, counts] = yield* Effect.all([
+			db.execute(query.orderBy("created_at", "desc").limit(limit)),
+			db.executeTakeFirstOrUndefined(countQuery),
+		]);
+
+		return {
+			rows: rows
+				.map(
+					(row) =>
+						({
+							id: row.id,
+							sql: row.sql,
+							params: row.params ? JSON.parse(row.params) : undefined,
+							type: row.type,
+							schema: row.schema ?? undefined,
+							table: row.table ?? undefined,
+							status: row.status as "pending" | "success" | "error",
+							level: Number(row.level),
+							startTime: new Date(row.start_time),
+							endTime: row.end_time ? new Date(row.end_time) : undefined,
+							timeTaken: row.time_taken ?? undefined,
+							rowsReturned: row.rows_returned ?? undefined,
+							rowsAffected: row.rows_affected ?? undefined,
+							error: row.error ? JSON.parse(row.error) : undefined,
+							meta: row.meta ? JSON.parse(row.meta) : undefined,
+						}) as QueryLogEntryType,
+				)
+				// Reverse to get chronological order (oldest first),
+				.reverse(),
+			counts: {
+				pending: counts?.pending_count ?? 0,
+				success: counts?.success_count ?? 0,
+				error: counts?.error_count ?? 0,
+			},
+		};
 	});
 
 /**
@@ -111,6 +158,7 @@ export const persistQueryLog = (
 				type: entry.type,
 				schema: entry.schema ?? null,
 				table: entry.table ?? null,
+				level: entry.level,
 				status: entry.status,
 				start_time: entry.startTime.getTime(),
 				end_time: entry.endTime ? entry.endTime.getTime() : null,
@@ -119,6 +167,7 @@ export const persistQueryLog = (
 				rows_affected: entry.rowsAffected ?? null,
 				error: entry.error ? JSON.stringify(entry.error) : null,
 				created_at: Date.now(),
+				meta: entry.meta ? JSON.stringify(entry.meta) : null,
 			}),
 		);
 		// Cleanup old logs to keep only the last 1000
@@ -142,6 +191,7 @@ export const updatePersistedQueryLog = (
 					rows_returned: updates.rowsReturned ?? undefined,
 					rows_affected: updates.rowsAffected ?? undefined,
 					error: updates.error ? JSON.stringify(updates.error) : undefined,
+					meta: updates.meta ? JSON.stringify(updates.meta) : undefined,
 				})
 				.where("id", "=", id),
 		);

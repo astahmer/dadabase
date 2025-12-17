@@ -1,7 +1,7 @@
 import { cva } from "class-variance-authority";
 
 export const dialogContentVariants = cva(
-	"data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 -translate-x-1/2 -translate-y-1/2 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100%-2rem)] w-full max-w-[calc(100%-2rem)] gap-4 overflow-hidden rounded-xl border bg-background p-6 shadow-lg data-[state=closed]:animate-out data-[state=open]:animate-in isolate",
+	"data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 -translate-x-1/2 -translate-y-1/2 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-1/2 left-1/2 z-150 grid max-h-[calc(100%-2rem)] w-full max-w-[calc(100%-2rem)] gap-4 overflow-hidden rounded-xl border bg-background p-6 shadow-lg data-[state=closed]:animate-out data-[state=open]:animate-in isolate",
 	{
 		variants: {
 			size: {
@@ -25,5 +25,5 @@ export const dialogContentVariants = cva(
 );
 
 export const dialogBackdropVariants = cva(
-	"data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-40 bg-black/80 data-[state=closed]:animate-out data-[state=open]:animate-in",
+	"data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-140 bg-black/80 data-[state=closed]:animate-out data-[state=open]:animate-in",
 );

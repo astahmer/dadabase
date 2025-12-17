@@ -1,5 +1,6 @@
 import {
 	useVirtualizer,
+	type Virtualizer,
 	type VirtualizerOptions,
 } from "@tanstack/react-virtual";
 import { ReactNode, useRef } from "react";
@@ -13,6 +14,7 @@ interface VirtualizerAreaProps {
 	>;
 	/** Render function that receives virtual items and rendering context */
 	children: (context: {
+		virtualizer: Virtualizer<HTMLDivElement, HTMLDivElement>;
 		virtualItems: ReturnType<
 			ReturnType<typeof useVirtualizer>["getVirtualItems"]
 		>;
@@ -82,6 +84,7 @@ export const VirtualizerArea = ({
 			style={{ minHeight: 0 }}
 		>
 			{children({
+				virtualizer,
 				virtualItems,
 				totalSize,
 				paddingTop,

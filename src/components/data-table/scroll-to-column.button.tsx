@@ -1,17 +1,18 @@
 import { createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
+import type { Table as TanstackTable } from "@tanstack/react-table";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import * as ListboxMenu from "../ui/listbox-menu";
 
 interface ScrollToColumnButtonProps {
-	columnList: string[];
+	table: TanstackTable<any>;
 	containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
-	const { columnList, containerRef } = props;
+	const { table, containerRef } = props;
 
 	const [isOpen, setIsOpen] = useState(false);
 	const [isOverflowing, setIsOverflowing] = useState(false);
@@ -43,34 +44,63 @@ export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
 		};
 	}, [containerRef]);
 
+	const visibleNonPinnedColumnIds = table
+		.getVisibleLeafColumns()
+		.filter((c) => !c.getIsPinned())
+		.map((c) => c.id);
+
 	const columnCollection = createListCollection({
-		items: columnList.map((colName) => ({
-			label: colName,
-			value: colName,
+		items: visibleNonPinnedColumnIds.map((colId) => ({
+			label: colId,
+			value: colId,
 		})),
 	});
-	const filteredColumns = columnList.filter((colName) =>
-		contains(colName, filterValue),
+	const filteredColumns = visibleNonPinnedColumnIds.filter((colId) =>
+		contains(colId, filterValue),
 	);
 
 	const handleColumnSelect = (columnName: string) => {
-		// Just scroll to the column - the parent component handles visibility
-		setTimeout(() => {
-			if (containerRef.current) {
-				const tableEl = containerRef.current.querySelector("table");
-				if (tableEl) {
-					const columnHeader = tableEl.querySelector(
-						`th[data-column-id="${columnName}"]`,
-					);
-					if (columnHeader) {
-						const scrollLeft =
-							(columnHeader as HTMLElement).offsetLeft -
-							containerRef.current!.clientWidth / 2;
-						containerRef.current!.scrollLeft = Math.max(0, scrollLeft);
-					}
-				}
-			}
-		}, 0);
+		const container = containerRef.current;
+		if (!container) return;
+
+		const allLeafColumnsInOrder = table.getVisibleLeafColumns();
+		const targetIndex = allLeafColumnsInOrder.findIndex(
+			(c) => c.id === columnName,
+		);
+		if (targetIndex === -1) return;
+
+		const leftPinnedWidth = allLeafColumnsInOrder
+			.filter((c) => c.getIsPinned() === "left")
+			.reduce((acc, c) => acc + c.getSize(), 0);
+		const rightPinnedWidth = allLeafColumnsInOrder
+			.filter((c) => c.getIsPinned() === "right")
+			.reduce((acc, c) => acc + c.getSize(), 0);
+
+		const targetStart = allLeafColumnsInOrder
+			.slice(0, targetIndex)
+			.reduce((acc, c) => acc + c.getSize(), 0);
+		const targetSize = allLeafColumnsInOrder[targetIndex]?.getSize() ?? 0;
+		const targetEnd = targetStart + targetSize;
+
+		const currentScrollLeft = container.scrollLeft;
+		const viewportStart = currentScrollLeft + leftPinnedWidth;
+		const viewportEnd =
+			currentScrollLeft + container.clientWidth - rightPinnedWidth;
+
+		let nextScrollLeft = currentScrollLeft;
+		if (targetStart < viewportStart) {
+			nextScrollLeft = targetStart - leftPinnedWidth;
+		} else if (targetEnd > viewportEnd) {
+			nextScrollLeft = targetEnd - (container.clientWidth - rightPinnedWidth);
+		}
+
+		const maxScrollLeft = Math.max(
+			0,
+			container.scrollWidth - container.clientWidth,
+		);
+		nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, nextScrollLeft));
+
+		container.scrollTo({ left: nextScrollLeft, behavior: "auto" });
 	};
 
 	if (!isOverflowing) {
@@ -86,7 +116,7 @@ export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
 				<Button
 					variant="outline"
 					size="sm"
-					className="absolute right-2 top-12 -translate-y-1/2 z-1 h-9 w-9 p-0 flex items-center justify-center"
+					className="absolute right-2 top-12 -translate-y-1/2 z-10 h-9 w-9 p-0 flex items-center justify-center"
 				>
 					<ChevronRight className="h-4 w-4" />
 				</Button>
@@ -104,7 +134,7 @@ export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
 				>
 					<ListboxMenu.ListboxMenuFilterContainer>
 						<ListboxMenu.ListboxMenuFilterInput
-							placeholder="Filter columns..."
+							placeholder="Search columns to scroll to..."
 							value={filterValue}
 							onChange={(e) => setFilterValue(e.currentTarget.value)}
 						/>

@@ -4,7 +4,7 @@ import { type VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import * as React from "react";
 
-import { cn } from "#src/lib/utils";
+import { cn } from "#src/lib/utils.ts";
 import type { ExposedComponentProps } from "./component-props.ts";
 import { selectVariants } from "./select.styles";
 
@@ -65,7 +65,9 @@ const SelectControl = ({
 	className,
 	size,
 	...props
-}: SelectPrimitive.ControlProps & VariantProps<typeof selectVariants>) => (
+}: SelectPrimitive.ControlBaseProps &
+	VariantProps<typeof selectVariants> &
+	ExposedComponentProps<"div">) => (
 	<SelectPrimitive.Control
 		className={cn(selectVariants({ size }), className)}
 		{...props}
@@ -73,7 +75,7 @@ const SelectControl = ({
 );
 SelectControl.displayName = "SelectControl";
 
-const SelectIndicator = (props: SelectPrimitive.IndicatorProps) => (
+const SelectIndicator = (props: SelectPrimitive.IndicatorBaseProps) => (
 	<SelectPrimitive.Indicator {...props}>
 		<ChevronDownIcon className="size-4 shrink-0 in-aria-invalid:text-destructive/80 text-muted-foreground/80" />
 	</SelectPrimitive.Indicator>
@@ -84,7 +86,7 @@ const SelectItem = ({
 	className,
 	children,
 	...props
-}: SelectPrimitive.ItemProps) => (
+}: SelectPrimitive.ItemBaseProps & ExposedComponentProps<"div">) => (
 	<SelectPrimitive.Item
 		className={cn(
 			"relative flex w-full cursor-default select-none items-center rounded py-1.5 ps-8 pe-2 text-sm outline-hidden data-[disabled]:pointer-events-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[disabled]:opacity-50",
@@ -109,7 +111,7 @@ const SelectItemGroup = SelectPrimitive.ItemGroup;
 const SelectItemGroupLabel = ({
 	className,
 	...props
-}: SelectPrimitive.ItemGroupLabelProps) => (
+}: SelectPrimitive.ItemGroupLabelBaseProps & ExposedComponentProps<"div">) => (
 	<SelectPrimitive.ItemGroupLabel
 		className={cn(
 			"py-1.5 ps-8 pe-2 font-medium text-muted-foreground text-xs",
@@ -122,7 +124,10 @@ SelectItemGroupLabel.displayName = "SelectItemGroupLabel";
 
 const SelectItemText = SelectPrimitive.ItemText;
 
-const SelectLabel = ({ className, ...props }: SelectPrimitive.LabelProps) => (
+const SelectLabel = ({
+	className,
+	...props
+}: SelectPrimitive.LabelBaseProps & ExposedComponentProps<"label">) => (
 	<SelectPrimitive.Label
 		className={cn(
 			"select-none font-medium text-foreground text-sm leading-4 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
@@ -133,7 +138,10 @@ const SelectLabel = ({ className, ...props }: SelectPrimitive.LabelProps) => (
 );
 SelectLabel.displayName = "SelectLabel";
 
-const SelectList = ({ className, ...props }: SelectPrimitive.ListProps) => (
+const SelectList = ({
+	className,
+	...props
+}: SelectPrimitive.ListBaseProps & ExposedComponentProps<"div">) => (
 	<SelectPrimitive.List
 		className={cn(
 			"max-h-[min(24rem,var(--available-height))] overflow-y-auto",
@@ -161,7 +169,7 @@ SelectSeparator.displayName = "SelectSeparator";
 const SelectTrigger = ({
 	className,
 	...props
-}: SelectPrimitive.TriggerProps) => (
+}: SelectPrimitive.TriggerBaseProps & ExposedComponentProps<"button">) => (
 	<SelectPrimitive.Trigger
 		className={cn(
 			"flex flex-1 items-center justify-between gap-1 bg-transparent px-3 py-2 outline-none outline-hidden placeholder:text-muted-foreground/70 has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50 data-[placeholder-shown]:text-muted-foreground",
@@ -173,9 +181,11 @@ const SelectTrigger = ({
 SelectTrigger.displayName = "SelectTrigger";
 
 const SelectValueText = SelectPrimitive.ValueText;
+const SelectRoot = SelectComponent;
 
 export {
 	Select,
+	SelectRoot,
 	SelectClearTrigger,
 	SelectContent,
 	SelectContext,

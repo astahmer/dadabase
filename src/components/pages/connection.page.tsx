@@ -1,11 +1,11 @@
-import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
-import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
-import { cn, tryFn } from "#src/lib/utils.ts";
-import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { Splitter } from "@ark-ui/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
+import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
+import { cn, tryFn } from "#src/lib/utils.ts";
+import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
@@ -20,6 +20,8 @@ import {
 	SheetTitle,
 } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
+import { ConnectionForm } from "./connection.form.tsx";
+import type { DbConnection } from "./connection.types";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
@@ -34,8 +36,6 @@ import { RelationshipsPanel } from "./connection-page/relationships/relationship
 import { RowsTableErrorState } from "./connection-page/rows-table-error-state.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
-import { ConnectionForm } from "./connection.form.tsx";
-import type { DbConnection } from "./connection.types";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -60,6 +60,11 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	return <ConnectionPageInner connection={connection} />;
 };
 
+const panels = {
+	sidebar: "sidebar",
+	mainContent: "main-content",
+};
+
 const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
@@ -67,38 +72,25 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		null,
 	);
 
-	const search = useActiveTabState((s) => {
+	const search = useActiveTabState((tab, search) => {
 		return {
-			schema: s.schema,
-			table: s.table,
-			filtersOpened: s.filtersOpened,
-			viewMode: s.viewMode,
-			tableSize: s.tableSize,
-			limit: s.limit,
+			schema: tab.schema,
+			table: tab.table,
+			filtersOpened: tab.filtersOpened,
+			viewMode: tab.viewMode,
+			tableSize: tab.tableSize,
+			limit: tab.limit,
+			sidebarSize: search.sidebarSize,
 		};
 	});
 
 	const { filters: structureFilters } = useStructureFilters();
 
 	const pageState = useConnectionPageState({ connection });
-	const {
-		activeConnectionUrl,
-		queryBuilder,
-		rowsQuery,
-		columnMetadata,
-		columnList,
-		isColumnMetadataLoading,
-		queryResponse,
-		totalRowCount,
-		rowsDataTable,
-		rowsColumns,
-		hasUuid,
-		relationshipRowId,
-	} = pageState;
 
 	const relationshipPanelSize = fromPixelToPercentage(50);
 	const windowWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
-	const minSize = fromPixelToPercentage(224, windowWidth);
+	const sidebarMinSize = fromPixelToPercentage(224, windowWidth);
 
 	return (
 		<div className="h-screen bg-background flex flex-col">
@@ -106,31 +98,59 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			<div className="flex-1 flex h-full min-h-0 flex-col">
 				<Splitter.Root
 					orientation="horizontal"
-					defaultSize={[minSize, 100 - minSize]}
+					defaultSize={[
+						search.sidebarSize ?? sidebarMinSize,
+						100 - sidebarMinSize,
+					]}
 					panels={[
 						{
-							id: "sidebar",
+							id: panels.sidebar,
 							collapsible: true,
-							minSize: minSize,
+							minSize: sidebarMinSize,
 							maxSize: fromPixelToPercentage(400, windowWidth),
 						},
 						{
-							id: "main-content",
+							id: panels.mainContent,
 							collapsible: false,
 						},
 					]}
+					onResizeEnd={(details) => {
+						void navigate({
+							from: "/connections/$connectionName",
+							to: ".",
+							search: (prev) => ({ ...prev, sidebarSize: details.size[0] }),
+						});
+					}}
+					onExpand={(details) => {
+						if (details.panelId === panels.sidebar) {
+							void navigate({
+								from: "/connections/$connectionName",
+								to: ".",
+								search: (prev) => ({ ...prev, sidebarSize: details.size }),
+							});
+						}
+					}}
+					onCollapse={(details) => {
+						if (details.panelId === panels.sidebar) {
+							void navigate({
+								from: "/connections/$connectionName",
+								to: ".",
+								search: (prev) => ({ ...prev, sidebarSize: details.size }),
+							});
+						}
+					}}
 					// className="h-full flex flex-col min-h-0 w-full"
 					className="flex-1 flex h-full min-h-0"
 				>
 					{/* Sidebar Panel */}
 					<Splitter.Panel
-						id="sidebar"
+						id={panels.sidebar}
 						className="bg-muted/30 border-r h-full flex flex-col overflow-hidden shrink-0"
 					>
 						{/* Sidebar */}
 						<ConnectionPageSidebar
 							connection={connection}
-							activeConnectionUrl={activeConnectionUrl}
+							activeConnectionUrl={pageState.activeConnectionUrl}
 							onAddConnection={() => setShowAddConnectionDrawer(true)}
 						/>
 					</Splitter.Panel>
@@ -139,18 +159,18 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 					<Splitter.Context>
 						{(ctx) => (
 							<Splitter.ResizeTrigger
-								id="sidebar:main-content"
+								id={`${panels.sidebar}:${panels.mainContent}`}
 								className={cn(
-									tryFn(() => ctx.isPanelCollapsed("sidebar"))
+									tryFn(() => ctx.isPanelCollapsed(panels.sidebar))
 										? "w-3"
 										: "w-1.5",
 									"h-full bg-border hover:bg-primary/50 cursor-row-resize transition-colors",
 								)}
 								title="Drag to resize, double-click to toggle"
 								onDoubleClick={() => {
-									ctx.isPanelExpanded("sidebar")
-										? ctx.collapsePanel("sidebar")
-										: ctx.expandPanel("sidebar");
+									ctx.isPanelExpanded(panels.sidebar)
+										? ctx.collapsePanel(panels.sidebar)
+										: ctx.expandPanel(panels.sidebar);
 								}}
 							/>
 						)}
@@ -158,21 +178,37 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 					{/* Main Content Panel */}
 					<Splitter.Panel
-						id="main-content"
+						id={panels.mainContent}
 						className="h-full min-h-0 flex-1 flex flex-col overflow-hidden"
 					>
 						{/* Tabs */}
 						<Splitter.Context>
 							{(ctx) => (
 								<ConnectionPageTabs
-									activeConnectionUrl={activeConnectionUrl}
+									activeConnectionUrl={pageState.activeConnectionUrl}
 									dialect={connection.dialect}
 									onToggleSidebar={() => {
-										ctx.isPanelExpanded("sidebar")
-											? ctx.collapsePanel("sidebar")
-											: ctx.expandPanel("sidebar");
+										if (ctx.isPanelExpanded(panels.sidebar)) {
+											ctx.collapsePanel(panels.sidebar);
+											void navigate({
+												from: "/connections/$connectionName",
+												to: ".",
+												search: (prev) => ({ ...prev, sidebarSize: 0 }),
+											});
+											return;
+										}
+
+										ctx.expandPanel(panels.sidebar);
+										void navigate({
+											from: "/connections/$connectionName",
+											to: ".",
+											search: (prev) => ({
+												...prev,
+												sidebarSize: ctx.getPanelSize(panels.sidebar),
+											}),
+										});
 									}}
-									isSidebarCollapsed={ctx.isPanelCollapsed("sidebar")}
+									isSidebarCollapsed={ctx.isPanelCollapsed(panels.sidebar)}
 								/>
 							)}
 						</Splitter.Context>
@@ -181,27 +217,37 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 							<>
 								{/* Filters */}
 								<ConnectionPageFilters
-									columnList={columnList}
-									table={rowsDataTable}
-									isLoading={rowsQuery.isLoading || isColumnMetadataLoading}
-									queryBuilder={queryBuilder}
+									columnList={pageState.columnNameList}
+									table={pageState.rowsDataTable}
+									isLoading={
+										pageState.rowsQuery.isLoading ||
+										pageState.isColumnMetadataLoading
+									}
+									queryBuilder={pageState.queryBuilder}
+									url={pageState.activeConnectionUrl}
+									schema={search.schema}
+									tableName={search.table}
 								/>
 
 								{/* Query Filter Builder */}
 								{search.viewMode === "rows" &&
-									rowsColumns.length > 0 &&
+									pageState.rowsColumns.length > 0 &&
 									search.filtersOpened && (
 										<QueryFilterBuilder
 											key={search.table}
-											conditions={queryBuilder.filter.conditions}
-											onUpdateCondition={queryBuilder.updateCondition}
-											onRemoveCondition={queryBuilder.removeCondition}
-											onLogicalOperatorChange={queryBuilder.setLogicalOperator}
-											onAddCondition={queryBuilder.addCondition}
-											onClearAll={queryBuilder.clearConditions}
-											logicalOperator={queryBuilder.filter.logicalOperator}
-											availableColumns={columnMetadata.map((col) => col.name)}
-											isLoading={rowsQuery.isLoading}
+											conditions={pageState.queryBuilder.filter.conditions}
+											onUpdateCondition={pageState.queryBuilder.updateCondition}
+											onRemoveCondition={pageState.queryBuilder.removeCondition}
+											onLogicalOperatorChange={
+												pageState.queryBuilder.setLogicalOperator
+											}
+											onAddCondition={pageState.queryBuilder.addCondition}
+											onClearAll={pageState.queryBuilder.clearConditions}
+											logicalOperator={
+												pageState.queryBuilder.filter.logicalOperator
+											}
+											availableColumns={pageState.columnNameList}
+											isLoading={pageState.rowsQuery.isLoading}
 										/>
 									)}
 
@@ -210,36 +256,38 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 									{search.viewMode === "structure" ? (
 										<div className="flex-1 overflow-auto p-2 pt-0">
 											<StructureTable
-												columnMetadata={columnMetadata}
-												isLoading={isColumnMetadataLoading}
+												columnMetadata={pageState.columnMetadata}
+												isLoading={pageState.isColumnMetadataLoading}
 												tableSize={search.tableSize}
 												filters={structureFilters}
 											/>
 										</div>
 									) : (
 										<div className="flex-1 flex flex-col h-full min-h-0 px-2">
-											{rowsQuery.isLoading ? (
+											{pageState.rowsQuery.isLoading ? (
 												<Stack className="flex-1 flex items-center justify-center">
 													<Spinner />
 													<span className="text-muted-foreground">
-														{rowsQuery.failureCount > 0 ? (
+														{pageState.rowsQuery.failureCount > 0 ? (
 															<>
-																Failed {rowsQuery.failureCount} time
-																{rowsQuery.failureCount > 1 ? "s" : ""},
-																retrying...
+																Failed {pageState.rowsQuery.failureCount} time
+																{pageState.rowsQuery.failureCount > 1
+																	? "s"
+																	: ""}
+																, retrying...
 															</>
 														) : (
 															"Loading table data..."
 														)}
 													</span>
 												</Stack>
-											) : rowsQuery.isError ? (
+											) : pageState.rowsQuery.isError ? (
 												<div className="flex-1 flex items-center justify-center p-4">
 													<Stack className="max-w-2xl w-full">
 														<ErrorBoundaryCard
-															error={rowsQuery.error}
+															error={pageState.rowsQuery.error}
 															title="Error loading table data"
-															onRetry={() => rowsQuery.refetch()}
+															onRetry={() => pageState.rowsQuery.refetch()}
 														/>
 													</Stack>
 												</div>
@@ -267,12 +315,14 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															className="flex-1 overflow-auto flex flex-col relative"
 														>
 															<DataTable
-																virtualized={search.limit > 100}
+																// virtualized={search.limit > 100}
+																enableRowVirtualization
 																enableColumnOrdering
-																table={rowsDataTable}
+																table={pageState.rowsDataTable}
 																getTableContainer={setTableContainer}
 																isLoading={
-																	rowsQuery.isLoading || isColumnMetadataLoading
+																	pageState.rowsQuery.isLoading ||
+																	pageState.isColumnMetadataLoading
 																}
 																size={search.tableSize}
 																onColumnFilterClick={(columnId) => {
@@ -296,9 +346,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																	});
 																}}
 																onExpandRowJson={(row) => {
-																	const primaryKeyColumn = columnMetadata.find(
-																		(col) => col.primaryKey,
-																	);
+																	const primaryKeyColumn =
+																		pageState.columnMetadata.find(
+																			(col) => col.primaryKey,
+																		);
 																	const rowId = primaryKeyColumn
 																		? String(row[primaryKeyColumn.name])
 																		: undefined;
@@ -311,18 +362,16 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																	});
 																}}
 															/>
-															{!rowsQuery.isLoading &&
-																!isColumnMetadataLoading && (
+															{!pageState.rowsQuery.isLoading &&
+																!pageState.isColumnMetadataLoading && (
 																	<ScrollToColumnButton
-																		columnList={columnMetadata.map(
-																			(col) => col.name,
-																		)}
+																		table={pageState.rowsDataTable}
 																		containerRef={{ current: tableContainer }}
 																	/>
 																)}
 														</Splitter.Panel>
 
-														{relationshipRowId && search.table && (
+														{pageState.relationshipRowId && search.table && (
 															<>
 																<Splitter.Context>
 																	{(ctx) => (
@@ -360,22 +409,25 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																			return (
 																				<RelationshipsPanel
 																					key={
-																						activeConnectionUrl +
+																						pageState.activeConnectionUrl +
 																						search.table +
-																						relationshipRowId
+																						pageState.relationshipRowId
 																					}
-																					connectionUrl={activeConnectionUrl}
+																					connectionUrl={
+																						pageState.activeConnectionUrl
+																					}
 																					schema={search.schema}
 																					table={search.table!}
 																					selectedRowId={
-																						relationshipRowId ?? null
+																						pageState.relationshipRowId ?? null
 																					}
 																					rowData={
-																						rowsDataTable
+																						pageState.rowsDataTable
 																							.getRowModel()
 																							.rows.find(
 																								(row) =>
-																									row.id === relationshipRowId,
+																									row.id ===
+																									pageState.relationshipRowId,
 																							)?.original ?? {}
 																					}
 																					isPanelExpanded={isPanelExpanded}
@@ -406,14 +458,14 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											{/* Status Bar */}
 											<div className="shrink-0 border-t">
 												<ConnectionPageStatusBar
-													table={rowsDataTable}
-													hasUuid={hasUuid}
-													isLoading={rowsQuery.isLoading}
-													refetch={rowsQuery.refetch}
-													timeTaken={queryResponse.timeTaken}
-													ranAt={queryResponse.ranAt}
-													totalRowCount={totalRowCount}
-													rowsColumnsCount={rowsColumns.length}
+													table={pageState.rowsDataTable}
+													hasUuid={pageState.hasUuid}
+													isLoading={pageState.rowsQuery.isLoading}
+													refetch={pageState.rowsQuery.refetch}
+													timeTaken={pageState.queryResponse.timeTaken}
+													ranAt={pageState.queryResponse.ranAt}
+													totalRowCount={pageState.totalRowCount}
+													rowsColumnsCount={pageState.rowsColumns.length - 1} // minus select column
 												/>
 											</div>
 										</div>
@@ -422,7 +474,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 							</>
 						) : (
 							<RowsTableErrorState
-								activeConnectionUrl={activeConnectionUrl}
+								activeConnectionUrl={pageState.activeConnectionUrl}
 								connection={connection}
 							/>
 						)}
@@ -430,7 +482,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 				</Splitter.Root>
 
 				{/* Query Logger Panel */}
-				<QueryLoggerPanel connectionUrl={activeConnectionUrl} />
+				<QueryLoggerPanel connectionUrl={pageState.activeConnectionUrl} />
 			</div>
 
 			{/* Add Connection Drawer */}

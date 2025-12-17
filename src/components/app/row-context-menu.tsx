@@ -29,7 +29,7 @@ export function RowContextMenu(props: RowContextMenuProps) {
 					<MenuContextTrigger asChild>{props.children}</MenuContextTrigger>
 				</Popover.Anchor>
 				<Portal>
-					<MenuContent className="z-1" data-row-context-menu>
+					<MenuContent className="z-100" data-row-context-menu>
 						<RowActionsMenuContent
 							row={props.row}
 							onViewJson={() => setIsJsonViewerOpen(true)}

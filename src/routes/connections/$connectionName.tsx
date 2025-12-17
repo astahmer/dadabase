@@ -5,8 +5,8 @@ import { ConnectionPage } from "#src/components/pages/connection.page.tsx";
 import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
 import { FullCenter } from "../../components/ui/layout.tsx";
 import { Spinner } from "../../components/ui/spinner.tsx";
+import { JoinedTableSchema } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 
-// Schema for individual tab state
 const tableSize = Schema.Literal(
 	"excel",
 	"minimal",
@@ -15,20 +15,13 @@ const tableSize = Schema.Literal(
 	"comfortable",
 );
 
-// Schema for structure table filters
 const StructureFiltersSchema = Schema.Struct({
 	search: Schema.String.pipe(Schema.optionalWith({ default: () => "" })),
 	nullable: Schema.Boolean.pipe(Schema.optionalWith({ default: () => false })),
-	primaryKey: Schema.Boolean.pipe(
-		Schema.optionalWith({ default: () => false }),
-	),
+	primaryKey: Schema.Boolean.pipe(Schema.optional),
 	unique: Schema.Boolean.pipe(Schema.optionalWith({ default: () => false })),
-	foreignKey: Schema.Boolean.pipe(
-		Schema.optionalWith({ default: () => false }),
-	),
-	hasDefaults: Schema.Boolean.pipe(
-		Schema.optionalWith({ default: () => false }),
-	),
+	foreignKey: Schema.Boolean.pipe(Schema.optional),
+	hasDefaults: Schema.Boolean.pipe(Schema.optional),
 });
 
 const TabStateSchema = Schema.Struct({
@@ -45,9 +38,7 @@ const TabStateSchema = Schema.Struct({
 	tableSize: tableSize.pipe(Schema.optionalWith({ default: () => "cozy" })),
 	hiddenColumnList: Schema.String.pipe(Schema.Array, Schema.optional),
 	filters: QueryFilter.pipe(Schema.optional),
-	filtersOpened: Schema.Boolean.pipe(
-		Schema.optionalWith({ default: () => false }),
-	),
+	filtersOpened: Schema.Boolean.pipe(Schema.optional),
 	columnPinning: Schema.Struct({
 		left: Schema.String.pipe(Schema.Array, Schema.optional),
 		right: Schema.String.pipe(Schema.Array, Schema.optional),
@@ -55,6 +46,8 @@ const TabStateSchema = Schema.Struct({
 	columnOrder: Schema.String.pipe(Schema.Array, Schema.optional), // JSON-stringified column order array
 	fkValue: Schema.String.pipe(Schema.optional), // FK value used when navigating to this tab
 	relationshipRowId: Schema.String.pipe(Schema.optional), // Row ID for expanded relationships panel
+	joins: Schema.Array(JoinedTableSchema).pipe(Schema.optional),
+	prefixWithTable: Schema.Boolean.pipe(Schema.optional),
 });
 
 const searchSchema = Schema.Struct({
@@ -63,22 +56,17 @@ const searchSchema = Schema.Struct({
 	tabs: TabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
 	tableFilter: Schema.String.pipe(Schema.optional),
 	structureFilters: StructureFiltersSchema.pipe(Schema.optional), // Structure view filters
-	quickReferencesOpen: Schema.Boolean.pipe(
-		Schema.optionalWith({ default: () => false }),
-	),
+	quickReferencesOpen: Schema.Boolean.pipe(Schema.optional),
 	quickReferencesColumnName: Schema.String.pipe(Schema.optional),
 	quickReferencesCellValue: Schema.Union(Schema.String, Schema.Number).pipe(
 		Schema.optional,
 	),
-	sidebarCollapsed: Schema.Boolean.pipe(
-		Schema.optionalWith({ default: () => false }),
-	),
-	rowJsonViewerOpen: Schema.Boolean.pipe(
-		Schema.optionalWith({ default: () => false }),
-	),
+	sidebarSize: Schema.Number.pipe(Schema.optional),
+	rowJsonViewerOpen: Schema.Boolean.pipe(Schema.optional),
+	// Primary key value to identify which row to display
 	rowJsonViewerRowId: Schema.Union(Schema.String, Schema.Number).pipe(
 		Schema.optional,
-	), // Primary key value to identify which row to display
+	),
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({

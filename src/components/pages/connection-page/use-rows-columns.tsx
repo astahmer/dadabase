@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { ColumnHeaderWithInfo } from "#src/components/app/column-header-with-info.tsx";
@@ -8,8 +8,12 @@ import { UniqueConstraintIcon } from "#src/components/app/unique-constraint-icon
 import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
 import { MemoizedDataCell } from "#src/components/memoized-data-cell.tsx";
 import { JsonCell } from "#src/components/ui/json-cell.tsx";
-import { getColumnTextAlignment } from "#src/lib/data-type-utils";
+import { getColumnTextAlignment } from "#src/lib/data-type-utils.ts";
+import { getJoinColorClassName } from "#src/lib/join-color-palette.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
+import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
+import { useActiveTabState } from "./create-tab-state.ts";
+import type { JoinTablesConfig } from "./join-tables/join-tables.types.ts";
 
 interface ColumnMetadata {
 	name: string;
@@ -45,6 +49,7 @@ export interface UseRowsColumnsOptions {
 	onExpandToSheet?: (columnName: string, cellValue: unknown) => void;
 	onMenuOpen?: (columnName: string, cellValue: unknown) => void;
 	enableSorting?: boolean;
+	joins?: JoinTablesConfig["joins"];
 }
 
 /**
@@ -65,16 +70,98 @@ export const useRowsColumns = ({
 	onExpandToSheet,
 	onMenuOpen,
 	enableSorting = true,
+	joins,
 }: UseRowsColumnsOptions): ColumnDef<Record<string, unknown>>[] => {
 	const queryClient = useQueryClient();
 
-	return useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
-		if (!columnMetadata.length) return [];
+	const allTablesColumnsQuery = useQuery(
+		getAllTablesColumnsQueryOptions({
+			url: activeConnectionUrl,
+			schema: schema || "",
+		}),
+	);
 
-		return columnMetadata.map(
-			(col) =>
-				({
-					accessorKey: col.name,
+	const prefixWithTable = useActiveTabState((tab) => tab.prefixWithTable);
+	const joinedTablesColumnsMetadata = useMemo(
+		() =>
+			(joins ?? []).map((join) => {
+				const columnList = (allTablesColumnsQuery.data ?? []).flatMap(
+					(tableWithCol) =>
+						tableWithCol.table === join.table
+							? tableWithCol.columns
+									.filter((col) =>
+										join.columns === "all"
+											? true
+											: join.columns.includes(col.name),
+									)
+									.map((col) => ({
+										...col,
+										table: join.table,
+										accessorKey: `${join.alias || join.table}.${col.name}`,
+										name: prefixWithTable
+											? `${join.alias || join.table}.${col.name}`
+											: col.name,
+									}))
+							: [],
+				);
+
+				const tableWithCol = (allTablesColumnsQuery.data ?? [])?.find(
+					(t) => t.table === join.table,
+				);
+
+				return {
+					header: `${join.alias || join.table} (${join.columns === "all" && tableWithCol?.columns.length ? tableWithCol?.columns.length : join.columns.length} columns)`,
+					columns: columnList,
+				};
+			}),
+		[joins, allTablesColumnsQuery.data, prefixWithTable],
+	);
+	const displayedColumns = useMemo(
+		() =>
+			joins?.length
+				? [
+						{
+							header: `${table} (${columnMetadata.length} columns)`,
+							columns: columnMetadata.map((col) => ({
+								...col,
+								table: table,
+								accessorKey: `${table}.${col.name}`,
+								name: prefixWithTable ? `${table}.${col.name}` : col.name,
+							})),
+						},
+					].concat(joinedTablesColumnsMetadata)
+				: [
+						{
+							header: table,
+							columns: columnMetadata.map((col) => ({
+								...col,
+								table: table,
+								accessorKey: col.name,
+							})),
+						},
+					],
+		[
+			joins,
+			columnMetadata,
+			joinedTablesColumnsMetadata,
+			schema,
+			table,
+			prefixWithTable,
+		],
+	);
+
+	return useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
+		if (!displayedColumns.length) return [];
+
+		const renderColumnList = (
+			list: Array<ColumnMetadata & { table: string; accessorKey: string }>,
+			joinIndex: number | null = null,
+		) =>
+			list.map((col) => {
+				const isJoinedTable = joinIndex !== null;
+				return {
+					id: col.accessorKey,
+					accessorFn: (row) => row[col.accessorKey] as string,
 					header: () => (
 						<ColumnHeaderWithInfo
 							columnName={col.name}
@@ -92,6 +179,10 @@ export const useRowsColumns = ({
 					),
 					meta: {
 						textAlign: getColumnTextAlignment(col.dataType),
+						className: isJoinedTable
+							? getJoinColorClassName(joinIndex!)
+							: undefined,
+						table: col.table,
 					},
 					cell: col.dataType.toLowerCase().includes("json")
 						? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
@@ -167,10 +258,21 @@ export const useRowsColumns = ({
 							},
 					enableResizing: true,
 					enableSorting,
-				}) as ColumnDef<any> as any,
-		);
+				} as ColumnDef<any> as any;
+			});
+		if (displayedColumns.length === 1) {
+			return renderColumnList(displayedColumns[0].columns, null);
+		}
+
+		return displayedColumns.map((col, index) => ({
+			header: col.header,
+			columns: renderColumnList(col.columns, index > 0 ? index - 1 : null),
+			meta: {
+				className: index > 0 ? getJoinColorClassName(index - 1) : undefined,
+			},
+		}));
 	}, [
-		columnMetadata,
+		displayedColumns,
 		schema,
 		table,
 		activeConnectionUrl,

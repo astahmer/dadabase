@@ -12,7 +12,7 @@ const timestamp = () =>
 // 		.default(sql`(unixepoch())`)
 // 		.$type<number>();
 // const boolean = () => sqlite.integer({ mode: "boolean" });
-// const json = () => sqlite.text({ mode: "json" });
+const json = () => sqlite.text();
 
 export const database_connections = sqlite.sqliteTable(
 	"database_connections",
@@ -41,17 +41,19 @@ export const query_logs = sqlite.sqliteTable(
 			.notNull()
 			.references(() => database_connections.id),
 		sql: sqlite.text().notNull(),
-		params: sqlite.text(), // JSON stringified
+		params: json(),
 		type: sqlite.text().notNull(), // QueryLogType
 		schema: sqlite.text(),
 		table: sqlite.text(),
+		level: sqlite.integer().notNull(),
 		status: sqlite.text().notNull(),
 		start_time: sqlite.integer().notNull().$type<number>(),
 		end_time: sqlite.integer().$type<number>(),
 		time_taken: sqlite.integer(),
 		rows_returned: sqlite.integer(),
 		rows_affected: sqlite.integer(),
-		error: sqlite.text(), // JSON stringified error
+		error: json(),
+		meta: json(),
 		created_at: timestamp(),
 	},
 	(self) => [

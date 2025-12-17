@@ -6,14 +6,27 @@ import { makeRemoteSqlClientLayer } from "#src/db/postgres/remote-sql-client.lay
 import {
 	getAvailableDatabases,
 	getAvailableTables,
+	queryTableRows,
 } from "#src/server/introspection/introspection.ts";
 import { QueryLoggerInMemoryLayer } from "#src/server/query-logger/query-logger.layer.in-memory.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
+import {
+	makeRemoteConnectionLayer,
+	RemoteConnectionId,
+} from "#src/server/db-connection/remote-connection.tag.ts";
 
+// const program = Effect.gen(function* () {
+// 	const dbList = yield* getAvailableDatabases();
+// 	const tableList = yield* getAvailableTables();
+// 	return { dbList, tableList };
+// });
 const program = Effect.gen(function* () {
-	const dbList = yield* getAvailableDatabases();
+	const rows = yield* queryTableRows({
+		schema: "public",
+		table: "commitments",
+	});
 	const tableList = yield* getAvailableTables();
-	return { dbList, tableList };
+	return { rows, tableList };
 });
 
 const DatabaseUrl = Config.string("DB_URL");
@@ -26,6 +39,7 @@ const runWithDb = Effect.gen(function* () {
 
 const res = await AppRuntime.runPromise(
 	runWithDb.pipe(
+		Effect.provide(makeRemoteConnectionLayer(RemoteConnectionId.make("123"))),
 		Effect.provide(QueryLoggerInMemoryLayer),
 		Effect.scoped,
 		Effect.provide(PlatformConfigProvider.layerDotEnv(".env")),

@@ -9,6 +9,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
 import { RowContextMenu } from "../app/row-context-menu.tsx";
 import { DataTableCell } from "./data-table.cell.tsx";
+import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
 import {
 	type DataTableSize,
 	tableCellStyles,
@@ -35,6 +36,7 @@ export const DataTableRow = memo(function TableRow({
 	onExpandRowJson,
 	enableColumnOrdering,
 	columnOrder = [],
+	columnVirtualization,
 	renderSubrows,
 }: {
 	index: number;
@@ -47,6 +49,7 @@ export const DataTableRow = memo(function TableRow({
 	withRowContextMenu?: boolean;
 	enableColumnOrdering: boolean;
 	columnOrder?: string[];
+	columnVirtualization: ColumnVirtualizationState;
 	ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
 	onExpandRowJson?: (row: Record<string, unknown>) => void;
 	renderSubrows?: (row: Row<any>) => DataTableRowSubrow[];
@@ -57,13 +60,17 @@ export const DataTableRow = memo(function TableRow({
 	const isExpanded = row.getIsExpanded();
 
 	const CellsList = useMemo(() => {
-		return visibleCells.map((cell, cellIndex) => {
+		const renderCell = (
+			cell: (typeof visibleCells)[number],
+			cellIndex: number,
+		) => {
 			const isPinned = Boolean(cell.column.getIsPinned());
 			const isDragDisabled =
 				(cell.column.columnDef.meta as any)?.enableColumnOrdering === false ||
 				isPinned;
 			const textAlign =
 				(cell.column.columnDef.meta as any)?.textAlign || "left";
+			const className = (cell.column.columnDef.meta as any)?.className;
 
 			return (
 				<DataTableCell
@@ -77,13 +84,89 @@ export const DataTableRow = memo(function TableRow({
 					size={size}
 					showColumnBorder={showColumnBorder}
 					enableColumnOrdering={enableColumnOrdering}
+					className={className}
 					style={isPinned ? getColumnPinningStyles(cell.column) : undefined}
 				>
 					{flexRender(cell.column.columnDef.cell, cell.getContext())}
 				</DataTableCell>
 			);
-		});
-	}, [visibleCells, isSelected, isExpanded, size]);
+		};
+
+		const leftPinnedCells = visibleCells.filter(
+			(c) => c.column.getIsPinned() === "left",
+		);
+		const rightPinnedCells = visibleCells.filter(
+			(c) => c.column.getIsPinned() === "right",
+		);
+		const centerCells = visibleCells.filter((c) => !c.column.getIsPinned());
+
+		const centerCellByColumnId = new Map(
+			centerCells.map((c) => [c.column.id, c]),
+		);
+
+		const renderedCenterColumnIds =
+			columnVirtualization.enabled === true
+				? columnVirtualization.virtualCenterColumnIds
+				: centerCells.map((c) => c.column.id);
+
+		let cellIndex = 0;
+		const out: ReactNode[] = [];
+
+		for (const cell of leftPinnedCells) {
+			out.push(renderCell(cell, cellIndex++));
+		}
+
+		if (
+			columnVirtualization.enabled === true &&
+			columnVirtualization.centerPaddingLeftColSpan > 0
+		) {
+			out.push(
+				<td
+					key={`center-padding-left-${row.id}`}
+					aria-hidden
+					colSpan={columnVirtualization.centerPaddingLeftColSpan}
+					className="p-0"
+					style={{ width: columnVirtualization.centerPaddingLeftPx }}
+				/>,
+			);
+		}
+
+		for (const columnId of renderedCenterColumnIds) {
+			const cell = centerCellByColumnId.get(columnId);
+			if (!cell) continue;
+			out.push(renderCell(cell, cellIndex++));
+		}
+
+		if (
+			columnVirtualization.enabled === true &&
+			columnVirtualization.centerPaddingRightColSpan > 0
+		) {
+			out.push(
+				<td
+					key={`center-padding-right-${row.id}`}
+					aria-hidden
+					colSpan={columnVirtualization.centerPaddingRightColSpan}
+					className="p-0"
+					style={{ width: columnVirtualization.centerPaddingRightPx }}
+				/>,
+			);
+		}
+
+		for (const cell of rightPinnedCells) {
+			out.push(renderCell(cell, cellIndex++));
+		}
+
+		return out;
+	}, [
+		visibleCells,
+		isSelected,
+		isExpanded,
+		size,
+		showColumnBorder,
+		enableColumnOrdering,
+		columnVirtualization,
+		row.id,
+	]);
 
 	const MainRow = (
 		<tr

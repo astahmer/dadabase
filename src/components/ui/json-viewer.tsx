@@ -5,7 +5,7 @@ import { renderPrimitiveValue } from "./json-viewer.render-primitive-value";
 
 interface JsonViewerProps {
 	data: unknown;
-	defaultExpanded?: boolean;
+	defaultExpanded?: boolean | number;
 	maxDepth?: number;
 	className?: string;
 }
@@ -32,7 +32,7 @@ interface JsonValueProps {
 	value: unknown;
 	depth: number;
 	maxDepth: number;
-	defaultExpanded?: boolean;
+	defaultExpanded?: boolean | number;
 	dataKey?: string;
 }
 
@@ -43,7 +43,13 @@ export const JsonValue = memo(function JsonValue({
 	defaultExpanded = false,
 	dataKey,
 }: JsonValueProps) {
-	const [isExpanded, setIsExpanded] = useState(defaultExpanded || depth <= 1);
+	const [isExpanded, setIsExpanded] = useState(
+		(typeof defaultExpanded === "boolean"
+			? defaultExpanded
+			: typeof defaultExpanded === "number"
+				? defaultExpanded <= depth
+				: false) || depth <= 1,
+	);
 
 	const primitiveRender = renderPrimitiveValue(value);
 	if (primitiveRender !== null) {
@@ -89,7 +95,7 @@ interface JsonObjectProps {
 	maxDepth: number;
 	isExpanded: boolean;
 	onToggle: () => void;
-	defaultExpanded?: boolean;
+	defaultExpanded?: boolean | number;
 	dataKey?: string;
 }
 
@@ -192,7 +198,7 @@ interface JsonArrayProps {
 	maxDepth: number;
 	isExpanded: boolean;
 	onToggle: () => void;
-	defaultExpanded?: boolean;
+	defaultExpanded?: boolean | number;
 	dataKey?: string;
 }
 

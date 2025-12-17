@@ -1,42 +1,22 @@
-import { PgLiteClient } from "@dadabase/effect-pglite";
-import { SqlClient } from "@effect/sql";
-import { LibsqlClient } from "@effect/sql-libsql";
-import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
 import {
 	findColumnReferences,
 	findColumnReferencesWithCounts,
 	getTableForeignKeys,
 } from "#src/server/introspection/introspection.ts";
-
-// Test configuration for database-specific behaviors
-interface TestConfig {
-	defaultSchema: string;
-	isPostgres: boolean;
-}
-
-const postgresConfig: TestConfig = {
-	defaultSchema: "public",
-	isPostgres: true,
-};
-
-const sqliteConfig: TestConfig = {
-	defaultSchema: "main",
-	isPostgres: false,
-};
-
-// PgLite layer for introspection tests
-const pgliteLayer = PgLiteClient.layer({
-	dataDir: "memory://",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-// LibSQL layer for SQLite introspection tests
-const libsqlLayer = LibsqlClient.layer({
-	url: ":memory:",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
+import { SqlClient } from "@effect/sql";
+import { describe, expect, it } from "@effect/vitest";
+import { Effect, Layer } from "effect";
+import {
+	libsqlLayer,
+	makeTestLayer,
+	pgliteLayer,
+	postgresConfig,
+	sqliteConfig,
+	type DatabaseTestConfig,
+} from "./test.layer.ts";
 
 // Create schema setup function that handles both databases
-const createSetupSchema = (config: TestConfig) =>
+const createSetupSchema = (config: DatabaseTestConfig) =>
 	Effect.gen(function* () {
 		const client = yield* SqlClient.SqlClient;
 
@@ -142,9 +122,10 @@ const createSetupSchema = (config: TestConfig) =>
 // Test suite factory functions
 const getTableForeignKeysTestSuite = (
 	layer: Layer.Layer<SqlClient.SqlClient>,
-	config: TestConfig,
+	config: DatabaseTestConfig,
 ) => {
 	const setupSchema = createSetupSchema(config);
+	const testLayer = makeTestLayer(layer);
 
 	return [
 		it.effect("retrieves no foreign keys for table without FKs", () =>
@@ -157,7 +138,7 @@ const getTableForeignKeysTestSuite = (
 				});
 
 				expect(fks.length).toBe(0);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("retrieves single foreign key from table", () =>
@@ -174,7 +155,7 @@ const getTableForeignKeysTestSuite = (
 				expect(fks[0].referenced_table_name).toBe("users");
 				expect(fks[0].referenced_column_name).toBe("id");
 				expect(fks[0].referenced_table_schema).toBe(config.defaultSchema);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("retrieves foreign key information with constraint name", () =>
@@ -194,7 +175,7 @@ const getTableForeignKeysTestSuite = (
 					// SQLite generates synthetic constraint names like fk_0, fk_1, etc.
 					expect(fks[0].constraint_name).toMatch(/^fk_\d+$/);
 				}
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("retrieves multiple foreign keys from table", () =>
@@ -213,7 +194,7 @@ const getTableForeignKeysTestSuite = (
 
 				const userIdFK = fks.find((fk) => fk.column_name === "user_id");
 				expect(userIdFK?.referenced_table_name).toBe("users");
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("retrieves foreign keys from many-to-many junction table", () =>
@@ -232,7 +213,7 @@ const getTableForeignKeysTestSuite = (
 
 				const tagFk = fks.find((fk) => fk.column_name === "tag_id");
 				expect(tagFk?.referenced_table_name).toBe("tags");
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("returns empty array for non-existent table", () =>
@@ -243,7 +224,7 @@ const getTableForeignKeysTestSuite = (
 				});
 
 				expect(fks).toEqual([]);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("orders foreign keys by column ordinal position", () =>
@@ -259,16 +240,17 @@ const getTableForeignKeysTestSuite = (
 				const columnNames = fks.map((fk) => fk.column_name);
 				expect(columnNames[0]).toBe("post_id");
 				expect(columnNames[1]).toBe("user_id");
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 	];
 };
 
 const findColumnReferencesTestSuite = (
 	layer: Layer.Layer<SqlClient.SqlClient>,
-	config: TestConfig,
+	config: DatabaseTestConfig,
 ) => {
 	const setupSchema = createSetupSchema(config);
+	const testLayer = makeTestLayer(layer);
 
 	return [
 		it.effect("finds tables that reference a column", () =>
@@ -288,7 +270,7 @@ const findColumnReferencesTestSuite = (
 				expect(tables).toContain("user_profiles");
 				expect(tables).toContain("posts");
 				expect(tables).toContain("comments");
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("finds correct columns that reference a table", () =>
@@ -311,7 +293,7 @@ const findColumnReferencesTestSuite = (
 					(ref) => ref.table === "posts" && ref.column === "user_id",
 				);
 				expect(postRef).toBeDefined();
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("returns empty array when no tables reference a column", () =>
@@ -326,7 +308,7 @@ const findColumnReferencesTestSuite = (
 				});
 
 				expect(refs.length).toBe(0);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("includes constraint names in references", () =>
@@ -347,7 +329,7 @@ const findColumnReferencesTestSuite = (
 					// SQLite generates synthetic constraint names
 					expect(commentRef?.constraintName).toMatch(/^fk_\d+$/);
 				}
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("finds references in many-to-many junction tables", () =>
@@ -364,16 +346,17 @@ const findColumnReferencesTestSuite = (
 					(ref) => ref.table === "post_tags" && ref.column === "post_id",
 				);
 				expect(postTagRef).toBeDefined();
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 	];
 };
 
 const findColumnReferencesWithCountsTestSuite = (
 	layer: Layer.Layer<SqlClient.SqlClient>,
-	config: TestConfig,
+	config: DatabaseTestConfig,
 ) => {
 	const setupSchema = createSetupSchema(config);
+	const testLayer = makeTestLayer(layer);
 
 	return [
 		it.effect("returns references with zero row counts for no data", () =>
@@ -392,7 +375,7 @@ const findColumnReferencesWithCountsTestSuite = (
 				refs.forEach((ref) => {
 					expect(ref.matchingRowCount).toBe(0);
 				});
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("counts matching rows for valid cell value", () =>
@@ -428,7 +411,7 @@ const findColumnReferencesWithCountsTestSuite = (
 					(ref) => ref.table === "comments" && ref.column === "user_id",
 				);
 				expect(commentRef?.matchingRowCount).toBe(1);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("handles null cell values correctly", () =>
@@ -457,7 +440,7 @@ const findColumnReferencesWithCountsTestSuite = (
 				refs.forEach((ref) => {
 					expect(ref.matchingRowCount).toBeGreaterThanOrEqual(0);
 				});
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("normalizes string 'null' to actual null", () =>
@@ -484,7 +467,7 @@ const findColumnReferencesWithCountsTestSuite = (
 					// All should be 0 since we're looking for IS NULL
 					expect(ref.matchingRowCount).toBeGreaterThanOrEqual(0);
 				});
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("includes constraint names and schema in results", () =>
@@ -506,7 +489,7 @@ const findColumnReferencesWithCountsTestSuite = (
 					expect(ref.column).toBeDefined();
 					expect(ref.referencedColumn).toBe("id");
 				});
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 
 		it.effect("counts multiple matching rows correctly", () =>
@@ -536,7 +519,7 @@ const findColumnReferencesWithCountsTestSuite = (
 
 				const postRef = refs.find((ref) => ref.table === "posts");
 				expect(postRef?.matchingRowCount).toBe(3);
-			}).pipe(Effect.provide(layer)),
+			}).pipe(Effect.provide(testLayer)),
 		),
 	];
 };

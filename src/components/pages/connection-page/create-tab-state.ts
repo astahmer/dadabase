@@ -1,4 +1,8 @@
 import { useSearch } from "@tanstack/react-router";
+import type {
+	JoinedTable,
+	JoinTablesConfig,
+} from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { FileRouteTypes } from "#src/routeTree.gen.ts";
 
@@ -17,6 +21,7 @@ export const createTabState = (
 		limit?: number;
 		filtersOpened?: boolean;
 		fkValue?: string;
+		joinConfig?: JoinTablesConfig;
 	},
 ): TabState => ({
 	tabId: `${schema}.${table}:${options?.fkValue ?? ""}:${Math.random().toString(36).substr(2, 4)}`,
@@ -33,6 +38,7 @@ export const createTabState = (
 	filters: options?.filters,
 	filtersOpened: options?.filtersOpened ?? false,
 	fkValue: options?.fkValue,
+	joins: options?.joinConfig?.joins,
 });
 
 export const updateTabState = (
@@ -88,9 +94,13 @@ export const addTabStateAfterCurrent = (
 
 export const scrollToTab = (tabId: string) => {
 	const tab = document.querySelector(`[data-table-tab="${tabId}"]`);
-	if (!tab) return;
-
-	tab.scrollIntoView({ behavior: "smooth", inline: "center", block: "center" });
+	if (tab) {
+		tab.scrollIntoView({
+			behavior: "smooth",
+			inline: "center",
+			block: "center",
+		});
+	}
 };
 
 export const getActiveTabState = (search: ConnectionPageSearch) =>

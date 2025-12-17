@@ -27,8 +27,8 @@ export type FilterOperatorType = Schema.Schema.Type<typeof FilterOperator>;
  * A single filter condition
  */
 export const FilterCondition = Schema.Struct({
-	// id: Schema.String,
 	column: Schema.String,
+	table: Schema.String.pipe(Schema.optional),
 	operator: FilterOperator,
 	value: Schema.Union(
 		Schema.String,
@@ -37,8 +37,6 @@ export const FilterCondition = Schema.Struct({
 		Schema.Null,
 		Schema.Array(Schema.String),
 	).pipe(Schema.optional),
-	// Not serializable, but used for UI state
-	isOpen: Schema.Boolean.pipe(Schema.optional),
 });
 
 export type FilterConditionExpression = Schema.Schema.Type<
@@ -53,7 +51,7 @@ export const LogicalOperator = Schema.Union(
 	Schema.Literal("or"),
 );
 
-export type LogicalOperator = Schema.Schema.Type<typeof LogicalOperator>;
+export type LogicalOperatorType = Schema.Schema.Type<typeof LogicalOperator>;
 
 /**
  * Query filter configuration
@@ -322,6 +320,6 @@ export const whereClauseParamsToQueryFilter = (
 
 	return {
 		conditions,
-		logicalOperator: params.logicalOperator as LogicalOperator,
+		logicalOperator: params.logicalOperator as LogicalOperatorType,
 	};
 };

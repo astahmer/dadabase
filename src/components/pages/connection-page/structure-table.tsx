@@ -14,7 +14,7 @@ interface StructureTableProps {
 		name: string;
 		dataType: string;
 		nullable: boolean;
-		primaryKey: boolean;
+		primaryKey?: boolean | undefined;
 		unique: boolean;
 		defaultValue: string | null;
 		isForeignKey?: boolean;
@@ -77,93 +77,10 @@ export const StructureTable = (props: StructureTableProps) => {
 		[columnMetadata, filters],
 	);
 
-	const structureColumns: Array<ColumnDef<(typeof columnMetadata)[number]>> = [
-		{
-			accessorKey: "name",
-			header: "Name",
-			enableResizing: true,
-		},
-		{
-			accessorKey: "dataType",
-			header: "Data Type",
-			size: 120,
-			minSize: 80,
-			maxSize: 200,
-			enableResizing: true,
-			cell: (info) => (
-				<div className="flex items-center gap-2">
-					<DataTypeBadge dataType={info.getValue<string>()} />
-					<span className="text-xs font-mono text-muted-foreground">
-						{info.getValue<string>()}
-					</span>
-				</div>
-			),
-		},
-		{
-			accessorKey: "nullable",
-			header: "Nullable",
-			enableResizing: true,
-			cell: (info) => (
-				<span className="text-xs">
-					{info.getValue<boolean>() ? "Yes" : "No"}
-				</span>
-			),
-		},
-		{
-			accessorKey: "primaryKey",
-			header: "Primary Key",
-			enableResizing: true,
-			cell: (info) => (
-				<HStack className="text-xs">
-					{info.getValue<boolean>() ? "Yes" : "No"}
-					<PrimaryKeyIcon isPrimaryKey={info.getValue<boolean>()} />
-				</HStack>
-			),
-		},
-		{
-			accessorKey: "unique",
-			header: "Unique",
-			enableResizing: true,
-			cell: (info) => (
-				<HStack className="text-xs">
-					{info.getValue<boolean>() ? "Yes" : "No"}
-					<UniqueConstraintIcon isUnique={info.getValue<boolean>()} />
-				</HStack>
-			),
-		},
-		{
-			id: "foreignKey",
-			header: "Foreign Key",
-			enableResizing: true,
-			cell: (info) => {
-				const row = info.row.original;
-				if (!row.isForeignKey || !row.foreignKey) {
-					return <span className="text-xs text-muted-foreground">—</span>;
-				}
-				const fk = row.foreignKey;
-				return (
-					<span className="text-xs font-mono">
-						{fk.referencedSchema}.{fk.referencedTable}.{fk.referencedColumn}
-					</span>
-				);
-			},
-		},
-		{
-			accessorKey: "defaultValue",
-			header: "Default Value",
-			enableResizing: true,
-			cell: (info) => {
-				const value = info.getValue<string | null>();
-				return <span className="text-xs font-mono">{value ? value : "—"}</span>;
-			},
-		},
-	];
-
 	const structureTable = useDataTable({
 		data: filteredMetadata,
 		columns: structureColumns,
-		manualPagination: true,
-		rowCount: filteredMetadata.length,
+		getRowId: (row) => row.name,
 	});
 
 	return (
@@ -171,6 +88,88 @@ export const StructureTable = (props: StructureTableProps) => {
 			table={structureTable}
 			isLoading={props.isLoading}
 			size={props.tableSize}
+			enableColumnOrdering={false}
 		/>
 	);
 };
+
+const structureColumns: Array<ColumnDef<any>> = [
+	{
+		accessorKey: "name",
+		header: "Name",
+		enableResizing: true,
+	},
+	{
+		accessorKey: "dataType",
+		header: "Data Type",
+		size: 120,
+		minSize: 80,
+		maxSize: 200,
+		enableResizing: true,
+		cell: (info) => (
+			<div className="flex items-center gap-2">
+				<DataTypeBadge dataType={info.getValue<string>()} />
+				<span className="text-xs font-mono text-muted-foreground">
+					{info.getValue<string>()}
+				</span>
+			</div>
+		),
+	},
+	{
+		accessorKey: "nullable",
+		header: "Nullable",
+		enableResizing: true,
+		cell: (info) => (
+			<span className="text-xs">{info.getValue<boolean>() ? "Yes" : "No"}</span>
+		),
+	},
+	{
+		accessorKey: "primaryKey",
+		header: "Primary Key",
+		enableResizing: true,
+		cell: (info) => (
+			<HStack className="text-xs">
+				{info.getValue<boolean>() ? "Yes" : "No"}
+				<PrimaryKeyIcon isPrimaryKey={info.getValue<boolean>()} />
+			</HStack>
+		),
+	},
+	{
+		accessorKey: "unique",
+		header: "Unique",
+		enableResizing: true,
+		cell: (info) => (
+			<HStack className="text-xs">
+				{info.getValue<boolean>() ? "Yes" : "No"}
+				<UniqueConstraintIcon isUnique={info.getValue<boolean>()} />
+			</HStack>
+		),
+	},
+	{
+		id: "foreignKey",
+		header: "Foreign Key",
+		enableResizing: true,
+		cell: (info) => {
+			const row = info.row.original;
+			if (!row.isForeignKey || !row.foreignKey) {
+				return <span className="text-xs text-muted-foreground">—</span>;
+			}
+			const fk = row.foreignKey;
+			return (
+				<span className="text-xs font-mono">
+					{fk.referencedSchema ? `${fk.referencedSchema}.` : ""}
+					{fk.referencedTable}.{fk.referencedColumn}
+				</span>
+			);
+		},
+	},
+	{
+		accessorKey: "defaultValue",
+		header: "Default Value",
+		enableResizing: true,
+		cell: (info) => {
+			const value = info.getValue<string | null>();
+			return <span className="text-xs font-mono">{value ? value : "—"}</span>;
+		},
+	},
+];
