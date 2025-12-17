@@ -61,5 +61,3 @@
 - checkbox to toggle visible columns in client or server (remove from select query)
 
 ## issues
-- dont reload whole table when order by changes
-- empty state if no rows -> dont center it; or make it sticky/fixed so that its always visible

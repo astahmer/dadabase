@@ -1,21 +1,19 @@
-import { PgLiteClient } from "@dadabase/effect-pglite";
-import { SqlClient } from "@effect/sql";
-import { LibsqlClient } from "@effect/sql-libsql";
-import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
 import {
 	getAvailableDatabases,
 	getAvailableSchemas,
 	getAvailableTables,
 } from "#src/server/introspection/introspection.ts";
-
-const pgliteLayer = PgLiteClient.layer({
-	dataDir: "memory://",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-const libsqlLayer = LibsqlClient.layer({
-	url: ":memory:",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
+import { SqlClient } from "@effect/sql";
+import { describe, expect, it } from "@effect/vitest";
+import { Effect, Layer } from "effect";
+import {
+	libsqlLayer,
+	makeTestLayer,
+	pgliteLayer,
+	postgresConfig,
+	sqliteConfig,
+	type DatabaseTestConfig,
+} from "./test.layer.ts";
 
 // Helper to set up test schema
 const setupSchema = Effect.gen(function* () {
@@ -38,26 +36,10 @@ const setupSchema = Effect.gen(function* () {
 	`;
 });
 
-interface TestConfig {
-	expectedSchema: string;
-	defaultSchema: string;
-	isPostgres: boolean;
-}
-
-const postgresConfig: TestConfig = {
-	expectedSchema: "public",
-	defaultSchema: "public",
-	isPostgres: true,
-};
-
-const sqliteConfig: TestConfig = {
-	expectedSchema: "main",
-	defaultSchema: "main",
-	isPostgres: false,
-};
-
 const testSuite =
-	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) => () => {
+	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTestConfig) =>
+	() => {
+		const testLayer = makeTestLayer(sqlLayer);
 		describe("getAvailableSchemas", () => {
 			it.effect("retrieves available schemas", () =>
 				Effect.gen(function* () {
@@ -66,8 +48,8 @@ const testSuite =
 					expect(Array.isArray(schemas)).toBe(true);
 					expect(schemas.length).toBeGreaterThan(0);
 					// Default schema should always exist
-					expect(schemas).toContain(config.expectedSchema);
-				}).pipe(Effect.provide(sqlLayer)),
+					expect(schemas).toContain(config.defaultSchema);
+				}).pipe(Effect.provide(testLayer)),
 			);
 
 			it.effect("returns strings for schema names", () =>
@@ -78,14 +60,14 @@ const testSuite =
 						expect(typeof schema).toBe("string");
 						expect(schema.length).toBeGreaterThan(0);
 					});
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 
 			it.effect("includes default schemas", () =>
 				Effect.gen(function* () {
 					const schemas = yield* getAvailableSchemas();
 
-					expect(schemas).toContain(config.expectedSchema);
+					expect(schemas).toContain(config.defaultSchema);
 					// For PostgreSQL, check pg_catalog is not returned (filtered out)
 					// For SQLite, just check main and temp exist
 					if (config.isPostgres) {
@@ -94,7 +76,7 @@ const testSuite =
 					} else {
 						expect(schemas).toContain("temp");
 					}
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 		});
 
@@ -113,7 +95,7 @@ const testSuite =
 					// Check that our test tables are in the list
 					expect(tables.map((table) => table.name)).toContain("users");
 					expect(tables.map((table) => table.name)).toContain("posts");
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 
 			it.effect("retrieves only tables from specified schema", () =>
@@ -132,7 +114,7 @@ const testSuite =
 
 					expect(tables.length).toBe(1);
 					expect(tables.map((table) => table.name)).toContain("schema_test");
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 
 			it.effect("does not include system tables", () =>
@@ -149,7 +131,7 @@ const testSuite =
 					expect(tables.map((table) => table.name)).not.toContain(
 						"sqlite_sequence",
 					);
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 
 			it.effect(
@@ -161,7 +143,7 @@ const testSuite =
 
 						expect(Array.isArray(tables)).toBe(true);
 						// temp schema should be empty or have no tables
-					}).pipe(Effect.provide(sqlLayer)),
+					}).pipe(Effect.provide(testLayer)),
 			);
 
 			it.effect("includes all custom created tables", () =>
@@ -185,7 +167,7 @@ const testSuite =
 					expect(tables.map((table) => table.name)).toContain("table1");
 					expect(tables.map((table) => table.name)).toContain("table2");
 					expect(tables.map((table) => table.name)).toContain("table3");
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 
 			it.effect("returns consistent results across multiple calls", () =>
@@ -209,7 +191,7 @@ const testSuite =
 					expect(tables1.map((t) => t.name).sort()).toEqual(
 						tables2.map((t) => t.name).sort(),
 					);
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 		});
 
@@ -220,7 +202,7 @@ const testSuite =
 
 					expect(Array.isArray(databases)).toBe(true);
 					expect(databases.length).toBeGreaterThan(0);
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 
 			it.effect("returns strings for database names", () =>
@@ -231,7 +213,7 @@ const testSuite =
 						expect(typeof db.name).toBe("string");
 						expect(db.name.length).toBeGreaterThan(0);
 					});
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 
 			it.effect("includes at least one database", () =>
@@ -240,7 +222,7 @@ const testSuite =
 
 					// At least one database should exist
 					expect(databases.length).toBeGreaterThan(0);
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 		});
 
@@ -265,13 +247,13 @@ const testSuite =
 					expect(databases.length).toBeGreaterThan(0);
 
 					// Default schema should be in schemas
-					expect(schemas).toContain(config.expectedSchema);
+					expect(schemas).toContain(config.defaultSchema);
 
 					// integration_test should be in tables
 					expect(
 						tables.some((table) => table.name === "integration_test"),
 					).toBe(true);
-				}).pipe(Effect.provide(sqlLayer)),
+				}).pipe(Effect.provide(testLayer)),
 			);
 		});
 	};

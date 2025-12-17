@@ -1,36 +1,17 @@
-import { PgLiteClient } from "@dadabase/effect-pglite";
 import { SqlClient } from "@effect/sql";
-import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { getAllTablesColumns } from "#src/server/introspection/introspection.ts";
+import {
+	makeTestLayer,
+	pgliteLayer,
+	libsqlLayer,
+	postgresConfig,
+	sqliteConfig,
+	type DatabaseTestConfig,
+} from "./test.layer.ts";
 
-interface TestConfig {
-	defaultSchema: string;
-	isPostgres: boolean;
-}
-
-const postgresConfig: TestConfig = {
-	defaultSchema: "public",
-	isPostgres: true,
-};
-
-const sqliteConfig: TestConfig = {
-	defaultSchema: "main",
-	isPostgres: false,
-};
-
-// PgLite/SqlClient layer for introspection tests
-const pgliteLayer = PgLiteClient.layer({
-	dataDir: "memory://",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-// LibSQL layer for SQLite introspection tests
-const libsqlLayer = LibsqlClient.layer({
-	url: ":memory:",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-const createSetupSchema = (config: TestConfig) =>
+const createSetupSchema = (config: DatabaseTestConfig) =>
 	Effect.gen(function* () {
 		const client = yield* SqlClient.SqlClient;
 
@@ -131,8 +112,9 @@ const createSetupSchema = (config: TestConfig) =>
 
 const testSuite = (
 	layer: Layer.Layer<SqlClient.SqlClient>,
-	config: TestConfig,
+	config: DatabaseTestConfig,
 ) => {
+	const testLayer = makeTestLayer(layer);
 	const setupSchema = createSetupSchema(config);
 
 	return [
@@ -152,7 +134,7 @@ const testSuite = (
 					"user_profiles",
 					"users",
 				]);
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("retrieves correct columns for simple table without FKs", () => {
@@ -169,7 +151,7 @@ const testSuite = (
 
 				const columnNames = usersTable!.columns.map((c) => c.name).sort();
 				expect(columnNames).toEqual(["email", "id", "name"]);
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("correctly identifies primary key columns", () => {
@@ -186,7 +168,7 @@ const testSuite = (
 
 				const nameColumn = usersTable!.columns.find((c) => c.name === "name");
 				expect(nameColumn?.primaryKey).not.toBe(true);
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("correctly identifies unique columns", () => {
@@ -203,7 +185,7 @@ const testSuite = (
 
 				const nameColumn = usersTable!.columns.find((c) => c.name === "name");
 				expect(nameColumn?.unique).not.toBe(true);
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("correctly identifies nullable columns", () => {
@@ -222,7 +204,7 @@ const testSuite = (
 
 				const titleColumn = postsTable!.columns.find((c) => c.name === "title");
 				expect(titleColumn?.nullable).toBe(false);
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("correctly identifies data types", () => {
@@ -247,7 +229,7 @@ const testSuite = (
 				expect(publishedColumn?.dataType.toLowerCase()).toMatch(
 					/boolean|integer/,
 				);
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("retrieves foreign key information for FK columns", () => {
@@ -269,7 +251,7 @@ const testSuite = (
 				expect(userIdColumn?.foreignKey?.referencedSchema).toBe(
 					config.defaultSchema,
 				);
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("does not mark non-FK columns as foreign keys", () => {
@@ -284,7 +266,7 @@ const testSuite = (
 				const nameColumn = usersTable!.columns.find((c) => c.name === "name");
 				expect(nameColumn?.isForeignKey).toBe(false);
 				expect(nameColumn?.foreignKey).toBeUndefined();
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("handles one-to-one relationships (unique FK)", () => {
@@ -305,7 +287,7 @@ const testSuite = (
 				// user_id is both a PK and a UNIQUE constraint, so it should be marked as primaryKey
 				expect(userIdColumn?.primaryKey).toBe(true);
 				expect(userIdColumn?.foreignKey?.referencedTable).toBe("users");
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("handles many-to-many relationships (composite FK)", () => {
@@ -328,7 +310,7 @@ const testSuite = (
 				);
 				expect(tagIdColumn?.isForeignKey).toBe(true);
 				expect(tagIdColumn?.foreignKey?.referencedTable).toBe("tags");
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("does not return duplicate columns", () => {
@@ -345,7 +327,7 @@ const testSuite = (
 					const uniqueColumnNames = new Set(columnNames);
 					expect(columnNames.length).toBe(uniqueColumnNames.size);
 				}
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("preserves column order from table definition", () => {
@@ -366,7 +348,7 @@ const testSuite = (
 					"content",
 					"published",
 				]);
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("returns empty array for schema with no tables", () => {
@@ -376,7 +358,7 @@ const testSuite = (
 				});
 
 				expect(result).toEqual([]);
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect("includes default values when present", () => {
@@ -393,7 +375,7 @@ const testSuite = (
 				);
 				// The default value should contain 'false' or '0'
 				expect(publishedColumn?.defaultValue).toBeDefined();
-			}).pipe(Effect.provide(layer));
+			}).pipe(Effect.provide(testLayer));
 		}),
 
 		it.effect(
@@ -431,7 +413,7 @@ const testSuite = (
 						(c) => c.name === "user_id",
 					).length;
 					expect(userIdOccurrences).toBe(1);
-				}).pipe(Effect.provide(layer));
+				}).pipe(Effect.provide(testLayer));
 			},
 		),
 	];

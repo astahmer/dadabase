@@ -1,16 +1,17 @@
-import { PgLiteClient } from "@dadabase/effect-pglite";
 import { SqlClient } from "@effect/sql";
-import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
-import { QueryLoggerNoopLayer } from "../query-logger/query-logger.layer.noop.ts";
 import {
-	makeRemoteConnectionLayer,
-	RemoteConnectionId,
-} from "../db-connection/remote-connection.tag.ts";
+	makeTestLayer,
+	pgliteLayer,
+	libsqlLayer,
+	postgresConfig,
+	sqliteConfig,
+	type DatabaseTestConfig,
+} from "./test.layer.ts";
 
 interface User {
 	id: number;
@@ -27,39 +28,10 @@ interface Post {
 	published: boolean;
 }
 
-interface TestConfig {
-	expectedSchema: string;
-	defaultSchema: string;
-	isPostgres: boolean;
-}
-
-const postgresConfig: TestConfig = {
-	expectedSchema: "public",
-	defaultSchema: "public",
-	isPostgres: true,
-};
-
-const sqliteConfig: TestConfig = {
-	expectedSchema: "main",
-	defaultSchema: "main",
-	isPostgres: false,
-};
-
-const pgliteLayer = PgLiteClient.layer({
-	dataDir: "memory://",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
-const libsqlLayer = LibsqlClient.layer({
-	url: ":memory:",
-}) as unknown as Layer.Layer<SqlClient.SqlClient>;
-
 const testSuite =
-	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: TestConfig) => () => {
-		const testLayer = Layer.mergeAll(
-			sqlLayer,
-			QueryLoggerNoopLayer,
-			makeRemoteConnectionLayer(RemoteConnectionId.make("123")),
-		);
+	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTestConfig) =>
+	() => {
+		const testLayer = makeTestLayer(sqlLayer);
 		const setupSchema = Effect.gen(function* () {
 			const sql = yield* SqlClient.SqlClient;
 
