@@ -300,6 +300,7 @@ interface TestDbSchema {
 		sql: ColumnType<string, string, never>;
 		params: ColumnType<string | null, string | null, never>;
 		type: ColumnType<string, string, never>;
+		level: ColumnType<string, string, never>;
 		schema: ColumnType<string | null, string | null, never>;
 		table: ColumnType<string | null, string | null, never>;
 		status: ColumnType<string, string, never>;
@@ -309,6 +310,7 @@ interface TestDbSchema {
 		rows_returned: ColumnType<number | null, number | null, never>;
 		rows_affected: ColumnType<number | null, number | null, never>;
 		error: ColumnType<string | null, string | null, never>;
+		meta: ColumnType<string | null, string | null, never>;
 		created_at: ColumnType<Date, string, never>;
 	};
 }
@@ -326,6 +328,7 @@ const InMemoryDatabaseLayer = Layer.effect(
 				.addColumn("sql", "text", (col) => col.notNull())
 				.addColumn("params", "text")
 				.addColumn("type", "text", (col) => col.notNull())
+				.addColumn("level", "text", (col) => col.notNull())
 				.addColumn("schema", "text")
 				.addColumn("table", "text")
 				.addColumn("status", "text", (col) => col.notNull())
@@ -335,6 +338,7 @@ const InMemoryDatabaseLayer = Layer.effect(
 				.addColumn("rows_returned", "integer")
 				.addColumn("rows_affected", "integer")
 				.addColumn("error", "text")
+				.addColumn("meta", "text")
 				.addColumn("created_at", "date", (col) => col.notNull())
 				.execute();
 		},
@@ -430,7 +434,7 @@ describe("QueryLoggerPersistentLayer", () => {
 
 				const logsForConnection = yield* queryLogger.get();
 
-				expect(logsForConnection).toHaveLength(1);
+				expect(logsForConnection.rows).toHaveLength(1);
 			}).pipe(
 				Effect.provide(TestLayer),
 				Logger.withMinimumLogLevel(LogLevel.All),

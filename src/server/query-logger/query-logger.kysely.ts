@@ -44,10 +44,8 @@ export const getQueryLogs = (
 			query = query.where("table", "=", filters.table);
 		}
 
-		// TODO?
 		const countQuery = query
 			.clearSelect()
-			// .select((eb) => eb.fn.countAll().as("count"))
 			.select((eb) => [
 				eb.fn
 					.countAll()
@@ -55,14 +53,12 @@ export const getQueryLogs = (
 					.over()
 					.$castTo<number>()
 					.as("pending_count"),
-				// Count all success rows
 				eb.fn
 					.countAll()
 					.filterWhere("status", "=", "success")
 					.over()
 					.$castTo<number>()
 					.as("success_count"),
-				// Count all error rows
 				eb.fn
 					.countAll()
 					.filterWhere("status", "=", "error")
@@ -79,6 +75,7 @@ export const getQueryLogs = (
 			query = query.where("status", "in", statuses);
 		}
 
+		// console.log(query.compile());
 		const [rows, counts] = yield* Effect.all([
 			db.execute(query.orderBy("created_at", "desc").limit(limit)),
 			db.executeTakeFirstOrUndefined(countQuery),
@@ -96,7 +93,7 @@ export const getQueryLogs = (
 							schema: row.schema ?? undefined,
 							table: row.table ?? undefined,
 							status: row.status as "pending" | "success" | "error",
-							level: row.level,
+							level: Number(row.level),
 							startTime: new Date(row.start_time),
 							endTime: row.end_time ? new Date(row.end_time) : undefined,
 							timeTaken: row.time_taken ?? undefined,
