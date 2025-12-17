@@ -43,13 +43,14 @@ describe("cascadeRemoveJoins", () => {
 			},
 		];
 
-		const out = cascadeRemoveJoins({
+		const { joins: out, removedCount } = cascadeRemoveJoins({
 			joins,
 			remove: { schema: "public", table: "b" },
 		});
 
 		// Removes b and c (since c depends on b), but keeps d.
 		expect(out.map((j) => j.table).sort()).toEqual(["d"]);
+		expect(removedCount).toBe(2); // b and c
 	});
 
 	it("does not remove joins that are not transitively dependent", () => {
@@ -80,10 +81,11 @@ describe("cascadeRemoveJoins", () => {
 			},
 		];
 
-		const out = cascadeRemoveJoins({
+		const { joins: out, removedCount } = cascadeRemoveJoins({
 			joins,
 			remove: { schema: "public", table: "b" },
 		});
 		expect(out.map((j) => j.table)).toEqual(["x"]);
+		expect(removedCount).toBe(1); // just b
 	});
 });

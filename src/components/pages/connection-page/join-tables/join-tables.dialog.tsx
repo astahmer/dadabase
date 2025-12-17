@@ -15,6 +15,7 @@ import {
 	ListboxRoot,
 } from "#src/components/ui/listbox-menu.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
+import { toaster } from "#src/components/ui/toaster.tsx";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { buildJoinSqlPreview } from "#src/server/introspection/join-builder.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
@@ -40,6 +41,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useQueries } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { TableName } from "../table-name.tsx";
+import { cascadeRemoveJoins } from "./cascade-remove-joins.ts";
 import type { JoinTablesConfig } from "./join-tables.types";
 import { getTransitiveJoinRelationships } from "./get-transitive-join-relationships.ts";
 import { SortableJoinedTableRow } from "./sortable-joined-table-row.tsx";
@@ -186,6 +188,23 @@ const JoinTablesDialogContent = (
 	const handleApply = () => {
 		onApply(joinState.config);
 		onOpenChange(false);
+	};
+
+	const handleRemoveJoin = (table: string, schema: string) => {
+		const { removedCount } = cascadeRemoveJoins({
+			joins: joinState.config.joins,
+			remove: { schema, table },
+		});
+		const dependentRemovedCount = Math.max(0, removedCount - 1);
+
+		joinState.remove(table, schema);
+
+		if (dependentRemovedCount > 0) {
+			toaster.create({
+				title: "Dependent joins removed",
+				description: `Also removed ${dependentRemovedCount} dependent join${dependentRemovedCount === 1 ? "" : "s"}.`,
+			});
+		}
 	};
 
 	const handleCancel = () => {
@@ -412,7 +431,7 @@ const JoinTablesDialogContent = (
 											onUpdateJoinCondition={(updates) =>
 												joinState.update(join.table, join.schema, updates)
 											}
-											onRemove={() => joinState.remove(join.table, join.schema)}
+											onRemove={() => handleRemoveJoin(join.table, join.schema)}
 										/>
 									);
 								})}

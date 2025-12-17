@@ -6,11 +6,13 @@ const tableId = (schema: string, table: string) => `${schema}.${table}`;
  * Removes the specified join and any joins that are (transitively) anchored to it via `joinFrom`.
  *
  * Example: if C.joinFrom = B and B.joinFrom = A, removing B removes both B and C.
+ *
+ * Returns the filtered joins list and a count of how many were removed.
  */
 export const cascadeRemoveJoins = (input: {
 	joins: JoinedTable[];
 	remove: { schema: string; table: string };
-}): JoinedTable[] => {
+}): { joins: JoinedTable[]; removedCount: number } => {
 	const removeSet = new Set<string>([
 		tableId(input.remove.schema, input.remove.table),
 	]);
@@ -31,5 +33,10 @@ export const cascadeRemoveJoins = (input: {
 		}
 	}
 
-	return input.joins.filter((j) => !removeSet.has(tableId(j.schema, j.table)));
+	const filtered = input.joins.filter(
+		(j) => !removeSet.has(tableId(j.schema, j.table)),
+	);
+	const removedCount = input.joins.length - filtered.length;
+
+	return { joins: filtered, removedCount };
 };

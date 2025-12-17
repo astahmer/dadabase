@@ -35,12 +35,13 @@ export const useJoinTablesState = (
 
 	const remove = useCallback((table: string, schema: string) => {
 		setConfig((prev) => {
+			const { joins } = cascadeRemoveJoins({
+				joins: prev.joins,
+				remove: { schema, table },
+			});
 			return {
 				...prev,
-				joins: cascadeRemoveJoins({
-					joins: prev.joins,
-					remove: { schema, table },
-				}),
+				joins,
 			};
 		});
 	}, []);
