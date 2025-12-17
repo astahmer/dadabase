@@ -341,312 +341,325 @@ export const JoinedTableRow = ({
 
 	return (
 		<div className="border rounded-md bg-background">
-			<div className="p-3 space-y-2">
-				<div className="flex items-center justify-between">
-					<div className="flex-1">
-						<div className="font-medium text-sm">
-							{joined.schema}.{joined.table}
+			<Accordion collapsible>
+				<AccordionItem value="expand" className="border-b-0">
+					<AccordionItemTrigger className="px-3 py-3 hover:bg-muted/30">
+						<div className="flex-1 text-left">
+							<div className="font-medium text-sm">
+								{joined.schema}.{joined.table}
+							</div>
+							{joined.joinFrom &&
+								!(
+									joined.joinFrom.schema === parentSchema &&
+									joined.joinFrom.table === parentTable
+								) && (
+									<div className="text-xs text-muted-foreground mt-0.5">
+										Join from {joined.joinFrom.schema}.{joined.joinFrom.table}
+									</div>
+								)}
+							<div className="text-xs text-muted-foreground mt-0.5">
+								{joined.joinCondition.mode === "standard" ? (
+									<>
+										{(() => {
+											const anchorSchema =
+												joined.joinFrom?.schema ?? parentSchema;
+											const anchorTable = joined.joinFrom?.table ?? parentTable;
+											return (
+												<>
+													ON {joined.schema}.{joined.table}.
+													{joined.joinCondition.referencedColumn} = {anchorSchema}
+													.{anchorTable}.{joined.joinCondition.referencingColumn}
+												</>
+											);
+										})()}
+									</>
+								) : joined.joinCondition.mode === "custom" ? (
+									<>
+										{joined.joinCondition.conditions.length > 0
+											? `ON ${joined.joinCondition.conditions.length} condition(s)`
+											: "ON (no conditions)"}
+									</>
+								) : (
+									<>
+										{joinFilterConditions.length > 0
+											? `ON ${joinFilterConditions.length} filter(s)`
+											: "ON (no filters)"}
+									</>
+								)}
+							</div>
 						</div>
-						{joined.joinFrom &&
-							!(
-								joined.joinFrom.schema === parentSchema &&
-								joined.joinFrom.table === parentTable
-							) && (
-								<div className="text-xs text-muted-foreground mt-0.5">
-									Join from {joined.joinFrom.schema}.{joined.joinFrom.table}
+					</AccordionItemTrigger>
+
+					<AccordionItemContent className="px-3 py-3 pt-2 space-y-3 border-t">
+						<div className="flex items-center justify-between">
+							<div className="flex gap-2 items-center flex-1">
+								<div className="text-xs font-medium text-muted-foreground">
+									Join type:
 								</div>
-							)}
-						<div className="text-xs text-muted-foreground mt-0.5">
-							{joined.joinCondition.mode === "standard" ? (
-								<>
-									{(() => {
-										const anchorSchema =
-											joined.joinFrom?.schema ?? parentSchema;
-										const anchorTable = joined.joinFrom?.table ?? parentTable;
-										return (
-											<>
-												ON {joined.schema}.{joined.table}.
-												{joined.joinCondition.referencedColumn} = {anchorSchema}
-												.{anchorTable}.{joined.joinCondition.referencingColumn}
-											</>
-										);
-									})()}
-								</>
-							) : joined.joinCondition.mode === "custom" ? (
-								<>
-									{joined.joinCondition.conditions.length > 0
-										? `ON ${joined.joinCondition.conditions.length} condition(s)`
-										: "ON (no conditions)"}
-								</>
-							) : (
-								<>
-									{joinFilterConditions.length > 0
-										? `ON ${joinFilterConditions.length} filter(s)`
-										: "ON (no filters)"}
-								</>
-							)}
-						</div>
-					</div>
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={onRemove}
-						className="h-8 w-8 p-0"
-						aria-label="Remove join"
-					>
-						<Trash2 className="h-4 w-4" />
-					</Button>
-				</div>
-
-				<div className="flex gap-2 items-center">
-					<div className="text-xs font-medium text-muted-foreground">
-						Join type:
-					</div>
-					<div className="flex gap-1">
-						<Button
-							variant={joined.type === "left" ? "default" : "outline"}
-							size="sm"
-							onClick={() => onUpdateType("left")}
-							className="h-7 px-2 text-xs"
-						>
-							LEFT
-						</Button>
-						<Button
-							variant={joined.type === "inner" ? "default" : "outline"}
-							size="sm"
-							onClick={() => onUpdateType("inner")}
-							className="h-7 px-2 text-xs"
-						>
-							INNER
-						</Button>
-					</div>
-				</div>
-
-				<div className="flex gap-2 items-end">
-					<div className="flex-1">
-						<label className="text-xs font-medium text-muted-foreground block mb-1">
-							Alias (optional):
-						</label>
-						<Input
-							placeholder={`e.g., ${joined.table}_alias`}
-							value={alias}
-							onChange={(e) => handleAliasChange(e.target.value)}
-							className="h-7 text-xs"
-						/>
-					</div>
-				</div>
-
-				<div className="flex gap-2 items-center pt-2">
-					<div className="text-xs font-medium text-muted-foreground">
-						Join condition:
-					</div>
-					<div className="flex gap-1">
-						<Button
-							variant={joinConditionMode === "standard" ? "default" : "outline"}
-							size="sm"
-							onClick={() => handleSwitchJoinConditionMode("standard")}
-							className="h-7 px-2 text-xs"
-						>
-							Standard
-						</Button>
-						<Button
-							variant={joinConditionMode === "filters" ? "default" : "outline"}
-							size="sm"
-							onClick={() => handleSwitchJoinConditionMode("filters")}
-							className="h-7 px-2 text-xs"
-						>
-							Filters
-						</Button>
-						<Button
-							variant={joinConditionMode === "custom" ? "default" : "outline"}
-							size="sm"
-							onClick={() => handleSwitchJoinConditionMode("custom")}
-							className="h-7 px-2 text-xs"
-						>
-							Custom SQL
-						</Button>
-					</div>
-				</div>
-			</div>
-
-			<Accordion collapsible multiple={false}>
-				{joinConditionMode === "custom" && (
-					<AccordionItem value="custom-join">
-						<AccordionItemTrigger className="px-3 py-2">
-							Custom Join Conditions ({customJoinConditions.length})
-						</AccordionItemTrigger>
-						<AccordionItemContent className="px-3 py-2">
-							<div className="space-y-3">
-								<p className="text-xs text-muted-foreground">
-									Enter SQL expressions for the ON clause. Multiple conditions
-									will be combined with AND.
-								</p>
-								<div className="space-y-2">
-									{customJoinConditions.map((condition, index) => (
-										<div key={index} className="flex gap-2 items-start">
-											<Input
-												placeholder={`e.g., ${joined.table}.deleted_at IS NULL`}
-												value={condition}
-												onChange={(e) =>
-													handleUpdateCustomJoinCondition(index, e.target.value)
-												}
-												className="flex-1 h-8 text-xs"
-											/>
-											<Button
-												size="sm"
-												variant="ghost"
-												onClick={() => handleRemoveCustomJoinCondition(index)}
-												className="h-8 w-8 p-0"
-												aria-label="Remove condition"
-											>
-												<X className="h-3 w-3" />
-											</Button>
-										</div>
-									))}
-								</div>
-								<div className="flex gap-2 pt-2">
+								<div className="flex gap-1">
 									<Button
+										variant={joined.type === "left" ? "default" : "outline"}
 										size="sm"
-										variant="outline"
-										onClick={handleAddCustomJoinCondition}
-										className="h-7 flex-1 text-xs"
+										onClick={() => onUpdateType("left")}
+										className="h-7 px-2 text-xs"
 									>
-										<Plus className="h-3 w-3 mr-1" />
-										Add Condition
+										LEFT
 									</Button>
-									{customJoinConditions.length > 0 && (
-										<Button
-											size="sm"
-											variant="ghost"
-											onClick={handleClearCustomJoinConditions}
-											className="h-7 px-2 text-xs"
-										>
-											<X className="h-3 w-3" />
-										</Button>
-									)}
+									<Button
+										variant={joined.type === "inner" ? "default" : "outline"}
+										size="sm"
+										onClick={() => onUpdateType("inner")}
+										className="h-7 px-2 text-xs"
+									>
+										INNER
+									</Button>
 								</div>
 							</div>
-						</AccordionItemContent>
-					</AccordionItem>
-				)}
-
-				{joinConditionMode === "filters" && (
-					<AccordionItem value="filter-join">
-						<AccordionItemTrigger className="px-3 py-2">
-							Join Conditions builder ({joinFilterConditions.length})
-						</AccordionItemTrigger>
-						<AccordionItemContent className="px-3 py-2">
-							{joinFilterConditions.length === 0 ? (
-								<div className="py-4">
-									<Button
-										size="sm"
-										variant="outline"
-										onClick={handleAddJoinFilterCondition}
-										className="w-full text-xs"
-									>
-										<Plus className="h-3 w-3 mr-1" />
-										Add Filter
-									</Button>
-								</div>
-							) : (
-								<QueryFilterBuilder
-									conditions={joinFilterConditions}
-									onUpdateCondition={handleUpdateJoinFilterCondition}
-									onRemoveCondition={handleRemoveJoinFilterCondition}
-									onAddCondition={handleAddJoinFilterCondition}
-									onClearAll={handleClearJoinFilterConditions}
-									onLogicalOperatorChange={
-										handleJoinFilterLogicalOperatorChange
-									}
-									logicalOperator={joinFilterLogicalOperator}
-									availableColumns={availableColumns.map((c) => c.name)}
-									tableReference={alias || joined.table}
-								/>
-							)}
-						</AccordionItemContent>
-					</AccordionItem>
-				)}
-
-				<AccordionItem value="columns">
-					<AccordionItemTrigger className="px-3 py-2">
-						Columns ({columnLabel})
-					</AccordionItemTrigger>
-					<AccordionItemContent className="px-3 py-2">
-						<div className="space-y-2">
-							<Checkbox
-								checked={
-									selectedColumns.size === availableColumns.length
-										? true
-										: selectedColumns.size > 0
-											? "indeterminate"
-											: false
-								}
-								onCheckedChange={(details) =>
-									handleSelectAll(details.checked === true)
-								}
-								className="flex gap-2 w-full"
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={onRemove}
+								className="h-8 w-8 p-0"
+								aria-label="Remove join"
 							>
-								<CheckboxControl />
-								<CheckboxLabel className="text-xs cursor-pointer flex-1">
-									<span className="font-medium">Select All</span>
-								</CheckboxLabel>
-							</Checkbox>
-							{availableColumns.map((col) => (
-								<div key={col.name} className="flex items-center gap-2">
-									<Checkbox
-										checked={selectedColumns.has(col.name)}
-										onCheckedChange={() => handleToggleColumn(col.name)}
-										className="flex gap-2 w-full"
-									>
-										<CheckboxControl />
-										<CheckboxLabel className="text-xs cursor-pointer flex-1">
-											<span className="font-medium">{col.name}</span>
-											<span className="text-muted-foreground ml-1">
-												({col.dataType})
-											</span>
-										</CheckboxLabel>
-									</Checkbox>
-								</div>
-							))}
-
-							{availableColumns.length === 0 && (
-								<div className="text-xs text-muted-foreground py-2">
-									No columns available
-								</div>
-							)}
+								<Trash2 className="h-4 w-4" />
+							</Button>
 						</div>
-					</AccordionItemContent>
-				</AccordionItem>
 
-				<AccordionItem value="filters">
-					<AccordionItemTrigger className="px-3 py-2">
-						Filters ({filterLabel})
-					</AccordionItemTrigger>
-					<AccordionItemContent className="px-3 py-2">
-						{filterConditions.length === 0 ? (
-							<div className="py-4">
+						<div className="flex gap-2 items-end">
+							<div className="flex-1">
+								<label className="text-xs font-medium text-muted-foreground block mb-1">
+									Alias (optional):
+								</label>
+								<Input
+									placeholder={`e.g., ${joined.table}_alias`}
+									value={alias}
+									onChange={(e) => handleAliasChange(e.target.value)}
+									className="h-7 text-xs"
+								/>
+							</div>
+						</div>
+
+						<div className="flex gap-2 items-center pt-2">
+							<div className="text-xs font-medium text-muted-foreground">
+								Join condition:
+							</div>
+							<div className="flex gap-1">
 								<Button
+									variant={joinConditionMode === "standard" ? "default" : "outline"}
 									size="sm"
-									variant="outline"
-									onClick={handleAddFilterCondition}
-									className="w-full text-xs"
+									onClick={() => handleSwitchJoinConditionMode("standard")}
+									className="h-7 px-2 text-xs"
 								>
-									<Plus className="h-3 w-3 mr-1" />
-									Add Filter
+									Standard
+								</Button>
+								<Button
+									variant={joinConditionMode === "filters" ? "default" : "outline"}
+									size="sm"
+									onClick={() => handleSwitchJoinConditionMode("filters")}
+									className="h-7 px-2 text-xs"
+								>
+									Filters
+								</Button>
+								<Button
+									variant={joinConditionMode === "custom" ? "default" : "outline"}
+									size="sm"
+									onClick={() => handleSwitchJoinConditionMode("custom")}
+									className="h-7 px-2 text-xs"
+								>
+									Custom SQL
 								</Button>
 							</div>
-						) : (
-							<QueryFilterBuilder
-								conditions={filterConditions}
-								onUpdateCondition={handleUpdateFilterCondition}
-								onRemoveCondition={handleRemoveFilterCondition}
-								onAddCondition={handleAddFilterCondition}
-								onClearAll={handleClearFilterConditions}
-								onLogicalOperatorChange={handleFilterLogicalOperatorChange}
-								logicalOperator={logicalOperator}
-								availableColumns={availableColumns.map((c) => c.name)}
-							/>
-						)}
+						</div>
+
+						<Accordion collapsible multiple={false}>
+							{joinConditionMode === "custom" && (
+								<AccordionItem value="custom-join">
+									<AccordionItemTrigger className="px-3 py-2">
+										Custom Join Conditions ({customJoinConditions.length})
+									</AccordionItemTrigger>
+									<AccordionItemContent className="px-3 py-2">
+										<div className="space-y-3">
+											<p className="text-xs text-muted-foreground">
+												Enter SQL expressions for the ON clause. Multiple
+												conditions will be combined with AND.
+											</p>
+											<div className="space-y-2">
+												{customJoinConditions.map((condition, index) => (
+													<div key={index} className="flex gap-2 items-start">
+														<Input
+															placeholder={`e.g., ${joined.table}.deleted_at IS NULL`}
+															value={condition}
+															onChange={(e) =>
+																handleUpdateCustomJoinCondition(
+																	index,
+																	e.target.value,
+																)
+															}
+															className="flex-1 h-8 text-xs"
+														/>
+														<Button
+															size="sm"
+															variant="ghost"
+															onClick={() =>
+																handleRemoveCustomJoinCondition(index)
+															}
+															className="h-8 w-8 p-0"
+															aria-label="Remove condition"
+														>
+															<X className="h-3 w-3" />
+														</Button>
+													</div>
+												))}
+											</div>
+											<div className="flex gap-2 pt-2">
+												<Button
+													size="sm"
+													variant="outline"
+													onClick={handleAddCustomJoinCondition}
+													className="h-7 flex-1 text-xs"
+												>
+													<Plus className="h-3 w-3 mr-1" />
+													Add Condition
+												</Button>
+												{customJoinConditions.length > 0 && (
+													<Button
+														size="sm"
+														variant="ghost"
+														onClick={handleClearCustomJoinConditions}
+														className="h-7 px-2 text-xs"
+													>
+														<X className="h-3 w-3" />
+													</Button>
+												)}
+											</div>
+										</div>
+									</AccordionItemContent>
+								</AccordionItem>
+							)}
+
+							{joinConditionMode === "filters" && (
+								<AccordionItem value="filter-join">
+									<AccordionItemTrigger className="px-3 py-2">
+										Join Conditions builder ({joinFilterConditions.length})
+									</AccordionItemTrigger>
+									<AccordionItemContent className="px-3 py-2">
+										{joinFilterConditions.length === 0 ? (
+											<div className="py-4">
+												<Button
+													size="sm"
+													variant="outline"
+													onClick={handleAddJoinFilterCondition}
+													className="w-full text-xs"
+												>
+													<Plus className="h-3 w-3 mr-1" />
+													Add Filter
+												</Button>
+											</div>
+										) : (
+											<QueryFilterBuilder
+												conditions={joinFilterConditions}
+												onUpdateCondition={handleUpdateJoinFilterCondition}
+												onRemoveCondition={handleRemoveJoinFilterCondition}
+												onAddCondition={handleAddJoinFilterCondition}
+												onClearAll={handleClearJoinFilterConditions}
+												onLogicalOperatorChange={
+													handleJoinFilterLogicalOperatorChange
+												}
+												logicalOperator={joinFilterLogicalOperator}
+												availableColumns={availableColumns.map((c) => c.name)}
+												tableReference={alias || joined.table}
+											/>
+										)}
+									</AccordionItemContent>
+								</AccordionItem>
+							)}
+
+							<AccordionItem value="columns">
+								<AccordionItemTrigger className="px-3 py-2">
+									Columns ({columnLabel})
+								</AccordionItemTrigger>
+								<AccordionItemContent className="px-3 py-2">
+									<div className="space-y-2">
+										<Checkbox
+											checked={
+												selectedColumns.size === availableColumns.length
+													? true
+													: selectedColumns.size > 0
+														? "indeterminate"
+														: false
+											}
+											onCheckedChange={(details) =>
+												handleSelectAll(details.checked === true)
+											}
+											className="flex gap-2 w-full"
+										>
+											<CheckboxControl />
+											<CheckboxLabel className="text-xs cursor-pointer flex-1">
+												<span className="font-medium">Select All</span>
+											</CheckboxLabel>
+										</Checkbox>
+										{availableColumns.map((col) => (
+											<div key={col.name} className="flex items-center gap-2">
+												<Checkbox
+													checked={selectedColumns.has(col.name)}
+													onCheckedChange={() => handleToggleColumn(col.name)}
+													className="flex gap-2 w-full"
+												>
+													<CheckboxControl />
+													<CheckboxLabel className="text-xs cursor-pointer flex-1">
+														<span className="font-medium">{col.name}</span>
+														<span className="text-muted-foreground ml-1">
+															({col.dataType})
+														</span>
+													</CheckboxLabel>
+												</Checkbox>
+											</div>
+										))}
+
+										{availableColumns.length === 0 && (
+											<div className="text-xs text-muted-foreground py-2">
+												No columns available
+											</div>
+										)}
+									</div>
+								</AccordionItemContent>
+							</AccordionItem>
+
+							<AccordionItem value="filters">
+								<AccordionItemTrigger className="px-3 py-2">
+									Filters ({filterLabel})
+								</AccordionItemTrigger>
+								<AccordionItemContent className="px-3 py-2">
+									{filterConditions.length === 0 ? (
+										<div className="py-4">
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={handleAddFilterCondition}
+												className="w-full text-xs"
+											>
+												<Plus className="h-3 w-3 mr-1" />
+												Add Filter
+											</Button>
+										</div>
+									) : (
+										<QueryFilterBuilder
+											conditions={filterConditions}
+											onUpdateCondition={handleUpdateFilterCondition}
+											onRemoveCondition={handleRemoveFilterCondition}
+											onAddCondition={handleAddFilterCondition}
+											onClearAll={handleClearFilterConditions}
+											onLogicalOperatorChange={
+												handleFilterLogicalOperatorChange
+											}
+											logicalOperator={logicalOperator}
+											availableColumns={availableColumns.map((c) => c.name)}
+										/>
+									)}
+								</AccordionItemContent>
+							</AccordionItem>
+						</Accordion>
 					</AccordionItemContent>
 				</AccordionItem>
 			</Accordion>
