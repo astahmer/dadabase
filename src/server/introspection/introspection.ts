@@ -886,6 +886,9 @@ export interface ColumnReference {
 	referencedColumn: string;
 	constraintName: string;
 }
+export interface ColumnReferenceWithCount extends ColumnReference {
+	matchingRowCount: number;
+}
 
 /**
  * Get all tables and columns that reference a specific column (reverse FK lookup)

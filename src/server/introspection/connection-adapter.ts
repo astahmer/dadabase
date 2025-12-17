@@ -12,6 +12,8 @@ import {
 	type TableColumnMetadata,
 	type TableWithColumnsMetadata,
 } from "./introspection.ts";
+import type { QueryLogger } from "../query-logger/query-logger.ts";
+import type { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
 
 /**
  * DatabaseConnectionAdapter interface - abstracts database introspection operations
@@ -23,19 +25,19 @@ export interface DatabaseConnectionAdapterType {
 	readonly getAvailableDatabases: () => Effect.Effect<
 		Array<{ name: string }>,
 		SqlError,
-		SqlClient.SqlClient
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
 	>;
 	readonly getAvailableSchemas: () => Effect.Effect<
 		string[],
 		SqlError,
-		SqlClient.SqlClient
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
 	>;
 	readonly getAvailableTables: (input?: {
 		schema?: string;
 	}) => Effect.Effect<
 		Array<{ name: string; schema: string }>,
 		SqlError,
-		SqlClient.SqlClient
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
 	>;
 
 	// Column and table metadata
@@ -45,38 +47,54 @@ export interface DatabaseConnectionAdapterType {
 	}) => Effect.Effect<
 		Array<TableColumnMetadata>,
 		SqlError,
-		SqlClient.SqlClient
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
 	>;
 
 	readonly getTableForeignKeys: (input: {
 		schema: string;
 		table: string;
-	}) => Effect.Effect<Array<ForeignKeyInfo>, SqlError, SqlClient.SqlClient>;
+	}) => Effect.Effect<
+		Array<ForeignKeyInfo>,
+		SqlError,
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
+	>;
 
 	readonly getTableIndexes: (input: {
 		schema: string;
 		table: string;
-	}) => Effect.Effect<Array<IndexInfo>, SqlError, SqlClient.SqlClient>;
+	}) => Effect.Effect<
+		Array<IndexInfo>,
+		SqlError,
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
+	>;
 
 	readonly getAllTablesColumns: (input: {
 		schema: string;
 	}) => Effect.Effect<
 		Array<TableWithColumnsMetadata>,
 		SqlError,
-		SqlClient.SqlClient
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
 	>;
 
 	// Relationships
 	readonly getTableRelationships: (input: {
 		schema: string;
 		table: string;
-	}) => Effect.Effect<Array<TableRelationship>, SqlError, SqlClient.SqlClient>;
+	}) => Effect.Effect<
+		Array<TableRelationship>,
+		SqlError,
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
+	>;
 
 	readonly findColumnReferences: (input: {
 		referencedSchema: string;
 		referencedTable: string;
 		referencedColumn: string;
-	}) => Effect.Effect<Array<ColumnReference>, SqlError, SqlClient.SqlClient>;
+	}) => Effect.Effect<
+		Array<ColumnReference>,
+		SqlError,
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
+	>;
 
 	readonly findColumnReferencesWithCounts: (input: {
 		referencedSchema: string;
@@ -86,7 +104,7 @@ export interface DatabaseConnectionAdapterType {
 	}) => Effect.Effect<
 		Array<ColumnReferenceWithCount>,
 		SqlError,
-		SqlClient.SqlClient
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
 	>;
 
 	readonly getRelationshipCardinality: (input: {
@@ -94,14 +112,22 @@ export interface DatabaseConnectionAdapterType {
 		table: string;
 		columns: string[];
 		isIncomingRelationship?: boolean;
-	}) => Effect.Effect<RelationshipCardinality, SqlError, SqlClient.SqlClient>;
+	}) => Effect.Effect<
+		RelationshipCardinality,
+		SqlError,
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
+	>;
 
 	readonly getRelationshipsCounts: (input: {
 		schema: string;
 		table: string;
 		relationships: TableRelationshipInput[];
 		rowData: Record<string, unknown>;
-	}) => Effect.Effect<Record<string, number>, SqlError, SqlClient.SqlClient>;
+	}) => Effect.Effect<
+		Record<string, number>,
+		SqlError,
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
+	>;
 
 	// Query execution
 	readonly queryTableRows: <
@@ -121,7 +147,7 @@ export interface DatabaseConnectionAdapterType {
 			hasNextPage: boolean;
 		},
 		SqlError,
-		SqlClient.SqlClient
+		SqlClient.SqlClient | QueryLogger | RemoteConnection
 	>;
 }
 
