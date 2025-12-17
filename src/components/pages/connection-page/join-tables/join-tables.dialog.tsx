@@ -20,6 +20,7 @@ import { buildJoinSqlPreview } from "#src/server/introspection/join-builder.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
+import type { TableRelationship } from "../relationships/relationships.ts";
 import { createListCollection, useFilter } from "@ark-ui/react";
 import {
 	closestCenter,
@@ -36,9 +37,11 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { TableName } from "../table-name.tsx";
 import type { JoinTablesConfig } from "./join-tables.types";
+import { getTransitiveJoinRelationships } from "./get-transitive-join-relationships.ts";
 import { SortableJoinedTableRow } from "./sortable-joined-table-row.tsx";
 import { useJoinTablesState } from "./use-join-tables-state.ts";
 import { useJoinedTables } from "./use-joined-tables.ts";
@@ -84,28 +87,57 @@ const JoinTablesDialogContent = (
 		}),
 	);
 
+	const joinedRelationshipsQueries = useQueries({
+		queries: joinState.config.joins.map((j) =>
+			getTableRelationshipsQueryOptions({
+				url,
+				schema: j.schema,
+				table: j.table,
+			}),
+		),
+	});
+
 	const columnQueries = useJoinedTables({
 		url: url,
 		joins: joinState.config.joins,
 	});
 
-	// Build list of joinable tables from relationships - keep the full relationship data
-	const joinableTables = useMemo(() => {
-		if (!relationshipsQuery.data) return [];
-		return relationshipsQuery.data;
-	}, [relationshipsQuery.data]);
+	const selectedTableIds = [
+		`${schema}.${table}`,
+		...joinState.config.joins.map((j) => `${j.schema}.${j.table}`),
+	];
 
-	const selectedTableIds = joinState.config.joins.map(
-		(j) => `${j.schema}.${j.table}`,
-	);
+	const relationshipsBySource = useMemo(() => {
+		const map = new Map<string, TableRelationship[]>();
+		if (relationshipsQuery.data) {
+			map.set(`${schema}.${table}`, relationshipsQuery.data);
+		}
+		for (let i = 0; i < joinState.config.joins.length; i++) {
+			const joined = joinState.config.joins[i];
+			const q = joinedRelationshipsQueries[i];
+			if (q?.data) {
+				map.set(`${joined.schema}.${joined.table}`, q.data);
+			}
+		}
+		return map;
+	}, [
+		relationshipsQuery.data,
+		schema,
+		table,
+		joinState.config.joins,
+		joinedRelationshipsQueries,
+	]);
 
-	const unselectedRelationships = joinableTables.filter((rel) => {
-		const targetTable =
-			rel.type === "outgoing" ? rel.referencedTable : rel.referencingTable;
-		const targetSchema =
-			rel.type === "outgoing" ? rel.referencedSchema : rel.referencingSchema;
-		return !selectedTableIds.includes(`${targetSchema}.${targetTable}`);
-	});
+	const unselectedRelationships = useMemo(() => {
+		return getTransitiveJoinRelationships({
+			base: { schema, table },
+			joined: joinState.config.joins.map((j) => ({
+				schema: j.schema,
+				table: j.table,
+			})),
+			relationshipsBySource,
+		});
+	}, [relationshipsBySource, schema, table, joinState.config.joins]);
 
 	const filters = useFilter({ sensitivity: "base" });
 	const [searchInput, setSearchInput] = useState("");
@@ -133,12 +165,21 @@ const JoinTablesDialogContent = (
 	};
 
 	const tableCollection = createListCollection({
-		items: unselectedRelationships.map((rel) => ({
-			label: `${rel.type === "outgoing" ? rel.referencedSchema : rel.referencingSchema}.${rel.type === "outgoing" ? rel.referencedTable : rel.referencingTable}`,
-			value: rel.constraintName,
-			rel: rel,
-			type: rel.type,
-		})),
+		items: unselectedRelationships.map((item) => {
+			const rel = item.relationship;
+			const targetSchema =
+				rel.type === "outgoing" ? rel.referencedSchema : rel.referencingSchema;
+			const targetTable =
+				rel.type === "outgoing" ? rel.referencedTable : rel.referencingTable;
+			return {
+				label: `${targetSchema}.${targetTable}`,
+				value: `${item.sourceSchema}.${item.sourceTable}|${rel.type}|${rel.constraintName}|${rel.referencingSchema}.${rel.referencingTable}.${rel.referencingColumn}|${rel.referencedSchema}.${rel.referencedTable}.${rel.referencedColumn}`,
+				rel,
+				sourceSchema: item.sourceSchema,
+				sourceTable: item.sourceTable,
+				type: rel.type,
+			};
+		}),
 		groupBy: (item) => item.type,
 	});
 
@@ -153,7 +194,8 @@ const JoinTablesDialogContent = (
 		onOpenChange(false);
 	};
 
-	const isLoadingRelationships = relationshipsQuery.isLoading;
+	const isLoadingRelationships =
+		relationshipsQuery.isLoading && !relationshipsQuery.data;
 
 	const schemaListQuery = useQuery({
 		...listAvailableSchemasQueryOptions({ url: url }),
@@ -247,9 +289,11 @@ const JoinTablesDialogContent = (
 
 												return (
 													<ListboxMenuItem
-														key={`${rel.constraintName}.${rel.referencingColumn}.${rel.referencedColumn}.${rel.referencingTable}.${rel.referencedTable}.${rel.type}`}
-														item={rel.constraintName}
+														key={item.value}
+														item={item.value}
 														onClick={() => {
+															const sourceSchema = item.sourceSchema;
+															const sourceTable = item.sourceTable;
 															const referencingCol =
 																rel.type === "outgoing"
 																	? rel.referencingColumn
@@ -262,6 +306,10 @@ const JoinTablesDialogContent = (
 															joinState.add({
 																schema: targetSchema,
 																table: targetTable,
+																joinFrom: {
+																	schema: sourceSchema,
+																	table: sourceTable,
+																},
 																type: "left",
 																columns: "all",
 																joinCondition: {

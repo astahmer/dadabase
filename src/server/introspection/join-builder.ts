@@ -405,17 +405,78 @@ export const buildJoinSqlClauses = (
 	const aliases =
 		joinAliases ?? generateJoinAliases(joins, originalTable, originalSchema);
 
-	return joins.map((join, index) => {
+	const baseKey = `${originalSchema}.${originalTable}`;
+	const joinKey = (s: string, t: string) => `${s}.${t}`;
+
+	const resolveFromRef = (join: JoinedTable): string => {
+		if (!join.joinFrom) {
+			return getTableRef(originalSchema, originalTable, dialect);
+		}
+
+		const fromKey = joinKey(join.joinFrom.schema, join.joinFrom.table);
+		if (fromKey === baseKey) {
+			return getTableRef(originalSchema, originalTable, dialect);
+		}
+
+		const fromIndex = joins.findIndex(
+			(j) =>
+				j.schema === join.joinFrom?.schema && j.table === join.joinFrom?.table,
+		);
+		if (fromIndex === -1) {
+			// Unknown anchor: fallback to base table to keep backward compatibility.
+			return getTableRef(originalSchema, originalTable, dialect);
+		}
+
+		const fromAlias = aliases.get(fromIndex);
+		return fromAlias
+			? `"${fromAlias}"`
+			: getTableRef(join.joinFrom.schema, join.joinFrom.table, dialect);
+	};
+
+	// Ensure joins are emitted in a valid order so a join can reference its anchor.
+	// This is a stable, dependency-respecting ordering (only reorders when needed).
+	const ordered = (() => {
+		const remaining = joins.map((join, index) => ({ join, index }));
+		const out: Array<{ join: JoinedTable; index: number }> = [];
+		const available = new Set<string>([baseKey]);
+
+		// Iterate until we can't make progress.
+		for (let guard = 0; guard < joins.length + 5; guard++) {
+			let progressed = false;
+
+			for (let i = 0; i < remaining.length; i++) {
+				const item = remaining[i];
+				const anchor = item.join.joinFrom
+					? joinKey(item.join.joinFrom.schema, item.join.joinFrom.table)
+					: baseKey;
+				if (available.has(anchor)) {
+					remaining.splice(i, 1);
+					i--;
+					out.push(item);
+					available.add(joinKey(item.join.schema, item.join.table));
+					progressed = true;
+				}
+			}
+
+			if (!progressed) {
+				break;
+			}
+			if (remaining.length === 0) {
+				break;
+			}
+		}
+
+		// Cycle or invalid anchor references: preserve remaining order.
+		return remaining.length > 0 ? out.concat(remaining) : out;
+	})();
+
+	return ordered.map(({ join, index }) => {
 		const joinType = join.type === "left" ? "LEFT JOIN" : "INNER JOIN";
 		const alias = aliases.get(index);
 		const baseTableRef = getTableRef(join.schema, join.table, dialect);
 		// Use alias in the JOIN clause if available
 		const joinTableRef = alias ? `${baseTableRef} AS "${alias}"` : baseTableRef;
-		const originalTableRef = getTableRef(
-			originalSchema,
-			originalTable,
-			dialect,
-		);
+		const originalTableRef = resolveFromRef(join);
 
 		let joinCondition: string;
 		switch (join.joinCondition.mode) {

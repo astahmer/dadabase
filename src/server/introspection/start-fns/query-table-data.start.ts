@@ -42,6 +42,10 @@ const JoinConditionSchema = Schema.Union(
 export const JoinedTableSchema = Schema.Struct({
 	table: Schema.String,
 	schema: Schema.String,
+	joinFrom: Schema.Struct({
+		schema: Schema.String,
+		table: Schema.String,
+	}).pipe(Schema.optional),
 	alias: Schema.String.pipe(Schema.optional),
 	type: Schema.Literal("left", "inner"),
 	columns: Schema.Union(

@@ -48,6 +48,48 @@ describe("sql-join-builder", () => {
 			expect(clauses[0]).toContain('"id"');
 		});
 
+		it("builds transitive FK joins using joinFrom", () => {
+			const joins: JoinedTable[] = [
+				{
+					table: "c",
+					schema: "public",
+					joinFrom: { schema: "public", table: "b" },
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "b_id",
+					},
+				},
+				{
+					table: "b",
+					schema: "public",
+					joinFrom: { schema: "public", table: "a" },
+					type: "left",
+					columns: "all",
+					joinCondition: {
+						mode: "standard",
+						referencingColumn: "id",
+						referencedColumn: "a_id",
+					},
+				},
+			];
+
+			const clauses = buildJoinSqlClauses(
+				joins,
+				"public",
+				"a",
+				DatabaseDialect.Postgres,
+			);
+
+			// Should reorder so b is joined before c (since c joins from b)
+			expect(clauses).toEqual([
+				'LEFT JOIN public."b" ON public."b"."a_id" = public."a"."id"',
+				'LEFT JOIN public."c" ON public."c"."b_id" = public."b"."id"',
+			]);
+		});
+
 		it("builds standard FK-based join for SQLite", () => {
 			const joins: JoinedTable[] = [
 				{

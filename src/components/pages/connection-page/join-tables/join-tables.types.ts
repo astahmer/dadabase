@@ -55,6 +55,14 @@ export interface JoinedTable {
 	table: string;
 	/** Schema of the table to join */
 	schema: string;
+	/**
+	 * Which already-in-scope table this join is anchored to.
+	 * When omitted, the join is anchored to the base/original table.
+	 */
+	joinFrom?: {
+		schema: string;
+		table: string;
+	};
 	/** Type of join */
 	type: JoinType;
 	/** Columns to include from this table - "all" or specific column names */

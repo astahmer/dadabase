@@ -1617,6 +1617,13 @@ export const queryTableRows = <TData>(input: {
 		const joinsRemapped = joins.map((j) => ({
 			...j,
 			schema: j.schema === defaultSchema ? "" : j.schema,
+			joinFrom: j.joinFrom
+				? {
+						...j.joinFrom,
+						schema:
+							j.joinFrom.schema === defaultSchema ? "" : j.joinFrom.schema,
+					}
+				: undefined,
 		}));
 
 		// Fetch table columns for proper aliasing when using joins
