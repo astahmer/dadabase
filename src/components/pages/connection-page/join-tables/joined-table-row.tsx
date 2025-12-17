@@ -367,8 +367,9 @@ export const JoinedTableRow = ({
 											return (
 												<>
 													ON {joined.schema}.{joined.table}.
-													{joined.joinCondition.referencedColumn} = {anchorSchema}
-													.{anchorTable}.{joined.joinCondition.referencingColumn}
+													{joined.joinCondition.referencedColumn} ={" "}
+													{anchorSchema}.{anchorTable}.
+													{joined.joinCondition.referencingColumn}
 												</>
 											);
 										})()}
@@ -388,6 +389,15 @@ export const JoinedTableRow = ({
 								)}
 							</div>
 						</div>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={onRemove}
+							className="h-8 w-8 p-0"
+							aria-label="Remove join"
+						>
+							<Trash2 className="h-4 w-4" />
+						</Button>
 					</AccordionItemTrigger>
 
 					<AccordionItemContent className="px-3 py-3 pt-2 space-y-3 border-t">
@@ -415,15 +425,6 @@ export const JoinedTableRow = ({
 									</Button>
 								</div>
 							</div>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={onRemove}
-								className="h-8 w-8 p-0"
-								aria-label="Remove join"
-							>
-								<Trash2 className="h-4 w-4" />
-							</Button>
 						</div>
 
 						<div className="flex gap-2 items-end">
@@ -446,7 +447,9 @@ export const JoinedTableRow = ({
 							</div>
 							<div className="flex gap-1">
 								<Button
-									variant={joinConditionMode === "standard" ? "default" : "outline"}
+									variant={
+										joinConditionMode === "standard" ? "default" : "outline"
+									}
 									size="sm"
 									onClick={() => handleSwitchJoinConditionMode("standard")}
 									className="h-7 px-2 text-xs"
@@ -454,7 +457,9 @@ export const JoinedTableRow = ({
 									Standard
 								</Button>
 								<Button
-									variant={joinConditionMode === "filters" ? "default" : "outline"}
+									variant={
+										joinConditionMode === "filters" ? "default" : "outline"
+									}
 									size="sm"
 									onClick={() => handleSwitchJoinConditionMode("filters")}
 									className="h-7 px-2 text-xs"
@@ -462,7 +467,9 @@ export const JoinedTableRow = ({
 									Filters
 								</Button>
 								<Button
-									variant={joinConditionMode === "custom" ? "default" : "outline"}
+									variant={
+										joinConditionMode === "custom" ? "default" : "outline"
+									}
 									size="sm"
 									onClick={() => handleSwitchJoinConditionMode("custom")}
 									className="h-7 px-2 text-xs"

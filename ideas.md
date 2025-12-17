@@ -61,3 +61,4 @@
 - checkbox to toggle visible columns in client or server (remove from select query)
 
 ## issues
+- import join config from SQL query

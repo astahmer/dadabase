@@ -233,6 +233,8 @@ const JoinTablesDialogContent = (
 	);
 	const hasMultipleSchemas = schemaWithTables.length > 1;
 
+	const [inputKey, setInputKey] = useState(0);
+
 	return (
 		<>
 			<DialogHeader>
@@ -264,6 +266,7 @@ const JoinTablesDialogContent = (
 						<div className="text-sm font-medium">Add Table to Join</div>
 						<ListboxRoot collection={tableCollection} selectionMode="none">
 							<ListboxMenuFilterInput
+								key={inputKey}
 								placeholder="Search tables..."
 								onChange={(e) => {
 									setSearchInput(e.target.value);
@@ -337,6 +340,7 @@ const JoinTablesDialogContent = (
 																	referencedColumn: referencedCol,
 																},
 															});
+															setInputKey(inputKey + 1);
 														}}
 													>
 														<HStack
