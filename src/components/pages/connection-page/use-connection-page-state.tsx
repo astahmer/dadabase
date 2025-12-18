@@ -56,6 +56,7 @@ export const useConnectionPageState = ({
 			orderDirection: s.orderDirection,
 			nullsOrder: s.nullsOrder,
 			hiddenColumnList: s.hiddenColumnList,
+			columnVisibilityMode: s.columnVisibilityMode,
 			tableSize: s.tableSize,
 			columnPinning: s.columnPinning,
 			columnOrder: s.columnOrder,
@@ -97,6 +98,13 @@ export const useConnectionPageState = ({
 	);
 
 	const joins = Array.from(search.joins ?? []);
+
+	// Prepare excluded columns for server mode
+	const excludedColumns =
+		search.columnVisibilityMode === "server"
+			? Array.from(search.hiddenColumnList ?? [])
+			: undefined;
+
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
 			url: activeConnectionUrl,
@@ -112,6 +120,7 @@ export const useConnectionPageState = ({
 				logicalOperator: "and",
 			},
 			joins: joins,
+			excludedColumns,
 		}),
 		enabled: !!search.schema && !!search.table,
 	});

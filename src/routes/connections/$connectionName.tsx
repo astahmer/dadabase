@@ -38,6 +38,9 @@ const TabStateSchema = Schema.Struct({
 	),
 	tableSize: tableSize.pipe(Schema.optionalWith({ default: () => "cozy" })),
 	hiddenColumnList: Schema.String.pipe(Schema.Array, Schema.optional),
+	columnVisibilityMode: Schema.Literal("client", "server").pipe(
+		Schema.optionalWith({ default: () => "client" }),
+	),
 	filters: QueryFilter.pipe(Schema.optional),
 	filtersOpened: Schema.Boolean.pipe(Schema.optional),
 	columnPinning: Schema.Struct({

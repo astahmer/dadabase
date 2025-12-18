@@ -253,6 +253,15 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 						table={table}
 						columnList={columnList}
 						minimal={true}
+						visibilityMode={useActiveTabState((s) => s.columnVisibilityMode)}
+						onVisibilityModeChange={(mode) => {
+							navigate({
+								search: (prev) =>
+									updateTabState(prev, {
+										columnVisibilityMode: mode,
+									}),
+							});
+						}}
 					/>
 				)}
 				{viewMode === "rows" && (

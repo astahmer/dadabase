@@ -12,12 +12,19 @@ export interface ColumnVisibilityControlsProps<TData> {
 	table: TanstackTable<TData>;
 	columnList: string[];
 	minimal?: boolean;
+	visibilityMode?: "client" | "server";
+	onVisibilityModeChange?: (mode: "client" | "server") => void;
 }
 
 export function ColumnVisibilityControls<TData>(
 	props: ColumnVisibilityControlsProps<TData>,
 ) {
-	const { table, minimal = false } = props;
+	const {
+		table,
+		minimal = false,
+		visibilityMode = "client",
+		onVisibilityModeChange,
+	} = props;
 	const [open, setOpen] = useState(false);
 
 	const allColumns = useMemo(
@@ -92,6 +99,33 @@ export function ColumnVisibilityControls<TData>(
 						<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50">
 							<Listbox.Root collection={list.collection}>
 								<div className="p-2 border-b border-border space-y-2">
+									<div className="flex items-center gap-2">
+										<span className="text-xs font-medium text-muted-foreground">
+											Mode:
+										</span>
+										<div className="flex gap-1 flex-1">
+											<Button
+												size="sm"
+												variant={
+													visibilityMode === "client" ? "default" : "outline"
+												}
+												className="h-6 px-2 text-xs flex-1"
+												onClick={() => onVisibilityModeChange?.("client")}
+											>
+												Client
+											</Button>
+											<Button
+												size="sm"
+												variant={
+													visibilityMode === "server" ? "default" : "outline"
+												}
+												className="h-6 px-2 text-xs flex-1"
+												onClick={() => onVisibilityModeChange?.("server")}
+											>
+												Server
+											</Button>
+										</div>
+									</div>
 									<Button
 										size="sm"
 										variant="outline"

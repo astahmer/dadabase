@@ -57,7 +57,6 @@
 - row selection with checkboxes + bulk actions (delete, export, copy etc)
 - a page to view (and export) one/many/all table structures
 - cancellable queries (+ rm disabled state for buttons while a query is running)
-- checkbox to toggle visible columns in client or server (remove from select query)
 
 ## issues
 - import join config from SQL query

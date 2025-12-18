@@ -1584,6 +1584,7 @@ export const queryTableRows = <TData>(input: {
 	nullsOrder?: "first" | "last";
 	filters?: QueryFilterType;
 	joins?: JoinTablesConfig["joins"];
+	excludedColumns?: string[];
 }): Effect.Effect<
 	{
 		rows: TData[];
@@ -1604,6 +1605,7 @@ export const queryTableRows = <TData>(input: {
 			orderDirection = "asc",
 			nullsOrder,
 			filters,
+			excludedColumns = [],
 		} = input;
 
 		const defaultSchema = yield* sql.onDialectOrElse({
@@ -1665,8 +1667,12 @@ export const queryTableRows = <TData>(input: {
 		// Store both schema.table and table-only keys for PostgreSQL and SQLite compatibility
 		const tableColumnsMap = new Map<string, TableColumnMetadata[]>();
 		for (const result of columnResults) {
-			tableColumnsMap.set(result.schemaTable, result.columns);
-			tableColumnsMap.set(result.tableOnly, result.columns);
+			// Filter excluded columns from the metadata
+			const filteredColumns = result.columns.filter(
+				(col) => !excludedColumns.includes(col.name),
+			);
+			tableColumnsMap.set(result.schemaTable, filteredColumns);
+			tableColumnsMap.set(result.tableOnly, filteredColumns);
 		}
 
 		// Build columnList with proper aliases for joined tables
@@ -1676,16 +1682,28 @@ export const queryTableRows = <TData>(input: {
 				// Base table
 				if (joins.length === 0) {
 					// No joins: return columns without prefix
-					return r.columns.map((c) => c.name);
+					return r.columns
+						.map((c) => c.name)
+						.filter((col) => !excludedColumns.includes(col));
 				}
 				// With joins: always include base table columns with prefix
-				return r.columns.map((c) => `${input.table}.${c.name}`);
+				return r.columns
+					.map((c) => `${input.table}.${c.name}`)
+					.filter((col) => {
+						const colName = col.split(".")[1];
+						return !excludedColumns.includes(colName);
+					});
 			}
 
 			// Joined tables: use alias if available, otherwise use table name
 			const joinIndex = tableIndex - 1; // Convert to join array index
 			const alias = joinAliases.get(joinIndex) || r.tableOnly;
-			return r.columns.map((c) => `${alias}.${c.name}`);
+			return r.columns
+				.map((c) => `${alias}.${c.name}`)
+				.filter((col) => {
+					const colName = col.split(".")[1];
+					return !excludedColumns.includes(colName);
+				});
 		});
 
 		const orderClause = orderBy
@@ -1737,7 +1755,9 @@ export const queryTableRows = <TData>(input: {
 									tableColumnsMap,
 									joinAliases,
 								)
-							: "*";
+							: excludedColumns.length > 0
+								? columnList.join(", ")
+								: "*";
 					const rowsQuery = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(input.schema)}.${sql(input.table)}
@@ -1828,7 +1848,9 @@ export const queryTableRows = <TData>(input: {
 									tableColumnsMap,
 									joinAliases,
 								)
-							: "*";
+							: excludedColumns.length > 0
+								? columnList.join(", ")
+								: "*";
 					const query = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(input.table)}

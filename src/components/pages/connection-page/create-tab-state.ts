@@ -36,6 +36,7 @@ export const createTabState = (
 	viewMode: "rows" as const,
 	tableSize: "cozy" as const,
 	hiddenColumnList: undefined,
+	columnVisibilityMode: "client" as const,
 	filters: options?.filters,
 	filtersOpened: options?.filtersOpened ?? false,
 	fkValue: options?.fkValue,
