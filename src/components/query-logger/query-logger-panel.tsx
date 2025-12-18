@@ -14,6 +14,7 @@ import * as Select from "../ui/select.tsx";
 import { Accordion, createListCollection } from "@ark-ui/react";
 import { cx } from "class-variance-authority";
 import { HStack } from "../ui/layout.tsx";
+import { VirtualizerArea } from "../ui/virtualizer-area.tsx";
 
 interface QueryLoggerPanelProps {
 	connectionUrl: string;
@@ -241,20 +242,57 @@ export const QueryLoggerPanel = ({ connectionUrl }: QueryLoggerPanelProps) => {
 									</HStack>
 								</div>
 
-								<Accordion.ItemContent className="flex-1 overflow-y-auto min-h-0">
+								<Accordion.ItemContent className="flex flex-col flex-1 min-h-0 h-full">
 									{history.length === 0 ? (
 										<div className="flex items-center justify-center h-52 text-muted-foreground">
 											No queries executed yet
 										</div>
 									) : (
-										<div className="divide-y">
-											{[...queryLogger.history].reverse().map((entry) => (
-												<QueryLogEntry
-													key={entry.id}
-													entry={entry}
-													onExpand={handleExpand}
-												/>
-											))}
+										<div className="divide-y flex flex-col flex-1 min-h-0 h-full">
+											<VirtualizerArea
+												count={queryLogger.history.length}
+												virtualizerOptions={{ estimateSize: () => 50 }}
+											>
+												{({
+													virtualItems,
+													totalSize,
+													paddingTop,
+													paddingBottom,
+												}) => (
+													<>
+														<div
+															style={{ height: `${totalSize}px` }}
+															className="relative"
+														>
+															{/* Padding for virtualizer */}
+															{paddingTop > 0 && (
+																<div style={{ height: `${paddingTop}px` }} />
+															)}
+
+															{[...virtualItems]
+																.reverse()
+																.map((virtualItem) => {
+																	const entry =
+																		queryLogger.history[virtualItem.index];
+																	if (!entry) return null;
+
+																	return (
+																		<QueryLogEntry
+																			key={entry.id}
+																			entry={entry}
+																			onExpand={handleExpand}
+																		/>
+																	);
+																})}
+
+															{/* Padding for virtualizer */}
+															{paddingBottom > 0 && (
+																<div style={{ height: `${paddingBottom}px` }} />
+															)}
+														</div>
+													</>
+												)}
+											</VirtualizerArea>
 										</div>
 									)}
 								</Accordion.ItemContent>
