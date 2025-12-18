@@ -155,6 +155,7 @@ export function ColumnHeaderContextMenu<TData>({
 								<ArrowDown className="size-4" />
 								<MenuItemText>Sort descending</MenuItemText>
 							</MenuItem>
+							{renderColumnHeaderMenuItems?.({ column })}
 							{isSorted && (
 								<MenuItem
 									value="clear-sort"
@@ -162,12 +163,6 @@ export function ColumnHeaderContextMenu<TData>({
 								>
 									<MenuItemText>Clear sorting</MenuItemText>
 								</MenuItem>
-							)}
-							{isSorted && renderColumnHeaderMenuItems && (
-								<>
-									<MenuSeparator />
-									{renderColumnHeaderMenuItems(column)}
-								</>
 							)}
 							<MenuSeparator />
 						</>

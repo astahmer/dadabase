@@ -1,9 +1,15 @@
-import { Splitter } from "@ark-ui/react";
+import { Portal, Splitter } from "@ark-ui/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import type { Column } from "@tanstack/react-table";
-import { ArrowDownToLine, ArrowUpToLine } from "lucide-react";
+import {
+	ArrowDown,
+	ArrowDownToLine,
+	ArrowDownUp,
+	ArrowUp,
+	ArrowUpToLine,
+} from "lucide-react";
 import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
@@ -15,7 +21,13 @@ import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
 import { QueryLoggerPanel } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { Stack } from "../ui/layout.tsx";
-import { MenuItem, MenuItemText } from "../ui/menu.tsx";
+import {
+	MenuItem,
+	MenuItemText,
+	MenuTriggerItem,
+	Menu,
+	MenuContent,
+} from "../ui/menu.tsx";
 import {
 	Sheet,
 	SheetContent,
@@ -319,46 +331,114 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															className="flex-1 overflow-auto flex flex-col relative"
 														>
 															<ColumnHeaderContextProvider
-																renderColumnHeaderMenuItems={(_column) => (
+																renderColumnHeaderMenuItems={({ column }) => (
 																	<>
-																		<MenuItem
-																			value="nulls-first"
-																			onClick={() =>
-																				pageState.onNullsOrderChange("first")
-																			}
-																			disabled={
-																				pageState.currentNullsOrder === "first"
-																			}
+																		<Menu
+																			positioning={{
+																				placement: "right-start",
+																				gutter: -2,
+																			}}
+																			lazyMount
 																		>
-																			<ArrowUpToLine className="size-4" />
-																			<MenuItemText>Nulls first</MenuItemText>
-																		</MenuItem>
-																		<MenuItem
-																			value="nulls-last"
-																			onClick={() =>
-																				pageState.onNullsOrderChange("last")
-																			}
-																			disabled={
-																				pageState.currentNullsOrder === "last"
-																			}
-																		>
-																			<ArrowDownToLine className="size-4" />
-																			<MenuItemText>Nulls last</MenuItemText>
-																		</MenuItem>
-																		{pageState.currentNullsOrder && (
-																			<MenuItem
-																				value="clear-nulls-order"
-																				onClick={() =>
-																					pageState.onNullsOrderChange(
-																						undefined,
-																					)
-																				}
-																			>
-																				<MenuItemText>
-																					Clear nulls order
-																				</MenuItemText>
-																			</MenuItem>
-																		)}
+																			<MenuTriggerItem>
+																				<ArrowDownUp className="size-4" />
+																				Sort with nulls...
+																			</MenuTriggerItem>
+																			<MenuContent className="z-50">
+																				<MenuItem
+																					value="sort-asc-nulls-first"
+																					onClick={() => {
+																						column.toggleSorting(false, false);
+																						pageState.onNullsOrderChange(
+																							"first",
+																						);
+																					}}
+																					disabled={
+																						column.getIsSorted() === "asc" &&
+																						pageState.currentNullsOrder ===
+																							"first"
+																					}
+																				>
+																					<ArrowUp className="size-4" />
+																					<MenuItemText>
+																						Sort asc, nulls first
+																					</MenuItemText>
+																				</MenuItem>
+																				<MenuItem
+																					value="sort-asc-nulls-last"
+																					onClick={() => {
+																						column.toggleSorting(false, false);
+																						pageState.onNullsOrderChange(
+																							"last",
+																						);
+																					}}
+																					disabled={
+																						column.getIsSorted() === "asc" &&
+																						pageState.currentNullsOrder ===
+																							"last"
+																					}
+																				>
+																					<ArrowUp className="size-4" />
+																					<MenuItemText>
+																						Sort asc, nulls last
+																					</MenuItemText>
+																				</MenuItem>
+																				<MenuItem
+																					value="sort-desc-nulls-first"
+																					onClick={() => {
+																						column.toggleSorting(true, false);
+																						pageState.onNullsOrderChange(
+																							"first",
+																						);
+																					}}
+																					disabled={
+																						column.getIsSorted() === "desc" &&
+																						pageState.currentNullsOrder ===
+																							"first"
+																					}
+																				>
+																					<ArrowDown className="size-4" />
+																					<MenuItemText>
+																						Sort desc, nulls first
+																					</MenuItemText>
+																				</MenuItem>
+																				<MenuItem
+																					value="sort-desc-nulls-last"
+																					onClick={() => {
+																						column.toggleSorting(true, false);
+																						pageState.onNullsOrderChange(
+																							"last",
+																						);
+																					}}
+																					disabled={
+																						column.getIsSorted() === "desc" &&
+																						pageState.currentNullsOrder ===
+																							"last"
+																					}
+																				>
+																					<ArrowDown className="size-4" />
+																					<MenuItemText>
+																						Sort desc, nulls last
+																					</MenuItemText>
+																				</MenuItem>
+																				{(column.getIsSorted() ||
+																					pageState.currentNullsOrder) && (
+																					<MenuItem
+																						value="clear-sort-and-nulls"
+																						onClick={() => {
+																							column.clearSorting();
+																							pageState.onNullsOrderChange(
+																								undefined,
+																							);
+																						}}
+																					>
+																						<MenuItemText>
+																							Clear sort &amp; nulls order
+																						</MenuItemText>
+																					</MenuItem>
+																				)}
+																			</MenuContent>
+																		</Menu>
 																	</>
 																)}
 															>

@@ -2,14 +2,14 @@ import { createContext, useContext, type ReactNode } from "react";
 import type { Column } from "@tanstack/react-table";
 
 interface ColumnHeaderContextValue {
-	renderColumnHeaderMenuItems?: (column: Column<any>) => ReactNode;
+	renderColumnHeaderMenuItems?: (options: { column: Column<any> }) => ReactNode;
 }
 
 const ColumnHeaderContext = createContext<ColumnHeaderContextValue | undefined>(
 	undefined,
 );
 
-export function useColumnHeaderContext<TData = unknown>() {
+export function useColumnHeaderContext() {
 	const context = useContext(ColumnHeaderContext);
 	if (!context) {
 		return {};
@@ -17,12 +17,12 @@ export function useColumnHeaderContext<TData = unknown>() {
 	return context as ColumnHeaderContextValue;
 }
 
-export function ColumnHeaderContextProvider<TData = unknown>({
+export function ColumnHeaderContextProvider({
 	children,
 	renderColumnHeaderMenuItems,
 }: {
 	children: React.ReactNode;
-	renderColumnHeaderMenuItems?: (column: Column<TData>) => ReactNode;
+	renderColumnHeaderMenuItems?: (options: { column: Column<any> }) => ReactNode;
 }) {
 	return (
 		<ColumnHeaderContext.Provider value={{ renderColumnHeaderMenuItems }}>
