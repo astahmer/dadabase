@@ -57,7 +57,6 @@
 - row selection with checkboxes + bulk actions (delete, export, copy etc)
 - a page to view (and export) one/many/all table structures
 - cancellable queries (+ rm disabled state for buttons while a query is running)
-- order by nulls first/last with sort select/right-click on column header
 - checkbox to toggle visible columns in client or server (remove from select query)
 
 ## issues

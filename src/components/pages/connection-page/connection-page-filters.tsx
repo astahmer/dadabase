@@ -46,6 +46,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 	}));
 	const orderBy = useActiveTabState((s) => s.orderBy);
 	const orderDirection = useActiveTabState((s) => s.orderDirection);
+	const nullsOrder = useActiveTabState((s) => s.nullsOrder);
 
 	return (
 		<div className="relative border-b bg-muted/50">
@@ -259,13 +260,23 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 						columnList={columnList}
 						orderBy={orderBy}
 						orderDirection={orderDirection}
+						nullsOrder={nullsOrder}
 						onOrderChange={(orderBy, direction) => {
 							navigate({
 								search: (prev) =>
 									updateTabState(prev, {
 										orderBy,
 										orderDirection: direction || "asc",
+										nullsOrder: undefined,
 										offset: 0,
+									}),
+							});
+						}}
+						onNullsOrderChange={(nullsOrder) => {
+							navigate({
+								search: (prev) =>
+									updateTabState(prev, {
+										nullsOrder,
 									}),
 							});
 						}}

@@ -58,6 +58,16 @@ const testSuite =
 				published BOOLEAN NOT NULL DEFAULT false
 			)
 		`;
+
+						// Create test_nulls table for testing NULLS FIRST/LAST
+						yield* sql`
+			CREATE TABLE IF NOT EXISTS test_nulls (
+				id SERIAL PRIMARY KEY,
+				name TEXT,
+				score INTEGER,
+				description TEXT
+			)
+		`;
 					}),
 				sqlite: () =>
 					Effect.gen(function* () {
@@ -82,6 +92,16 @@ const testSuite =
 							title TEXT NOT NULL,
 							content TEXT,
 							published INTEGER NOT NULL DEFAULT 0
+						)
+					`;
+
+						// Create test_nulls table for testing NULLS FIRST/LAST
+						yield* sql`
+						CREATE TABLE IF NOT EXISTS test_nulls (
+							id INTEGER PRIMARY KEY AUTOINCREMENT,
+							name TEXT,
+							score INTEGER,
+							description TEXT
 						)
 					`;
 					}),
@@ -259,6 +279,263 @@ const testSuite =
 				// Should be ordered by age descending: 35, 32, 30, 28, 25
 				const ages = result.rows.map((r) => r.age);
 				expect(ages).toEqual([35, 32, 30, 28, 25]);
+			}).pipe(Effect.provide(testLayer));
+		});
+
+		it.effect("orders with NULLS FIRST puts null values first", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const sql = yield* SqlClient.SqlClient;
+
+				// Insert test data with nulls for test_nulls table
+				yield* sql.onDialectOrElse({
+					pg: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+							('Alice', 100, 'Good'),
+							(NULL, 90, 'Medium'),
+							('Bob', 85, NULL),
+							(NULL, 95, 'High'),
+							('Charlie', NULL, 'Low')
+						`,
+					sqlite: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+							('Alice', 100, 'Good'),
+							(NULL, 90, 'Medium'),
+							('Bob', 85, NULL),
+							(NULL, 95, 'High'),
+							('Charlie', NULL, 'Low')
+						`,
+					orElse: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+							('Alice', 100, 'Good'),
+							(NULL, 90, 'Medium'),
+							('Bob', 85, NULL),
+							(NULL, 95, 'High'),
+							('Charlie', NULL, 'Low')
+						`,
+				});
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "test_nulls",
+					orderBy: "name",
+					orderDirection: "asc",
+					nullsOrder: "first",
+				});
+
+				// With NULLS FIRST, null values should come first
+				expect(result.rows.length).toBe(5);
+				const names = result.rows.map((r) => r.name);
+				// First two should be null
+				expect(names[0]).toBeNull();
+				expect(names[1]).toBeNull();
+				// Then non-null values in alphabetical order
+				expect(names.slice(2)).toEqual(["Alice", "Bob", "Charlie"]);
+			}).pipe(Effect.provide(testLayer));
+		});
+
+		it.effect("orders with NULLS LAST puts null values last", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const sql = yield* SqlClient.SqlClient;
+
+				// Insert test data with nulls for test_nulls table
+				yield* sql.onDialectOrElse({
+					pg: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+							('Alice', 100, 'Good'),
+							(NULL, 90, 'Medium'),
+							('Bob', 85, NULL),
+							(NULL, 95, 'High'),
+							('Charlie', NULL, 'Low')
+						`,
+					sqlite: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+							('Alice', 100, 'Good'),
+							(NULL, 90, 'Medium'),
+							('Bob', 85, NULL),
+							(NULL, 95, 'High'),
+							('Charlie', NULL, 'Low')
+						`,
+					orElse: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+							('Alice', 100, 'Good'),
+							(NULL, 90, 'Medium'),
+							('Bob', 85, NULL),
+							(NULL, 95, 'High'),
+							('Charlie', NULL, 'Low')
+						`,
+				});
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "test_nulls",
+					orderBy: "name",
+					orderDirection: "asc",
+					nullsOrder: "last",
+				});
+
+				// With NULLS LAST, null values should come last
+				expect(result.rows.length).toBe(5);
+				const names = result.rows.map((r) => r.name);
+				// Non-null values first in alphabetical order
+				expect(names.slice(0, 3)).toEqual(["Alice", "Bob", "Charlie"]);
+				// Then null values
+				expect(names[3]).toBeNull();
+				expect(names[4]).toBeNull();
+			}).pipe(Effect.provide(testLayer));
+		});
+
+		it.effect("orders with NULLS FIRST in descending direction", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const sql = yield* SqlClient.SqlClient;
+
+				// Insert test data with nulls
+				yield* sql.onDialectOrElse({
+					pg: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+								('Alice', 100, 'Good'),
+								(NULL, 90, 'Medium'),
+								('Bob', 85, NULL),
+								(NULL, 95, 'High'),
+								('Charlie', NULL, 'Low')
+							`,
+					sqlite: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+								('Alice', 100, 'Good'),
+								(NULL, 90, 'Medium'),
+								('Bob', 85, NULL),
+								(NULL, 95, 'High'),
+								('Charlie', NULL, 'Low')
+							`,
+					orElse: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+								('Alice', 100, 'Good'),
+								(NULL, 90, 'Medium'),
+								('Bob', 85, NULL),
+								(NULL, 95, 'High'),
+								('Charlie', NULL, 'Low')
+							`,
+				});
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "test_nulls",
+					orderBy: "name",
+					orderDirection: "desc",
+					nullsOrder: "first",
+				});
+
+				// With NULLS FIRST in DESC, null values should come first
+				expect(result.rows.length).toBe(5);
+				const names = result.rows.map((r) => r.name);
+				// First two should be null
+				expect(names[0]).toBeNull();
+				expect(names[1]).toBeNull();
+				// Then non-null values in reverse alphabetical order
+				expect(names.slice(2)).toEqual(["Charlie", "Bob", "Alice"]);
+			}).pipe(Effect.provide(testLayer));
+		});
+
+		it.effect("orders with NULLS LAST in descending direction", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const sql = yield* SqlClient.SqlClient;
+
+				// Insert test data with nulls
+				yield* sql.onDialectOrElse({
+					pg: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+								('Alice', 100, 'Good'),
+								(NULL, 90, 'Medium'),
+								('Bob', 85, NULL),
+								(NULL, 95, 'High'),
+								('Charlie', NULL, 'Low')
+							`,
+					sqlite: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+								('Alice', 100, 'Good'),
+								(NULL, 90, 'Medium'),
+								('Bob', 85, NULL),
+								(NULL, 95, 'High'),
+								('Charlie', NULL, 'Low')
+							`,
+					orElse: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+								('Alice', 100, 'Good'),
+								(NULL, 90, 'Medium'),
+								('Bob', 85, NULL),
+								(NULL, 95, 'High'),
+								('Charlie', NULL, 'Low')
+							`,
+				});
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "test_nulls",
+					orderBy: "name",
+					orderDirection: "desc",
+					nullsOrder: "last",
+				});
+
+				// With NULLS LAST in DESC, non-null values come first in reverse order
+				expect(result.rows.length).toBe(5);
+				const names = result.rows.map((r) => r.name);
+				// Non-null values first in reverse alphabetical order
+				expect(names.slice(0, 3)).toEqual(["Charlie", "Bob", "Alice"]);
+				// Then null values
+				expect(names[3]).toBeNull();
+				expect(names[4]).toBeNull();
+			}).pipe(Effect.provide(testLayer));
+		});
+
+		it.effect("ignores nullsOrder when orderBy is not specified", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const sql = yield* SqlClient.SqlClient;
+
+				// Insert test data with nulls
+				yield* sql.onDialectOrElse({
+					pg: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+							('Alice', 100, 'Good'),
+							(NULL, 90, 'Medium'),
+							('Bob', 85, NULL)
+						`,
+					sqlite: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+							('Alice', 100, 'Good'),
+							(NULL, 90, 'Medium'),
+							('Bob', 85, NULL)
+						`,
+					orElse: () =>
+						sql`INSERT INTO test_nulls (name, score, description) VALUES
+							('Alice', 100, 'Good'),
+							(NULL, 90, 'Medium'),
+							('Bob', 85, NULL)
+						`,
+				});
+
+				const result = yield* queryTableRows<Record<string, unknown>>({
+					schema: config.defaultSchema,
+					table: "test_nulls",
+					// No orderBy specified
+					nullsOrder: "first",
+				});
+
+				// Should return all rows without specific ordering applied
+				expect(result.rows.length).toBe(3);
 			}).pipe(Effect.provide(testLayer));
 		});
 

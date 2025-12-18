@@ -16,6 +16,7 @@ import {
 	Type,
 } from "lucide-react";
 import { ReactNode } from "react";
+import { useColumnHeaderContext } from "./column-header-context";
 import {
 	Menu,
 	MenuContent,
@@ -39,6 +40,7 @@ export function ColumnHeaderContextMenu<TData>({
 	children,
 	onFilterClick,
 }: ColumnHeaderContextMenuProps<TData>) {
+	const { renderColumnHeaderMenuItems } = useColumnHeaderContext();
 	const canSort = column.getCanSort();
 	const isSorted = column.getIsSorted();
 	const isVisible = column.getIsVisible();
@@ -160,6 +162,12 @@ export function ColumnHeaderContextMenu<TData>({
 								>
 									<MenuItemText>Clear sorting</MenuItemText>
 								</MenuItem>
+							)}
+							{isSorted && renderColumnHeaderMenuItems && (
+								<>
+									<MenuSeparator />
+									{renderColumnHeaderMenuItems(column)}
+								</>
 							)}
 							<MenuSeparator />
 						</>

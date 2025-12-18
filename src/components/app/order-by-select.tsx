@@ -3,7 +3,14 @@ import { Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
-import { ArrowDown, ArrowDownUp, ArrowUp, ChevronsUpDown } from "lucide-react";
+import {
+	ArrowDown,
+	ArrowDownUp,
+	ArrowUp,
+	ChevronsUpDown,
+	ArrowDownToLine,
+	ArrowUpToLine,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
 
@@ -21,12 +28,20 @@ export interface OrderBySelectProps {
 	 */
 	orderDirection?: "asc" | "desc";
 	/**
+	 * Current nulls order
+	 */
+	nullsOrder?: "first" | "last";
+	/**
 	 * Callback when sort changes
 	 */
 	onOrderChange: (
 		orderBy: string | undefined,
 		orderDirection?: "asc" | "desc",
 	) => void;
+	/**
+	 * Callback when nulls order changes
+	 */
+	onNullsOrderChange?: (nullsOrder: "first" | "last" | undefined) => void;
 	/**
 	 * Get display label for column (default: use column name)
 	 */
@@ -42,7 +57,9 @@ export function OrderBySelect(props: OrderBySelectProps) {
 		columnList,
 		orderBy,
 		orderDirection = "asc",
+		nullsOrder,
 		onOrderChange,
+		onNullsOrderChange,
 		getColumnLabel,
 		minimal = false,
 	} = props;
@@ -148,6 +165,36 @@ export function OrderBySelect(props: OrderBySelectProps) {
 											</Button>
 										</div>
 									</div>
+									{orderBy && onNullsOrderChange && (
+										<div className="flex gap-2 items-center">
+											<Button
+												size="sm"
+												variant={nullsOrder === "first" ? "default" : "outline"}
+												className="flex-1 text-xs h-7"
+												onClick={() => {
+													onNullsOrderChange(
+														nullsOrder === "first" ? undefined : "first",
+													);
+												}}
+											>
+												<ArrowUpToLine className="h-3 w-3 mr-1" />
+												Nulls first
+											</Button>
+											<Button
+												size="sm"
+												variant={nullsOrder === "last" ? "default" : "outline"}
+												className="flex-1 text-xs h-7"
+												onClick={() => {
+													onNullsOrderChange(
+														nullsOrder === "last" ? undefined : "last",
+													);
+												}}
+											>
+												<ArrowDownToLine className="h-3 w-3 mr-1" />
+												Nulls last
+											</Button>
+										</div>
+									)}
 									<input
 										placeholder="Filter columns..."
 										className="flex h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring w-full"

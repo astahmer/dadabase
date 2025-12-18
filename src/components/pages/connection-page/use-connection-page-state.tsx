@@ -54,6 +54,7 @@ export const useConnectionPageState = ({
 			offset: s.offset,
 			orderBy: s.orderBy,
 			orderDirection: s.orderDirection,
+			nullsOrder: s.nullsOrder,
 			hiddenColumnList: s.hiddenColumnList,
 			tableSize: s.tableSize,
 			columnPinning: s.columnPinning,
@@ -105,6 +106,7 @@ export const useConnectionPageState = ({
 			offset: search.offset,
 			orderBy: search.orderBy,
 			orderDirection: search.orderDirection,
+			nullsOrder: search.nullsOrder,
 			filters: queryBuilder.getWhereClause() ?? {
 				conditions: [],
 				logicalOperator: "and",
@@ -538,6 +540,7 @@ export const useConnectionPageState = ({
 						orderDirection: (firstSort?.desc ? "desc" : "asc") as
 							| "asc"
 							| "desc",
+						nullsOrder: undefined,
 						offset: 0,
 					});
 				},
@@ -599,6 +602,16 @@ export const useConnectionPageState = ({
 		},
 	});
 
+	const onNullsOrderChange = (nullsOrder: "first" | "last" | undefined) => {
+		navigate({
+			search: (prev) => {
+				return updateTabState(prev, {
+					nullsOrder,
+				});
+			},
+		});
+	};
+
 	return {
 		activeConnectionUrl,
 		queryBuilder,
@@ -615,5 +628,7 @@ export const useConnectionPageState = ({
 		relationshipRowId: search.relationshipRowId,
 		relationships,
 		renderSubrows,
+		onNullsOrderChange,
+		currentNullsOrder: search.nullsOrder,
 	};
 };

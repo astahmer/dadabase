@@ -30,6 +30,7 @@ const TabStateSchema = Schema.Struct({
 	table: Schema.String,
 	orderBy: Schema.String.pipe(Schema.optional),
 	orderDirection: Schema.Literal("asc", "desc").pipe(Schema.optional),
+	nullsOrder: Schema.Literal("first", "last").pipe(Schema.optional),
 	limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
 	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
 	viewMode: Schema.Literal("rows", "structure").pipe(

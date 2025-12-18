@@ -1581,6 +1581,7 @@ export const queryTableRows = <TData>(input: {
 	offset?: number;
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
+	nullsOrder?: "first" | "last";
 	filters?: QueryFilterType;
 	joins?: JoinTablesConfig["joins"];
 }): Effect.Effect<
@@ -1601,6 +1602,7 @@ export const queryTableRows = <TData>(input: {
 			offset = 0,
 			orderBy,
 			orderDirection = "asc",
+			nullsOrder,
 			filters,
 		} = input;
 
@@ -1687,7 +1689,9 @@ export const queryTableRows = <TData>(input: {
 		});
 
 		const orderClause = orderBy
-			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
+			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${
+					nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
+				}`
 			: "";
 
 		// Get count and rows

@@ -2,7 +2,10 @@ import { Splitter } from "@ark-ui/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import type { Column } from "@tanstack/react-table";
+import { ArrowDownToLine, ArrowUpToLine } from "lucide-react";
 import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
+import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
@@ -12,6 +15,7 @@ import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
 import { QueryLoggerPanel } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { Stack } from "../ui/layout.tsx";
+import { MenuItem, MenuItemText } from "../ui/menu.tsx";
 import {
 	Sheet,
 	SheetContent,
@@ -314,61 +318,107 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															id="rows-table"
 															className="flex-1 overflow-auto flex flex-col relative"
 														>
-															<DataTable
-																// virtualized={search.limit > 100}
-																enableRowVirtualization
-																enableColumnOrdering
-																table={pageState.rowsDataTable}
-																getTableContainer={setTableContainer}
-																isLoading={
-																	pageState.rowsQuery.isLoading ||
-																	pageState.isColumnMetadataLoading
-																}
-																size={search.tableSize}
-																onColumnFilterClick={(columnId) => {
-																	navigate({
-																		search: (prev) =>
-																			updateTabState(prev, (tab) => ({
-																				filtersOpened: true,
-																				filters: {
-																					conditions: [
-																						...(tab.filters?.conditions ?? []),
-																						{
-																							column: columnId,
-																							operator: "equals",
-																						},
-																					],
-																					logicalOperator:
-																						tab.filters?.logicalOperator ??
-																						"and",
-																				},
-																			})),
-																	});
-																}}
-																onExpandRowJson={(row) => {
-																	const primaryKeyColumn =
-																		pageState.columnMetadata.find(
-																			(col) => col.primaryKey,
-																		);
-																	const rowId = primaryKeyColumn
-																		? String(row[primaryKeyColumn.name])
-																		: undefined;
-																	navigate({
-																		search: (prev) => ({
-																			...prev,
-																			rowJsonViewerRowId: rowId,
-																			rowJsonViewerOpen: !!rowId,
-																		}),
-																	});
-																}}
-															/>
-															{!pageState.rowsQuery.isLoading &&
-																!pageState.isColumnMetadataLoading && (
-																	<ScrollToColumnButton
-																		table={pageState.rowsDataTable}
-																		containerRef={{ current: tableContainer }}
-																	/>
+															<ColumnHeaderContextProvider
+																renderColumnHeaderMenuItems={(_column) => (
+																	<>
+																		<MenuItem
+																			value="nulls-first"
+																			onClick={() =>
+																				pageState.onNullsOrderChange("first")
+																			}
+																			disabled={
+																				pageState.currentNullsOrder === "first"
+																			}
+																		>
+																			<ArrowUpToLine className="size-4" />
+																			<MenuItemText>Nulls first</MenuItemText>
+																		</MenuItem>
+																		<MenuItem
+																			value="nulls-last"
+																			onClick={() =>
+																				pageState.onNullsOrderChange("last")
+																			}
+																			disabled={
+																				pageState.currentNullsOrder === "last"
+																			}
+																		>
+																			<ArrowDownToLine className="size-4" />
+																			<MenuItemText>Nulls last</MenuItemText>
+																		</MenuItem>
+																		{pageState.currentNullsOrder && (
+																			<MenuItem
+																				value="clear-nulls-order"
+																				onClick={() =>
+																					pageState.onNullsOrderChange(
+																						undefined,
+																					)
+																				}
+																			>
+																				<MenuItemText>
+																					Clear nulls order
+																				</MenuItemText>
+																			</MenuItem>
+																		)}
+																	</>
 																)}
+															>
+																<DataTable
+																	// virtualized={search.limit > 100}
+																	enableRowVirtualization
+																	enableColumnOrdering
+																	table={pageState.rowsDataTable}
+																	getTableContainer={setTableContainer}
+																	isLoading={
+																		pageState.rowsQuery.isLoading ||
+																		pageState.isColumnMetadataLoading
+																	}
+																	size={search.tableSize}
+																	onColumnFilterClick={(columnId) => {
+																		navigate({
+																			search: (prev) =>
+																				updateTabState(prev, (tab) => ({
+																					filtersOpened: true,
+																					filters: {
+																						conditions: [
+																							...(tab.filters?.conditions ??
+																								[]),
+																							{
+																								column: columnId,
+																								operator: "equals",
+																							},
+																						],
+																						logicalOperator:
+																							tab.filters?.logicalOperator ??
+																							"and",
+																					},
+																				})),
+																		});
+																	}}
+																	onExpandRowJson={(row) => {
+																		const primaryKeyColumn =
+																			pageState.columnMetadata.find(
+																				(col) => col.primaryKey,
+																			);
+																		const rowId = primaryKeyColumn
+																			? String(row[primaryKeyColumn.name])
+																			: undefined;
+																		navigate({
+																			search: (prev) => ({
+																				...prev,
+																				rowJsonViewerRowId: rowId,
+																				rowJsonViewerOpen: !!rowId,
+																			}),
+																		});
+																	}}
+																/>
+																{!pageState.rowsQuery.isLoading &&
+																	!pageState.isColumnMetadataLoading && (
+																		<ScrollToColumnButton
+																			table={pageState.rowsDataTable}
+																			containerRef={{ current: tableContainer }}
+																		/>
+																	)}
+															</ColumnHeaderContextProvider>
 														</Splitter.Panel>
 
 														{pageState.relationshipRowId && search.table && (

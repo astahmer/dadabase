@@ -69,6 +69,7 @@ const InputSchema = Schema.Struct({
 	orderDirection: Schema.Literal("asc", "desc").pipe(
 		Schema.optionalWith({ default: () => "asc" }),
 	),
+	nullsOrder: Schema.Literal("first", "last").pipe(Schema.optional),
 	limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
 	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
 	filters: QueryFilter.pipe(Schema.optional),
@@ -93,6 +94,7 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 					offset: input.offset ?? 0,
 					orderBy: input.orderBy,
 					orderDirection: input.orderDirection,
+					nullsOrder: input.nullsOrder,
 					filters: validatedFilters ?? {
 						conditions: [],
 						logicalOperator: "and",
@@ -120,6 +122,7 @@ export type QueryTableDataInput = {
 	offset?: number;
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
+	nullsOrder?: "first" | "last";
 	filters?: QueryFilterType;
 	joins?: JoinTablesConfig["joins"];
 };
