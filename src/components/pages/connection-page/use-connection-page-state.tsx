@@ -97,13 +97,24 @@ export const useConnectionPageState = ({
 		},
 	);
 
+	// Fetch column metadata
+	const tableMetadata = useTableColumnMetadata({
+		url: activeConnectionUrl,
+		schema: search.schema || "",
+		table: search.table || "",
+	});
+
 	const joins = Array.from(search.joins ?? []);
 
-	// Prepare excluded columns for server mode
-	const excludedColumns =
+	const columnFilter =
 		search.columnVisibilityMode === "server"
-			? Array.from(search.hiddenColumnList ?? [])
-			: undefined;
+			? calculateColumnFilter(
+					Array.from(search.hiddenColumnList ?? []),
+					tableMetadata.columnList,
+					search.table || "",
+					joins.length > 0,
+				)
+			: { selectedColumns: undefined, excludedColumns: undefined };
 
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
@@ -120,16 +131,10 @@ export const useConnectionPageState = ({
 				logicalOperator: "and",
 			},
 			joins: joins,
-			excludedColumns,
+			selectedColumns: columnFilter.selectedColumns,
+			excludedColumns: columnFilter.excludedColumns,
 		}),
 		enabled: !!search.schema && !!search.table,
-	});
-
-	// Fetch column metadata
-	const tableMetadata = useTableColumnMetadata({
-		url: activeConnectionUrl,
-		schema: search.schema || "",
-		table: search.table || "",
 	});
 
 	// Format row data
@@ -639,5 +644,62 @@ export const useConnectionPageState = ({
 		renderSubrows,
 		onNullsOrderChange,
 		currentNullsOrder: search.nullsOrder,
+	};
+};
+
+// Prepare column filtering for server mode
+// Build fully qualified column names when joins are present
+// Send either selectedColumns (if visibleCount <= hiddenCount) or excludedColumns, not both
+const calculateColumnFilter = (
+	hiddenColumnList: string[] | undefined,
+	columnList: string[] | undefined,
+	tableOrAlias: string,
+	hasJoins: boolean,
+):
+	| { selectedColumns?: string[]; excludedColumns?: undefined }
+	| { selectedColumns?: undefined; excludedColumns?: string[] } => {
+	if (!hiddenColumnList || hiddenColumnList.length === 0) {
+		return { selectedColumns: undefined, excludedColumns: undefined };
+	}
+
+	const allColumns = columnList ?? [];
+	const hiddenCount = hiddenColumnList.length;
+	const visibleCount = allColumns.length - hiddenCount;
+
+	// Send the smaller list to minimize parameter size
+	// Prefer selectedColumns (whitelist) if equal size
+	if (visibleCount <= hiddenCount) {
+		// Whitelist: send visible columns
+		const visible = allColumns.filter((col) => !hiddenColumnList.includes(col));
+
+		if (visible.length === 0) {
+			return { selectedColumns: undefined, excludedColumns: undefined };
+		}
+
+		if (hasJoins) {
+			// With joins: use fully qualified column names like "table.column"
+			return {
+				selectedColumns: visible.map((col) => `${tableOrAlias}.${col}`),
+				excludedColumns: undefined,
+			};
+		}
+		return {
+			selectedColumns: visible,
+			excludedColumns: undefined,
+		};
+	}
+
+	// Blacklist: send hidden columns
+	if (hasJoins) {
+		// With joins: use fully qualified column names like "table.column"
+		return {
+			selectedColumns: undefined,
+			excludedColumns: hiddenColumnList.map((col) => `${tableOrAlias}.${col}`),
+		};
+	}
+
+	return {
+		selectedColumns: undefined,
+		excludedColumns: hiddenColumnList,
 	};
 };

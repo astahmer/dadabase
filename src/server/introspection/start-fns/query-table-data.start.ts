@@ -74,7 +74,14 @@ const InputSchema = Schema.Struct({
 	offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
 	filters: QueryFilter.pipe(Schema.optional),
 	joins: Schema.Array(JoinedTableSchema).pipe(Schema.optional),
-	excludedColumns: Schema.Array(Schema.String).pipe(Schema.optional),
+	selectedColumns: Schema.Array(Schema.String).pipe(
+		Schema.mutable,
+		Schema.optional,
+	),
+	excludedColumns: Schema.Array(Schema.String).pipe(
+		Schema.mutable,
+		Schema.optional,
+	),
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
 	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
@@ -101,6 +108,9 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 						logicalOperator: "and",
 					},
 					joins: Array.from(input.joins ?? []),
+					selectedColumns: input.selectedColumns
+						? Array.from(input.selectedColumns)
+						: undefined,
 					excludedColumns: input.excludedColumns
 						? Array.from(input.excludedColumns)
 						: undefined,
@@ -129,6 +139,7 @@ export type QueryTableDataInput = {
 	nullsOrder?: "first" | "last";
 	filters?: QueryFilterType;
 	joins?: JoinTablesConfig["joins"];
+	selectedColumns?: string[];
 	excludedColumns?: string[];
 };
 

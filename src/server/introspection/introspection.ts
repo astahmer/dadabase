@@ -1584,6 +1584,7 @@ export const queryTableRows = <TData>(input: {
 	nullsOrder?: "first" | "last";
 	filters?: QueryFilterType;
 	joins?: JoinTablesConfig["joins"];
+	selectedColumns?: string[];
 	excludedColumns?: string[];
 }): Effect.Effect<
 	{
@@ -1605,6 +1606,7 @@ export const queryTableRows = <TData>(input: {
 			orderDirection = "asc",
 			nullsOrder,
 			filters,
+			selectedColumns = [],
 			excludedColumns = [],
 		} = input;
 
@@ -1629,6 +1631,14 @@ export const queryTableRows = <TData>(input: {
 					}
 				: undefined,
 		}));
+
+		// Helper to get fully qualified name for a column
+		const getQualifiedName = (
+			tableOrAlias: string,
+			columnName: string,
+		): string => {
+			return `${tableOrAlias}.${columnName}`;
+		};
 
 		// Fetch table columns for proper aliasing when using joins
 		// Build list of tables we need columns for
@@ -1663,14 +1673,48 @@ export const queryTableRows = <TData>(input: {
 				? generateJoinAliases(joinsRemapped, input.table, baseSchema)
 				: new Map<number, string>();
 
+		// Helper to check if columns are qualified (e.g., "table.column")
+		const hasQualifiedColumns =
+			selectedColumns.some((col) => col.includes(".")) ||
+			excludedColumns.some((col) => col.includes("."));
+
 		// Build a map of table identifiers -> columns for quick lookup
 		// Store both schema.table and table-only keys for PostgreSQL and SQLite compatibility
 		const tableColumnsMap = new Map<string, TableColumnMetadata[]>();
 		for (const result of columnResults) {
-			// Filter excluded columns from the metadata
-			const filteredColumns = result.columns.filter(
-				(col) => !excludedColumns.includes(col.name),
-			);
+			const isBaseTable =
+				result.schemaTable ===
+					(baseSchema ? `${baseSchema}.${input.table}` : input.table) ||
+				result.tableOnly === input.table;
+
+			// Apply column filtering:
+			// - If selectedColumns/excludedColumns have qualified names (table.col): filter all tables
+			// - If they have simple names (col): filter only base table
+			let filteredColumns = result.columns;
+			const shouldFilter =
+				(selectedColumns.length > 0 || excludedColumns.length > 0) &&
+				(hasQualifiedColumns || isBaseTable);
+
+			if (shouldFilter) {
+				if (selectedColumns.length > 0) {
+					// Whitelist mode: only include selected columns
+					filteredColumns = result.columns.filter((col) => {
+						const colKey = hasQualifiedColumns
+							? getQualifiedName(result.tableOnly, col.name)
+							: col.name;
+						return selectedColumns.includes(colKey);
+					});
+				} else if (excludedColumns.length > 0) {
+					// Blacklist mode: exclude specified columns
+					filteredColumns = result.columns.filter((col) => {
+						const colKey = hasQualifiedColumns
+							? getQualifiedName(result.tableOnly, col.name)
+							: col.name;
+						return !excludedColumns.includes(colKey);
+					});
+				}
+			}
+
 			tableColumnsMap.set(result.schemaTable, filteredColumns);
 			tableColumnsMap.set(result.tableOnly, filteredColumns);
 		}
@@ -1679,31 +1723,36 @@ export const queryTableRows = <TData>(input: {
 		const columnList = columnResults.flatMap((r, tableIndex) => {
 			// tableIndex 0 = base table, tableIndex 1+ = joined tables
 			if (tableIndex === 0) {
-				// Base table
+				// Base table - apply column filtering
+				const baseTableColumns =
+					tableColumnsMap.get(r.schemaTable) || r.columns;
 				if (joins.length === 0) {
 					// No joins: return columns without prefix
-					return r.columns
-						.map((c) => c.name)
-						.filter((col) => !excludedColumns.includes(col));
+					return baseTableColumns.map((c) => c.name);
 				}
 				// With joins: always include base table columns with prefix
-				return r.columns
-					.map((c) => `${input.table}.${c.name}`)
-					.filter((col) => {
-						const colName = col.split(".")[1];
-						return !excludedColumns.includes(colName);
-					});
+				return baseTableColumns.map((c) => `${input.table}.${c.name}`);
 			}
 
-			// Joined tables: use alias if available, otherwise use table name
+			// Joined tables: use their full column list with alias/table prefix
 			const joinIndex = tableIndex - 1; // Convert to join array index
 			const alias = joinAliases.get(joinIndex) || r.tableOnly;
-			return r.columns
-				.map((c) => `${alias}.${c.name}`)
-				.filter((col) => {
-					const colName = col.split(".")[1];
-					return !excludedColumns.includes(colName);
-				});
+
+			// Get filtered columns from tableColumnsMap (already respects selectedColumns/excludedColumns)
+			const filteredColumns = tableColumnsMap.get(r.schemaTable) || r.columns;
+
+			// For joined tables, also respect their column configuration if present
+			const joinConfig = joins[joinIndex];
+			let columnsToUse = filteredColumns;
+
+			if (joinConfig && joinConfig.columns && joinConfig.columns !== "all") {
+				// Join has specific column selection - apply both join config AND global filtering
+				columnsToUse = filteredColumns.filter((col) =>
+					(joinConfig.columns as string[]).includes(col.name),
+				);
+			}
+
+			return columnsToUse.map((c) => `${alias}.${c.name}`);
 		});
 
 		const orderClause = orderBy
@@ -1755,7 +1804,8 @@ export const queryTableRows = <TData>(input: {
 									tableColumnsMap,
 									joinAliases,
 								)
-							: excludedColumns.length > 0
+							: columnList.length > 0 &&
+									columnList.length < (columnResults[0]?.columns.length ?? 999)
 								? columnList.join(", ")
 								: "*";
 					const rowsQuery = sql`
@@ -1848,7 +1898,8 @@ export const queryTableRows = <TData>(input: {
 									tableColumnsMap,
 									joinAliases,
 								)
-							: excludedColumns.length > 0
+							: columnList.length > 0 &&
+									columnList.length < (columnResults[0]?.columns.length ?? 999)
 								? columnList.join(", ")
 								: "*";
 					const query = sql`

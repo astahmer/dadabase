@@ -3261,6 +3261,281 @@ const testSuite =
 				}).pipe(Effect.provide(testLayer));
 			},
 		);
+
+		it.effect("selectedColumns - returns only selected columns", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const result = yield* queryTableRows<User>({
+					schema: config.defaultSchema,
+					table: "users",
+					selectedColumns: ["id", "name"],
+				});
+
+				expect(result.columnList).toEqual(["id", "name"]);
+				expect(result.rows.length).toBe(5);
+				// Verify only selected columns are present
+				expect(result.rows[0]).toHaveProperty("id");
+				expect(result.rows[0]).toHaveProperty("name");
+				expect(result.rows[0]).not.toHaveProperty("email");
+				expect(result.rows[0]).not.toHaveProperty("age");
+			}).pipe(Effect.provide(testLayer));
+		});
+
+		it.effect("selectedColumns - empty list returns all columns", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const result = yield* queryTableRows<User>({
+					schema: config.defaultSchema,
+					table: "users",
+					selectedColumns: [],
+				});
+
+				// Empty list means no filtering, so all columns are returned
+				expect(result.columnList).toEqual(["id", "name", "email", "age"]);
+				expect(result.rows.length).toBe(5);
+				expect(result.rows[0]).toHaveProperty("id");
+				expect(result.rows[0]).toHaveProperty("name");
+				expect(result.rows[0]).toHaveProperty("email");
+				expect(result.rows[0]).toHaveProperty("age");
+			}).pipe(Effect.provide(testLayer));
+		});
+
+		it.effect("selectedColumns - works with filter conditions", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const result = yield* queryTableRows<Partial<User>>({
+					schema: config.defaultSchema,
+					table: "users",
+					selectedColumns: ["id", "name"],
+				});
+
+				expect(result.columnList).toEqual(["id", "name"]);
+				expect(result.rows.length).toBe(5); // All rows returned
+				// Verify no email or age columns present
+				expect(result.rows[0]).not.toHaveProperty("email");
+				expect(result.rows[0]).not.toHaveProperty("age");
+			}).pipe(Effect.provide(testLayer));
+		});
+
+		it.effect(
+			"selectedColumns - works with joined tables (only base table affected)",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const result = yield* queryTableRows<any>({
+						schema: config.defaultSchema,
+						table: "posts",
+						selectedColumns: ["id", "title"],
+						joins: [
+							{
+								schema: config.defaultSchema,
+								table: "users",
+								type: "inner",
+								joinCondition: {
+									mode: "standard",
+									referencingColumn: "user_id",
+									referencedColumn: "id",
+								},
+								columns: "all",
+							},
+						],
+						limit: 10,
+						offset: 0,
+					});
+
+					// Should have ONLY selected posts columns with prefix
+					expect(result.columnList).toContain("posts.id");
+					expect(result.columnList).toContain("posts.title");
+					// Should NOT have unselected post columns
+					expect(result.columnList).not.toContain("posts.user_id");
+					expect(result.columnList).not.toContain("posts.content");
+					expect(result.columnList).not.toContain("posts.published");
+
+					// Joined table columns should all be included (columns: "all" in join config)
+					expect(result.columnList).toContain("users.id");
+					expect(result.columnList).toContain("users.name");
+					expect(result.columnList).toContain("users.email");
+					expect(result.columnList).toContain("users.age");
+
+					expect(result.rows.length).toBeGreaterThan(0);
+				}).pipe(Effect.provide(testLayer));
+			},
+		);
+
+		it.effect("selectedColumns - works with limit and offset", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const result = yield* queryTableRows<Partial<User>>({
+					schema: config.defaultSchema,
+					table: "users",
+					selectedColumns: ["id", "name"],
+					limit: 2,
+					offset: 1,
+				});
+
+				expect(result.columnList).toEqual(["id", "name"]);
+				expect(result.rows.length).toBe(2);
+				expect(result.rowCount).toBe(5); // Total should still be 5
+			}).pipe(Effect.provide(testLayer));
+		});
+
+		it.effect("selectedColumns - works with order by", () => {
+			return Effect.gen(function* () {
+				yield* setupSchema;
+				yield* insertTestData;
+
+				const result = yield* queryTableRows<Partial<User>>({
+					schema: config.defaultSchema,
+					table: "users",
+					selectedColumns: ["id", "name"],
+					orderBy: "name",
+					orderDirection: "desc",
+					limit: 5,
+				});
+
+				expect(result.columnList).toEqual(["id", "name"]);
+				expect(result.rows.length).toBe(5);
+				// Verify ordering (Eve, Diana, Charlie, Bob, Alice)
+				expect(result.rows[0]).toHaveProperty("name", "Eve");
+			}).pipe(Effect.provide(testLayer));
+		});
+
+		it.effect(
+			"selectedColumns with qualified names filters all tables in joins",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const result = yield* queryTableRows<any>({
+						schema: config.defaultSchema,
+						table: "posts",
+						selectedColumns: [
+							"posts.id",
+							"posts.title",
+							"users.id",
+							"users.name",
+						],
+						joins: [
+							{
+								schema: config.defaultSchema,
+								table: "users",
+								type: "inner",
+								joinCondition: {
+									mode: "standard",
+									referencingColumn: "user_id",
+									referencedColumn: "id",
+								},
+								columns: "all",
+							},
+						],
+						limit: 10,
+						offset: 0,
+					});
+
+					// Should have ONLY selected columns from both tables
+					expect(result.columnList).toContain("posts.id");
+					expect(result.columnList).toContain("posts.title");
+					expect(result.columnList).toContain("users.id");
+					expect(result.columnList).toContain("users.name");
+					// Should NOT have unselected columns
+					expect(result.columnList).not.toContain("posts.user_id");
+					expect(result.columnList).not.toContain("posts.content");
+					expect(result.columnList).not.toContain("users.email");
+					expect(result.columnList).not.toContain("users.age");
+
+					expect(result.rows.length).toBeGreaterThan(0);
+				}).pipe(Effect.provide(testLayer));
+			},
+		);
+
+		it.effect(
+			"excludedColumns filters out specified columns from base table only",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const result = yield* queryTableRows<any>({
+						schema: config.defaultSchema,
+						table: "users",
+						excludedColumns: ["email", "age"],
+						limit: 10,
+						offset: 0,
+					});
+
+					// Should have all columns except the excluded ones
+					expect(result.columnList).toContain("id");
+					expect(result.columnList).toContain("name");
+					expect(result.columnList).not.toContain("email");
+					expect(result.columnList).not.toContain("age");
+
+					expect(result.rows.length).toBeGreaterThan(0);
+				}).pipe(Effect.provide(testLayer));
+			},
+		);
+
+		it.effect(
+			"excludedColumns with qualified names filters all tables in joins",
+			() => {
+				return Effect.gen(function* () {
+					yield* setupSchema;
+					yield* insertTestData;
+
+					const result = yield* queryTableRows<any>({
+						schema: config.defaultSchema,
+						table: "posts",
+						excludedColumns: [
+							"posts.content",
+							"posts.published",
+							"users.email",
+							"users.age",
+						],
+						joins: [
+							{
+								schema: config.defaultSchema,
+								table: "users",
+								type: "inner",
+								joinCondition: {
+									mode: "standard",
+									referencingColumn: "user_id",
+									referencedColumn: "id",
+								},
+								columns: "all",
+							},
+						],
+						limit: 10,
+						offset: 0,
+					});
+
+					// Should NOT have the excluded columns
+					expect(result.columnList).not.toContain("posts.content");
+					expect(result.columnList).not.toContain("posts.published");
+					expect(result.columnList).not.toContain("users.email");
+					expect(result.columnList).not.toContain("users.age");
+					// Should have the non-excluded columns
+					expect(result.columnList).toContain("posts.id");
+					expect(result.columnList).toContain("posts.title");
+					expect(result.columnList).toContain("posts.user_id");
+					expect(result.columnList).toContain("users.id");
+					expect(result.columnList).toContain("users.name");
+
+					expect(result.rows.length).toBeGreaterThan(0);
+				}).pipe(Effect.provide(testLayer));
+			},
+		);
 	};
+
 describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));
+describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));
 describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));
