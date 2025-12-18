@@ -118,7 +118,12 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 
 				const endTime = Date.now();
 				return {
-					rows: output.rows.map((row) => Object.values(row as any)) as any[],
+					rows: output.rows.map((row) =>
+						Object.entries(row as any).reduce((acc, [key, value]) => {
+							if (output.columnList.includes(key)) acc.push(value);
+							return acc;
+						}, [] as any[]),
+					) as any[],
 					rowCount: output.rowCount,
 					columns: output.columnList,
 					timeTaken: endTime - startTime,

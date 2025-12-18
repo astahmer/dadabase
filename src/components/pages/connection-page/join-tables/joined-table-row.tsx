@@ -1,18 +1,16 @@
-import { Plus, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { QueryFilterBuilder } from "#src/components/query-builder/query-filter-builder.tsx";
 import type {
 	FilterConditionExpression,
 	LogicalOperatorType,
 	QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
-import { QueryFilterBuilder } from "#src/components/query-builder/query-filter-builder.tsx";
 import {
 	Accordion,
 	AccordionItem,
 	AccordionItemContent,
 	AccordionItemTrigger,
 } from "#src/components/ui/accordion.tsx";
-import { Button } from "#src/components/ui/button.tsx";
+import { Button, buttonVariants } from "#src/components/ui/button.tsx";
 import {
 	Checkbox,
 	CheckboxControl,
@@ -20,6 +18,8 @@ import {
 } from "#src/components/ui/checkbox.tsx";
 import { Input } from "#src/components/ui/input.tsx";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
+import { Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import type { JoinConditionMode, JoinedTable } from "./join-tables.types";
 
 interface JoinedTableRowProps {
@@ -389,15 +389,13 @@ export const JoinedTableRow = ({
 								)}
 							</div>
 						</div>
-						<Button
-							variant="ghost"
-							size="sm"
+						<div
 							onClick={onRemove}
-							className="h-8 w-8 p-0"
+							className={buttonVariants({ size: "sm", variant: "ghost" })}
 							aria-label="Remove join"
 						>
 							<Trash2 className="h-4 w-4" />
-						</Button>
+						</div>
 					</AccordionItemTrigger>
 
 					<AccordionItemContent className="px-3 py-3 pt-2 space-y-3 border-t">

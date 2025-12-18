@@ -105,16 +105,43 @@ export const useConnectionPageState = ({
 	});
 
 	const joins = Array.from(search.joins ?? []);
-
-	const columnFilter =
-		search.columnVisibilityMode === "server"
-			? calculateColumnFilter(
-					Array.from(search.hiddenColumnList ?? []),
-					tableMetadata.columnList,
-					search.table || "",
-					joins.length > 0,
+	const columnQueries = useJoinedTables({
+		url: activeConnectionUrl,
+		joins: joins,
+	});
+	const columnNameList = joins?.length
+		? tableMetadata.columnList
+				.map((col) => `${search.table}.${col}`)
+				.concat(
+					joins?.length
+						? joins.flatMap((join, joinIndex) =>
+								join.columns === "all"
+									? (columnQueries[joinIndex].data ?? []).map(
+											(col) => `${join.alias || join.table}.${col.name}`,
+										)
+									: join.columns.map(
+											(col) => `${join.alias || join.table}.${col}`,
+										),
+							)
+						: [],
 				)
-			: { selectedColumns: undefined, excludedColumns: undefined };
+		: tableMetadata.columnList;
+
+	const columnFilter = {
+		selectedColumns: undefined as string[] | undefined,
+		excludedColumns: undefined as string[] | undefined,
+	};
+	const hiddenColumnList = Array.from(search.hiddenColumnList ?? []);
+	if (search.columnVisibilityMode === "server" && hiddenColumnList.length) {
+		const visibleCount = columnNameList.length - hiddenColumnList.length;
+		if (visibleCount <= hiddenColumnList.length) {
+			columnFilter.selectedColumns = columnNameList.filter(
+				(col) => !hiddenColumnList.includes(col),
+			);
+		} else {
+			columnFilter.excludedColumns = hiddenColumnList;
+		}
+	}
 
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
@@ -469,28 +496,6 @@ export const useConnectionPageState = ({
 		return state;
 	}, [search.columnPinning]);
 
-	const columnQueries = useJoinedTables({
-		url: activeConnectionUrl,
-		joins: joins,
-	});
-	const columnNameList = joins?.length
-		? tableMetadata.columnList
-				.map((col) => `${search.table}.${col}`)
-				.concat(
-					joins?.length
-						? joins.flatMap((join, joinIndex) =>
-								join.columns === "all"
-									? (columnQueries[joinIndex].data ?? []).map(
-											(col) => `${join.alias || join.table}.${col.name}`,
-										)
-									: join.columns.map(
-											(col) => `${join.alias || join.table}.${col}`,
-										),
-							)
-						: [],
-				)
-		: tableMetadata.columnList;
-
 	// Column order state
 	const columnOrderState = useMemo(() => {
 		const fromSearch = Array.from(search.columnOrder ?? []);
@@ -644,62 +649,5 @@ export const useConnectionPageState = ({
 		renderSubrows,
 		onNullsOrderChange,
 		currentNullsOrder: search.nullsOrder,
-	};
-};
-
-// Prepare column filtering for server mode
-// Build fully qualified column names when joins are present
-// Send either selectedColumns (if visibleCount <= hiddenCount) or excludedColumns, not both
-const calculateColumnFilter = (
-	hiddenColumnList: string[] | undefined,
-	columnList: string[] | undefined,
-	tableOrAlias: string,
-	hasJoins: boolean,
-):
-	| { selectedColumns?: string[]; excludedColumns?: undefined }
-	| { selectedColumns?: undefined; excludedColumns?: string[] } => {
-	if (!hiddenColumnList || hiddenColumnList.length === 0) {
-		return { selectedColumns: undefined, excludedColumns: undefined };
-	}
-
-	const allColumns = columnList ?? [];
-	const hiddenCount = hiddenColumnList.length;
-	const visibleCount = allColumns.length - hiddenCount;
-
-	// Send the smaller list to minimize parameter size
-	// Prefer selectedColumns (whitelist) if equal size
-	if (visibleCount <= hiddenCount) {
-		// Whitelist: send visible columns
-		const visible = allColumns.filter((col) => !hiddenColumnList.includes(col));
-
-		if (visible.length === 0) {
-			return { selectedColumns: undefined, excludedColumns: undefined };
-		}
-
-		if (hasJoins) {
-			// With joins: use fully qualified column names like "table.column"
-			return {
-				selectedColumns: visible.map((col) => `${tableOrAlias}.${col}`),
-				excludedColumns: undefined,
-			};
-		}
-		return {
-			selectedColumns: visible,
-			excludedColumns: undefined,
-		};
-	}
-
-	// Blacklist: send hidden columns
-	if (hasJoins) {
-		// With joins: use fully qualified column names like "table.column"
-		return {
-			selectedColumns: undefined,
-			excludedColumns: hiddenColumnList.map((col) => `${tableOrAlias}.${col}`),
-		};
-	}
-
-	return {
-		selectedColumns: undefined,
-		excludedColumns: hiddenColumnList,
 	};
 };

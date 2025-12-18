@@ -48,7 +48,9 @@ export function ColumnVisibilityControls<TData>(
 	const handleSelectAll = () => {
 		if (allVisible) {
 			table.setColumnVisibility((_current) =>
-				Object.fromEntries(leafColumns.map((col) => [col.id, false])),
+				Object.fromEntries(
+					leafColumns.map((col) => [col.id, col.id === "__select"]),
+				),
 			);
 		} else {
 			table.setColumnVisibility((_current) =>
