@@ -127,7 +127,7 @@ export const useConnectionPageState = ({
 				)
 		: tableMetadata.columnList;
 
-	const columnFilter = {
+	const columnVisibilityFilters = {
 		selectedColumns: undefined as string[] | undefined,
 		excludedColumns: undefined as string[] | undefined,
 	};
@@ -135,13 +135,14 @@ export const useConnectionPageState = ({
 	if (search.columnVisibilityMode === "server" && hiddenColumnList.length) {
 		const visibleCount = columnNameList.length - hiddenColumnList.length;
 		if (visibleCount <= hiddenColumnList.length) {
-			columnFilter.selectedColumns = columnNameList.filter(
+			columnVisibilityFilters.selectedColumns = columnNameList.filter(
 				(col) => !hiddenColumnList.includes(col),
 			);
 		} else {
-			columnFilter.excludedColumns = hiddenColumnList;
+			columnVisibilityFilters.excludedColumns = hiddenColumnList;
 		}
 	}
+	console.log({ columnNameList, columnVisibilityFilters });
 
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
@@ -158,8 +159,8 @@ export const useConnectionPageState = ({
 				logicalOperator: "and",
 			},
 			joins: joins,
-			selectedColumns: columnFilter.selectedColumns,
-			excludedColumns: columnFilter.excludedColumns,
+			selectedColumns: columnVisibilityFilters.selectedColumns,
+			excludedColumns: columnVisibilityFilters.excludedColumns,
 		}),
 		enabled: !!search.schema && !!search.table,
 	});

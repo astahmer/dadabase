@@ -11,6 +11,7 @@ export interface MemoizedDataCellProps {
 	ctx: CellContext<Record<string, unknown>, unknown>;
 	col: {
 		name: string;
+		accessorKey: string;
 		dataType: string;
 		primaryKey?: boolean;
 		unique?: boolean;
@@ -75,7 +76,7 @@ function MemoizedDataCellInner({
 }: MemoizedDataCellProps) {
 	const CellValue = (
 		<CellContextMenu
-			cellValue={ctx.row.original[col.name]}
+			cellValue={ctx.row.original[col.accessorKey]}
 			columnName={col.name}
 			foreignKey={col.foreignKey}
 			primaryKey={col.primaryKey}
@@ -95,7 +96,7 @@ function MemoizedDataCellInner({
 		>
 			{table &&
 			schema &&
-			ctx.row.original[col.name] &&
+			ctx.row.original[col.accessorKey] &&
 			(col.foreignKey || col.primaryKey) ? (
 				<InlineReferencesButton
 					schema={schema}
@@ -103,7 +104,7 @@ function MemoizedDataCellInner({
 					columnName={col.name}
 					columnDataType={col.dataType}
 					reference={col.foreignKey}
-					cellValue={ctx.row.original[col.name]}
+					cellValue={ctx.row.original[col.accessorKey]}
 					connectionUrl={activeConnectionUrl}
 					onPrefetchReferences={onPrefetchReferences}
 					onNavigateToFK={onNavigateToFK}

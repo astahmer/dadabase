@@ -185,9 +185,9 @@ export const useRowsColumns = ({
 						table: col.table,
 					},
 					cell: col.dataType.toLowerCase().includes("json")
-						? (ctx) => <JsonCell value={ctx.row.original[col.name]} />
+						? (ctx) => <JsonCell value={ctx.row.original[col.accessorKey]} />
 						: (ctx) => {
-								const cellValue = ctx.row.original[col.name];
+								const cellValue = ctx.row.original[col.accessorKey];
 								return (
 									<MemoizedDataCell
 										ctx={ctx}

@@ -214,6 +214,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			columnOrder: tab.columnOrder,
 			fkValue: tab.fkValue,
 			relationshipRowId: tab.relationshipRowId,
+			columnVisibilityMode: tab.columnVisibilityMode,
 		};
 
 		const currentSearch = (router.state.matches.find(
