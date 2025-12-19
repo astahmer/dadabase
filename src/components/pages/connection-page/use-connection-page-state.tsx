@@ -16,7 +16,7 @@ import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
-import { querySqlQueryOptions } from "#src/server/introspection/start-fns/get-query-sql.start.ts";
+import { getQueryAsSql } from "#src/server/introspection/start-fns/get-query-sql.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -29,10 +29,12 @@ import type {
 import { useCallback, useMemo, useState } from "react";
 import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
+import type { DatabaseDialect } from "#src/db/dialect.ts";
 
 interface UseConnectionPageStateProps {
 	connection: {
 		url: string;
+		dialect: string;
 	};
 }
 
@@ -168,27 +170,22 @@ export const useConnectionPageState = ({
 	});
 
 	// Fetch the SQL query string (without executing)
-	const sqlQuery = useQuery({
-		...querySqlQueryOptions({
-			url: activeConnectionUrl,
-			schema: search.schema || "",
-			table: search.table || "",
-			limit: search.limit,
-			offset: search.offset,
-			orderBy: search.orderBy,
-			orderDirection: search.orderDirection,
-			nullsOrder: search.nullsOrder,
-			filters: queryBuilder.getWhereClause() ?? {
-				conditions: [],
-				logicalOperator: "and",
-			},
-			joins: joins,
-			selectedColumns: columnVisibilityFilters.selectedColumns,
-			excludedColumns: columnVisibilityFilters.excludedColumns,
-			// Don't include results with the SQL - we already have them from rowsQuery
-			includeResults: false,
-		}),
-		enabled: !!search.schema && !!search.table,
+	const sqlQuery = getQueryAsSql({
+		dialect: connection.dialect as DatabaseDialect,
+		schema: search.schema || "",
+		table: search.table || "",
+		limit: search.limit,
+		offset: search.offset,
+		orderBy: search.orderBy,
+		orderDirection: search.orderDirection,
+		nullsOrder: search.nullsOrder,
+		filters: queryBuilder.getWhereClause() ?? {
+			conditions: [],
+			logicalOperator: "and",
+		},
+		joins: joins,
+		selectedColumns: columnVisibilityFilters.selectedColumns,
+		excludedColumns: columnVisibilityFilters.excludedColumns,
 	});
 
 	// Format row data

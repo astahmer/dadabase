@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "#src/components/ui/button.tsx";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { cn } from "#src/lib/utils.ts";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
 
@@ -219,60 +220,64 @@ export function SqlQueryPreview({
 				{/* Action buttons - shown in editor mode */}
 				{editorMode === "editor" && !isCollapsed && (
 					<div className="flex items-center gap-2 mr-8">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onRun}
-							title="Run query"
-							className="h-8 px-2"
-						>
-							<Play className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onExplain}
-							title="Explain query"
-							className="h-8 px-2"
-						>
-							<Zap className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onFormat}
-							title="Format SQL"
-							className="h-8 px-2"
-						>
-							<Wand2 className="h-4 w-4" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onToggleFullscreen}
-							title="Toggle fullscreen"
-							className="h-8 px-2"
-						>
-							<Maximize2 className="h-4 w-4" />
-						</Button>
+						<Tooltip content="Run query">
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={onRun}
+								className="h-8 px-2"
+							>
+								<Play className="h-4 w-4" />
+							</Button>
+						</Tooltip>
+						<Tooltip content="Explain query">
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={onExplain}
+								className="h-8 px-2"
+							>
+								<Zap className="h-4 w-4" />
+							</Button>
+						</Tooltip>
+						<Tooltip content="Format SQL">
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={onFormat}
+								className="h-8 px-2"
+							>
+								<Wand2 className="h-4 w-4" />
+							</Button>
+						</Tooltip>
+						<Tooltip content="Toggle fullscreen">
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={onToggleFullscreen}
+								className="h-8 px-2"
+							>
+								<Maximize2 className="h-4 w-4" />
+							</Button>
+						</Tooltip>
 					</div>
 				)}
 
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={handleCopy}
-					title="Copy SQL to clipboard"
-					className="h-8 px-2 absolute right-2"
-				>
-					{copied ? (
-						<Check className="h-4 w-4 text-green-600" />
-					) : (
-						<Copy className="h-4 w-4" />
-					)}
-				</Button>
+				<Tooltip content="Copy SQL to clipboard">
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={handleCopy}
+						className="h-8 px-2 absolute right-2"
+					>
+						{copied ? (
+							<Check className="h-4 w-4 text-green-600" />
+						) : (
+							<Copy className="h-4 w-4" />
+						)}
+					</Button>
+				</Tooltip>
 			</div>
-
 			{/* Content - collapsed by default */}
 			{!isCollapsed && (
 				<>

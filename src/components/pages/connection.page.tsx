@@ -1,21 +1,16 @@
-import { Portal, Splitter } from "@ark-ui/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import type { Column } from "@tanstack/react-table";
-import {
-	ArrowDown,
-	ArrowDownToLine,
-	ArrowDownUp,
-	ArrowUp,
-	ArrowUpToLine,
-} from "lucide-react";
-import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
-import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
+import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
+import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
+import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
+import { Splitter } from "@ark-ui/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowDown, ArrowDownUp, ArrowUp } from "lucide-react";
+import { useState } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
@@ -23,11 +18,11 @@ import { QueryLoggerPanel } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { Stack } from "../ui/layout.tsx";
 import {
+	Menu,
+	MenuContent,
 	MenuItem,
 	MenuItemText,
 	MenuTriggerItem,
-	Menu,
-	MenuContent,
 } from "../ui/menu.tsx";
 import {
 	Sheet,
@@ -37,8 +32,6 @@ import {
 	SheetTitle,
 } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
-import { ConnectionForm } from "./connection.form.tsx";
-import type { DbConnection } from "./connection.types";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
@@ -51,9 +44,11 @@ import {
 } from "./connection-page/create-tab-state.ts";
 import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
 import { RowsTableErrorState } from "./connection-page/rows-table-error-state.tsx";
-import { StructureTable } from "./connection-page/structure-table.tsx";
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
+import { StructureTable } from "./connection-page/structure-table.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
+import { ConnectionForm } from "./connection.form.tsx";
+import type { DbConnection } from "./connection.types";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -90,6 +85,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		null,
 	);
 	const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
+	const [explainResult, setExplainResult] = useState<string | null>(null);
+	const [showExplainPanel, setShowExplainPanel] = useState(false);
 
 	const search = useActiveTabState((tab, search) => {
 		return {
@@ -112,7 +109,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 	// Detect if we're in custom query mode
 	const isCustomQueryMode =
-		!!search.customSql && search.customSql !== pageState.sqlQuery.data?.sql;
+		!!search.customSql && search.customSql !== pageState.sqlQuery?.sql;
 
 	// SQL editor action handlers
 	const handleRunQuery = () => {
@@ -120,14 +117,55 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		pageState.rowsQuery.refetch();
 	};
 
-	const handleExplainQuery = () => {
-		// TODO: Implement SQL explanation (AI-powered)
-		alert("SQL Explanation feature coming soon!");
+	const handleExplainQuery = async () => {
+		const sqlToExplain = search.customSql || pageState.sqlQuery?.sql;
+		if (!sqlToExplain) {
+			alert("No SQL query to explain");
+			return;
+		}
+
+		try {
+			setExplainResult(null);
+			const result = await explainQueryServerFn({
+				data: {
+					url: pageState.activeConnectionUrl,
+					sql: sqlToExplain,
+				},
+			});
+
+			if (result) {
+				setExplainResult(result.plan);
+				setShowExplainPanel(true);
+			}
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Failed to explain query";
+			setExplainResult(`Error: ${message}`);
+			setShowExplainPanel(true);
+		}
 	};
 
-	const handleFormatSQL = async () => {
-		// TODO: Implement SQL formatting
-		alert("SQL formatting feature coming soon!");
+	const handleFormatSQL = () => {
+		const sqlToFormat = search.customSql || pageState.sqlQuery?.sql;
+		if (!sqlToFormat) {
+			alert("No SQL query to format");
+			return;
+		}
+
+		try {
+			const formatted = formatSQL(sqlToFormat);
+			navigate({
+				search: (prev) =>
+					updateTabState(prev, {
+						customSql: formatted,
+						sqlEditorMode: "editor",
+					}),
+			});
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Failed to format SQL";
+			alert(`Error formatting SQL: ${message}`);
+		}
 	};
 
 	const relationshipPanelSize = fromPixelToPercentage(50);
@@ -310,12 +348,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											{/* SQL Query Preview */}
 											<div className="shrink-0">
 												<SqlQueryPreview
-													sql={pageState.sqlQuery.data?.sql || ""}
-													formattedSql={
-														pageState.sqlQuery.data?.formattedSql || ""
-													}
-													isLoading={pageState.sqlQuery.isLoading}
-													error={pageState.sqlQuery.error}
+													sql={pageState.sqlQuery?.sql || ""}
+													formattedSql={pageState.sqlQuery?.formattedSql || ""}
+													// isLoading={pageState.sqlQuery.isLoading}
+													// error={pageState.sqlQuery.error}
 													isCollapsed={search.sqlPreviewCollapsed ?? true}
 													onToggleCollapsed={(collapsed) =>
 														navigate({
@@ -695,6 +731,33 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 				{/* Query Logger Panel */}
 				<QueryLoggerPanel connectionUrl={pageState.activeConnectionUrl} />
+				{/* Query Explain Panel */}
+				<Sheet
+					open={showExplainPanel}
+					onOpenChange={(details) => {
+						if (!details.open) setShowExplainPanel(false);
+					}}
+				>
+					<SheetContent side="right" className="w-full sm:w-96 flex flex-col">
+						<SheetHeader>
+							<SheetTitle>Query Execution Plan</SheetTitle>
+							<SheetDescription>
+								EXPLAIN ANALYZE output for performance optimization
+							</SheetDescription>
+						</SheetHeader>
+						<div className="flex-1 overflow-auto">
+							{explainResult ? (
+								<pre className="font-mono text-xs whitespace-pre-wrap break-words p-4 bg-gray-50 rounded border">
+									{explainResult}
+								</pre>
+							) : (
+								<div className="flex items-center justify-center h-full text-gray-500">
+									Loading...
+								</div>
+							)}
+						</div>
+					</SheetContent>
+				</Sheet>
 			</div>
 
 			{/* Add Connection Drawer */}

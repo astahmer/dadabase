@@ -153,8 +153,11 @@ export type QueryTableDataInput = {
 
 export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
 	// console.log("[rows query]", input)
+	// Create query key without customSql to prevent auto-refetch when user edits the query
+	// customSql is still passed to the server function, but changes don't trigger automatic refetch
+	const { customSql: _, ...keyInput } = input;
 	return queryOptions({
-		queryKey: ["remote", "rows", input],
+		queryKey: ["remote", "rows", keyInput],
 		queryFn: async () => queryTableDataServerFn({ data: input }),
 		meta: { loggable: true },
 		placeholderData: keepPreviousData,

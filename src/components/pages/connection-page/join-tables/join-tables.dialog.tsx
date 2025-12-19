@@ -448,6 +448,7 @@ const JoinTablesDialogContent = (
 					<div className="space-y-2">
 						<div className="text-sm font-medium">Generated SQL:</div>
 						<div className="p-3 bg-slate-900 rounded text-xs font-mono text-slate-100 overflow-x-auto whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+							{/* TODO use getQueryAsSql */}
 							{buildJoinSqlPreview(
 								schema,
 								table,
