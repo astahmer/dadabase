@@ -159,7 +159,6 @@ export const DataTableRow = memo(function TableRow({
 		return out;
 	}, [
 		visibleCells,
-		isSelected,
 		isExpanded,
 		size,
 		showColumnBorder,

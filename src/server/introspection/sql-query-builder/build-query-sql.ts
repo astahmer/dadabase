@@ -26,8 +26,6 @@ export interface BuildQuerySqlInput {
 
 export interface QuerySqlResult {
     sql: string;
-    /** Query with formatted indentation for display */
-    formattedSql: string;
 }
 
 /**
@@ -119,8 +117,5 @@ export const buildQuerySql = (
 
     const sql = sqlParts.join(" ");
 
-    // Format for display
-    const formattedSql = sqlParts.join("\n");
-
-    return { sql, formattedSql };
+    return { sql };
 };

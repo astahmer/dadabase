@@ -23,6 +23,7 @@ export function SqlMonacoEditor({
 	const monacoRef = useRef<any>(null);
 	const modelRef = useRef<any>(null);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: ok
 	useEffect(() => {
 		let mounted = true;
 

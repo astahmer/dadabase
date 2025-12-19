@@ -174,7 +174,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 	});
 	useEffect(() => {
 		columnList.set(columnCollection.items);
-	}, [columnCollection.items]);
+	}, [columnCollection.items, columnList.set]);
 
 	const operatorList = useListCollection({
 		initialItems: operatorCollection.items,
@@ -182,7 +182,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 	});
 	useEffect(() => {
 		operatorList.set(operatorCollection.items);
-	}, [operatorCollection.items]);
+	}, [operatorCollection.items, operatorList.set]);
 
 	return (
 		<Stack>

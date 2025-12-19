@@ -43,7 +43,6 @@ export const createTabState = (
 		filtersOpened: options?.filtersOpened ?? false,
 		fkValue: options?.fkValue,
 		joins: options?.joinConfig?.joins,
-		sqlPreviewCollapsed: true,
 		sqlEditorMode: "preview" as const,
 		customSql: undefined,
 	};

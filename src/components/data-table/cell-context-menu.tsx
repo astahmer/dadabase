@@ -35,6 +35,7 @@ export interface CellContextMenuProps {
 
 const useDialogContext = () => {
 	try {
+		// biome-ignore lint/correctness/useHookAtTopLevel: ok
 		return useArkDialogContext();
 	} catch {
 		return;

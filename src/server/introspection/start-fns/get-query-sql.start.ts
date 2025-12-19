@@ -2,6 +2,7 @@ import type { JoinTablesConfig } from "#src/components/pages/connection-page/joi
 import { filterQueryValidConditions, type QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { buildQuerySql } from "../sql-query-builder/build-query-sql.ts";
+import { formatSqlForDisplay } from "../sql-query-builder/format-sql.ts";
 
 export type QuerySqlInput = {
     dialect: DatabaseDialect;
@@ -31,7 +32,7 @@ export const getQueryAsSql = (input: QuerySqlInput) => {
     const dialect = input.dialect
 
     // Generate the SQL query (this is a pure function, no database access)
-    const { sql, formattedSql } = buildQuerySql(
+    const { sql } = buildQuerySql(
         {
             schema: input.schema,
             table: input.table,
@@ -56,7 +57,6 @@ export const getQueryAsSql = (input: QuerySqlInput) => {
     );
 
     return {
-        sql,
-        formattedSql,
+        sql: formatSqlForDisplay(sql),
     };
 }

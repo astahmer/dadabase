@@ -247,6 +247,7 @@ const TableContainer = (
 	});
 
 	// Keep measurements fresh when column sizes change (resize, order, pinning)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: ok
 	useEffect(() => {
 		columnVirtualizer.measure();
 	}, [

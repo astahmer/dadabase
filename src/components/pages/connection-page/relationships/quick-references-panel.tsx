@@ -152,7 +152,7 @@ export function QuickReferencesPanel({
 
 	useEffect(() => {
 		refList.set(referenceItems);
-	}, [referenceItems]);
+	}, [referenceItems, refList.set]);
 
 	return (
 		<div className="w-full space-y-0 h-full flex flex-col overflow-hidden">

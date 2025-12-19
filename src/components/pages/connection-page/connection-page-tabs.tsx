@@ -218,7 +218,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			fkValue: tab.fkValue,
 			relationshipRowId: tab.relationshipRowId,
 			columnVisibilityMode: tab.columnVisibilityMode,
-			sqlPreviewCollapsed: tab.sqlPreviewCollapsed,
+			sqlPreviewSize: tab.sqlPreviewSize,
 			sqlEditorMode: tab.sqlEditorMode,
 			customSql: tab.customSql,
 		};

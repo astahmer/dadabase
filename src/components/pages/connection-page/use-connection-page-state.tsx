@@ -30,23 +30,26 @@ import { useCallback, useMemo, useState } from "react";
 import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
 import type { DatabaseDialect } from "#src/db/dialect.ts";
+import type { DbConnection } from "../connection.types.ts";
 
-interface UseConnectionPageStateProps {
-	connection: {
-		url: string;
-		dialect: string;
-	};
-}
+export const useActiveConnectionUrl = (connection: DbConnection) => {
+	return useSearch({
+		from: "/connections/$connectionName",
+		select: (s) =>
+			s.dbName && connection.url
+				? replaceDatabaseInConnectionUrl(connection.url, s.dbName)
+				: connection.url,
+	});
+};
 
 export const useConnectionPageState = ({
 	connection,
-}: UseConnectionPageStateProps) => {
+}: {
+	connection: DbConnection;
+}) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
-	const dbName = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.dbName,
-	});
+	const activeConnectionUrl = useActiveConnectionUrl(connection);
 	const search = useActiveTabState((s) => {
 		return {
 			schema: s.schema,
@@ -68,11 +71,6 @@ export const useConnectionPageState = ({
 			customSql: s.customSql,
 		};
 	});
-
-	const connectionUrl = connection.url || "";
-	const activeConnectionUrl = dbName
-		? replaceDatabaseInConnectionUrl(connectionUrl, dbName)
-		: connectionUrl;
 
 	// Query builder setup
 	const queryBuilder = useQueryBuilder(
@@ -382,7 +380,15 @@ export const useConnectionPageState = ({
 			// 	enablePinning: false,
 			// } as ColumnDef<Record<string, unknown>>,
 		],
-		[tableMetadata.columnMetadata, navigate, search.offset, search.limit],
+		[
+			activeConnectionUrl,
+			search.schema,
+			search.table,
+			tableMetadata.columnMetadata,
+			navigate,
+			search.offset,
+			search.limit,
+		],
 	);
 
 	const rowActions = useRowsColumnsAction({

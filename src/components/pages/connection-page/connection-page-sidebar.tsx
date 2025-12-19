@@ -94,7 +94,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 					(tableFilter ? contains(table.name, tableFilter) : true) &&
 					(isNotSqlite ? selectedSchema === table.schema : true),
 			),
-		[tableList, tableFilter, selectedSchema, contains],
+		[tableList, tableFilter, selectedSchema, contains, isNotSqlite],
 	);
 	const filteredTablesNames = useMemo(
 		() => filteredTables.map((t) => t.name),

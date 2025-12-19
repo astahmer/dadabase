@@ -1,6 +1,6 @@
 import { Popover, Portal } from "@ark-ui/react";
 import { Code as CodeIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Button } from "../ui/button.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { InlineJsonPopover } from "./inline-json-popover";
@@ -21,7 +21,7 @@ export function InlineJsonButton({
 	const mousePositionRef = useRef({ x: 0, y: 0 });
 	const isModifierPressedRef = useRef(false);
 
-	const updateDataAttribute = () => {
+	const updateDataAttribute = useEffectEvent(() => {
 		if (!divRef.current) return;
 
 		// Use parent's bounding box to avoid overflow issues
@@ -40,7 +40,7 @@ export function InlineJsonButton({
 		} else {
 			delete divRef.current.dataset.cmdHover;
 		}
-	};
+	});
 
 	useEffect(() => {
 		const trackMouse = (e: MouseEvent) => {

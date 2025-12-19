@@ -47,6 +47,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 	const orderBy = useActiveTabState((s) => s.orderBy);
 	const orderDirection = useActiveTabState((s) => s.orderDirection);
 	const nullsOrder = useActiveTabState((s) => s.nullsOrder);
+	const columnVisibilityMode = useActiveTabState((s) => s.columnVisibilityMode);
 
 	return (
 		<div className="relative border-b bg-muted/50">
@@ -253,7 +254,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 						table={table}
 						columnList={columnList}
 						minimal={true}
-						visibilityMode={useActiveTabState((s) => s.columnVisibilityMode)}
+						visibilityMode={columnVisibilityMode}
 						onVisibilityModeChange={(mode) => {
 							navigate({
 								search: (prev) =>

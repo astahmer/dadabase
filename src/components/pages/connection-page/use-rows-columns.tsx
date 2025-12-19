@@ -144,7 +144,6 @@ export const useRowsColumns = ({
 			joins,
 			columnMetadata,
 			joinedTablesColumnsMetadata,
-			schema,
 			table,
 			prefixWithTable,
 		],

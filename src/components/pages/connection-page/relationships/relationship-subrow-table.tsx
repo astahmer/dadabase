@@ -135,7 +135,7 @@ export const RelationshipSubrowTable = ({
 				enablePinning: false,
 			} as ColumnDef<Record<string, unknown>>,
 		].concat(dataColumns);
-	}, [dataColumns]);
+	}, [dataColumns, limit, pageIndex]);
 
 	const table = useDataTable({
 		// enableColumnPinning: false,

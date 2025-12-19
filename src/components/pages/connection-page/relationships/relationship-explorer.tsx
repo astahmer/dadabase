@@ -138,6 +138,7 @@ const RenderRelationshipValue = memo(function RenderRelationshipValue({
 	connectionUrl,
 	relationshipsLoading,
 }: RenderRelationshipValueProps) {
+	const id = useId();
 	const [isExpanded, setIsExpanded] = useState(depth <= 1);
 
 	// Handle primitives
@@ -166,7 +167,6 @@ const RenderRelationshipValue = memo(function RenderRelationshipValue({
 		const obj = value as Record<string, unknown>;
 		const keys = Object.keys(obj);
 		const isEmpty = keys.length === 0 && relationships.length === 0;
-		const id = useId();
 
 		return (
 			<>

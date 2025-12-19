@@ -31,7 +31,7 @@ export const useJoinTablesState = (
 				{ ...join, alias: alias || join.alias },
 			],
 		}));
-	}, []);
+	}, [parentTable]);
 
 	const remove = useCallback((table: string, schema: string) => {
 		setConfig((prev) => {

@@ -53,7 +53,7 @@ const TabStateSchema = Schema.Struct({
 	relationshipRowId: Schema.String.pipe(Schema.optional), // Row ID for expanded relationships panel
 	joins: Schema.Array(JoinedTableSchema).pipe(Schema.optional),
 	prefixWithTable: Schema.Boolean.pipe(Schema.optional),
-	sqlPreviewCollapsed: Schema.Boolean.pipe(Schema.optional), // SQL preview collapsed state
+	sqlPreviewSize: Schema.Number.pipe(Schema.optional), // SQL preview collapsed state
 	sqlEditorMode: Schema.Literal("preview", "editor").pipe(Schema.optional), // SQL editor tab mode
 	customSql: Schema.String.pipe(Schema.optional), // Custom SQL query edited by user (when set, overrides generated SQL)
 });

@@ -9,7 +9,7 @@ import {
 	Maximize2,
 	Zap,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffectEvent, useRef, useState } from "react";
 import { Tabs } from "@ark-ui/react/tabs";
 import { Button } from "#src/components/ui/button.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
@@ -69,7 +69,6 @@ interface SqlQueryPreviewProps {
  */
 export function SqlQueryPreview({
 	sql,
-	formattedSql,
 	isLoading = false,
 	error = null,
 	editorMode = "preview",
@@ -91,11 +90,6 @@ export function SqlQueryPreview({
 	const [copied, setCopied] = useState(false);
 	const editorValueRef = useRef<string>(sql);
 
-	// Detect if we're in custom query mode (editor differs from original)
-	const isCustomQueryMode = customSql && customSql !== sql;
-
-	const displaySql = formattedSql || sql;
-
 	const handleCopy = async () => {
 		try {
 			const textToCopy = editorMode === "editor" ? editorValueRef.current : sql;
@@ -107,11 +101,11 @@ export function SqlQueryPreview({
 		}
 	};
 
-	const handleEditorChange = (value: string) => {
+	const handleEditorChange = useEffectEvent((value: string) => {
 		editorValueRef.current = value;
 		onCustomSqlChange?.(value);
 		onEditorChange?.(value);
-	};
+	});
 
 	if (isLoading) {
 		return (
@@ -164,13 +158,14 @@ export function SqlQueryPreview({
 			)}
 		>
 			{/* Header with toggle, tabs, warning, and actions */}
-			<div className="border-b border-gray-200 px-4 py-2">
+			<div className="border-b border-gray-200 px-4">
 				{/* Top row: toggle + tabs + actions + copy */}
 				<div className="flex items-center justify-between gap-4 mb-2">
 					<div className="flex items-center gap-4 flex-1">
-						<button
+						<Button
+							variant="ghost"
 							onClick={() => onToggleCollapsed?.(!isCollapsed)}
-							className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-pointer"
+							className="flex items-center gap-2 text-sm font-semibold"
 						>
 							{isCollapsed ? (
 								<ChevronRight className="h-4 w-4" />
@@ -178,7 +173,7 @@ export function SqlQueryPreview({
 								<ChevronDown className="h-4 w-4" />
 							)}
 							SQL Query
-						</button>
+						</Button>
 
 						{/* Editor mode tabs */}
 						<Tabs.Root
@@ -301,7 +296,7 @@ export function SqlQueryPreview({
 					{editorMode === "preview" ? (
 						<div className="overflow-x-auto bg-gray-50 px-4 py-3">
 							<pre className="font-mono text-sm text-gray-800 whitespace-pre-wrap wrap-break-word">
-								{displaySql}
+								{sql}
 							</pre>
 						</div>
 					) : (
