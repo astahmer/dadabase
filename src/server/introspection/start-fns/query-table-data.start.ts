@@ -82,6 +82,7 @@ export const QueryTableRowsInputSchema = Schema.Struct({
 		Schema.mutable,
 		Schema.optional,
 	),
+	customSql: Schema.String.pipe(Schema.optional),
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
 	.inputValidator(QueryTableRowsInputSchema.pipe(Schema.standardSchemaV1))
@@ -114,6 +115,7 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 					excludedColumns: input.excludedColumns
 						? Array.from(input.excludedColumns)
 						: undefined,
+					customSql: input.customSql,
 				});
 
 				const endTime = Date.now();
@@ -146,6 +148,7 @@ export type QueryTableDataInput = {
 	joins?: JoinTablesConfig["joins"];
 	selectedColumns?: string[];
 	excludedColumns?: string[];
+	customSql?: string;
 };
 
 export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {

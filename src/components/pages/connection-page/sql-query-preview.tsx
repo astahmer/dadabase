@@ -1,4 +1,10 @@
-import { Check, Copy, ChevronDown, ChevronRight } from "lucide-react";
+import {
+	Check,
+	Copy,
+	ChevronDown,
+	ChevronRight,
+	RotateCcw,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "#src/components/ui/button.tsx";
 import { cn } from "#src/lib/utils.ts";
@@ -19,6 +25,12 @@ interface SqlQueryPreviewProps {
 	onEditorModeChange?: (mode: "preview" | "editor") => void;
 	/** Callback when editor content changes */
 	onEditorChange?: (value: string) => void;
+	/** Custom SQL that user has edited (if different from generated SQL) */
+	customSql?: string;
+	/** Callback when custom SQL is changed (user edits in editor) */
+	onCustomSqlChange?: (customSql: string) => void;
+	/** Callback to reset custom SQL */
+	onResetCustomSql?: () => void;
 	/** Whether the preview is collapsed */
 	isCollapsed?: boolean;
 	/** Callback to toggle collapsed state */
@@ -34,6 +46,7 @@ interface SqlQueryPreviewProps {
  *
  * - Preview is the default
  * - Editor mode is opt-in via tabs
+ * - Custom mode: when user edits SQL, UI controls are disabled
  * - Both modes preserve the collapsed/expanded state
  */
 export function SqlQueryPreview({
@@ -44,12 +57,18 @@ export function SqlQueryPreview({
 	editorMode = "preview",
 	onEditorModeChange,
 	onEditorChange,
+	customSql,
+	onCustomSqlChange,
+	onResetCustomSql,
 	isCollapsed = true,
 	onToggleCollapsed,
 	className,
 }: SqlQueryPreviewProps) {
 	const [copied, setCopied] = useState(false);
 	const editorValueRef = useRef<string>(sql);
+
+	// Detect if we're in custom query mode (editor differs from original)
+	const isCustomQueryMode = customSql && customSql !== sql;
 
 	const displaySql = formattedSql || sql;
 
@@ -66,6 +85,7 @@ export function SqlQueryPreview({
 
 	const handleEditorChange = (value: string) => {
 		editorValueRef.current = value;
+		onCustomSqlChange?.(value);
 		onEditorChange?.(value);
 	};
 
@@ -114,6 +134,27 @@ export function SqlQueryPreview({
 		<div
 			className={cn("flex flex-col rounded border border-gray-200", className)}
 		>
+			{/* Custom query mode banner */}
+			{isCustomQueryMode && (
+				<div className="bg-amber-50 border-b border-amber-200 px-4 py-2">
+					<div className="flex items-center justify-between gap-2">
+						<p className="text-xs font-medium text-amber-900">
+							📝 Editing raw SQL — filters and other controls are disabled
+						</p>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={onResetCustomSql}
+							title="Reset to generated query and restore UI controls"
+							className="h-6 px-2 text-xs gap-1"
+						>
+							<RotateCcw className="h-3 w-3" />
+							Reset
+						</Button>
+					</div>
+				</div>
+			)}
+
 			{/* Header with toggle, tabs, and copy button */}
 			<div className="relative flex items-center justify-between border-b border-gray-200 px-4 py-2">
 				<div className="flex items-center gap-4 flex-1">

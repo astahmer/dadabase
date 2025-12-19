@@ -45,6 +45,8 @@ interface QueryFilterBuilderProps {
 	isLoading?: boolean;
 	/** Optional table name/alias for display in column headers (useful for joined table filters) */
 	tableReference?: string;
+	/** Disable the filter builder (e.g., when in custom query mode) */
+	disabled?: boolean;
 }
 
 const operatorCollection = createListCollection({
@@ -72,6 +74,7 @@ export const QueryFilterBuilder = ({
 	availableColumns,
 	isLoading = false,
 	tableReference,
+	disabled = false,
 }: QueryFilterBuilderProps) => {
 	const columnCollection = useMemo(
 		() =>
@@ -89,7 +92,11 @@ export const QueryFilterBuilder = ({
 	}
 
 	return (
-		<div className="p-4 space-y-3 border-b">
+		<div
+			className={`p-4 space-y-3 border-b ${
+				disabled ? "opacity-50 pointer-events-none" : ""
+			}`}
+		>
 			<Stack gap="2">
 				{conditions.map((condition, index) => (
 					<FilterConditionRow

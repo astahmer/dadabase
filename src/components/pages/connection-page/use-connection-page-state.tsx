@@ -63,6 +63,7 @@ export const useConnectionPageState = ({
 			columnOrder: s.columnOrder,
 			relationshipRowId: s.relationshipRowId,
 			joins: s.joins,
+			customSql: s.customSql,
 		};
 	});
 
@@ -161,6 +162,7 @@ export const useConnectionPageState = ({
 			joins: joins,
 			selectedColumns: columnVisibilityFilters.selectedColumns,
 			excludedColumns: columnVisibilityFilters.excludedColumns,
+			customSql: search.customSql,
 		}),
 		enabled: !!search.schema && !!search.table,
 	});

@@ -45,6 +45,7 @@ export const createTabState = (
 		joins: options?.joinConfig?.joins,
 		sqlPreviewCollapsed: true,
 		sqlEditorMode: "preview" as const,
+		customSql: undefined,
 	};
 };
 

@@ -1667,6 +1667,7 @@ export const queryTableRows = <TData>(input: {
 	joins?: JoinTablesConfig["joins"];
 	selectedColumns?: string[];
 	excludedColumns?: string[];
+	customSql?: string;
 }): Effect.Effect<
 	{
 		rows: TData[];
@@ -1689,7 +1690,39 @@ export const queryTableRows = <TData>(input: {
 			filters,
 			selectedColumns = [],
 			excludedColumns = [],
+			customSql,
 		} = input;
+
+		// If custom SQL is provided, execute it directly
+		if (customSql) {
+			// For custom SQL, we can't determine columns easily, so we'll get them from the first result
+			// Execute the custom query
+			const rows = yield* sql.unsafe(customSql).pipe(
+				withQueryLogging({
+					type: QueryLogType.TableRows,
+					sql: customSql,
+					params: [],
+					schema: input.schema,
+					table: input.table,
+					level: QueryLogLevel.Info,
+					connectionId: connectionId,
+					meta: { input, customQuery: true },
+				}),
+			);
+
+			// Get the column list from the first row or use empty list
+			const columnList =
+				rows && rows.length > 0 ? Object.keys(rows[0]) : [];
+
+			// For custom queries, we can't paginate or get counts efficiently
+			// Return the results as-is
+			return {
+				rows: (rows ?? []) as TData[],
+				columnList,
+				rowCount: rows?.length ?? 0,
+				hasNextPage: false,
+			};
+		}
 
 		const defaultSchema = yield* sql.onDialectOrElse({
 			pg: () =>

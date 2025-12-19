@@ -101,12 +101,17 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			sidebarSize: search.sidebarSize,
 			sqlPreviewCollapsed: tab.sqlPreviewCollapsed,
 			sqlEditorMode: tab.sqlEditorMode,
+			customSql: tab.customSql,
 		};
 	});
 
 	const { filters: structureFilters } = useStructureFilters();
 
 	const pageState = useConnectionPageState({ connection });
+
+	// Detect if we're in custom query mode
+	const isCustomQueryMode =
+		!!search.customSql && search.customSql !== pageState.sqlQuery.data?.sql;
 
 	const relationshipPanelSize = fromPixelToPercentage(50);
 	const windowWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
@@ -268,6 +273,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											}
 											availableColumns={pageState.columnNameList}
 											isLoading={pageState.rowsQuery.isLoading}
+											disabled={isCustomQueryMode}
 										/>
 									)}
 
@@ -308,6 +314,23 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															search: (prev) =>
 																updateTabState(prev, {
 																	sqlEditorMode: mode,
+																}),
+														})
+													}
+													customSql={search.customSql}
+													onCustomSqlChange={(customSql) =>
+														navigate({
+															search: (prev) =>
+																updateTabState(prev, {
+																	customSql,
+																}),
+														})
+													}
+													onResetCustomSql={() =>
+														navigate({
+															search: (prev) =>
+																updateTabState(prev, {
+																	customSql: undefined,
 																}),
 														})
 													}

@@ -55,6 +55,7 @@ const TabStateSchema = Schema.Struct({
 	prefixWithTable: Schema.Boolean.pipe(Schema.optional),
 	sqlPreviewCollapsed: Schema.Boolean.pipe(Schema.optional), // SQL preview collapsed state
 	sqlEditorMode: Schema.Literal("preview", "editor").pipe(Schema.optional), // SQL editor tab mode
+	customSql: Schema.String.pipe(Schema.optional), // Custom SQL query edited by user (when set, overrides generated SQL)
 });
 
 const searchSchema = Schema.Struct({
