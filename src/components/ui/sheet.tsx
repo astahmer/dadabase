@@ -43,47 +43,66 @@ const SheetCloseTrigger = ({
 );
 SheetCloseTrigger.displayName = "SheetCloseTrigger";
 
+const sizeClasses = {
+	xs: "max-w-xs",
+	sm: "max-w-md",
+	md: "max-w-lg",
+	lg: "max-w-2xl",
+	xl: "max-w-4xl",
+	full: "max-w-[100vw] h-[100dvh]",
+};
+
+const sideClasses = {
+	right:
+		"data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l",
+	left: "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r",
+	top: "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
+	bottom:
+		"data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
+};
+
 const SheetContent = ({
 	className,
 	children,
 	side = "right",
+	size = "sm",
 	positionerProps,
 	...props
 }: SheetPrimitive.ContentProps & {
 	side?: "top" | "right" | "bottom" | "left";
+	size?: "xs" | "sm" | "md" | "lg" | "xl" | "full";
 	positionerProps?: SheetPrimitive.PositionerProps;
-}) => (
-	<Portal>
-		<SheetBackdrop {...parts.backdrop.attrs} />
-		<SheetPrimitive.Positioner {...parts.positioner.attrs} {...positionerProps}>
-			<SheetPrimitive.Content
-				{...parts.content.attrs}
-				className={cn(
-					"fixed z-(--z-index) z-100 flex flex-col gap-4 bg-background shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:duration-300 data-[state=open]:duration-500",
-					side === "right" &&
-						"data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",
-					side === "left" &&
-						"data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm",
-					side === "top" &&
-						"data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b",
-					side === "bottom" &&
-						"data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t",
-					className,
-				)}
-				{...props}
+}) => {
+	return (
+		<Portal>
+			<SheetBackdrop {...parts.backdrop.attrs} />
+			<SheetPrimitive.Positioner
+				{...parts.positioner.attrs}
+				{...positionerProps}
 			>
-				{children}
-				<SheetPrimitive.CloseTrigger
-					{...parts.closeTrigger.attrs}
-					className="group absolute top-3 right-3 flex size-7 items-center justify-center rounded outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none"
+				<SheetPrimitive.Content
+					{...parts.content.attrs}
+					className={cn(
+						"fixed z-(--z-index) z-100 flex flex-col gap-4 bg-background shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:duration-300 data-[state=open]:duration-500",
+						sideClasses[side],
+						sizeClasses[size],
+						className,
+					)}
+					{...props}
 				>
-					<XIcon className="size-4 opacity-60 transition-opacity group-hover:opacity-100" />
-					<span className="sr-only">Close</span>
-				</SheetPrimitive.CloseTrigger>
-			</SheetPrimitive.Content>
-		</SheetPrimitive.Positioner>
-	</Portal>
-);
+					{children}
+					<SheetPrimitive.CloseTrigger
+						{...parts.closeTrigger.attrs}
+						className="group absolute top-3 right-3 flex size-7 items-center justify-center rounded outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none"
+					>
+						<XIcon className="size-4 opacity-60 transition-opacity group-hover:opacity-100" />
+						<span className="sr-only">Close</span>
+					</SheetPrimitive.CloseTrigger>
+				</SheetPrimitive.Content>
+			</SheetPrimitive.Positioner>
+		</Portal>
+	);
+};
 SheetContent.displayName = "SheetContent";
 
 const SheetContext = SheetPrimitive.Context;

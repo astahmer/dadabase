@@ -46,6 +46,7 @@ import { RelationshipsPanel } from "./connection-page/relationships/relationship
 import { RowsTableErrorState } from "./connection-page/rows-table-error-state.tsx";
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
+import { ExplainOutput } from "./connection-page/explain-output.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
@@ -738,18 +739,16 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 						if (!details.open) setShowExplainPanel(false);
 					}}
 				>
-					<SheetContent side="right" className="w-full sm:w-96 flex flex-col">
-						<SheetHeader>
+					<SheetContent side="right" size="full" className="flex flex-col p-0">
+						<SheetHeader className="px-6 pt-6 pb-4 border-b">
 							<SheetTitle>Query Execution Plan</SheetTitle>
 							<SheetDescription>
 								EXPLAIN ANALYZE output for performance optimization
 							</SheetDescription>
 						</SheetHeader>
-						<div className="flex-1 overflow-auto">
+						<div className="flex-1 overflow-hidden">
 							{explainResult ? (
-								<pre className="font-mono text-xs whitespace-pre-wrap break-words p-4 bg-gray-50 rounded border">
-									{explainResult}
-								</pre>
+								<ExplainOutput output={explainResult} />
 							) : (
 								<div className="flex items-center justify-center h-full text-gray-500">
 									Loading...
