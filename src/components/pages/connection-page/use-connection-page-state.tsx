@@ -1,12 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import type {
-	AccessorKeyColumnDef,
-	ColumnDef,
-	ColumnPinningState,
-	Row,
-} from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
 import { RowContextMenu } from "#src/components/app/row-context-menu.tsx";
 import type { DataTableRowSubrow } from "#src/components/data-table/data-table.row.tsx";
 import { useDataTable } from "#src/components/data-table/use-data-table.ts";
@@ -25,9 +16,19 @@ import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
+import { querySqlQueryOptions } from "#src/server/introspection/start-fns/get-query-sql.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import type {
+	AccessorKeyColumnDef,
+	ColumnDef,
+	ColumnPinningState,
+	Row,
+} from "@tanstack/react-table";
+import { useCallback, useMemo, useState } from "react";
 import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
+import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
 
 interface UseConnectionPageStateProps {
 	connection: {
@@ -160,6 +161,30 @@ export const useConnectionPageState = ({
 			joins: joins,
 			selectedColumns: columnVisibilityFilters.selectedColumns,
 			excludedColumns: columnVisibilityFilters.excludedColumns,
+		}),
+		enabled: !!search.schema && !!search.table,
+	});
+
+	// Fetch the SQL query string (without executing)
+	const sqlQuery = useQuery({
+		...querySqlQueryOptions({
+			url: activeConnectionUrl,
+			schema: search.schema || "",
+			table: search.table || "",
+			limit: search.limit,
+			offset: search.offset,
+			orderBy: search.orderBy,
+			orderDirection: search.orderDirection,
+			nullsOrder: search.nullsOrder,
+			filters: queryBuilder.getWhereClause() ?? {
+				conditions: [],
+				logicalOperator: "and",
+			},
+			joins: joins,
+			selectedColumns: columnVisibilityFilters.selectedColumns,
+			excludedColumns: columnVisibilityFilters.excludedColumns,
+			// Don't include results with the SQL - we already have them from rowsQuery
+			includeResults: false,
 		}),
 		enabled: !!search.schema && !!search.table,
 	});
@@ -635,6 +660,7 @@ export const useConnectionPageState = ({
 		activeConnectionUrl,
 		queryBuilder,
 		rowsQuery,
+		sqlQuery,
 		columnMetadata: tableMetadata.columnMetadata,
 		columnNameList: columnNameList,
 		isColumnMetadataLoading: tableMetadata.isLoading,

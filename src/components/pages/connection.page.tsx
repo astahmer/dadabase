@@ -11,6 +11,7 @@ import {
 	ArrowUpToLine,
 } from "lucide-react";
 import { useConnectionPageState } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
+import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
@@ -280,7 +281,20 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											/>
 										</div>
 									) : (
-										<div className="flex-1 flex flex-col h-full min-h-0 px-2">
+										<div className="flex-1 flex flex-col h-full min-h-0 px-2 gap-2">
+											{/* SQL Query Preview */}
+											<div className="shrink-0 max-h-40 overflow-auto">
+												<SqlQueryPreview
+													sql={pageState.sqlQuery.data?.sql || ""}
+													formattedSql={
+														pageState.sqlQuery.data?.formattedSql || ""
+													}
+													isLoading={pageState.sqlQuery.isLoading}
+													error={pageState.sqlQuery.error}
+													className="text-sm"
+												/>
+											</div>
+
 											{pageState.rowsQuery.isLoading ? (
 												<Stack className="flex-1 flex items-center justify-center">
 													<Spinner />
