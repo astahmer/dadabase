@@ -10,6 +10,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import { Tabs } from "@ark-ui/react/tabs";
 import { Button } from "#src/components/ui/button.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { cn } from "#src/lib/utils.ts";
@@ -162,137 +163,144 @@ export function SqlQueryPreview({
 				className,
 			)}
 		>
-			{/* Custom query mode banner */}
-			{isCustomQueryMode && (
-				<div className="bg-amber-50 border-b border-amber-200 px-4 py-2">
-					<div className="flex items-center justify-between gap-2">
-						<p className="text-xs font-medium text-amber-900">
-							📝 Editing raw SQL — filters and other controls are disabled
-						</p>
+			{/* Header with toggle, tabs, warning, and actions */}
+			<div className="border-b border-gray-200 px-4 py-2">
+				{/* Top row: toggle + tabs + actions + copy */}
+				<div className="flex items-center justify-between gap-4 mb-2">
+					<div className="flex items-center gap-4 flex-1">
+						<button
+							onClick={() => onToggleCollapsed?.(!isCollapsed)}
+							className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-pointer"
+						>
+							{isCollapsed ? (
+								<ChevronRight className="h-4 w-4" />
+							) : (
+								<ChevronDown className="h-4 w-4" />
+							)}
+							SQL Query
+						</button>
+
+						{/* Editor mode tabs */}
+						<Tabs.Root
+							value={editorMode || "preview"}
+							onValueChange={(details) => {
+								onEditorModeChange?.(details.value as "preview" | "editor");
+							}}
+						>
+							<Tabs.List className="flex gap-1 border-l border-gray-300 pl-4">
+								<Tabs.Trigger
+									value="preview"
+									className={cn(
+										"px-3 py-1 text-xs font-medium transition-colors data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:border-b-2 data-[state=active]:border-blue-500",
+										editorMode !== "preview" &&
+											"text-gray-600 hover:text-gray-900",
+									)}
+								>
+									Preview
+								</Tabs.Trigger>
+								<Tabs.Trigger
+									value="editor"
+									className={cn(
+										"px-3 py-1 text-xs font-medium transition-colors data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:border-b-2 data-[state=active]:border-blue-500",
+										editorMode !== "editor" &&
+											"text-gray-600 hover:text-gray-900",
+									)}
+								>
+									Editor
+								</Tabs.Trigger>
+
+								{/* Custom query warning - inline below tabs */}
+								{customSql && (
+									<div className="ml-auto flex items-center justify-between gap-3 -mx-4 px-4 py-2">
+										<p className="text-xs font-medium text-amber-900">
+											📝 Editing raw SQL — filters and other controls are
+											disabled
+										</p>
+										<Button
+											variant="ghost"
+											size="sm"
+											onClick={onResetCustomSql}
+											title="Reset to generated query and restore UI controls"
+											className="h-6 px-2 text-xs gap-1 shrink-0"
+										>
+											<RotateCcw className="h-3 w-3" />
+											Reset
+										</Button>
+									</div>
+								)}
+							</Tabs.List>
+						</Tabs.Root>
+					</div>
+
+					{/* Action buttons - shown in editor mode */}
+					{editorMode === "editor" && !isCollapsed && (
+						<div className="flex items-center gap-2">
+							<Tooltip content="Run query">
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={onRun}
+									className="h-8 px-2"
+								>
+									<Play className="h-4 w-4" />
+								</Button>
+							</Tooltip>
+							<Tooltip content="Explain query">
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={onExplain}
+									disabled={disableExplain}
+									className="h-8 px-2"
+								>
+									<Zap className="h-4 w-4" />
+								</Button>
+							</Tooltip>
+							<Tooltip content="Format SQL">
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={onFormat}
+									className="h-8 px-2"
+								>
+									<Wand2 className="h-4 w-4" />
+								</Button>
+							</Tooltip>
+							<Tooltip content="Toggle fullscreen">
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={onToggleFullscreen}
+									className="h-8 px-2"
+								>
+									<Maximize2 className="h-4 w-4" />
+								</Button>
+							</Tooltip>
+						</div>
+					)}
+
+					<Tooltip content="Copy SQL to clipboard">
 						<Button
 							variant="ghost"
 							size="sm"
-							onClick={onResetCustomSql}
-							title="Reset to generated query and restore UI controls"
-							className="h-6 px-2 text-xs gap-1"
+							onClick={handleCopy}
+							className="h-8 px-2 shrink-0"
 						>
-							<RotateCcw className="h-3 w-3" />
-							Reset
+							{copied ? (
+								<Check className="h-4 w-4 text-green-600" />
+							) : (
+								<Copy className="h-4 w-4" />
+							)}
 						</Button>
-					</div>
+					</Tooltip>
 				</div>
-			)}
-
-			{/* Header with toggle, tabs, and copy button */}
-			<div className="relative flex items-center justify-between border-b border-gray-200 px-4 py-2">
-				<div className="flex items-center gap-4 flex-1">
-					<button
-						onClick={() => onToggleCollapsed?.(!isCollapsed)}
-						className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-pointer"
-					>
-						{isCollapsed ? (
-							<ChevronRight className="h-4 w-4" />
-						) : (
-							<ChevronDown className="h-4 w-4" />
-						)}
-						SQL Query
-					</button>
-
-					{/* Editor mode tabs */}
-					<div className="flex gap-1 border-l border-gray-300 pl-4">
-						<button
-							onClick={() => onEditorModeChange?.("preview")}
-							className={cn(
-								"px-3 py-1 text-xs font-medium rounded-t transition-colors",
-								editorMode === "preview"
-									? "bg-white text-gray-900 border-b-2 border-blue-500"
-									: "text-gray-600 hover:text-gray-900",
-							)}
-						>
-							Preview
-						</button>
-						<button
-							onClick={() => onEditorModeChange?.("editor")}
-							className={cn(
-								"px-3 py-1 text-xs font-medium rounded-t transition-colors",
-								editorMode === "editor"
-									? "bg-white text-gray-900 border-b-2 border-blue-500"
-									: "text-gray-600 hover:text-gray-900",
-							)}
-						>
-							Editor
-						</button>
-					</div>
-				</div>
-
-				{/* Action buttons - shown in editor mode */}
-				{editorMode === "editor" && !isCollapsed && (
-					<div className="flex items-center gap-2 mr-8">
-						<Tooltip content="Run query">
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={onRun}
-								className="h-8 px-2"
-							>
-								<Play className="h-4 w-4" />
-							</Button>
-						</Tooltip>
-						<Tooltip content="Explain query">
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={onExplain}
-								disabled={disableExplain}
-								className="h-8 px-2"
-							>
-								<Zap className="h-4 w-4" />
-							</Button>
-						</Tooltip>
-						<Tooltip content="Format SQL">
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={onFormat}
-								className="h-8 px-2"
-							>
-								<Wand2 className="h-4 w-4" />
-							</Button>
-						</Tooltip>
-						<Tooltip content="Toggle fullscreen">
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={onToggleFullscreen}
-								className="h-8 px-2"
-							>
-								<Maximize2 className="h-4 w-4" />
-							</Button>
-						</Tooltip>
-					</div>
-				)}
-
-				<Tooltip content="Copy SQL to clipboard">
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={handleCopy}
-						className="h-8 px-2 absolute right-2"
-					>
-						{copied ? (
-							<Check className="h-4 w-4 text-green-600" />
-						) : (
-							<Copy className="h-4 w-4" />
-						)}
-					</Button>
-				</Tooltip>
 			</div>
 			{/* Content - collapsed by default */}
 			{!isCollapsed && (
 				<>
 					{editorMode === "preview" ? (
 						<div className="overflow-x-auto bg-gray-50 px-4 py-3">
-							<pre className="font-mono text-sm text-gray-800 whitespace-pre-wrap break-words">
+							<pre className="font-mono text-sm text-gray-800 whitespace-pre-wrap wrap-break-word">
 								{displaySql}
 							</pre>
 						</div>

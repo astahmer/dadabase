@@ -762,7 +762,22 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 										EXPLAIN ANALYZE output for performance optimization
 									</SheetDescription>
 								</div>
-								<div className="flex items-center gap-2 flex-shrink-0">
+								<div className="flex items-center gap-2 shrink-0 mr-4">
+									<Button
+										size="sm"
+										onClick={() =>
+											setExplainViewMode(
+												explainViewMode === "smart" ? "raw" : "smart",
+											)
+										}
+										className="h-8 px-2 text-xs font-medium"
+										title={
+											explainViewMode === "smart" ? "Show raw" : "Show parsed"
+										}
+									>
+										Swap to {explainViewMode === "smart" ? "Raw" : "Smart"}{" "}
+										display
+									</Button>
 									<Button
 										variant="ghost"
 										size="sm"
@@ -775,21 +790,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 										title="Copy raw output"
 									>
 										<Copy className="h-4 w-4" />
-									</Button>
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={() =>
-											setExplainViewMode(
-												explainViewMode === "smart" ? "raw" : "smart",
-											)
-										}
-										className="h-8 px-2 text-xs font-medium"
-										title={
-											explainViewMode === "smart" ? "Show raw" : "Show parsed"
-										}
-									>
-										{explainViewMode === "smart" ? "Raw" : "Smart"}
 									</Button>
 								</div>
 							</div>

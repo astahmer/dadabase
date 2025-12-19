@@ -1,8 +1,7 @@
-import { AlertTriangle, ChevronDown, Copy, Zap } from "lucide-react";
-import { useMemo, useState } from "react";
-import { cn } from "#src/lib/utils.ts";
-import { Button } from "#src/components/ui/button.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
+import { cn } from "#src/lib/utils.ts";
+import { AlertTriangle, ChevronDown, Zap } from "lucide-react";
+import { useState } from "react";
 
 // Memoized number formatter to avoid recreating on each render
 const numberFormatter = new Intl.NumberFormat();
@@ -152,7 +151,7 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 				<div className="flex items-center gap-3">
 					{/* Expand/Collapse Icon */}
 					<div
-						className="flex-shrink-0 w-5 flex items-center justify-center"
+						className="shrink-0 w-5 flex items-center justify-center"
 						style={{ marginLeft: `${node.level * 0.75}rem` }}
 					>
 						{hasValidTime ? (
@@ -176,7 +175,7 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 					{/* Warning Icon */}
 					{isExpensive && perf && (
 						<AlertTriangle
-							className="h-4 w-4 flex-shrink-0"
+							className="h-4 w-4 shrink-0"
 							style={{ color: perf.text.split("-")[1] }}
 						/>
 					)}
@@ -189,7 +188,7 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 					</div>
 					{/* Performance Bar */}
 					{hasValidTime && (
-						<div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+						<div className="hidden sm:flex items-center gap-2 shrink-0">
 							<div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
 								<div
 									className={cn(
@@ -203,7 +202,7 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 					)}
 
 					{/* Metrics */}
-					<div className="flex items-center gap-2 flex-shrink-0">
+					<div className="flex items-center gap-2 shrink-0">
 						{hasValidTime && perf && (
 							<Tooltip content={`${actualTimeMs.toFixed(3)}ms execution time`}>
 								<div
@@ -238,7 +237,7 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 						<div className="text-xs text-gray-600 font-semibold mb-1">
 							Operation
 						</div>
-						<div className="text-sm font-mono text-gray-900 break-words">
+						<div className="text-sm font-mono text-gray-900 wrap-break-word">
 							{node.name}
 						</div>
 					</div>
@@ -249,7 +248,7 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 								<div className="text-xs text-gray-600 font-semibold">
 									Estimated Cost
 								</div>
-								<div className="text-sm font-mono text-gray-900 break-words">
+								<div className="text-sm font-mono text-gray-900 wrap-break-word">
 									{node.cost}
 								</div>
 							</div>
@@ -287,11 +286,7 @@ interface ExplainOutputProps {
 	onViewModeChange: (mode: "smart" | "raw") => void;
 }
 
-export function ExplainOutput({
-	output,
-	viewMode,
-	onViewModeChange,
-}: ExplainOutputProps) {
+export function ExplainOutput({ output, viewMode }: ExplainOutputProps) {
 	const { nodes, totals } = parseExplainOutput(output);
 
 	const executionTimeMs = parseFloat(totals.executionTime) || 0;
@@ -308,10 +303,6 @@ export function ExplainOutput({
 	const expensiveOps = nodes.filter(
 		(n) => !isNaN(n.actualTime) && n.actualTime > 5,
 	);
-
-	const handleCopy = () => {
-		navigator.clipboard.writeText(output);
-	};
 
 	return (
 		<div className="flex flex-col h-full bg-white">
@@ -355,7 +346,7 @@ export function ExplainOutput({
 						!isNaN(bottleneck.actualTime) && (
 							<div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
 								<div className="flex items-start gap-2">
-									<AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+									<AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
 									<div className="text-sm">
 										<div className="font-semibold text-red-900">
 											Bottleneck Detected
