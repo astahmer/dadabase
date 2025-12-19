@@ -40,6 +40,8 @@ interface SqlQueryPreviewProps {
 	onRun?: () => void;
 	/** Callback to explain the query */
 	onExplain?: () => void;
+	/** Whether to disable the explain button */
+	disableExplain?: boolean;
 	/** Callback to format the SQL */
 	onFormat?: () => void;
 	/** Callback to toggle fullscreen editor */
@@ -77,6 +79,7 @@ export function SqlQueryPreview({
 	onResetCustomSql,
 	onRun,
 	onExplain,
+	disableExplain = false,
 	onFormat,
 	onToggleFullscreen,
 	isFullscreen = false,
@@ -152,7 +155,12 @@ export function SqlQueryPreview({
 
 	return (
 		<div
-			className={cn("flex flex-col rounded border border-gray-200", className)}
+			className={cn(
+				"flex flex-col rounded border border-gray-200",
+				isFullscreen &&
+					"fixed inset-0 z-50 rounded-none border-0 bg-background",
+				className,
+			)}
 		>
 			{/* Custom query mode banner */}
 			{isCustomQueryMode && (
@@ -235,6 +243,7 @@ export function SqlQueryPreview({
 								variant="ghost"
 								size="sm"
 								onClick={onExplain}
+								disabled={disableExplain}
 								className="h-8 px-2"
 							>
 								<Zap className="h-4 w-4" />
@@ -290,7 +299,7 @@ export function SqlQueryPreview({
 					) : (
 						<div className="h-64 bg-gray-50 border-t border-gray-200">
 							<SqlMonacoEditor
-								sql={sql}
+								sql={customSql || sql}
 								onChange={handleEditorChange}
 								className="w-full h-full"
 							/>

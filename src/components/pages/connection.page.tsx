@@ -9,7 +9,7 @@ import { explainQueryServerFn } from "#src/server/introspection/start-fns/explai
 import { Splitter } from "@ark-ui/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowDown, ArrowDownUp, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
 import { useState } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
@@ -50,6 +50,8 @@ import { ExplainOutput } from "./connection-page/explain-output.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
+import { DatabaseDialect } from "#src/db/dialect.ts";
+import { Button } from "../ui/button.tsx";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -88,6 +90,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
 	const [explainResult, setExplainResult] = useState<string | null>(null);
 	const [showExplainPanel, setShowExplainPanel] = useState(false);
+	const [explainViewMode, setExplainViewMode] = useState<"smart" | "raw">(
+		"smart",
+	);
 
 	const search = useActiveTabState((tab, search) => {
 		return {
@@ -119,6 +124,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	};
 
 	const handleExplainQuery = async () => {
+		// Only allow explain for PostgreSQL databases
+		if (connection.dialect !== DatabaseDialect.Postgres) {
+			alert("Query explain is only supported for PostgreSQL databases");
+			return;
+		}
+
 		const sqlToExplain = search.customSql || pageState.sqlQuery?.sql;
 		if (!sqlToExplain) {
 			alert("No SQL query to explain");
@@ -390,6 +401,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 													}
 													onRun={handleRunQuery}
 													onExplain={handleExplainQuery}
+													disableExplain={
+														connection?.dialect !== DatabaseDialect.Postgres
+													}
 													onFormat={handleFormatSQL}
 													onToggleFullscreen={() =>
 														setIsEditorFullscreen(!isEditorFullscreen)
@@ -741,14 +755,52 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 				>
 					<SheetContent side="right" size="full" className="flex flex-col p-0">
 						<SheetHeader className="px-6 pt-6 pb-4 border-b">
-							<SheetTitle>Query Execution Plan</SheetTitle>
-							<SheetDescription>
-								EXPLAIN ANALYZE output for performance optimization
-							</SheetDescription>
+							<div className="flex items-center justify-between gap-4">
+								<div className="flex-1">
+									<SheetTitle>Query Execution Plan</SheetTitle>
+									<SheetDescription>
+										EXPLAIN ANALYZE output for performance optimization
+									</SheetDescription>
+								</div>
+								<div className="flex items-center gap-2 flex-shrink-0">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											if (explainResult) {
+												navigator.clipboard.writeText(explainResult);
+											}
+										}}
+										className="h-8 w-8 p-0"
+										title="Copy raw output"
+									>
+										<Copy className="h-4 w-4" />
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() =>
+											setExplainViewMode(
+												explainViewMode === "smart" ? "raw" : "smart",
+											)
+										}
+										className="h-8 px-2 text-xs font-medium"
+										title={
+											explainViewMode === "smart" ? "Show raw" : "Show parsed"
+										}
+									>
+										{explainViewMode === "smart" ? "Raw" : "Smart"}
+									</Button>
+								</div>
+							</div>
 						</SheetHeader>
 						<div className="flex-1 overflow-hidden">
 							{explainResult ? (
-								<ExplainOutput output={explainResult} />
+								<ExplainOutput
+									output={explainResult}
+									viewMode={explainViewMode}
+									onViewModeChange={setExplainViewMode}
+								/>
 							) : (
 								<div className="flex items-center justify-center h-full text-gray-500">
 									Loading...

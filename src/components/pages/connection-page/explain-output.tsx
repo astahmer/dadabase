@@ -1,8 +1,14 @@
 import { AlertTriangle, ChevronDown, Copy, Zap } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "#src/lib/utils.ts";
 import { Button } from "#src/components/ui/button.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
+
+// Memoized number formatter to avoid recreating on each render
+const numberFormatter = new Intl.NumberFormat();
+function formatNumber(num: number): string {
+	return numberFormatter.format(num);
+}
 
 interface ExplainNode {
 	name: string;
@@ -138,16 +144,18 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 					"w-full p-4 text-left transition-all duration-200",
 					"hover:bg-gray-50 active:bg-gray-100",
 					isExpensive && perf?.bg,
+					!hasValidTime && "cursor-default hover:bg-white",
 				)}
-				onClick={() => setExpanded(!expanded)}
+				onClick={() => hasValidTime && setExpanded(!expanded)}
+				disabled={!hasValidTime}
 			>
 				<div className="flex items-center gap-3">
 					{/* Expand/Collapse Icon */}
 					<div
 						className="flex-shrink-0 w-5 flex items-center justify-center"
-						style={{ marginLeft: `${node.level * 0.25}rem` }}
+						style={{ marginLeft: `${node.level * 0.75}rem` }}
 					>
-						{hasValidTime && (
+						{hasValidTime ? (
 							<button
 								className="flex items-center justify-center transition-transform"
 								style={{
@@ -160,6 +168,8 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 							>
 								<ChevronDown className="h-4 w-4 text-gray-400" />
 							</button>
+						) : (
+							<div className="w-4 h-4" />
 						)}
 					</div>
 
@@ -177,7 +187,6 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 							{node.name}
 						</div>
 					</div>
-
 					{/* Performance Bar */}
 					{hasValidTime && (
 						<div className="hidden sm:flex items-center gap-2 flex-shrink-0">
@@ -213,7 +222,7 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 						{node.actualRows !== "N/A" && (
 							<Tooltip content={`Rows returned`}>
 								<div className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 whitespace-nowrap">
-									{new Intl.NumberFormat().format(Number(node.actualRows))} rows
+									{formatNumber(Number(node.actualRows))} rows
 								</div>
 							</Tooltip>
 						)}
@@ -223,7 +232,17 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 
 			{/* Expanded Details */}
 			{expanded && (
-				<div className="bg-gray-50 border-t border-gray-200 p-4 space-y-3 animate-in fade-in">
+				<div className="bg-gray-50 border-t border-gray-200 px-8 py-4 space-y-4 animate-in fade-in">
+					{/* Full Operation Name */}
+					<div>
+						<div className="text-xs text-gray-600 font-semibold mb-1">
+							Operation
+						</div>
+						<div className="text-sm font-mono text-gray-900 break-words">
+							{node.name}
+						</div>
+					</div>
+
 					<div className="grid grid-cols-2 gap-4">
 						{node.cost !== "N/A" && (
 							<div>
@@ -264,12 +283,16 @@ function ExplainNodeRow({ node, maxTime, isExpensive }: ExplainNodeProps) {
 
 interface ExplainOutputProps {
 	output: string;
-	onClose?: () => void;
+	viewMode: "smart" | "raw";
+	onViewModeChange: (mode: "smart" | "raw") => void;
 }
 
-export function ExplainOutput({ output, onClose }: ExplainOutputProps) {
+export function ExplainOutput({
+	output,
+	viewMode,
+	onViewModeChange,
+}: ExplainOutputProps) {
 	const { nodes, totals } = parseExplainOutput(output);
-	const [viewMode, setViewMode] = useState<"smart" | "raw">("smart");
 
 	const executionTimeMs = parseFloat(totals.executionTime) || 0;
 	const maxTime = Math.max(...nodes.map((n) => n.actualTime || 0));
@@ -292,42 +315,6 @@ export function ExplainOutput({ output, onClose }: ExplainOutputProps) {
 
 	return (
 		<div className="flex flex-col h-full bg-white">
-			{/* Header with Actions */}
-			<div className="flex items-center justify-between gap-3 px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-25 border-b border-gray-200">
-				<div>
-					<h3 className="text-lg font-semibold text-gray-900">
-						Query Execution Plan
-					</h3>
-					<p className="text-xs text-gray-600 mt-0.5">
-						PostgreSQL EXPLAIN ANALYZE output
-					</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<Tooltip content="Copy raw output">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleCopy}
-							className="h-8 w-8 p-0"
-						>
-							<Copy className="h-4 w-4" />
-						</Button>
-					</Tooltip>
-					<Tooltip content={viewMode === "smart" ? "Show raw" : "Show parsed"}>
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={() =>
-								setViewMode(viewMode === "smart" ? "raw" : "smart")
-							}
-							className="h-8 px-2 text-xs font-medium"
-						>
-							{viewMode === "smart" ? "Raw" : "Smart"}
-						</Button>
-					</Tooltip>
-				</div>
-			</div>
-
 			{/* Performance Summary */}
 			{viewMode === "smart" && (
 				<div className="px-6 py-4 bg-blue-50 border-b border-blue-200">
@@ -399,7 +386,7 @@ export function ExplainOutput({ output, onClose }: ExplainOutputProps) {
 						{nodes.length > 0 && (
 							<div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
 								<div className="text-xs font-semibold text-gray-600 uppercase">
-									{new Intl.NumberFormat().format(nodes.length)} Operations
+									{formatNumber(nodes.length)} Operations
 								</div>
 							</div>
 						)}
