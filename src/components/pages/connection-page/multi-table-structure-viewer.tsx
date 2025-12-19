@@ -1,6 +1,14 @@
+import {
+	Menu,
+	MenuContent,
+	MenuItem,
+	MenuSeparator,
+	MenuTrigger,
+} from "#src/components/ui/menu.tsx";
 import { getTablesStructuresQueryOptions } from "#src/server/introspection/start-fns/get-tables-structures.start.ts";
-import { useQuery } from "@tanstack/react-query";
+import { CheckboxLabel } from "@ark-ui/react";
 import { createListCollection } from "@ark-ui/react/combobox";
+import { useQuery } from "@tanstack/react-query";
 import { Copy, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
@@ -21,14 +29,6 @@ import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import { StructureFilterControls } from "./structure-table-filters.tsx";
 import { StructureTable } from "./structure-table.tsx";
 import { useStructureFilters } from "./use-structure-filter-state.ts";
-import {
-	Menu,
-	MenuContent,
-	MenuItem,
-	MenuSeparator,
-	MenuTrigger,
-} from "#src/components/ui/menu.tsx";
-import { CheckboxLabel, Portal } from "@ark-ui/react";
 
 interface MultiTableStructureViewerProps {
 	activeConnectionUrl: string;
@@ -40,7 +40,7 @@ export const MultiTableStructureViewer = (
 	props: MultiTableStructureViewerProps,
 ) => {
 	const { activeConnectionUrl, schema, tableSize } = props;
-	const { filters } = useStructureFilters();
+	const { filters, clearFilters } = useStructureFilters();
 
 	// Fetch all table structures
 	const tablesStructuresQuery = useQuery({
@@ -54,23 +54,37 @@ export const MultiTableStructureViewer = (
 	const tableStructures = tablesStructuresQuery.data || [];
 	const [searchFilter, setSearchFilter] = useState("");
 	const [selectedTables, setSelectedTables] = useState<string[]>([]);
+	const [showSelectedOnly, setShowSelectedOnly] = useState(false);
 
 	// Create combobox collection from table names
 	const tableCollection = useMemo(() => {
 		return createListCollection({
-			items: tableStructures.map((t) => ({
-				label: t.table,
-				value: t.table,
-			})),
+			items: tableStructures
+				.filter((t) => t.table.includes(searchFilter))
+				.map((t) => ({
+					label: t.table,
+					value: t.table,
+				})),
 		});
-	}, [tableStructures]);
-
-	// Filter tables by search
-	const filteredTables = useMemo(() => {
-		if (!searchFilter) return tableStructures;
-		const lower = searchFilter.toLowerCase();
-		return tableStructures.filter((t) => t.table.toLowerCase().includes(lower));
 	}, [tableStructures, searchFilter]);
+
+	// Filter tables by search and selection
+	const filteredTables = useMemo(() => {
+		let tables = tableStructures;
+
+		// Apply search filter
+		if (searchFilter) {
+			const lower = searchFilter.toLowerCase();
+			tables = tables.filter((t) => t.table.toLowerCase().includes(lower));
+		}
+
+		// Apply selected-only filter
+		if (showSelectedOnly && selectedTables.length > 0) {
+			tables = tables.filter((t) => selectedTables.includes(t.table));
+		}
+
+		return tables;
+	}, [tableStructures, searchFilter, showSelectedOnly, selectedTables]);
 
 	const getTablesToExport = () => {
 		return selectedTables.length > 0
@@ -192,8 +206,8 @@ export const MultiTableStructureViewer = (
 	return (
 		<div className="h-full gap-4 p-4 flex flex-col">
 			{/* Header with search and filters */}
-			<HStack className="gap-2 items-end flex-wrap">
-				<div className="flex-1 min-w-72">
+			<HStack className="gap-2 items-end">
+				<div className="flex-1">
 					<Combobox
 						collection={tableCollection}
 						value={selectedTables}
@@ -230,38 +244,77 @@ export const MultiTableStructureViewer = (
 					</Combobox>
 				</div>
 
-				<HStack className="gap-2">
-					<StructureFilterControls />
-
-					{/* Export menu */}
+				{/* Selection menu */}
+				{filteredTables.length > 0 && selectedTables.length > 0 && (
 					<Menu>
 						<MenuTrigger asChild>
-							<Button variant="outline" size="sm" className="h-8 gap-2">
-								<Download className="h-4 w-4" />
-								Export
+							<Button variant="outline" size="sm" className="h-8">
+								{selectedTables.length} selected
 							</Button>
 						</MenuTrigger>
 						<MenuContent className="z-100">
-							<MenuItem onClick={handleExportJSON} value="export-json">
-								<Download className="h-4 w-4 mr-2" />
-								Download as JSON
+							<MenuItem
+								onClick={() =>
+									setSelectedTables(filteredTables.map((t) => t.table))
+								}
+								value="select-all"
+							>
+								Select all ({filteredTables.length})
 							</MenuItem>
-							<MenuItem onClick={handleExportCSV} value="export-csv">
-								<Download className="h-4 w-4 mr-2" />
-								Download as CSV
-							</MenuItem>
-							<MenuSeparator />
-							<MenuItem onClick={handleCopyJSON} value="copy-json">
-								<Copy className="h-4 w-4 mr-2" />
-								Copy as JSON
-							</MenuItem>
-							<MenuItem onClick={handleCopyCSV} value="copy-csv">
-								<Copy className="h-4 w-4 mr-2" />
-								Copy as CSV
+							<MenuItem
+								onClick={() => setSelectedTables([])}
+								value="deselect-all"
+							>
+								Clear selection
 							</MenuItem>
 						</MenuContent>
 					</Menu>
-				</HStack>
+				)}
+
+				{/* Show selected only toggle */}
+				{selectedTables.length > 0 && (
+					<Button
+						variant={showSelectedOnly ? "default" : "outline"}
+						size="sm"
+						onClick={() => setShowSelectedOnly(!showSelectedOnly)}
+						className="h-8"
+					>
+						{showSelectedOnly
+							? `Showing ${selectedTables.length} selected`
+							: "Show selected only"}
+					</Button>
+				)}
+
+				{/* <StructureFilterControls /> */}
+
+				{/* Export menu */}
+				<Menu>
+					<MenuTrigger asChild>
+						<Button variant="outline" size="sm" className="h-8 gap-2">
+							<Download className="h-4 w-4" />
+							Export
+						</Button>
+					</MenuTrigger>
+					<MenuContent className="z-100">
+						<MenuItem onClick={handleCopyJSON} value="copy-json">
+							<Copy className="h-4 w-4 mr-2" />
+							Copy as JSON
+						</MenuItem>
+						<MenuItem onClick={handleCopyCSV} value="copy-csv">
+							<Copy className="h-4 w-4 mr-2" />
+							Copy as CSV
+						</MenuItem>
+						<MenuSeparator />
+						<MenuItem onClick={handleExportJSON} value="export-json">
+							<Download className="h-4 w-4 mr-2" />
+							Download as JSON
+						</MenuItem>
+						<MenuItem onClick={handleExportCSV} value="export-csv">
+							<Download className="h-4 w-4 mr-2" />
+							Download as CSV
+						</MenuItem>
+					</MenuContent>
+				</Menu>
 			</HStack>
 
 			{/* Tables list */}
