@@ -1,6 +1,6 @@
 import { getTablesStructuresQueryOptions } from "#src/server/introspection/start-fns/get-tables-structures.start.ts";
 import { useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Copy, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 import { Button } from "../../ui/button";
@@ -11,6 +11,13 @@ import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import { StructureFilterControls } from "./structure-table-filters.tsx";
 import { StructureTable } from "./structure-table.tsx";
 import { useStructureFilters } from "./use-structure-filter-state.ts";
+import {
+	Menu,
+	MenuContent,
+	MenuItem,
+	MenuSeparator,
+	MenuTrigger,
+} from "#src/components/ui/menu.tsx";
 
 interface MultiTableStructureViewerProps {
 	activeConnectionUrl: string;
@@ -35,6 +42,7 @@ export const MultiTableStructureViewer = (
 
 	const tableStructures = tablesStructuresQuery.data || [];
 	const [searchFilter, setSearchFilter] = useState("");
+	const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
 
 	// Filter tables by search
 	const filteredTables = useMemo(() => {
@@ -43,16 +51,23 @@ export const MultiTableStructureViewer = (
 		return tableStructures.filter((t) => t.table.toLowerCase().includes(lower));
 	}, [tableStructures, searchFilter]);
 
+	const getTablesToExport = () => {
+		return selectedTables.size > 0
+			? filteredTables.filter((t) => selectedTables.has(t.table))
+			: filteredTables;
+	};
+
 	// Measure actual DOM heights for accurate virtualization
 	const measureElement = (element: HTMLElement) => {
 		return element?.getBoundingClientRect().height ?? 300;
 	};
 
 	const handleExportJSON = () => {
+		const tablesToExport = getTablesToExport();
 		const data = {
 			schema,
 			exportedAt: new Date().toISOString(),
-			tables: filteredTables.map((table) => ({
+			tables: tablesToExport.map((table) => ({
 				name: table.table,
 				columns: table.columns,
 			})),
@@ -70,13 +85,29 @@ export const MultiTableStructureViewer = (
 		URL.revokeObjectURL(url);
 	};
 
+	const handleCopyJSON = () => {
+		const tablesToExport = getTablesToExport();
+		const data = {
+			schema,
+			exportedAt: new Date().toISOString(),
+			tables: tablesToExport.map((table) => ({
+				name: table.table,
+				columns: table.columns,
+			})),
+		};
+
+		const json = JSON.stringify(data, null, 2);
+		navigator.clipboard.writeText(json);
+	};
+
 	const handleExportCSV = () => {
+		const tablesToExport = getTablesToExport();
 		const rows: string[] = [];
 		rows.push(
 			"Table,Column Name,Data Type,Nullable,Primary Key,Unique,Default Value,Foreign Key",
 		);
 
-		for (const table of filteredTables) {
+		for (const table of tablesToExport) {
 			for (const col of table.columns) {
 				const fkRef = col.foreignKey
 					? `${col.foreignKey.referencedSchema}.${col.foreignKey.referencedTable}.${col.foreignKey.referencedColumn}`
@@ -107,6 +138,36 @@ export const MultiTableStructureViewer = (
 		URL.revokeObjectURL(url);
 	};
 
+	const handleCopyCSV = () => {
+		const tablesToExport = getTablesToExport();
+		const rows: string[] = [];
+		rows.push(
+			"Table,Column Name,Data Type,Nullable,Primary Key,Unique,Default Value,Foreign Key",
+		);
+
+		for (const table of tablesToExport) {
+			for (const col of table.columns) {
+				const fkRef = col.foreignKey
+					? `${col.foreignKey.referencedSchema}.${col.foreignKey.referencedTable}.${col.foreignKey.referencedColumn}`
+					: "";
+				const row = [
+					`"${table.table}"`,
+					`"${col.name}"`,
+					`"${col.dataType}"`,
+					col.nullable ? "Yes" : "No",
+					col.primaryKey ? "Yes" : "No",
+					col.unique ? "Yes" : "No",
+					`"${col.defaultValue ?? ""}"`,
+					`"${fkRef}"`,
+				];
+				rows.push(row.join(","));
+			}
+		}
+
+		const csv = rows.join("\n");
+		navigator.clipboard.writeText(csv);
+	};
+
 	return (
 		<div className="h-full gap-4 p-4 flex flex-col">
 			{/* Header with search and filters */}
@@ -126,25 +187,34 @@ export const MultiTableStructureViewer = (
 				<HStack className="gap-2">
 					<StructureFilterControls />
 
-					{/* Export buttons */}
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleExportJSON}
-						className="h-8 gap-2"
-					>
-						<Download className="h-4 w-4" />
-						JSON
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleExportCSV}
-						className="h-8 gap-2"
-					>
-						<Download className="h-4 w-4" />
-						CSV
-					</Button>
+					{/* Export menu */}
+					<Menu>
+						<MenuTrigger asChild>
+							<Button variant="outline" size="sm" className="h-8 gap-2">
+								<Download className="h-4 w-4" />
+								Export
+							</Button>
+						</MenuTrigger>
+						<MenuContent>
+							<MenuItem onClick={handleExportJSON} value="export-json">
+								<Download className="h-4 w-4 mr-2" />
+								Download as JSON
+							</MenuItem>
+							<MenuItem onClick={handleExportCSV} value="export-csv">
+								<Download className="h-4 w-4 mr-2" />
+								Download as CSV
+							</MenuItem>
+							<MenuSeparator />
+							<MenuItem onClick={handleCopyJSON} value="copy-json">
+								<Copy className="h-4 w-4 mr-2" />
+								Copy as JSON
+							</MenuItem>
+							<MenuItem onClick={handleCopyCSV} value="copy-csv">
+								<Copy className="h-4 w-4 mr-2" />
+								Copy as CSV
+							</MenuItem>
+						</MenuContent>
+					</Menu>
 				</HStack>
 			</HStack>
 
@@ -185,19 +255,45 @@ export const MultiTableStructureViewer = (
 								const tableStructure = filteredTables[virtualItem.index];
 								if (!tableStructure) return null;
 
+								const isSelected = selectedTables.has(tableStructure.table);
+
 								return (
 									<div
 										key={virtualItem.key}
 										className="p-4"
 										data-virtualizer-index={virtualItem.index}
 									>
-										<div className="border border-border rounded-lg p-4 bg-card">
-											<h3 className="font-semibold text-sm mb-3">
-												{tableStructure.table}
-												<span className="text-xs text-muted-foreground ml-2">
-													({tableStructure.columns.length} columns)
-												</span>
-											</h3>
+										<div
+											className={`border rounded-lg p-4 transition-colors ${
+												isSelected
+													? "border-primary bg-primary/5"
+													: "border-border bg-card"
+											}`}
+										>
+											<div className="flex items-center gap-3 flex-1 mb-3">
+												<input
+													type="checkbox"
+													checked={isSelected}
+													onChange={(e) => {
+														const newSelected = new Set(selectedTables);
+														if (e.target.checked) {
+															newSelected.add(tableStructure.table);
+														} else {
+															newSelected.delete(tableStructure.table);
+														}
+														setSelectedTables(newSelected);
+													}}
+													className="mt-1"
+												/>
+												<HStack align="center">
+													<h3 className="font-semibold text-sm">
+														{tableStructure.table}
+													</h3>
+													<span className="text-xs text-muted-foreground">
+														({tableStructure.columns.length} columns)
+													</span>
+												</HStack>
+											</div>
 											<div className="overflow-auto">
 												<StructureTable
 													columnMetadata={tableStructure.columns}
@@ -220,11 +316,22 @@ export const MultiTableStructureViewer = (
 				</VirtualizerArea>
 			)}
 
-			{/* Summary */}
+			{/* Summary with selection info */}
 			{!tablesStructuresQuery.isLoading && (
-				<div className="text-xs text-muted-foreground">
-					Showing {filteredTables.length} of {tableStructures.length} table
-					{tableStructures.length !== 1 ? "s" : ""}
+				<div className="text-xs text-muted-foreground flex items-center justify-between">
+					<span>
+						Showing {filteredTables.length} of {tableStructures.length} table
+						{tableStructures.length !== 1 ? "s" : ""}
+						{selectedTables.size > 0 && ` (${selectedTables.size} selected)`}
+					</span>
+					{selectedTables.size > 0 && (
+						<button
+							onClick={() => setSelectedTables(new Set())}
+							className="text-xs text-muted-foreground hover:text-foreground underline"
+						>
+							Clear selection
+						</button>
+					)}
 				</div>
 			)}
 		</div>
