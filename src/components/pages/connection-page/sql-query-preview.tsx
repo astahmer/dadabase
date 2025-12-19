@@ -4,6 +4,10 @@ import {
 	ChevronDown,
 	ChevronRight,
 	RotateCcw,
+	Play,
+	Wand2,
+	Maximize2,
+	Zap,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "#src/components/ui/button.tsx";
@@ -31,6 +35,16 @@ interface SqlQueryPreviewProps {
 	onCustomSqlChange?: (customSql: string) => void;
 	/** Callback to reset custom SQL */
 	onResetCustomSql?: () => void;
+	/** Callback to run the query */
+	onRun?: () => void;
+	/** Callback to explain the query */
+	onExplain?: () => void;
+	/** Callback to format the SQL */
+	onFormat?: () => void;
+	/** Callback to toggle fullscreen editor */
+	onToggleFullscreen?: () => void;
+	/** Whether editor is in fullscreen mode */
+	isFullscreen?: boolean;
 	/** Whether the preview is collapsed */
 	isCollapsed?: boolean;
 	/** Callback to toggle collapsed state */
@@ -60,6 +74,11 @@ export function SqlQueryPreview({
 	customSql,
 	onCustomSqlChange,
 	onResetCustomSql,
+	onRun,
+	onExplain,
+	onFormat,
+	onToggleFullscreen,
+	isFullscreen = false,
 	isCollapsed = true,
 	onToggleCollapsed,
 	className,
@@ -196,6 +215,48 @@ export function SqlQueryPreview({
 						</button>
 					</div>
 				</div>
+
+				{/* Action buttons - shown in editor mode */}
+				{editorMode === "editor" && !isCollapsed && (
+					<div className="flex items-center gap-2 mr-8">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={onRun}
+							title="Run query"
+							className="h-8 px-2"
+						>
+							<Play className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={onExplain}
+							title="Explain query"
+							className="h-8 px-2"
+						>
+							<Zap className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={onFormat}
+							title="Format SQL"
+							className="h-8 px-2"
+						>
+							<Wand2 className="h-4 w-4" />
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={onToggleFullscreen}
+							title="Toggle fullscreen"
+							className="h-8 px-2"
+						>
+							<Maximize2 className="h-4 w-4" />
+						</Button>
+					</div>
+				)}
 
 				<Button
 					variant="ghost"

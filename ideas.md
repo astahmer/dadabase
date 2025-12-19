@@ -55,6 +55,7 @@
 - expandable table row with nested entity -> kinda solved already with bottom relationship panel but some people might prefer inline expansion
 - row selection with checkboxes + bulk actions (delete, export, copy etc)
 - cancellable queries (+ rm disabled state for buttons while a query is running)
+- new tab -> custom query mode
 
 ## issues
 - import join config from SQL query

@@ -89,6 +89,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
 		null,
 	);
+	const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
 
 	const search = useActiveTabState((tab, search) => {
 		return {
@@ -112,6 +113,22 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	// Detect if we're in custom query mode
 	const isCustomQueryMode =
 		!!search.customSql && search.customSql !== pageState.sqlQuery.data?.sql;
+
+	// SQL editor action handlers
+	const handleRunQuery = () => {
+		// Trigger refetch of the rows query
+		pageState.rowsQuery.refetch();
+	};
+
+	const handleExplainQuery = () => {
+		// TODO: Implement SQL explanation (AI-powered)
+		alert("SQL Explanation feature coming soon!");
+	};
+
+	const handleFormatSQL = async () => {
+		// TODO: Implement SQL formatting
+		alert("SQL formatting feature coming soon!");
+	};
 
 	const relationshipPanelSize = fromPixelToPercentage(50);
 	const windowWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
@@ -334,6 +351,13 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 																}),
 														})
 													}
+													onRun={handleRunQuery}
+													onExplain={handleExplainQuery}
+													onFormat={handleFormatSQL}
+													onToggleFullscreen={() =>
+														setIsEditorFullscreen(!isEditorFullscreen)
+													}
+													isFullscreen={isEditorFullscreen}
 													className="text-sm"
 												/>
 											</div>
