@@ -1,8 +1,5 @@
 import { useSearch } from "@tanstack/react-router";
-import type {
-	JoinedTable,
-	JoinTablesConfig,
-} from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
+import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { FileRouteTypes } from "#src/routeTree.gen.ts";
 
@@ -22,26 +19,32 @@ export const createTabState = (
 		filtersOpened?: boolean;
 		fkValue?: string;
 		joinConfig?: JoinTablesConfig;
+		tabName?: string;
 	},
-): TabState => ({
-	tabId: `${schema}.${table}:${options?.fkValue ?? ""}:${Math.random().toString(36).substr(2, 4)}`,
-	schema,
-	table,
-	orderBy: undefined,
-	orderDirection: undefined,
-	nullsOrder: undefined,
-	relationshipRowId: undefined,
-	limit: options?.limit ?? 50,
-	offset: options?.offset ?? 0,
-	viewMode: "rows" as const,
-	tableSize: "cozy" as const,
-	hiddenColumnList: undefined,
-	columnVisibilityMode: "client" as const,
-	filters: options?.filters,
-	filtersOpened: options?.filtersOpened ?? false,
-	fkValue: options?.fkValue,
-	joins: options?.joinConfig?.joins,
-});
+): TabState => {
+	const tabName = options?.tabName ?? (table ? table : "New Tab");
+
+	return {
+		tabId: `${schema}.${table}:${options?.fkValue ?? ""}:${Math.random().toString(36).substr(2, 4)}`,
+		schema,
+		table,
+		tabName: tabName,
+		orderBy: undefined,
+		orderDirection: undefined,
+		nullsOrder: undefined,
+		relationshipRowId: undefined,
+		limit: options?.limit ?? 50,
+		offset: options?.offset ?? 0,
+		viewMode: "rows" as const,
+		tableSize: "cozy" as const,
+		hiddenColumnList: undefined,
+		columnVisibilityMode: "client" as const,
+		filters: options?.filters,
+		filtersOpened: options?.filtersOpened ?? false,
+		fkValue: options?.fkValue,
+		joins: options?.joinConfig?.joins,
+	};
+};
 
 export const updateTabState = (
 	prev: ConnectionPageSearch,
@@ -70,12 +73,38 @@ export const updateTabState = (
 
 export const addTabStateAfterCurrent = (
 	prev: ConnectionPageSearch,
-	newTab: TabState,
+	_newTab: TabState,
 ) => {
+	const newTab = { ..._newTab };
 	const currentTabIndex = (prev.tabs ?? []).findIndex(
 		(t) => t.tabId === prev.activeTabId,
 	);
 	let tabs = prev.tabs ?? [];
+	// Find all tabs with same schema/table combination
+	const sameTabs = tabs.filter((t) => t.tabName === newTab.tabName);
+
+	if (sameTabs.length > 0) {
+		// Extract existing suffix numbers
+		const suffixNumbers = sameTabs
+			.map((t) => {
+				const name = t.tabName || "";
+				const match = name.match(/#(\d+)$/);
+				return match ? parseInt(match[1], 10) : 0;
+			})
+			.filter((n) => n > 0);
+
+		// Find next suffix number
+		const nextSuffix =
+			suffixNumbers.length > 0
+				? Math.max(...suffixNumbers) + 1
+				: sameTabs.length + 1;
+
+		// Only add suffix if not already present and there's more than one tab of same table
+		if (nextSuffix > 1) {
+			newTab.tabName = `${newTab.tabName} #${nextSuffix}`;
+		}
+	}
+
 	if (currentTabIndex !== -1) {
 		tabs = [
 			...tabs.slice(0, currentTabIndex + 1),

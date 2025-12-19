@@ -28,6 +28,7 @@ const TabStateSchema = Schema.Struct({
 	tabId: Schema.String, // Explicit unique identifier for the tab
 	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
 	table: Schema.String,
+	tabName: Schema.String.pipe(Schema.optional), // User-defined tab name
 	orderBy: Schema.String.pipe(Schema.optional),
 	orderDirection: Schema.Literal("asc", "desc").pipe(Schema.optional),
 	nullsOrder: Schema.Literal("first", "last").pipe(Schema.optional),

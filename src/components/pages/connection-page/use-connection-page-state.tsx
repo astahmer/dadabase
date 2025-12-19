@@ -142,7 +142,6 @@ export const useConnectionPageState = ({
 			columnVisibilityFilters.excludedColumns = hiddenColumnList;
 		}
 	}
-	console.log({ columnNameList, columnVisibilityFilters });
 
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({

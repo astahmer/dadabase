@@ -31,7 +31,6 @@
 - double clicking a cell value should copy it to the clipboard (?)
 - cmd+f in table (virtualized rows needs it) -> highlight/filter?
 - store limit (50 etc) in localstorage and use that as default instead of hardcoded 50
-- complex join configuration (conditional)
 
 ## ai
 

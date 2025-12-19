@@ -22,6 +22,7 @@ import {
 	addTabStateAfterCurrent,
 	createTabState,
 	scrollToTab,
+	updateTabState,
 } from "./create-tab-state.ts";
 import { TableTabsBar } from "./table-tabs-bar.tsx";
 
@@ -95,6 +96,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 		if (!tab) return;
 
 		const newTabId = `duplicate-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
 		const duplicatedTab = { ...tab, tabId: newTabId };
 
 		navigate({
@@ -201,6 +203,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			tabId: tab.tabId,
 			schema: tab.schema,
 			table: tab.table,
+			tabName: tab.tabName,
 			orderBy: tab.orderBy,
 			orderDirection: tab.orderDirection,
 			limit: tab.limit,
@@ -237,6 +240,15 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 
 		navigator.clipboard.writeText(url).then(() => {
 			toaster.create({ title: "Tab URL copied to clipboard" });
+		});
+	};
+
+	const handleRenameTab = (tabId: string, newName: string) => {
+		navigate({
+			search: (prev) => ({
+				...prev,
+				...updateTabState(prev, { tabName: newName }),
+			}),
 		});
 	};
 
@@ -335,6 +347,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			onCloseTabsOnRight={handleDeleteTabsOnRight}
 			onCloseOtherTabs={handleDeleteOtherTabs}
 			onCopyTabUrl={handleCopyTabUrl}
+			onRenameTab={handleRenameTab}
 			onAddTab={() => {
 				const currentTab = tabs.find((t) => t.tabId === activeTabId);
 				const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
