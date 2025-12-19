@@ -1,10 +1,20 @@
 import { getTablesStructuresQueryOptions } from "#src/server/introspection/start-fns/get-tables-structures.start.ts";
 import { useQuery } from "@tanstack/react-query";
+import { createListCollection } from "@ark-ui/react/combobox";
 import { Copy, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 import { Button } from "../../ui/button";
-import { Input } from "../../ui/input";
+import { Checkbox, CheckboxControl } from "../../ui/checkbox";
+import {
+	Combobox,
+	ComboboxContent,
+	ComboboxControl,
+	ComboboxInput,
+	ComboboxItem,
+	ComboboxList,
+	ComboboxTrigger,
+} from "../../ui/combobox.tsx";
 import { HStack, Stack } from "../../ui/layout.tsx";
 import { Spinner } from "../../ui/spinner.tsx";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
@@ -18,6 +28,7 @@ import {
 	MenuSeparator,
 	MenuTrigger,
 } from "#src/components/ui/menu.tsx";
+import { CheckboxLabel, Portal } from "@ark-ui/react";
 
 interface MultiTableStructureViewerProps {
 	activeConnectionUrl: string;
@@ -42,7 +53,17 @@ export const MultiTableStructureViewer = (
 
 	const tableStructures = tablesStructuresQuery.data || [];
 	const [searchFilter, setSearchFilter] = useState("");
-	const [selectedTables, setSelectedTables] = useState<Set<string>>(new Set());
+	const [selectedTables, setSelectedTables] = useState<string[]>([]);
+
+	// Create combobox collection from table names
+	const tableCollection = useMemo(() => {
+		return createListCollection({
+			items: tableStructures.map((t) => ({
+				label: t.table,
+				value: t.table,
+			})),
+		});
+	}, [tableStructures]);
 
 	// Filter tables by search
 	const filteredTables = useMemo(() => {
@@ -52,8 +73,8 @@ export const MultiTableStructureViewer = (
 	}, [tableStructures, searchFilter]);
 
 	const getTablesToExport = () => {
-		return selectedTables.size > 0
-			? filteredTables.filter((t) => selectedTables.has(t.table))
+		return selectedTables.length > 0
+			? filteredTables.filter((t) => selectedTables.includes(t.table))
 			: filteredTables;
 	};
 
@@ -171,17 +192,42 @@ export const MultiTableStructureViewer = (
 	return (
 		<div className="h-full gap-4 p-4 flex flex-col">
 			{/* Header with search and filters */}
-			<HStack className="gap-2 items-end">
-				<div className="flex-1">
-					<label className="text-sm text-muted-foreground mb-1 block">
-						Search tables
-					</label>
-					<Input
-						placeholder="Find tables..."
-						value={searchFilter}
-						onChange={(e) => setSearchFilter(e.target.value)}
-						className="text-sm h-8"
-					/>
+			<HStack className="gap-2 items-end flex-wrap">
+				<div className="flex-1 min-w-72">
+					<Combobox
+						collection={tableCollection}
+						value={selectedTables}
+						onValueChange={(details) => setSelectedTables(details.value)}
+						onInputValueChange={(details) =>
+							setSearchFilter(details.inputValue)
+						}
+						multiple
+						closeOnSelect={false}
+						openOnClick
+						allowCustomValue
+					>
+						<ComboboxControl size="sm">
+							<ComboboxInput placeholder="Filter or select tables..." />
+							<ComboboxTrigger />
+						</ComboboxControl>
+						<ComboboxContent>
+							<ComboboxList>
+								{tableCollection.items.map((item) => (
+									<ComboboxItem
+										key={item.value}
+										item={item}
+										className="flex items-center gap-2"
+									>
+										<Checkbox
+											checked={selectedTables.includes(item.value)}
+											readOnly
+										/>
+										<span>{item.label}</span>
+									</ComboboxItem>
+								))}
+							</ComboboxList>
+						</ComboboxContent>
+					</Combobox>
 				</div>
 
 				<HStack className="gap-2">
@@ -195,7 +241,7 @@ export const MultiTableStructureViewer = (
 								Export
 							</Button>
 						</MenuTrigger>
-						<MenuContent>
+						<MenuContent className="z-100">
 							<MenuItem onClick={handleExportJSON} value="export-json">
 								<Download className="h-4 w-4 mr-2" />
 								Download as JSON
@@ -255,7 +301,9 @@ export const MultiTableStructureViewer = (
 								const tableStructure = filteredTables[virtualItem.index];
 								if (!tableStructure) return null;
 
-								const isSelected = selectedTables.has(tableStructure.table);
+								const isSelected = selectedTables.includes(
+									tableStructure.table,
+								);
 
 								return (
 									<div
@@ -270,29 +318,33 @@ export const MultiTableStructureViewer = (
 													: "border-border bg-card"
 											}`}
 										>
-											<div className="flex items-center gap-3 flex-1 mb-3">
-												<input
-													type="checkbox"
+											<div className="flex items-start gap-3 mb-3">
+												<Checkbox
 													checked={isSelected}
-													onChange={(e) => {
-														const newSelected = new Set(selectedTables);
-														if (e.target.checked) {
-															newSelected.add(tableStructure.table);
-														} else {
-															newSelected.delete(tableStructure.table);
-														}
+													onCheckedChange={(checked) => {
+														const newSelected = checked.checked
+															? [...selectedTables, tableStructure.table]
+															: selectedTables.filter(
+																	(t) => t !== tableStructure.table,
+																);
 														setSelectedTables(newSelected);
 													}}
 													className="mt-1"
-												/>
-												<HStack align="center">
-													<h3 className="font-semibold text-sm">
-														{tableStructure.table}
-													</h3>
-													<span className="text-xs text-muted-foreground">
-														({tableStructure.columns.length} columns)
-													</span>
-												</HStack>
+												>
+													<HStack align="center">
+														<CheckboxControl />
+														<CheckboxLabel>
+															<HStack align="center">
+																<h3 className="font-semibold text-sm">
+																	{tableStructure.table}
+																</h3>
+																<span className="text-xs text-muted-foreground">
+																	({tableStructure.columns.length} columns)
+																</span>
+															</HStack>
+														</CheckboxLabel>
+													</HStack>
+												</Checkbox>
 											</div>
 											<div className="overflow-auto">
 												<StructureTable
@@ -322,11 +374,12 @@ export const MultiTableStructureViewer = (
 					<span>
 						Showing {filteredTables.length} of {tableStructures.length} table
 						{tableStructures.length !== 1 ? "s" : ""}
-						{selectedTables.size > 0 && ` (${selectedTables.size} selected)`}
+						{selectedTables.length > 0 &&
+							` (${selectedTables.length} selected)`}
 					</span>
-					{selectedTables.size > 0 && (
+					{selectedTables.length > 0 && (
 						<button
-							onClick={() => setSelectedTables(new Set())}
+							onClick={() => setSelectedTables([])}
 							className="text-xs text-muted-foreground hover:text-foreground underline"
 						>
 							Clear selection
