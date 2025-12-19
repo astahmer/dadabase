@@ -25,6 +25,9 @@ import {
 	useActiveTabState,
 } from "./create-tab-state.ts";
 import { TableContextMenu } from "./table-context-menu.tsx";
+import { Button } from "#src/components/ui/button.tsx";
+import { Database, DatabaseIcon } from "lucide-react";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
 
 interface ConnectionPageSidebarProps {
 	connection: DbConnection;
@@ -277,9 +280,26 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 			>
 				<Stack className="flex-1 h-full" gap="2">
 					<div className="px-4">
-						<label className="text-xs font-medium text-foreground uppercase tracking-wide">
-							Tables
-						</label>
+						<Tooltip content="Schema Explorer">
+							<Button
+								size="sm"
+								variant="ghost"
+								onClick={() => {
+									navigate({
+										search: (prev) => ({
+											...prev,
+											schemaExplorerOpen: true,
+										}),
+									});
+								}}
+								className="px-2 -mx-2"
+							>
+								<label className="text-xs font-medium text-foreground uppercase tracking-wide">
+									Tables
+								</label>
+								<DatabaseIcon className="size-3.5" />
+							</Button>
+						</Tooltip>
 					</div>
 					{tablesListQuery.isError ? (
 						<div className="p-4">

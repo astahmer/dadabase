@@ -51,6 +51,7 @@ import {
 import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
 import { RowsTableErrorState } from "./connection-page/rows-table-error-state.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
+import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 
 interface ConnectionPageProps {
@@ -651,6 +652,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 			{/* Row JSON Viewer */}
 			<ConnectionRowJsonViewerDrawer connection={connection} />
+
+			{/* Schema Explorer */}
+			<SchemaExplorerDrawer connection={connection} />
 		</div>
 	);
 };

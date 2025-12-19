@@ -1,7 +1,6 @@
 import { Popover } from "@ark-ui/react/popover";
-import { Portal } from "@ark-ui/react/portal";
 import { ChevronsUpDown, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { HStack } from "../../ui/layout.tsx";
@@ -29,6 +28,23 @@ export const StructureFilterControls = () => {
 	const { filters, updateFilters, clearFilters } = useStructureFilters();
 	const hasFilters = hasActiveStructureFilters(filters);
 	const [open, setOpen] = useState(false);
+	const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
+	const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+		undefined,
+	);
+
+	// Debounce search input to avoid excessive re-renders
+	useEffect(() => {
+		debounceTimerRef.current = setTimeout(() => {
+			updateFilters({ search: debouncedSearch });
+		}, 300);
+
+		return () => {
+			if (debounceTimerRef.current !== undefined) {
+				clearTimeout(debounceTimerRef.current);
+			}
+		};
+	}, [debouncedSearch, updateFilters]);
 
 	const activeCount = filterOptions.reduce((count, opt) => {
 		return count + (filters[opt.key] ? 1 : 0);
@@ -39,8 +55,8 @@ export const StructureFilterControls = () => {
 			{/* Search Input */}
 			<Input
 				placeholder="Search columns, types..."
-				value={filters.search}
-				onChange={(e) => updateFilters({ search: e.target.value })}
+				value={debouncedSearch}
+				onChange={(e) => setDebouncedSearch(e.target.value)}
 				className="text-sm h-8 w-48"
 			/>
 
@@ -58,48 +74,46 @@ export const StructureFilterControls = () => {
 						<ChevronsUpDown className="h-4 w-4 opacity-50" />
 					</Button>
 				</Popover.Trigger>
-				<Portal>
-					<Popover.Positioner>
-						<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50 min-w-56">
-							<div className="p-2 space-y-1">
-								{filterOptions.map((option) => (
-									<label
-										key={option.key}
-										className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted transition-colors"
-									>
-										<input
-											type="checkbox"
-											checked={filters[option.key]}
-											onChange={(e) =>
-												updateFilters({
-													[option.key]: e.target.checked,
-												})
-											}
-											className="rounded"
-										/>
-										<span className="flex-1">{option.label}</span>
-									</label>
-								))}
+				<Popover.Positioner>
+					<Popover.Content className="bg-card border border-border rounded-md shadow-lg z-50 min-w-56">
+						<div className="p-2 space-y-1">
+							{filterOptions.map((option) => (
+								<label
+									key={option.key}
+									className="flex items-center gap-2 px-2 py-1.5 rounded text-sm cursor-pointer hover:bg-muted transition-colors"
+								>
+									<input
+										type="checkbox"
+										checked={filters[option.key]}
+										onChange={(e) =>
+											updateFilters({
+												[option.key]: e.target.checked,
+											})
+										}
+										className="rounded"
+									/>
+									<span className="flex-1">{option.label}</span>
+								</label>
+							))}
+						</div>
+						{hasFilters && (
+							<div className="border-t border-border px-2 py-1.5">
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => {
+										clearFilters();
+										setOpen(false);
+									}}
+									className="w-full text-xs h-7 text-muted-foreground hover:text-foreground gap-2"
+								>
+									<X className="h-3 w-3" />
+									Clear All
+								</Button>
 							</div>
-							{hasFilters && (
-								<div className="border-t border-border px-2 py-1.5">
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={() => {
-											clearFilters();
-											setOpen(false);
-										}}
-										className="w-full text-xs h-7 text-muted-foreground hover:text-foreground gap-2"
-									>
-										<X className="h-3 w-3" />
-										Clear All
-									</Button>
-								</div>
-							)}
-						</Popover.Content>
-					</Popover.Positioner>
-				</Portal>
+						)}
+					</Popover.Content>
+				</Popover.Positioner>
 			</Popover.Root>
 		</HStack>
 	);

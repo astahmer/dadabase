@@ -89,6 +89,8 @@ export const StructureTable = (props: StructureTableProps) => {
 			isLoading={props.isLoading}
 			size={props.tableSize}
 			enableColumnOrdering={false}
+			enableRowVirtualization
+			enableColumnVirtualization
 		/>
 	);
 };

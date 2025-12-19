@@ -4,11 +4,17 @@ import { XIcon } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "#src/lib/utils";
+import type { ExposedComponentProps } from "./component-props.ts";
 
 const sheetAnatomy = dialogAnatomy.rename("sheet");
 const parts = sheetAnatomy.extendWith("header", "footer").build();
 
-const Sheet = SheetPrimitive.Root;
+const Sheet = (
+	props: SheetPrimitive.RootBaseProps &
+		React.RefAttributes<React.ElementRef<typeof SheetPrimitive.Root>> &
+		ExposedComponentProps<"div">,
+) => <SheetPrimitive.Root lazyMount {...props} />;
+Sheet.displayName = "Sheet";
 
 const SheetBackdrop = ({
 	className,
@@ -17,7 +23,7 @@ const SheetBackdrop = ({
 	<SheetPrimitive.Backdrop
 		{...parts.backdrop.attrs}
 		className={cn(
-			"data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-(--z-index) bg-black/80 data-[state=closed]:animate-out data-[state=open]:animate-in",
+			"data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-(--z-index) bg-black/80 data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:pointer-events-none",
 			className,
 		)}
 		{...props}

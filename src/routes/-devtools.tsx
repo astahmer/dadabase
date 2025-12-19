@@ -5,7 +5,7 @@ import { scan } from "react-scan";
 
 const enabled = true;
 
-scan({ enabled: false });
+scan({ enabled: true });
 
 export const WithDevtools = () => {
 	if (!enabled) return null;

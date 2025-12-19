@@ -61,6 +61,8 @@ const searchSchema = Schema.Struct({
 	tabs: TabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
 	tableFilter: Schema.String.pipe(Schema.optional),
 	structureFilters: StructureFiltersSchema.pipe(Schema.optional), // Structure view filters
+	schemaExplorerOpen: Schema.Boolean.pipe(Schema.optional), // Schema explorer view
+	schemaExplorerSchema: Schema.String.pipe(Schema.optional), // Which schema to view in explorer
 	quickReferencesOpen: Schema.Boolean.pipe(Schema.optional),
 	quickReferencesColumnName: Schema.String.pipe(Schema.optional),
 	quickReferencesCellValue: Schema.Union(Schema.String, Schema.Number).pipe(

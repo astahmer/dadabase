@@ -1,12 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Database } from "lucide-react";
 import { Button } from "../../ui/button";
 import { DarkModeToggle } from "../../ui/dark-mode-toggle";
 import { Tooltip } from "../../ui/tooltip.tsx";
 
 interface ConnectionPageHeaderProps {
 	onAddConnection: () => void;
+	onOpenSchemaExplorer?: () => void;
 }
 
 export const ConnectionPageHeader = (props: ConnectionPageHeaderProps) => {
@@ -15,6 +16,22 @@ export const ConnectionPageHeader = (props: ConnectionPageHeaderProps) => {
 
 	return (
 		<div className="border-b bg-card px-3 py-1.5 sm:px-4 flex items-center justify-end gap-1 shrink-0">
+			<Tooltip content="Schema Explorer">
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={() => {
+						navigate({
+							search: (prev) => ({
+								...prev,
+								schemaExplorerOpen: true,
+							}),
+						});
+					}}
+				>
+					<Database className="h-3.5 w-3.5" />
+				</Button>
+			</Tooltip>
 			<Tooltip content="Reset page">
 				<Button
 					variant="ghost"

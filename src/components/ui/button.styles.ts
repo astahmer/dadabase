@@ -23,6 +23,7 @@ export const buttonVariants = cva(
 				md: "h-9 px-4 py-2",
 				lg: "h-10 rounded-md px-8",
 				icon: "size-9",
+				unstyled: "",
 			},
 			withIcon: {
 				true: "gap-2 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",

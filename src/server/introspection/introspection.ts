@@ -729,6 +729,85 @@ export const getAllTablesColumns = (input: { schema: string }) =>
 	});
 
 /**
+ * Get structures for specific tables (or all tables if none specified) in a schema
+ * Returns array of table structures with columns and metadata
+ */
+export const getTablesStructures = (input: {
+	schema: string;
+	tables?: string[];
+}) =>
+	Effect.gen(function* () {
+		const { schema, tables: specifiedTables } = input;
+
+		const allTables = yield* getAvailableTables({ schema });
+
+		// Filter to specified tables if provided, otherwise use all
+		const tablesToProcess = specifiedTables
+			? allTables.filter((t) => specifiedTables.includes(t.name))
+			: allTables;
+
+		// For each table, fetch columns and foreign keys and merge them
+		const tablesWithColumns = yield* Effect.all(
+			tablesToProcess.map((table) =>
+				Effect.gen(function* () {
+					const [cols, fks, indexes] = yield* Effect.all(
+						[
+							getTableColumns({ schema, table: table.name }),
+							getTableForeignKeys({ schema, table: table.name }),
+							getTableIndexes({ schema, table: table.name }),
+						],
+						{ concurrency: "unbounded" },
+					);
+
+					// Build FK map keyed by column_name
+					const fkMap = new Map<string, AllTablesForeignKeyInfo>();
+					for (const fk of fks) {
+						fkMap.set(fk.column_name, {
+							referencedSchema: (fk.referenced_table_schema ??
+								fk.referenced_table_schema) as string,
+							referencedTable: fk.referenced_table_name as string,
+							referencedColumn: fk.referenced_column_name as string,
+							constraintName: fk.constraint_name as string,
+						});
+					}
+
+					// Build sets for primary key and unique columns from indexes
+					const pkSet = new Set<string>();
+					const uniqueSet = new Set<string>();
+
+					for (const idx of indexes as IndexInfo[]) {
+						if (idx.is_primary) pkSet.add(idx.column_name);
+						if (idx.is_unique) uniqueSet.add(idx.column_name);
+					}
+
+					for (const c of cols) {
+						if (c.primaryKey) pkSet.add(c.name);
+					}
+
+					const columns = cols.map((c) => ({
+						name: c.name,
+						dataType: c.dataType,
+						nullable: Boolean(c.nullable),
+						primaryKey: pkSet.has(c.name) || false,
+						unique: uniqueSet.has(c.name) || false,
+						defaultValue: c.defaultValue ?? null,
+						isForeignKey: fkMap.has(c.name),
+						foreignKey: fkMap.has(c.name) ? fkMap.get(c.name) : undefined,
+					}));
+
+					return {
+						table: table.name,
+						columns,
+					} as TableWithColumnsMetadata;
+				}),
+			),
+			{ concurrency: "unbounded" },
+		);
+
+		return tablesWithColumns;
+	});
+
+/**
  * Get all relationships for a table (both incoming and outgoing)
  * - PostgreSQL: Query pg_constraint and information_schema
  * - SQLite: PRAGMA foreign_key_list (limited - only outgoing)
