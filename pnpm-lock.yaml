@@ -176,6 +176,9 @@ importers:
       lucide-react:
         specifier: 0.555.0
         version: 0.555.0(react@19.2.1)
+      modern-monaco:
+        specifier: ^0.3.6
+        version: 0.3.6(typescript@5.9.3)
       nanoid:
         specifier: 5.1.6
         version: 5.1.6
@@ -4113,6 +4116,11 @@ packages:
 
   mkdirp-classic@0.5.3:
     resolution: {integrity: sha512-gKLcREMhtuZRwRAfqP3RFW+TK4JqApVBtOIftVgjuABpAtpxhPGaDcfvbhNvD0B8iD1oUr/txX35NjcaY6Ns/A==}
+
+  modern-monaco@0.3.6:
+    resolution: {integrity: sha512-yU50M6So3/I09EujPqmgAEu0ruDL5WsQqR6zFpW0RlQyf6PYdArhS1Puba/yrhnSRe/uMXKyjc5iBvYUIPtKPg==}
+    peerDependencies:
+      typescript: '>= 5.0.0'
 
   mri@1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
@@ -9536,6 +9544,10 @@ snapshots:
   minimist@1.2.8: {}
 
   mkdirp-classic@0.5.3: {}
+
+  modern-monaco@0.3.6(typescript@5.9.3):
+    dependencies:
+      typescript: 5.9.3
 
   mri@1.2.0: {}
 

@@ -54,6 +54,7 @@ const TabStateSchema = Schema.Struct({
 	joins: Schema.Array(JoinedTableSchema).pipe(Schema.optional),
 	prefixWithTable: Schema.Boolean.pipe(Schema.optional),
 	sqlPreviewCollapsed: Schema.Boolean.pipe(Schema.optional), // SQL preview collapsed state
+	sqlEditorMode: Schema.Literal("preview", "editor").pipe(Schema.optional), // SQL editor tab mode
 });
 
 const searchSchema = Schema.Struct({

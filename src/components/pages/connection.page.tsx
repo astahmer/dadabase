@@ -100,6 +100,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			limit: tab.limit,
 			sidebarSize: search.sidebarSize,
 			sqlPreviewCollapsed: tab.sqlPreviewCollapsed,
+			sqlEditorMode: tab.sqlEditorMode,
 		};
 	});
 
@@ -298,6 +299,15 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 															search: (prev) =>
 																updateTabState(prev, {
 																	sqlPreviewCollapsed: collapsed,
+																}),
+														})
+													}
+													editorMode={search.sqlEditorMode ?? "preview"}
+													onEditorModeChange={(mode) =>
+														navigate({
+															search: (prev) =>
+																updateTabState(prev, {
+																	sqlEditorMode: mode,
 																}),
 														})
 													}

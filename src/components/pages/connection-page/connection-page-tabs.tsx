@@ -219,6 +219,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			relationshipRowId: tab.relationshipRowId,
 			columnVisibilityMode: tab.columnVisibilityMode,
 			sqlPreviewCollapsed: tab.sqlPreviewCollapsed,
+			sqlEditorMode: tab.sqlEditorMode,
 		};
 
 		const currentSearch = (router.state.matches.find(
