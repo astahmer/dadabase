@@ -7,7 +7,7 @@ import {
     type QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseDialect } from "#src/db/dialect.ts";
-import { buildQuerySql } from "#src/lib/sql-query-builder/build-query-sql.ts";
+import { buildQuerySql } from "#src/server/introspection/sql-query-builder/build-query-sql.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
