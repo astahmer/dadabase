@@ -1,4 +1,4 @@
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Button } from "#src/components/ui/button.tsx";
 import { cn } from "#src/lib/utils.ts";
@@ -14,6 +14,10 @@ interface SqlQueryPreviewProps {
 	error?: Error | null;
 	/** Optional callback when user clicks to edit (prepare for Monaco integration) */
 	onEditClick?: () => void;
+	/** Whether the preview is collapsed */
+	isCollapsed?: boolean;
+	/** Callback to toggle collapsed state */
+	onToggleCollapsed?: (collapsed: boolean) => void;
 	/** Custom CSS class */
 	className?: string;
 }
@@ -33,6 +37,8 @@ export function SqlQueryPreview({
 	isLoading = false,
 	error = null,
 	onEditClick,
+	isCollapsed = true,
+	onToggleCollapsed,
 	className,
 }: SqlQueryPreviewProps) {
 	const [copied, setCopied] = useState(false);
@@ -92,54 +98,44 @@ export function SqlQueryPreview({
 
 	return (
 		<div
-			className={cn(
-				"flex flex-col gap-2 rounded border border-gray-200",
-				className,
-			)}
+			className={cn("flex flex-col rounded border border-gray-200", className)}
 		>
-			{/* Header with buttons */}
-			<div className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
-				<div className="text-sm font-semibold text-gray-700">SQL Query</div>
-				<div className="flex gap-2">
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={handleCopy}
-						title="Copy SQL to clipboard"
-						className="h-8 gap-2 px-2 text-xs"
-					>
-						{copied ? (
-							<>
-								<Check className="h-4 w-4 text-green-600" />
-								Copied
-							</>
-						) : (
-							<>
-								<Copy className="h-4 w-4" />
-								Copy
-							</>
-						)}
-					</Button>
-					{onEditClick && (
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={onEditClick}
-							title="Edit SQL in Monaco editor (future feature)"
-							className="h-8 px-2 text-xs"
-						>
-							Edit
-						</Button>
+			{/* Header with toggle and copy button */}
+			<div className="relative flex items-center justify-between border-b border-gray-200 px-4 py-2">
+				<button
+					onClick={() => onToggleCollapsed?.(!isCollapsed)}
+					className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-pointer flex-1"
+				>
+					{isCollapsed ? (
+						<ChevronRight className="h-4 w-4" />
+					) : (
+						<ChevronDown className="h-4 w-4" />
 					)}
-				</div>
+					SQL Query
+				</button>
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={handleCopy}
+					title="Copy SQL to clipboard"
+					className="h-8 px-2 absolute right-2"
+				>
+					{copied ? (
+						<Check className="h-4 w-4 text-green-600" />
+					) : (
+						<Copy className="h-4 w-4" />
+					)}
+				</Button>
 			</div>
 
-			{/* SQL Display Area */}
-			<div className="overflow-x-auto bg-gray-50 px-4 py-3">
-				<pre className="font-mono text-sm text-gray-800 whitespace-pre-wrap break-words">
-					{displaySql}
-				</pre>
-			</div>
+			{/* SQL Display Area - collapsed by default */}
+			{!isCollapsed && (
+				<div className="overflow-x-auto bg-gray-50 px-4 py-3">
+					<pre className="font-mono text-sm text-gray-800 whitespace-pre-wrap break-words">
+						{displaySql}
+					</pre>
+				</div>
+			)}
 
 			{/* Placeholder for future Monaco editor integration */}
 			{/* When implemented:

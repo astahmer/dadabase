@@ -99,6 +99,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 			tableSize: tab.tableSize,
 			limit: tab.limit,
 			sidebarSize: search.sidebarSize,
+			sqlPreviewCollapsed: tab.sqlPreviewCollapsed,
 		};
 	});
 
@@ -281,9 +282,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 											/>
 										</div>
 									) : (
-										<div className="flex-1 flex flex-col h-full min-h-0 px-2 gap-2">
+										<div className="flex-1 flex flex-col h-full min-h-0 gap-2">
 											{/* SQL Query Preview */}
-											<div className="shrink-0 max-h-40 overflow-auto">
+											<div className="shrink-0">
 												<SqlQueryPreview
 													sql={pageState.sqlQuery.data?.sql || ""}
 													formattedSql={
@@ -291,6 +292,15 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 													}
 													isLoading={pageState.sqlQuery.isLoading}
 													error={pageState.sqlQuery.error}
+													isCollapsed={search.sqlPreviewCollapsed ?? true}
+													onToggleCollapsed={(collapsed) =>
+														navigate({
+															search: (prev) =>
+																updateTabState(prev, {
+																	sqlPreviewCollapsed: collapsed,
+																}),
+														})
+													}
 													className="text-sm"
 												/>
 											</div>
