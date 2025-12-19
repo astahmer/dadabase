@@ -1,30 +1,32 @@
-import { SqlClient } from "@effect/sql";
-import { SqlError } from "@effect/sql/SqlError";
-import { Cache, Duration, Effect } from "effect";
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
-import {
-	buildPgWhereFragment,
-	buildSqliteWhereFragment,
-} from "./build-where.ts";
-import type { TableRelationshipInput } from "./connection-adapter.ts";
-import {
-	buildJoinSqlClauses,
-	buildPgJoinFilters,
-	buildPgSelectWithJoins,
-	buildSqliteJoinFilters,
-	buildSqliteSelectWithJoins,
-	generateJoinAliases,
-} from "./join-builder.ts";
+import { SqlClient } from "@effect/sql";
+import { SqlError } from "@effect/sql/SqlError";
+import { Effect } from "effect";
+import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
+import type { QueryLogger } from "../query-logger/query-logger.ts";
 import {
 	QueryLogLevel,
 	QueryLogType,
 } from "../query-logger/query-logger.types.ts";
-import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
 import { withQueryLogging } from "../query-logger/with-query-logging.ts";
-import type { QueryLogger } from "../query-logger/query-logger.ts";
+import type { TableRelationshipInput } from "./connection-adapter.ts";
+import {
+	buildJoinSqlClauses,
+	buildPgSelectWithJoins,
+	buildSqliteSelectWithJoins,
+	generateJoinAliases
+} from "./join-builder.ts";
+import {
+	buildColumnList,
+	buildTableColumnsMap,
+	formatSchemaTable,
+	remapJoins,
+	remapSchema
+} from "./query-table-rows.helpers.ts";
+import { buildWhereClauseWithJoins } from "./sql-query-builder/build-query-sql.ts";
 
 /**
  * Multi-dialect introspection functions using @effect/sql with onDialectOrElse.
@@ -1095,7 +1097,7 @@ export const findColumnReferencesWithCounts = (input: {
 			cellValue === undefined || cellValue === null
 				? null
 				: typeof cellValue === "string" &&
-						(cellValue === "null" || cellValue === "undefined")
+					(cellValue === "null" || cellValue === "undefined")
 					? null
 					: cellValue;
 
@@ -1539,7 +1541,7 @@ export const getRelationshipsCounts = (input: {
 		const validRelationships = relationships.filter((rel) => {
 			const filterValue =
 				rowData[
-					rel.type === "incoming" ? rel.referencedColumn : rel.referencingColumn
+				rel.type === "incoming" ? rel.referencedColumn : rel.referencingColumn
 				];
 			const isNullValue =
 				filterValue === null ||
@@ -1554,9 +1556,9 @@ export const getRelationshipsCounts = (input: {
 				Effect.gen(function* () {
 					const filterValue =
 						rowData[
-							rel.type === "incoming"
-								? rel.referencedColumn
-								: rel.referencingColumn
+						rel.type === "incoming"
+							? rel.referencedColumn
+							: rel.referencingColumn
 						];
 					const tableRef = sql`${sql(rel.referencingSchema)}.${sql(rel.referencingTable)}`;
 					const referencingColumn = sql(rel.referencingColumn);
@@ -1631,20 +1633,20 @@ export const getRelationshipsCounts = (input: {
 export interface FilterCondition {
 	column: string;
 	operator:
-		| "equals"
-		| "not_equals"
-		| "contains"
-		| "not_contains"
-		| "starts_with"
-		| "ends_with"
-		| "greater_than"
-		| "greater_than_or_equal"
-		| "less_than"
-		| "less_than_or_equal"
-		| "is_null"
-		| "is_not_null"
-		| "in"
-		| "not_in";
+	| "equals"
+	| "not_equals"
+	| "contains"
+	| "not_contains"
+	| "starts_with"
+	| "ends_with"
+	| "greater_than"
+	| "greater_than_or_equal"
+	| "less_than"
+	| "less_than_or_equal"
+	| "is_null"
+	| "is_not_null"
+	| "in"
+	| "not_in";
 	value?: string | number | boolean | null | string[];
 }
 
@@ -1696,28 +1698,10 @@ export const queryTableRows = <TData>(input: {
 				Effect.succeed(getDialectDefaultSchema(DatabaseDialect.SQLite)),
 			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
 		});
-		const baseSchema = input.schema === defaultSchema ? "" : input.schema;
+		const baseSchema = remapSchema(input.schema, defaultSchema);
 
 		const joins = input.joins ?? [];
-		const joinsRemapped = joins.map((j) => ({
-			...j,
-			schema: j.schema === defaultSchema ? "" : j.schema,
-			joinFrom: j.joinFrom
-				? {
-						...j.joinFrom,
-						schema:
-							j.joinFrom.schema === defaultSchema ? "" : j.joinFrom.schema,
-					}
-				: undefined,
-		}));
-
-		// Helper to get fully qualified name for a column
-		const getQualifiedName = (
-			tableOrAlias: string,
-			columnName: string,
-		): string => {
-			return `${tableOrAlias}.${columnName}`;
-		};
+		const joinsRemapped = remapJoins(joins, defaultSchema);
 
 		// Fetch table columns for proper aliasing when using joins
 		// Build list of tables we need columns for
@@ -1734,10 +1718,10 @@ export const queryTableRows = <TData>(input: {
 			tablesToFetch.map((t) =>
 				getTableColumns({ schema: t.schema, table: t.table }).pipe(
 					Effect.map((columns) => ({
-						schemaTable:
-							!t.schema || t.schema === defaultSchema
-								? t.table
-								: `${t.schema}.${t.table}`,
+						schemaTable: formatSchemaTable(
+							t.schema === defaultSchema ? "" : t.schema,
+							t.table,
+						),
 						tableOnly: t.table,
 						columns,
 					})),
@@ -1752,151 +1736,78 @@ export const queryTableRows = <TData>(input: {
 				? generateJoinAliases(joinsRemapped, input.table, baseSchema)
 				: new Map<number, string>();
 
-		// Helper to check if columns are qualified (e.g., "table.column")
-		const hasQualifiedColumns =
-			selectedColumns.some((col) => col.includes(".")) ||
-			excludedColumns.some((col) => col.includes("."));
+		// Build a map of table identifiers -> columns with filtering applied
+		const tableColumnsMap = buildTableColumnsMap(
+			columnResults,
+			selectedColumns,
+			excludedColumns,
+		);
 
-		// Build a map of table identifiers -> columns for quick lookup
-		// Store both schema.table and table-only keys for PostgreSQL and SQLite compatibility
-		const tableColumnsMap = new Map<string, TableColumnMetadata[]>();
-		for (const result of columnResults) {
-			const isBaseTable =
-				result.schemaTable ===
-					(baseSchema ? `${baseSchema}.${input.table}` : input.table) ||
-				result.tableOnly === input.table;
-
-			// Apply column filtering:
-			// - If selectedColumns/excludedColumns have qualified names (table.col): filter all tables
-			// - If they have simple names (col): filter only base table
-			let filteredColumns = result.columns;
-			const shouldFilter =
-				(selectedColumns.length > 0 || excludedColumns.length > 0) &&
-				(hasQualifiedColumns || isBaseTable);
-
-			if (shouldFilter) {
-				if (selectedColumns.length > 0) {
-					// Whitelist mode: only include selected columns
-					filteredColumns = result.columns.filter((col) => {
-						const colKey = hasQualifiedColumns
-							? getQualifiedName(result.tableOnly, col.name)
-							: col.name;
-						return selectedColumns.includes(colKey);
-					});
-				} else if (excludedColumns.length > 0) {
-					// Blacklist mode: exclude specified columns
-					filteredColumns = result.columns.filter((col) => {
-						const colKey = hasQualifiedColumns
-							? getQualifiedName(result.tableOnly, col.name)
-							: col.name;
-						return !excludedColumns.includes(colKey);
-					});
-				}
-			}
-
-			tableColumnsMap.set(result.schemaTable, filteredColumns);
-			tableColumnsMap.set(result.tableOnly, filteredColumns);
-		}
-
-		// Build columnList with proper aliases for joined tables
-		const columnList = columnResults.flatMap((r, tableIndex) => {
-			// tableIndex 0 = base table, tableIndex 1+ = joined tables
-			if (tableIndex === 0) {
-				// Base table - apply column filtering
-				const baseTableColumns =
-					tableColumnsMap.get(r.schemaTable) || r.columns;
-				if (joins.length === 0) {
-					// No joins: return columns without prefix
-					return baseTableColumns.map((c) => c.name);
-				}
-				// With joins: always include base table columns with prefix
-				return baseTableColumns.map((c) => `${input.table}.${c.name}`);
-			}
-
-			// Joined tables: use their full column list with alias/table prefix
-			const joinIndex = tableIndex - 1; // Convert to join array index
-			const alias = joinAliases.get(joinIndex) || r.tableOnly;
-
-			// Get filtered columns from tableColumnsMap (already respects selectedColumns/excludedColumns)
-			const filteredColumns = tableColumnsMap.get(r.schemaTable) || r.columns;
-
-			// For joined tables, also respect their column configuration if present
-			const joinConfig = joins[joinIndex];
-			let columnsToUse = filteredColumns;
-
-			if (joinConfig && joinConfig.columns && joinConfig.columns !== "all") {
-				// Join has specific column selection - apply both join config AND global filtering
-				columnsToUse = filteredColumns.filter((col) =>
-					(joinConfig.columns as string[]).includes(col.name),
-				);
-			}
-
-			return columnsToUse.map((c) => `${alias}.${c.name}`);
+		// Build the final column list for SELECT clause
+		const columnList = buildColumnList({
+			columnResults,
+			baseTable: input.table,
+			joins,
+			joinAliases,
+			tableColumnsMap,
 		});
-
-		const orderClause = orderBy
-			? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${
-					nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
-				}`
-			: "";
 
 		// Get count and rows
 		const result = yield* sql.onDialectOrElse({
 			pg: () =>
 				Effect.gen(function* () {
-					const pgJoinClauses = buildJoinSqlClauses(
+					// Build WHERE clause (including both main table and join filters)
+					const whereClause = buildWhereClauseWithJoins(
+						DatabaseDialect.Postgres,
+						filters,
+						joins.length > 0 ? joinsRemapped : undefined,
+						joinAliases,
+					);
+
+					// Build JOIN clauses
+					const joinClauses = buildJoinSqlClauses(
 						joinsRemapped,
-						baseSchema,
+						input.schema,
 						input.table,
 						DatabaseDialect.Postgres,
 						joinAliases,
-					).join("\n");
-
-					const pgMainFilter =
-						filters && filters.conditions.length > 0
-							? buildPgWhereFragment(
-									filters.conditions,
-									filters.logicalOperator,
-								)
-							: "";
-
-					const pgJoinFilter =
-						joins.length > 0 ? buildPgJoinFilters(joins, joinAliases) : ""; // Combine main table filters with join filters
-					const pgWhereClause = [pgMainFilter, pgJoinFilter]
-						.filter(Boolean)
-						.join(" AND ");
-					const whereFragment = pgWhereClause ? `WHERE ${pgWhereClause}` : "";
+					);
 
 					const countQuery = sql`
 						SELECT COUNT(*) as count
 						FROM ${sql(input.schema)}.${sql(input.table)}
-						${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
-						${sql.unsafe(whereFragment)}
+						${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
+						${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
 					`;
 
+					// Build the SELECT clause with proper aliases for joins
 					const selectPart =
 						joins.length > 0
 							? buildPgSelectWithJoins(
-									baseSchema,
-									input.table,
-									joinsRemapped,
-									tableColumnsMap,
-									joinAliases,
-								)
+								baseSchema,
+								input.table,
+								joinsRemapped,
+								tableColumnsMap,
+								joinAliases,
+							)
 							: columnList.length > 0 &&
-									columnList.length < (columnResults[0]?.columns.length ?? 999)
+								columnList.length < (columnResults[0]?.columns.length ?? 999)
 								? columnList.join(", ")
 								: "*";
+
+					const orderClause = orderBy
+						? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
+						}`
+						: "";
+
 					const rowsQuery = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(input.schema)}.${sql(input.table)}
-					${sql.unsafe(pgJoinClauses ? `\n${pgJoinClauses}` : "")}
-					${sql.unsafe(whereFragment)}
+					${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
+					${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
 					${sql.unsafe(orderClause)}
 					LIMIT ${limit} OFFSET ${offset}
 				`;
-					// console.log(countQuery.compile());
-					// console.log(query.compile());
 
 					const rowsCompiledQuery = rowsQuery.compile();
 					const countCompiledQuery = countQuery.compile();
@@ -1937,64 +1848,63 @@ export const queryTableRows = <TData>(input: {
 				}),
 			sqlite: () =>
 				Effect.gen(function* () {
-					const sqliteJoinClauses = buildJoinSqlClauses(
-						joins,
+					// Build WHERE clause (including both main table and join filters)
+					const whereClause = buildWhereClauseWithJoins(
+						DatabaseDialect.SQLite,
+						filters,
+						joins.length > 0 ? joinsRemapped : undefined,
+						joinAliases,
+					);
+
+					// Build JOIN clauses
+					const joinClauses = buildJoinSqlClauses(
+						joinsRemapped,
 						input.schema,
 						input.table,
 						DatabaseDialect.SQLite,
 						joinAliases,
-					).join("\n");
-					const sqliteMainFilter =
-						filters && filters.conditions.length > 0
-							? buildSqliteWhereFragment(
-									filters.conditions,
-									filters.logicalOperator,
-								)
-							: "";
-
-					const sqliteJoinFilter =
-						joins.length > 0 ? buildSqliteJoinFilters(joins, joinAliases) : "";
-
-					const sqliteWhereClause = [sqliteMainFilter, sqliteJoinFilter]
-						.filter(Boolean)
-						.join(" AND ");
-
-					const whereFragment = sqliteWhereClause
-						? `WHERE ${sqliteWhereClause}`
-						: "";
+					);
 
 					const countQuery = sql`
-					SELECT COUNT(*) as count
-					FROM ${sql(input.table)}
-					${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
-					${sql.unsafe(whereFragment)}
-				`;
+						SELECT COUNT(*) as count
+						FROM ${sql(input.table)}
+						${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
+						${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
+					`;
+
+					// Build the SELECT clause with proper aliases for joins
 					const selectPart =
 						joins.length > 0
 							? buildSqliteSelectWithJoins(
-									input.table,
-									joins,
-									tableColumnsMap,
-									joinAliases,
-								)
+								input.table,
+								joinsRemapped,
+								tableColumnsMap,
+								joinAliases,
+							)
 							: columnList.length > 0 &&
-									columnList.length < (columnResults[0]?.columns.length ?? 999)
+								columnList.length < (columnResults[0]?.columns.length ?? 999)
 								? columnList.join(", ")
 								: "*";
-					const query = sql`
+
+					const orderClause = orderBy
+						? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
+						}`
+						: "";
+
+					const rowsQuery = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(input.table)}
-				${sql.unsafe(sqliteJoinClauses ? `\n${sqliteJoinClauses}` : "")}
-				${sql.unsafe(whereFragment)}
-				${sql.unsafe(orderClause)}
-				LIMIT ${limit} OFFSET ${offset}
-			`;
-					// console.log(query.compile());
-					const rowsCompiledQuery = query.compile();
+					${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
+					${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
+					${sql.unsafe(orderClause)}
+					LIMIT ${limit} OFFSET ${offset}
+				`;
+
+					const rowsCompiledQuery = rowsQuery.compile();
 					const countCompiledQuery = countQuery.compile();
 
 					const [rows, countResult] = yield* Effect.all([
-						query.pipe(
+						rowsQuery.pipe(
 							withQueryLogging({
 								type: QueryLogType.TableRows,
 								sql: rowsCompiledQuery[0],

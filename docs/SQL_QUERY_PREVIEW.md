@@ -4,7 +4,7 @@
 
 Implemented a complete SQL query preview system for Dadabase that allows users to:
 1. **See the raw SQL** being executed when viewing a table
-2. **Preview SQL instantly** without database latency (using pure, non-executing logic)
+2. **Preview SQL instantly** without database latency (using shared introspection builders)
 3. **Copy SQL to clipboard** for debugging, migration scripts, or external use
 4. **Future: Switch to Monaco editor** for manual SQL customization
 
@@ -19,41 +19,61 @@ Query State Management (React Hook)
     ↓
 Server Function (TanStack Start)
     ↓
-Pure SQL Generation (Shared Library)
+Shared SQL Generation (sql-query-builder module)
+    ↓ Uses shared introspection functions
     ↓
 Display Component
 ```
 
+### Code Consolidation
+
+- **Shared introspection builders** (`buildPgWhereFragment`, `buildSqliteWhereFragment`, `buildJoinSqlClauses`, `generateJoinAliases`) are defined in `/src/server/introspection/`
+- **SQL query preview** (`buildQuerySql`) in `/src/server/introspection/sql-query-builder/` reuses these shared builders
+- **Actual query execution** (`queryTableRows`) in `/src/server/introspection/introspection.ts` also uses the same builders
+- **No code duplication** - both preview and execution use identical WHERE/JOIN clause generation
+
 ## Files Created/Modified
 
-### 1. **SQL Query Builder Library** (`src/lib/sql-query-builder/`)
+### 1. **Introspection Folder (Shared Builders)** (`src/server/introspection/`)
 
-Pure, framework-agnostic functions for building SQL without executing:
+Core SQL generation functions used by both preview and execution:
 
-#### `build-query-sql.ts` (Main API)
-- `buildQuerySql(input, dialect)` - Core function that builds SELECT queries
+#### `build-where.ts` ✅ Existing/Enhanced
+- `buildPgWhereFragment()` - PostgreSQL WHERE clause generation (ILIKE, ANY ARRAY, schema.table notation)
+- `buildSqliteWhereFragment()` - SQLite WHERE clause generation (LIKE, IN, no schema prefix)
+- Used by both `queryTableRows` (execution) and `buildQuerySql` (preview)
+
+#### `join-builder.ts` ✅ Existing/Enhanced
+- `buildJoinSqlClauses()` - Multi-dialect JOIN clause generation
+- `generateJoinAliases()` - Handles duplicate table joins and alias generation
+- Used by both execution and preview paths
+
+#### `escape-value.ts` ✅ Existing
+- `escapeIdentifier()` - SQL identifier escaping (table/column names)
+- `escapeValue()` - SQL value escaping (prevents injection)
+
+### 2. **SQL Query Builder Module** (`src/server/introspection/sql-query-builder/`)
+
+Lightweight preview-specific utilities:
+
+#### `build-query-sql.ts` (Main API) ✅ Refactored
+- `buildQuerySql(input, dialect)` - Orchestrates shared builders to generate complete SELECT queries
+  - **Reuses**: `buildPgWhereFragment`, `buildSqliteWhereFragment`, `buildJoinSqlClauses`, `generateJoinAliases`
+  - **No duplication**: calls existing introspection functions instead of reimplementing
   - Input: filters, joins, pagination, sorting, column selection
   - Output: `{ sql: string; formattedSql: string }` (not executed)
-- `generateJoinAliases()` - Handles duplicate table joins automatically
-- `buildPostgresJoinClauses()` / `buildSqliteJoinClauses()` - Dialect-specific JOIN building
 
-#### `build-where-clause.ts`
-- `buildWhereClause()` - Dialect-agnostic WHERE clause generator
-- `buildPostgresWhereClause()` - PostgreSQL ILIKE, ANY ARRAY support
-- `buildSqliteWhereClause()` - SQLite LIKE, IN clause support
-- Handles: equals, contains, starts_with, ends_with, greater_than, is_null, IN operators, etc.
-
-#### `build-pagination-clause.ts`
+#### `build-pagination-clause.ts` ✅ Utility Only
 - `buildOrderByClause()` - ORDER BY with NULLS FIRST/LAST support
 - `buildLimitClause()` - LIMIT/OFFSET clause building
 
-#### `sql-escape.ts`
-- `escapeIdentifier()` - Escape table/column names
-- `escapeValue()` - Escape SQL string values to prevent injection
-
-#### `format-sql.ts`
+#### `format-sql.ts` ✅ Utility Only
 - `formatSqlForDisplay()` - Pretty-print SQL for UI display
 - `getSqlKeywords()` - SQL keyword set for future Monaco syntax highlighting
+
+**Deleted**: `build-where-clause.ts`, `sql-escape.ts`, `build-query-sql.test.ts`
+- Removed duplicate implementations
+- Consolidated tests into `/src/server/introspection/build-where.test.ts`
 
 ### 2. **Server Function** (`src/server/introspection/start-fns/get-query-sql.start.ts`)
 
@@ -97,56 +117,72 @@ Pure, framework-agnostic functions for building SQL without executing:
 
 ## Key Design Decisions
 
-### 1. **Pure SQL Generation (No Execution)**
-- `buildQuerySql()` is a pure function with zero side effects
-- Can be used on frontend, backend, or even in CLI tools
-- Enables instant SQL preview without database latency
-- Can be refactored/optimized independently of execution logic
+### 1. **Shared SQL Generation (No Duplication)**
+- **Single source of truth**: `buildPgWhereFragment`, `buildSqliteWhereFragment`, `buildJoinSqlClauses` defined once in `/src/server/introspection/`
+- **Both preview and execution use the same builders**: `buildQuerySql` (preview) and `queryTableRows` (execution) call identical functions
+- **Prevents SQL logic drift**: Any fix to WHERE/JOIN generation automatically applies to both paths
+- **Maintainability**: Bug fixes or enhancements only need to be made once
 
-### 2. **Separation of Concerns**
-- **Query generation**: `src/lib/sql-query-builder/` (no Effect, no database access)
-- **Server integration**: `src/server/introspection/start-fns/get-query-sql.start.ts` (Effect + database)
-- **UI display**: `src/components/pages/connection-page/` (React components)
+### 2. **Lightweight Preview Layer**
+- `sql-query-builder/` module is thin orchestration layer, not business logic
+- Reuses existing introspection functions instead of reimplementing
+- Can be extended for future features without duplicating core SQL generation
 
-### 3. **Reusable Architecture**
-- Same builders used for both frontend preview and backend execution
-- Can be extended to: migrations, query logging, documentation generation
-- Framework-agnostic makes it portable to other projects
+### 3. **Dialect-Agnostic Builders**
+- WHERE clause builders handle dialect differences (`buildPgWhereFragment` vs `buildSqliteWhereFragment`)
+- JOIN builders handle dialect differences (`buildJoinSqlClauses` takes dialect parameter)
+- Escape functions (`escapeIdentifier`, `escapeValue`) standardize SQL syntax
 
-### 4. **Future Monaco Editor Support**
+### 4. **Clear Separation of Concerns**
+- **Core SQL generation**: `/src/server/introspection/` (pure functions, reusable)
+- **Preview orchestration**: `/src/server/introspection/sql-query-builder/` (uses core builders)
+- **Server function**: `/src/server/introspection/start-fns/get-query-sql.start.ts` (Effect integration)
+- **UI display**: `/src/components/pages/connection-page/` (React presentation)
+
+### 5. **Future Monaco Editor Support**
 - Component structure prepared for Monaco integration
 - No breaking changes needed to add editor mode
 - Can toggle between "Preview" (read-only) and "Edit" (Monaco) tabs
-- Callbacks like `onEditClick()` ready for future implementation
-
-### 5. **Dialect Support**
-- PostgreSQL: ILIKE, ANY ARRAY, schema qualification
-- SQLite: LIKE with COLLATE NOCASE, IN clauses, no schema prefix
-- Runtime dialect detection from connection URL/dbName
+- Existing SQL builders continue to work unchanged
 
 ## Test Coverage
 
-**25 comprehensive tests** covering:
-- ✅ Empty conditions handling
-- ✅ Single and multiple WHERE conditions
-- ✅ AND/OR logical operators
-- ✅ All comparison operators (equals, contains, starts_with, ends_with, >, >=, <, <=, is_null, is_not_null)
-- ✅ IN and NOT IN operators
-- ✅ PostgreSQL ILIKE vs SQLite LIKE
-- ✅ Quote escaping in values
-- ✅ ORDER BY with NULLS FIRST/LAST
-- ✅ LIMIT/OFFSET clauses
-- ✅ Join alias generation for duplicate tables
-- ✅ Column selection and filtering
-- ✅ SQLite vs PostgreSQL dialects
-- ✅ Complex multi-condition filters
+### Core SQL Builder Tests (`src/server/introspection/build-where.test.ts`) ✅ 31 tests passing
+Covers WHERE clause generation:
+- ✅ `buildPgWhereFragment()` - 19 tests
+  - All operators: equals, not_equals, contains, not_contains, starts_with, ends_with
+  - Comparisons: greater_than, less_than, with and without _or_equal variants
+  - NULL checks: is_null, is_not_null
+  - Array operators: in, not_in (using PostgreSQL ANY/ALL syntax)
+  - Logical operators: AND, OR combinations
+  - Value escaping: Single quote escaping
+  - Edge cases: Empty conditions, undefined values
 
-All tests pass: `✓ 25 tests passed`
+- ✅ `buildSqliteWhereFragment()` - 12 tests
+  - SQLite-specific operators: LIKE with COLLATE NOCASE
+  - Boolean conversion: true/false → 1/0
+  - Array operators: in, not_in (using SQLite IN syntax)
+  - Logical operators: AND, OR combinations
+  - Number formatting: Unquoted numbers vs quoted strings
+  - Value escaping: Single quote escaping
+  - Edge cases: Empty conditions, undefined values
 
-## Usage Example
+### Integration Tests (Existing Suite)
+- `join-builder.test.ts` - 50 tests for JOIN generation
+- `query-table-data.test.ts` - Tests for actual query execution using shared builders
+- Both validate that the same builders work correctly in real database queries
 
-### From Frontend
+### Consolidated Approach Benefits
+- **Single test suite for SQL generation**: All dialect-specific logic tested once in `/src/server/introspection/`
+- **Tests validate both paths**: Same test coverage applies to `buildQuerySql` (preview) and `queryTableRows` (execution)
+- **No duplicate tests**: Removed `build-query-sql.test.ts` (was duplicating build-where tests)
+- **Reduced maintenance**: Bug fixes verified once, applies everywhere
+
+## Usage Examples
+
+### From Frontend (SQL Preview)
 ```typescript
+// Uses shared introspection builders via buildQuerySql
 const sqlQuery = useQuery(
   querySqlQueryOptions({
     url: activeConnectionUrl,
@@ -167,11 +203,27 @@ const sqlQuery = useQuery(
 />
 ```
 
-### From Backend (Pure Generation)
+### From Backend (Actual Execution)
 ```typescript
-import { buildQuerySql } from "#src/lib/sql-query-builder/build-query-sql.ts";
+// queryTableRows ALSO uses the same shared builders
+const result = queryTableRows({
+  schema: "public",
+  table: "users",
+  filters: { conditions: [...], logicalOperator: "and" },
+  limit: 50,
+  offset: 0,
+});
+
+// Executes with the EXACT SAME SQL that buildQuerySql would generate for preview
+// Both paths use: buildPgWhereFragment, buildSqliteWhereFragment, buildJoinSqlClauses
+```
+
+### Generating SQL Strings (Pure Function)
+```typescript
+import { buildQuerySql } from "#src/server/introspection/sql-query-builder/build-query-sql.ts";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 
+// This uses the SAME builders as both preview and execution paths
 const { sql, formattedSql } = buildQuerySql({
   schema: "public",
   table: "orders",
@@ -179,7 +231,8 @@ const { sql, formattedSql } = buildQuerySql({
   limit: 100,
 }, DatabaseDialect.Postgres);
 
-// sql is ready to display or execute
+// sql is ready to display, log, or export
+// Uses: buildPgWhereFragment, buildJoinSqlClauses, etc. under the hood
 ```
 
 ## Future Enhancements
@@ -216,54 +269,73 @@ No database execution overhead when just previewing SQL.
 
 ## Integration Summary
 
+### Query Data Flow (Unified Path)
+Both buildQuerySql (preview) and queryTableRows (execution) use the same SQL generation layer:
+
 ```
-┌─────────────────────────────────────┐
-│     ConnectionPage Component         │
-├─────────────────────────────────────┤
-│ use-connection-page-state()          │
-│ ├─ rowsQuery                         │
-│ └─ sqlQuery ← querySqlQueryOptions() │
-├─────────────────────────────────────┤
-│ ┌─────────────────────────────────┐ │
-│ │  SqlQueryPreview Component       │ │
-│ │  - Displays sql + formattedSql   │ │
-│ │  - Copy button                   │ │
-│ │  - Read-only preview             │ │
-│ └─────────────────────────────────┘ │
-│ ┌─────────────────────────────────┐ │
-│ │  DataTable Component             │ │
-│ │  - Row results                   │ │
-│ └─────────────────────────────────┘ │
-└─────────────────────────────────────┘
+QueryTableRows Path (Execution):
+  ├─ buildPgWhereFragment() [introspection/build-where.ts]
+  ├─ buildSqliteWhereFragment() [introspection/build-where.ts]
+  ├─ buildJoinSqlClauses() [introspection/join-builder.ts]
+  └─ Execute via Effect/SqlClient
+
+BuildQuerySql Path (Preview):
+  ├─ buildPgWhereFragment() [SAME introspection function]
+  ├─ buildSqliteWhereFragment() [SAME introspection function]
+  ├─ buildJoinSqlClauses() [SAME introspection function]
+  └─ Return string without execution
+
+Result: WHERE/JOIN/PAGINATION logic identical in both paths ✅
+```
+
+### Component Integration
+```
+ConnectionPage
+  ├─ use-connection-page-state()
+  │  ├─ rowsQuery (queryTableRows - execution)
+  │  │   └─ Uses: buildPgWhereFragment, buildSqliteWhereFragment
+  │  └─ sqlQuery (buildQuerySql - preview)
+  │      └─ Uses: SAME functions
+  │
+  ├─ SqlQueryPreview (displays SQL)
+  └─ DataTable (displays rows)
 ```
 
 ## Implementation Status
 
 ✅ **Phase 1 Complete**
-- SQL query builder library with 25 passing tests
+- Shared SQL generation builders in `/src/server/introspection/`
+- Both execution (`queryTableRows`) and preview (`buildQuerySql`) use same functions
+- Eliminated duplicate code from sql-query-builder folder
 - Server function for SQL generation
 - React component for display
 - Integration into table view
 - Full TypeScript type safety
+- 31 passing tests for WHERE clause generation
 
 🔮 **Phase 2 Planned**
 - Monaco editor integration
 - Manual SQL editing
 - Custom query execution
 
----
-
 ## Files Summary
 
-| File | Purpose | Lines | Type |
-|------|---------|-------|------|
-| `build-query-sql.ts` | Core SQL generation | 185 | Pure TS |
-| `build-where-clause.ts` | WHERE clause building | 157 | Pure TS |
-| `build-pagination-clause.ts` | ORDER BY, LIMIT, OFFSET | 36 | Pure TS |
-| `sql-escape.ts` | SQL value escaping | 18 | Pure TS |
-| `format-sql.ts` | Display formatting | 25 | Pure TS |
-| `build-query-sql.test.ts` | Test suite | 250 | Tests |
-| `get-query-sql.start.ts` | Server function | 195 | Server |
-| `sql-query-preview.tsx` | UI component | 125 | React |
-| **Total** | | **~990** | |
+| Location | File | Purpose | Status |
+|----------|------|---------|--------|
+| Introspection (Shared) | `build-where.ts` | WHERE clause builders (both dialects) | ✅ Used by both |
+| Introspection (Shared) | `join-builder.ts` | JOIN clause builders (both dialects) | ✅ Used by both |
+| Introspection (Shared) | `escape-value.ts` | SQL escaping utilities | ✅ Used by both |
+| SQL Builder | `build-query-sql.ts` | Orchestrates shared builders | ✅ Refactored to use shared |
+| SQL Builder | `build-pagination-clause.ts` | ORDER BY, LIMIT, OFFSET | ✅ Utility only |
+| SQL Builder | `format-sql.ts` | SQL display formatting | ✅ Utility only |
+| Server Functions | `get-query-sql.start.ts` | TanStack Start server function | ✅ New |
+| Components | `sql-query-preview.tsx` | React display component | ✅ New |
+| Components | `use-connection-page-state.tsx` | Hook with SQL fetch | ✅ Modified |
+| Pages | `connection.page.tsx` | Integrated preview | ✅ Modified |
+| Tests | `build-where.test.ts` | WHERE clause tests (31 tests) | ✅ Shared tests |
+
+### Removed (Consolidated)
+- `sql-query-builder/build-where-clause.ts` → Moved logic to introspection `build-where.ts`
+- `sql-query-builder/sql-escape.ts` → Moved logic to introspection `escape-value.ts`
+- `sql-query-builder/build-query-sql.test.ts` → Consolidated into `build-where.test.ts`
 

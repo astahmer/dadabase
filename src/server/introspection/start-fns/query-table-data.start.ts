@@ -60,7 +60,7 @@ type JoinedTableType = typeof JoinedTableSchema.Type;
 const _lint = {} as JoinedTableType satisfies JoinedTable;
 _lint;
 
-const InputSchema = Schema.Struct({
+export const QueryTableRowsInputSchema = Schema.Struct({
 	url: Schema.String,
 	dbName: Schema.String.pipe(Schema.optional),
 	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
@@ -84,7 +84,7 @@ const InputSchema = Schema.Struct({
 	),
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
-	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
+	.inputValidator(QueryTableRowsInputSchema.pipe(Schema.standardSchemaV1))
 	.handler(
 		createRemoteIntrospectionHandler((input) =>
 			Effect.gen(function* () {
