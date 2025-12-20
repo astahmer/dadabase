@@ -59,6 +59,7 @@ import { StructureTable } from "./connection-page/structure-table.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -255,22 +256,13 @@ const MainContent = (props: { connection: DbConnection }) => {
 	);
 
 	// Build columns map from query results
-	const columns: Record<
-		string,
-		Array<{ name: string; dataType: string }>
-	> = useMemo(() => {
-		const columns: Record<
-			string,
-			Array<{ name: string; dataType: string }>
-		> = {};
+	const columns = useMemo(() => {
+		const columns: Record<string, Array<TableColumnMetadata>> = {};
 		columnQuery.data?.forEach((tableWithMeta) => {
 			const key = `${search.schema}.${tableWithMeta.table}`;
 			tableWithMeta.columns.forEach((col) => {
 				columns[key] = columns[key] || [];
-				columns[key].push({
-					name: col.name,
-					dataType: col.dataType,
-				});
+				columns[key].push(col);
 			});
 		});
 		return columns;
@@ -461,6 +453,8 @@ const MainContent = (props: { connection: DbConnection }) => {
 									<Splitter.Context>
 										{(ctx) => (
 											<SqlQueryPreview
+												tables={tables}
+												columns={columns}
 												sql={pageState.sqlQuery?.sql || ""}
 												// isLoading={pageState.sqlQuery.isLoading}
 												// error={pageState.sqlQuery.error}
@@ -539,8 +533,6 @@ const MainContent = (props: { connection: DbConnection }) => {
 													setIsEditorFullscreen(!isEditorFullscreen)
 												}
 												isFullscreen={isEditorFullscreen}
-												tables={tables}
-												columns={columns}
 												className="text-sm h-full"
 											/>
 										)}

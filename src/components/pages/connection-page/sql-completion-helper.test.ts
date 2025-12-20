@@ -98,7 +98,7 @@ describe("SQL Completion Helper", () => {
             it("should detect column context after SELECT", () => {
                 const sql = "SELECT ";
                 const context = detectCompletionContext(sql, sql.length);
-                expect(context.type).toBe("column_after_keyword");
+                expect(context.type).toBe("select_start");
             });
 
             it("should detect column context after ORDER BY", () => {

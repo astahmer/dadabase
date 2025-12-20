@@ -3,7 +3,7 @@
  */
 
 export interface CompletionContext {
-    type: "none" | "from_keyword" | "table_after_from" | "empty_line" | "keyword_after_table" | "column_after_keyword";
+    type: "none" | "from_keyword" | "table_after_from" | "empty_line" | "keyword_after_table" | "column_after_keyword" | "table_alias" | "select_start" | "select_asterisk" | "column_operator";
     selectedTables: string[];
     lastKeyword?: string;
     isAtLineStart: boolean;
@@ -49,6 +49,51 @@ export function detectCompletionContext(
 
     // Extract all FROM/JOIN clause tables mentioned before cursor
     const selectedTables = extractSelectedTables(beforeCursor);
+
+    // Check if we're after SELECT keyword with just "select " or "select *"
+    const selectMatch = beforeCursor.match(/\bselect\s+$/i);
+    if (selectMatch) {
+        return {
+            type: "select_start",
+            selectedTables,
+            isAtLineStart,
+            beforeCursor,
+        };
+    }
+
+    // Check if we're after "select * " (should suggest FROM)
+    const selectAsteriskMatch = beforeCursor.match(/\bselect\s+\*\s+$/i);
+    if (selectAsteriskMatch) {
+        return {
+            type: "select_asterisk",
+            selectedTables,
+            isAtLineStart,
+            beforeCursor,
+        };
+    }
+
+    // Check if we're after a column name in WHERE/ON/HAVING (should suggest operators)
+    // Match: WHERE|ON|HAVING table.column or table.quoted_column followed by space
+    const columnOperatorPattern = /\b(WHERE|ON|HAVING|AND|OR)\s+(?:"[^"]+"|[\w]+)\.(?:"[^"]+"|[\w]+)\s+$/i;
+    if (columnOperatorPattern.test(beforeCursor)) {
+        return {
+            type: "column_operator",
+            selectedTables,
+            isAtLineStart,
+            beforeCursor,
+        };
+    }
+
+    // Check if we're after "AS" keyword (table alias context)
+    const aliasMatch = beforeCursor.match(/\bAS\s+(\w*)$/i);
+    if (aliasMatch) {
+        return {
+            type: "table_alias",
+            selectedTables,
+            isAtLineStart,
+            beforeCursor,
+        };
+    }
 
     // Check if we just typed "from " (case insensitive)
     const fromMatch = beforeCursor.match(/\bfrom\s+$/i);
@@ -272,6 +317,50 @@ export function createKeywordCompletion(keyword: string, monaco: any) {
         insertText: `${keyword} `,
         sortText: `2_${keyword}`,
         detail: "SQL Keyword",
+        range: undefined,
+    } as any;
+}
+
+/**
+ * Create completion item for asterisk (*)
+ */
+export function createAsteriskCompletion(monaco: any) {
+    return {
+        label: "*",
+        kind: monaco.languages.CompletionItemKind.Keyword,
+        insertText: "* ",
+        sortText: "0_*",
+        detail: "All columns",
+        range: undefined,
+    } as any;
+}
+
+/**
+ * Create completion item for table alias (extracted from table name)
+ */
+export function createAliasCompletion(tableName: string, monaco: any) {
+    // Extract just the table name without schema prefix
+    const aliasName = tableName.replace(/^[^.]+\./, "");
+    return {
+        label: aliasName,
+        kind: monaco.languages.CompletionItemKind.Variable,
+        insertText: `${aliasName} `,
+        sortText: `1_${aliasName}`,
+        detail: "Table alias",
+        range: undefined,
+    } as any;
+}
+
+/**
+ * Create completion items for SQL operators
+ */
+export function createOperatorCompletion(operator: string, monaco: any) {
+    return {
+        label: operator,
+        kind: monaco.languages.CompletionItemKind.Operator,
+        insertText: `${operator} `,
+        sortText: `2_${operator}`,
+        detail: "Operator",
         range: undefined,
     } as any;
 }

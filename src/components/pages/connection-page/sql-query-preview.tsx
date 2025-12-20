@@ -16,6 +16,7 @@ import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { cn } from "#src/lib/utils.ts";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
 import { Portal } from "@ark-ui/react";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 interface SqlQueryPreviewProps {
 	/** The raw SQL query string */
@@ -55,7 +56,7 @@ interface SqlQueryPreviewProps {
 	/** Available tables for intellisense suggestions */
 	tables?: Array<{ schema: string; name: string }>;
 	/** Available columns grouped by table */
-	columns?: Record<string, Array<{ name: string; dataType: string }>>;
+	columns?: Record<string, Array<TableColumnMetadata>>;
 	/** Custom CSS class */
 	className?: string;
 }
@@ -166,11 +167,15 @@ export function SqlQueryPreview({
 				<div className="flex items-center justify-between gap-4 my-1">
 					<div className="flex items-center gap-4 flex-1">
 						<Portal
-							container={{
-								current: document.querySelector(
-									"#connection-page-filters-top-row",
-								),
-							}}
+							container={
+								typeof window === "undefined"
+									? undefined
+									: {
+											current: document.querySelector(
+												"#connection-page-filters-top-row",
+											),
+										}
+							}
 						>
 							<Button
 								size="sm"

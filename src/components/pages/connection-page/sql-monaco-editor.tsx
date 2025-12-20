@@ -1,8 +1,9 @@
+import { formatSQL } from "#src/lib/format-sql";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import Editor from "@monaco-editor/react";
 import type * as OriginalMonacoEditor from "monaco-editor";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { formatSQL } from "#src/lib/format-sql";
 import * as OriginalMonaco from "monaco-editor";
+import { useEffect, useEffectEvent, useState } from "react";
 import { sqlCompletionProvider } from "./sql-completion-provider.ts";
 
 type Monaco = typeof OriginalMonaco;
@@ -17,7 +18,7 @@ interface SqlMonacoEditorProps {
 	/** Available tables for intellisense suggestions */
 	tables?: Array<{ schema: string; name: string }>;
 	/** Available columns grouped by table */
-	columns?: Record<string, Array<{ name: string; dataType: string }>>;
+	columns?: Record<string, Array<TableColumnMetadata>>;
 	hasMultipleSchemas?: boolean;
 }
 
