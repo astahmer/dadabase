@@ -2,8 +2,8 @@ import Editor from "@monaco-editor/react";
 import type * as OriginalMonacoEditor from "monaco-editor";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { formatSQL } from "#src/lib/format-sql";
-import { parseSqlContext } from "./sql-context-parser";
 import * as OriginalMonaco from "monaco-editor";
+import { sqlCompletionProvider } from "./sql-completion-provider.ts";
 
 type Monaco = typeof OriginalMonaco;
 
@@ -41,9 +41,10 @@ export function SqlMonacoEditor({
 	className = "",
 	tables = [],
 	columns = {},
-	hasMultipleSchemas = false,
+	hasMultipleSchemas = false, // TODO
 }: SqlMonacoEditorProps) {
-	const monacoRef = useRef<Monaco>(null);
+	// const monacoRef = useRef<Monaco>(null);
+	const [monacoRef, setMonacoRef] = useState<Monaco | null>(null);
 	// const editorRef =
 	// 	useRef<OriginalMonacoEditor.editor.IStandaloneCodeEditor | null>(null);
 	const [editorRef, setEditorRef] =
@@ -101,12 +102,15 @@ export function SqlMonacoEditor({
 
 	// Setup SQL intellisense with context-aware suggestions
 	useEffect(() => {
-		const monaco = monacoRef.current;
+		const monaco = monacoRef;
 		if (!monaco) return;
 
 		const disposable = monaco.languages.registerCompletionItemProvider(
 			["sql", "pgsql"],
 			{
+				triggerCharacters: [" ", ".", ","],
+				// TODO provide more info like primary key, fk, nullable, etc
+				// resolveCompletionItem
 				provideCompletionItems: (
 					model: OriginalMonacoEditor.editor.ITextModel,
 					position: OriginalMonacoEditor.Position,
@@ -115,72 +119,31 @@ export function SqlMonacoEditor({
 					const fullText = model.getValue();
 					const cursorOffset = model.getOffsetAt(position);
 
-					// Parse the context to determine what type of suggestion to show
-					const context = parseSqlContext(fullText, cursorOffset);
-
-					// Get the current word being typed
-					const word = model.getWordUntilPosition(position);
-					const range = {
-						startLineNumber: position.lineNumber,
-						endLineNumber: position.lineNumber,
-						startColumn: word.startColumn,
-						endColumn: word.endColumn,
-					};
-
-					const suggestions: OriginalMonacoEditor.languages.CompletionItem[] =
-						[];
-
-					// Show table suggestions if we're after a table keyword
-					if (context.type === "table") {
-						suggestions.push(
-							...tables.map((table) => ({
-								label: table.name,
-								kind: monaco.languages.CompletionItemKind.Struct,
-								detail: `Table in schema: ${table.schema}`,
-								insertText: hasMultipleSchemas
-									? `"${table.schema}"."${table.name}"`
-									: `"${table.name}"`,
-								range: range as any,
-								sortText: table.name,
-							})),
-						);
-					}
-
-					// Show column suggestions if we're after a column keyword
-					if (context.type === "column" && context.tableNames.length > 0) {
-						// Collect all columns from the referenced tables
-						const availableColumns = new Set<string>();
-
-						for (const tableName of context.tableNames) {
-							const cols = columns[tableName];
-							if (cols) {
-								cols.forEach((col) => {
-									availableColumns.add(col.name);
-								});
-							}
-						}
-
-						suggestions.push(
-							...Array.from(availableColumns).map((columnName) => ({
-								label: columnName,
-								kind: monaco.languages.CompletionItemKind.Field,
-								detail: `Column`,
-								insertText: `"${columnName}"`,
-								range: range as any,
-								sortText: columnName,
-							})),
-						);
-					}
+					// Get the current word being typed (for range replacement)
+					// const word = model.getWordUntilPosition(position);
+					// const range = {
+					// 	startLineNumber: position.lineNumber,
+					// 	endLineNumber: position.lineNumber,
+					// 	startColumn: word.startColumn,
+					// 	endColumn: word.endColumn,
+					// };
+					// console.log(context, { word, range, fullText });
+					const suggestions = sqlCompletionProvider(
+						{ fullText, cursorOffset },
+						{ tables, columns, hasMultipleSchemas },
+						monaco,
+					);
 
 					return { suggestions };
 				},
 			},
 		);
+		console.log({ disposable, tables, columns, hasMultipleSchemas });
 
 		return () => {
 			disposable.dispose();
 		};
-	}, [tables, columns]);
+	}, [monacoRef, tables, columns, hasMultipleSchemas]);
 
 	return (
 		<Editor
@@ -189,7 +152,7 @@ export function SqlMonacoEditor({
 				setEditorRef(editor);
 			}}
 			beforeMount={(monaco: typeof OriginalMonacoEditor) => {
-				monacoRef.current = monaco;
+				setMonacoRef(monaco);
 			}}
 			height="100%"
 			defaultLanguage="pgsql"
