@@ -5033,4 +5033,181 @@ describe("sqlCompletionProvider", () => {
 			expect(labels).toContain("DESC");
 		});
 	});
+
+	describe("NULLS FIRST/LAST after ORDER BY direction", () => {
+		it("should suggest NULLS FIRST and NULLS LAST after ASC", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ORDER BY users.id ASC ",
+					cursorOffset: 43,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("NULLS FIRST");
+			expect(labels).toContain("NULLS LAST");
+			expect(labels).toContain("LIMIT");
+			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "NULLS FIRST",
+                  "sortText": "2_NULLS FIRST",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "NULLS LAST",
+                  "sortText": "2_NULLS LAST",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "LIMIT",
+                  "sortText": "2_LIMIT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "OFFSET",
+                  "sortText": "2_OFFSET",
+                },
+              ]
+            `);
+		});
+
+		it("should suggest NULLS FIRST and NULLS LAST after DESC", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ORDER BY users.id DESC ",
+					cursorOffset: 44,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("NULLS FIRST");
+			expect(labels).toContain("NULLS LAST");
+		});
+
+		it("should suggest keywords after NULLS FIRST", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ORDER BY users.id ASC NULLS FIRST ",
+					cursorOffset: 55,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("LIMIT");
+			expect(labels).toContain("OFFSET");
+			expect(labels).toContain("UNION");
+		});
+
+		it("should suggest keywords after NULLS LAST", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ORDER BY users.id DESC NULLS LAST ",
+					cursorOffset: 54,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("LIMIT");
+			expect(labels).toContain("OFFSET");
+		});
+	});
+
+	describe("Subqueries - SELECT after opening parenthesis", () => {
+		it("should suggest SELECT after opening parenthesis in WHERE", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users WHERE id IN (",
+					cursorOffset: 33,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("SELECT");
+			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "SELECT",
+                  "sortText": "2_SELECT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WITH",
+                  "sortText": "2_WITH",
+                },
+              ]
+            `);
+		});
+
+		it("should suggest SELECT after opening parenthesis in FROM", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM (",
+					cursorOffset: 16,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("SELECT");
+			expect(labels).toContain("WITH");
+		});
+
+		it("should suggest SELECT after opening parenthesis in EXISTS", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users WHERE EXISTS (",
+					cursorOffset: 34,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("SELECT");
+		});
+
+		it("should suggest SELECT after opening parenthesis with spaces", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users WHERE id IN (   ",
+					cursorOffset: 36,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("SELECT");
+			expect(labels).toContain("WITH");
+		});
+
+		it("should suggest SELECT in nested subqueries", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT * FROM users WHERE id IN (SELECT id FROM posts WHERE user_id IN (",
+					cursorOffset: 74,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("SELECT");
+		});
+	});
 });

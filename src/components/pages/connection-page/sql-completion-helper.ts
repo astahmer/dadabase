@@ -17,7 +17,9 @@ export interface CompletionContext {
 		| "after_condition"
 		| "join_table"
 		| "after_order_by_column"
-		| "after_having_condition";
+		| "after_having_condition"
+		| "after_order_by_direction"
+		| "subquery_start";
 	selectedTables: string[];
 	tableAliases: Record<string, string>; // Maps table name to alias (e.g., { "users": "u", "posts": "p" })
 	lastKeyword?: SqlKeyword;
@@ -71,6 +73,8 @@ const SQL_KEYWORDS = [
 	"NULL",
 	"ASC",
 	"DESC",
+	"NULLS FIRST",
+	"NULLS LAST",
 ] as const;
 type SqlKeyword = (typeof SQL_KEYWORDS)[number];
 
@@ -132,6 +136,13 @@ const REGEX_ORDER_BY_WITH_DIRECTION = /\b(?:ASC|DESC)\s+$/i;
 
 // Detect CROSS JOIN
 const REGEX_CROSS_JOIN = /\b(CROSS\s+JOIN)\s+(\w+|"[^"]*")\s+$/i;
+
+// Detect ORDER BY with ASC/DESC and optional NULLS FIRST/LAST
+const REGEX_ORDER_BY_WITH_NULLS = /\b(?:NULLS\s+(?:FIRST|LAST))\s+$/i;
+
+// Detect opening parenthesis (for subqueries) - NOT after function names
+const REGEX_OPENING_PAREN =
+	/(?<!COUNT|SUM|AVG|MAX|MIN|LOWER|UPPER|COALESCE|CASE|EXISTS|CAST)\s*\(\s*$/;
 
 // Memoized keyword patterns for column context detection
 const COLUMN_KEYWORDS_PATTERN = {
@@ -212,15 +223,49 @@ export function detectCompletionContext(
 	if (REGEX_ORDER_BY_WITH_DIRECTION.test(beforeCursor)) {
 		// Check that there's actually an ORDER BY before this
 		if (/\bORDER\s+BY\b/i.test(beforeCursor)) {
+			// Check if we're already at NULLS FIRST/LAST
+			if (REGEX_ORDER_BY_WITH_NULLS.test(beforeCursor)) {
+				return {
+					type: "after_condition",
+					selectedTables,
+					tableAliases,
+					lastKeyword: "ORDER" as SqlKeyword,
+					isAtLineStart,
+					beforeCursor,
+				};
+			}
+			// Otherwise, after ASC/DESC, suggest NULLS FIRST/LAST
 			return {
-				type: "after_condition", // Reuse after_condition logic for keywords like LIMIT, OFFSET
+				type: "after_order_by_direction",
 				selectedTables,
 				tableAliases,
-				lastKeyword: "ORDER" as SqlKeyword,
 				isAtLineStart,
 				beforeCursor,
 			};
 		}
+	}
+
+	// Check if we're after NULLS FIRST/LAST
+	if (REGEX_ORDER_BY_WITH_NULLS.test(beforeCursor)) {
+		return {
+			type: "after_condition",
+			selectedTables,
+			tableAliases,
+			lastKeyword: "ORDER" as SqlKeyword,
+			isAtLineStart,
+			beforeCursor,
+		};
+	}
+
+	// Check for opening parenthesis (subquery start)
+	if (REGEX_OPENING_PAREN.test(beforeCursor)) {
+		return {
+			type: "subquery_start",
+			selectedTables,
+			tableAliases,
+			isAtLineStart: false,
+			beforeCursor,
+		};
 	}
 
 	// Check if we've completed a WHERE/ON/HAVING condition (e.g., "WHERE column = value ")
@@ -591,6 +636,16 @@ export function getContextualKeywords(
 	if (context.type === "after_order_by_column") {
 		// After ORDER BY column, suggest ASC/DESC
 		return ["ASC", "DESC"];
+	}
+
+	if (context.type === "after_order_by_direction") {
+		// After ASC/DESC in ORDER BY, suggest NULLS FIRST/LAST, or move to LIMIT
+		return ["NULLS FIRST", "NULLS LAST", "LIMIT", "OFFSET"];
+	}
+
+	if (context.type === "subquery_start") {
+		// After opening parenthesis, suggest SELECT for subquery
+		return ["SELECT", "WITH"];
 	}
 
 	if (context.type === "join_table") {

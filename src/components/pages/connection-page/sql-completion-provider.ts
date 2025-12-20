@@ -128,6 +128,8 @@ export function sqlCompletionProvider(
 		cursorContext.type === "after_condition" ||
 		cursorContext.type === "after_having_condition" ||
 		cursorContext.type === "after_order_by_column" ||
+		cursorContext.type === "after_order_by_direction" ||
+		cursorContext.type === "subquery_start" ||
 		cursorContext.type === "join_table"
 	) {
 		const keywords = getContextualKeywords(cursorContext);
