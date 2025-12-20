@@ -56,6 +56,7 @@
 - row selection with checkboxes + bulk actions (delete, export, copy etc)
 - cancellable queries (+ rm disabled state for buttons while a query is running)
 - new tab -> custom query mode
+- after a `select {selection} from {table} j` (or `jo`/`joi`/`join`/`l`/`le`/`lef`/`left`/`left j`/etc) we should suggest a prefilled line of `join {otherTableWithForeignKeysOnTheCurrentFromTable} ON {table}.{primaryKey} = {otherTableWithForeignKeysOnTheCurrentFromTable}.{foreignKey}`
 
 ## issues
 - import join config from SQL query
