@@ -5210,4 +5210,87 @@ describe("sqlCompletionProvider", () => {
 			expect(labels).toContain("SELECT");
 		});
 	});
+
+	describe("JOIN with alias - should suggest only ON", () => {
+		it("should suggest only ON after LEFT JOIN with alias", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users LEFT JOIN posts AS p ",
+					cursorOffset: 42,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toEqual(["ON"]);
+			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ON",
+                  "sortText": "2_ON",
+                },
+              ]
+            `);
+		});
+
+		it("should suggest only ON after INNER JOIN with alias", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users INNER JOIN posts AS p ",
+					cursorOffset: 43,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toEqual(["ON"]);
+		});
+
+		it("should suggest only ON after RIGHT JOIN with alias", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users RIGHT JOIN posts AS p ",
+					cursorOffset: 42,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toEqual(["ON"]);
+		});
+
+		it("should suggest only ON after FULL OUTER JOIN with alias", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users FULL OUTER JOIN posts AS p ",
+					cursorOffset: 49,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toEqual(["ON"]);
+		});
+
+		it("should suggest AS and ON after JOIN without alias", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users JOIN posts ",
+					cursorOffset: 31,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels.length).toBe(2);
+			expect(labels).toContain("AS");
+			expect(labels).toContain("ON");
+		});
+	});
 });

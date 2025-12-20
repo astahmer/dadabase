@@ -86,6 +86,18 @@ describe("SQL Completion Helper", () => {
 				const context = detectCompletionContext(sql, sql.length);
 				expect(context.type).toBe("join_table");
 			});
+
+			it("should detect join_with_alias after LEFT JOIN with alias", () => {
+				const sql = "SELECT * FROM users LEFT JOIN orders AS o ";
+				const context = detectCompletionContext(sql, sql.length);
+				expect(context.type).toBe("join_with_alias");
+			});
+
+			it("should detect join_with_alias after INNER JOIN with alias", () => {
+				const sql = "SELECT * FROM users INNER JOIN posts AS p ";
+				const context = detectCompletionContext(sql, sql.length);
+				expect(context.type).toBe("join_with_alias");
+			});
 		});
 
 		describe("column_after_keyword context", () => {

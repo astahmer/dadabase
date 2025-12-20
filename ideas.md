@@ -1,6 +1,4 @@
 ## raw SQL viewer/editor
-- switch filter from query builder to SQL raw input (switch with icon buttons like the view mode buttons)
-- SQL button to quickly preview the generated SQL query from the current filters/order by/limit (and copy it)
 - edit in datatable line? double click triggers the edit UI with a commit phase (nothing is persisted until you click save with the count + list of changes available to review / the translated raw SQL update)
 
 ## exports

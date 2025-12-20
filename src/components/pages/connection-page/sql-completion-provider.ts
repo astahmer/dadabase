@@ -130,7 +130,8 @@ export function sqlCompletionProvider(
 		cursorContext.type === "after_order_by_column" ||
 		cursorContext.type === "after_order_by_direction" ||
 		cursorContext.type === "subquery_start" ||
-		cursorContext.type === "join_table"
+		cursorContext.type === "join_table" ||
+		cursorContext.type === "join_with_alias"
 	) {
 		const keywords = getContextualKeywords(cursorContext);
 		suggestions.push(
@@ -190,7 +191,7 @@ export function sqlCompletionProvider(
 		);
 	}
 
-	console.log("context", { cursorContext, context, suggestions });
+	// console.log("context", { cursorContext, context, suggestions });
 
 	return suggestions;
 }

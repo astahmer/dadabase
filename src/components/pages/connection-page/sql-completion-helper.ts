@@ -16,6 +16,7 @@ export interface CompletionContext {
 		| "column_operator"
 		| "after_condition"
 		| "join_table"
+		| "join_with_alias"
 		| "after_order_by_column"
 		| "after_having_condition"
 		| "after_order_by_direction"
@@ -106,6 +107,10 @@ const REGEX_JOIN_TABLE_WITHOUT_ALIAS = new RegExp(
 );
 const REGEX_JOIN_TABLE_WITH_ALIAS = new RegExp(
 	`\\b(JOIN|INNER\\s+JOIN|LEFT\\s+JOIN|RIGHT\\s+JOIN|FULL\\s+JOIN|CROSS\\s+JOIN)\\s+(\\w+|"[^"]*")\\s+AS\\s+(\\w+)\\s+$`,
+	"i",
+);
+const REGEX_JOIN_WITH_ALIAS_COMPLETE = new RegExp(
+	`\\b(INNER\\s+JOIN|LEFT\\s+JOIN|RIGHT\\s+JOIN|FULL\\s+JOIN|FULL\\s+OUTER\\s+JOIN|LEFT\\s+OUTER\\s+JOIN|RIGHT\\s+OUTER\\s+JOIN|CROSS\\s+JOIN|JOIN)\\s+(?:\\w+|"[^"]*")\\s+(?:AS\\s+)\\w+\\s+$`,
 	"i",
 );
 const REGEX_TABLE_PATTERN = new RegExp(
@@ -297,6 +302,18 @@ export function detectCompletionContext(
 	if (REGEX_TABLE_ALIAS_INCOMPLETE.test(beforeCursor)) {
 		return {
 			type: "none",
+			selectedTables,
+			tableAliases,
+			isAtLineStart,
+			beforeCursor,
+		};
+	}
+
+	// Check for JOIN with alias completed FIRST (before checking generic table_alias)
+	// This must come before the table_alias check!
+	if (REGEX_JOIN_WITH_ALIAS_COMPLETE.test(beforeCursor)) {
+		return {
+			type: "join_with_alias",
 			selectedTables,
 			tableAliases,
 			isAtLineStart,
@@ -651,6 +668,11 @@ export function getContextualKeywords(
 	if (context.type === "join_table") {
 		// After a table in a JOIN clause (no alias yet), suggest AS and ON
 		return ["AS", "ON"];
+	}
+
+	if (context.type === "join_with_alias") {
+		// After JOIN table AS alias, only suggest ON for the join condition
+		return ["ON"];
 	}
 
 	if (
