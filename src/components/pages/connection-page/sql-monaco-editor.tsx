@@ -1,4 +1,7 @@
-import { useEffect, useRef } from "react";
+import Editor, { type Monaco } from "@monaco-editor/react";
+import type * as OriginalMonacoEditor from "monaco-editor";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { formatSQL } from "#src/lib/format-sql";
 
 interface SqlMonacoEditorProps {
 	/** The SQL code to display/edit */
@@ -9,100 +12,104 @@ interface SqlMonacoEditorProps {
 	className?: string;
 }
 
+// https://shiki.style/themes
+// tm-themes/OneDarkPro
+// https://github.com/esm-dev/modern-monaco/blob/0dad413a046c2a1b329ee1d2b6d4fe11492ba633/src/shiki-monaco.ts#L47
+
 /**
- * Monaco SQL Editor component using modern-monaco
- * Lazy-loads the editor for optimal performance
+ * Monaco SQL Editor component using @monaco-editor/react
+ * Provides a simple wrapper around the Monaco Editor
  */
 export function SqlMonacoEditor({
 	sql,
 	onChange,
 	className = "",
 }: SqlMonacoEditorProps) {
-	const containerRef = useRef<HTMLDivElement>(null);
-	const editorRef = useRef<any>(null);
-	const monacoRef = useRef<any>(null);
-	const modelRef = useRef<any>(null);
+	const monacoRef = useRef<Monaco>(null);
+	// const editorRef =
+	// 	useRef<OriginalMonacoEditor.editor.IStandaloneCodeEditor | null>(null);
+	const [editorRef, setEditorRef] =
+		useState<OriginalMonacoEditor.editor.IStandaloneCodeEditor | null>(null);
+	const [theme, setTheme] = useState<"vs-light" | "vs-dark">("vs-light");
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: ok
+	// Determine the current theme based on dark mode
+	const getTheme = useEffectEvent((): "vs-light" | "vs-dark" => {
+		return document.documentElement.classList.contains("dark")
+			? "vs-dark"
+			: "vs-light";
+	});
+
+	// Watch for dark mode changes
 	useEffect(() => {
-		let mounted = true;
+		const initialTheme = getTheme();
+		setTheme(initialTheme);
 
-		const initializeEditor = async () => {
-			if (!containerRef.current) return;
+		const observer = new MutationObserver(() => {
+			const newTheme = getTheme();
+			setTheme(newTheme);
+		});
 
-			try {
-				// Dynamically import modern-monaco
-				const { init } = await import("modern-monaco");
-
-				// Initialize monaco
-				const monaco = await init();
-				monacoRef.current = monaco;
-
-				if (!mounted) return;
-
-				// Create editor instance
-				const editor = monaco.editor.create(containerRef.current, {
-					language: "sql",
-					theme: "vs-light",
-					automaticLayout: true,
-					minimap: { enabled: false },
-					fontSize: 13,
-					fontFamily: '"Fira Code", "Cascadia Code", monospace',
-					scrollBeyondLastLine: false,
-					wordWrap: "on",
-					readOnly: false,
-					padding: { top: 8, bottom: 8 },
-				});
-
-				editorRef.current = editor;
-
-				// Create and attach model
-				const model = monaco.editor.createModel(sql, "sql");
-				modelRef.current = model;
-				editor.setModel(model);
-
-				// Handle changes
-				if (onChange) {
-					const disposable = model.onDidChangeContent(() => {
-						onChange(model.getValue());
-					});
-
-					return () => {
-						disposable.dispose();
-					};
-				}
-			} catch (error) {
-				console.error("Failed to initialize Monaco editor:", error);
-			}
-		};
-
-		initializeEditor();
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ["class"],
+		});
 
 		return () => {
-			mounted = false;
+			observer.disconnect();
 		};
 	}, []);
 
-	// Update model content when sql prop changes (from external updates)
 	useEffect(() => {
-		if (modelRef.current && editorRef.current) {
-			const currentValue = modelRef.current.getValue();
-			if (currentValue !== sql) {
-				// Preserve cursor position
-				const position = editorRef.current.getPosition();
-				modelRef.current.setValue(sql);
-				if (position) {
-					editorRef.current.setPosition(position);
-				}
-			}
-		}
-	}, [sql]);
+		if (!editorRef) return;
+
+		const actionId = "editor.action.formatSQL";
+		const action: OriginalMonacoEditor.editor.IActionDescriptor = {
+			id: actionId,
+			label: "Format SQL",
+			contextMenuGroupId: "1_modification",
+			contextMenuOrder: 1,
+			run: (editor) => {
+				const content = editor.getValue();
+				const formatted = formatSQL(content);
+				editor.setValue(formatted);
+			},
+		};
+
+		const disposable = editorRef.addAction(action);
+		return () => {
+			disposable.dispose();
+		};
+	}, [editorRef]);
 
 	return (
-		<div
-			ref={containerRef}
-			className={`w-full h-full ${className}`}
-			style={{ display: "flex" }}
+		<Editor
+			onMount={(editor) => {
+				// editorRef.current = editor;
+				setEditorRef(editor);
+			}}
+			beforeMount={(monaco: typeof OriginalMonacoEditor) => {
+				monacoRef.current = monaco;
+			}}
+			height="100%"
+			defaultLanguage="sql"
+			value={sql}
+			onChange={(value) => {
+				if (value !== undefined && onChange) {
+					onChange(value);
+				}
+			}}
+			theme={theme}
+			className={className}
+			options={{
+				automaticLayout: true,
+				minimap: { enabled: false },
+				fontSize: 13,
+				fontFamily: '"Fira Code", "Cascadia Code", monospace',
+				scrollBeyondLastLine: false,
+				wordWrap: "on",
+				readOnly: false,
+				padding: { top: 8, bottom: 8 },
+			}}
 		/>
 	);
 }

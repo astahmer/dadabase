@@ -15,6 +15,7 @@ import { Button } from "#src/components/ui/button.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { cn } from "#src/lib/utils.ts";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
+import { Portal } from "@ark-ui/react";
 
 interface SqlQueryPreviewProps {
 	/** The raw SQL query string */
@@ -151,7 +152,7 @@ export function SqlQueryPreview({
 	return (
 		<div
 			className={cn(
-				"flex flex-col rounded border border-gray-200",
+				"flex flex-col rounded border border-gray-200 h-full",
 				isFullscreen &&
 					"fixed inset-0 z-50 rounded-none border-0 bg-background",
 				className,
@@ -160,20 +161,29 @@ export function SqlQueryPreview({
 			{/* Header with toggle, tabs, warning, and actions */}
 			<div className="border-b border-gray-200 px-4">
 				{/* Top row: toggle + tabs + actions + copy */}
-				<div className="flex items-center justify-between gap-4 mb-2">
+				<div className="flex items-center justify-between gap-4 my-1">
 					<div className="flex items-center gap-4 flex-1">
-						<Button
-							variant="ghost"
-							onClick={() => onToggleCollapsed?.(!isCollapsed)}
-							className="flex items-center gap-2 text-sm font-semibold"
+						<Portal
+							container={{
+								current: document.querySelector(
+									"#connection-page-filters-top-row",
+								),
+							}}
 						>
-							{isCollapsed ? (
-								<ChevronRight className="h-4 w-4" />
-							) : (
-								<ChevronDown className="h-4 w-4" />
-							)}
-							SQL Query
-						</Button>
+							<Button
+								size="sm"
+								variant={customSql ? "default" : "ghost"}
+								onClick={() => onToggleCollapsed?.(!isCollapsed)}
+								className="flex items-center gap-2 text-xs self-center"
+							>
+								{isCollapsed ? (
+									<ChevronRight className="h-4 w-4" />
+								) : (
+									<ChevronDown className="h-4 w-4" />
+								)}
+								SQL Query
+							</Button>
+						</Portal>
 
 						{/* Editor mode tabs */}
 						<Tabs.Root
@@ -182,11 +192,11 @@ export function SqlQueryPreview({
 								onEditorModeChange?.(details.value as "preview" | "editor");
 							}}
 						>
-							<Tabs.List className="flex gap-1 border-l border-gray-300 pl-4">
+							<Tabs.List className="flex gap-1">
 								<Tabs.Trigger
 									value="preview"
 									className={cn(
-										"px-3 py-1 text-xs font-medium transition-colors data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:border-b-2 data-[state=active]:border-blue-500",
+										"px-3 py-1 text-xs font-medium transition-colors data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-gray-100",
 										editorMode !== "preview" &&
 											"text-gray-600 hover:text-gray-900",
 									)}
@@ -196,7 +206,7 @@ export function SqlQueryPreview({
 								<Tabs.Trigger
 									value="editor"
 									className={cn(
-										"px-3 py-1 text-xs font-medium transition-colors data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:border-b-2 data-[state=active]:border-blue-500",
+										"px-3 py-1 text-xs font-medium transition-colors data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 hover:bg-gray-100",
 										editorMode !== "editor" &&
 											"text-gray-600 hover:text-gray-900",
 									)}
@@ -300,7 +310,7 @@ export function SqlQueryPreview({
 							</pre>
 						</div>
 					) : (
-						<div className="h-64 bg-gray-50 border-t border-gray-200">
+						<div className="h-64 bg-gray-50 border-t border-gray-200 h-full">
 							<SqlMonacoEditor
 								sql={customSql || sql}
 								onChange={handleEditorChange}

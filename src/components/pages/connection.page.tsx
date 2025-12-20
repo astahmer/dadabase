@@ -10,7 +10,7 @@ import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
 import { Splitter } from "@ark-ui/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
 import { useState, type Dispatch, type SetStateAction } from "react";
@@ -55,6 +55,7 @@ import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { Button } from "../ui/button.tsx";
+import { toaster } from "../ui/toaster.tsx";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -231,7 +232,41 @@ const MainContent = (props: { connection: DbConnection }) => {
 		null,
 	);
 	const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
-	const [explainResult, setExplainResult] = useState<string | null>(null);
+	const explainQuery = useQuery({
+		enabled: false,
+		queryKey: ["remote", "explain", search.customSql],
+		queryFn: async () => {
+			// Only allow explain for PostgreSQL databases
+			if (connection.dialect !== DatabaseDialect.Postgres) {
+				alert("Query explain is only supported for PostgreSQL databases");
+				return;
+			}
+
+			const sqlToExplain = search.customSql || pageState.sqlQuery?.sql;
+			if (!sqlToExplain) {
+				alert("No SQL query to explain");
+				return;
+			}
+
+			try {
+				setShowExplainPanel(true);
+				const result = await explainQueryServerFn({
+					data: {
+						url: pageState.activeConnectionUrl,
+						sql: sqlToExplain,
+					},
+				});
+
+				if (result) {
+					return result.plan;
+				}
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : "Failed to explain query";
+				return `Error: ${message}`;
+			}
+		},
+	});
 	const [showExplainPanel, setShowExplainPanel] = useState(false);
 
 	const { filters: structureFilters } = useStructureFilters();
@@ -322,7 +357,7 @@ const MainContent = (props: { connection: DbConnection }) => {
 								orientation="vertical"
 								className="flex-1 flex flex-col h-full overflow-hidden"
 								defaultSize={[
-									search.sqlPreviewSize ? 0 : fromPixelToPercentage(200),
+									search.sqlPreviewSize ?? fromPixelToPercentage(200),
 									fromPixelToPercentage(656),
 								]}
 								panels={[
@@ -411,44 +446,7 @@ const MainContent = (props: { connection: DbConnection }) => {
 													// Trigger refetch of the rows query
 													pageState.rowsQuery.refetch();
 												}}
-												onExplain={async () => {
-													// Only allow explain for PostgreSQL databases
-													if (connection.dialect !== DatabaseDialect.Postgres) {
-														alert(
-															"Query explain is only supported for PostgreSQL databases",
-														);
-														return;
-													}
-
-													const sqlToExplain =
-														search.customSql || pageState.sqlQuery?.sql;
-													if (!sqlToExplain) {
-														alert("No SQL query to explain");
-														return;
-													}
-
-													try {
-														setExplainResult(null);
-														const result = await explainQueryServerFn({
-															data: {
-																url: pageState.activeConnectionUrl,
-																sql: sqlToExplain,
-															},
-														});
-
-														if (result) {
-															setExplainResult(result.plan);
-															setShowExplainPanel(true);
-														}
-													} catch (error) {
-														const message =
-															error instanceof Error
-																? error.message
-																: "Failed to explain query";
-														setExplainResult(`Error: ${message}`);
-														setShowExplainPanel(true);
-													}
-												}}
+												onExplain={explainQuery.refetch}
 												disableExplain={
 													connection?.dialect !== DatabaseDialect.Postgres
 												}
@@ -461,7 +459,18 @@ const MainContent = (props: { connection: DbConnection }) => {
 													}
 
 													try {
-														const formatted = formatSQL(sqlToFormat);
+														const formatted = formatSQL(sqlToFormat, {
+															language:
+																connection.dialect === DatabaseDialect.Postgres
+																	? "postgresql"
+																	: "sqlite",
+															onError: (error) => {
+																toaster.create({
+																	title: "Failed to format SQL",
+																	description: error.message,
+																});
+															},
+														});
 														navigate({
 															search: (prev) =>
 																updateTabState(prev, {
@@ -832,7 +841,7 @@ const MainContent = (props: { connection: DbConnection }) => {
 			<ExplainOutputDrawer
 				showExplainPanel={showExplainPanel}
 				setShowExplainPanel={setShowExplainPanel}
-				output={explainResult}
+				output={explainQuery.data ?? null}
 			/>
 		</>
 	);

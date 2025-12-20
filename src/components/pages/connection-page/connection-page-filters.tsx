@@ -19,6 +19,7 @@ import { HStack } from "../../ui/layout.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 import { StructureFilterControls } from "./structure-table-filters.tsx";
+import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 
 interface ConnectionPageFiltersProps {
 	columnList: string[];
@@ -95,7 +96,11 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 							<LayoutGrid className="h-4 w-4" />
 						</Button>
 					</Tooltip>
-					{viewMode === "rows" && (
+				</div>
+				{viewMode === "structure" && <StructureFilterControls />}
+				{viewMode === "rows" && (
+					<>
+						<div id="connection-page-filters-top-row" className="contents" />
 						<Button
 							variant={
 								filterConditions.length > 0 && !filtersOpened
@@ -137,8 +142,6 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 								)
 							) : null}
 						</Button>
-					)}
-					{viewMode === "rows" && (
 						<Tooltip content="Join tables">
 							<Button
 								variant={joinConfig?.joins?.length ? "default" : "outline"}
@@ -156,10 +159,6 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 								) : null}
 							</Button>
 						</Tooltip>
-					)}
-				</div>
-				{viewMode === "rows" && (
-					<>
 						<JoinTablesDialog
 							key={`${url}-${schema}-${tableName}`}
 							isOpen={isJoinDialogOpen}
@@ -247,54 +246,49 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 								}
 							}}
 						/>
+						<ColumnVisibilityControls
+							table={table}
+							columnList={columnList}
+							minimal={true}
+							visibilityMode={columnVisibilityMode}
+							onVisibilityModeChange={(mode) => {
+								navigate({
+									search: (prev) =>
+										updateTabState(prev, {
+											columnVisibilityMode: mode,
+										}),
+								});
+							}}
+						/>
+						<OrderBySelect
+							columnList={columnList}
+							orderBy={orderBy}
+							orderDirection={orderDirection}
+							nullsOrder={nullsOrder}
+							onOrderChange={(orderBy, direction) => {
+								navigate({
+									search: (prev) =>
+										updateTabState(prev, {
+											orderBy,
+											orderDirection: direction || "asc",
+											nullsOrder: undefined,
+											offset: 0,
+										}),
+								});
+							}}
+							onNullsOrderChange={(nullsOrder) => {
+								navigate({
+									search: (prev) =>
+										updateTabState(prev, {
+											nullsOrder,
+										}),
+								});
+							}}
+							getColumnLabel={(col) => col}
+							minimal
+						/>
 					</>
 				)}
-				{viewMode === "rows" && (
-					<ColumnVisibilityControls
-						table={table}
-						columnList={columnList}
-						minimal={true}
-						visibilityMode={columnVisibilityMode}
-						onVisibilityModeChange={(mode) => {
-							navigate({
-								search: (prev) =>
-									updateTabState(prev, {
-										columnVisibilityMode: mode,
-									}),
-							});
-						}}
-					/>
-				)}
-				{viewMode === "rows" && (
-					<OrderBySelect
-						columnList={columnList}
-						orderBy={orderBy}
-						orderDirection={orderDirection}
-						nullsOrder={nullsOrder}
-						onOrderChange={(orderBy, direction) => {
-							navigate({
-								search: (prev) =>
-									updateTabState(prev, {
-										orderBy,
-										orderDirection: direction || "asc",
-										nullsOrder: undefined,
-										offset: 0,
-									}),
-							});
-						}}
-						onNullsOrderChange={(nullsOrder) => {
-							navigate({
-								search: (prev) =>
-									updateTabState(prev, {
-										nullsOrder,
-									}),
-							});
-						}}
-						getColumnLabel={(col) => col}
-						minimal
-					/>
-				)}
-				{viewMode === "structure" && <StructureFilterControls />}
 			</HStack>
 		</div>
 	);

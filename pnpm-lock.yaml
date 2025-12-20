@@ -6,15 +6,9 @@ settings:
 
 catalogs:
   default:
-    '@effect/experimental':
-      specifier: 0.57.1
-      version: 0.57.1
     '@effect/language-service':
       specifier: 0.59.0
       version: 0.59.0
-    '@effect/platform':
-      specifier: 0.93.1
-      version: 0.93.1
     '@effect/sql':
       specifier: 0.48.6
       version: 0.48.0
@@ -33,9 +27,6 @@ catalogs:
     '@electric-sql/pglite':
       specifier: 0.3.14
       version: 0.3.14
-    '@electric-sql/pglite-tools':
-      specifier: 0.2.19
-      version: 0.2.19
     drizzle-orm:
       specifier: 0.45.0
       version: 0.45.0
@@ -101,6 +92,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 1.24.3
         version: 1.24.3(zod@4.1.13)
+      '@monaco-editor/react':
+        specifier: ^4.7.0
+        version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
       '@tailwindcss/vite':
         specifier: 4.1.17
         version: 4.1.17(vite@7.2.6(@types/node@24.10.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0))
@@ -176,9 +170,9 @@ importers:
       lucide-react:
         specifier: 0.555.0
         version: 0.555.0(react@19.2.1)
-      modern-monaco:
-        specifier: ^0.3.6
-        version: 0.3.6(typescript@5.9.3)
+      monaco-editor:
+        specifier: ^0.55.1
+        version: 0.55.1
       nanoid:
         specifier: 5.1.6
         version: 5.1.6
@@ -224,6 +218,9 @@ importers:
       tailwindcss:
         specifier: 4.1.17
         version: 4.1.17
+      tm-themes:
+        specifier: ^1.10.13
+        version: 1.10.13
       tw-animate-css:
         specifier: 1.4.0
         version: 1.4.0
@@ -1421,6 +1418,16 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
+  '@monaco-editor/loader@1.7.0':
+    resolution: {integrity: sha512-gIwR1HrJrrx+vfyOhYmCZ0/JcWqG5kbfG7+d3f/C1LXk2EvzAbHSg3MQ5lO2sMlo9izoAZ04shohfKLVT6crVA==}
+
+  '@monaco-editor/react@4.7.0':
+    resolution: {integrity: sha512-cyzXQCtO47ydzxpQtCGSQGOC8Gk3ZUeBXFAxD+CWXYFo5OqZyZUonFl0DwUlTyAfRHntBfw2p3w4s9R6oe1eCA==}
+    peerDependencies:
+      monaco-editor: '>= 0.25.0 < 1'
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     resolution: {integrity: sha512-QZHtlVgbAdy2zAqNA9Gu1UpIuI8Xvsd1v8ic6B2pZmeFnFcMWiPLfWXh7TVw4eGEZ/C9TH281KwhVoeQUKbyjw==}
     cpu: [arm64]
@@ -2351,6 +2358,9 @@ packages:
   '@types/react@19.2.7':
     resolution: {integrity: sha512-MWtvHrGZLFttgeEj28VXHxpmwYbor/ATPYbBfSFZEIRK0ecCFLl2Qo55z52Hss+UV9CRN7trSeq1zbgx7YDWWg==}
 
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
+
   '@types/unist@2.0.11':
     resolution: {integrity: sha512-CmBKiL6NNo/OqgmMn95Fk9Whlp2mtvIv+KNpQKN2F4SjvrEesubTRWGYSg+BnWZOnlCaSTU1sMpsBOzgbYhnsA==}
 
@@ -3071,6 +3081,9 @@ packages:
   domhandler@5.0.3:
     resolution: {integrity: sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w==}
     engines: {node: '>= 4'}
+
+  dompurify@3.2.7:
+    resolution: {integrity: sha512-WhL/YuveyGXJaerVlMYGWhvQswa7myDG17P7Vu65EWC05o8vfeNbvNf4d/BOvH99+ZW+LlQsc1GDKMa1vNK6dw==}
 
   domutils@3.2.2:
     resolution: {integrity: sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==}
@@ -3940,6 +3953,11 @@ packages:
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
 
+  marked@14.0.0:
+    resolution: {integrity: sha512-uIj4+faQ+MgHgwUW1l2PsPglZLOLOT1uErt06dAPtx2kjteLAkbsd/0FiYg/MGS+i7ZKLb7w2WClxHkzOOuryQ==}
+    engines: {node: '>= 18'}
+    hasBin: true
+
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
@@ -4126,10 +4144,8 @@ packages:
   mkdirp-classic@0.5.3:
     resolution: {integrity: sha512-gKLcREMhtuZRwRAfqP3RFW+TK4JqApVBtOIftVgjuABpAtpxhPGaDcfvbhNvD0B8iD1oUr/txX35NjcaY6Ns/A==}
 
-  modern-monaco@0.3.6:
-    resolution: {integrity: sha512-yU50M6So3/I09EujPqmgAEu0ruDL5WsQqR6zFpW0RlQyf6PYdArhS1Puba/yrhnSRe/uMXKyjc5iBvYUIPtKPg==}
-    peerDependencies:
-      typescript: '>= 5.0.0'
+  monaco-editor@0.55.1:
+    resolution: {integrity: sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A==}
 
   moo@0.5.2:
     resolution: {integrity: sha512-iSAJLHYKnX41mKcJKjqvnAN9sf0LMDTXDEvFv+ffuRR9a1MIuXLjMNL6EsnDHSkKLTWNqQQ5uo61P4EbU4NU+Q==}
@@ -4762,6 +4778,9 @@ packages:
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
 
+  state-local@1.0.7:
+    resolution: {integrity: sha512-HTEHMNieakEnoe33shBYcZ7NX83ACUjCu8c40iOGEZsngj9zRnkqS9j1pqQPXwobB0ZcVTk27REb7COQ0UR59w==}
+
   statuses@2.0.2:
     resolution: {integrity: sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==}
     engines: {node: '>= 0.8'}
@@ -4865,6 +4884,9 @@ packages:
   tldts@7.0.19:
     resolution: {integrity: sha512-8PWx8tvC4jDB39BQw1m4x8y5MH1BcQ5xHeL2n7UVFulMPH/3Q0uiamahFJ3lXA0zO2SUyRXuVVbWSDmstlt9YA==}
     hasBin: true
+
+  tm-themes@1.10.13:
+    resolution: {integrity: sha512-ErqacfNfLa98SME1W6CHThQIQbFnPKEkJRAAPL/sqD1jjdlv4pHH1HzoeZHkjyCjLDW47Q49uhmy1uPwL2FzRg==}
 
   to-regex-range@5.0.1:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
@@ -6345,6 +6367,17 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@monaco-editor/loader@1.7.0':
+    dependencies:
+      state-local: 1.0.7
+
+  '@monaco-editor/react@4.7.0(monaco-editor@0.55.1)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)':
+    dependencies:
+      '@monaco-editor/loader': 1.7.0
+      monaco-editor: 0.55.1
+      react: 19.2.1
+      react-dom: 19.2.1(react@19.2.1)
+
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.3':
     optional: true
 
@@ -7271,6 +7304,9 @@ snapshots:
   '@types/react@19.2.7':
     dependencies:
       csstype: 3.2.3
+
+  '@types/trusted-types@2.0.7':
+    optional: true
 
   '@types/unist@2.0.11': {}
 
@@ -8290,6 +8326,10 @@ snapshots:
     dependencies:
       domelementtype: 2.3.0
 
+  dompurify@3.2.7:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
+
   domutils@3.2.2:
     dependencies:
       dom-serializer: 2.0.0
@@ -9194,6 +9234,8 @@ snapshots:
 
   markdown-table@3.0.4: {}
 
+  marked@14.0.0: {}
+
   math-intrinsics@1.1.0: {}
 
   mdast-util-find-and-replace@3.0.2:
@@ -9580,9 +9622,10 @@ snapshots:
 
   mkdirp-classic@0.5.3: {}
 
-  modern-monaco@0.3.6(typescript@5.9.3):
+  monaco-editor@0.55.1:
     dependencies:
-      typescript: 5.9.3
+      dompurify: 3.2.7
+      marked: 14.0.0
 
   moo@0.5.2: {}
 
@@ -10322,6 +10365,8 @@ snapshots:
 
   stackback@0.0.2: {}
 
+  state-local@1.0.7: {}
+
   statuses@2.0.2: {}
 
   std-env@3.10.0: {}
@@ -10423,6 +10468,8 @@ snapshots:
     dependencies:
       tldts-core: 7.0.19
     optional: true
+
+  tm-themes@1.10.13: {}
 
   to-regex-range@5.0.1:
     dependencies:
