@@ -49,11 +49,12 @@ const JOIN_KEYWORDS = "FROM|JOIN|INNER\\s+JOIN|LEFT\\s+JOIN|RIGHT\\s+JOIN|FULL\\
 const REGEX_SELECT_START = /\bselect\s+$/i;
 const REGEX_SELECT_ASTERISK = /\bselect\s+\*\s+$/i;
 const REGEX_COLUMN_OPERATOR = /\b(WHERE|ON|HAVING|AND|OR)\s+(?:"[^"]+"|[\w]+)\.(?:"[^"]+"|[\w]+)\s+$/i;
-const REGEX_TABLE_ALIAS = /\bAS\s+(\w*)\s*$/i;
+const REGEX_TABLE_ALIAS_INCOMPLETE = /\bAS\s*$/i;
+const REGEX_TABLE_ALIAS_COMPLETE = /\bAS\s+(\w+)\s*$/i;
 const REGEX_FROM_KEYWORD = /\bfrom\s+$/i;
 const REGEX_TABLE_NAME = new RegExp(`\\b(?:${JOIN_KEYWORDS})\\s+(?:"[^"]*"|\\w*)$`, "i");
 const REGEX_SELECT_QUALIFIED = /\bSELECT\s+(?:"[^"]*"|\w+)\.(?:"[^"]*"|\w+)\s*$/i;
-const REGEX_KEYWORD_AFTER_TABLE = new RegExp(`\\b(${JOIN_KEYWORDS})\\s+(\\w+|"\\w+")\\s+$`, "i");
+const REGEX_KEYWORD_AFTER_TABLE = new RegExp(`\\b(${JOIN_KEYWORDS})\\s+(\\w+|"\\w+")(AS\s+(\w*))?\\s+$`, "i");
 const REGEX_TABLE_PATTERN = new RegExp(`\\b(?:${JOIN_KEYWORDS})\\s+(?:"([^"]+)"|(\\w+))`, "gi");
 const REGEX_KEYWORD_PATTERN = /\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|CROSS|ON|ORDER|GROUP|HAVING|LIMIT|AND|OR)\b/gi;
 const REGEX_FUNCTION_WITH_TABLE = /\b(COUNT|SUM|AVG|MAX|MIN|LOWER|UPPER|COALESCE|CASE|EXISTS)\s*\(\s*(?:"[^"]+"|[\w]+)\.$/i;
@@ -116,8 +117,18 @@ export function detectCompletionContext(
         };
     }
 
-    // Check if we're after "AS" keyword (table alias context)
-    const aliasMatch = REGEX_TABLE_ALIAS.exec(beforeCursor);
+    // Check if we're in the middle of typing an alias (just "AS " with nothing after) - no suggestions
+    if (REGEX_TABLE_ALIAS_INCOMPLETE.test(beforeCursor)) {
+        return {
+            type: "none",
+            selectedTables,
+            isAtLineStart,
+            beforeCursor,
+        };
+    }
+
+    // Check if we're after a complete alias ("AS aliasName ") - should suggest keywords
+    const aliasMatch = REGEX_TABLE_ALIAS_COMPLETE.exec(beforeCursor);
     if (aliasMatch) {
         return {
             type: "table_alias",
@@ -340,7 +351,7 @@ export function createColumnCompletion(
  * Get SQL keywords that are contextually appropriate
  */
 export function getContextualKeywords(context: CompletionContext): SqlKeyword[] {
-    if (context.type === "keyword_after_table") {
+    if (context.type === "keyword_after_table" || context.type === "table_alias") {
         // After a table, suggest common SQL keywords
         return [
             "WHERE",

@@ -1977,6 +1977,64 @@ describe("sqlCompletionProvider", () => {
             );
 
             expect(suggestions.length).toBe(0);
+            expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`[]`)
+        });
+
+        it("should suggest keywords when typing after AS alias in FROM clause", () => {
+            const suggestions = sqlCompletionProvider(
+                {
+                    fullText: 'select * from "accounting_imports" AS alias ',
+                    cursorOffset: 45,
+                },
+                contextWithAccountingTable,
+                mockMonaco,
+            );
+
+            expect(suggestions.length).toBe(8);
+            expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WHERE",
+                  "sortText": "2_WHERE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ORDER BY",
+                  "sortText": "2_ORDER BY",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "GROUP BY",
+                  "sortText": "2_GROUP BY",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "LIMIT",
+                  "sortText": "2_LIMIT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "JOIN",
+                  "sortText": "2_JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "LEFT JOIN",
+                  "sortText": "2_LEFT JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INNER JOIN",
+                  "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AS",
+                  "sortText": "2_AS",
+                },
+              ]
+            `)
         });
 
         it("should suggest asterisk as first suggestion in SELECT clause", () => {
