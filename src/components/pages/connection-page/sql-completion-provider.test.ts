@@ -1990,7 +1990,7 @@ describe("sqlCompletionProvider", () => {
 				mockMonaco,
 			);
 
-			expect(suggestions.length).toBe(8);
+			expect(suggestions.length).toBe(7);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
@@ -2027,11 +2027,6 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
-                },
-                {
-                  "detail": "SQL Keyword",
-                  "label": "AS",
-                  "sortText": "2_AS",
                 },
               ]
             `);

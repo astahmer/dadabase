@@ -488,7 +488,7 @@ export function getContextualKeywords(
 		context.type === "table_alias"
 	) {
 		// After a table, suggest common SQL keywords
-		return [
+		const keywords: SqlKeyword[] = [
 			"WHERE",
 			"ORDER BY",
 			"GROUP BY",
@@ -496,8 +496,15 @@ export function getContextualKeywords(
 			"JOIN",
 			"LEFT JOIN",
 			"INNER JOIN",
-			"AS",
 		];
+
+		// Only suggest AS for keyword_after_table (when we have a table name but haven't aliased yet)
+		// Don't suggest it for table_alias (we just completed an alias)
+		if (context.type === "keyword_after_table") {
+			keywords.push("AS");
+		}
+
+		return keywords;
 	}
 
 	if (context.type === "empty_line") {
