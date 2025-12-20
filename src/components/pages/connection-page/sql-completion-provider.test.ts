@@ -38,33 +38,145 @@ describe("sqlCompletionProvider", () => {
 		{
 			table: "users",
 			columns: [
-				{ name: "id", dataType: "integer" },
-				{ name: "email", dataType: "varchar" },
-				{ name: "created_at", dataType: "timestamp" },
-				{ name: "updated_at", dataType: "timestamp" },
-				{ name: "name", dataType: "varchar" },
+				{
+					name: "id",
+					dataType: "integer",
+					nullable: false,
+					primaryKey: true,
+					unique: true,
+					defaultValue: null,
+					isForeignKey: false,
+				},
+				{
+					name: "email",
+					dataType: "varchar",
+					nullable: false,
+					primaryKey: false,
+					unique: true,
+					defaultValue: null,
+					isForeignKey: false,
+				},
+				{
+					name: "created_at",
+					dataType: "timestamp",
+					nullable: false,
+					primaryKey: false,
+					unique: false,
+					defaultValue: null,
+					isForeignKey: false,
+				},
+				{
+					name: "updated_at",
+					dataType: "timestamp",
+					nullable: true,
+					primaryKey: false,
+					unique: false,
+					defaultValue: null,
+					isForeignKey: false,
+				},
+				{
+					name: "name",
+					dataType: "varchar",
+					nullable: true,
+					primaryKey: false,
+					unique: false,
+					defaultValue: null,
+					isForeignKey: false,
+				},
 			],
 		},
 		{
 			table: "posts",
 			columns: [
-				{ name: "id", dataType: "integer" },
-				{ name: "title", dataType: "varchar" },
-				{ name: "content", dataType: "text" },
-				{ name: "user_id", dataType: "integer" },
-				{ name: "created_at", dataType: "timestamp" },
+				{
+					name: "id",
+					dataType: "integer",
+					nullable: false,
+					primaryKey: true,
+					unique: true,
+					defaultValue: null,
+					isForeignKey: false,
+				},
+				{
+					name: "title",
+					dataType: "varchar",
+					nullable: false,
+					primaryKey: false,
+					unique: false,
+					defaultValue: null,
+					isForeignKey: false,
+				},
+				{
+					name: "content",
+					dataType: "text",
+					nullable: true,
+					primaryKey: false,
+					unique: false,
+					defaultValue: null,
+					isForeignKey: false,
+				},
+				{
+					name: "user_id",
+					dataType: "integer",
+					nullable: false,
+					primaryKey: false,
+					unique: false,
+					defaultValue: null,
+					isForeignKey: true,
+				},
+				{
+					name: "created_at",
+					dataType: "timestamp",
+					nullable: false,
+					primaryKey: false,
+					unique: false,
+					defaultValue: null,
+					isForeignKey: false,
+				},
 			],
 		},
 		{
 			table: "comments",
 			columns: [
-				{ name: "id", dataType: "integer" },
-				{ name: "text", dataType: "text" },
-				{ name: "post_id", dataType: "integer" },
-				{ name: "user_id", dataType: "integer" },
+				{
+					name: "id",
+					dataType: "integer",
+					nullable: false,
+					primaryKey: true,
+					unique: true,
+					defaultValue: null,
+					isForeignKey: false,
+				},
+				{
+					name: "text",
+					dataType: "text",
+					nullable: false,
+					primaryKey: false,
+					unique: false,
+					defaultValue: null,
+					isForeignKey: false,
+				},
+				{
+					name: "post_id",
+					dataType: "integer",
+					nullable: false,
+					primaryKey: false,
+					unique: false,
+					defaultValue: null,
+					isForeignKey: true,
+				},
+				{
+					name: "user_id",
+					dataType: "integer",
+					nullable: false,
+					primaryKey: false,
+					unique: false,
+					defaultValue: null,
+					isForeignKey: true,
+				},
 			],
 		},
-	] as any as TableWithColumnsMetadata[];
+	] as TableWithColumnsMetadata[];
 
 	const singleSchemaContext = {
 		tables: mockTables,
@@ -328,72 +440,72 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "posts.id",
                   "sortText": "1_posts.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "posts.created_at",
                   "sortText": "1_posts.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "comments.id",
                   "sortText": "1_comments.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -430,72 +542,72 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "posts.id",
                   "sortText": "1_posts.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "posts.created_at",
                   "sortText": "1_posts.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "comments.id",
                   "sortText": "1_comments.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -530,72 +642,72 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "posts.id",
                   "sortText": "1_posts.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "posts.created_at",
                   "sortText": "1_posts.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "comments.id",
                   "sortText": "1_comments.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -631,72 +743,72 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "posts.id",
                   "sortText": "1_posts.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "posts.created_at",
                   "sortText": "1_posts.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "comments.id",
                   "sortText": "1_comments.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -734,72 +846,72 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "posts.id",
                   "sortText": "1_posts.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "posts.created_at",
                   "sortText": "1_posts.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "comments.id",
                   "sortText": "1_comments.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -1071,27 +1183,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -1112,27 +1224,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -1162,72 +1274,72 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "0_*",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "posts.id",
                   "sortText": "1_posts.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "posts.created_at",
                   "sortText": "1_posts.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "comments.id",
                   "sortText": "1_comments.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -1248,27 +1360,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
@@ -1288,42 +1400,42 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -1343,27 +1455,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -1391,42 +1503,42 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -1446,27 +1558,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -1608,31 +1720,31 @@ describe("sqlCompletionProvider", () => {
 			);
 
 			const columnSuggestion = suggestions.find((s) => s.label === "users.id");
-			expect(columnSuggestion?.detail).toBe("Column");
+			expect(columnSuggestion?.detail).toBe("integer | PRIMARY KEY | UNIQUE");
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -1814,72 +1926,72 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "posts.id",
                   "sortText": "1_posts.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "posts.created_at",
                   "sortText": "1_posts.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "comments.id",
                   "sortText": "1_comments.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -1898,10 +2010,42 @@ describe("sqlCompletionProvider", () => {
 			{
 				table: "accounting_imports",
 				columns: [
-					{ name: "id", dataType: "integer" },
-					{ name: "created_at", dataType: "timestamp" },
-					{ name: "updated_at", dataType: "timestamp" },
-					{ name: "account_id", dataType: "integer" },
+					{
+						name: "id",
+						dataType: "integer",
+						nullable: false,
+						primaryKey: true,
+						unique: true,
+						defaultValue: null,
+						isForeignKey: false,
+					},
+					{
+						name: "created_at",
+						dataType: "timestamp",
+						nullable: false,
+						primaryKey: false,
+						unique: false,
+						defaultValue: null,
+						isForeignKey: false,
+					},
+					{
+						name: "updated_at",
+						dataType: "timestamp",
+						nullable: false,
+						primaryKey: false,
+						unique: false,
+						defaultValue: null,
+						isForeignKey: false,
+					},
+					{
+						name: "account_id",
+						dataType: "integer",
+						nullable: false,
+						primaryKey: false,
+						unique: false,
+						defaultValue: null,
+						isForeignKey: true,
+					},
 				],
 			},
 			...mockColumns,
@@ -1932,22 +2076,22 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "accounting_imports.id",
                   "sortText": "1_accounting_imports.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "accounting_imports.created_at",
                   "sortText": "1_accounting_imports.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "accounting_imports.updated_at",
                   "sortText": "1_accounting_imports.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "accounting_imports.account_id",
                   "sortText": "1_accounting_imports.account_id",
                 },
@@ -1973,22 +2117,22 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "accounting_imports.id",
                   "sortText": "1_accounting_imports.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "accounting_imports.created_at",
                   "sortText": "1_accounting_imports.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "accounting_imports.updated_at",
                   "sortText": "1_accounting_imports.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "accounting_imports.account_id",
                   "sortText": "1_accounting_imports.account_id",
                 },
@@ -2091,92 +2235,92 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "0_*",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "accounting_imports.id",
                   "sortText": "1_accounting_imports.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "accounting_imports.created_at",
                   "sortText": "1_accounting_imports.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "accounting_imports.updated_at",
                   "sortText": "1_accounting_imports.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "accounting_imports.account_id",
                   "sortText": "1_accounting_imports.account_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "posts.id",
                   "sortText": "1_posts.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "posts.created_at",
                   "sortText": "1_posts.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "comments.id",
                   "sortText": "1_comments.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -2391,52 +2535,52 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
@@ -2459,52 +2603,52 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "title",
                   "sortText": "1_title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "content",
                   "sortText": "1_content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "user_id",
                   "sortText": "1_user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "text",
                   "sortText": "1_text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "post_id",
                   "sortText": "1_post_id",
                 },
@@ -2527,52 +2671,52 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "title",
                   "sortText": "1_title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "content",
                   "sortText": "1_content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "user_id",
                   "sortText": "1_user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "text",
                   "sortText": "1_text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "post_id",
                   "sortText": "1_post_id",
                 },
@@ -2595,52 +2739,52 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
@@ -2666,52 +2810,52 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "title",
                   "sortText": "1_title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "content",
                   "sortText": "1_content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "user_id",
                   "sortText": "1_user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "text",
                   "sortText": "1_text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "post_id",
                   "sortText": "1_post_id",
                 },
@@ -2933,42 +3077,42 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "title",
                   "sortText": "1_title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "content",
                   "sortText": "1_content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "user_id",
                   "sortText": "1_user_id",
                 },
@@ -3075,42 +3219,42 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -3137,52 +3281,52 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
@@ -3207,27 +3351,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -3333,27 +3477,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -3378,27 +3522,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -3419,27 +3563,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -3461,27 +3605,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -3508,27 +3652,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -3549,27 +3693,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -3598,72 +3742,72 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "0_*",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "posts.id",
                   "sortText": "1_posts.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "posts.created_at",
                   "sortText": "1_posts.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "comments.id",
                   "sortText": "1_comments.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -3777,42 +3921,42 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "title",
                   "sortText": "1_title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "content",
                   "sortText": "1_content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "user_id",
                   "sortText": "1_user_id",
                 },
@@ -3837,27 +3981,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -3882,27 +4026,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
@@ -3927,27 +4071,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
@@ -3968,27 +4112,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -4007,27 +4151,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -4053,27 +4197,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
@@ -4096,27 +4240,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
@@ -4140,52 +4284,52 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "posts.title",
                   "sortText": "1_posts.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "posts.content",
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text",
                   "label": "comments.text",
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
@@ -4210,27 +4354,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
@@ -4256,27 +4400,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "id",
                   "sortText": "1_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "email",
                   "sortText": "1_email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "created_at",
                   "sortText": "1_created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "updated_at",
                   "sortText": "1_updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "name",
                   "sortText": "1_name",
                 },
@@ -4333,27 +4477,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "users.id",
                   "sortText": "1_users.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "users.email",
                   "sortText": "1_users.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "users.created_at",
                   "sortText": "1_users.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "users.updated_at",
                   "sortText": "1_users.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "users.name",
                   "sortText": "1_users.name",
                 },
@@ -4378,27 +4522,27 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "u.id",
                   "sortText": "1_u.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "u.email",
                   "sortText": "1_u.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "u.created_at",
                   "sortText": "1_u.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "u.updated_at",
                   "sortText": "1_u.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "u.name",
                   "sortText": "1_u.name",
                 },
@@ -4425,52 +4569,52 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "u.id",
                   "sortText": "1_u.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | UNIQUE",
                   "label": "u.email",
                   "sortText": "1_u.email",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "u.created_at",
                   "sortText": "1_u.created_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp | nullable",
                   "label": "u.updated_at",
                   "sortText": "1_u.updated_at",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar | nullable",
                   "label": "u.name",
                   "sortText": "1_u.name",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
                   "label": "p.id",
                   "sortText": "1_p.id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "varchar",
                   "label": "p.title",
                   "sortText": "1_p.title",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "text | nullable",
                   "label": "p.content",
                   "sortText": "1_p.content",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "integer | FOREIGN KEY",
                   "label": "p.user_id",
                   "sortText": "1_p.user_id",
                 },
                 {
-                  "detail": "Column",
+                  "detail": "timestamp",
                   "label": "p.created_at",
                   "sortText": "1_p.created_at",
                 },

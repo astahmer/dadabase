@@ -1,5 +1,8 @@
 import type * as MonacoType from "monaco-editor";
-import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
+import type {
+	TableColumnMetadata,
+	TableWithColumnsMetadata,
+} from "#src/server/introspection/introspection.ts";
 import {
 	createAsteriskCompletion,
 	createColumnCompletion,
@@ -41,7 +44,13 @@ export function sqlCompletionProvider(
 			if (tableCols) {
 				for (const col of tableCols) {
 					suggestions.push(
-						createColumnCompletion(col.name, table.name, cursorContext, monaco),
+						createColumnCompletion(
+							col.name,
+							table.name,
+							cursorContext,
+							monaco,
+							col,
+						),
 					);
 				}
 			}
@@ -114,7 +123,13 @@ export function sqlCompletionProvider(
 				// Limit to first 5 columns per table to avoid clutter
 				for (const col of tableCols.slice(0, 5)) {
 					suggestions.push(
-						createColumnCompletion(col.name, table.name, cursorContext, monaco),
+						createColumnCompletion(
+							col.name,
+							table.name,
+							cursorContext,
+							monaco,
+							col,
+						),
 					);
 				}
 			}
@@ -154,40 +169,45 @@ export function sqlCompletionProvider(
 		const shouldKeepAllColumns =
 			selectedTables.length > 1 && allTablesAreAliased;
 
-		// Map of either "colName" or "tableName.colName" to tableName
-		const availableColumns = new Map<string, string>();
+		// Map of either "colName" or "tableName.colName" to { tableName, metadata }
+		const availableColumns = new Map<
+			string,
+			{ tableName: string; metadata?: TableColumnMetadata }
+		>();
 
 		for (const tableName of selectedTables) {
-			const tableCols = context.columns.find(
-				(c) => c.table === tableName,
-			)?.columns;
-			if (tableCols) {
-				for (const col of tableCols) {
+			const tableMetadata = context.columns.find((c) => c.table === tableName);
+			if (tableMetadata?.columns) {
+				for (const col of tableMetadata.columns) {
 					// Create key for uniqueness - use table.column when we need to keep all columns
 					const key = shouldKeepAllColumns
 						? `${tableName}.${col.name}`
 						: col.name;
-					// Track which table this column came from
+					// Track which table this column came from and its metadata
 					if (!availableColumns.has(key)) {
-						availableColumns.set(key, tableName);
+						availableColumns.set(key, { tableName, metadata: col });
 					}
 				}
 			}
 		}
 
 		suggestions.push(
-			...Array.from(availableColumns.entries()).map(([_key, tableName]) => {
-				// Extract column name from key (either "col" or "table.col")
-				const colName = shouldKeepAllColumns ? _key.split(".")[1] : _key;
-				// Use alias if available, otherwise use table name
-				const tableRefName = cursorContext.tableAliases[tableName] ?? tableName;
-				return createColumnCompletion(
-					colName,
-					tableRefName,
-					cursorContext,
-					monaco,
-				);
-			}),
+			...Array.from(availableColumns.entries()).map(
+				([_key, { tableName, metadata }]) => {
+					// Extract column name from key (either "col" or "table.col")
+					const colName = shouldKeepAllColumns ? _key.split(".")[1] : _key;
+					// Use alias if available, otherwise use table name
+					const tableRefName =
+						cursorContext.tableAliases[tableName] ?? tableName;
+					return createColumnCompletion(
+						colName,
+						tableRefName,
+						cursorContext,
+						monaco,
+						metadata,
+					);
+				},
+			),
 		);
 	}
 

@@ -2,6 +2,8 @@
  * Advanced SQL completion helper for intelligent suggestion context detection
  */
 
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
+
 export interface CompletionContext {
 	type:
 		| "none"
@@ -549,6 +551,39 @@ export function createTableCompletion(
 }
 
 /**
+ * Format column metadata for display in completions
+ */
+function formatColumnMetadata(
+	metadata: TableColumnMetadata | undefined,
+): string {
+	if (!metadata) return "Column";
+
+	const parts: string[] = [metadata.dataType];
+
+	if (metadata.nullable) {
+		parts.push("nullable");
+	}
+
+	if (metadata.primaryKey) {
+		parts.push("PRIMARY KEY");
+	}
+
+	if (metadata.unique) {
+		parts.push("UNIQUE");
+	}
+
+	if (metadata.isForeignKey) {
+		parts.push("FOREIGN KEY");
+	}
+
+	if (metadata.defaultValue) {
+		parts.push(`default: ${metadata.defaultValue}`);
+	}
+
+	return parts.join(" | ");
+}
+
+/**
  * Generate completion item for a column with smart insert text
  */
 export function createColumnCompletion(
@@ -556,6 +591,7 @@ export function createColumnCompletion(
 	tableName: string | null,
 	context: CompletionContext,
 	monaco: any,
+	metadata?: TableColumnMetadata,
 ) {
 	// Determine whether to use qualified column names (with table prefix) in insertText
 	// Use unqualified for ORDER BY, GROUP BY, HAVING contexts
@@ -593,7 +629,7 @@ export function createColumnCompletion(
 	return {
 		label: label,
 		kind: monaco.languages.CompletionItemKind.Field,
-		detail: "Column",
+		detail: formatColumnMetadata(metadata),
 		insertText,
 		sortText: `1_${label}`,
 		range: undefined,
