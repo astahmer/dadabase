@@ -265,19 +265,22 @@ export function createColumnCompletion(
     context: CompletionContext,
     monaco: any,
 ) {
-    let insertText = `"${columnName}"`;
+    let insertText = `${tableName ? `"${tableName}".` : ""}"${columnName}"`;
 
     // When on empty line with columns, insert select column from table
     if (context.type === "empty_line" && tableName) {
         insertText = `SELECT "${columnName}" FROM "${tableName}"`;
     }
 
+
+    const label = tableName ? `${tableName}.${columnName}` : columnName;
+
     return {
-        label: columnName,
+        label: label,
         kind: monaco.languages.CompletionItemKind.Field,
         detail: "Column",
         insertText,
-        sortText: `1_${columnName}`,
+        sortText: `1_${label}`,
         range: undefined,
     } as any;
 }

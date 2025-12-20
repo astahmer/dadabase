@@ -16,7 +16,10 @@ import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { cn } from "#src/lib/utils.ts";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
 import { Portal } from "@ark-ui/react";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
+import type {
+	TableColumnMetadata,
+	TableWithColumnsMetadata,
+} from "#src/server/introspection/introspection.ts";
 
 interface SqlQueryPreviewProps {
 	/** The raw SQL query string */
@@ -56,7 +59,7 @@ interface SqlQueryPreviewProps {
 	/** Available tables for intellisense suggestions */
 	tables?: Array<{ schema: string; name: string }>;
 	/** Available columns grouped by table */
-	columns?: Record<string, Array<TableColumnMetadata>>;
+	columns?: TableWithColumnsMetadata[];
 	/** Custom CSS class */
 	className?: string;
 }
@@ -89,7 +92,7 @@ export function SqlQueryPreview({
 	isCollapsed = true,
 	onToggleCollapsed,
 	tables = [],
-	columns = {},
+	columns = [],
 	className,
 }: SqlQueryPreviewProps) {
 	const [copied, setCopied] = useState(false);

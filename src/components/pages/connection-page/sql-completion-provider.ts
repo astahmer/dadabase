@@ -9,6 +9,7 @@ import {
     detectCompletionContext,
     getContextualKeywords,
 } from "./sql-completion-helper";
+import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 
 
 export function sqlCompletionProvider(
@@ -18,7 +19,7 @@ export function sqlCompletionProvider(
     },
     context: {
         tables: Array<{ schema: string; name: string }>;
-        columns: Record<string, Array<{ name: string; dataType: string }>>;
+        columns: TableWithColumnsMetadata[];
         hasMultipleSchemas: boolean;
     },
     monaco: typeof MonacoType,
@@ -34,12 +35,12 @@ export function sqlCompletionProvider(
 
         // Add all table.column combinations
         for (const table of context.tables) {
-            const tableCols = context.columns[table.name];
+            const tableCols = context.columns.find(c => c.table === table.name)?.columns;
             if (tableCols) {
                 for (const col of tableCols) {
                     suggestions.push(
                         createColumnCompletion(
-                            `${table.name}.${col.name}`,
+                            col.name,
                             table.name,
                             cursorContext,
                             monaco,
@@ -105,7 +106,7 @@ export function sqlCompletionProvider(
 
         // Also suggest table.column combinations
         for (const table of context.tables) {
-            const tableCols = context.columns[table.name];
+            const tableCols = context.columns.find(c => c.table === table.name)?.columns;
             if (tableCols && tableCols.length > 0) {
                 // Limit to first 5 columns per table to avoid clutter
                 for (const col of tableCols.slice(0, 5)) {
@@ -141,7 +142,7 @@ export function sqlCompletionProvider(
         const availableColumns = new Map<string, string>();
 
         for (const tableName of selectedTables) {
-            const tableCols = context.columns[tableName];
+            const tableCols = context.columns.find(c => c.table === tableName)?.columns;
             if (tableCols) {
                 for (const col of tableCols) {
                     // Use column name as key, but track which table it came from
@@ -159,6 +160,9 @@ export function sqlCompletionProvider(
             ),
         );
     }
+
+    console.log("context", { cursorContext, context, suggestions });
+
 
     return suggestions;
 }

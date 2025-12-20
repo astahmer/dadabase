@@ -1,11 +1,20 @@
 import type * as MonacoType from "monaco-editor";
 import { describe, expect, it } from "vitest";
 import { sqlCompletionProvider } from "./sql-completion-provider";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
+import type {
+    TableColumnMetadata,
+    TableWithColumnsMetadata,
+} from "#src/server/introspection/introspection.ts";
 
-const printSuggestions = (suggestions: MonacoType.languages.CompletionItem[]) => {
-    return suggestions.map((s) => ({ detail: s.detail, label: s.label, sortText: s.sortText }));
-}
+const printSuggestions = (
+    suggestions: MonacoType.languages.CompletionItem[],
+) => {
+    return suggestions.map((s) => ({
+        detail: s.detail,
+        label: s.label,
+        sortText: s.sortText,
+    }));
+};
 
 describe("sqlCompletionProvider", () => {
     // Mock Monaco object for testing
@@ -25,28 +34,37 @@ describe("sqlCompletionProvider", () => {
         { schema: "public", name: "comments" },
     ];
 
-    const mockColumns = {
-        users: [
-            { name: "id", dataType: "integer" },
-            { name: "email", dataType: "varchar" },
-            { name: "created_at", dataType: "timestamp" },
-            { name: "updated_at", dataType: "timestamp" },
-            { name: "name", dataType: "varchar" },
-        ],
-        posts: [
-            { name: "id", dataType: "integer" },
-            { name: "title", dataType: "varchar" },
-            { name: "content", dataType: "text" },
-            { name: "user_id", dataType: "integer" },
-            { name: "created_at", dataType: "timestamp" },
-        ],
-        comments: [
-            { name: "id", dataType: "integer" },
-            { name: "text", dataType: "text" },
-            { name: "post_id", dataType: "integer" },
-            { name: "user_id", dataType: "integer" },
-        ],
-    } as any as Record<string, Array<TableColumnMetadata>>
+    const mockColumns = [
+        {
+            table: "users",
+            columns: [
+                { name: "id", dataType: "integer" },
+                { name: "email", dataType: "varchar" },
+                { name: "created_at", dataType: "timestamp" },
+                { name: "updated_at", dataType: "timestamp" },
+                { name: "name", dataType: "varchar" },
+            ],
+        },
+        {
+            table: "posts",
+            columns: [
+                { name: "id", dataType: "integer" },
+                { name: "title", dataType: "varchar" },
+                { name: "content", dataType: "text" },
+                { name: "user_id", dataType: "integer" },
+                { name: "created_at", dataType: "timestamp" },
+            ],
+        },
+        {
+            table: "comments",
+            columns: [
+                { name: "id", dataType: "integer" },
+                { name: "text", dataType: "text" },
+                { name: "post_id", dataType: "integer" },
+                { name: "user_id", dataType: "integer" },
+            ],
+        },
+    ] as any as TableWithColumnsMetadata[];
 
     const singleSchemaContext = {
         tables: mockTables,
@@ -65,7 +83,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM ", cursorOffset: 14 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const tableLabels = suggestions.map((s) => s.label);
@@ -90,14 +108,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest tables with correct insert text for single schema", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM ", cursorOffset: 14 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const usersSuggestion = suggestions.find((s) => s.label === "users");
@@ -121,14 +139,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest tables with schema-qualified insert text for multiple schemas", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM ", cursorOffset: 14 },
                 multiSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const usersSuggestion = suggestions.find((s) => s.label === "users");
@@ -152,14 +170,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should work case-insensitively with from keyword", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "select * from ", cursorOffset: 14 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const tableLabels = suggestions.map((s) => s.label);
@@ -183,7 +201,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -192,7 +210,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM u", cursorOffset: 16 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const tableLabels = suggestions.map((s) => s.label);
@@ -215,14 +233,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest tables after JOIN keyword", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users JOIN ", cursorOffset: 25 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const tableLabels = suggestions.map((s) => s.label);
@@ -246,14 +264,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest tables after LEFT JOIN keyword", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users LEFT JOIN p", cursorOffset: 32 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const tableLabels = suggestions.map((s) => s.label);
@@ -276,7 +294,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -285,7 +303,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "", cursorOffset: 0 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const tableLabels = suggestions.map((s) => s.label);
@@ -380,14 +398,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns from all tables on empty line", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "", cursorOffset: 0 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const columnLabels = suggestions.map((s) => s.label);
@@ -482,14 +500,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should insert full SELECT statement with table on empty line", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "", cursorOffset: 0 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const tablesSuggestion = suggestions.find((s) => s.label === "users");
@@ -582,14 +600,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should insert full SELECT statement with column on empty line", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "", cursorOffset: 0 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const columnSuggestion = suggestions.find((s) => s.label === "id");
@@ -683,14 +701,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should limit to 5 columns per table to avoid clutter", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "", cursorOffset: 0 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const columnLabels = suggestions.map((s) => s.label);
@@ -786,7 +804,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -795,7 +813,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users ", cursorOffset: 20 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const keywordLabels = suggestions.map((s) => s.label);
@@ -841,14 +859,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_INNER JOIN",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest JOIN keywords after table name", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users ", cursorOffset: 20 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const keywordLabels = suggestions.map((s) => s.label);
@@ -893,14 +911,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_INNER JOIN",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest keywords after quoted table name", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: 'SELECT * FROM "users" ', cursorOffset: 22 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const keywordLabels = suggestions.map((s) => s.label);
@@ -944,14 +962,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_INNER JOIN",
                 },
               ]
-            `)
+            `);
         });
 
         it("should insert keyword with trailing space", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users ", cursorOffset: 20 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const whereSuggestion = suggestions.find((s) => s.label === "WHERE");
@@ -994,7 +1012,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_INNER JOIN",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -1003,7 +1021,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users WHERE ", cursorOffset: 26 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const columnLabels = suggestions.map((s) => s.label);
@@ -1038,13 +1056,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest only columns from selected tables in WHERE clause", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users WHERE ", cursorOffset: 26 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const columnLabels = suggestions.map((s) => s.label);
@@ -1078,13 +1097,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after SELECT keyword", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT ", cursorOffset: 7 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const columnLabels = suggestions.map((s) => s.label);
@@ -1172,13 +1192,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after ORDER BY keyword", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users ORDER BY ", cursorOffset: 29 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const columnLabels = suggestions.map((s) => s.label);
@@ -1212,13 +1233,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after ON keyword in JOIN", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users JOIN posts ON ", cursorOffset: 34 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const columnLabels = suggestions.map((s) => s.label);
@@ -1266,13 +1288,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should insert quoted column name", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users WHERE ", cursorOffset: 26 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const idSuggestion = suggestions.find((s) => s.label === "id");
@@ -1305,7 +1328,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -1313,10 +1336,12 @@ describe("sqlCompletionProvider", () => {
         it("should track multiple tables from JOIN clause", () => {
             const suggestions = sqlCompletionProvider(
                 {
-                    fullText: "SELECT * FROM users JOIN posts ON users.id = posts.user_id WHERE ",
+                    fullText:
+                        "SELECT * FROM users JOIN posts ON users.id = posts.user_id WHERE ",
                     cursorOffset: 68,
                 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const columnLabels = suggestions.map((s) => s.label);
@@ -1366,13 +1391,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns from all tables when no table is tracked yet", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users WHERE ", cursorOffset: 26 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const columnLabels = suggestions.map((s) => s.label);
@@ -1405,7 +1431,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -1413,13 +1439,14 @@ describe("sqlCompletionProvider", () => {
         it("should return empty suggestions for unknown contexts", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT id FROM users ", cursorOffset: 21 },
-                singleSchemaContext, mockMonaco
+                singleSchemaContext,
+                mockMonaco,
             );
 
             // Cursor after table name and trailing space, should suggest keywords
             // This is actually a valid context (keyword_after_table)
             expect(suggestions.length).toBe(7);
-            expect(suggestions.some(s => s.label === "WHERE")).toBe(true);
+            expect(suggestions.some((s) => s.label === "WHERE")).toBe(true);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
@@ -1458,7 +1485,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_INNER JOIN",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -1466,7 +1493,8 @@ describe("sqlCompletionProvider", () => {
         it("should set proper sort order for tables before keywords", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM ", cursorOffset: 14 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const tableSuggestion = suggestions.find((s) => s.label === "users");
@@ -1489,13 +1517,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should set proper detail for table suggestions", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM ", cursorOffset: 14 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const tableSuggestion = suggestions.find((s) => s.label === "users");
@@ -1518,13 +1547,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should set proper detail for column suggestions", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users WHERE ", cursorOffset: 26 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const columnSuggestion = suggestions.find((s) => s.label === "id");
@@ -1557,13 +1587,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should set proper detail for keyword suggestions", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users ", cursorOffset: 20 },
-                singleSchemaContext, mockMonaco,
+                singleSchemaContext,
+                mockMonaco,
             );
 
             const keywordSuggestion = suggestions.find((s) => s.label === "WHERE");
@@ -1606,7 +1637,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_INNER JOIN",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -1615,18 +1646,18 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM ", cursorOffset: 14 },
                 { ...singleSchemaContext, tables: [] },
-                mockMonaco
+                mockMonaco,
             );
 
             expect(suggestions).toEqual([]);
-            expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`[]`)
+            expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`[]`);
         });
 
         it("should handle empty columns list", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "", cursorOffset: 0 },
-                { ...singleSchemaContext, columns: {} },
-                mockMonaco
+                { ...singleSchemaContext, columns: [] },
+                mockMonaco,
             );
 
             const tableLabels = suggestions.map((s) => s.label);
@@ -1651,7 +1682,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should handle table with no columns in metadata", () => {
@@ -1659,9 +1690,16 @@ describe("sqlCompletionProvider", () => {
                 { fullText: "", cursorOffset: 0 },
                 {
                     ...singleSchemaContext,
-                    columns: { users: [], posts: [], comments: [] },
+                    columns: [
+                        {
+                            table: "users",
+                            columns: [],
+                        },
+                        { table: "posts", columns: [] },
+                        { table: "comments", columns: [] },
+                    ],
                 },
-                mockMonaco
+                mockMonaco,
             );
 
             const tableLabels = suggestions.map((s) => s.label);
@@ -1686,14 +1724,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should handle whitespace-only input as empty line", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "   \n   ", cursorOffset: 7 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const tableLabels = suggestions.map((s) => s.label);
@@ -1786,9 +1824,8 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
-
     });
 
     describe("advanced completion scenarios", () => {
@@ -1797,15 +1834,18 @@ describe("sqlCompletionProvider", () => {
             ...mockTables,
         ];
 
-        const accountingColumns = {
-            accounting_imports: [
-                { name: "id", dataType: "integer" },
-                { name: "created_at", dataType: "timestamp" },
-                { name: "updated_at", dataType: "timestamp" },
-                { name: "account_id", dataType: "integer" },
-            ],
+        const accountingColumns = [
+            {
+                table: "accounting_imports",
+                columns: [
+                    { name: "id", dataType: "integer" },
+                    { name: "created_at", dataType: "timestamp" },
+                    { name: "updated_at", dataType: "timestamp" },
+                    { name: "account_id", dataType: "integer" },
+                ],
+            },
             ...mockColumns,
-        } as any as Record<string, Array<TableColumnMetadata>>;
+        ] as any as TableWithColumnsMetadata[];
 
         const contextWithAccountingTable = {
             tables: accountingTables,
@@ -1816,11 +1856,12 @@ describe("sqlCompletionProvider", () => {
         it("should suggest table columns when typing table.column (quoted table)", () => {
             const suggestions = sqlCompletionProvider(
                 {
-                    fullText: 'select * from "accounting_imports" WHERE "accounting_imports".',
+                    fullText:
+                        'select * from "accounting_imports" WHERE "accounting_imports".',
                     cursorOffset: 65,
                 },
                 contextWithAccountingTable,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -1851,17 +1892,18 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_account_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest table columns when typing table.column (unquoted table)", () => {
             const suggestions = sqlCompletionProvider(
                 {
-                    fullText: "select * from accounting_imports WHERE accounting_imports.",
+                    fullText:
+                        "select * from accounting_imports WHERE accounting_imports.",
                     cursorOffset: 59,
                 },
                 contextWithAccountingTable,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -1891,7 +1933,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_account_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest alias when typing after AS in FROM clause", () => {
@@ -1901,7 +1943,7 @@ describe("sqlCompletionProvider", () => {
                     cursorOffset: 40,
                 },
                 contextWithAccountingTable,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -1915,7 +1957,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_accounting_imports",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest asterisk as first suggestion in SELECT clause", () => {
@@ -1925,7 +1967,7 @@ describe("sqlCompletionProvider", () => {
                     cursorOffset: 7,
                 },
                 contextWithAccountingTable,
-                mockMonaco
+                mockMonaco,
             );
 
             // Asterisk should be first
@@ -2032,7 +2074,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest FROM keyword after SELECT *", () => {
@@ -2042,7 +2084,7 @@ describe("sqlCompletionProvider", () => {
                     cursorOffset: 9,
                 },
                 contextWithAccountingTable,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2056,17 +2098,18 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_FROM",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest operators after column in WHERE clause", () => {
             const suggestions = sqlCompletionProvider(
                 {
-                    fullText: 'select * from "accounting_imports" WHERE accounting_imports.created_at ',
+                    fullText:
+                        'select * from "accounting_imports" WHERE accounting_imports.created_at ',
                     cursorOffset: 74,
                 },
                 contextWithAccountingTable,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2143,7 +2186,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_IS NOT NULL",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -2152,7 +2195,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT COUNT(", cursorOffset: 13 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2214,14 +2257,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_post_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after SUM with table prefix", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT SUM(users.", cursorOffset: 17 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2282,14 +2325,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_post_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after AVG with table prefix", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT AVG(posts.", cursorOffset: 17 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2350,14 +2393,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_post_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after MAX with table prefix", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT MAX(comments.", cursorOffset: 19 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2418,14 +2461,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_post_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after MIN with table prefix", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT MIN(users.created_at), MAX(users.", cursorOffset: 40 },
+                {
+                    fullText: "SELECT MIN(users.created_at), MAX(users.",
+                    cursorOffset: 40,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2486,7 +2532,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_post_id",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -2495,7 +2541,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users INNER JOIN ", cursorOffset: 31 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2521,14 +2567,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest tables after LEFT JOIN", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users LEFT JOIN ", cursorOffset: 30 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2553,14 +2599,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest tables after RIGHT JOIN", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM posts RIGHT JOIN ", cursorOffset: 31 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2585,14 +2631,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest tables after FULL OUTER JOIN", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM comments FULL OUTER JOIN ", cursorOffset: 39 },
+                {
+                    fullText: "SELECT * FROM comments FULL OUTER JOIN ",
+                    cursorOffset: 39,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2617,14 +2666,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest JOIN keywords after table name", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users ", cursorOffset: 20 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2670,14 +2719,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_INNER JOIN",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after ON in JOIN condition", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users INNER JOIN posts ON posts.", cursorOffset: 46 },
+                {
+                    fullText: "SELECT * FROM users INNER JOIN posts ON posts.",
+                    cursorOffset: 46,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2727,14 +2779,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns with operators in JOIN condition", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users u INNER JOIN posts p ON u.id ", cursorOffset: 50 },
+                {
+                    fullText: "SELECT * FROM users u INNER JOIN posts p ON u.id ",
+                    cursorOffset: 50,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2805,14 +2860,18 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_IS NOT NULL",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after AND in JOIN condition", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users u JOIN posts p ON u.id = p.user_id AND u.", cursorOffset: 62 },
+                {
+                    fullText:
+                        "SELECT * FROM users u JOIN posts p ON u.id = p.user_id AND u.",
+                    cursorOffset: 62,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2862,17 +2921,18 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should handle multiple JOINs with column suggestions", () => {
             const suggestions = sqlCompletionProvider(
                 {
-                    fullText: "SELECT * FROM users u JOIN posts p ON u.id = p.user_id JOIN comments c ON p.id = c.post_id WHERE u.",
-                    cursorOffset: 108
+                    fullText:
+                        "SELECT * FROM users u JOIN posts p ON u.id = p.user_id JOIN comments c ON p.id = c.post_id WHERE u.",
+                    cursorOffset: 108,
                 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2933,7 +2993,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_post_id",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -2942,7 +3002,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users WHERE ", cursorOffset: 26 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -2978,14 +3038,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest operators after column in WHERE", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users WHERE users.id ", cursorOffset: 35 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3058,14 +3118,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_IS NOT NULL",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after AND in WHERE clause", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users WHERE users.id = 1 AND ", cursorOffset: 43 },
+                {
+                    fullText: "SELECT * FROM users WHERE users.id = 1 AND ",
+                    cursorOffset: 43,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3101,14 +3164,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after OR in WHERE clause", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users WHERE users.id = 1 OR ", cursorOffset: 42 },
+                {
+                    fullText: "SELECT * FROM users WHERE users.id = 1 OR ",
+                    cursorOffset: 42,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3143,14 +3209,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after NOT in WHERE", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users WHERE NOT ", cursorOffset: 30 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3184,14 +3250,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest operators after LIKE", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users WHERE users.email LIKE ", cursorOffset: 43 },
+                {
+                    fullText: "SELECT * FROM users WHERE users.email LIKE ",
+                    cursorOffset: 43,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             expect(suggestions.length).toBe(5);
@@ -3223,17 +3292,18 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should handle complex WHERE with parentheses", () => {
             const suggestions = sqlCompletionProvider(
                 {
-                    fullText: "SELECT * FROM users WHERE (users.id = 1 OR users.email = 'test@test.com') AND users.",
-                    cursorOffset: 88
+                    fullText:
+                        "SELECT * FROM users WHERE (users.id = 1 OR users.email = 'test@test.com') AND users.",
+                    cursorOffset: 88,
                 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3269,7 +3339,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -3278,7 +3348,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users WHERE EXISTS ", cursorOffset: 33 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             expect(suggestions.length).toBe(5);
@@ -3310,14 +3380,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest FROM after SELECT in EXISTS subquery", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users WHERE EXISTS (SELECT ", cursorOffset: 41 },
+                {
+                    fullText: "SELECT * FROM users WHERE EXISTS (SELECT ",
+                    cursorOffset: 41,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3401,14 +3474,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest FROM keyword in EXISTS subquery", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users WHERE EXISTS (SELECT * ", cursorOffset: 43 },
+                {
+                    fullText: "SELECT * FROM users WHERE EXISTS (SELECT * ",
+                    cursorOffset: 43,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3422,7 +3498,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_FROM",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -3431,7 +3507,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users ", cursorOffset: 20 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3477,14 +3553,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "2_INNER JOIN",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest aliased column references", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users u JOIN posts p ON u.", cursorOffset: 40 },
+                {
+                    fullText: "SELECT * FROM users u JOIN posts p ON u.",
+                    cursorOffset: 40,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3534,14 +3613,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_user_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should recognize multiple table aliases", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users u, posts p WHERE u.", cursorOffset: 40 },
+                {
+                    fullText: "SELECT * FROM users u, posts p WHERE u.",
+                    cursorOffset: 40,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3576,7 +3658,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -3585,7 +3667,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users ORDER BY ", cursorOffset: 29 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3621,14 +3703,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns in multiple ORDER BY", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT * FROM users ORDER BY users.id ASC, ", cursorOffset: 43 },
+                {
+                    fullText: "SELECT * FROM users ORDER BY users.id ASC, ",
+                    cursorOffset: 43,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3663,7 +3748,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -3672,7 +3757,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users LIMIT ", cursorOffset: 27 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             expect(suggestions.length).toBe(5);
@@ -3704,14 +3789,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should complete OFFSET clause", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT * FROM users LIMIT 10 OFFSET ", cursorOffset: 36 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             expect(suggestions.length).toBe(5);
@@ -3743,7 +3828,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -3751,11 +3836,12 @@ describe("sqlCompletionProvider", () => {
         it("should suggest columns after HAVING", () => {
             const suggestions = sqlCompletionProvider(
                 {
-                    fullText: "SELECT users.id, COUNT(*) FROM users GROUP BY users.id HAVING ",
-                    cursorOffset: 63
+                    fullText:
+                        "SELECT users.id, COUNT(*) FROM users GROUP BY users.id HAVING ",
+                    cursorOffset: 63,
                 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             // HAVING suggests aggregate context
@@ -3788,17 +3874,18 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest aggregate function in HAVING", () => {
             const suggestions = sqlCompletionProvider(
                 {
-                    fullText: "SELECT users.id, COUNT(*) FROM users GROUP BY users.id HAVING COUNT(",
-                    cursorOffset: 69
+                    fullText:
+                        "SELECT users.id, COUNT(*) FROM users GROUP BY users.id HAVING COUNT(",
+                    cursorOffset: 69,
                 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             expect(suggestions.length).toBe(5);
@@ -3830,7 +3917,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -3839,7 +3926,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SELECT DISTINCT ", cursorOffset: 16 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3899,14 +3986,17 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_post_id",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest columns after GROUP BY", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT users.id, COUNT(*) FROM users GROUP BY ", cursorOffset: 46 },
+                {
+                    fullText: "SELECT users.id, COUNT(*) FROM users GROUP BY ",
+                    cursorOffset: 46,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3941,14 +4031,18 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
 
         it("should suggest multiple columns in GROUP BY", () => {
             const suggestions = sqlCompletionProvider(
-                { fullText: "SELECT users.id, users.name, COUNT(*) FROM users GROUP BY users.id, ", cursorOffset: 70 },
+                {
+                    fullText:
+                        "SELECT users.id, users.name, COUNT(*) FROM users GROUP BY users.id, ",
+                    cursorOffset: 70,
+                },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -3983,7 +4077,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
     });
 
@@ -3992,7 +4086,7 @@ describe("sqlCompletionProvider", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "select * from ", cursorOffset: 14 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -4017,14 +4111,14 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments",
                 },
               ]
-            `)
+            `);
         });
 
         it("should handle mixed case keywords", () => {
             const suggestions = sqlCompletionProvider(
                 { fullText: "SeLeCt * FrOm users WhErE ", cursorOffset: 26 },
                 singleSchemaContext,
-                mockMonaco
+                mockMonaco,
             );
 
             const labels = suggestions.map((s) => s.label);
@@ -4060,8 +4154,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_name",
                 },
               ]
-            `)
+            `);
         });
     });
-
 });

@@ -1,5 +1,8 @@
 import { formatSQL } from "#src/lib/format-sql";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
+import type {
+	TableColumnMetadata,
+	TableWithColumnsMetadata,
+} from "#src/server/introspection/introspection.ts";
 import Editor from "@monaco-editor/react";
 import type * as OriginalMonacoEditor from "monaco-editor";
 import * as OriginalMonaco from "monaco-editor";
@@ -18,7 +21,7 @@ interface SqlMonacoEditorProps {
 	/** Available tables for intellisense suggestions */
 	tables?: Array<{ schema: string; name: string }>;
 	/** Available columns grouped by table */
-	columns?: Record<string, Array<TableColumnMetadata>>;
+	columns?: TableWithColumnsMetadata[];
 	hasMultipleSchemas?: boolean;
 }
 
@@ -41,7 +44,7 @@ export function SqlMonacoEditor({
 	onChange,
 	className = "",
 	tables = [],
-	columns = {},
+	columns = [],
 	hasMultipleSchemas = false, // TODO
 }: SqlMonacoEditorProps) {
 	// const monacoRef = useRef<Monaco>(null);

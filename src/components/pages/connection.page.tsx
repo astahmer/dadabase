@@ -254,19 +254,7 @@ const MainContent = (props: { connection: DbConnection }) => {
 			schema: search.schema,
 		}),
 	);
-
-	// Build columns map from query results
-	const columns = useMemo(() => {
-		const columns: Record<string, Array<TableColumnMetadata>> = {};
-		columnQuery.data?.forEach((tableWithMeta) => {
-			const key = `${search.schema}.${tableWithMeta.table}`;
-			tableWithMeta.columns.forEach((col) => {
-				columns[key] = columns[key] || [];
-				columns[key].push(col);
-			});
-		});
-		return columns;
-	}, [columnQuery.data, search.schema]);
+	const columns = columnQuery.data ?? [];
 
 	const explainQuery = useQuery({
 		enabled: false,
