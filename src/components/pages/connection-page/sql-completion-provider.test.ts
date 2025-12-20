@@ -860,6 +860,11 @@ describe("sqlCompletionProvider", () => {
                 },
                 {
                   "detail": "SQL Keyword",
+                  "label": "CROSS JOIN",
+                  "sortText": "2_CROSS JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
                   "label": "AS",
                   "sortText": "2_AS",
                 },
@@ -917,6 +922,11 @@ describe("sqlCompletionProvider", () => {
                 },
                 {
                   "detail": "SQL Keyword",
+                  "label": "CROSS JOIN",
+                  "sortText": "2_CROSS JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
                   "label": "AS",
                   "sortText": "2_AS",
                 },
@@ -932,7 +942,7 @@ describe("sqlCompletionProvider", () => {
 			);
 
 			const keywordLabels = suggestions.map((s) => s.label);
-			expect(keywordLabels.length).toBe(8);
+			expect(keywordLabels.length).toBe(9);
 			expect(keywordLabels).toContain("WHERE");
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
@@ -970,6 +980,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CROSS JOIN",
+                  "sortText": "2_CROSS JOIN",
                 },
                 {
                   "detail": "SQL Keyword",
@@ -1025,6 +1040,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CROSS JOIN",
+                  "sortText": "2_CROSS JOIN",
                 },
                 {
                   "detail": "SQL Keyword",
@@ -1465,7 +1485,7 @@ describe("sqlCompletionProvider", () => {
 
 			// Cursor after table name and trailing space, should suggest keywords
 			// This is actually a valid context (keyword_after_table)
-			expect(suggestions.length).toBe(8);
+			expect(suggestions.length).toBe(9);
 			expect(suggestions.some((s) => s.label === "WHERE")).toBe(true);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
@@ -1503,6 +1523,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CROSS JOIN",
+                  "sortText": "2_CROSS JOIN",
                 },
                 {
                   "detail": "SQL Keyword",
@@ -1660,6 +1685,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CROSS JOIN",
+                  "sortText": "2_CROSS JOIN",
                 },
                 {
                   "detail": "SQL Keyword",
@@ -1990,7 +2020,7 @@ describe("sqlCompletionProvider", () => {
 				mockMonaco,
 			);
 
-			expect(suggestions.length).toBe(7);
+			expect(suggestions.length).toBe(8);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
@@ -2027,6 +2057,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CROSS JOIN",
+                  "sortText": "2_CROSS JOIN",
                 },
               ]
             `);
@@ -2829,7 +2864,7 @@ describe("sqlCompletionProvider", () => {
 			expect(labels).toContain("WHERE");
 			expect(labels).toContain("ORDER BY");
 			expect(labels).toContain("LIMIT");
-			expect(suggestions.length).toBe(8);
+			expect(suggestions.length).toBe(9);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
@@ -2866,6 +2901,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CROSS JOIN",
+                  "sortText": "2_CROSS JOIN",
                 },
                 {
                   "detail": "SQL Keyword",
@@ -3668,7 +3708,7 @@ describe("sqlCompletionProvider", () => {
 			expect(labels).toContain("WHERE");
 			expect(labels).toContain("ORDER BY");
 			expect(labels).toContain("LIMIT");
-			expect(suggestions.length).toBe(8);
+			expect(suggestions.length).toBe(9);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
@@ -3705,6 +3745,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CROSS JOIN",
+                  "sortText": "2_CROSS JOIN",
                 },
                 {
                   "detail": "SQL Keyword",
@@ -4602,6 +4647,390 @@ describe("sqlCompletionProvider", () => {
 				  },
 				]
 			`);
+		});
+	});
+
+	describe("ORDER BY with ASC/DESC", () => {
+		it("should suggest ASC and DESC after ORDER BY column", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ORDER BY users.id ",
+					cursorOffset: 39,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("ASC");
+			expect(labels).toContain("DESC");
+			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ASC",
+                  "sortText": "2_ASC",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DESC",
+                  "sortText": "2_DESC",
+                },
+              ]
+            `);
+		});
+
+		it("should suggest ASC and DESC after ORDER BY unqualified column", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ORDER BY id ",
+					cursorOffset: 33,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("ASC");
+			expect(labels).toContain("DESC");
+			expect(suggestions.length).toBe(2);
+		});
+
+		it("should suggest ASC and DESC after ORDER BY with quoted column", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: 'SELECT * FROM users ORDER BY "users"."id" ',
+					cursorOffset: 44,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("ASC");
+			expect(labels).toContain("DESC");
+		});
+
+		it("should suggest contextual keywords after ORDER BY with DESC", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ORDER BY users.id DESC ",
+					cursorOffset: 43,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			// After ORDER BY DESC, should suggest comma for multiple columns, or LIMIT, etc
+			expect(labels).toContain("LIMIT");
+			expect(labels).toContain("OFFSET");
+		});
+	});
+
+	describe("HAVING clause with AND/OR", () => {
+		it("should suggest AND and OR after HAVING condition", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT users.id, COUNT(*) FROM users GROUP BY users.id HAVING COUNT(*) > 5 ",
+					cursorOffset: 79,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("AND");
+			expect(labels).toContain("OR");
+			expect(labels).toContain("ORDER BY");
+			expect(labels).toContain("LIMIT");
+			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AND",
+                  "sortText": "2_AND",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "OR",
+                  "sortText": "2_OR",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ORDER BY",
+                  "sortText": "2_ORDER BY",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "GROUP BY",
+                  "sortText": "2_GROUP BY",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "LIMIT",
+                  "sortText": "2_LIMIT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "OFFSET",
+                  "sortText": "2_OFFSET",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DISTINCT",
+                  "sortText": "2_DISTINCT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "UNION",
+                  "sortText": "2_UNION",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "UNION ALL",
+                  "sortText": "2_UNION ALL",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INTERSECT",
+                  "sortText": "2_INTERSECT",
+                },
+              ]
+            `);
+		});
+
+		it("should suggest columns after AND in HAVING clause", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT users.id, COUNT(*) FROM users GROUP BY users.id HAVING COUNT(*) > 5 AND ",
+					cursorOffset: 87,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			// After AND in HAVING, should suggest aggregate functions or columns
+			// For now, will suggest columns from the selected table
+			expect(labels.length).toBeGreaterThan(0);
+		});
+
+		it("should suggest columns after OR in HAVING clause", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT users.id, COUNT(*) FROM users GROUP BY users.id HAVING COUNT(*) > 5 OR ",
+					cursorOffset: 86,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			// After OR in HAVING, should suggest options
+			expect(labels.length).toBeGreaterThan(0);
+		});
+
+		it("should NOT suggest AND/OR after ON in JOIN (only WHERE allows AND/OR)", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT * FROM users JOIN posts ON users.id = posts.user_id ",
+					cursorOffset: 61,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			// Should NOT have AND/OR here - ON conditions don't continue with AND/OR in this context
+			expect(labels).not.toContain("AND");
+			expect(labels).not.toContain("OR");
+		});
+	});
+
+	describe("CROSS JOIN support", () => {
+		it("should suggest CROSS JOIN as keyword option after table name", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ",
+					cursorOffset: 20,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("CROSS JOIN");
+		});
+
+		it("should suggest CROSS JOIN along with other JOINs", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ",
+					cursorOffset: 20,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const joinLabels = suggestions
+				.filter((s) => String(s.label).includes("JOIN"))
+				.map((s) => s.label);
+			expect(joinLabels).toContain("INNER JOIN");
+			expect(joinLabels).toContain("LEFT JOIN");
+			expect(joinLabels).toContain("CROSS JOIN");
+		});
+	});
+
+	describe("Multiple consecutive conditions", () => {
+		it("should suggest columns after second AND in WHERE", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT * FROM users WHERE users.id = 1 AND users.email = 'test' AND ",
+					cursorOffset: 70,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("users.id");
+			expect(labels).toContain("users.email");
+		});
+
+		it("should suggest columns after AND then OR in WHERE", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT * FROM users WHERE users.id = 1 AND users.email = 'test' OR ",
+					cursorOffset: 68,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("users.id");
+			expect(labels).toContain("users.email");
+		});
+
+		it("should suggest AND/OR after completed third condition", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT * FROM users WHERE users.id = 1 AND users.email = 'test' AND users.id > 10 ",
+					cursorOffset: 82,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("AND");
+			expect(labels).toContain("OR");
+			expect(labels).toContain("LIMIT");
+			expect(labels).toContain("ORDER BY");
+		});
+	});
+
+	describe("Edge cases and complex scenarios", () => {
+		it("should handle ORDER BY with qualified column and spaces", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users  ORDER BY  users.id  ",
+					cursorOffset: 42,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("ASC");
+			expect(labels).toContain("DESC");
+		});
+
+		it("should handle multiple ORDER BY columns", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ORDER BY users.id ASC, users.email ",
+					cursorOffset: 57,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("ASC");
+			expect(labels).toContain("DESC");
+		});
+
+		it("should suggest keywords after ORDER BY ASC with comma for next column", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users ORDER BY users.id ASC, ",
+					cursorOffset: 44,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			// After comma in ORDER BY should suggest columns (unqualified in ORDER BY context)
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("id");
+			expect(labels).toContain("email");
+		});
+
+		it("should handle HAVING with multiple conditions", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT users.id, COUNT(*) FROM users GROUP BY users.id HAVING COUNT(*) > 5 AND SUM(users.id) < 100 ",
+					cursorOffset: 107,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("AND");
+			expect(labels).toContain("OR");
+		});
+
+		it("should handle WHERE with HAVING in same query", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT users.id, COUNT(*) FROM users WHERE users.email LIKE '%@example.com' GROUP BY users.id HAVING COUNT(*) > 5 ",
+					cursorOffset: 120,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			// After HAVING condition completion, should suggest AND/OR/LIMIT/etc
+			expect(labels.length).toBeGreaterThan(0);
+		});
+
+		it("should handle ORDER BY ASC after WHERE and GROUP BY HAVING", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText:
+						"SELECT users.id, COUNT(*) FROM users WHERE users.created_at > NOW() GROUP BY users.id HAVING COUNT(*) > 1 ORDER BY users.id ",
+					cursorOffset: 133,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("ASC");
+			expect(labels).toContain("DESC");
 		});
 	});
 });

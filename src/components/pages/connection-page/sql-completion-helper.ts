@@ -15,7 +15,9 @@ export interface CompletionContext {
 		| "select_asterisk"
 		| "column_operator"
 		| "after_condition"
-		| "join_table";
+		| "join_table"
+		| "after_order_by_column"
+		| "after_having_condition";
 	selectedTables: string[];
 	tableAliases: Record<string, string>; // Maps table name to alias (e.g., { "users": "u", "posts": "p" })
 	lastKeyword?: SqlKeyword;
@@ -67,6 +69,8 @@ const SQL_KEYWORDS = [
 	"LIKE",
 	"IS",
 	"NULL",
+	"ASC",
+	"DESC",
 ] as const;
 type SqlKeyword = (typeof SQL_KEYWORDS)[number];
 
@@ -112,11 +116,22 @@ const REGEX_KEYWORD_PATTERN =
 	/\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|CROSS|ON|ORDER|GROUP|HAVING|LIMIT|AND|OR)\b/gi;
 const REGEX_FUNCTION_WITH_TABLE =
 	/\b(COUNT|SUM|AVG|MAX|MIN|LOWER|UPPER|COALESCE|CASE|EXISTS)\s*\(\s*(?:"[^"]+"|[\w]+)\.$/i;
-// Detect completed WHERE/ON conditions: column/qualified_column operator value(s)
+// Detect completed WHERE/ON/HAVING conditions: column/qualified_column/function operator value(s)
 // Matches patterns like: WHERE category = "xxx" , WHERE "table"."column" > 5 , WHERE col IS NULL , WHERE col LIKE '%pattern%'
+// Also matches HAVING conditions like: HAVING COUNT(*) > 5, HAVING SUM(amount) < 100
 // Ensures there's actual content after the operator (not just the operator with trailing space)
 const REGEX_COMPLETED_CONDITION =
-	/\b(WHERE|ON|HAVING|AND|OR)\s+(?:(?:"[^"]+"|[\w]+)\.)?(?:"[^"]+"|[\w]+)\s+(?:=|!=|<>|<|>|<=|>=|BETWEEN|IN|EXISTS)\s+(?:(?:"[^"]+"|[\w]+)\.)?(?:"[^"]+"|[\w]+|'[^']*'|\d+)\s+$/i;
+	/\b(WHERE|ON|HAVING|AND|OR)\s+(?:(?:(?:"[^"]+"|[\w]+)\.)?(?:"[^"]+"|[\w]+)|(?:COUNT|SUM|AVG|MAX|MIN)\s*\([^)]*\))\s+(?:=|!=|<>|<|>|<=|>=|BETWEEN|IN|EXISTS)\s+(?:(?:"[^"]+"|[\w]+)\.)?(?:"[^"]+"|[\w]+|'[^']*'|\d+)\s+$/i;
+
+// Detect ORDER BY column (not with ASC/DESC yet) - supports comma-separated columns
+const REGEX_ORDER_BY_COLUMN =
+	/\bORDER\s+BY\s+(?:.*?,)?\s*(?:(?:"[^"]+"|[\w]+)\.)?(?:"[^"]+"|[\w]+)\s+$/i;
+
+// Detect ORDER BY column with sort direction (ASC/DESC)
+const REGEX_ORDER_BY_WITH_DIRECTION = /\b(?:ASC|DESC)\s+$/i;
+
+// Detect CROSS JOIN
+const REGEX_CROSS_JOIN = /\b(CROSS\s+JOIN)\s+(\w+|"[^"]*")\s+$/i;
 
 // Memoized keyword patterns for column context detection
 const COLUMN_KEYWORDS_PATTERN = {
@@ -180,10 +195,49 @@ export function detectCompletionContext(
 		};
 	}
 
-	// Check if we've completed a WHERE/ON condition (e.g., "WHERE column = value ")
+	// Check if we've completed a column in ORDER BY clause (ready for ASC/DESC)
+	// MUST check this before COMPLETED_CONDITION since ORDER BY doesn't have operators
+	if (REGEX_ORDER_BY_COLUMN.test(beforeCursor)) {
+		return {
+			type: "after_order_by_column",
+			selectedTables,
+			tableAliases,
+			isAtLineStart,
+			beforeCursor,
+		};
+	}
+
+	// Check if we're after an ORDER BY sort direction (ASC or DESC)
+	// In this case, suggest LIMIT, OFFSET, etc.
+	if (REGEX_ORDER_BY_WITH_DIRECTION.test(beforeCursor)) {
+		// Check that there's actually an ORDER BY before this
+		if (/\bORDER\s+BY\b/i.test(beforeCursor)) {
+			return {
+				type: "after_condition", // Reuse after_condition logic for keywords like LIMIT, OFFSET
+				selectedTables,
+				tableAliases,
+				lastKeyword: "ORDER" as SqlKeyword,
+				isAtLineStart,
+				beforeCursor,
+			};
+		}
+	}
+
+	// Check if we've completed a WHERE/ON/HAVING condition (e.g., "WHERE column = value ")
 	// This should suggest AND, OR, LIMIT, ORDER BY, etc. (or WHERE if after ON)
 	if (REGEX_COMPLETED_CONDITION.test(beforeCursor)) {
 		const lastKeyword = findLastKeywordContext(beforeCursor);
+		// Distinguish HAVING conditions from WHERE/AND/OR conditions
+		if (lastKeyword === "HAVING" || beforeCursor.includes("HAVING")) {
+			return {
+				type: "after_having_condition",
+				selectedTables,
+				tableAliases,
+				lastKeyword,
+				isAtLineStart,
+				beforeCursor,
+			};
+		}
 		return {
 			type: "after_condition",
 			selectedTables,
@@ -441,21 +495,20 @@ export function createColumnCompletion(
 	context: CompletionContext,
 	monaco: any,
 ) {
-	let insertText = `${tableName ? `"${tableName}".` : ""}"${columnName}"`;
+	// Determine whether to use qualified column names (with table prefix) in insertText
+	// Use unqualified for ORDER BY, GROUP BY, HAVING contexts
+	const isOrderByGroupByContext = ["ORDER", "GROUP", "HAVING"].includes(
+		context.lastKeyword || "",
+	);
+
+	let insertText = isOrderByGroupByContext
+		? `"${columnName}"`
+		: `${tableName ? `"${tableName}".` : ""}"${columnName}"`;
 
 	// When on empty line with columns, insert select column from table
 	if (context.type === "empty_line" && tableName) {
 		insertText = `SELECT "${columnName}" FROM "${tableName}"`;
 	}
-
-	// Determine whether to use qualified column names (with table prefix)
-	// Return plain names for:
-	// 1. ORDER BY, GROUP BY, HAVING contexts
-	// 2. When inside a function WITH table reference (e.g., AVG(posts. or COUNT(users.)
-	// 3. When in JOIN ON and table already specified
-	const isOrderByGroupByContext = ["ORDER", "GROUP", "HAVING"].includes(
-		context.lastKeyword || "",
-	);
 
 	// Check if we're inside a function WITH a table dot (table.column pattern within function)
 	const isInsideFunctionWithTable = REGEX_FUNCTION_WITH_TABLE.test(
@@ -498,6 +551,11 @@ export function getContextualKeywords(
 			return ["WHERE", "ORDER BY", "GROUP BY", "LIMIT"];
 		}
 
+		// After ORDER BY with ASC/DESC
+		if (context.lastKeyword === "ORDER BY") {
+			return ["LIMIT", "OFFSET", "UNION", "UNION ALL", "INTERSECT"];
+		}
+
 		// After WHERE/AND/OR, suggest AND/OR to continue the condition
 		return [
 			"AND",
@@ -512,6 +570,27 @@ export function getContextualKeywords(
 			"UNION ALL",
 			"INTERSECT",
 		];
+	}
+
+	if (context.type === "after_having_condition") {
+		// After HAVING condition, suggest AND/OR (same as WHERE)
+		return [
+			"AND",
+			"OR",
+			"ORDER BY",
+			"GROUP BY",
+			"LIMIT",
+			"OFFSET",
+			"DISTINCT",
+			"UNION",
+			"UNION ALL",
+			"INTERSECT",
+		];
+	}
+
+	if (context.type === "after_order_by_column") {
+		// After ORDER BY column, suggest ASC/DESC
+		return ["ASC", "DESC"];
 	}
 
 	if (context.type === "join_table") {
@@ -532,6 +611,7 @@ export function getContextualKeywords(
 			"JOIN",
 			"LEFT JOIN",
 			"INNER JOIN",
+			"CROSS JOIN",
 		];
 
 		// Only suggest AS for keyword_after_table (when we have a table name but haven't aliased yet)

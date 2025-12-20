@@ -84,7 +84,7 @@ describe("SQL Completion Helper", () => {
 			it("should detect keywords after JOIN table", () => {
 				const sql = "SELECT * FROM users JOIN orders ";
 				const context = detectCompletionContext(sql, sql.length);
-				expect(context.type).toBe("keyword_after_table");
+				expect(context.type).toBe("join_table");
 			});
 		});
 
@@ -177,6 +177,7 @@ describe("SQL Completion Helper", () => {
 			const context = {
 				type: "table_after_from" as const,
 				selectedTables: [],
+				tableAliases: {},
 				isAtLineStart: false,
 				beforeCursor: "SELECT * FROM ",
 			};
@@ -196,6 +197,7 @@ describe("SQL Completion Helper", () => {
 			const context = {
 				type: "table_after_from" as const,
 				selectedTables: [],
+				tableAliases: {},
 				isAtLineStart: false,
 				beforeCursor: "SELECT * FROM ",
 			};
@@ -215,6 +217,7 @@ describe("SQL Completion Helper", () => {
 			const context = {
 				type: "empty_line" as const,
 				selectedTables: [],
+				tableAliases: {},
 				isAtLineStart: true,
 				beforeCursor: "",
 			};
@@ -245,8 +248,10 @@ describe("SQL Completion Helper", () => {
 			const context = {
 				type: "column_after_keyword" as const,
 				selectedTables: ["users"],
+				tableAliases: {},
 				isAtLineStart: false,
 				beforeCursor: "SELECT * FROM users WHERE ",
+				lastKeyword: "WHERE" as const,
 			};
 
 			const completion = createColumnCompletion(
@@ -256,14 +261,15 @@ describe("SQL Completion Helper", () => {
 				mockMonaco,
 			);
 
-			expect(completion.label).toBe("id");
-			expect(completion.insertText).toBe('"id"');
+			expect(completion.label).toBe("users.id");
+			expect(completion.insertText).toBe('"users"."id"');
 		});
 
 		it("should insert full SELECT with column on empty line", () => {
 			const context = {
 				type: "empty_line" as const,
 				selectedTables: [],
+				tableAliases: {},
 				isAtLineStart: true,
 				beforeCursor: "",
 			};
@@ -284,6 +290,7 @@ describe("SQL Completion Helper", () => {
 			const context = {
 				type: "keyword_after_table" as const,
 				selectedTables: ["users"],
+				tableAliases: {},
 				isAtLineStart: false,
 				beforeCursor: "SELECT * FROM users ",
 			};
@@ -299,6 +306,7 @@ describe("SQL Completion Helper", () => {
 			const context = {
 				type: "empty_line" as const,
 				selectedTables: [],
+				tableAliases: {},
 				isAtLineStart: true,
 				beforeCursor: "",
 			};
@@ -314,6 +322,7 @@ describe("SQL Completion Helper", () => {
 			const context = {
 				type: "none" as const,
 				selectedTables: [],
+				tableAliases: {},
 				isAtLineStart: false,
 				beforeCursor: "SELECT",
 			};
