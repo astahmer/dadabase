@@ -2,6 +2,7 @@ import Editor, { type Monaco } from "@monaco-editor/react";
 import type * as OriginalMonacoEditor from "monaco-editor";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { formatSQL } from "#src/lib/format-sql";
+import { parseSqlContext } from "./sql-context-parser";
 
 interface SqlMonacoEditorProps {
 	/** The SQL code to display/edit */
@@ -12,6 +13,8 @@ interface SqlMonacoEditorProps {
 	className?: string;
 	/** Available tables for intellisense suggestions */
 	tables?: Array<{ schema: string; name: string }>;
+	/** Available columns grouped by table */
+	columns?: Record<string, Array<{ name: string; dataType: string }>>;
 }
 
 // https://shiki.style/themes
@@ -27,6 +30,7 @@ export function SqlMonacoEditor({
 	onChange,
 	className = "",
 	tables = [],
+	columns = {},
 }: SqlMonacoEditorProps) {
 	const monacoRef = useRef<Monaco>(null);
 	// const editorRef =
@@ -84,17 +88,24 @@ export function SqlMonacoEditor({
 		};
 	}, [editorRef]);
 
-	// Setup SQL intellisense with table suggestions
+	// Setup SQL intellisense with context-aware suggestions
 	useEffect(() => {
 		const monaco = monacoRef.current;
-		if (!monaco || tables.length === 0) return;
+		if (!monaco) return;
 
 		const disposable = monaco.languages.registerCompletionItemProvider("sql", {
 			provideCompletionItems: (
 				model: OriginalMonacoEditor.editor.ITextModel,
 				position: OriginalMonacoEditor.Position,
 			) => {
-				// Get the current word/context
+				// Get the full text and determine cursor offset
+				const fullText = model.getValue();
+				const cursorOffset = model.getOffsetAt(position);
+
+				// Parse the context to determine what type of suggestion to show
+				const context = parseSqlContext(fullText, cursorOffset);
+
+				// Get the current word being typed
 				const word = model.getWordUntilPosition(position);
 				const range = {
 					startLineNumber: position.lineNumber,
@@ -103,16 +114,47 @@ export function SqlMonacoEditor({
 					endColumn: word.endColumn,
 				};
 
-				// Create completion items for tables
-				const suggestions: OriginalMonacoEditor.languages.CompletionItem[] =
-					tables.map((table) => ({
-						label: table.name,
-						kind: monaco.languages.CompletionItemKind.Struct,
-						detail: `Table in schema: ${table.schema}`,
-						insertText: `"${table.schema}"."${table.name}"`,
-						range: range as any,
-						sortText: table.name,
-					}));
+				const suggestions: OriginalMonacoEditor.languages.CompletionItem[] = [];
+
+				// Show table suggestions if we're after a table keyword
+				if (context.type === "table") {
+					suggestions.push(
+						...tables.map((table) => ({
+							label: table.name,
+							kind: monaco.languages.CompletionItemKind.Struct,
+							detail: `Table in schema: ${table.schema}`,
+							insertText: `"${table.schema}"."${table.name}"`,
+							range: range as any,
+							sortText: table.name,
+						})),
+					);
+				}
+
+				// Show column suggestions if we're after a column keyword
+				if (context.type === "column" && context.tableNames.length > 0) {
+					// Collect all columns from the referenced tables
+					const availableColumns = new Set<string>();
+
+					for (const tableName of context.tableNames) {
+						const cols = columns[tableName];
+						if (cols) {
+							cols.forEach((col) => {
+								availableColumns.add(col.name);
+							});
+						}
+					}
+
+					suggestions.push(
+						...Array.from(availableColumns).map((columnName) => ({
+							label: columnName,
+							kind: monaco.languages.CompletionItemKind.Field,
+							detail: `Column`,
+							insertText: `"${columnName}"`,
+							range: range as any,
+							sortText: columnName,
+						})),
+					);
+				}
 
 				return { suggestions };
 			},
@@ -121,7 +163,7 @@ export function SqlMonacoEditor({
 		return () => {
 			disposable.dispose();
 		};
-	}, [tables]);
+	}, [tables, columns]);
 
 	return (
 		<Editor

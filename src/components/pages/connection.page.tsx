@@ -10,8 +10,9 @@ import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
+import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
 import { Splitter } from "@ark-ui/react";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery, useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
 import { useState, type Dispatch, type SetStateAction } from "react";
@@ -244,6 +245,27 @@ const MainContent = (props: { connection: DbConnection }) => {
 		enabled: !!search.schema,
 	});
 	const tables = tablesQuery.data || [];
+
+	// Fetch columns for each table
+	const columnQueries = useQueries({
+		queries: tables.map((table) => ({
+			...getTableColumnsQueryOptions({
+				url: pageState.activeConnectionUrl,
+				schema: table.schema,
+				table: table.name,
+			}),
+			enabled: !!table.schema && !!table.name,
+		})),
+	});
+
+	// Build columns map from query results
+	const columns: Record<string, Array<{ name: string; dataType: string }>> = {};
+	columnQueries.forEach((query, index) => {
+		if (query.data && tables[index]) {
+			const key = `${tables[index].schema}.${tables[index].name}`;
+			columns[key] = query.data;
+		}
+	});
 
 	const explainQuery = useQuery({
 		enabled: false,
@@ -509,6 +531,7 @@ const MainContent = (props: { connection: DbConnection }) => {
 												}
 												isFullscreen={isEditorFullscreen}
 												tables={tables}
+												columns={columns}
 												className="text-sm h-full"
 											/>
 										)}

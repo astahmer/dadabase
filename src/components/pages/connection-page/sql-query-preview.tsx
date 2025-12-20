@@ -54,6 +54,8 @@ interface SqlQueryPreviewProps {
 	onToggleCollapsed?: (collapsed: boolean) => void;
 	/** Available tables for intellisense suggestions */
 	tables?: Array<{ schema: string; name: string }>;
+	/** Available columns grouped by table */
+	columns?: Record<string, Array<{ name: string; dataType: string }>>;
 	/** Custom CSS class */
 	className?: string;
 }
@@ -86,6 +88,7 @@ export function SqlQueryPreview({
 	isCollapsed = true,
 	onToggleCollapsed,
 	tables = [],
+	columns = {},
 	className,
 }: SqlQueryPreviewProps) {
 	const [copied, setCopied] = useState(false);
@@ -315,6 +318,7 @@ export function SqlQueryPreview({
 								onChange={handleEditorChange}
 								className="w-full h-full"
 								tables={tables}
+								columns={columns}
 							/>
 						</div>
 					)}
