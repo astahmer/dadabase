@@ -181,12 +181,14 @@ export function detectCompletionContext(
 	}
 
 	// Check if we've completed a WHERE/ON condition (e.g., "WHERE column = value ")
-	// This should suggest AND, OR, LIMIT, ORDER BY, etc.
+	// This should suggest AND, OR, LIMIT, ORDER BY, etc. (or WHERE if after ON)
 	if (REGEX_COMPLETED_CONDITION.test(beforeCursor)) {
+		const lastKeyword = findLastKeywordContext(beforeCursor);
 		return {
 			type: "after_condition",
 			selectedTables,
 			tableAliases,
+			lastKeyword,
 			isAtLineStart,
 			beforeCursor,
 		};
@@ -490,7 +492,13 @@ export function getContextualKeywords(
 	context: CompletionContext,
 ): SqlKeyword[] {
 	if (context.type === "after_condition") {
-		// After a completed WHERE/ON/AND/OR condition, suggest logical operators and other clauses
+		// After a completed WHERE/AND/OR condition, suggest AND/OR and other clauses
+		// After a completed ON condition, suggest WHERE and other clauses (no AND/OR until WHERE is present)
+		if (context.lastKeyword === "ON") {
+			return ["WHERE", "ORDER BY", "GROUP BY", "LIMIT"];
+		}
+
+		// After WHERE/AND/OR, suggest AND/OR to continue the condition
 		return [
 			"AND",
 			"OR",

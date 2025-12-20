@@ -2304,24 +2304,20 @@ describe("sqlCompletionProvider", () => {
 			);
 
 			const labels = suggestions.map((s) => s.label);
-			expect(labels).toContain("AND");
-			expect(labels).toContain("OR");
+			expect(labels).toContain("WHERE");
 			expect(labels).toContain("ORDER BY");
 			expect(labels).toContain("GROUP BY");
 			expect(labels).toContain("LIMIT");
-			// After ON condition, we suggest AND/OR and other clauses, not JOIN
-			expect(labels.length).toBe(11);
+			// Should NOT have AND/OR after ON condition (only after WHERE)
+			expect(labels).not.toContain("AND");
+			expect(labels).not.toContain("OR");
+			expect(suggestions.length).toBe(4);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "SQL Keyword",
-                  "label": "AND",
-                  "sortText": "2_AND",
-                },
-                {
-                  "detail": "SQL Keyword",
-                  "label": "OR",
-                  "sortText": "2_OR",
+                  "label": "WHERE",
+                  "sortText": "2_WHERE",
                 },
                 {
                   "detail": "SQL Keyword",
@@ -2335,38 +2331,8 @@ describe("sqlCompletionProvider", () => {
                 },
                 {
                   "detail": "SQL Keyword",
-                  "label": "HAVING",
-                  "sortText": "2_HAVING",
-                },
-                {
-                  "detail": "SQL Keyword",
                   "label": "LIMIT",
                   "sortText": "2_LIMIT",
-                },
-                {
-                  "detail": "SQL Keyword",
-                  "label": "OFFSET",
-                  "sortText": "2_OFFSET",
-                },
-                {
-                  "detail": "SQL Keyword",
-                  "label": "DISTINCT",
-                  "sortText": "2_DISTINCT",
-                },
-                {
-                  "detail": "SQL Keyword",
-                  "label": "UNION",
-                  "sortText": "2_UNION",
-                },
-                {
-                  "detail": "SQL Keyword",
-                  "label": "UNION ALL",
-                  "sortText": "2_UNION ALL",
-                },
-                {
-                  "detail": "SQL Keyword",
-                  "label": "INTERSECT",
-                  "sortText": "2_INTERSECT",
                 },
               ]
             `);
