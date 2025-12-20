@@ -1,8 +1,8 @@
 import type { Row } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactNode } from "react";
-import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
+import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import type { DataTableSize } from "./data-table.styles.ts";
 
 export interface VirtualizedTableBodyProps<TData> {

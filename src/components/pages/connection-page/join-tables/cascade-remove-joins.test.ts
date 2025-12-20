@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { JoinedTable } from "./join-tables.types";
 import { cascadeRemoveJoins } from "./cascade-remove-joins.ts";
+import type { JoinedTable } from "./join-tables.types";
 
 describe("cascadeRemoveJoins", () => {
 	it("removes the target join and any joins anchored to it", () => {

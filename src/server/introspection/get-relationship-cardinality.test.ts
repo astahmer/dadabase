@@ -1,14 +1,14 @@
-import { getRelationshipCardinality } from "#src/server/introspection/introspection.ts";
 import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+import { getRelationshipCardinality } from "#src/server/introspection/introspection.ts";
 import {
+	type DatabaseTestConfig,
 	libsqlLayer,
 	makeTestLayer,
 	pgliteLayer,
 	postgresConfig,
 	sqliteConfig,
-	type DatabaseTestConfig,
 } from "./test.layer.ts";
 
 // Setup schema for PgLite/SqlClient tests

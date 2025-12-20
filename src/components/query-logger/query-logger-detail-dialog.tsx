@@ -15,13 +15,13 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "../ui/dialog.tsx";
+import { JsonViewer } from "../ui/json-viewer.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import {
 	QueryLogLevelBadge,
 	QueryLogTypeBadge,
 } from "./query-log-type-badge.tsx";
-import { JsonViewer } from "../ui/json-viewer.tsx";
 
 interface QueryLoggerDetailDialogProps {
 	entry: QueryLogEntryType | null;

@@ -3,12 +3,12 @@
  * Pretty-prints with proper indentation
  */
 export const formatSqlForDisplay = (sql: string): string => {
-    return sql
-        .replace(/\n\s+/g, "\n")
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .join("\n");
+	return sql
+		.replace(/\n\s+/g, "\n")
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean)
+		.join("\n");
 };
 
 /**
@@ -16,28 +16,28 @@ export const formatSqlForDisplay = (sql: string): string => {
  * This is a basic implementation; Monaco handles real highlighting in the UI
  */
 export const getSqlKeywords = (): Set<string> => {
-    return new Set([
-        "SELECT",
-        "FROM",
-        "WHERE",
-        "JOIN",
-        "LEFT",
-        "INNER",
-        "ON",
-        "AND",
-        "OR",
-        "ORDER",
-        "BY",
-        "LIMIT",
-        "OFFSET",
-        "NULLS",
-        "FIRST",
-        "LAST",
-        "ASC",
-        "DESC",
-        "AS",
-        "IS",
-        "NULL",
-        "NOT",
-    ]);
+	return new Set([
+		"SELECT",
+		"FROM",
+		"WHERE",
+		"JOIN",
+		"LEFT",
+		"INNER",
+		"ON",
+		"AND",
+		"OR",
+		"ORDER",
+		"BY",
+		"LIMIT",
+		"OFFSET",
+		"NULLS",
+		"FIRST",
+		"LAST",
+		"ASC",
+		"DESC",
+		"AS",
+		"IS",
+		"NULL",
+		"NOT",
+	]);
 };

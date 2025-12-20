@@ -1,3 +1,9 @@
+import { Splitter } from "@ark-ui/react";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
+import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
 import {
@@ -9,15 +15,10 @@ import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
-import { Splitter } from "@ark-ui/react";
-import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
@@ -41,6 +42,8 @@ import {
 } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
+import { ConnectionForm } from "./connection.form.tsx";
+import type { DbConnection } from "./connection.types";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
@@ -57,9 +60,6 @@ import { RowsTableErrorState } from "./connection-page/rows-table-error-state.ts
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
-import { ConnectionForm } from "./connection.form.tsx";
-import type { DbConnection } from "./connection.types";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 interface ConnectionPageProps {
 	connectionName: string;

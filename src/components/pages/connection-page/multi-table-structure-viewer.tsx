@@ -1,3 +1,8 @@
+import { CheckboxLabel } from "@ark-ui/react";
+import { createListCollection } from "@ark-ui/react/combobox";
+import { useQuery } from "@tanstack/react-query";
+import { Copy, Download } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
 	Menu,
 	MenuContent,
@@ -6,11 +11,6 @@ import {
 	MenuTrigger,
 } from "#src/components/ui/menu.tsx";
 import { getTablesStructuresQueryOptions } from "#src/server/introspection/start-fns/get-tables-structures.start.ts";
-import { CheckboxLabel } from "@ark-ui/react";
-import { createListCollection } from "@ark-ui/react/combobox";
-import { useQuery } from "@tanstack/react-query";
-import { Copy, Download } from "lucide-react";
-import { useMemo, useState } from "react";
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 import { Button } from "../../ui/button";
 import { Checkbox, CheckboxControl } from "../../ui/checkbox";
@@ -26,8 +26,8 @@ import {
 import { HStack, Stack } from "../../ui/layout.tsx";
 import { Spinner } from "../../ui/spinner.tsx";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
-import { StructureFilterControls } from "./structure-table-filters.tsx";
 import { StructureTable } from "./structure-table.tsx";
+import { StructureFilterControls } from "./structure-table-filters.tsx";
 import { useStructureFilters } from "./use-structure-filter-state.ts";
 
 interface MultiTableStructureViewerProps {

@@ -5,12 +5,12 @@ import type { JoinedTable } from "#src/components/pages/connection-page/join-tab
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
 import {
+	type DatabaseTestConfig,
+	libsqlLayer,
 	makeTestLayer,
 	pgliteLayer,
-	libsqlLayer,
 	postgresConfig,
 	sqliteConfig,
-	type DatabaseTestConfig,
 } from "./test.layer.ts";
 
 interface User {

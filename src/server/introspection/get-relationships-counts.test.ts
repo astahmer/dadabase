@@ -3,12 +3,12 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
 import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
 import {
+	type DatabaseTestConfig,
+	libsqlLayer,
 	makeTestLayer,
 	pgliteLayer,
-	libsqlLayer,
 	postgresConfig,
 	sqliteConfig,
-	type DatabaseTestConfig,
 } from "./test.layer.ts";
 
 // Type for relationship input matching introspection module

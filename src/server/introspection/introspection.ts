@@ -1,10 +1,10 @@
+import { SqlClient } from "@effect/sql";
+import { SqlError } from "@effect/sql/SqlError";
+import { Effect } from "effect";
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
-import { SqlClient } from "@effect/sql";
-import { SqlError } from "@effect/sql/SqlError";
-import { Effect } from "effect";
 import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
 import type { QueryLogger } from "../query-logger/query-logger.ts";
 import {
@@ -17,14 +17,14 @@ import {
 	buildJoinSqlClauses,
 	buildPgSelectWithJoins,
 	buildSqliteSelectWithJoins,
-	generateJoinAliases
+	generateJoinAliases,
 } from "./join-builder.ts";
 import {
 	buildColumnList,
 	buildTableColumnsMap,
 	formatSchemaTable,
 	remapJoins,
-	remapSchema
+	remapSchema,
 } from "./query-table-rows.helpers.ts";
 import { buildWhereClauseWithJoins } from "./sql-query-builder/build-query-sql.ts";
 
@@ -1097,7 +1097,7 @@ export const findColumnReferencesWithCounts = (input: {
 			cellValue === undefined || cellValue === null
 				? null
 				: typeof cellValue === "string" &&
-					(cellValue === "null" || cellValue === "undefined")
+						(cellValue === "null" || cellValue === "undefined")
 					? null
 					: cellValue;
 
@@ -1541,7 +1541,7 @@ export const getRelationshipsCounts = (input: {
 		const validRelationships = relationships.filter((rel) => {
 			const filterValue =
 				rowData[
-				rel.type === "incoming" ? rel.referencedColumn : rel.referencingColumn
+					rel.type === "incoming" ? rel.referencedColumn : rel.referencingColumn
 				];
 			const isNullValue =
 				filterValue === null ||
@@ -1556,9 +1556,9 @@ export const getRelationshipsCounts = (input: {
 				Effect.gen(function* () {
 					const filterValue =
 						rowData[
-						rel.type === "incoming"
-							? rel.referencedColumn
-							: rel.referencingColumn
+							rel.type === "incoming"
+								? rel.referencedColumn
+								: rel.referencingColumn
 						];
 					const tableRef = sql`${sql(rel.referencingSchema)}.${sql(rel.referencingTable)}`;
 					const referencingColumn = sql(rel.referencingColumn);
@@ -1633,20 +1633,20 @@ export const getRelationshipsCounts = (input: {
 export interface FilterCondition {
 	column: string;
 	operator:
-	| "equals"
-	| "not_equals"
-	| "contains"
-	| "not_contains"
-	| "starts_with"
-	| "ends_with"
-	| "greater_than"
-	| "greater_than_or_equal"
-	| "less_than"
-	| "less_than_or_equal"
-	| "is_null"
-	| "is_not_null"
-	| "in"
-	| "not_in";
+		| "equals"
+		| "not_equals"
+		| "contains"
+		| "not_contains"
+		| "starts_with"
+		| "ends_with"
+		| "greater_than"
+		| "greater_than_or_equal"
+		| "less_than"
+		| "less_than_or_equal"
+		| "is_null"
+		| "is_not_null"
+		| "in"
+		| "not_in";
 	value?: string | number | boolean | null | string[];
 }
 
@@ -1711,8 +1711,7 @@ export const queryTableRows = <TData>(input: {
 			);
 
 			// Get the column list from the first row or use empty list
-			const columnList =
-				rows && rows.length > 0 ? Object.keys(rows[0]) : [];
+			const columnList = rows && rows.length > 0 ? Object.keys(rows[0]) : [];
 
 			// For custom queries, we can't paginate or get counts efficiently
 			// Return the results as-is
@@ -1817,20 +1816,21 @@ export const queryTableRows = <TData>(input: {
 					const selectPart =
 						joins.length > 0
 							? buildPgSelectWithJoins(
-								baseSchema,
-								input.table,
-								joinsRemapped,
-								tableColumnsMap,
-								joinAliases,
-							)
+									baseSchema,
+									input.table,
+									joinsRemapped,
+									tableColumnsMap,
+									joinAliases,
+								)
 							: columnList.length > 0 &&
-								columnList.length < (columnResults[0]?.columns.length ?? 999)
+									columnList.length < (columnResults[0]?.columns.length ?? 999)
 								? columnList.join(", ")
 								: "*";
 
 					const orderClause = orderBy
-						? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
-						}`
+						? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${
+								nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
+							}`
 						: "";
 
 					const rowsQuery = sql`
@@ -1909,19 +1909,20 @@ export const queryTableRows = <TData>(input: {
 					const selectPart =
 						joins.length > 0
 							? buildSqliteSelectWithJoins(
-								input.table,
-								joinsRemapped,
-								tableColumnsMap,
-								joinAliases,
-							)
+									input.table,
+									joinsRemapped,
+									tableColumnsMap,
+									joinAliases,
+								)
 							: columnList.length > 0 &&
-								columnList.length < (columnResults[0]?.columns.length ?? 999)
+									columnList.length < (columnResults[0]?.columns.length ?? 999)
 								? columnList.join(", ")
 								: "*";
 
 					const orderClause = orderBy
-						? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
-						}`
+						? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${
+								nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
+							}`
 						: "";
 
 					const rowsQuery = sql`

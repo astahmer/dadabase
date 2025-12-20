@@ -16,13 +16,16 @@ export const queryClient = new QueryClient({
 		},
 	},
 	queryCache: new QueryCache({
-		onSuccess: debounce((_data, query) => {
-			if (query.queryKey.includes("remote")) {
-				queryClient.invalidateQueries({
-					queryKey: ["app", "queryHistory"],
-				});
-			}
-		}, { wait: 300 }),
+		onSuccess: debounce(
+			(_data, query) => {
+				if (query.queryKey.includes("remote")) {
+					queryClient.invalidateQueries({
+						queryKey: ["app", "queryHistory"],
+					});
+				}
+			},
+			{ wait: 300 },
+		),
 	}),
 	mutationCache: new MutationCache({
 		onSuccess: async (_data, _variables, _context, _mutation) => {

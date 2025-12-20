@@ -1,4 +1,5 @@
 import type * as MonacoType from "monaco-editor";
+import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 import {
 	createAsteriskCompletion,
 	createColumnCompletion,
@@ -8,7 +9,6 @@ import {
 	detectCompletionContext,
 	getContextualKeywords,
 } from "./sql-completion-helper";
-import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 
 export function sqlCompletionProvider(
 	input: {

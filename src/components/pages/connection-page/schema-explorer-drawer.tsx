@@ -1,7 +1,7 @@
-import { getDialectDefaultSchema } from "#src/db/dialect.ts";
-import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import {
 	Sheet,
 	SheetContent,

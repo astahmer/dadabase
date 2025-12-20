@@ -38,8 +38,8 @@ import { PageLimitSelect } from "../app/page-limit.select.tsx";
 import { Button } from "../ui/button.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
-import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
+import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import {
 	type DataTableSize,
 	tableCellStyles,

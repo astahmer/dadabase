@@ -1,10 +1,10 @@
 import type * as MonacoType from "monaco-editor";
 import { describe, expect, it } from "vitest";
-import { sqlCompletionProvider } from "./sql-completion-provider";
 import type {
 	TableColumnMetadata,
 	TableWithColumnsMetadata,
 } from "#src/server/introspection/introspection.ts";
+import { sqlCompletionProvider } from "./sql-completion-provider";
 
 const printSuggestions = (
 	suggestions: MonacoType.languages.CompletionItem[],

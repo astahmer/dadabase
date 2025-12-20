@@ -32,7 +32,9 @@ export const buildPgWhereFragment = (
 			col = `${escapeIdentifier(c.table)}.${escapeIdentifier(c.column)}`;
 		} else if (schema !== undefined && table) {
 			// Use provided schema and table (schema can be empty string for default schema)
-			col = schema ? `${escapeIdentifier(schema)}.${escapeIdentifier(table)}.${escapeIdentifier(c.column)}` : `${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`;
+			col = schema
+				? `${escapeIdentifier(schema)}.${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`
+				: `${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`;
 		} else {
 			// Just the column name
 			col = `${escapeIdentifier(c.column)}`;

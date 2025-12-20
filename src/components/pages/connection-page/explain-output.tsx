@@ -1,7 +1,7 @@
-import { Tooltip } from "#src/components/ui/tooltip.tsx";
-import { cn } from "#src/lib/utils.ts";
 import { AlertTriangle, ChevronDown, Zap } from "lucide-react";
 import { useState } from "react";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
+import { cn } from "#src/lib/utils.ts";
 
 // Memoized number formatter to avoid recreating on each render
 const numberFormatter = new Intl.NumberFormat();

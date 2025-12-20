@@ -1,25 +1,25 @@
+import { Portal } from "@ark-ui/react";
+import { Tabs } from "@ark-ui/react/tabs";
 import {
 	Check,
-	Copy,
 	ChevronDown,
 	ChevronRight,
-	RotateCcw,
-	Play,
-	Wand2,
+	Copy,
 	Maximize2,
+	Play,
+	RotateCcw,
+	Wand2,
 	Zap,
 } from "lucide-react";
 import { useEffectEvent, useRef, useState } from "react";
-import { Tabs } from "@ark-ui/react/tabs";
 import { Button } from "#src/components/ui/button.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { cn } from "#src/lib/utils.ts";
-import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
-import { Portal } from "@ark-ui/react";
 import type {
 	TableColumnMetadata,
 	TableWithColumnsMetadata,
 } from "#src/server/introspection/introspection.ts";
+import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
 
 interface SqlQueryPreviewProps {
 	/** The raw SQL query string */

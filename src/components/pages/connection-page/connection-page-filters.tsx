@@ -11,6 +11,7 @@ import {
 import { useState } from "react";
 import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
 import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
+import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { OrderBySelect } from "../../app/order-by-select.tsx";
 import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
 import { NaturalLanguageSearch } from "../../query-builder/natural-language-search.tsx";
@@ -19,7 +20,6 @@ import { HStack } from "../../ui/layout.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 import { StructureFilterControls } from "./structure-table-filters.tsx";
-import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 
 interface ConnectionPageFiltersProps {
 	columnList: string[];

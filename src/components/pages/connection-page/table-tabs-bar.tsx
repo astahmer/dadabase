@@ -1,16 +1,16 @@
 import { Portal } from "@ark-ui/react";
-import { Tabs } from "@ark-ui/react/tabs";
 import { Editable, useEditable } from "@ark-ui/react/editable";
+import { Tabs } from "@ark-ui/react/tabs";
 import {
 	ArrowLeftFromLine,
 	ArrowLeftRight,
 	ArrowRightFromLine,
 	ClipboardIcon,
 	CopyPlus,
+	Edit2,
 	PanelLeft,
 	Plus,
 	X,
-	Edit2,
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Menu, MenuContent, MenuContextTrigger, MenuItem } from "../../ui/menu";

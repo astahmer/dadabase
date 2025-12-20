@@ -5,11 +5,11 @@ import { Popover } from "@ark-ui/react/popover";
 import { Portal } from "@ark-ui/react/portal";
 import {
 	ArrowDown,
+	ArrowDownToLine,
 	ArrowDownUp,
 	ArrowUp,
-	ChevronsUpDown,
-	ArrowDownToLine,
 	ArrowUpToLine,
+	ChevronsUpDown,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";

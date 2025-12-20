@@ -1,9 +1,11 @@
-import { QueryFilterBuilder } from "#src/components/query-builder/query-filter-builder.tsx";
+import { Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import type {
 	FilterConditionExpression,
 	LogicalOperatorType,
 	QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
+import { QueryFilterBuilder } from "#src/components/query-builder/query-filter-builder.tsx";
 import {
 	Accordion,
 	AccordionItem,
@@ -18,8 +20,6 @@ import {
 } from "#src/components/ui/checkbox.tsx";
 import { Input } from "#src/components/ui/input.tsx";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
-import { Plus, Trash2, X } from "lucide-react";
-import { useState } from "react";
 import type { JoinConditionMode, JoinedTable } from "./join-tables.types";
 
 interface JoinedTableRowProps {

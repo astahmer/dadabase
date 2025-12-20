@@ -1,20 +1,20 @@
+import { Accordion, createListCollection } from "@ark-ui/react";
+import { cx } from "class-variance-authority";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useQueryLogger } from "#src/components/query-logger/use-query-logger.ts";
 import {
-	QueryLogLevel,
-	QueryLogType,
 	type QueryLogEntryType,
+	QueryLogLevel,
 	type QueryLogStatus,
+	QueryLogType,
 } from "#src/server/query-logger/query-logger.types.ts";
 import { Button, buttonVariants } from "../ui/button.tsx";
+import { HStack } from "../ui/layout.tsx";
+import * as Select from "../ui/select.tsx";
+import { VirtualizerArea } from "../ui/virtualizer-area.tsx";
 import { QueryLogEntry } from "./query-log-entry.tsx";
 import { QueryLoggerDetailDialog } from "./query-logger-detail-dialog.tsx";
-import * as Select from "../ui/select.tsx";
-import { Accordion, createListCollection } from "@ark-ui/react";
-import { cx } from "class-variance-authority";
-import { HStack } from "../ui/layout.tsx";
-import { VirtualizerArea } from "../ui/virtualizer-area.tsx";
 
 interface QueryLoggerPanelProps {
 	connectionUrl: string;

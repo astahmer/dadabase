@@ -3,9 +3,9 @@ import { Schema } from "effect";
 import { Suspense } from "react";
 import { ConnectionPage } from "#src/components/pages/connection.page.tsx";
 import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
+import { JoinedTableSchema } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { FullCenter } from "../../components/ui/layout.tsx";
 import { Spinner } from "../../components/ui/spinner.tsx";
-import { JoinedTableSchema } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 
 const tableSize = Schema.Literal(
 	"excel",

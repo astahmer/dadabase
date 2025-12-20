@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { RefreshCw, Database } from "lucide-react";
+import { Database, RefreshCw } from "lucide-react";
 import { Button } from "../../ui/button";
 import { DarkModeToggle } from "../../ui/dark-mode-toggle";
 import { Tooltip } from "../../ui/tooltip.tsx";
