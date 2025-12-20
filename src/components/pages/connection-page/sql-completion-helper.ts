@@ -5,6 +5,7 @@
 export interface CompletionContext {
     type: "none" | "from_keyword" | "table_after_from" | "empty_line" | "keyword_after_table" | "column_after_keyword" | "table_alias" | "select_start" | "select_asterisk" | "column_operator";
     selectedTables: string[];
+    tableAliases: Record<string, string>; // Maps table name to alias (e.g., { "users": "u", "posts": "p" })
     lastKeyword?: SqlKeyword;
     isAtLineStart: boolean;
     beforeCursor: string;
@@ -56,6 +57,7 @@ const REGEX_TABLE_NAME = new RegExp(`\\b(?:${JOIN_KEYWORDS})\\s+(?:"[^"]*"|\\w*)
 const REGEX_SELECT_QUALIFIED = /\bSELECT\s+(?:"[^"]*"|\w+)\.(?:"[^"]*"|\w+)\s*$/i;
 const REGEX_KEYWORD_AFTER_TABLE = new RegExp(`\\b(${JOIN_KEYWORDS})\\s+(\\w+|"\\w+")(AS\s+(\w*))?\\s+$`, "i");
 const REGEX_TABLE_PATTERN = new RegExp(`\\b(?:${JOIN_KEYWORDS})\\s+(?:"([^"]+)"|(\\w+))`, "gi");
+const REGEX_TABLE_ALIAS_PAIR = new RegExp(`\\b(?:${JOIN_KEYWORDS})\\s+(?:"([^"]+)"|(\\w+))\\s+AS\\s+(\\w+)`, "gi");
 const REGEX_KEYWORD_PATTERN = /\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|CROSS|ON|ORDER|GROUP|HAVING|LIMIT|AND|OR)\b/gi;
 const REGEX_FUNCTION_WITH_TABLE = /\b(COUNT|SUM|AVG|MAX|MIN|LOWER|UPPER|COALESCE|CASE|EXISTS)\s*\(\s*(?:"[^"]+"|[\w]+)\.$/i;
 
@@ -83,6 +85,7 @@ export function detectCompletionContext(
 
     // Extract all FROM/JOIN clause tables mentioned before cursor
     const selectedTables = extractSelectedTables(beforeCursor);
+    const tableAliases = extractTableAliases(beforeCursor);
 
     // Check if we're after SELECT keyword with just "select " or "select *"
     const selectMatch = REGEX_SELECT_START.test(beforeCursor);
@@ -90,6 +93,7 @@ export function detectCompletionContext(
         return {
             type: "select_start",
             selectedTables,
+            tableAliases,
             isAtLineStart,
             beforeCursor,
         };
@@ -101,6 +105,7 @@ export function detectCompletionContext(
         return {
             type: "select_asterisk",
             selectedTables,
+            tableAliases,
             isAtLineStart,
             beforeCursor,
         };
@@ -112,6 +117,7 @@ export function detectCompletionContext(
         return {
             type: "column_operator",
             selectedTables,
+            tableAliases,
             isAtLineStart,
             beforeCursor,
         };
@@ -122,6 +128,7 @@ export function detectCompletionContext(
         return {
             type: "none",
             selectedTables,
+            tableAliases,
             isAtLineStart,
             beforeCursor,
         };
@@ -133,6 +140,7 @@ export function detectCompletionContext(
         return {
             type: "table_alias",
             selectedTables,
+            tableAliases,
             isAtLineStart,
             beforeCursor,
         };
@@ -144,6 +152,7 @@ export function detectCompletionContext(
         return {
             type: "from_keyword",
             selectedTables,
+            tableAliases,
             isAtLineStart,
             beforeCursor,
         };
@@ -154,6 +163,7 @@ export function detectCompletionContext(
         return {
             type: "empty_line",
             selectedTables,
+            tableAliases,
             isAtLineStart,
             beforeCursor,
         };
@@ -165,6 +175,7 @@ export function detectCompletionContext(
         return {
             type: "table_after_from",
             selectedTables,
+            tableAliases,
             isAtLineStart,
             beforeCursor,
         };
@@ -181,6 +192,7 @@ export function detectCompletionContext(
             return {
                 type: "keyword_after_table",
                 selectedTables,
+                tableAliases,
                 lastKeyword,
                 isAtLineStart,
                 beforeCursor,
@@ -195,6 +207,7 @@ export function detectCompletionContext(
             return {
                 type: "keyword_after_table",
                 selectedTables,
+                tableAliases,
                 lastKeyword,
                 isAtLineStart,
                 beforeCursor,
@@ -213,6 +226,7 @@ export function detectCompletionContext(
             return {
                 type: "column_after_keyword",
                 selectedTables,
+                tableAliases,
                 lastKeyword,
                 isAtLineStart,
                 beforeCursor,
@@ -223,6 +237,7 @@ export function detectCompletionContext(
     return {
         type: "none",
         selectedTables,
+        tableAliases,
         isAtLineStart,
         beforeCursor,
     };
@@ -246,6 +261,27 @@ function extractSelectedTables(sql: string): string[] {
     }
 
     return Array.from(tables);
+}
+
+/**
+ * Extract table aliases (maps table name to alias)
+ */
+function extractTableAliases(sql: string): Record<string, string> {
+    const aliases: Record<string, string> = {};
+
+    // Match all FROM and JOIN clauses with table names and aliases
+    let match;
+    // Reset regex state for reuse
+    REGEX_TABLE_ALIAS_PAIR.lastIndex = 0;
+    while ((match = REGEX_TABLE_ALIAS_PAIR.exec(sql)) !== null) {
+        const tableName = match[1] || match[2];
+        const alias = match[3];
+        if (tableName && alias) {
+            aliases[tableName] = alias;
+        }
+    }
+
+    return aliases;
 }
 
 /**

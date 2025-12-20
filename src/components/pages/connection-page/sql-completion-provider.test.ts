@@ -4243,5 +4243,119 @@ describe("sqlCompletionProvider", () => {
               ]
             `);
         });
+
+        it("should suggest columns with alias name when alias is used", () => {
+            const suggestions = sqlCompletionProvider(
+                { fullText: "SELECT * FROM users AS u WHERE ", cursorOffset: 32 },
+                singleSchemaContext,
+                mockMonaco,
+            );
+
+            const labels = suggestions.map((s) => s.label);
+            // Should use alias "u" instead of table name "users"
+            expect(labels).toContain("u.id");
+            expect(labels).toContain("u.email");
+            expect(labels).not.toContain("users.id");
+            expect(labels).not.toContain("users.email");
+            expect(suggestions.length).toBe(5);
+            expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "Column",
+                  "label": "u.id",
+                  "sortText": "1_u.id",
+                },
+                {
+                  "detail": "Column",
+                  "label": "u.email",
+                  "sortText": "1_u.email",
+                },
+                {
+                  "detail": "Column",
+                  "label": "u.created_at",
+                  "sortText": "1_u.created_at",
+                },
+                {
+                  "detail": "Column",
+                  "label": "u.updated_at",
+                  "sortText": "1_u.updated_at",
+                },
+                {
+                  "detail": "Column",
+                  "label": "u.name",
+                  "sortText": "1_u.name",
+                },
+              ]
+            `);
+        });
+
+        it("should suggest columns with multiple aliases from different tables", () => {
+            const suggestions = sqlCompletionProvider(
+                { fullText: "SELECT * FROM users AS u JOIN posts AS p ON ", cursorOffset: 45 },
+                singleSchemaContext,
+                mockMonaco,
+            );
+
+            const labels = suggestions.map((s) => s.label);
+            // Should have columns from both aliases
+            expect(labels).toContain("u.id");
+            expect(labels).toContain("p.id");
+            expect(labels).not.toContain("users.id");
+            expect(labels).not.toContain("posts.id");
+            expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "Column",
+                  "label": "u.id",
+                  "sortText": "1_u.id",
+                },
+                {
+                  "detail": "Column",
+                  "label": "u.email",
+                  "sortText": "1_u.email",
+                },
+                {
+                  "detail": "Column",
+                  "label": "u.created_at",
+                  "sortText": "1_u.created_at",
+                },
+                {
+                  "detail": "Column",
+                  "label": "u.updated_at",
+                  "sortText": "1_u.updated_at",
+                },
+                {
+                  "detail": "Column",
+                  "label": "u.name",
+                  "sortText": "1_u.name",
+                },
+                {
+                  "detail": "Column",
+                  "label": "p.id",
+                  "sortText": "1_p.id",
+                },
+                {
+                  "detail": "Column",
+                  "label": "p.title",
+                  "sortText": "1_p.title",
+                },
+                {
+                  "detail": "Column",
+                  "label": "p.content",
+                  "sortText": "1_p.content",
+                },
+                {
+                  "detail": "Column",
+                  "label": "p.user_id",
+                  "sortText": "1_p.user_id",
+                },
+                {
+                  "detail": "Column",
+                  "label": "p.created_at",
+                  "sortText": "1_p.created_at",
+                },
+              ]
+            `)
+        });
     });
 });
