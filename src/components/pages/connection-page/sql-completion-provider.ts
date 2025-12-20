@@ -1,6 +1,5 @@
 import type * as MonacoType from "monaco-editor";
 import {
-    createAliasCompletion,
     createAsteriskCompletion,
     createColumnCompletion,
     createKeywordCompletion,
@@ -28,7 +27,7 @@ export function sqlCompletionProvider(
     const suggestions: MonacoType.languages.CompletionItem[] =
         [];
 
-    // 1. SELECT asterisk with all table.column combinations
+    // SELECT asterisk with all table.column combinations
     if (cursorContext.type === "select_start") {
         // Add asterisk as first suggestion
         suggestions.push(createAsteriskCompletion(monaco));
@@ -51,21 +50,12 @@ export function sqlCompletionProvider(
         }
     }
 
-    // 2. After "SELECT *", suggest FROM keyword
+    // After "SELECT *", suggest FROM keyword
     if (cursorContext.type === "select_asterisk") {
         suggestions.push(createKeywordCompletion("FROM", monaco));
     }
 
-    // 3. Suggest table alias after AS keyword
-    if (cursorContext.type === "table_alias") {
-        // Get the table being aliased from the FROM/JOIN clause
-        const lastTable = cursorContext.selectedTables[cursorContext.selectedTables.length - 1];
-        if (lastTable) {
-            suggestions.push(createAliasCompletion(lastTable, monaco));
-        }
-    }
-
-    // 4. Suggest operators after column reference
+    // Suggest operators after column reference
     if (cursorContext.type === "column_operator") {
         const operators = ["=", "!=", "<>", "<", ">", "<=", ">=", "BETWEEN", "IN", "LIKE", "IS NULL", "IS NOT NULL"];
         suggestions.push(
@@ -73,7 +63,7 @@ export function sqlCompletionProvider(
         );
     }
 
-    // 5. Suggest tables when after FROM/JOIN keywords
+    // Suggest tables when after FROM/JOIN keywords
     if (
         cursorContext.type === "from_keyword" ||
         cursorContext.type === "table_after_from"
@@ -90,7 +80,7 @@ export function sqlCompletionProvider(
         );
     }
 
-    // 6. Suggest tables+columns combo on empty line
+    // Suggest tables+columns combo on empty line
     if (cursorContext.type === "empty_line") {
         // Suggest all tables
         suggestions.push(
@@ -123,15 +113,15 @@ export function sqlCompletionProvider(
         }
     }
 
-    // 7. Suggest keywords after table names
-    if (cursorContext.type === "keyword_after_table") {
+    // Suggest keywords after table names
+    if (cursorContext.type === "keyword_after_table" || cursorContext.type === "table_alias") {
         const keywords = getContextualKeywords(cursorContext);
         suggestions.push(
             ...keywords.map((kw) => createKeywordCompletion(kw, monaco)),
         );
     }
 
-    // 8. Suggest columns when after column-expecting keywords
+    // Suggest columns when after column-expecting keywords
     if (cursorContext.type === "column_after_keyword") {
         const selectedTables =
             cursorContext.selectedTables.length > 0

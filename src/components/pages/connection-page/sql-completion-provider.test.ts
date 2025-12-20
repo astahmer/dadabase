@@ -329,73 +329,73 @@ describe("sqlCompletionProvider", () => {
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "posts.id",
+                  "sortText": "1_posts.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "posts.created_at",
+                  "sortText": "1_posts.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "comments.id",
+                  "sortText": "1_comments.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "text",
-                  "sortText": "1_text",
+                  "label": "comments.text",
+                  "sortText": "1_comments.text",
                 },
                 {
                   "detail": "Column",
-                  "label": "post_id",
-                  "sortText": "1_post_id",
+                  "label": "comments.post_id",
+                  "sortText": "1_comments.post_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "comments.user_id",
+                  "sortText": "1_comments.user_id",
                 },
               ]
             `);
@@ -409,9 +409,9 @@ describe("sqlCompletionProvider", () => {
             );
 
             const columnLabels = suggestions.map((s) => s.label);
-            expect(columnLabels).toContain("id");
-            expect(columnLabels).toContain("email");
-            expect(columnLabels).toContain("title");
+            expect(columnLabels).toContain("users.id");
+            expect(columnLabels).toContain("users.email");
+            expect(columnLabels).toContain("posts.title");
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
@@ -431,73 +431,73 @@ describe("sqlCompletionProvider", () => {
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "posts.id",
+                  "sortText": "1_posts.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "posts.created_at",
+                  "sortText": "1_posts.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "comments.id",
+                  "sortText": "1_comments.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "text",
-                  "sortText": "1_text",
+                  "label": "comments.text",
+                  "sortText": "1_comments.text",
                 },
                 {
                   "detail": "Column",
-                  "label": "post_id",
-                  "sortText": "1_post_id",
+                  "label": "comments.post_id",
+                  "sortText": "1_comments.post_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "comments.user_id",
+                  "sortText": "1_comments.user_id",
                 },
               ]
             `);
@@ -531,73 +531,73 @@ describe("sqlCompletionProvider", () => {
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "posts.id",
+                  "sortText": "1_posts.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "posts.created_at",
+                  "sortText": "1_posts.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "comments.id",
+                  "sortText": "1_comments.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "text",
-                  "sortText": "1_text",
+                  "label": "comments.text",
+                  "sortText": "1_comments.text",
                 },
                 {
                   "detail": "Column",
-                  "label": "post_id",
-                  "sortText": "1_post_id",
+                  "label": "comments.post_id",
+                  "sortText": "1_comments.post_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "comments.user_id",
+                  "sortText": "1_comments.user_id",
                 },
               ]
             `);
@@ -610,7 +610,7 @@ describe("sqlCompletionProvider", () => {
                 mockMonaco,
             );
 
-            const columnSuggestion = suggestions.find((s) => s.label === "id");
+            const columnSuggestion = suggestions.find((s) => s.label === "users.id");
             // Should suggest SELECT "id" FROM one of the tables
             expect(columnSuggestion?.insertText).toMatch(/SELECT "id" FROM/);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
@@ -632,73 +632,73 @@ describe("sqlCompletionProvider", () => {
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "posts.id",
+                  "sortText": "1_posts.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "posts.created_at",
+                  "sortText": "1_posts.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "comments.id",
+                  "sortText": "1_comments.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "text",
-                  "sortText": "1_text",
+                  "label": "comments.text",
+                  "sortText": "1_comments.text",
                 },
                 {
                   "detail": "Column",
-                  "label": "post_id",
-                  "sortText": "1_post_id",
+                  "label": "comments.post_id",
+                  "sortText": "1_comments.post_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "comments.user_id",
+                  "sortText": "1_comments.user_id",
                 },
               ]
             `);
@@ -735,73 +735,73 @@ describe("sqlCompletionProvider", () => {
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "posts.id",
+                  "sortText": "1_posts.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "posts.created_at",
+                  "sortText": "1_posts.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "comments.id",
+                  "sortText": "1_comments.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "text",
-                  "sortText": "1_text",
+                  "label": "comments.text",
+                  "sortText": "1_comments.text",
                 },
                 {
                   "detail": "Column",
-                  "label": "post_id",
-                  "sortText": "1_post_id",
+                  "label": "comments.post_id",
+                  "sortText": "1_comments.post_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "comments.user_id",
+                  "sortText": "1_comments.user_id",
                 },
               ]
             `);
@@ -858,6 +858,11 @@ describe("sqlCompletionProvider", () => {
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
                 },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AS",
+                  "sortText": "2_AS",
+                },
               ]
             `);
         });
@@ -910,6 +915,11 @@ describe("sqlCompletionProvider", () => {
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
                 },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AS",
+                  "sortText": "2_AS",
+                },
               ]
             `);
         });
@@ -922,7 +932,7 @@ describe("sqlCompletionProvider", () => {
             );
 
             const keywordLabels = suggestions.map((s) => s.label);
-            expect(keywordLabels.length).toBe(7);
+            expect(keywordLabels.length).toBe(8);
             expect(keywordLabels).toContain("WHERE");
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
@@ -960,6 +970,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AS",
+                  "sortText": "2_AS",
                 },
               ]
             `);
@@ -1011,6 +1026,11 @@ describe("sqlCompletionProvider", () => {
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
                 },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AS",
+                  "sortText": "2_AS",
+                },
               ]
             `);
         });
@@ -1025,35 +1045,35 @@ describe("sqlCompletionProvider", () => {
             );
 
             const columnLabels = suggestions.map((s) => s.label);
-            expect(columnLabels).toContain("id");
-            expect(columnLabels).toContain("email");
-            expect(columnLabels).toContain("created_at");
+            expect(columnLabels).toContain("users.id");
+            expect(columnLabels).toContain("users.email");
+            expect(columnLabels).toContain("users.created_at");
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -1068,33 +1088,33 @@ describe("sqlCompletionProvider", () => {
 
             const columnLabels = suggestions.map((s) => s.label);
             // Should have columns from users table
-            expect(columnLabels).toContain("email");
+            expect(columnLabels).toContain("users.email");
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -1249,43 +1269,43 @@ describe("sqlCompletionProvider", () => {
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
               ]
             `);
@@ -1298,34 +1318,34 @@ describe("sqlCompletionProvider", () => {
                 mockMonaco,
             );
 
-            const idSuggestion = suggestions.find((s) => s.label === "id");
-            expect(idSuggestion?.insertText).toBe('"id"');
+            const idSuggestion = suggestions.find((s) => s.label === "users.id");
+            expect(idSuggestion?.insertText).toBe('"users"."id"');
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -1346,49 +1366,49 @@ describe("sqlCompletionProvider", () => {
 
             const columnLabels = suggestions.map((s) => s.label);
             // Should have columns from both users and posts
-            expect(columnLabels).toContain("email"); // from users
-            expect(columnLabels).toContain("title"); // from posts
+            expect(columnLabels).toContain("users.email"); // from users
+            expect(columnLabels).toContain("posts.title"); // from posts
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
               ]
             `);
@@ -1407,28 +1427,28 @@ describe("sqlCompletionProvider", () => {
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -1445,7 +1465,7 @@ describe("sqlCompletionProvider", () => {
 
             // Cursor after table name and trailing space, should suggest keywords
             // This is actually a valid context (keyword_after_table)
-            expect(suggestions.length).toBe(7);
+            expect(suggestions.length).toBe(8);
             expect(suggestions.some((s) => s.label === "WHERE")).toBe(true);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
@@ -1483,6 +1503,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AS",
+                  "sortText": "2_AS",
                 },
               ]
             `);
@@ -1557,34 +1582,34 @@ describe("sqlCompletionProvider", () => {
                 mockMonaco,
             );
 
-            const columnSuggestion = suggestions.find((s) => s.label === "id");
+            const columnSuggestion = suggestions.find((s) => s.label === "users.id");
             expect(columnSuggestion?.detail).toBe("Column");
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -1635,6 +1660,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AS",
+                  "sortText": "2_AS",
                 },
               ]
             `);
@@ -1755,73 +1785,73 @@ describe("sqlCompletionProvider", () => {
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "posts.id",
+                  "sortText": "1_posts.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "posts.created_at",
+                  "sortText": "1_posts.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "comments.id",
+                  "sortText": "1_comments.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "text",
-                  "sortText": "1_text",
+                  "label": "comments.text",
+                  "sortText": "1_comments.text",
                 },
                 {
                   "detail": "Column",
-                  "label": "post_id",
-                  "sortText": "1_post_id",
+                  "label": "comments.post_id",
+                  "sortText": "1_comments.post_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "comments.user_id",
+                  "sortText": "1_comments.user_id",
                 },
               ]
             `);
@@ -1865,31 +1895,31 @@ describe("sqlCompletionProvider", () => {
             );
 
             const labels = suggestions.map((s) => s.label);
-            expect(labels).toContain("id");
-            expect(labels).toContain("created_at");
-            expect(labels).toContain("account_id");
+            expect(labels).toContain("accounting_imports.id");
+            expect(labels).toContain("accounting_imports.created_at");
+            expect(labels).toContain("accounting_imports.account_id");
             expect(suggestions.length).toBe(4);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "accounting_imports.id",
+                  "sortText": "1_accounting_imports.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "accounting_imports.created_at",
+                  "sortText": "1_accounting_imports.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "accounting_imports.updated_at",
+                  "sortText": "1_accounting_imports.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "account_id",
-                  "sortText": "1_account_id",
+                  "label": "accounting_imports.account_id",
+                  "sortText": "1_accounting_imports.account_id",
                 },
               ]
             `);
@@ -1907,30 +1937,30 @@ describe("sqlCompletionProvider", () => {
             );
 
             const labels = suggestions.map((s) => s.label);
-            expect(labels).toContain("id");
-            expect(labels).toContain("created_at");
+            expect(labels).toContain("accounting_imports.id");
+            expect(labels).toContain("accounting_imports.created_at");
             expect(suggestions.length).toBe(4);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "accounting_imports.id",
+                  "sortText": "1_accounting_imports.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "accounting_imports.created_at",
+                  "sortText": "1_accounting_imports.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "accounting_imports.updated_at",
+                  "sortText": "1_accounting_imports.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "account_id",
-                  "sortText": "1_account_id",
+                  "label": "accounting_imports.account_id",
+                  "sortText": "1_accounting_imports.account_id",
                 },
               ]
             `);
@@ -1946,18 +1976,7 @@ describe("sqlCompletionProvider", () => {
                 mockMonaco,
             );
 
-            const labels = suggestions.map((s) => s.label);
-            expect(labels).toContain("accounting_imports");
-            expect(suggestions.length).toBe(1);
-            expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "Table alias",
-                  "label": "accounting_imports",
-                  "sortText": "1_accounting_imports",
-                },
-              ]
-            `);
+            expect(suggestions.length).toBe(0);
         });
 
         it("should suggest asterisk as first suggestion in SELECT clause", () => {
@@ -2200,61 +2219,61 @@ describe("sqlCompletionProvider", () => {
 
             const labels = suggestions.map((s) => s.label);
             // After COUNT( suggests all available columns
-            expect(labels).toContain("id");
-            expect(labels).toContain("email");
-            expect(labels).toContain("title");
+            expect(labels).toContain("users.id");
+            expect(labels).toContain("users.email");
+            expect(labels).toContain("posts.title");
             expect(suggestions.length).toBe(10);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "text",
-                  "sortText": "1_text",
+                  "label": "comments.text",
+                  "sortText": "1_comments.text",
                 },
                 {
                   "detail": "Column",
-                  "label": "post_id",
-                  "sortText": "1_post_id",
+                  "label": "comments.post_id",
+                  "sortText": "1_comments.post_id",
                 },
               ]
             `);
@@ -2405,60 +2424,60 @@ describe("sqlCompletionProvider", () => {
 
             const labels = suggestions.map((s) => s.label);
             // Suggests all columns when inside function
-            expect(labels).toContain("text");
-            expect(labels).toContain("post_id");
+            expect(labels).toContain("comments.text");
+            expect(labels).toContain("comments.post_id");
             expect(suggestions.length).toBe(10);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "text",
-                  "sortText": "1_text",
+                  "label": "comments.text",
+                  "sortText": "1_comments.text",
                 },
                 {
                   "detail": "Column",
-                  "label": "post_id",
-                  "sortText": "1_post_id",
+                  "label": "comments.post_id",
+                  "sortText": "1_comments.post_id",
                 },
               ]
             `);
@@ -2680,7 +2699,7 @@ describe("sqlCompletionProvider", () => {
             expect(labels).toContain("WHERE");
             expect(labels).toContain("ORDER BY");
             expect(labels).toContain("LIMIT");
-            expect(suggestions.length).toBe(7);
+            expect(suggestions.length).toBe(8);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
@@ -2717,6 +2736,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AS",
+                  "sortText": "2_AS",
                 },
               ]
             `);
@@ -2875,50 +2899,50 @@ describe("sqlCompletionProvider", () => {
             );
 
             const labels = suggestions.map((s) => s.label);
-            expect(labels).toContain("id");
-            expect(labels).toContain("email");
+            expect(labels).toContain("users.id");
+            expect(labels).toContain("users.email");
             expect(suggestions.length).toBe(8);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
               ]
             `);
@@ -2936,61 +2960,61 @@ describe("sqlCompletionProvider", () => {
             );
 
             const labels = suggestions.map((s) => s.label);
-            expect(labels).toContain("id");
-            expect(labels).toContain("email");
-            expect(labels).toContain("name");
+            expect(labels).toContain("users.id");
+            expect(labels).toContain("users.email");
+            expect(labels).toContain("users.name");
             expect(suggestions.length).toBe(10);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "text",
-                  "sortText": "1_text",
+                  "label": "comments.text",
+                  "sortText": "1_comments.text",
                 },
                 {
                   "detail": "Column",
-                  "label": "post_id",
-                  "sortText": "1_post_id",
+                  "label": "comments.post_id",
+                  "sortText": "1_comments.post_id",
                 },
               ]
             `);
@@ -3006,36 +3030,36 @@ describe("sqlCompletionProvider", () => {
             );
 
             const labels = suggestions.map((s) => s.label);
-            // WHERE without explicit table reference returns plain column names
-            expect(labels).toContain("id");
-            expect(labels).toContain("email");
+            // WHERE returns qualified column names
+            expect(labels).toContain("users.id");
+            expect(labels).toContain("users.email");
             expect(suggestions.length).toBe(5);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -3133,35 +3157,35 @@ describe("sqlCompletionProvider", () => {
 
             const labels = suggestions.map((s) => s.label);
             // After AND in WHERE with qualified column, suggests more columns
-            expect(labels).toContain("id");
-            expect(labels).toContain("email");
+            expect(labels).toContain("users.id");
+            expect(labels).toContain("users.email");
             expect(suggestions.length).toBe(5);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -3178,35 +3202,35 @@ describe("sqlCompletionProvider", () => {
             );
 
             const labels = suggestions.map((s) => s.label);
-            expect(labels).toContain("id");
-            expect(labels).toContain("name");
+            expect(labels).toContain("users.id");
+            expect(labels).toContain("users.name");
             expect(suggestions.length).toBe(5);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -3226,28 +3250,28 @@ describe("sqlCompletionProvider", () => {
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -3268,28 +3292,28 @@ describe("sqlCompletionProvider", () => {
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -3307,36 +3331,36 @@ describe("sqlCompletionProvider", () => {
             );
 
             const labels = suggestions.map((s) => s.label);
-            expect(labels).toContain("id");
-            expect(labels).toContain("email");
-            expect(labels).toContain("name");
+            expect(labels).toContain("users.id");
+            expect(labels).toContain("users.email");
+            expect(labels).toContain("users.name");
             expect(suggestions.length).toBe(5);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -3356,28 +3380,28 @@ describe("sqlCompletionProvider", () => {
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -3514,7 +3538,7 @@ describe("sqlCompletionProvider", () => {
             expect(labels).toContain("WHERE");
             expect(labels).toContain("ORDER BY");
             expect(labels).toContain("LIMIT");
-            expect(suggestions.length).toBe(7);
+            expect(suggestions.length).toBe(8);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
@@ -3551,6 +3575,11 @@ describe("sqlCompletionProvider", () => {
                   "detail": "SQL Keyword",
                   "label": "INNER JOIN",
                   "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AS",
+                  "sortText": "2_AS",
                 },
               ]
             `);
@@ -3627,35 +3656,35 @@ describe("sqlCompletionProvider", () => {
             );
 
             const labels = suggestions.map((s) => s.label);
-            expect(labels).toContain("id");
-            expect(labels).toContain("email");
+            expect(labels).toContain("users.id");
+            expect(labels).toContain("users.email");
             expect(suggestions.length).toBe(5);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -3765,28 +3794,28 @@ describe("sqlCompletionProvider", () => {
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -3804,28 +3833,28 @@ describe("sqlCompletionProvider", () => {
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
@@ -3930,60 +3959,60 @@ describe("sqlCompletionProvider", () => {
             );
 
             const labels = suggestions.map((s) => s.label);
-            expect(labels).toContain("id");
-            expect(labels).toContain("email");
+            expect(labels).toContain("users.id");
+            expect(labels).toContain("users.email");
             expect(suggestions.length).toBe(10);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
                 {
                   "detail": "Column",
-                  "label": "title",
-                  "sortText": "1_title",
+                  "label": "posts.title",
+                  "sortText": "1_posts.title",
                 },
                 {
                   "detail": "Column",
-                  "label": "content",
-                  "sortText": "1_content",
+                  "label": "posts.content",
+                  "sortText": "1_posts.content",
                 },
                 {
                   "detail": "Column",
-                  "label": "user_id",
-                  "sortText": "1_user_id",
+                  "label": "posts.user_id",
+                  "sortText": "1_posts.user_id",
                 },
                 {
                   "detail": "Column",
-                  "label": "text",
-                  "sortText": "1_text",
+                  "label": "comments.text",
+                  "sortText": "1_comments.text",
                 },
                 {
                   "detail": "Column",
-                  "label": "post_id",
-                  "sortText": "1_post_id",
+                  "label": "comments.post_id",
+                  "sortText": "1_comments.post_id",
                 },
               ]
             `);
@@ -4123,35 +4152,35 @@ describe("sqlCompletionProvider", () => {
 
             const labels = suggestions.map((s) => s.label);
             // WHERE returns column names (either plain or qualified depending on context)
-            expect(labels).toContain("id");
-            expect(labels).toContain("email");
+            expect(labels).toContain("users.id");
+            expect(labels).toContain("users.email");
             expect(suggestions.length).toBe(5);
             expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "Column",
-                  "label": "id",
-                  "sortText": "1_id",
+                  "label": "users.id",
+                  "sortText": "1_users.id",
                 },
                 {
                   "detail": "Column",
-                  "label": "email",
-                  "sortText": "1_email",
+                  "label": "users.email",
+                  "sortText": "1_users.email",
                 },
                 {
                   "detail": "Column",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
+                  "label": "users.created_at",
+                  "sortText": "1_users.created_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
+                  "label": "users.updated_at",
+                  "sortText": "1_users.updated_at",
                 },
                 {
                   "detail": "Column",
-                  "label": "name",
-                  "sortText": "1_name",
+                  "label": "users.name",
+                  "sortText": "1_users.name",
                 },
               ]
             `);
