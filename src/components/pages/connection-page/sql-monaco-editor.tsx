@@ -11,6 +11,13 @@ import { sqlCompletionProvider } from "./sql-completion-provider.ts";
 
 type Monaco = typeof OriginalMonaco;
 
+// snippets
+// https://github.com/DTStack/monaco-sql-languages/blob/6c745d44019229d79a33c5471d8a90c5a4d206cd/src/languages/pgsql/pgsql.snippet.ts
+
+// diagnostics?
+// https://github.com/DTStack/monaco-sql-languages/blob/6c745d44019229d79a33c5471d8a90c5a4d206cd/src/languageFeatures.ts
+// https://github.com/chakra-ui/panda-vscode/blob/f50ecaca5255e50e0913a76eb79b4cbdb21dd7f6/packages/language-server/src/features/diagnostics.ts#L8
+
 interface SqlMonacoEditorProps {
 	/** The SQL code to display/edit */
 	sql: string;

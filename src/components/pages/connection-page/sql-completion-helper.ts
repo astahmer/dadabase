@@ -14,7 +14,8 @@ export interface CompletionContext {
 		| "select_start"
 		| "select_asterisk"
 		| "column_operator"
-		| "after_condition";
+		| "after_condition"
+		| "join_table";
 	selectedTables: string[];
 	tableAliases: Record<string, string>; // Maps table name to alias (e.g., { "users": "u", "posts": "p" })
 	lastKeyword?: SqlKeyword;
@@ -91,6 +92,14 @@ const REGEX_KEYWORD_AFTER_TABLE = new RegExp(
 	`\\b(${JOIN_KEYWORDS})\\s+(\\w+|"\\w+")(AS\s+(\w*))?\\s+$`,
 	"i",
 );
+const REGEX_JOIN_TABLE_WITHOUT_ALIAS = new RegExp(
+	`\\b(JOIN|INNER\\s+JOIN|LEFT\\s+JOIN|RIGHT\\s+JOIN|FULL\\s+JOIN|CROSS\\s+JOIN)\\s+(\\w+|"[^"]*")\\s+$`,
+	"i",
+);
+const REGEX_JOIN_TABLE_WITH_ALIAS = new RegExp(
+	`\\b(JOIN|INNER\\s+JOIN|LEFT\\s+JOIN|RIGHT\\s+JOIN|FULL\\s+JOIN|CROSS\\s+JOIN)\\s+(\\w+|"[^"]*")\\s+AS\\s+(\\w+)\\s+$`,
+	"i",
+);
 const REGEX_TABLE_PATTERN = new RegExp(
 	`\\b(?:${JOIN_KEYWORDS})\\s+(?:"([^"]+)"|(\\w+))`,
 	"gi",
@@ -107,7 +116,7 @@ const REGEX_FUNCTION_WITH_TABLE =
 // Matches patterns like: WHERE category = "xxx" , WHERE "table"."column" > 5 , WHERE col IS NULL , WHERE col LIKE '%pattern%'
 // Ensures there's actual content after the operator (not just the operator with trailing space)
 const REGEX_COMPLETED_CONDITION =
-	/\b(WHERE|ON|HAVING|AND|OR)\s+(?:(?:"[^"]+"|[\w]+)\.)?(?:"[^"]+"|[\w]+)\s+(?:=|!=|<>|<|>|<=|>=|BETWEEN|IN|EXISTS)\s+(?:"[^"]+"|[\w]+|'[^']*'|\d+)\s+$/i;
+	/\b(WHERE|ON|HAVING|AND|OR)\s+(?:(?:"[^"]+"|[\w]+)\.)?(?:"[^"]+"|[\w]+)\s+(?:=|!=|<>|<|>|<=|>=|BETWEEN|IN|EXISTS)\s+(?:(?:"[^"]+"|[\w]+)\.)?(?:"[^"]+"|[\w]+|'[^']*'|\d+)\s+$/i;
 
 // Memoized keyword patterns for column context detection
 const COLUMN_KEYWORDS_PATTERN = {
@@ -258,6 +267,20 @@ export function detectCompletionContext(
 				beforeCursor,
 			};
 		}
+	}
+
+	// Check for table after JOIN without alias (should suggest AS and ON)
+	if (
+		REGEX_JOIN_TABLE_WITHOUT_ALIAS.test(beforeCursor) &&
+		!REGEX_JOIN_TABLE_WITH_ALIAS.test(beforeCursor)
+	) {
+		return {
+			type: "join_table",
+			selectedTables,
+			tableAliases,
+			isAtLineStart,
+			beforeCursor,
+		};
 	}
 
 	// If we just finished a table name and the last keyword was FROM/JOIN, suggest keywords
@@ -481,6 +504,11 @@ export function getContextualKeywords(
 			"UNION ALL",
 			"INTERSECT",
 		];
+	}
+
+	if (context.type === "join_table") {
+		// After a table in a JOIN clause (no alias yet), suggest AS and ON
+		return ["AS", "ON"];
 	}
 
 	if (
