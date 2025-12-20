@@ -10,6 +10,8 @@ interface SqlMonacoEditorProps {
 	onChange?: (value: string) => void;
 	/** Optional CSS class */
 	className?: string;
+	/** Available tables for intellisense suggestions */
+	tables?: Array<{ schema: string; name: string }>;
 }
 
 // https://shiki.style/themes
@@ -18,12 +20,13 @@ interface SqlMonacoEditorProps {
 
 /**
  * Monaco SQL Editor component using @monaco-editor/react
- * Provides a simple wrapper around the Monaco Editor
+ * Provides a simple wrapper around the Monaco Editor with SQL highlighting and intellisense
  */
 export function SqlMonacoEditor({
 	sql,
 	onChange,
 	className = "",
+	tables = [],
 }: SqlMonacoEditorProps) {
 	const monacoRef = useRef<Monaco>(null);
 	// const editorRef =
@@ -81,6 +84,45 @@ export function SqlMonacoEditor({
 		};
 	}, [editorRef]);
 
+	// Setup SQL intellisense with table suggestions
+	useEffect(() => {
+		const monaco = monacoRef.current;
+		if (!monaco || tables.length === 0) return;
+
+		const disposable = monaco.languages.registerCompletionItemProvider("sql", {
+			provideCompletionItems: (
+				model: OriginalMonacoEditor.editor.ITextModel,
+				position: OriginalMonacoEditor.Position,
+			) => {
+				// Get the current word/context
+				const word = model.getWordUntilPosition(position);
+				const range = {
+					startLineNumber: position.lineNumber,
+					endLineNumber: position.lineNumber,
+					startColumn: word.startColumn,
+					endColumn: word.endColumn,
+				};
+
+				// Create completion items for tables
+				const suggestions: OriginalMonacoEditor.languages.CompletionItem[] =
+					tables.map((table) => ({
+						label: table.name,
+						kind: monaco.languages.CompletionItemKind.Struct,
+						detail: `Table in schema: ${table.schema}`,
+						insertText: `"${table.schema}"."${table.name}"`,
+						range: range as any,
+						sortText: table.name,
+					}));
+
+				return { suggestions };
+			},
+		});
+
+		return () => {
+			disposable.dispose();
+		};
+	}, [tables]);
+
 	return (
 		<Editor
 			onMount={(editor) => {
@@ -92,7 +134,7 @@ export function SqlMonacoEditor({
 			}}
 			height="100%"
 			defaultLanguage="sql"
-			value={sql}
+			defaultValue={sql}
 			onChange={(value) => {
 				if (value !== undefined && onChange) {
 					onChange(value);
@@ -109,6 +151,11 @@ export function SqlMonacoEditor({
 				wordWrap: "on",
 				readOnly: false,
 				padding: { top: 8, bottom: 8 },
+				quickSuggestions: {
+					other: true,
+					comments: false,
+					strings: false,
+				},
 			}}
 		/>
 	);

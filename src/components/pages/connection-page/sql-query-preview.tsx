@@ -34,8 +34,6 @@ interface SqlQueryPreviewProps {
 	onEditorChange?: (value: string) => void;
 	/** Custom SQL that user has edited (if different from generated SQL) */
 	customSql?: string;
-	/** Callback when custom SQL is changed (user edits in editor) */
-	onCustomSqlChange?: (customSql: string) => void;
 	/** Callback to reset custom SQL */
 	onResetCustomSql?: () => void;
 	/** Callback to run the query */
@@ -54,6 +52,8 @@ interface SqlQueryPreviewProps {
 	isCollapsed?: boolean;
 	/** Callback to toggle collapsed state */
 	onToggleCollapsed?: (collapsed: boolean) => void;
+	/** Available tables for intellisense suggestions */
+	tables?: Array<{ schema: string; name: string }>;
 	/** Custom CSS class */
 	className?: string;
 }
@@ -76,7 +76,6 @@ export function SqlQueryPreview({
 	onEditorModeChange,
 	onEditorChange,
 	customSql,
-	onCustomSqlChange,
 	onResetCustomSql,
 	onRun,
 	onExplain,
@@ -86,6 +85,7 @@ export function SqlQueryPreview({
 	isFullscreen = false,
 	isCollapsed = true,
 	onToggleCollapsed,
+	tables = [],
 	className,
 }: SqlQueryPreviewProps) {
 	const [copied, setCopied] = useState(false);
@@ -104,7 +104,6 @@ export function SqlQueryPreview({
 
 	const handleEditorChange = useEffectEvent((value: string) => {
 		editorValueRef.current = value;
-		onCustomSqlChange?.(value);
 		onEditorChange?.(value);
 	});
 
@@ -310,11 +309,12 @@ export function SqlQueryPreview({
 							</pre>
 						</div>
 					) : (
-						<div className="h-64 bg-gray-50 border-t border-gray-200 h-full">
+						<div className="bg-gray-50 border-t border-gray-200 h-full">
 							<SqlMonacoEditor
 								sql={customSql || sql}
 								onChange={handleEditorChange}
 								className="w-full h-full"
+								tables={tables}
 							/>
 						</div>
 					)}

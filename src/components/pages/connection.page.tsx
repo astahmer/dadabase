@@ -9,6 +9,7 @@ import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
+import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { Splitter } from "@ark-ui/react";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -56,6 +57,7 @@ import type { DbConnection } from "./connection.types";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { Button } from "../ui/button.tsx";
 import { toaster } from "../ui/toaster.tsx";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -232,6 +234,17 @@ const MainContent = (props: { connection: DbConnection }) => {
 		null,
 	);
 	const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
+
+	// Fetch available tables for intellisense
+	const tablesQuery = useQuery({
+		...listAvailableTablesQueryOptions({
+			url: pageState.activeConnectionUrl,
+			schema: search.schema,
+		}),
+		enabled: !!search.schema,
+	});
+	const tables = tablesQuery.data || [];
+
 	const explainQuery = useQuery({
 		enabled: false,
 		queryKey: ["remote", "explain", search.customSql],
@@ -271,6 +284,18 @@ const MainContent = (props: { connection: DbConnection }) => {
 
 	const { filters: structureFilters } = useStructureFilters();
 	const relationshipPanelSize = fromPixelToPercentage(50);
+
+	const onEditorValueChange = useDebouncedCallback(
+		(value: string) => {
+			return navigate({
+				search: (prev) =>
+					updateTabState(prev, {
+						customSql: value,
+					}),
+			});
+		},
+		{ wait: 500 },
+	);
 
 	return (
 		<>
@@ -426,14 +451,7 @@ const MainContent = (props: { connection: DbConnection }) => {
 													})
 												}
 												customSql={search.customSql}
-												onCustomSqlChange={(customSql) =>
-													navigate({
-														search: (prev) =>
-															updateTabState(prev, {
-																customSql,
-															}),
-													})
-												}
+												onEditorChange={(value) => onEditorValueChange(value)}
 												onResetCustomSql={() =>
 													navigate({
 														search: (prev) =>
@@ -490,6 +508,7 @@ const MainContent = (props: { connection: DbConnection }) => {
 													setIsEditorFullscreen(!isEditorFullscreen)
 												}
 												isFullscreen={isEditorFullscreen}
+												tables={tables}
 												className="text-sm h-full"
 											/>
 										)}
