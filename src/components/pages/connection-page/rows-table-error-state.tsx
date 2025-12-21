@@ -1,13 +1,14 @@
-import { createListCollection, Listbox } from "@ark-ui/react/listbox";
-import { useFilter } from "@ark-ui/react/locale";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { toaster } from "#src/components/ui/toaster.tsx";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
-import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
+import { createListCollection, Listbox } from "@ark-ui/react/listbox";
+import { useFilter } from "@ark-ui/react/locale";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useMemo, useRef, useState } from "react";
 import { ErrorBoundaryCard } from "../../shared/error-boundary-card.tsx";
 import { Button } from "../../ui/button";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
@@ -17,11 +18,8 @@ import {
 	updateTabState,
 	useActiveTabState,
 } from "./create-tab-state.ts";
-import {
-	detectCompletionContext,
-	extractSelectedTables,
-} from "./sql-completion-helper.ts";
-import { toaster } from "#src/components/ui/toaster.tsx";
+import { extractSelectedTables } from "./sql-completion-helper.ts";
+import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
 
 interface RowsTableErrorStateProps {
 	activeConnectionUrl: string;
@@ -82,11 +80,20 @@ const NoTableSelectedState = ({
 	const queryClient = useQueryClient();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [filterText, setFilterText] = useState("");
-	const [mode, setMode] = useState<"table" | "sql">("table");
-	const [sqlInput, setSqlInput] = useState("");
 	const { contains } = useFilter({ sensitivity: "base" });
 
+	const mode = useActiveTabState((s) => s.initialTabMode ?? "table");
+	const customSql = useActiveTabState((s) => s.customSql ?? "");
 	const selectedSchema = useActiveTabState((s) => s.schema);
+
+	const onCustomSqlChange = useDebouncedCallback(
+		(value: string) => {
+			return navigate({
+				search: (prev) => updateTabState(prev, { customSql: value }),
+			});
+		},
+		{ wait: 500 },
+	);
 
 	const tablesListQuery = useQuery({
 		...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
@@ -153,7 +160,11 @@ const NoTableSelectedState = ({
 				if (isCurrentTabEmpty && currentTab) {
 					return {
 						...prev,
-						...updateTabState(prev, { ...newTab, tabId: currentTab.tabId }),
+						...updateTabState(prev, {
+							...newTab,
+							tabId: currentTab.tabId,
+							initialTabMode: undefined,
+						}),
 						schema,
 						table: tableName,
 						offset: 0,
@@ -172,11 +183,11 @@ const NoTableSelectedState = ({
 	};
 
 	const handleCustomSqlSubmit = () => {
-		if (!sqlInput.trim()) return;
+		if (!customSql.trim()) return;
 
 		const schema =
 			selectedSchema || getDialectDefaultSchema(connection.dialect);
-		const table = extractSelectedTables(sqlInput).at(0);
+		const table = extractSelectedTables(customSql).at(0);
 		if (!table) {
 			toaster.create({
 				title: "Failed to detect table",
@@ -201,8 +212,9 @@ const NoTableSelectedState = ({
 						...newTab,
 						...updateTabState(prev, {
 							table,
-							customSql: sqlInput,
+							customSql,
 							sqlEditorMode: "editor",
+							initialTabMode: undefined,
 						}),
 					};
 				}
@@ -235,8 +247,10 @@ const NoTableSelectedState = ({
 						variant={mode === "table" ? "default" : "ghost"}
 						size="sm"
 						onClick={() => {
-							setMode("table");
-							setSqlInput("");
+							navigate({
+								search: (prev) =>
+									updateTabState(prev, { initialTabMode: "table" }),
+							});
 						}}
 						className="rounded-none border-b-2 border-transparent data-active:border-primary px-4 py-2"
 						data-active={mode === "table"}
@@ -246,7 +260,12 @@ const NoTableSelectedState = ({
 					<Button
 						variant={mode === "sql" ? "default" : "ghost"}
 						size="sm"
-						onClick={() => setMode("sql")}
+						onClick={() => {
+							navigate({
+								search: (prev) =>
+									updateTabState(prev, { initialTabMode: "sql" }),
+							});
+						}}
 						className="rounded-none border-b-2 border-transparent data-active:border-primary px-4 py-2"
 						data-active={mode === "sql"}
 					>
@@ -406,17 +425,10 @@ const NoTableSelectedState = ({
 
 						{/* SQL Input Area */}
 						<div className="flex flex-col gap-2">
-							<textarea
-								value={sqlInput}
-								onChange={(e) => setSqlInput(e.target.value)}
-								onKeyDown={(e) => {
-									if (e.ctrlKey && e.key === "Enter") {
-										handleCustomSqlSubmit();
-									}
-								}}
-								autoFocus
-								placeholder="SELECT * FROM table_name;&#10;&#10;Ctrl+Enter or click Execute to run"
-								className="w-full h-48 p-3 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent font-mono text-sm"
+							<SqlMonacoEditor
+								sql={customSql}
+								onChange={onCustomSqlChange}
+								className="h-48"
 							/>
 						</div>
 
@@ -424,7 +436,7 @@ const NoTableSelectedState = ({
 						<div className="flex gap-2">
 							<Button
 								onClick={handleCustomSqlSubmit}
-								disabled={!sqlInput.trim()}
+								disabled={!customSql.trim()}
 								className="flex items-center gap-2"
 								size="sm"
 								variant="default"
@@ -439,8 +451,12 @@ const NoTableSelectedState = ({
 								Execute
 							</Button>
 							<Button
-								onClick={() => setSqlInput("")}
-								disabled={!sqlInput.trim()}
+								onClick={() => {
+									navigate({
+										search: (prev) => updateTabState(prev, { customSql: "" }),
+									});
+								}}
+								disabled={!customSql.trim()}
 								variant="outline"
 								size="sm"
 							>
