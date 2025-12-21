@@ -26,22 +26,23 @@ export interface ParsedSqlQueryState {
 // Compiled Regex Patterns (reused across functions to avoid recompilation)
 // ============================================================================
 
-// Matches optional table prefix with optional quotes: [table.] or ["table".]
-const TABLE_PREFIX = /(?:["`]?\w+["`]?\.)?/;
+// Matches optional schema and/or table prefix with optional quotes
+// Supports: [schema.]table.column, ["schema"].table.column, table.column, column
+const QUALIFIER_PREFIX = /(?:["`]?\w+["`]?\.){0,2}/;
 
 // Captures quoted or unquoted column name: column or "column" or `column`
 const COLUMN_NAME = /["`]?(\w+)["`]?/;
 
-// Captures the column name and handles table-qualified identifiers
+// Captures the column name and handles schema.table.column or table.column qualified identifiers
 const QUALIFIED_COLUMN = new RegExp(
-	`^${TABLE_PREFIX.source}${COLUMN_NAME.source}$`,
+	`^${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}$`,
 );
 
 // SQL clause patterns
 const WHERE_CLAUSE_REGEX =
 	/WHERE\s+(.+?)(?:ORDER BY|LIMIT|OFFSET|GROUP BY|HAVING|$)/i;
 const ORDER_BY_REGEX = new RegExp(
-	`ORDER\\s+BY\\s+${TABLE_PREFIX.source}${COLUMN_NAME.source}(?:\\s+(ASC|DESC))?`,
+	`ORDER\\s+BY\\s+${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}(?:\\s+(ASC|DESC))?`,
 	"i",
 );
 const LIMIT_REGEX = /LIMIT\s+(\d+)/i;
@@ -53,31 +54,53 @@ const AND_SPLIT_REGEX = /\s+AND\s+/gi;
 const OR_SPLIT_REGEX = /\s+OR\s+/gi;
 const LOGICAL_SPLIT_REGEX = /\s+(?:AND|OR)\s+/gi;
 
-// Condition patterns (with table-qualified support)
+// Condition patterns (with schema.table.column support)
 const IS_NULL_REGEX = new RegExp(
-	`^${TABLE_PREFIX.source}${COLUMN_NAME.source}\\s+IS\\s+(NOT\\s+)?NULL$`,
+	`^${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}\\s+IS\\s+(NOT\\s+)?NULL$`,
 	"i",
 );
 const IN_REGEX = new RegExp(
-	`^${TABLE_PREFIX.source}${COLUMN_NAME.source}\\s+(NOT\\s+)?IN\\s*\\(\\s*(.+?)\\s*\\)$`,
+	`^${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}\\s+(NOT\\s+)?IN\\s*\\(\\s*(.+?)\\s*\\)$`,
 	"i",
 );
 const LIKE_REGEX = new RegExp(
-	`^${TABLE_PREFIX.source}${COLUMN_NAME.source}\\s+(NOT\\s+)?LIKE\\s+['"](.+?)['"]$`,
+	`^${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}\\s+(NOT\\s+)?LIKE\\s+['"](.+?)['"]$`,
 	"i",
 );
 const COMPARISON_REGEX = new RegExp(
-	`^${TABLE_PREFIX.source}${COLUMN_NAME.source}\\s*(<=|>=|<>|!=|=|<|>)\\s*['"]?(.+?)['"]?$`,
+	`^${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}\\s*(<=|>=|<>|!=|=|<|>)\\s*['"]?(.+?)['"]?$`,
 );
 
 /**
- * Extracts the column name from a potentially table-qualified identifier
- * Handles: table.column, "table"."column", "table".column, table."column"
- * Returns the column name without the table prefix
+ * Extracts the column name from a potentially qualified identifier
+ * Handles:
+ * - Simple: column, "column", `column`
+ * - Table-qualified: table.column, "table"."column", table."column"
+ * - Schema-qualified: schema.table.column, "schema"."table"."column", etc.
+ * Returns the column name without any prefix
  */
 const extractColumnName = (identifier: string): string => {
 	const match = identifier.match(QUALIFIED_COLUMN);
 	return match ? match[1].toLowerCase() : identifier.toLowerCase();
+};
+
+/**
+ * Extracts the column name and strips aliases
+ * Handles: col AS alias, col alias, "col" "alias", col AS "alias", etc.
+ * Returns just the column name (left side of AS or space-separated alias)
+ */
+const extractColumnNameWithAlias = (columnExpression: string): string => {
+	// Remove alias: split on AS keyword (case-insensitive)
+	const withoutAlias = columnExpression
+		.split(/\s+AS\s+/i)[0]
+		.trim();
+	
+	// Also handle space-separated aliases without AS (e.g., "col alias")
+	// Only take the first part if multiple space-separated identifiers
+	const parts = withoutAlias.split(/\s+/);
+	const columnPart = parts[0].trim();
+	
+	return extractColumnName(columnPart);
 };
 
 /**
@@ -134,9 +157,8 @@ export const parseSqlQuery = (
 		// If not SELECT *, track which columns are selected
 		if (selectedPart !== "*") {
 			const selectedColumns = selectedPart.split(",").map((col) => {
-				const normalized = col.trim().replace(/["`]/g, "").toLowerCase();
-				// Handle table-qualified columns: extract just the column name
-				return extractColumnName(normalized);
+				// Handle aliases and qualified column names
+				return extractColumnNameWithAlias(col.trim());
 			});
 
 			// Hidden columns are those NOT in the SELECT list

@@ -602,4 +602,130 @@ describe("SQL Query Parser", () => {
 			expect(result.limit).toBe(2);
 		});
 	});
+
+	describe("schema.table.column qualified column names", () => {
+		it("should parse WHERE with schema.table.column syntax", () => {
+			const sql =
+				"SELECT * FROM schema.users WHERE schema.users.status = 'active'";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+		});
+
+		it("should parse WHERE with fully quoted schema.table.column syntax", () => {
+			const sql =
+				'SELECT * FROM "schema"."users" WHERE "schema"."users"."status" = \'active\'';
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+		});
+
+		it("should handle schema.table.column in IS NULL", () => {
+			const sql =
+				"SELECT * FROM schema.users WHERE schema.users.status IS NULL";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].operator).toBe("is_null");
+		});
+
+		it("should handle schema.table.column in IN operator", () => {
+			const sql =
+				"SELECT * FROM schema.users WHERE schema.users.status IN ('active', 'inactive')";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].operator).toBe("in");
+		});
+
+		it("should parse ORDER BY with schema.table.column", () => {
+			const sql = "SELECT * FROM schema.users ORDER BY schema.users.name ASC";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.orderBy).toBe("name");
+			expect(result.orderDirection).toBe("asc");
+		});
+
+		it("should handle schema.table.column in SELECT clause", () => {
+			const sql = "SELECT schema.users.id, schema.users.name FROM schema.users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toContain("email");
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+		});
+	});
+
+	describe("column aliases", () => {
+		it("should handle AS alias in SELECT", () => {
+			const sql = "SELECT id, name AS user_name, email FROM users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toContain("age");
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).not.toContain("email");
+		});
+
+		it("should handle space-separated aliases (no AS)", () => {
+			const sql = "SELECT id, name user_name, email FROM users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toContain("age");
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).not.toContain("email");
+		});
+
+		it("should handle quoted column aliases", () => {
+			const sql = 'SELECT id, name AS "User Name", email FROM users';
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toContain("age");
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).not.toContain("email");
+		});
+
+		it("should handle table.column with alias", () => {
+			const sql =
+				"SELECT users.id, users.name AS user_name, users.email FROM users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toContain("age");
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).not.toContain("email");
+		});
+
+		it("should handle schema.table.column with alias", () => {
+			const sql =
+				"SELECT schema.users.id AS user_id, schema.users.name AS user_name FROM schema.users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toContain("email");
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+		});
+
+		it("should handle multiple aliases in complex query", () => {
+			const sql =
+				"SELECT u.id AS user_id, u.name AS full_name, u.email AS contact_email FROM users u WHERE u.status = 'active'";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toContain("age");
+			expect(result.hiddenColumnList).toContain("status");
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).not.toContain("email");
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+		});
+	});
 });

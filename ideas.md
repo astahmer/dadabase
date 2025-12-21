@@ -63,3 +63,6 @@
 
 ## issues
 - import join config from SQL query
+- SQL editor maximize button should be open a menu with multiple options:
+    - expand panel (collapse rows content)
+    - fullscreen (collapse sidebar + hide connectionpagefilters + collapse rows content)
