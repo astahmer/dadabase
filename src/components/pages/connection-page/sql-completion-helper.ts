@@ -599,21 +599,7 @@ export function createColumnCompletion(
 	monaco: any,
 	metadata?: TableColumnMetadata,
 ) {
-	// Determine whether to use qualified column names (with table prefix) in insertText
-	// Use unqualified for ORDER BY, GROUP BY, HAVING contexts
-	const isOrderByGroupByContext = ["ORDER", "GROUP", "HAVING"].includes(
-		context.lastKeyword || "",
-	);
-
-	let insertText = isOrderByGroupByContext
-		? `"${columnName}"`
-		: `${tableName ? `"${tableName}".` : ""}"${columnName}"`;
-
-	// When on empty line with columns, insert select column from table
-	if (context.type === "empty_line" && tableName) {
-		insertText = `SELECT "${columnName}" FROM "${tableName}"`;
-	}
-
+	// Determine whether to use qualified column names in insertText and label
 	// Check if we're inside a function WITH a table dot (table.column pattern within function)
 	const isInsideFunctionWithTable = REGEX_FUNCTION_WITH_TABLE.test(
 		context.beforeCursor,
@@ -624,10 +610,18 @@ export function createColumnCompletion(
 		context.lastKeyword === "ON" &&
 		context.beforeCursor.trimEnd().endsWith(".");
 
-	const shouldUseQualified =
-		!isOrderByGroupByContext &&
-		!isInsideFunctionWithTable &&
-		!inJoinOnWithTable;
+	// Use unqualified names only when inside function with table or in JOIN ON with table
+	const shouldUseQualified = !isInsideFunctionWithTable && !inJoinOnWithTable;
+
+	let insertText =
+		shouldUseQualified && tableName
+			? `"${tableName}"."${columnName}"`
+			: `"${columnName}"`;
+
+	// When on empty line with columns, insert select column from table
+	if (context.type === "empty_line" && tableName) {
+		insertText = `SELECT "${columnName}" FROM "${tableName}"`;
+	}
 
 	const label =
 		shouldUseQualified && tableName ? `${tableName}.${columnName}` : columnName;

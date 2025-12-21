@@ -1373,37 +1373,37 @@ describe("sqlCompletionProvider", () => {
 			);
 
 			const columnLabels = suggestions.map((s) => s.label);
-			expect(columnLabels).toContain("id");
-			expect(columnLabels).toContain("email");
+			expect(columnLabels).toContain("users.id");
+			expect(columnLabels).toContain("users.email");
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "integer | PRIMARY KEY | UNIQUE",
-                  "label": "id",
-                  "sortText": "1_id",
-                },
-                {
-                  "detail": "varchar | UNIQUE",
-                  "label": "email",
-                  "sortText": "1_email",
-                },
-                {
-                  "detail": "timestamp",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
-                },
-                {
-                  "detail": "timestamp | nullable",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
-                },
-                {
-                  "detail": "varchar | nullable",
-                  "label": "name",
-                  "sortText": "1_name",
-                },
-              ]
-            `);
+				[
+				  {
+				    "detail": "integer | PRIMARY KEY | UNIQUE",
+				    "label": "users.id",
+				    "sortText": "1_users.id",
+				  },
+				  {
+				    "detail": "varchar | UNIQUE",
+				    "label": "users.email",
+				    "sortText": "1_users.email",
+				  },
+				  {
+				    "detail": "timestamp",
+				    "label": "users.created_at",
+				    "sortText": "1_users.created_at",
+				  },
+				  {
+				    "detail": "timestamp | nullable",
+				    "label": "users.updated_at",
+				    "sortText": "1_users.updated_at",
+				  },
+				  {
+				    "detail": "varchar | nullable",
+				    "label": "users.name",
+				    "sortText": "1_users.name",
+				  },
+				]
+			`);
 		});
 
 		it("should suggest columns after ON keyword in JOIN", () => {
@@ -4043,39 +4043,39 @@ describe("sqlCompletionProvider", () => {
 			);
 
 			const labels = suggestions.map((s) => s.label);
-			// ORDER BY suggests plain column names
-			expect(labels).toContain("id");
-			expect(labels).toContain("email");
+			// ORDER BY suggests columns with table qualification
+			expect(labels).toContain("users.id");
+			expect(labels).toContain("users.email");
 			expect(suggestions.length).toBe(5);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "integer | PRIMARY KEY | UNIQUE",
-                  "label": "id",
-                  "sortText": "1_id",
-                },
-                {
-                  "detail": "varchar | UNIQUE",
-                  "label": "email",
-                  "sortText": "1_email",
-                },
-                {
-                  "detail": "timestamp",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
-                },
-                {
-                  "detail": "timestamp | nullable",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
-                },
-                {
-                  "detail": "varchar | nullable",
-                  "label": "name",
-                  "sortText": "1_name",
-                },
-              ]
-            `);
+				[
+				  {
+				    "detail": "integer | PRIMARY KEY | UNIQUE",
+				    "label": "users.id",
+				    "sortText": "1_users.id",
+				  },
+				  {
+				    "detail": "varchar | UNIQUE",
+				    "label": "users.email",
+				    "sortText": "1_users.email",
+				  },
+				  {
+				    "detail": "timestamp",
+				    "label": "users.created_at",
+				    "sortText": "1_users.created_at",
+				  },
+				  {
+				    "detail": "timestamp | nullable",
+				    "label": "users.updated_at",
+				    "sortText": "1_users.updated_at",
+				  },
+				  {
+				    "detail": "varchar | nullable",
+				    "label": "users.name",
+				    "sortText": "1_users.name",
+				  },
+				]
+			`);
 		});
 
 		it("should suggest columns in multiple ORDER BY", () => {
@@ -4089,38 +4089,38 @@ describe("sqlCompletionProvider", () => {
 			);
 
 			const labels = suggestions.map((s) => s.label);
-			expect(labels).toContain("id");
-			expect(labels).toContain("email");
+			expect(labels).toContain("users.id");
+			expect(labels).toContain("users.email");
 			expect(suggestions.length).toBe(5);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "integer | PRIMARY KEY | UNIQUE",
-                  "label": "id",
-                  "sortText": "1_id",
-                },
-                {
-                  "detail": "varchar | UNIQUE",
-                  "label": "email",
-                  "sortText": "1_email",
-                },
-                {
-                  "detail": "timestamp",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
-                },
-                {
-                  "detail": "timestamp | nullable",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
-                },
-                {
-                  "detail": "varchar | nullable",
-                  "label": "name",
-                  "sortText": "1_name",
-                },
-              ]
-            `);
+				[
+				  {
+				    "detail": "integer | PRIMARY KEY | UNIQUE",
+				    "label": "users.id",
+				    "sortText": "1_users.id",
+				  },
+				  {
+				    "detail": "varchar | UNIQUE",
+				    "label": "users.email",
+				    "sortText": "1_users.email",
+				  },
+				  {
+				    "detail": "timestamp",
+				    "label": "users.created_at",
+				    "sortText": "1_users.created_at",
+				  },
+				  {
+				    "detail": "timestamp | nullable",
+				    "label": "users.updated_at",
+				    "sortText": "1_users.updated_at",
+				  },
+				  {
+				    "detail": "varchar | nullable",
+				    "label": "users.name",
+				    "sortText": "1_users.name",
+				  },
+				]
+			`);
 		});
 	});
 
@@ -4219,34 +4219,34 @@ describe("sqlCompletionProvider", () => {
 			// HAVING suggests aggregate context
 			expect(suggestions.length).toBe(5);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "integer | PRIMARY KEY | UNIQUE",
-                  "label": "id",
-                  "sortText": "1_id",
-                },
-                {
-                  "detail": "varchar | UNIQUE",
-                  "label": "email",
-                  "sortText": "1_email",
-                },
-                {
-                  "detail": "timestamp",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
-                },
-                {
-                  "detail": "timestamp | nullable",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
-                },
-                {
-                  "detail": "varchar | nullable",
-                  "label": "name",
-                  "sortText": "1_name",
-                },
-              ]
-            `);
+				[
+				  {
+				    "detail": "integer | PRIMARY KEY | UNIQUE",
+				    "label": "users.id",
+				    "sortText": "1_users.id",
+				  },
+				  {
+				    "detail": "varchar | UNIQUE",
+				    "label": "users.email",
+				    "sortText": "1_users.email",
+				  },
+				  {
+				    "detail": "timestamp",
+				    "label": "users.created_at",
+				    "sortText": "1_users.created_at",
+				  },
+				  {
+				    "detail": "timestamp | nullable",
+				    "label": "users.updated_at",
+				    "sortText": "1_users.updated_at",
+				  },
+				  {
+				    "detail": "varchar | nullable",
+				    "label": "users.name",
+				    "sortText": "1_users.name",
+				  },
+				]
+			`);
 		});
 
 		it("should suggest aggregate function in HAVING", () => {
@@ -4262,34 +4262,34 @@ describe("sqlCompletionProvider", () => {
 
 			expect(suggestions.length).toBe(5);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "integer | PRIMARY KEY | UNIQUE",
-                  "label": "id",
-                  "sortText": "1_id",
-                },
-                {
-                  "detail": "varchar | UNIQUE",
-                  "label": "email",
-                  "sortText": "1_email",
-                },
-                {
-                  "detail": "timestamp",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
-                },
-                {
-                  "detail": "timestamp | nullable",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
-                },
-                {
-                  "detail": "varchar | nullable",
-                  "label": "name",
-                  "sortText": "1_name",
-                },
-              ]
-            `);
+				[
+				  {
+				    "detail": "integer | PRIMARY KEY | UNIQUE",
+				    "label": "users.id",
+				    "sortText": "1_users.id",
+				  },
+				  {
+				    "detail": "varchar | UNIQUE",
+				    "label": "users.email",
+				    "sortText": "1_users.email",
+				  },
+				  {
+				    "detail": "timestamp",
+				    "label": "users.created_at",
+				    "sortText": "1_users.created_at",
+				  },
+				  {
+				    "detail": "timestamp | nullable",
+				    "label": "users.updated_at",
+				    "sortText": "1_users.updated_at",
+				  },
+				  {
+				    "detail": "varchar | nullable",
+				    "label": "users.name",
+				    "sortText": "1_users.name",
+				  },
+				]
+			`);
 		});
 	});
 
@@ -4372,38 +4372,38 @@ describe("sqlCompletionProvider", () => {
 			);
 
 			const labels = suggestions.map((s) => s.label);
-			expect(labels).toContain("id");
-			expect(labels).toContain("email");
+			expect(labels).toContain("users.id");
+			expect(labels).toContain("users.email");
 			expect(suggestions.length).toBe(5);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "integer | PRIMARY KEY | UNIQUE",
-                  "label": "id",
-                  "sortText": "1_id",
-                },
-                {
-                  "detail": "varchar | UNIQUE",
-                  "label": "email",
-                  "sortText": "1_email",
-                },
-                {
-                  "detail": "timestamp",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
-                },
-                {
-                  "detail": "timestamp | nullable",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
-                },
-                {
-                  "detail": "varchar | nullable",
-                  "label": "name",
-                  "sortText": "1_name",
-                },
-              ]
-            `);
+				[
+				  {
+				    "detail": "integer | PRIMARY KEY | UNIQUE",
+				    "label": "users.id",
+				    "sortText": "1_users.id",
+				  },
+				  {
+				    "detail": "varchar | UNIQUE",
+				    "label": "users.email",
+				    "sortText": "1_users.email",
+				  },
+				  {
+				    "detail": "timestamp",
+				    "label": "users.created_at",
+				    "sortText": "1_users.created_at",
+				  },
+				  {
+				    "detail": "timestamp | nullable",
+				    "label": "users.updated_at",
+				    "sortText": "1_users.updated_at",
+				  },
+				  {
+				    "detail": "varchar | nullable",
+				    "label": "users.name",
+				    "sortText": "1_users.name",
+				  },
+				]
+			`);
 		});
 
 		it("should suggest multiple columns in GROUP BY", () => {
@@ -4418,38 +4418,38 @@ describe("sqlCompletionProvider", () => {
 			);
 
 			const labels = suggestions.map((s) => s.label);
-			expect(labels).toContain("id");
-			expect(labels).toContain("name");
+			expect(labels).toContain("users.id");
+			expect(labels).toContain("users.name");
 			expect(suggestions.length).toBe(5);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "integer | PRIMARY KEY | UNIQUE",
-                  "label": "id",
-                  "sortText": "1_id",
-                },
-                {
-                  "detail": "varchar | UNIQUE",
-                  "label": "email",
-                  "sortText": "1_email",
-                },
-                {
-                  "detail": "timestamp",
-                  "label": "created_at",
-                  "sortText": "1_created_at",
-                },
-                {
-                  "detail": "timestamp | nullable",
-                  "label": "updated_at",
-                  "sortText": "1_updated_at",
-                },
-                {
-                  "detail": "varchar | nullable",
-                  "label": "name",
-                  "sortText": "1_name",
-                },
-              ]
-            `);
+				[
+				  {
+				    "detail": "integer | PRIMARY KEY | UNIQUE",
+				    "label": "users.id",
+				    "sortText": "1_users.id",
+				  },
+				  {
+				    "detail": "varchar | UNIQUE",
+				    "label": "users.email",
+				    "sortText": "1_users.email",
+				  },
+				  {
+				    "detail": "timestamp",
+				    "label": "users.created_at",
+				    "sortText": "1_users.created_at",
+				  },
+				  {
+				    "detail": "timestamp | nullable",
+				    "label": "users.updated_at",
+				    "sortText": "1_users.updated_at",
+				  },
+				  {
+				    "detail": "varchar | nullable",
+				    "label": "users.name",
+				    "sortText": "1_users.name",
+				  },
+				]
+			`);
 		});
 	});
 
@@ -5147,10 +5147,10 @@ describe("sqlCompletionProvider", () => {
 				mockMonaco,
 			);
 
-			// After comma in ORDER BY should suggest columns (unqualified in ORDER BY context)
+			// After comma in ORDER BY should suggest columns with table qualification
 			const labels = suggestions.map((s) => s.label);
-			expect(labels).toContain("id");
-			expect(labels).toContain("email");
+			expect(labels).toContain("users.id");
+			expect(labels).toContain("users.email");
 		});
 
 		it("should handle HAVING with multiple conditions", () => {
