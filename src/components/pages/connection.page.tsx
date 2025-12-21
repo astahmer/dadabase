@@ -99,7 +99,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
 	const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
-	const sidebarMinSize = fromPixelToPercentage(224);
+	const sidebarMinSize = fromPixelToPercentage(224, "horizontal");
 
 	return (
 		<div className="h-screen bg-background flex flex-col">
@@ -113,7 +113,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 							id: panels.sidebar,
 							collapsible: true,
 							minSize: sidebarMinSize,
-							maxSize: fromPixelToPercentage(400),
+							maxSize: fromPixelToPercentage(400, "horizontal"),
 						},
 						{
 							id: panels.mainContent,
@@ -294,7 +294,7 @@ const MainContent = (props: { connection: DbConnection }) => {
 	const [showExplainPanel, setShowExplainPanel] = useState(false);
 
 	const { filters: structureFilters } = useStructureFilters();
-	const relationshipPanelSize = fromPixelToPercentage(50);
+	const relationshipPanelSize = fromPixelToPercentage(50, "vertical");
 
 	const onEditorValueChange = useDebouncedCallback(
 		(value: string) => {
@@ -393,14 +393,15 @@ const MainContent = (props: { connection: DbConnection }) => {
 								orientation="vertical"
 								className="flex-1 flex flex-col h-full overflow-hidden"
 								defaultSize={[
-									search.sqlPreviewSize ?? fromPixelToPercentage(200),
-									fromPixelToPercentage(656),
+									search.sqlPreviewSize ??
+										fromPixelToPercentage(200, "vertical"),
+									fromPixelToPercentage(656, "vertical"),
 								]}
 								panels={[
 									{
 										id: panels.sqlPreview,
 										collapsible: true,
-										minSize: fromPixelToPercentage(220),
+										minSize: fromPixelToPercentage(220, "vertical"),
 									},
 									{ id: panels.rowsContent, collapsible: false },
 								]}
