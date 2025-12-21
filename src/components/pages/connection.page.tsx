@@ -867,6 +867,8 @@ const MainContent = (props: { connection: DbConnection }) => {
 				<RowsTableErrorState
 					activeConnectionUrl={pageState.activeConnectionUrl}
 					connection={connection}
+					tables={tables}
+					columns={columns}
 				/>
 			)}
 

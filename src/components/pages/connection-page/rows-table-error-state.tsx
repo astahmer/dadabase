@@ -1,5 +1,6 @@
 import { toaster } from "#src/components/ui/toaster.tsx";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
@@ -24,12 +25,12 @@ import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
 interface RowsTableErrorStateProps {
 	activeConnectionUrl: string;
 	connection: DbConnection;
+	tables: Array<{ schema: string; name: string }>;
+	columns: Array<TableWithColumnsMetadata>;
 }
 
-export const RowsTableErrorState = ({
-	activeConnectionUrl,
-	connection,
-}: RowsTableErrorStateProps) => {
+export const RowsTableErrorState = (props: RowsTableErrorStateProps) => {
+	const { activeConnectionUrl, connection } = props;
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const schemaListQuery = useQuery({
 		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
@@ -61,6 +62,8 @@ export const RowsTableErrorState = ({
 				<NoTableSelectedState
 					activeConnectionUrl={activeConnectionUrl}
 					connection={connection}
+					tables={props.tables}
+					columns={props.columns}
 				/>
 			)}
 		</div>
@@ -70,12 +73,12 @@ export const RowsTableErrorState = ({
 interface NoTableSelectedStateProps {
 	activeConnectionUrl: string;
 	connection: DbConnection;
+	tables: Array<{ schema: string; name: string }>;
+	columns: Array<TableWithColumnsMetadata>;
 }
 
-const NoTableSelectedState = ({
-	activeConnectionUrl,
-	connection,
-}: NoTableSelectedStateProps) => {
+const NoTableSelectedState = (props: NoTableSelectedStateProps) => {
+	const { activeConnectionUrl, connection } = props;
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const queryClient = useQueryClient();
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -203,7 +206,9 @@ const NoTableSelectedState = ({
 				);
 				const isCurrentTabEmpty = !currentTab?.table;
 
-				const newTab = createTabState(schema, table);
+				const newTab = createTabState(schema, table, {
+					tabName: `${table} (custom)`,
+				});
 
 				// Replace the empty tab
 				if (isCurrentTabEmpty && currentTab) {
@@ -215,6 +220,7 @@ const NoTableSelectedState = ({
 							customSql,
 							sqlEditorMode: "editor",
 							initialTabMode: undefined,
+							tabName: `${table} (custom)`,
 						}),
 					};
 				}
@@ -429,6 +435,11 @@ const NoTableSelectedState = ({
 								sql={customSql}
 								onChange={onCustomSqlChange}
 								className="h-48"
+								tables={props.tables}
+								columns={props.columns}
+								onSubmit={handleCustomSqlSubmit}
+								autoFocus
+								placeholder="SELECT * FROM table_name;&#10;&#10;Ctrl+Enter to execute"
 							/>
 						</div>
 

@@ -10,6 +10,7 @@ import type {
 import { sqlCompletionProvider } from "./sql-completion-provider.ts";
 
 type Monaco = typeof OriginalMonaco;
+type MonacoEditor = typeof OriginalMonacoEditor;
 
 // snippets
 // https://github.com/DTStack/monaco-sql-languages/blob/6c745d44019229d79a33c5471d8a90c5a4d206cd/src/languages/pgsql/pgsql.snippet.ts
@@ -30,6 +31,12 @@ interface SqlMonacoEditorProps {
 	/** Available columns grouped by table */
 	columns?: TableWithColumnsMetadata[];
 	hasMultipleSchemas?: boolean;
+	/** Callback when Ctrl+Enter is pressed */
+	onSubmit?: () => void;
+	/** Auto-focus the editor on mount */
+	autoFocus?: boolean;
+	/** Placeholder text to show when editor is empty */
+	placeholder?: string;
 }
 
 // https://shiki.style/themes
@@ -53,6 +60,9 @@ export function SqlMonacoEditor({
 	tables = [],
 	columns = [],
 	hasMultipleSchemas = false, // TODO
+	onSubmit,
+	autoFocus = false,
+	placeholder,
 }: SqlMonacoEditorProps) {
 	// const monacoRef = useRef<Monaco>(null);
 	const [monacoRef, setMonacoRef] = useState<Monaco | null>(null);
@@ -111,6 +121,18 @@ export function SqlMonacoEditor({
 		};
 	}, [editorRef]);
 
+	// Setup keyboard shortcut for Ctrl+Enter to submit
+	useEffect(() => {
+		if (!editorRef || !onSubmit) return;
+
+		editorRef.addCommand(
+			OriginalMonaco.KeyMod.CtrlCmd | OriginalMonaco.KeyCode.Enter,
+			() => {
+				onSubmit();
+			},
+		);
+	}, [editorRef, onSubmit]);
+
 	// Setup SQL intellisense with context-aware suggestions
 	useEffect(() => {
 		const monaco = monacoRef;
@@ -161,6 +183,9 @@ export function SqlMonacoEditor({
 			onMount={(editor) => {
 				// editorRef.current = editor;
 				setEditorRef(editor);
+				if (autoFocus) {
+					editor.focus();
+				}
 			}}
 			beforeMount={(monaco: typeof OriginalMonacoEditor) => {
 				setMonacoRef(monaco);
@@ -189,6 +214,7 @@ export function SqlMonacoEditor({
 					comments: false,
 					strings: false,
 				},
+				placeholder,
 			}}
 		/>
 	);
