@@ -3413,4 +3413,281 @@ describe("SQL Query Parser", () => {
 			`);
 		});
 	});
+
+	describe("Complex SELECT clauses", () => {
+		const mockColumns = ["id", "name", "email", "status", "age", "created_at"];
+
+		it("should handle SELECT with table-qualified column and alias", () => {
+			const sql = "SELECT users.id AS user_identifier FROM users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toBeDefined();
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).toContain("name");
+			expect(result.hiddenColumnList).toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "name",
+				    "email",
+				    "status",
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+
+		it("should handle SELECT with unqualified column and alias", () => {
+			const sql = "SELECT id AS identifier, name FROM users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toBeDefined();
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "email",
+				    "status",
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+
+		it("should handle SELECT with quoted column and alias", () => {
+			const sql = 'SELECT "id" AS user_id, "name" FROM users';
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toBeDefined();
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "email",
+				    "status",
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+
+		it("should handle SELECT with backtick-quoted column and alias", () => {
+			const sql = "SELECT `id` AS identifier, `name` FROM users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toBeDefined();
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "email",
+				    "status",
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+
+		it("should handle SELECT with multiple aliases", () => {
+			const sql =
+				"SELECT users.id AS user_id, users.name AS full_name, users.email AS contact_email FROM users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toBeDefined();
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).not.toContain("email");
+			expect(result.hiddenColumnList).toContain("status");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "status",
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+
+		it("should handle SELECT with alias using AS keyword", () => {
+			const sql = "SELECT id AS user_id FROM users WHERE id = 1";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions[0].column).toBe("id");
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "id",
+				        "operator": "equals",
+				        "value": 1,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "name",
+				    "email",
+				    "status",
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+
+		it("should handle SELECT with alias without AS keyword", () => {
+			const sql = "SELECT id user_id, name full_name FROM users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toBeDefined();
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "email",
+				    "status",
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+
+		it("should handle SELECT with schema-qualified column and alias", () => {
+			const sql = "SELECT public.users.id AS user_id FROM users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toBeDefined();
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "name",
+				    "email",
+				    "status",
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+
+		it("should handle SELECT with mixed qualified and unqualified columns with aliases", () => {
+			const sql =
+				"SELECT users.id AS uid, name AS full_name, email, status AS user_status FROM users";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toBeDefined();
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result.hiddenColumnList).not.toContain("email");
+			expect(result.hiddenColumnList).not.toContain("status");
+			expect(result.hiddenColumnList).toContain("age");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+
+		it("should handle SELECT with alias and WHERE clause", () => {
+			const sql =
+				"SELECT users.id AS user_identifier FROM users WHERE id > 10 AND name = 'John'";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions.length).toBe(2);
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "id",
+				        "operator": "greater_than",
+				        "value": 10,
+				      },
+				      {
+				        "column": "name",
+				        "operator": "equals",
+				        "value": "John",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "name",
+				    "email",
+				    "status",
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+
+		it("should handle SELECT with alias and ORDER BY", () => {
+			const sql =
+				"SELECT users.id AS uid, users.created_at AS created FROM users ORDER BY created_at DESC NULLS LAST";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.orderBy).toBe("created_at");
+			expect(result.orderDirection).toBe("desc");
+			expect(result.nullsOrder).toBe("last");
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("created_at");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "name",
+				    "email",
+				    "status",
+				    "age",
+				  ],
+				  "nullsOrder": "last",
+				  "orderBy": "created_at",
+				  "orderDirection": "desc",
+				}
+			`);
+		});
+
+		it("should handle SELECT with quoted alias", () => {
+			const sql = 'SELECT id AS "User ID", name AS "Full Name" FROM users';
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toBeDefined();
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "email",
+				    "status",
+				    "age",
+				    "created_at",
+				  ],
+				}
+			`);
+		});
+	});
 });
