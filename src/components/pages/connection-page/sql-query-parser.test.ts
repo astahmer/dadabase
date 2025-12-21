@@ -534,7 +534,7 @@ describe("SQL Query Parser", () => {
 				      {
 				        "column": "status",
 				        "operator": "equals",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -654,7 +654,7 @@ describe("SQL Query Parser", () => {
 				      {
 				        "column": "status",
 				        "operator": "equals",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				      {
 				        "column": "age",
@@ -687,7 +687,7 @@ describe("SQL Query Parser", () => {
 				      {
 				        "column": "status",
 				        "operator": "equals",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -718,7 +718,7 @@ describe("SQL Query Parser", () => {
 				      {
 				        "column": "status",
 				        "operator": "equals",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -751,7 +751,7 @@ describe("SQL Query Parser", () => {
 				      {
 				        "column": "status",
 				        "operator": "equals",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -776,7 +776,7 @@ describe("SQL Query Parser", () => {
 				      {
 				        "column": "status",
 				        "operator": "equals",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -814,8 +814,8 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "in",
 				        "value": [
-				          "ACTIVE",
-				          "PENDING",
+				          "active",
+				          "pending",
 				        ],
 				      },
 				      {
@@ -1045,12 +1045,16 @@ describe("SQL Query Parser", () => {
 				      {
 				        "column": "status",
 				        "operator": "equals",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				      {
 				        "column": "age",
 				        "operator": "greater_than_or_equal",
 				        "value": 18,
+				      },
+				      {
+				        "column": "created_at",
+				        "operator": "is_not_null",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1094,14 +1098,14 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "in",
 				        "value": [
-				          "ACTIVE",
-				          "PENDING",
+				          "active",
+				          "pending",
 				        ],
 				      },
 				      {
 				        "column": "email",
 				        "operator": "contains",
-				        "value": "@EXAMPLE.COM",
+				        "value": "@example.com",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1156,7 +1160,7 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "equals",
 				        "table": "users",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1171,7 +1175,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
-			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+			expect(result.filters?.conditions[0].value).toBe("active");
 			expect(result).toMatchInlineSnapshot(`
 				{
 				  "filters": {
@@ -1180,7 +1184,7 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "equals",
 				        "table": "users",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1204,7 +1208,7 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "equals",
 				        "table": "users",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1227,7 +1231,7 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "equals",
 				        "table": "users",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1270,8 +1274,8 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].operator).toBe("in");
 			expect(result.filters?.conditions[0].value).toEqual([
-				"ACTIVE",
-				"INACTIVE",
+				"active",
+				"inactive",
 			]);
 			expect(result).toMatchInlineSnapshot(`
 				{
@@ -1282,8 +1286,8 @@ describe("SQL Query Parser", () => {
 				        "operator": "in",
 				        "table": "users",
 				        "value": [
-				          "ACTIVE",
-				          "INACTIVE",
+				          "active",
+				          "inactive",
 				        ],
 				      },
 				    ],
@@ -1309,7 +1313,7 @@ describe("SQL Query Parser", () => {
 				        "column": "name",
 				        "operator": "contains",
 				        "table": "users",
-				        "value": "JOHN",
+				        "value": "john",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1363,7 +1367,7 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "equals",
 				        "table": "users",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1399,13 +1403,13 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "equals",
 				        "table": "users",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				      {
 				        "column": "email",
 				        "operator": "equals",
 				        "table": "users",
-				        "value": "TEST@EXAMPLE.COM",
+				        "value": "test@example.com",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1455,7 +1459,7 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].table).toBe("users");
-			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+			expect(result.filters?.conditions[0].value).toBe("active");
 			expect(result).toMatchInlineSnapshot(`
 				{
 				  "filters": {
@@ -1464,7 +1468,7 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "equals",
 				        "table": "users",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1481,7 +1485,7 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].table).toBe("users");
-			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+			expect(result.filters?.conditions[0].value).toBe("active");
 			expect(result).toMatchInlineSnapshot(`
 				{
 				  "filters": {
@@ -1490,7 +1494,7 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "equals",
 				        "table": "users",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -1542,8 +1546,8 @@ describe("SQL Query Parser", () => {
 				        "operator": "in",
 				        "table": "users",
 				        "value": [
-				          "ACTIVE",
-				          "INACTIVE",
+				          "active",
+				          "inactive",
 				        ],
 				      },
 				    ],
@@ -1718,7 +1722,7 @@ describe("SQL Query Parser", () => {
 				        "column": "status",
 				        "operator": "equals",
 				        "table": "u",
-				        "value": "ACTIVE",
+				        "value": "active",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -2902,7 +2906,7 @@ describe("SQL Query Parser", () => {
 				      {
 				        "column": "active",
 				        "operator": "equals",
-				        "value": "TRUE",
+				        "value": "true",
 				      },
 				    ],
 				    "logicalOperator": "and",
@@ -3014,6 +3018,397 @@ describe("SQL Query Parser", () => {
 				    "id",
 				    "name",
 				  ],
+				}
+			`);
+		});
+	});
+
+	describe("NOT operator", () => {
+		// NOT operator tests
+		it("should parse NOT with IS NULL", () => {
+			const sql = "SELECT * FROM users WHERE NOT id IS NULL";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions[0].operator).toBe("is_not_null");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "id",
+				        "operator": "is_not_null",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
+		});
+
+		it("should parse NOT with equals operator", () => {
+			const sql = "SELECT * FROM users WHERE NOT status = 'active'";
+			const result = parseSqlQuery(sql, ["id", "status", "name"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions[0].operator).toBe("not_equals");
+			expect(result.filters?.conditions[0].value).toBe("active");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "not_equals",
+				        "value": "active",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
+		});
+
+		it("should parse NOT with IN operator", () => {
+			const sql =
+				"SELECT * FROM users WHERE NOT status IN ('active', 'pending')";
+			const result = parseSqlQuery(sql, ["id", "status", "name"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions[0].operator).toBe("not_in");
+			expect(Array.isArray(result.filters?.conditions[0].value)).toBe(true);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "not_in",
+				        "value": [
+				          "active",
+				          "pending",
+				        ],
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
+		});
+
+		it("should parse NOT with LIKE operator", () => {
+			const sql = "SELECT * FROM users WHERE NOT name LIKE '%John%'";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions[0].operator).toBe("not_contains");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "name",
+				        "operator": "not_contains",
+				        "value": "John",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
+		});
+
+		it("should parse NOT with comparison operators", () => {
+			const sql = "SELECT * FROM users WHERE NOT age > 18";
+			const result = parseSqlQuery(sql, ["id", "age", "name"]);
+
+			expect(result.filters).toBeDefined();
+			// NOT (age > 18) should become age <= 18
+			expect(result.filters?.conditions[0].operator).toBe("less_than_or_equal");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "age",
+				        "operator": "less_than_or_equal",
+				        "value": 18,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
+		});
+	});
+
+	describe("parenthesized conditions, and NULLS FIRST/LAST", () => {
+		it("should parse parenthesized single condition", () => {
+			const sql = "SELECT * FROM users WHERE (id = 1)";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions[0].column).toBe("id");
+			expect(result.filters?.conditions[0].operator).toBe("equals");
+			expect(result.filters?.conditions[0].value).toBe(1);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "id",
+				        "operator": "equals",
+				        "value": 1,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
+		});
+
+		it("should parse multiple parenthesized conditions with AND", () => {
+			const sql = "SELECT * FROM users WHERE (id = 1) AND (status = 'active')";
+			const result = parseSqlQuery(sql, ["id", "status", "name"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions.length).toBe(2);
+			expect(result.filters?.logicalOperator).toBe("and");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "id",
+				        "operator": "equals",
+				        "value": 1,
+				      },
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "active",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
+		});
+
+		it("should parse multiple parenthesized conditions with OR", () => {
+			const sql =
+				"SELECT * FROM users WHERE (status = 'active') OR (status = 'pending')";
+			const result = parseSqlQuery(sql, ["status", "id", "name"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions.length).toBe(2);
+			expect(result.filters?.logicalOperator).toBe("or");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "active",
+				      },
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "pending",
+				      },
+				    ],
+				    "logicalOperator": "or",
+				  },
+				}
+			`);
+		});
+
+		it("should parse parenthesized NOT condition", () => {
+			const sql = "SELECT * FROM users WHERE (NOT status = 'inactive')";
+			const result = parseSqlQuery(sql, ["status", "id", "name"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions[0].operator).toBe("not_equals");
+			expect(result.filters?.conditions[0].value).toBe("inactive");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "not_equals",
+				        "value": "inactive",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
+		});
+
+		it("should parse nested parenthesized conditions", () => {
+			const sql = "SELECT * FROM users WHERE ((id = 1))";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions[0].column).toBe("id");
+			expect(result.filters?.conditions[0].value).toBe(1);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "id",
+				        "operator": "equals",
+				        "value": 1,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
+		});
+	});
+
+	describe("NULLS FIRST/LAST", () => {
+		it("should parse ORDER BY with NULLS FIRST", () => {
+			const sql = "SELECT * FROM users ORDER BY name ASC NULLS FIRST";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.orderBy).toBe("name");
+			expect(result.orderDirection).toBe("asc");
+			expect(result.nullsOrder).toBe("first");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "nullsOrder": "first",
+				  "orderBy": "name",
+				  "orderDirection": "asc",
+				}
+			`);
+		});
+
+		it("should parse ORDER BY with NULLS LAST", () => {
+			const sql = "SELECT * FROM users ORDER BY status DESC NULLS LAST";
+			const result = parseSqlQuery(sql, ["id", "status", "name"]);
+
+			expect(result.orderBy).toBe("status");
+			expect(result.orderDirection).toBe("desc");
+			expect(result.nullsOrder).toBe("last");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "nullsOrder": "last",
+				  "orderBy": "status",
+				  "orderDirection": "desc",
+				}
+			`);
+		});
+
+		it("should parse ORDER BY without NULLS clause", () => {
+			const sql = "SELECT * FROM users ORDER BY name ASC";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.orderBy).toBe("name");
+			expect(result.orderDirection).toBe("asc");
+			expect(result.nullsOrder).toBeUndefined();
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "orderBy": "name",
+				  "orderDirection": "asc",
+				}
+			`);
+		});
+
+		it("should parse ORDER BY with NULLS FIRST and default direction", () => {
+			const sql = "SELECT * FROM users ORDER BY created_at NULLS FIRST";
+			const result = parseSqlQuery(sql, ["id", "created_at", "name"]);
+
+			expect(result.orderBy).toBe("created_at");
+			expect(result.nullsOrder).toBe("first");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "nullsOrder": "first",
+				  "orderBy": "created_at",
+				  "orderDirection": "asc",
+				}
+			`);
+		});
+
+		it("should parse NULLS LAST with DESC", () => {
+			const sql = "SELECT * FROM products ORDER BY price DESC NULLS LAST";
+			const result = parseSqlQuery(sql, ["id", "price", "name"]);
+
+			expect(result.orderBy).toBe("price");
+			expect(result.orderDirection).toBe("desc");
+			expect(result.nullsOrder).toBe("last");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "nullsOrder": "last",
+				  "orderBy": "price",
+				  "orderDirection": "desc",
+				}
+			`);
+		});
+
+		it("should combine NOT, parentheses, and ORDER BY with NULLS", () => {
+			const sql =
+				"SELECT * FROM users WHERE (NOT status = 'inactive') ORDER BY name ASC NULLS FIRST";
+			const result = parseSqlQuery(sql, ["id", "status", "name"]);
+
+			expect(result.filters?.conditions[0].operator).toBe("not_equals");
+			expect(result.orderBy).toBe("name");
+			expect(result.nullsOrder).toBe("first");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "not_equals",
+				        "value": "inactive",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "nullsOrder": "first",
+				  "orderBy": "name",
+				  "orderDirection": "asc",
+				}
+			`);
+		});
+
+		it("should parse complex query with all three features", () => {
+			const sql =
+				"SELECT * FROM users WHERE (NOT (id = 1)) AND (status = 'active') ORDER BY created_at DESC NULLS LAST LIMIT 10";
+			const result = parseSqlQuery(sql, ["id", "status", "name", "created_at"]);
+
+			expect(result.filters?.conditions.length).toBe(2);
+			expect(result.filters?.conditions[0].operator).toBe("not_equals");
+			expect(result.orderBy).toBe("created_at");
+			expect(result.orderDirection).toBe("desc");
+			expect(result.nullsOrder).toBe("last");
+			expect(result.limit).toBe(10);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "id",
+				        "operator": "not_equals",
+				        "value": 1,
+				      },
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "active",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "limit": 10,
+				  "nullsOrder": "last",
+				  "orderBy": "created_at",
+				  "orderDirection": "desc",
 				}
 			`);
 		});

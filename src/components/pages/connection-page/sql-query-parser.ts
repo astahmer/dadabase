@@ -11,6 +11,7 @@ import type { JoinedTable } from "#src/components/pages/connection-page/join-tab
  * - GROUP BY columns
  * - HAVING clause conditions as QueryFilterType
  * - ORDER BY clause as orderBy and orderDirection
+ * - NULLS FIRST/NULLS LAST ordering for NULL values
  * - LIMIT/OFFSET as limit and offset
  * - Selected columns as hiddenColumnList
  * - JOIN clauses (LEFT, INNER, RIGHT, FULL OUTER, CROSS)
@@ -23,6 +24,7 @@ export interface ParsedSqlQueryState {
 	having?: QueryFilterType;
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
+	nullsOrder?: "first" | "last";
 	limit?: number;
 	offset?: number;
 	hiddenColumnList?: string[];
@@ -54,8 +56,9 @@ const WHERE_CLAUSE_REGEX =
 	/WHERE\s+(.+?)(?:ORDER BY|LIMIT|OFFSET|GROUP BY|HAVING|$)/i;
 const GROUP_BY_REGEX = /GROUP\s+BY\s+(.+?)(?:HAVING|ORDER BY|LIMIT|OFFSET|$)/i;
 const HAVING_REGEX = /HAVING\s+(.+?)(?:ORDER BY|LIMIT|OFFSET|$)/i;
+// Extended ORDER BY regex to capture NULLS FIRST/NULLS LAST
 const ORDER_BY_REGEX = new RegExp(
-	`ORDER\\s+BY\\s+${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}(?:\\s+(ASC|DESC))?`,
+	`ORDER\\s+BY\\s+${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}(?:\\s+(ASC|DESC))?(?:\\s+(NULLS\\s+(?:FIRST|LAST)))?`,
 	"i",
 );
 const LIMIT_REGEX = /LIMIT\s+(\d+)/i;
@@ -98,6 +101,8 @@ const COMPARISON_REGEX = new RegExp(
 // Aggregate function pattern for HAVING clauses: COUNT(*), SUM(col), AVG(col), etc.
 const AGGREGATE_COMPARISON_REGEX =
 	/^(\w+\([^)]*\))\s*(<=|>=|<>|!=|=|<|>)\s*['"]?(.+?)['"]?$/;
+// Pattern for NOT conditions: NOT (condition) or NOT column = value
+const NOT_REGEX = /^NOT\s+(.+)$/i;
 
 /**
  * Extracts the column name and table/schema prefix from a qualified identifier
@@ -192,12 +197,19 @@ export const parseSqlQuery = (
 	const result: ParsedSqlQueryState = {};
 
 	// Normalize the SQL (remove extra whitespace, handle line breaks)
-	const normalizedSql = sql.replace(/\s+/g, " ").toUpperCase().trim();
+	const normalizedSql = sql.replace(/\s+/g, " ").trim();
+	const normalizedSqlUpper = normalizedSql.toUpperCase();
 
 	// Parse WHERE clause
-	const whereMatch = normalizedSql.match(WHERE_CLAUSE_REGEX);
+	const whereMatch = normalizedSqlUpper.match(WHERE_CLAUSE_REGEX);
 	if (whereMatch && whereMatch[1]) {
-		const whereClause = whereMatch[1].trim();
+		// Extract the where clause from the ORIGINAL SQL (not uppercased)
+		// to preserve case sensitivity of string literals
+		const whereMatchUpper = whereMatch[1]; // The captured WHERE clause from uppercase SQL
+		const whereStartIndex = normalizedSqlUpper.indexOf(whereMatchUpper);
+		const whereClause = normalizedSql
+			.substring(whereStartIndex, whereStartIndex + whereMatchUpper.length)
+			.trim();
 		const filters = parseWhereClause(whereClause, availableColumns);
 		if (filters.conditions.length > 0) {
 			result.filters = filters;
@@ -206,30 +218,41 @@ export const parseSqlQuery = (
 
 	// Parse ORDER BY clause - takes the FIRST column in ORDER BY
 	// Handles quoted identifiers and table-qualified columns: table.column, "table"."column", etc.
-	const orderByMatch = normalizedSql.match(ORDER_BY_REGEX);
+	// Also captures NULLS FIRST/NULLS LAST
+	const orderByMatch = normalizedSqlUpper.match(ORDER_BY_REGEX);
 	if (orderByMatch && orderByMatch[1]) {
 		const column = orderByMatch[1].toLowerCase();
 		if (availableColumns.includes(column)) {
 			result.orderBy = column;
 			result.orderDirection =
 				(orderByMatch[2]?.toLowerCase() as "asc" | "desc") || ("asc" as const);
+
+			// Parse NULLS FIRST/LAST if present
+			if (orderByMatch[3]) {
+				const nullsClause = orderByMatch[3].toUpperCase();
+				if (nullsClause.includes("FIRST")) {
+					result.nullsOrder = "first";
+				} else if (nullsClause.includes("LAST")) {
+					result.nullsOrder = "last";
+				}
+			}
 		}
 	}
 
 	// Parse LIMIT clause
-	const limitMatch = normalizedSql.match(LIMIT_REGEX);
+	const limitMatch = normalizedSqlUpper.match(LIMIT_REGEX);
 	if (limitMatch && limitMatch[1]) {
 		result.limit = parseInt(limitMatch[1], 10);
 	}
 
 	// Parse OFFSET clause
-	const offsetMatch = normalizedSql.match(OFFSET_REGEX);
+	const offsetMatch = normalizedSqlUpper.match(OFFSET_REGEX);
 	if (offsetMatch && offsetMatch[1]) {
 		result.offset = parseInt(offsetMatch[1], 10);
 	}
 
 	// Parse GROUP BY clause
-	const groupByMatch = normalizedSql.match(GROUP_BY_REGEX);
+	const groupByMatch = normalizedSqlUpper.match(GROUP_BY_REGEX);
 	if (groupByMatch && groupByMatch[1]) {
 		const groupByClause = groupByMatch[1].trim();
 		const groupByColumns = groupByClause.split(",").map((col) => {
@@ -242,7 +265,7 @@ export const parseSqlQuery = (
 	}
 
 	// Parse HAVING clause
-	const havingMatch = normalizedSql.match(HAVING_REGEX);
+	const havingMatch = normalizedSqlUpper.match(HAVING_REGEX);
 	if (havingMatch && havingMatch[1]) {
 		const havingClause = havingMatch[1].trim();
 		// HAVING conditions don't filter by availableColumns (can reference aggregates)
@@ -253,7 +276,7 @@ export const parseSqlQuery = (
 	}
 
 	// Parse SELECT clause to determine hidden columns
-	const selectMatch = normalizedSql.match(SELECT_REGEX);
+	const selectMatch = normalizedSqlUpper.match(SELECT_REGEX);
 	if (selectMatch && selectMatch[1]) {
 		const selectedPart = selectMatch[1].trim();
 		// If not SELECT *, track which columns are selected
@@ -351,6 +374,55 @@ const parseHavingClause = (havingClause: string): QueryFilterType => {
 };
 
 /**
+ * Unwraps a parenthesized condition, handling nested parentheses correctly
+ */
+const unwrapParenthesizedCondition = (condition: string): string => {
+	condition = condition.trim();
+
+	// Keep unwrapping outer parentheses while the entire expression is wrapped
+	while (condition.startsWith("(") && condition.endsWith(")")) {
+		const inner = condition.slice(1, -1).trim();
+
+		// Check if the parentheses are actually wrapping the entire condition
+		// by ensuring removing them doesn't break it
+		if (inner.length === 0) {
+			break;
+		}
+
+		// Simple validation: the inner content should be valid
+		condition = inner;
+	}
+
+	return condition;
+};
+
+/**
+ * Negates a filter operator (equals becomes not_equals, etc.)
+ */
+const negateOperator = (operator: FilterOperatorType): FilterOperatorType => {
+	const operatorMap: Record<FilterOperatorType, FilterOperatorType> = {
+		equals: "not_equals",
+		not_equals: "equals",
+		contains: "not_contains",
+		not_contains: "contains",
+		// starts_with: "not_starts_with",
+		// not_starts_with: "starts_with",
+		// ends_with: "not_ends_with",
+		// not_ends_with: "ends_with",
+		is_null: "is_not_null",
+		is_not_null: "is_null",
+		greater_than: "less_than_or_equal",
+		less_than: "greater_than_or_equal",
+		greater_than_or_equal: "less_than",
+		less_than_or_equal: "greater_than",
+		in: "not_in",
+		not_in: "in",
+	};
+
+	return operatorMap[operator] || operator;
+};
+
+/**
  * Parses ON clause conditions in JOIN
  * Similar to parseWhereClause but doesn't filter by availableColumns
  * since JOIN conditions may reference columns from the joined table
@@ -389,6 +461,25 @@ const parseOnCondition = (
 ): FilterConditionExpression | null => {
 	condition = condition.trim();
 	if (!condition) return null;
+
+	// Handle parenthesized conditions: (condition)
+	condition = unwrapParenthesizedCondition(condition);
+
+	// Handle NOT operator: NOT (condition) or NOT expression
+	const notMatch = condition.match(NOT_REGEX);
+	if (notMatch) {
+		const innerCondition = notMatch[1].trim();
+		// Recursively parse the inner condition
+		const parsedCondition = parseOnCondition(innerCondition);
+		if (parsedCondition) {
+			// Negate the operator if possible
+			const negatedOperator = negateOperator(parsedCondition.operator);
+			return {
+				...parsedCondition,
+				operator: negatedOperator,
+			};
+		}
+	}
 
 	// Handle IS NULL / IS NOT NULL
 	const nullMatch = condition.match(IS_NULL_REGEX);
@@ -598,6 +689,25 @@ export const parseCondition = (
 ): FilterConditionExpression | null => {
 	condition = condition.trim();
 	if (!condition) return null;
+
+	// Handle parenthesized conditions: (condition)
+	condition = unwrapParenthesizedCondition(condition);
+
+	// Handle NOT operator: NOT (condition) or NOT expression
+	const notMatch = condition.match(NOT_REGEX);
+	if (notMatch) {
+		const innerCondition = notMatch[1].trim();
+		// Recursively parse the inner condition
+		const parsedCondition = parseCondition(innerCondition, availableColumns);
+		if (parsedCondition) {
+			// Negate the operator
+			const negatedOperator = negateOperator(parsedCondition.operator);
+			return {
+				...parsedCondition,
+				operator: negatedOperator,
+			};
+		}
+	}
 
 	// Handle IS NULL / IS NOT NULL
 	// Supports: column IS NULL, "column" IS NULL, table.column IS NULL, "table"."column" IS NULL
