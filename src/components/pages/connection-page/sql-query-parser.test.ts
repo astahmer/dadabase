@@ -955,14 +955,30 @@ describe("SQL Query Parser", () => {
 			`);
 		});
 
-		it("should ignore GROUP BY and HAVING", () => {
+		it("should parse GROUP BY and HAVING", () => {
 			const sql =
 				"SELECT status, COUNT(*) FROM users GROUP BY status HAVING COUNT(*) > 5 LIMIT 10";
 			const result = parseSqlQuery(sql, mockColumns);
-			// Should not error and should still parse LIMIT
 			expect(result.limit).toBe(10);
+			expect(result.groupBy).toBeDefined();
+			expect(result.groupBy).toContain("status");
+			expect(result.having).toBeDefined();
+			expect(result.having?.conditions.length).toBeGreaterThan(0);
 			expect(result).toMatchInlineSnapshot(`
 				{
+				  "groupBy": [
+				    "status",
+				  ],
+				  "having": {
+				    "conditions": [
+				      {
+				        "column": "COUNT(*)",
+				        "operator": "greater_than",
+				        "value": 5,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
 				  "hiddenColumnList": [
 				    "id",
 				    "name",
@@ -2349,6 +2365,654 @@ describe("SQL Query Parser", () => {
 				      "table": "expenses",
 				      "type": "left",
 				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse INNER JOIN", () => {
+			const sql =
+				"SELECT * FROM users INNER JOIN posts ON users.id = posts.user_id";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("posts");
+			expect(result.joins?.[0].type).toBe("inner");
+			expect(result.joins?.[0].joinCondition.mode).toBe("filters");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "id",
+				              "operator": "equals",
+				              "table": "users",
+				              "value": "POSTS.USER_ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
+				      },
+				      "schema": "",
+				      "table": "posts",
+				      "type": "inner",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse RIGHT JOIN", () => {
+			const sql =
+				"SELECT * FROM users RIGHT JOIN posts ON users.id = posts.user_id";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("posts");
+			expect(result.joins?.[0].type).toBe("right");
+			expect(result.joins?.[0].joinCondition.mode).toBe("filters");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "id",
+				              "operator": "equals",
+				              "table": "users",
+				              "value": "POSTS.USER_ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
+				      },
+				      "schema": "",
+				      "table": "posts",
+				      "type": "right",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse FULL OUTER JOIN", () => {
+			const sql =
+				"SELECT * FROM users FULL OUTER JOIN posts ON users.id = posts.user_id";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("posts");
+			expect(result.joins?.[0].type).toBe("full");
+			expect(result.joins?.[0].joinCondition.mode).toBe("filters");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "id",
+				              "operator": "equals",
+				              "table": "users",
+				              "value": "POSTS.USER_ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
+				      },
+				      "schema": "",
+				      "table": "posts",
+				      "type": "full",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse CROSS JOIN", () => {
+			const sql = "SELECT * FROM users CROSS JOIN posts";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("posts");
+			expect(result.joins?.[0].type).toBe("cross");
+			expect(result.joins?.[0].joinCondition.mode).toBe("custom");
+			if (result.joins?.[0].joinCondition.mode === "custom") {
+				expect(result.joins[0].joinCondition.conditions).toHaveLength(0);
+			}
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "columns": "all",
+				      "joinCondition": {
+				        "conditions": [],
+				        "mode": "custom",
+				      },
+				      "schema": "",
+				      "table": "posts",
+				      "type": "cross",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse multiple different JOIN types in sequence", () => {
+			const sql =
+				"SELECT * FROM users LEFT JOIN posts ON users.id = posts.user_id INNER JOIN comments ON posts.id = comments.post_id RIGHT JOIN categories ON comments.category_id = categories.id";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(3);
+			expect(result.joins?.[0].type).toBe("left");
+			expect(result.joins?.[0].table).toBe("posts");
+			expect(result.joins?.[1].type).toBe("inner");
+			expect(result.joins?.[1].table).toBe("comments");
+			expect(result.joins?.[2].type).toBe("right");
+			expect(result.joins?.[2].table).toBe("categories");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "id",
+				              "operator": "equals",
+				              "table": "users",
+				              "value": "POSTS.USER_ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
+				      },
+				      "schema": "",
+				      "table": "posts",
+				      "type": "left",
+				    },
+				    {
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "id",
+				              "operator": "equals",
+				              "table": "posts",
+				              "value": "COMMENTS.POST_ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
+				      },
+				      "schema": "",
+				      "table": "comments",
+				      "type": "inner",
+				    },
+				    {
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "category_id",
+				              "operator": "equals",
+				              "table": "comments",
+				              "value": "CATEGORIES.ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
+				      },
+				      "schema": "",
+				      "table": "categories",
+				      "type": "right",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse INNER JOIN with alias", () => {
+			const sql =
+				"SELECT * FROM users u INNER JOIN posts p ON u.id = p.user_id";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("posts");
+			expect(result.joins?.[0].alias).toBe("p");
+			expect(result.joins?.[0].type).toBe("inner");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "alias": "p",
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "id",
+				              "operator": "equals",
+				              "table": "u",
+				              "value": "P.USER_ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
+				      },
+				      "schema": "",
+				      "table": "posts",
+				      "type": "inner",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse RIGHT JOIN with schema and alias", () => {
+			const sql =
+				"SELECT * FROM users u RIGHT JOIN public.posts p ON u.id = p.user_id";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("posts");
+			expect(result.joins?.[0].schema).toBe("public");
+			expect(result.joins?.[0].alias).toBe("p");
+			expect(result.joins?.[0].type).toBe("right");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "alias": "p",
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "id",
+				              "operator": "equals",
+				              "table": "u",
+				              "value": "P.USER_ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
+				      },
+				      "schema": "public",
+				      "table": "posts",
+				      "type": "right",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse CROSS JOIN with alias", () => {
+			const sql = "SELECT * FROM users u CROSS JOIN posts p";
+			const result = parseSqlQuery(sql, ["id", "name", "email"]);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("posts");
+			expect(result.joins?.[0].alias).toBe("p");
+			expect(result.joins?.[0].type).toBe("cross");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "alias": "p",
+				      "columns": "all",
+				      "joinCondition": {
+				        "conditions": [],
+				        "mode": "custom",
+				      },
+				      "schema": "",
+				      "table": "posts",
+				      "type": "cross",
+				    },
+				  ],
+				}
+			`);
+		});
+	});
+
+	describe("GROUP BY and HAVING parsing", () => {
+		it("should parse simple GROUP BY", () => {
+			const sql = "SELECT status, COUNT(*) FROM users GROUP BY status";
+			const result = parseSqlQuery(sql, ["id", "status", "name"]);
+
+			expect(result.groupBy).toBeDefined();
+			expect(result.groupBy).toHaveLength(1);
+			expect(result.groupBy?.[0]).toBe("status");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "groupBy": [
+				    "status",
+				  ],
+				  "hiddenColumnList": [
+				    "id",
+				    "name",
+				  ],
+				}
+			`);
+		});
+
+		it("should parse multiple column GROUP BY", () => {
+			const sql =
+				"SELECT status, department, COUNT(*) FROM users GROUP BY status, department";
+			const result = parseSqlQuery(sql, ["id", "status", "department", "name"]);
+
+			expect(result.groupBy).toBeDefined();
+			expect(result.groupBy).toHaveLength(2);
+			expect(result.groupBy).toContain("status");
+			expect(result.groupBy).toContain("department");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "groupBy": [
+				    "status",
+				    "department",
+				  ],
+				  "hiddenColumnList": [
+				    "id",
+				    "name",
+				  ],
+				}
+			`);
+		});
+
+		it("should parse HAVING with aggregate condition", () => {
+			const sql =
+				"SELECT status, COUNT(*) FROM users GROUP BY status HAVING COUNT(*) > 5";
+			const result = parseSqlQuery(sql, ["id", "status", "name"]);
+
+			expect(result.groupBy).toBeDefined();
+			expect(result.groupBy?.[0]).toBe("status");
+			expect(result.having).toBeDefined();
+			expect(result.having?.conditions).toHaveLength(1);
+			expect(result.having?.conditions[0].column).toBe("COUNT(*)");
+			expect(result.having?.conditions[0].operator).toBe("greater_than");
+			expect(result.having?.conditions[0].value).toBe(5);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "groupBy": [
+				    "status",
+				  ],
+				  "having": {
+				    "conditions": [
+				      {
+				        "column": "COUNT(*)",
+				        "operator": "greater_than",
+				        "value": 5,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "id",
+				    "name",
+				  ],
+				}
+			`);
+		});
+
+		it("should parse HAVING with SUM aggregate", () => {
+			const sql =
+				"SELECT category, SUM(amount) FROM expenses GROUP BY category HAVING SUM(amount) > 1000";
+			const result = parseSqlQuery(sql, ["id", "category", "amount"]);
+
+			expect(result.groupBy).toBeDefined();
+			expect(result.groupBy?.[0]).toBe("category");
+			expect(result.having).toBeDefined();
+			expect(result.having?.conditions[0].column).toBe("SUM(AMOUNT)");
+			expect(result.having?.conditions[0].value).toBe(1000);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "groupBy": [
+				    "category",
+				  ],
+				  "having": {
+				    "conditions": [
+				      {
+				        "column": "SUM(AMOUNT)",
+				        "operator": "greater_than",
+				        "value": 1000,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "id",
+				    "amount",
+				  ],
+				}
+			`);
+		});
+
+		it("should parse HAVING with multiple conditions", () => {
+			const sql =
+				"SELECT status, COUNT(*) FROM users GROUP BY status HAVING COUNT(*) > 5 AND COUNT(*) < 100";
+			const result = parseSqlQuery(sql, ["id", "status", "name"]);
+
+			expect(result.having).toBeDefined();
+			expect(result.having?.conditions).toHaveLength(2);
+			expect(result.having?.logicalOperator).toBe("and");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "groupBy": [
+				    "status",
+				  ],
+				  "having": {
+				    "conditions": [
+				      {
+				        "column": "COUNT(*)",
+				        "operator": "greater_than",
+				        "value": 5,
+				      },
+				      {
+				        "column": "COUNT(*)",
+				        "operator": "less_than",
+				        "value": 100,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "id",
+				    "name",
+				  ],
+				}
+			`);
+		});
+
+		it("should parse GROUP BY with WHERE clause", () => {
+			const sql =
+				"SELECT status, COUNT(*) FROM users WHERE created_at > '2024-01-01' GROUP BY status";
+			const result = parseSqlQuery(sql, ["id", "status", "created_at", "name"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions[0].column).toBe("created_at");
+			expect(result.groupBy).toBeDefined();
+			expect(result.groupBy?.[0]).toBe("status");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "created_at",
+				        "operator": "greater_than",
+				        "value": "2024-01-01",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "groupBy": [
+				    "status",
+				  ],
+				  "hiddenColumnList": [
+				    "id",
+				    "created_at",
+				    "name",
+				  ],
+				}
+			`);
+		});
+
+		it("should parse GROUP BY with WHERE and HAVING clauses", () => {
+			const sql =
+				"SELECT status, COUNT(*) FROM users WHERE active = true GROUP BY status HAVING COUNT(*) > 10";
+			const result = parseSqlQuery(sql, ["id", "status", "active", "name"]);
+
+			expect(result.filters).toBeDefined();
+			expect(result.filters?.conditions[0].column).toBe("active");
+			expect(result.groupBy).toBeDefined();
+			expect(result.groupBy?.[0]).toBe("status");
+			expect(result.having).toBeDefined();
+			expect(result.having?.conditions[0].column).toBe("COUNT(*)");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "active",
+				        "operator": "equals",
+				        "value": "TRUE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "groupBy": [
+				    "status",
+				  ],
+				  "having": {
+				    "conditions": [
+				      {
+				        "column": "COUNT(*)",
+				        "operator": "greater_than",
+				        "value": 10,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "id",
+				    "active",
+				    "name",
+				  ],
+				}
+			`);
+		});
+
+		it("should parse GROUP BY with ORDER BY and LIMIT", () => {
+			const sql =
+				"SELECT status, COUNT(*) FROM users GROUP BY status ORDER BY status ASC LIMIT 10";
+			const result = parseSqlQuery(sql, ["id", "status", "name"]);
+
+			expect(result.groupBy).toBeDefined();
+			expect(result.groupBy?.[0]).toBe("status");
+			expect(result.orderBy).toBe("status");
+			expect(result.orderDirection).toBe("asc");
+			expect(result.limit).toBe(10);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "groupBy": [
+				    "status",
+				  ],
+				  "hiddenColumnList": [
+				    "id",
+				    "name",
+				  ],
+				  "limit": 10,
+				  "orderBy": "status",
+				  "orderDirection": "asc",
+				}
+			`);
+		});
+
+		it("should parse HAVING with AVG aggregate", () => {
+			const sql =
+				"SELECT department, AVG(salary) FROM employees GROUP BY department HAVING AVG(salary) > 50000";
+			const result = parseSqlQuery(sql, ["id", "department", "salary"]);
+
+			expect(result.groupBy).toBeDefined();
+			expect(result.groupBy?.[0]).toBe("department");
+			expect(result.having).toBeDefined();
+			expect(result.having?.conditions[0].column).toBe("AVG(SALARY)");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "groupBy": [
+				    "department",
+				  ],
+				  "having": {
+				    "conditions": [
+				      {
+				        "column": "AVG(SALARY)",
+				        "operator": "greater_than",
+				        "value": 50000,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "id",
+				    "salary",
+				  ],
+				}
+			`);
+		});
+
+		it("should parse GROUP BY with schema-qualified columns", () => {
+			const sql =
+				"SELECT users.status, COUNT(*) FROM users GROUP BY users.status HAVING COUNT(*) > 5";
+			const result = parseSqlQuery(sql, ["id", "status", "name"]);
+
+			expect(result.groupBy).toBeDefined();
+			expect(result.groupBy?.[0]).toBe("status");
+			expect(result.having).toBeDefined();
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "groupBy": [
+				    "status",
+				  ],
+				  "having": {
+				    "conditions": [
+				      {
+				        "column": "COUNT(*)",
+				        "operator": "greater_than",
+				        "value": 5,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "id",
+				    "name",
 				  ],
 				}
 			`);

@@ -8,15 +8,19 @@ import type { JoinedTable } from "#src/components/pages/connection-page/join-tab
 /**
  * Parses a SQL query string to extract:
  * - WHERE clause conditions as QueryFilterType
+ * - GROUP BY columns
+ * - HAVING clause conditions as QueryFilterType
  * - ORDER BY clause as orderBy and orderDirection
  * - LIMIT/OFFSET as limit and offset
  * - Selected columns as hiddenColumnList
- * - LEFT JOIN clauses
+ * - JOIN clauses (LEFT, INNER, RIGHT, FULL OUTER, CROSS)
  *
  * Returns partial tab state updates that can be merged with existing state
  */
 export interface ParsedSqlQueryState {
 	filters?: QueryFilterType;
+	groupBy?: string[];
+	having?: QueryFilterType;
 	orderBy?: string;
 	orderDirection?: "asc" | "desc";
 	limit?: number;
@@ -48,6 +52,8 @@ const QUALIFIED_IDENTIFIER_PATTERN = '(?:["`]?\\w+["`]?\\.){0,2}["`]?\\w+["`]?';
 // SQL clause patterns
 const WHERE_CLAUSE_REGEX =
 	/WHERE\s+(.+?)(?:ORDER BY|LIMIT|OFFSET|GROUP BY|HAVING|$)/i;
+const GROUP_BY_REGEX = /GROUP\s+BY\s+(.+?)(?:HAVING|ORDER BY|LIMIT|OFFSET|$)/i;
+const HAVING_REGEX = /HAVING\s+(.+?)(?:ORDER BY|LIMIT|OFFSET|$)/i;
 const ORDER_BY_REGEX = new RegExp(
 	`ORDER\\s+BY\\s+${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}(?:\\s+(ASC|DESC))?`,
 	"i",
@@ -56,14 +62,16 @@ const LIMIT_REGEX = /LIMIT\s+(\d+)/i;
 const OFFSET_REGEX = /OFFSET\s+(\d+)/i;
 const SELECT_REGEX = /SELECT\s+(.+?)\s+FROM/i;
 
-// LEFT JOIN pattern: captures table name, optional alias, and ON conditions
+// JOIN patterns: capture JOIN type, table name, optional alias, and ON conditions
+// Supports: LEFT JOIN, INNER JOIN, RIGHT JOIN, FULL OUTER JOIN, CROSS JOIN
 // Examples:
 // - LEFT JOIN "table"
-// - LEFT JOIN "table" AS alias
-// - LEFT JOIN "table" alias
-// - LEFT JOIN schema.table AS alias ON conditions
-const LEFT_JOIN_REGEX =
-	/LEFT\s+JOIN\s+(["`]?[\w.]+["`]?)(?:\s+(?:AS\s+)?(["`]?\w+["`]?))?(?:\s+ON\s+(.+?))?(?=\s+(?:LEFT|WHERE|ORDER|LIMIT|OFFSET|GROUP|HAVING)|$)/gi;
+// - INNER JOIN "table" AS alias
+// - RIGHT JOIN schema.table alias
+// - FULL OUTER JOIN "table" ON conditions
+// - CROSS JOIN "table"
+const JOIN_TYPE_REGEX =
+	/(LEFT|INNER|RIGHT|FULL\s+OUTER|CROSS)(?:\s+OUTER)?\s+JOIN\s+(["`]?[\w.]+["`]?)(?:\s+(?:AS\s+)?(["`]?\w+["`]?))?(?:\s+ON\s+(.+?))?(?=\s+(?:LEFT|INNER|RIGHT|FULL|CROSS|WHERE|ORDER|LIMIT|OFFSET|GROUP|HAVING)|$)/gi;
 
 // Logical operators for WHERE clause
 const AND_SPLIT_REGEX = /\s+AND\s+/gi;
@@ -87,6 +95,9 @@ const LIKE_REGEX = new RegExp(
 const COMPARISON_REGEX = new RegExp(
 	`^(${QUALIFIED_IDENTIFIER_PATTERN})\\s*(<=|>=|<>|!=|=|<|>)\\s*['"]?(.+?)['"]?$`,
 );
+// Aggregate function pattern for HAVING clauses: COUNT(*), SUM(col), AVG(col), etc.
+const AGGREGATE_COMPARISON_REGEX =
+	/^(\w+\([^)]*\))\s*(<=|>=|<>|!=|=|<|>)\s*['"]?(.+?)['"]?$/;
 
 /**
  * Extracts the column name and table/schema prefix from a qualified identifier
@@ -217,6 +228,30 @@ export const parseSqlQuery = (
 		result.offset = parseInt(offsetMatch[1], 10);
 	}
 
+	// Parse GROUP BY clause
+	const groupByMatch = normalizedSql.match(GROUP_BY_REGEX);
+	if (groupByMatch && groupByMatch[1]) {
+		const groupByClause = groupByMatch[1].trim();
+		const groupByColumns = groupByClause.split(",").map((col) => {
+			const cleaned = extractColumnName(col.trim());
+			return cleaned;
+		});
+		if (groupByColumns.length > 0) {
+			result.groupBy = groupByColumns;
+		}
+	}
+
+	// Parse HAVING clause
+	const havingMatch = normalizedSql.match(HAVING_REGEX);
+	if (havingMatch && havingMatch[1]) {
+		const havingClause = havingMatch[1].trim();
+		// HAVING conditions don't filter by availableColumns (can reference aggregates)
+		const having = parseHavingClause(havingClause);
+		if (having.conditions.length > 0) {
+			result.having = having;
+		}
+	}
+
 	// Parse SELECT clause to determine hidden columns
 	const selectMatch = normalizedSql.match(SELECT_REGEX);
 	if (selectMatch && selectMatch[1]) {
@@ -238,8 +273,8 @@ export const parseSqlQuery = (
 		}
 	}
 
-	// Parse LEFT JOIN clauses
-	const joins = parseLeftJoins(sql, availableColumns);
+	// Parse JOIN clauses (LEFT, INNER, RIGHT, FULL OUTER, CROSS)
+	const joins = parseJoins(sql, availableColumns);
 	if (joins.length > 0) {
 		result.joins = joins;
 	}
@@ -286,7 +321,37 @@ export const parseWhereClause = (
 };
 
 /**
- * Parses ON clause conditions in LEFT JOIN
+ * Parses HAVING clause conditions
+ * Similar to parseWhereClause but doesn't filter by availableColumns
+ * since HAVING can reference aggregates and GROUP BY columns
+ */
+const parseHavingClause = (havingClause: string): QueryFilterType => {
+	const conditions: FilterConditionExpression[] = [];
+
+	// Determine logical operator (AND vs OR)
+	const andCount = (havingClause.match(AND_SPLIT_REGEX) || []).length;
+	const orCount = (havingClause.match(OR_SPLIT_REGEX) || []).length;
+	const logicalOperator =
+		orCount > andCount ? ("or" as const) : ("and" as const);
+
+	// Split by logical operators while preserving the conditions
+	const parts = havingClause.split(LOGICAL_SPLIT_REGEX);
+
+	for (const part of parts) {
+		const condition = parseOnCondition(part.trim());
+		if (condition) {
+			conditions.push(condition);
+		}
+	}
+
+	return {
+		conditions,
+		logicalOperator,
+	};
+};
+
+/**
+ * Parses ON clause conditions in JOIN
  * Similar to parseWhereClause but doesn't filter by availableColumns
  * since JOIN conditions may reference columns from the joined table
  */
@@ -390,9 +455,37 @@ const parseOnCondition = (
 		};
 	}
 
+	// Handle aggregate functions for HAVING clause: COUNT(*), SUM(col), etc.
+	const aggregateMatch = condition.match(AGGREGATE_COMPARISON_REGEX);
+	if (aggregateMatch) {
+		const column = aggregateMatch[1]; // e.g., "COUNT(*)", "SUM(amount)"
+		const op = aggregateMatch[2];
+		const value = aggregateMatch[3].trim();
+
+		const operatorMap: Record<string, FilterOperatorType> = {
+			"=": "equals",
+			"!=": "not_equals",
+			"<>": "not_equals",
+			"<": "less_than",
+			">": "greater_than",
+			"<=": "less_than_or_equal",
+			">=": "greater_than_or_equal",
+		};
+
+		return {
+			column,
+			operator: operatorMap[op] || "equals",
+			value: isNumeric(value) ? parseFloat(value) : value,
+		};
+	}
+
 	return null;
 };
-export const parseLeftJoins = (
+/**
+ * Parses JOIN clauses (LEFT, INNER, RIGHT, FULL OUTER, CROSS)
+ * Returns array of JoinedTable objects with appropriate join types
+ */
+export const parseJoins = (
 	sql: string,
 	availableColumns: string[],
 ): JoinedTable[] => {
@@ -400,19 +493,23 @@ export const parseLeftJoins = (
 	const normalizedSql = sql.replace(/\s+/g, " ").toUpperCase();
 
 	// Reset regex state before use
-	LEFT_JOIN_REGEX.lastIndex = 0;
+	JOIN_TYPE_REGEX.lastIndex = 0;
 
 	let match;
-	while ((match = LEFT_JOIN_REGEX.exec(normalizedSql)) !== null) {
+	while ((match = JOIN_TYPE_REGEX.exec(normalizedSql)) !== null) {
+		// Extract and normalize JOIN type
+		const joinTypeRaw = match[1].trim();
+		const joinType: JoinedTable["type"] = normalizeJoinType(joinTypeRaw);
+
 		// Extract and clean table name - remove quotes and get last part (in case of schema.table)
-		const tableRaw = match[1].trim().toLowerCase();
+		const tableRaw = match[2].trim().toLowerCase();
 		const tableParts = tableRaw
 			.replace(/["`]/g, "")
 			.split(".")
 			.filter((p) => p.length > 0);
 
 		// Determine schema and table from parts
-		let schema = ""; // default schema
+		let schema = ""; // empty string if not specified
 		let tableName: string;
 
 		if (tableParts.length === 2) {
@@ -425,13 +522,14 @@ export const parseLeftJoins = (
 		}
 
 		// Extract and clean alias - remove quotes
-		const aliasRaw = match[2];
+		const aliasRaw = match[3];
 		const alias = aliasRaw
 			? aliasRaw.trim().toLowerCase().replace(/["`]/g, "")
 			: undefined;
 
 		// Extract ON clause (original case to preserve for parsing)
-		const onClause = match[3]?.trim();
+		// CROSS JOIN doesn't support ON clause
+		const onClause = match[4]?.trim();
 
 		// Build join condition from parsed ON clause
 		let joinCondition: JoinedTable["joinCondition"] = {
@@ -452,7 +550,7 @@ export const parseLeftJoins = (
 		const join: JoinedTable = {
 			table: tableName,
 			schema,
-			type: "left",
+			type: joinType,
 			columns: "all",
 			joinCondition,
 		};
@@ -465,6 +563,29 @@ export const parseLeftJoins = (
 	}
 
 	return joins;
+};
+
+/**
+ * Normalizes JOIN type string to standard format
+ * Maps various JOIN type strings to their normalized JoinedTable type
+ */
+const normalizeJoinType = (joinTypeRaw: string): JoinedTable["type"] => {
+	const upper = joinTypeRaw.toUpperCase().trim();
+	if (upper.includes("FULL")) return "full";
+	if (upper.includes("RIGHT")) return "right";
+	if (upper.includes("INNER")) return "inner";
+	if (upper.includes("CROSS")) return "cross";
+	return "left"; // default to left
+};
+
+/**
+ * @deprecated Use parseJoins instead
+ */
+export const parseLeftJoins = (
+	sql: string,
+	availableColumns: string[],
+): JoinedTable[] => {
+	return parseJoins(sql, availableColumns);
 };
 
 /**

@@ -4,7 +4,7 @@
 
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 
-export type JoinType = "left" | "inner";
+export type JoinType = "left" | "inner" | "right" | "full" | "cross";
 
 /**
  * Join condition modes: standard FK-based, custom SQL expressions, or filter-based
