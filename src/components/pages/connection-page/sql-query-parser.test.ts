@@ -728,4 +728,130 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].column).toBe("status");
 		});
 	});
+
+	describe("mixed quoting in schema.table.column references", () => {
+		it('should handle fully quoted: "public"."accounting_imports"."category"', () => {
+			const sql =
+				'SELECT "public"."accounting_imports"."category" FROM "public"."accounting_imports" LIMIT 2';
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.hiddenColumnList).toContain("id");
+			expect(result.hiddenColumnList).toContain("amount");
+			expect(result.hiddenColumnList).toContain("date");
+			expect(result.hiddenColumnList).not.toContain("category");
+			expect(result.limit).toBe(2);
+		});
+
+		it('should handle mixed quoting: "public".accounting_imports."category"', () => {
+			const sql =
+				'SELECT "public".accounting_imports."category" FROM "public".accounting_imports LIMIT 2';
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.hiddenColumnList).toContain("id");
+			expect(result.hiddenColumnList).not.toContain("category");
+			expect(result.limit).toBe(2);
+		});
+
+		it('should handle mixed quoting: public."accounting_imports".category', () => {
+			const sql =
+				'SELECT public."accounting_imports".category FROM accounting_imports LIMIT 2';
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.hiddenColumnList).toContain("id");
+			expect(result.hiddenColumnList).not.toContain("category");
+			expect(result.limit).toBe(2);
+		});
+
+		it("should handle unquoted: public.accounting_imports.category", () => {
+			const sql =
+				"SELECT public.accounting_imports.category FROM accounting_imports LIMIT 2";
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.hiddenColumnList).toContain("id");
+			expect(result.hiddenColumnList).not.toContain("category");
+			expect(result.limit).toBe(2);
+		});
+
+		it("should handle WHERE with fully quoted mixed schema.table.column", () => {
+			const sql =
+				'SELECT * FROM "public"."accounting_imports" WHERE "public"."accounting_imports"."category" = \'LEGACY\'';
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].value).toBe("LEGACY");
+		});
+
+		it('should handle WHERE with mixed quoting: "public".accounting_imports."category"', () => {
+			const sql =
+				'SELECT * FROM "public".accounting_imports WHERE "public".accounting_imports."category" = \'LEGACY\'';
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].value).toBe("LEGACY");
+		});
+
+		it('should handle WHERE with mixed quoting: public."accounting_imports".category', () => {
+			const sql =
+				"SELECT * FROM accounting_imports WHERE public.\"accounting_imports\".category = 'LEGACY'";
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].value).toBe("LEGACY");
+		});
+
+		it("should handle WHERE with unquoted schema.table.column", () => {
+			const sql =
+				"SELECT * FROM accounting_imports WHERE public.accounting_imports.category = 'LEGACY'";
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].value).toBe("LEGACY");
+		});
+
+		it("should handle ORDER BY with fully quoted schema.table.column", () => {
+			const sql =
+				'SELECT * FROM "public"."accounting_imports" ORDER BY "public"."accounting_imports"."category" ASC';
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.orderBy).toBe("category");
+			expect(result.orderDirection).toBe("asc");
+		});
+
+		it("should handle ORDER BY with mixed quoting", () => {
+			const sql =
+				'SELECT * FROM public."accounting_imports" ORDER BY public."accounting_imports".category DESC';
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.orderBy).toBe("category");
+			expect(result.orderDirection).toBe("desc");
+		});
+
+		it("should handle IN operator with mixed quoting", () => {
+			const sql =
+				"SELECT * FROM accounting_imports WHERE public.accounting_imports.category IN ('LEGACY', 'CURRENT')";
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].operator).toBe("in");
+			expect(result.filters?.conditions[0].value).toEqual([
+				"LEGACY",
+				"CURRENT",
+			]);
+		});
+
+		it("should handle IS NULL with mixed quoting", () => {
+			const sql =
+				'SELECT * FROM "public".accounting_imports WHERE public."accounting_imports"."category" IS NULL';
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].operator).toBe("is_null");
+		});
+	});
 });

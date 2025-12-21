@@ -26,9 +26,13 @@ export interface ParsedSqlQueryState {
 // Compiled Regex Patterns (reused across functions to avoid recompilation)
 // ============================================================================
 
-// Matches optional schema and/or table prefix with optional quotes
-// Supports: [schema.]table.column, ["schema"].table.column, table.column, column
-const QUALIFIER_PREFIX = /(?:["`]?\w+["`]?\.){0,2}/;
+// Matches optional schema and/or table prefix with flexible quoting
+// Each qualifier part can be independently quoted or unquoted:
+// - "public"."accounting_imports"."category"
+// - "public".accounting_imports."category"
+// - public."accounting_imports".category
+// - public.accounting_imports.category
+const QUALIFIER_PREFIX = /(?:(?:["`]?\w+["`]?)\.){0,2}/;
 
 // Captures quoted or unquoted column name: column or "column" or `column`
 const COLUMN_NAME = /["`]?(\w+)["`]?/;
@@ -91,15 +95,13 @@ const extractColumnName = (identifier: string): string => {
  */
 const extractColumnNameWithAlias = (columnExpression: string): string => {
 	// Remove alias: split on AS keyword (case-insensitive)
-	const withoutAlias = columnExpression
-		.split(/\s+AS\s+/i)[0]
-		.trim();
-	
+	const withoutAlias = columnExpression.split(/\s+AS\s+/i)[0].trim();
+
 	// Also handle space-separated aliases without AS (e.g., "col alias")
 	// Only take the first part if multiple space-separated identifiers
 	const parts = withoutAlias.split(/\s+/);
 	const columnPart = parts[0].trim();
-	
+
 	return extractColumnName(columnPart);
 };
 

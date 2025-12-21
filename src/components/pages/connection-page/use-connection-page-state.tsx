@@ -71,6 +71,7 @@ export const useConnectionPageState = ({
 			customSql: s.customSql,
 		};
 	});
+	// console.log(search);
 
 	// Query builder setup
 	const queryBuilder = useQueryBuilder(
