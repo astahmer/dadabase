@@ -23,6 +23,18 @@ export interface ParsedSqlQueryState {
 }
 
 /**
+ * Extracts the column name from a potentially table-qualified identifier
+ * Handles: table.column, "table"."column", "table".column, table."column"
+ * Returns the column name without the table prefix
+ */
+const extractColumnName = (identifier: string): string => {
+	// Match pattern: optional table prefix followed by column name
+	// Handles both quoted and unquoted identifiers
+	const match = identifier.match(/(?:["`]?\w+["`]?\.)?["`]?(\w+)["`]?$/);
+	return match ? match[1].toLowerCase() : identifier.toLowerCase();
+};
+
+/**
  * Simple regex-based SQL WHERE clause parser
  * Handles basic operators and conditions, not full SQL parsing
  */
@@ -48,9 +60,9 @@ export const parseSqlQuery = (
 	}
 
 	// Parse ORDER BY clause - takes the FIRST column in ORDER BY
-	// Handles quoted identifiers: `name`, "name", or unquoted name
+	// Handles quoted identifiers and table-qualified columns: table.column, "table"."column", etc.
 	const orderByMatch = normalizedSql.match(
-		/ORDER\s+BY\s+[`"]?(\w+)[`"]?(?:\s+(ASC|DESC))?/i,
+		/ORDER\s+BY\s+(?:["`]?\w+["`]?\.)?["`]?(\w+)[`"]?(?:\s+(ASC|DESC))?/i,
 	);
 	if (orderByMatch && orderByMatch[1]) {
 		const column = orderByMatch[1].toLowerCase();
@@ -79,9 +91,11 @@ export const parseSqlQuery = (
 		const selectedPart = selectMatch[1].trim();
 		// If not SELECT *, track which columns are selected
 		if (selectedPart !== "*") {
-			const selectedColumns = selectedPart
-				.split(",")
-				.map((col) => col.trim().replace(/["`]/g, "").toLowerCase());
+			const selectedColumns = selectedPart.split(",").map((col) => {
+				const normalized = col.trim().replace(/["`]/g, "").toLowerCase();
+				// Handle table-qualified columns: extract just the column name
+				return extractColumnName(normalized);
+			});
 
 			// Hidden columns are those NOT in the SELECT list
 			const hidden = availableColumns.filter(
@@ -146,9 +160,12 @@ export const parseCondition = (
 	if (!condition) return null;
 
 	// Handle IS NULL / IS NOT NULL
-	const nullMatch = condition.match(/^["`]?(\w+)["`]?\s+IS\s+(NOT\s+)?NULL$/i);
+	// Supports: column IS NULL, "column" IS NULL, table.column IS NULL, "table"."column" IS NULL
+	const nullMatch = condition.match(
+		/^(?:["`]?\w+["`]?\.)?["`]?(\w+)["`]?\s+IS\s+(NOT\s+)?NULL$/i,
+	);
 	if (nullMatch) {
-		const column = nullMatch[1].toLowerCase();
+		const column = extractColumnName(nullMatch[1]);
 		if (availableColumns.includes(column)) {
 			return {
 				column,
@@ -160,11 +177,12 @@ export const parseCondition = (
 	}
 
 	// Handle IN / NOT IN
+	// Supports: column IN (...), table.column IN (...), "table"."column" IN (...)
 	const inMatch = condition.match(
-		/^["`]?(\w+)["`]?\s+(NOT\s+)?IN\s*\(\s*(.+?)\s*\)$/i,
+		/^(?:["`]?\w+["`]?\.)?["`]?(\w+)["`]?\s+(NOT\s+)?IN\s*\(\s*(.+?)\s*\)$/i,
 	);
 	if (inMatch) {
-		const column = inMatch[1].toLowerCase();
+		const column = extractColumnName(inMatch[1]);
 		if (availableColumns.includes(column)) {
 			const values = inMatch[3].split(",").map(
 				(v) => v.trim().replace(/^['"]|['"]$/g, ""), // Remove quotes
@@ -177,12 +195,13 @@ export const parseCondition = (
 		}
 	}
 
-	// Handle LIKE / ILIKE with wildcards
+	// Handle LIKE / NOT LIKE with wildcards
+	// Supports: column LIKE '...', table.column LIKE '...', "table"."column" LIKE '...'
 	const likeMatch = condition.match(
-		/^["`]?(\w+)["`]?\s+(NOT\s+)?LIKE\s+['"](.+?)['"]$/i,
+		/^(?:["`]?\w+["`]?\.)?["`]?(\w+)["`]?\s+(NOT\s+)?LIKE\s+['"](.+?)['"]$/i,
 	);
 	if (likeMatch) {
-		const column = likeMatch[1].toLowerCase();
+		const column = extractColumnName(likeMatch[1]);
 		if (availableColumns.includes(column)) {
 			const value = likeMatch[3];
 			const operator = detectLikeOperator(value, likeMatch[2] ? true : false);
@@ -195,12 +214,13 @@ export const parseCondition = (
 	}
 
 	// Handle standard comparison operators: =, !=, <>, <, >, <=, >=
+	// Supports: column = value, table.column = value, "table"."column" = value
 	// Must check two-character operators before single-character ones
 	const comparisonMatch = condition.match(
-		/^["`]?(\w+)["`]?\s*(<=|>=|<>|!=|=|<|>)\s*['"]?(.+?)['"]?$/,
+		/^(?:["`]?\w+["`]?\.)?["`]?(\w+)["`]?\s*(<=|>=|<>|!=|=|<|>)\s*['"]?(.+?)['"]?$/,
 	);
 	if (comparisonMatch) {
-		const column = comparisonMatch[1].toLowerCase();
+		const column = extractColumnName(comparisonMatch[1]);
 		if (availableColumns.includes(column)) {
 			const op = comparisonMatch[2];
 			const value = comparisonMatch[3].trim();

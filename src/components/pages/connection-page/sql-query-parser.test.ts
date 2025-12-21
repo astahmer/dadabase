@@ -484,4 +484,122 @@ describe("SQL Query Parser", () => {
 			expect(result.offset).toBe(10);
 		});
 	});
+
+	describe("table-qualified column names", () => {
+		it("should parse WHERE with unquoted table.column syntax", () => {
+			const sql = 'SELECT * FROM users WHERE users.status = "active"';
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+		});
+
+		it("should parse WHERE with fully quoted table.column syntax", () => {
+			const sql = 'SELECT * FROM users WHERE "users"."status" = \'active\'';
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+		});
+
+		it("should parse WHERE with mixed quote styles", () => {
+			const sql = "SELECT * FROM users WHERE \"users\".status = 'active'";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+		});
+
+		it("should parse WHERE with backtick-quoted table.column", () => {
+			const sql = "SELECT * FROM users WHERE `users`.`status` = 'active'";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+		});
+
+		it("should handle table-qualified columns in IS NULL", () => {
+			const sql = "SELECT * FROM users WHERE users.status IS NULL";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].operator).toBe("is_null");
+		});
+
+		it("should handle table-qualified columns in IN operator", () => {
+			const sql =
+				"SELECT * FROM users WHERE users.status IN ('active', 'inactive')";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].operator).toBe("in");
+			expect(result.filters?.conditions[0].value).toEqual([
+				"ACTIVE",
+				"INACTIVE",
+			]);
+		});
+
+		it("should handle table-qualified columns in LIKE", () => {
+			const sql = "SELECT * FROM users WHERE users.name LIKE '%john%'";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("name");
+			expect(result.filters?.conditions[0].operator).toBe("contains");
+		});
+
+		it("should parse ORDER BY with unquoted table.column", () => {
+			const sql = "SELECT * FROM users ORDER BY users.name ASC";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.orderBy).toBe("name");
+			expect(result.orderDirection).toBe("asc");
+		});
+
+		it("should parse ORDER BY with quoted table.column", () => {
+			const sql = 'SELECT * FROM users ORDER BY "users"."name" DESC';
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.orderBy).toBe("name");
+			expect(result.orderDirection).toBe("desc");
+		});
+
+		it("should handle table-qualified columns in SELECT clause", () => {
+			const sql =
+				'SELECT "users"."id", "users"."name" FROM users WHERE "users"."status" = \'active\'';
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.hiddenColumnList).toContain("email");
+			expect(result.hiddenColumnList).toContain("status");
+			expect(result.hiddenColumnList).not.toContain("id");
+			expect(result.hiddenColumnList).not.toContain("name");
+		});
+
+		it("should parse multiple conditions with table-qualified columns", () => {
+			const sql =
+				"SELECT * FROM users WHERE users.status = 'active' AND users.email = 'test@example.com'";
+			const result = parseSqlQuery(sql, mockColumns);
+
+			expect(result.filters?.conditions).toHaveLength(2);
+			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[1].column).toBe("email");
+			expect(result.filters?.logicalOperator).toBe("and");
+		});
+
+		it("should handle accounting_imports.category example", () => {
+			const sql =
+				'SELECT * FROM "accounting_imports" WHERE "accounting_imports"."category" = \'LEGACY\' ORDER BY "accounting_imports"."category" LIMIT 2';
+			const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
+
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].value).toBe("LEGACY");
+			expect(result.orderBy).toBe("category");
+			expect(result.limit).toBe(2);
+		});
+	});
 });
