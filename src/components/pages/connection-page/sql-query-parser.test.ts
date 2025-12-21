@@ -2005,22 +2005,31 @@ describe("SQL Query Parser", () => {
 			expect(result.joins).toHaveLength(1);
 			expect(result.joins?.[0].table).toBe("expenses");
 			expect(result.joins?.[0].alias).toBeUndefined();
+			expect(result.joins?.[0].schema).toBe("");
+			expect(result.joins?.[0].type).toBe("left");
+			expect(result.joins?.[0].columns).toBe("all");
 			expect(result).toMatchInlineSnapshot(`
 				{
 				  "joins": [
 				    {
-				      "conditions": {
-				        "conditions": [
-				          {
-				            "column": "planned_outcome_id",
-				            "operator": "equals",
-				            "table": "expenses",
-				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES"."ID",
-				          },
-				        ],
-				        "logicalOperator": "and",
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "planned_outcome_id",
+				              "operator": "equals",
+				              "table": "expenses",
+				              "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES"."ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
 				      },
+				      "schema": "",
 				      "table": "expenses",
+				      "type": "left",
 				    },
 				  ],
 				}
@@ -2036,23 +2045,32 @@ describe("SQL Query Parser", () => {
 			expect(result.joins).toHaveLength(1);
 			expect(result.joins?.[0].table).toBe("expenses");
 			expect(result.joins?.[0].alias).toBe("aliased");
+			expect(result.joins?.[0].schema).toBe("");
+			expect(result.joins?.[0].type).toBe("left");
+			expect(result.joins?.[0].columns).toBe("all");
 			expect(result).toMatchInlineSnapshot(`
 				{
 				  "joins": [
 				    {
 				      "alias": "aliased",
-				      "conditions": {
-				        "conditions": [
-				          {
-				            "column": "planned_outcome_id",
-				            "operator": "equals",
-				            "table": "aliased",
-				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES"."ID",
-				          },
-				        ],
-				        "logicalOperator": "and",
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "planned_outcome_id",
+				              "operator": "equals",
+				              "table": "aliased",
+				              "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES"."ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
 				      },
+				      "schema": "",
 				      "table": "expenses",
+				      "type": "left",
 				    },
 				  ],
 				}
@@ -2068,23 +2086,32 @@ describe("SQL Query Parser", () => {
 			expect(result.joins).toHaveLength(1);
 			expect(result.joins?.[0].table).toBe("expenses");
 			expect(result.joins?.[0].alias).toBe("e");
+			expect(result.joins?.[0].schema).toBe("");
+			expect(result.joins?.[0].type).toBe("left");
+			expect(result.joins?.[0].columns).toBe("all");
 			expect(result).toMatchInlineSnapshot(`
 				{
 				  "joins": [
 				    {
 				      "alias": "e",
-				      "conditions": {
-				        "conditions": [
-				          {
-				            "column": "planned_outcome_id",
-				            "operator": "equals",
-				            "table": "e",
-				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
-				          },
-				        ],
-				        "logicalOperator": "and",
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "planned_outcome_id",
+				              "operator": "equals",
+				              "table": "e",
+				              "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
 				      },
+				      "schema": "",
 				      "table": "expenses",
+				      "type": "left",
 				    },
 				  ],
 				}
@@ -2097,29 +2124,41 @@ describe("SQL Query Parser", () => {
 			const result = parseSqlQuery(sql, accountingColumns);
 
 			expect(result.joins).toBeDefined();
-			expect(result.joins?.[0].conditions).toBeDefined();
-			expect(result.joins?.[0].conditions?.conditions).toHaveLength(1);
-			expect(result.joins?.[0].conditions?.conditions[0].column).toBe(
-				"planned_outcome_id",
-			);
-			expect(result.joins?.[0].conditions?.conditions[0].table).toBe("e");
+			expect(result.joins?.[0].joinCondition.mode).toBe("filters");
+			if (result.joins?.[0].joinCondition.mode === "filters") {
+				expect(
+					result.joins?.[0].joinCondition.filters?.conditions,
+				).toHaveLength(1);
+				expect(
+					result.joins?.[0].joinCondition.filters?.conditions[0].column,
+				).toBe("planned_outcome_id");
+				expect(
+					result.joins?.[0].joinCondition.filters?.conditions[0].table,
+				).toBe("e");
+			}
 			expect(result).toMatchInlineSnapshot(`
 				{
 				  "joins": [
 				    {
 				      "alias": "e",
-				      "conditions": {
-				        "conditions": [
-				          {
-				            "column": "planned_outcome_id",
-				            "operator": "equals",
-				            "table": "e",
-				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
-				          },
-				        ],
-				        "logicalOperator": "and",
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "planned_outcome_id",
+				              "operator": "equals",
+				              "table": "e",
+				              "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
 				      },
+				      "schema": "",
 				      "table": "expenses",
+				      "type": "left",
 				    },
 				  ],
 				}
@@ -2142,33 +2181,45 @@ describe("SQL Query Parser", () => {
 				  "joins": [
 				    {
 				      "alias": "e",
-				      "conditions": {
-				        "conditions": [
-				          {
-				            "column": "planned_outcome_id",
-				            "operator": "equals",
-				            "table": "e",
-				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
-				          },
-				        ],
-				        "logicalOperator": "and",
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "planned_outcome_id",
+				              "operator": "equals",
+				              "table": "e",
+				              "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
 				      },
+				      "schema": "",
 				      "table": "expenses",
+				      "type": "left",
 				    },
 				    {
 				      "alias": "o",
-				      "conditions": {
-				        "conditions": [
-				          {
-				            "column": "id",
-				            "operator": "equals",
-				            "table": "o",
-				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
-				          },
-				        ],
-				        "logicalOperator": "and",
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "id",
+				              "operator": "equals",
+				              "table": "o",
+				              "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
 				      },
+				      "schema": "",
 				      "table": "other_table",
+				      "type": "left",
 				    },
 				  ],
 				}
@@ -2180,31 +2231,44 @@ describe("SQL Query Parser", () => {
 				"SELECT * FROM accounting_line_planned_outcomes LEFT JOIN expenses e ON e.planned_outcome_id = accounting_line_planned_outcomes.id AND e.amount > 100";
 			const result = parseSqlQuery(sql, accountingColumns);
 
-			expect(result.joins?.[0].conditions?.conditions).toHaveLength(2);
-			expect(result.joins?.[0].conditions?.logicalOperator).toBe("and");
+			if (result.joins?.[0].joinCondition.mode === "filters") {
+				expect(
+					result.joins?.[0].joinCondition.filters?.conditions,
+				).toHaveLength(2);
+				expect(result.joins?.[0].joinCondition.filters?.logicalOperator).toBe(
+					"and",
+				);
+			}
+
 			expect(result).toMatchInlineSnapshot(`
 				{
 				  "joins": [
 				    {
 				      "alias": "e",
-				      "conditions": {
-				        "conditions": [
-				          {
-				            "column": "planned_outcome_id",
-				            "operator": "equals",
-				            "table": "e",
-				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
-				          },
-				          {
-				            "column": "amount",
-				            "operator": "greater_than",
-				            "table": "e",
-				            "value": 100,
-				          },
-				        ],
-				        "logicalOperator": "and",
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "planned_outcome_id",
+				              "operator": "equals",
+				              "table": "e",
+				              "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				            },
+				            {
+				              "column": "amount",
+				              "operator": "greater_than",
+				              "table": "e",
+				              "value": 100,
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
 				      },
+				      "schema": "",
 				      "table": "expenses",
+				      "type": "left",
 				    },
 				  ],
 				}
@@ -2219,7 +2283,7 @@ describe("SQL Query Parser", () => {
 			expect(result.joins).toBeDefined();
 			expect(result.joins).toHaveLength(1);
 			expect(result.joins?.[0].table).toBe("expenses");
-			expect(result.joins?.[0].conditions).toBeUndefined();
+			expect(result.joins?.[0].joinCondition.mode).toBe("custom");
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("amount");
 			expect(result).toMatchInlineSnapshot(`
@@ -2236,7 +2300,54 @@ describe("SQL Query Parser", () => {
 				  },
 				  "joins": [
 				    {
+				      "columns": "all",
+				      "joinCondition": {
+				        "conditions": [],
+				        "mode": "custom",
+				      },
+				      "schema": "",
 				      "table": "expenses",
+				      "type": "left",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse LEFT JOIN with explicit schema", () => {
+			const sql =
+				"SELECT * FROM accounting_line_planned_outcomes LEFT JOIN public.expenses ON expenses.planned_outcome_id = accounting_line_planned_outcomes.id";
+			const result = parseSqlQuery(sql, accountingColumns);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("expenses");
+			expect(result.joins?.[0].schema).toBe("public");
+			expect(result.joins?.[0].alias).toBeUndefined();
+			expect(result.joins?.[0].type).toBe("left");
+			expect(result.joins?.[0].columns).toBe("all");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "columns": "all",
+				      "joinCondition": {
+				        "filters": {
+				          "conditions": [
+				            {
+				              "column": "planned_outcome_id",
+				              "operator": "equals",
+				              "table": "expenses",
+				              "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				            },
+				          ],
+				          "logicalOperator": "and",
+				        },
+				        "mode": "filters",
+				      },
+				      "schema": "public",
+				      "table": "expenses",
+				      "type": "left",
 				    },
 				  ],
 				}

@@ -3,6 +3,7 @@ import type {
 	FilterOperatorType,
 	QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
+import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 
 /**
  * Parses a SQL query string to extract:
@@ -14,12 +15,6 @@ import type {
  *
  * Returns partial tab state updates that can be merged with existing state
  */
-export interface LeftJoinInfo {
-	table: string;
-	alias?: string;
-	conditions?: QueryFilterType;
-}
-
 export interface ParsedSqlQueryState {
 	filters?: QueryFilterType;
 	orderBy?: string;
@@ -27,7 +22,7 @@ export interface ParsedSqlQueryState {
 	limit?: number;
 	offset?: number;
 	hiddenColumnList?: string[];
-	joins?: LeftJoinInfo[];
+	joins?: JoinedTable[];
 }
 
 // ============================================================================
@@ -400,8 +395,8 @@ const parseOnCondition = (
 export const parseLeftJoins = (
 	sql: string,
 	availableColumns: string[],
-): LeftJoinInfo[] => {
-	const joins: LeftJoinInfo[] = [];
+): JoinedTable[] => {
+	const joins: JoinedTable[] = [];
 	const normalizedSql = sql.replace(/\s+/g, " ").toUpperCase();
 
 	// Reset regex state before use
@@ -415,7 +410,19 @@ export const parseLeftJoins = (
 			.replace(/["`]/g, "")
 			.split(".")
 			.filter((p) => p.length > 0);
-		const tableName = tableParts[tableParts.length - 1];
+
+		// Determine schema and table from parts
+		let schema = ""; // default schema
+		let tableName: string;
+
+		if (tableParts.length === 2) {
+			// schema.table format
+			schema = tableParts[0];
+			tableName = tableParts[1];
+		} else {
+			// Just table name
+			tableName = tableParts[tableParts.length - 1];
+		}
 
 		// Extract and clean alias - remove quotes
 		const aliasRaw = match[2];
@@ -426,19 +433,32 @@ export const parseLeftJoins = (
 		// Extract ON clause (original case to preserve for parsing)
 		const onClause = match[3]?.trim();
 
-		const join: LeftJoinInfo = {
+		// Build join condition from parsed ON clause
+		let joinCondition: JoinedTable["joinCondition"] = {
+			mode: "custom",
+			conditions: [],
+		};
+
+		if (onClause) {
+			const parsedFilters = parseOnClause(onClause);
+			if (parsedFilters.conditions.length > 0) {
+				joinCondition = {
+					mode: "filters",
+					filters: parsedFilters,
+				};
+			}
+		}
+
+		const join: JoinedTable = {
 			table: tableName,
+			schema,
+			type: "left",
+			columns: "all",
+			joinCondition,
 		};
 
 		if (alias) {
 			join.alias = alias;
-		}
-
-		if (onClause) {
-			const conditions = parseOnClause(onClause);
-			if (conditions.conditions.length > 0) {
-				join.conditions = conditions;
-			}
 		}
 
 		joins.push(join);
