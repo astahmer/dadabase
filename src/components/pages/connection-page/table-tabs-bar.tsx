@@ -219,10 +219,6 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
 		isSidebarCollapsed,
 	} = props;
 
-	if (tabs.length === 0) {
-		return null;
-	}
-
 	return (
 		<div className="border-b bg-muted/50">
 			<Tabs.Root
