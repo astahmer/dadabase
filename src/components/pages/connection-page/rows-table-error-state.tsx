@@ -21,6 +21,7 @@ import {
 } from "./create-tab-state.ts";
 import { extractSelectedTables } from "./sql-completion-helper.ts";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
+import { parseSqlQuery } from "./sql-query-parser.ts";
 
 interface RowsTableErrorStateProps {
 	activeConnectionUrl: string;
@@ -91,8 +92,22 @@ const NoTableSelectedState = (props: NoTableSelectedStateProps) => {
 
 	const onCustomSqlChange = useDebouncedCallback(
 		(value: string) => {
+			// Get available column names from all columns
+			const allAvailableColumns = props.columns.flatMap((tc) =>
+				tc.columns.map((c) => c.name),
+			);
+
+			// Parse the SQL query to extract filters, sorting, pagination
+			const parsedState = parseSqlQuery(value, allAvailableColumns);
+			console.log(parsedState);
+
 			return navigate({
-				search: (prev) => updateTabState(prev, { customSql: value }),
+				search: (prev) =>
+					updateTabState(prev, {
+						customSql: value,
+						// Apply parsed state updates
+						...parsedState,
+					}),
 			});
 		},
 		{ wait: 500 },
