@@ -61,6 +61,7 @@
 - monaco editor editor.changeViewZones for inline actions (run/explain/format/fullscreen/copy/save)
 - display editor line number
 - handle column aliases: SQL parsing, SQL completion, filters, column visibility, sorting etc
+- diagnostics in editor for SQL issues (missing table, missing column, syntax error etc?)
 
 ## issues
 - import join config from SQL query

@@ -47,7 +47,7 @@ export const JoinedTableSchema = Schema.Struct({
 		table: Schema.String,
 	}).pipe(Schema.optional),
 	alias: Schema.String.pipe(Schema.optional),
-	type: Schema.Literal("left", "inner"),
+	type: Schema.Literal("left", "inner", "right", "full", "cross"),
 	columns: Schema.Union(
 		Schema.Literal("all"),
 		Schema.Array(Schema.String).pipe(Schema.mutable),

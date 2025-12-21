@@ -3,6 +3,8 @@ import { nanoid } from "nanoid";
 
 /**
  * Operators supported for filtering
+ * Note: Use the inverted flag for logical negation (NOT LIKE, NOT (...))
+ * but NOT for operators that are already negations (!=, NOT IN, IS NOT NULL, NOT LIKE)
  */
 export const FilterOperator = Schema.Union(
 	Schema.Literal("equals"),
@@ -30,6 +32,7 @@ export const FilterCondition = Schema.Struct({
 	column: Schema.String,
 	table: Schema.String.pipe(Schema.optional),
 	operator: FilterOperator,
+	inverted: Schema.Boolean.pipe(Schema.optional),
 	value: Schema.Union(
 		Schema.String,
 		Schema.Number,
@@ -73,80 +76,72 @@ export const conditionToWhereClause = (
 	const paramName = `$${paramIndex}`;
 	const column = `"${condition.column}"`;
 	let nextIndex = paramIndex + 1;
+	const inverted = condition.inverted ?? false;
+
+	let baseClause: string;
+	let params: Record<string, any>;
 
 	switch (condition.operator) {
-		case "equals":
-			return {
-				clause: `${column} = ${paramName}`,
-				params: { [paramName]: condition.value },
-				nextIndex,
-			};
-		case "not_equals":
-			return {
-				clause: `${column} != ${paramName}`,
-				params: { [paramName]: condition.value },
-				nextIndex,
-			};
-		case "contains":
-			return {
-				clause: `${column} LIKE ${paramName}`,
-				params: { [paramName]: `%${condition.value}%` },
-				nextIndex,
-			};
-		case "not_contains":
-			return {
-				clause: `${column} NOT LIKE ${paramName}`,
-				params: { [paramName]: `%${condition.value}%` },
-				nextIndex,
-			};
-		case "starts_with":
-			return {
-				clause: `${column} LIKE ${paramName}`,
-				params: { [paramName]: `${condition.value}%` },
-				nextIndex,
-			};
-		case "ends_with":
-			return {
-				clause: `${column} LIKE ${paramName}`,
-				params: { [paramName]: `%${condition.value}` },
-				nextIndex,
-			};
-		case "greater_than":
-			return {
-				clause: `${column} > ${paramName}`,
-				params: { [paramName]: condition.value },
-				nextIndex,
-			};
-		case "greater_than_or_equal":
-			return {
-				clause: `${column} >= ${paramName}`,
-				params: { [paramName]: condition.value },
-				nextIndex,
-			};
-		case "less_than":
-			return {
-				clause: `${column} < ${paramName}`,
-				params: { [paramName]: condition.value },
-				nextIndex,
-			};
-		case "less_than_or_equal":
-			return {
-				clause: `${column} <= ${paramName}`,
-				params: { [paramName]: condition.value },
-				nextIndex,
-			};
-		case "is_null":
-			return {
-				clause: `${column} IS NULL`,
-				params: {},
-				nextIndex,
-			};
-		case "is_not_null":
-			return {
-				clause: `${column} IS NOT NULL`,
-				params: {},
-				nextIndex,
-			};
+		case "equals": {
+			baseClause = `${column} = ${paramName}`;
+			params = { [paramName]: condition.value };
+			break;
+		}
+		case "not_equals": {
+			baseClause = `${column} != ${paramName}`;
+			params = { [paramName]: condition.value };
+			break;
+		}
+		case "contains": {
+			baseClause = `${column} LIKE ${paramName}`;
+			params = { [paramName]: `%${condition.value}%` };
+			break;
+		}
+		case "not_contains": {
+			baseClause = `${column} NOT LIKE ${paramName}`;
+			params = { [paramName]: `%${condition.value}%` };
+			break;
+		}
+		case "starts_with": {
+			baseClause = `${column} LIKE ${paramName}`;
+			params = { [paramName]: `${condition.value}%` };
+			break;
+		}
+		case "ends_with": {
+			baseClause = `${column} LIKE ${paramName}`;
+			params = { [paramName]: `%${condition.value}` };
+			break;
+		}
+		case "greater_than": {
+			baseClause = `${column} > ${paramName}`;
+			params = { [paramName]: condition.value };
+			break;
+		}
+		case "greater_than_or_equal": {
+			baseClause = `${column} >= ${paramName}`;
+			params = { [paramName]: condition.value };
+			break;
+		}
+		case "less_than": {
+			baseClause = `${column} < ${paramName}`;
+			params = { [paramName]: condition.value };
+			break;
+		}
+		case "less_than_or_equal": {
+			baseClause = `${column} <= ${paramName}`;
+			params = { [paramName]: condition.value };
+			break;
+		}
+		case "is_null": {
+			baseClause = `${column} IS NULL`;
+			params = {};
+			break;
+		}
+		case "is_not_null": {
+			baseClause = `${column} IS NOT NULL`;
+			params = {};
+			break;
+		}
 		case "in": {
 			const values = Array.isArray(condition.value)
 				? condition.value
@@ -158,11 +153,10 @@ export const conditionToWhereClause = (
 			values.forEach((val, i) => {
 				inParams[`$${paramIndex + i}`] = val;
 			});
-			return {
-				clause: `${column} IN (${placeholders})`,
-				params: inParams,
-				nextIndex: paramIndex + values.length,
-			};
+			baseClause = `${column} IN (${placeholders})`;
+			params = inParams;
+			nextIndex = paramIndex + values.length;
+			break;
 		}
 		case "not_in": {
 			const values = Array.isArray(condition.value)
@@ -175,16 +169,24 @@ export const conditionToWhereClause = (
 			values.forEach((val, i) => {
 				inParams[`$${paramIndex + i}`] = val;
 			});
-			return {
-				clause: `${column} NOT IN (${placeholders})`,
-				params: inParams,
-				nextIndex: paramIndex + values.length,
-			};
+			baseClause = `${column} NOT IN (${placeholders})`;
+			params = inParams;
+			nextIndex = paramIndex + values.length;
+			break;
 		}
 		default:
 			const _exhaustive: never = condition.operator;
 			return _exhaustive;
 	}
+
+	// Apply inversion with NOT if needed (for operators like NOT LIKE, NOT (...))
+	const finalClause = inverted ? `NOT (${baseClause})` : baseClause;
+
+	return {
+		clause: finalClause,
+		params,
+		nextIndex,
+	};
 };
 
 /**
@@ -239,7 +241,6 @@ export const allOperators: FilterOperatorType[] = [
 	"equals",
 	"not_equals",
 	"contains",
-	"not_contains",
 	"starts_with",
 	"ends_with",
 	"greater_than",
@@ -260,7 +261,7 @@ export const getOperatorLabel = (operator: FilterOperatorType): string => {
 		equals: "Equals",
 		not_equals: "Not Equals",
 		contains: "Contains",
-		not_contains: "Does Not Contain",
+		not_contains: "Not Contains",
 		starts_with: "Starts With",
 		ends_with: "Ends With",
 		greater_than: "Greater Than",
@@ -315,6 +316,7 @@ export const whereClauseParamsToQueryFilter = (
 		id: nanoid(),
 		column: expr.column,
 		operator: expr.operator as FilterOperatorType,
+		inverted: expr.inverted,
 		value: expr.value,
 	}));
 

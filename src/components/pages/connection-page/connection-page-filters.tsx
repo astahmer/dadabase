@@ -220,6 +220,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 														column: f.field,
 														operator: operatorMap[f.operator] || "equals",
 														value: f.value as string,
+														...(f.inverted && { inverted: true }),
 													})),
 												),
 										);

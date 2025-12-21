@@ -1648,6 +1648,7 @@ export interface FilterCondition {
 		| "in"
 		| "not_in";
 	value?: string | number | boolean | null | string[];
+	inverted?: boolean;
 }
 
 /**

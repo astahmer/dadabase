@@ -399,16 +399,17 @@ const unwrapParenthesizedCondition = (condition: string): string => {
 /**
  * Negates a filter operator (equals becomes not_equals, etc.)
  */
-const negateOperator = (operator: FilterOperatorType): FilterOperatorType => {
-	const operatorMap: Record<FilterOperatorType, FilterOperatorType> = {
+const negateOperator = (
+	operator: FilterOperatorType,
+): FilterOperatorType | undefined => {
+	const operatorMap: Record<
+		Exclude<FilterOperatorType, "starts_with" | "ends_with">,
+		FilterOperatorType
+	> = {
 		equals: "not_equals",
 		not_equals: "equals",
 		contains: "not_contains",
 		not_contains: "contains",
-		// starts_with: "not_starts_with",
-		// not_starts_with: "starts_with",
-		// ends_with: "not_ends_with",
-		// not_ends_with: "ends_with",
 		is_null: "is_not_null",
 		is_not_null: "is_null",
 		greater_than: "less_than_or_equal",
@@ -419,7 +420,7 @@ const negateOperator = (operator: FilterOperatorType): FilterOperatorType => {
 		not_in: "in",
 	};
 
-	return operatorMap[operator] || operator;
+	return (operatorMap as any)[operator];
 };
 
 /**
@@ -474,9 +475,17 @@ const parseOnCondition = (
 		if (parsedCondition) {
 			// Negate the operator if possible
 			const negatedOperator = negateOperator(parsedCondition.operator);
+			if (negatedOperator) {
+				return {
+					...parsedCondition,
+					operator: negatedOperator,
+				};
+			}
+
+			// Set inverted flag instead of negating operator otherwise
 			return {
 				...parsedCondition,
-				operator: negatedOperator,
+				inverted: true,
 			};
 		}
 	}
@@ -485,10 +494,11 @@ const parseOnCondition = (
 	const nullMatch = condition.match(IS_NULL_REGEX);
 	if (nullMatch) {
 		const { column, table } = extractTableAndColumn(nullMatch[1]);
+		const isNot = nullMatch[2] ? true : false;
 		return {
 			column,
 			...(table && { table }),
-			operator: nullMatch[2] ? ("is_not_null" as const) : ("is_null" as const),
+			operator: isNot ? ("is_not_null" as const) : ("is_null" as const),
 		};
 	}
 
@@ -499,10 +509,11 @@ const parseOnCondition = (
 		const values = inMatch[3]
 			.split(",")
 			.map((v) => v.trim().replace(/^['"]|['"]$/g, ""));
+		const isNot = inMatch[2] ? true : false;
 		return {
 			column,
 			...(table && { table }),
-			operator: inMatch[2] ? ("not_in" as const) : ("in" as const),
+			operator: isNot ? ("not_in" as const) : ("in" as const),
 			value: values,
 		};
 	}
@@ -512,11 +523,13 @@ const parseOnCondition = (
 	if (likeMatch) {
 		const { column, table } = extractTableAndColumn(likeMatch[1]);
 		const value = likeMatch[3];
-		const operator = detectLikeOperator(value, likeMatch[2] ? true : false);
+		const isNot = likeMatch[2] ? true : false;
+		const { operator, inverted: opInverted } = detectLikeOperator(value, isNot);
 		return {
 			column,
 			...(table && { table }),
 			operator,
+			...(opInverted && { inverted: true }),
 			value: value.replace(/%/g, ""),
 		};
 	}
@@ -538,10 +551,12 @@ const parseOnCondition = (
 			">=": "greater_than_or_equal",
 		};
 
+		const operator = operatorMap[op] || "equals";
+
 		return {
 			column,
 			...(table && { table }),
-			operator: operatorMap[op] || "equals",
+			operator,
 			value: isNumeric(value) ? parseFloat(value) : value,
 		};
 	}
@@ -702,9 +717,17 @@ export const parseCondition = (
 		if (parsedCondition) {
 			// Negate the operator
 			const negatedOperator = negateOperator(parsedCondition.operator);
+			if (negatedOperator) {
+				return {
+					...parsedCondition,
+					operator: negatedOperator,
+				};
+			}
+
+			// Set inverted flag instead of negating operator
 			return {
 				...parsedCondition,
-				operator: negatedOperator,
+				inverted: true,
 			};
 		}
 	}
@@ -715,12 +738,11 @@ export const parseCondition = (
 	if (nullMatch) {
 		const { column, table } = extractTableAndColumn(nullMatch[1]);
 		if (availableColumns.includes(column)) {
+			const isNot = nullMatch[2] ? true : false;
 			return {
 				column,
 				...(table && { table }),
-				operator: nullMatch[2]
-					? ("is_not_null" as const)
-					: ("is_null" as const),
+				operator: isNot ? ("is_not_null" as const) : ("is_null" as const),
 			};
 		}
 	}
@@ -734,10 +756,11 @@ export const parseCondition = (
 			const values = inMatch[3].split(",").map(
 				(v) => v.trim().replace(/^['"]|['"]$/g, ""), // Remove quotes
 			);
+			const isNot = inMatch[2] ? true : false;
 			return {
 				column,
 				...(table && { table }),
-				operator: inMatch[2] ? ("not_in" as const) : ("in" as const),
+				operator: isNot ? ("not_in" as const) : ("in" as const),
 				value: values,
 			};
 		}
@@ -750,11 +773,16 @@ export const parseCondition = (
 		const { column, table } = extractTableAndColumn(likeMatch[1]);
 		if (availableColumns.includes(column)) {
 			const value = likeMatch[3];
-			const operator = detectLikeOperator(value, likeMatch[2] ? true : false);
+			const isNot = likeMatch[2] ? true : false;
+			const { operator, inverted: opInverted } = detectLikeOperator(
+				value,
+				isNot,
+			);
 			return {
 				column,
 				...(table && { table }),
 				operator,
+				...(opInverted && { inverted: true }),
 				value: value.replace(/%/g, ""),
 			};
 		}
@@ -780,10 +808,12 @@ export const parseCondition = (
 				">=": "greater_than_or_equal",
 			};
 
+			const operator = operatorMap[op] || "equals";
+
 			return {
 				column,
 				...(table && { table }),
-				operator: operatorMap[op] || "equals",
+				operator,
 				value: isNumeric(value) ? parseFloat(value) : value,
 			};
 		}
@@ -794,34 +824,34 @@ export const parseCondition = (
 
 /**
  * Determines the specific LIKE operator based on wildcard pattern
+ * Returns base operator and inverted flag for NOT LIKE handling
  */
 const detectLikeOperator = (
 	pattern: string,
 	isNotLike: boolean,
-): FilterOperatorType => {
+): { operator: FilterOperatorType; inverted: boolean } => {
 	if (isNotLike) {
 		if (pattern.startsWith("%") && pattern.endsWith("%")) {
-			return "not_contains";
-		}
-		if (pattern.startsWith("%")) {
-			return "ends_with"; // Inverse: does NOT end with
-		}
-		if (pattern.endsWith("%")) {
-			return "starts_with"; // Inverse: does NOT start with
+			return { operator: "not_contains", inverted: false };
 		}
 	}
+
+	let baseOperator: FilterOperatorType = "equals";
+	let inverted = false;
 
 	if (pattern.startsWith("%") && pattern.endsWith("%")) {
-		return "contains";
-	}
-	if (pattern.startsWith("%")) {
-		return "ends_with";
-	}
-	if (pattern.endsWith("%")) {
-		return "starts_with";
+		return { operator: "contains", inverted: false };
+	} else if (pattern.startsWith("%")) {
+		baseOperator = "ends_with";
+	} else if (pattern.endsWith("%")) {
+		baseOperator = "starts_with";
 	}
 
-	return "equals";
+	if (isNotLike) {
+		inverted = true;
+	}
+
+	return { operator: baseOperator, inverted };
 };
 
 /**
