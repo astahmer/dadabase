@@ -27,6 +27,18 @@ describe("SQL Query Parser", () => {
 				value: "active",
 			});
 			expect(result.logicalOperator).toBe("and");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "equals",
+				      "value": "active",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should parse single-quoted values", () => {
@@ -36,6 +48,18 @@ describe("SQL Query Parser", () => {
 				operator: "equals",
 				value: "John",
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "name",
+				      "operator": "equals",
+				      "value": "John",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should parse numeric values", () => {
@@ -45,6 +69,18 @@ describe("SQL Query Parser", () => {
 				operator: "greater_than",
 				value: 18,
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "age",
+				      "operator": "greater_than",
+				      "value": 18,
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should parse multiple conditions with AND", () => {
@@ -56,6 +92,23 @@ describe("SQL Query Parser", () => {
 			expect(result.logicalOperator).toBe("and");
 			expect(result.conditions[0].column).toBe("status");
 			expect(result.conditions[1].column).toBe("age");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "equals",
+				      "value": "active",
+				    },
+				    {
+				      "column": "age",
+				      "operator": "greater_than",
+				      "value": 18,
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should parse multiple conditions with OR", () => {
@@ -65,6 +118,23 @@ describe("SQL Query Parser", () => {
 			);
 			expect(result.conditions).toHaveLength(2);
 			expect(result.logicalOperator).toBe("or");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "equals",
+				      "value": "active",
+				    },
+				    {
+				      "column": "status",
+				      "operator": "equals",
+				      "value": "pending",
+				    },
+				  ],
+				  "logicalOperator": "or",
+				}
+			`);
 		});
 
 		it("should prefer OR when more OR clauses than AND", () => {
@@ -73,6 +143,33 @@ describe("SQL Query Parser", () => {
 				mockColumns,
 			);
 			expect(result.logicalOperator).toBe("or");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "equals",
+				      "value": "a",
+				    },
+				    {
+				      "column": "status",
+				      "operator": "equals",
+				      "value": "b",
+				    },
+				    {
+				      "column": "status",
+				      "operator": "equals",
+				      "value": "c",
+				    },
+				    {
+				      "column": "age",
+				      "operator": "greater_than",
+				      "value": 18,
+				    },
+				  ],
+				  "logicalOperator": "or",
+				}
+			`);
 		});
 
 		it("should handle IS NULL", () => {
@@ -81,6 +178,17 @@ describe("SQL Query Parser", () => {
 				column: "description",
 				operator: "is_null",
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "description",
+				      "operator": "is_null",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle IS NOT NULL", () => {
@@ -89,6 +197,17 @@ describe("SQL Query Parser", () => {
 				column: "description",
 				operator: "is_not_null",
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "description",
+				      "operator": "is_not_null",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle IN operator", () => {
@@ -101,6 +220,22 @@ describe("SQL Query Parser", () => {
 				operator: "in",
 				value: ["active", "pending", "archived"],
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "in",
+				      "value": [
+				        "active",
+				        "pending",
+				        "archived",
+				      ],
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle NOT IN operator", () => {
@@ -113,6 +248,21 @@ describe("SQL Query Parser", () => {
 				operator: "not_in",
 				value: ["deleted", "banned"],
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "not_in",
+				      "value": [
+				        "deleted",
+				        "banned",
+				      ],
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle LIKE with wildcards", () => {
@@ -122,6 +272,18 @@ describe("SQL Query Parser", () => {
 				operator: "contains",
 				value: "John",
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "name",
+				      "operator": "contains",
+				      "value": "John",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle LIKE with prefix wildcard", () => {
@@ -131,6 +293,18 @@ describe("SQL Query Parser", () => {
 				operator: "starts_with",
 				value: "John",
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "name",
+				      "operator": "starts_with",
+				      "value": "John",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle LIKE with suffix wildcard", () => {
@@ -140,6 +314,18 @@ describe("SQL Query Parser", () => {
 				operator: "ends_with",
 				value: "Smith",
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "name",
+				      "operator": "ends_with",
+				      "value": "Smith",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle NOT LIKE", () => {
@@ -149,6 +335,18 @@ describe("SQL Query Parser", () => {
 				operator: "not_contains",
 				value: "admin",
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "name",
+				      "operator": "not_contains",
+				      "value": "admin",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should ignore invalid columns", () => {
@@ -158,6 +356,18 @@ describe("SQL Query Parser", () => {
 			);
 			expect(result.conditions).toHaveLength(1);
 			expect(result.conditions[0].column).toBe("status");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "equals",
+				      "value": "active",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle != operator", () => {
@@ -167,6 +377,18 @@ describe("SQL Query Parser", () => {
 				operator: "not_equals",
 				value: "deleted",
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "not_equals",
+				      "value": "deleted",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle <> operator (SQL not equals)", () => {
@@ -176,6 +398,18 @@ describe("SQL Query Parser", () => {
 				operator: "not_equals",
 				value: "deleted",
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "not_equals",
+				      "value": "deleted",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle <= operator", () => {
@@ -185,6 +419,18 @@ describe("SQL Query Parser", () => {
 				operator: "less_than_or_equal",
 				value: 65,
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "age",
+				      "operator": "less_than_or_equal",
+				      "value": 65,
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle >= operator", () => {
@@ -194,11 +440,29 @@ describe("SQL Query Parser", () => {
 				operator: "greater_than_or_equal",
 				value: 18,
 			});
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "age",
+				      "operator": "greater_than_or_equal",
+				      "value": 18,
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should return empty conditions for empty WHERE clause", () => {
 			const result = parseWhereClause("", mockColumns);
 			expect(result.conditions).toHaveLength(0);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle case-insensitive keywords", () => {
@@ -208,6 +472,23 @@ describe("SQL Query Parser", () => {
 			);
 			expect(result.conditions).toHaveLength(2);
 			expect(result.logicalOperator).toBe("and");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "equals",
+				      "value": "active",
+				    },
+				    {
+				      "column": "age",
+				      "operator": "greater_than",
+				      "value": 18,
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle whitespace variations", () => {
@@ -216,6 +497,23 @@ describe("SQL Query Parser", () => {
 				mockColumns,
 			);
 			expect(result.conditions).toHaveLength(2);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "status",
+				      "operator": "equals",
+				      "value": "active",
+				    },
+				    {
+				      "column": "age",
+				      "operator": "greater_than",
+				      "value": 18,
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 	});
 
@@ -229,6 +527,23 @@ describe("SQL Query Parser", () => {
 			expect(result.orderBy).toBe("name");
 			expect(result.orderDirection).toBe("asc");
 			expect(result.limit).toBe(50);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "limit": 50,
+				  "orderBy": "name",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 
 		it("should parse LIMIT without OFFSET", () => {
@@ -236,6 +551,11 @@ describe("SQL Query Parser", () => {
 			const result = parseSqlQuery(sql, mockColumns);
 			expect(result.limit).toBe(100);
 			expect(result.offset).toBeUndefined();
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "limit": 100,
+				}
+			`);
 		});
 
 		it("should parse OFFSET without LIMIT", () => {
@@ -243,6 +563,11 @@ describe("SQL Query Parser", () => {
 			const result = parseSqlQuery(sql, mockColumns);
 			expect(result.offset).toBe(25);
 			expect(result.limit).toBeUndefined();
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "offset": 25,
+				}
+			`);
 		});
 
 		it("should parse both LIMIT and OFFSET", () => {
@@ -250,6 +575,12 @@ describe("SQL Query Parser", () => {
 			const result = parseSqlQuery(sql, mockColumns);
 			expect(result.limit).toBe(50);
 			expect(result.offset).toBe(100);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "limit": 50,
+				  "offset": 100,
+				}
+			`);
 		});
 
 		it("should parse ORDER BY DESC", () => {
@@ -257,6 +588,12 @@ describe("SQL Query Parser", () => {
 			const result = parseSqlQuery(sql, mockColumns);
 			expect(result.orderBy).toBe("created_at");
 			expect(result.orderDirection).toBe("desc");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "orderBy": "created_at",
+				  "orderDirection": "desc",
+				}
+			`);
 		});
 
 		it("should parse ORDER BY without explicit direction (defaults to ASC)", () => {
@@ -264,6 +601,12 @@ describe("SQL Query Parser", () => {
 			const result = parseSqlQuery(sql, mockColumns);
 			expect(result.orderBy).toBe("email");
 			expect(result.orderDirection).toBe("asc");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "orderBy": "email",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 
 		it("should parse specific columns in SELECT", () => {
@@ -274,12 +617,24 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).not.toContain("id");
 			expect(result.hiddenColumnList).not.toContain("name");
 			expect(result.hiddenColumnList).not.toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				}
+			`);
 		});
 
 		it("should not set hiddenColumnList for SELECT *", () => {
 			const sql = "SELECT * FROM users";
 			const result = parseSqlQuery(sql, mockColumns);
 			expect(result.hiddenColumnList).toBeUndefined();
+			expect(result).toMatchInlineSnapshot(`{}`);
 		});
 
 		it("should handle complex WHERE with multiple conditions", () => {
@@ -292,6 +647,29 @@ describe("SQL Query Parser", () => {
 			expect(result.orderDirection).toBe("desc");
 			expect(result.limit).toBe(25);
 			expect(result.offset).toBe(50);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "ACTIVE",
+				      },
+				      {
+				        "column": "age",
+				        "operator": "greater_than",
+				        "value": 18,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "limit": 25,
+				  "offset": 50,
+				  "orderBy": "created_at",
+				  "orderDirection": "desc",
+				}
+			`);
 		});
 
 		it("should handle case-insensitive SQL keywords", () => {
@@ -302,6 +680,23 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.orderBy).toBe("name");
 			expect(result.limit).toBe(10);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "limit": 10,
+				  "orderBy": "name",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 
 		it("should handle multiline SQL", () => {
@@ -316,12 +711,30 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.orderBy).toBe("created_at");
 			expect(result.limit).toBe(50);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "limit": 50,
+				  "orderBy": "created_at",
+				  "orderDirection": "desc",
+				}
+			`);
 		});
 
 		it("should ignore invalid ORDER BY columns", () => {
 			const sql = "SELECT * FROM users ORDER BY invalid_column ASC";
 			const result = parseSqlQuery(sql, mockColumns);
 			expect(result.orderBy).toBeUndefined();
+			expect(result).toMatchInlineSnapshot(`{}`);
 		});
 
 		it("should parse query with backtick-quoted identifiers", () => {
@@ -331,6 +744,22 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.orderBy).toBe("name");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "orderBy": "name",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 
 		it("should parse query with double-quoted identifiers", () => {
@@ -340,6 +769,22 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.orderBy).toBe("name");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "orderBy": "name",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 
 		it("should return empty object for simple SELECT without clauses", () => {
@@ -350,6 +795,7 @@ describe("SQL Query Parser", () => {
 			expect(result.orderBy).toBeUndefined();
 			expect(result.limit).toBeUndefined();
 			expect(result.offset).toBeUndefined();
+			expect(result).toMatchInlineSnapshot(`{}`);
 		});
 
 		it("should handle multiple IN conditions combined with AND", () => {
@@ -360,6 +806,32 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(2);
 			expect(result.filters?.conditions[0].operator).toBe("in");
 			expect(result.filters?.conditions[1].operator).toBe("in");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "in",
+				        "value": [
+				          "ACTIVE",
+				          "PENDING",
+				        ],
+				      },
+				      {
+				        "column": "age",
+				        "operator": "in",
+				        "value": [
+				          "25",
+				          "30",
+				          "35",
+				        ],
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle IS NULL in WHERE clause", () => {
@@ -367,6 +839,19 @@ describe("SQL Query Parser", () => {
 			const result = parseSqlQuery(sql, mockColumns);
 
 			expect(result.filters?.conditions[0].operator).toBe("is_null");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "description",
+				        "operator": "is_null",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle IS NOT NULL in WHERE clause", () => {
@@ -374,6 +859,19 @@ describe("SQL Query Parser", () => {
 			const result = parseSqlQuery(sql, mockColumns);
 
 			expect(result.filters?.conditions[0].operator).toBe("is_not_null");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "description",
+				        "operator": "is_not_null",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 	});
 
@@ -381,17 +879,26 @@ describe("SQL Query Parser", () => {
 		it("should handle empty condition", () => {
 			const result = parseCondition("", mockColumns);
 			expect(result).toBeNull();
+			expect(result).toMatchInlineSnapshot(`null`);
 		});
 
 		it("should handle unknown columns", () => {
 			const result = parseCondition('unknown_col = "value"', mockColumns);
 			expect(result).toBeNull();
+			expect(result).toMatchInlineSnapshot(`null`);
 		});
 
 		it("should trim whitespace", () => {
 			const result = parseCondition('   status = "active"   ', mockColumns);
 			expect(result?.column).toBe("status");
 			expect(result?.operator).toBe("equals");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "column": "status",
+				  "operator": "equals",
+				  "value": "active",
+				}
+			`);
 		});
 	});
 
@@ -399,17 +906,53 @@ describe("SQL Query Parser", () => {
 		it("should handle values with quotes inside", () => {
 			const result = parseWhereClause('name = "O\'Brien"', mockColumns);
 			expect(result.conditions[0]?.value).toBe("O'Brien");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "name",
+				      "operator": "equals",
+				      "value": "O'Brien",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle numeric strings without quotes", () => {
 			const result = parseWhereClause("age > 25", mockColumns);
 			expect(result.conditions[0]?.value).toBe(25);
 			expect(typeof result.conditions[0]?.value).toBe("number");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "age",
+				      "operator": "greater_than",
+				      "value": 25,
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should handle columns with underscores", () => {
 			const result = parseWhereClause('created_at = "2024-01-01"', mockColumns);
 			expect(result.conditions[0]?.column).toBe("created_at");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "conditions": [
+				    {
+				      "column": "created_at",
+				      "operator": "equals",
+				      "value": "2024-01-01",
+				    },
+				  ],
+				  "logicalOperator": "and",
+				}
+			`);
 		});
 
 		it("should ignore GROUP BY and HAVING", () => {
@@ -418,18 +961,43 @@ describe("SQL Query Parser", () => {
 			const result = parseSqlQuery(sql, mockColumns);
 			// Should not error and should still parse LIMIT
 			expect(result.limit).toBe(10);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "id",
+				    "name",
+				    "email",
+				    "age",
+				    "created_at",
+				    "description",
+				    "is_active",
+				  ],
+				  "limit": 10,
+				}
+			`);
 		});
 
 		it("should handle LIMIT 0", () => {
 			const sql = "SELECT * FROM users LIMIT 0";
 			const result = parseSqlQuery(sql, mockColumns);
 			expect(result.limit).toBe(0);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "limit": 0,
+				}
+			`);
 		});
 
 		it("should handle very large OFFSET", () => {
 			const sql = "SELECT * FROM users LIMIT 50 OFFSET 999999";
 			const result = parseSqlQuery(sql, mockColumns);
 			expect(result.offset).toBe(999999);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "limit": 50,
+				  "offset": 999999,
+				}
+			`);
 		});
 	});
 
@@ -454,6 +1022,36 @@ describe("SQL Query Parser", () => {
 			expect(result.offset).toBe(0);
 			expect(result.hiddenColumnList).toContain("age");
 			expect(result.hiddenColumnList).toContain("status");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "value": "ACTIVE",
+				      },
+				      {
+				        "column": "age",
+				        "operator": "greater_than_or_equal",
+				        "value": 18,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				  "limit": 25,
+				  "offset": 0,
+				  "orderBy": "created_at",
+				  "orderDirection": "desc",
+				}
+			`);
 		});
 
 		it("should parse real-world complex query 2", () => {
@@ -472,6 +1070,39 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[1].operator).toBe("contains");
 			expect(result.orderBy).toBe("email");
 			expect(result.limit).toBe(100);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "in",
+				        "value": [
+				          "ACTIVE",
+				          "PENDING",
+				        ],
+				      },
+				      {
+				        "column": "email",
+				        "operator": "contains",
+				        "value": "@EXAMPLE.COM",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "id",
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				  "limit": 100,
+				  "orderBy": "email",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 
 		it("should handle query with only ORDER BY and LIMIT", () => {
@@ -482,6 +1113,14 @@ describe("SQL Query Parser", () => {
 			expect(result.orderBy).toBe("name");
 			expect(result.limit).toBe(50);
 			expect(result.offset).toBe(10);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "limit": 50,
+				  "offset": 10,
+				  "orderBy": "name",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 	});
 
@@ -493,6 +1132,21 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].table).toBe("users");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "table": "users",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should parse WHERE with fully quoted table.column syntax", () => {
@@ -502,6 +1156,21 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "table": "users",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should parse WHERE with mixed quote styles", () => {
@@ -511,6 +1180,21 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].table).toBe("users");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "table": "users",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should parse WHERE with backtick-quoted table.column", () => {
@@ -519,6 +1203,21 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "table": "users",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle table-qualified columns in IS NULL", () => {
@@ -529,6 +1228,20 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].operator).toBe("is_null");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "is_null",
+				        "table": "users",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle table-qualified columns in IN operator", () => {
@@ -544,6 +1257,24 @@ describe("SQL Query Parser", () => {
 				"ACTIVE",
 				"INACTIVE",
 			]);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "in",
+				        "table": "users",
+				        "value": [
+				          "ACTIVE",
+				          "INACTIVE",
+				        ],
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle table-qualified columns in LIKE", () => {
@@ -554,6 +1285,21 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].column).toBe("name");
 			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].operator).toBe("contains");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "name",
+				        "operator": "contains",
+				        "table": "users",
+				        "value": "JOHN",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should parse ORDER BY with unquoted table.column", () => {
@@ -562,6 +1308,12 @@ describe("SQL Query Parser", () => {
 
 			expect(result.orderBy).toBe("name");
 			expect(result.orderDirection).toBe("asc");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "orderBy": "name",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 
 		it("should parse ORDER BY with quoted table.column", () => {
@@ -570,6 +1322,12 @@ describe("SQL Query Parser", () => {
 
 			expect(result.orderBy).toBe("name");
 			expect(result.orderDirection).toBe("desc");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "orderBy": "name",
+				  "orderDirection": "desc",
+				}
+			`);
 		});
 
 		it("should handle table-qualified columns in SELECT clause", () => {
@@ -581,6 +1339,29 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).toContain("status");
 			expect(result.hiddenColumnList).not.toContain("id");
 			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "table": "users",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "email",
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				}
+			`);
 		});
 
 		it("should parse multiple conditions with table-qualified columns", () => {
@@ -594,6 +1375,27 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[1].column).toBe("email");
 			expect(result.filters?.conditions[1].table).toBe("users");
 			expect(result.filters?.logicalOperator).toBe("and");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "table": "users",
+				        "value": "ACTIVE",
+				      },
+				      {
+				        "column": "email",
+				        "operator": "equals",
+				        "table": "users",
+				        "value": "TEST@EXAMPLE.COM",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle accounting_imports.category example", () => {
@@ -607,6 +1409,24 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].value).toBe("LEGACY");
 			expect(result.orderBy).toBe("category");
 			expect(result.limit).toBe(2);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "category",
+				        "operator": "equals",
+				        "table": "accounting_imports",
+				        "value": "LEGACY",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "limit": 2,
+				  "orderBy": "category",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 	});
 
@@ -620,6 +1440,21 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "table": "users",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should parse WHERE with fully quoted schema.table.column syntax", () => {
@@ -631,6 +1466,21 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "table": "users",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle schema.table.column in IS NULL", () => {
@@ -642,6 +1492,20 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].operator).toBe("is_null");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "is_null",
+				        "table": "users",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle schema.table.column in IN operator", () => {
@@ -653,6 +1517,24 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].operator).toBe("in");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "in",
+				        "table": "users",
+				        "value": [
+				          "ACTIVE",
+				          "INACTIVE",
+				        ],
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should parse ORDER BY with schema.table.column", () => {
@@ -661,6 +1543,12 @@ describe("SQL Query Parser", () => {
 
 			expect(result.orderBy).toBe("name");
 			expect(result.orderDirection).toBe("asc");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "orderBy": "name",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 
 		it("should handle schema.table.column in SELECT clause", () => {
@@ -670,6 +1558,18 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).toContain("email");
 			expect(result.hiddenColumnList).not.toContain("id");
 			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "email",
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				}
+			`);
 		});
 	});
 
@@ -682,6 +1582,17 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).not.toContain("id");
 			expect(result.hiddenColumnList).not.toContain("name");
 			expect(result.hiddenColumnList).not.toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				}
+			`);
 		});
 
 		it("should handle space-separated aliases (no AS)", () => {
@@ -692,6 +1603,17 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).not.toContain("id");
 			expect(result.hiddenColumnList).not.toContain("name");
 			expect(result.hiddenColumnList).not.toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				}
+			`);
 		});
 
 		it("should handle quoted column aliases", () => {
@@ -702,6 +1624,17 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).not.toContain("id");
 			expect(result.hiddenColumnList).not.toContain("name");
 			expect(result.hiddenColumnList).not.toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				}
+			`);
 		});
 
 		it("should handle table.column with alias", () => {
@@ -713,6 +1646,17 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).not.toContain("id");
 			expect(result.hiddenColumnList).not.toContain("name");
 			expect(result.hiddenColumnList).not.toContain("email");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				}
+			`);
 		});
 
 		it("should handle schema.table.column with alias", () => {
@@ -723,6 +1667,18 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).toContain("email");
 			expect(result.hiddenColumnList).not.toContain("id");
 			expect(result.hiddenColumnList).not.toContain("name");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "email",
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				}
+			`);
 		});
 
 		it("should handle multiple aliases in complex query", () => {
@@ -738,6 +1694,28 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
 			expect(result.filters?.conditions[0].table).toBe("u");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "status",
+				        "operator": "equals",
+				        "table": "u",
+				        "value": "ACTIVE",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "hiddenColumnList": [
+				    "age",
+				    "created_at",
+				    "status",
+				    "description",
+				    "is_active",
+				  ],
+				}
+			`);
 		});
 	});
 
@@ -752,6 +1730,16 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).toContain("date");
 			expect(result.hiddenColumnList).not.toContain("category");
 			expect(result.limit).toBe(2);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "id",
+				    "amount",
+				    "date",
+				  ],
+				  "limit": 2,
+				}
+			`);
 		});
 
 		it('should handle mixed quoting: "public".accounting_imports."category"', () => {
@@ -762,6 +1750,16 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).toContain("id");
 			expect(result.hiddenColumnList).not.toContain("category");
 			expect(result.limit).toBe(2);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "id",
+				    "amount",
+				    "date",
+				  ],
+				  "limit": 2,
+				}
+			`);
 		});
 
 		it('should handle mixed quoting: public."accounting_imports".category', () => {
@@ -772,6 +1770,16 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).toContain("id");
 			expect(result.hiddenColumnList).not.toContain("category");
 			expect(result.limit).toBe(2);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "id",
+				    "amount",
+				    "date",
+				  ],
+				  "limit": 2,
+				}
+			`);
 		});
 
 		it("should handle unquoted: public.accounting_imports.category", () => {
@@ -782,6 +1790,16 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).toContain("id");
 			expect(result.hiddenColumnList).not.toContain("category");
 			expect(result.limit).toBe(2);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "hiddenColumnList": [
+				    "id",
+				    "amount",
+				    "date",
+				  ],
+				  "limit": 2,
+				}
+			`);
 		});
 
 		it("should handle WHERE with fully quoted mixed schema.table.column", () => {
@@ -793,6 +1811,21 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].column).toBe("category");
 			expect(result.filters?.conditions[0].table).toBe("accounting_imports");
 			expect(result.filters?.conditions[0].value).toBe("LEGACY");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "category",
+				        "operator": "equals",
+				        "table": "accounting_imports",
+				        "value": "LEGACY",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it('should handle WHERE with mixed quoting: "public".accounting_imports."category"', () => {
@@ -804,6 +1837,21 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].column).toBe("category");
 			expect(result.filters?.conditions[0].table).toBe("accounting_imports");
 			expect(result.filters?.conditions[0].value).toBe("LEGACY");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "category",
+				        "operator": "equals",
+				        "table": "accounting_imports",
+				        "value": "LEGACY",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it('should handle WHERE with mixed quoting: public."accounting_imports".category', () => {
@@ -815,6 +1863,21 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions[0].column).toBe("category");
 			expect(result.filters?.conditions[0].table).toBe("accounting_imports");
 			expect(result.filters?.conditions[0].value).toBe("LEGACY");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "category",
+				        "operator": "equals",
+				        "table": "accounting_imports",
+				        "value": "LEGACY",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle WHERE with unquoted schema.table.column", () => {
@@ -825,6 +1888,21 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("category");
 			expect(result.filters?.conditions[0].value).toBe("LEGACY");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "category",
+				        "operator": "equals",
+				        "table": "accounting_imports",
+				        "value": "LEGACY",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle ORDER BY with fully quoted schema.table.column", () => {
@@ -834,6 +1912,12 @@ describe("SQL Query Parser", () => {
 
 			expect(result.orderBy).toBe("category");
 			expect(result.orderDirection).toBe("asc");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "orderBy": "category",
+				  "orderDirection": "asc",
+				}
+			`);
 		});
 
 		it("should handle ORDER BY with mixed quoting", () => {
@@ -843,6 +1927,12 @@ describe("SQL Query Parser", () => {
 
 			expect(result.orderBy).toBe("category");
 			expect(result.orderDirection).toBe("desc");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "orderBy": "category",
+				  "orderDirection": "desc",
+				}
+			`);
 		});
 
 		it("should handle IN operator with mixed quoting", () => {
@@ -857,6 +1947,24 @@ describe("SQL Query Parser", () => {
 				"LEGACY",
 				"CURRENT",
 			]);
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "category",
+				        "operator": "in",
+				        "table": "accounting_imports",
+				        "value": [
+				          "LEGACY",
+				          "CURRENT",
+				        ],
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 
 		it("should handle IS NULL with mixed quoting", () => {
@@ -867,6 +1975,20 @@ describe("SQL Query Parser", () => {
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("category");
 			expect(result.filters?.conditions[0].operator).toBe("is_null");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "category",
+				        "operator": "is_null",
+				        "table": "accounting_imports",
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				}
+			`);
 		});
 	});
 });
