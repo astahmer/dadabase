@@ -22,15 +22,61 @@ export interface ParsedSqlQueryState {
 	hiddenColumnList?: string[];
 }
 
+// ============================================================================
+// Compiled Regex Patterns (reused across functions to avoid recompilation)
+// ============================================================================
+
+// Matches optional table prefix with optional quotes: [table.] or ["table".]
+const TABLE_PREFIX = /(?:["`]?\w+["`]?\.)?/;
+
+// Captures quoted or unquoted column name: column or "column" or `column`
+const COLUMN_NAME = /["`]?(\w+)["`]?/;
+
+// Captures the column name and handles table-qualified identifiers
+const QUALIFIED_COLUMN = new RegExp(
+	`^${TABLE_PREFIX.source}${COLUMN_NAME.source}$`,
+);
+
+// SQL clause patterns
+const WHERE_CLAUSE_REGEX =
+	/WHERE\s+(.+?)(?:ORDER BY|LIMIT|OFFSET|GROUP BY|HAVING|$)/i;
+const ORDER_BY_REGEX = new RegExp(
+	`ORDER\\s+BY\\s+${TABLE_PREFIX.source}${COLUMN_NAME.source}(?:\\s+(ASC|DESC))?`,
+	"i",
+);
+const LIMIT_REGEX = /LIMIT\s+(\d+)/i;
+const OFFSET_REGEX = /OFFSET\s+(\d+)/i;
+const SELECT_REGEX = /SELECT\s+(.+?)\s+FROM/i;
+
+// Logical operators for WHERE clause
+const AND_SPLIT_REGEX = /\s+AND\s+/gi;
+const OR_SPLIT_REGEX = /\s+OR\s+/gi;
+const LOGICAL_SPLIT_REGEX = /\s+(?:AND|OR)\s+/gi;
+
+// Condition patterns (with table-qualified support)
+const IS_NULL_REGEX = new RegExp(
+	`^${TABLE_PREFIX.source}${COLUMN_NAME.source}\\s+IS\\s+(NOT\\s+)?NULL$`,
+	"i",
+);
+const IN_REGEX = new RegExp(
+	`^${TABLE_PREFIX.source}${COLUMN_NAME.source}\\s+(NOT\\s+)?IN\\s*\\(\\s*(.+?)\\s*\\)$`,
+	"i",
+);
+const LIKE_REGEX = new RegExp(
+	`^${TABLE_PREFIX.source}${COLUMN_NAME.source}\\s+(NOT\\s+)?LIKE\\s+['"](.+?)['"]$`,
+	"i",
+);
+const COMPARISON_REGEX = new RegExp(
+	`^${TABLE_PREFIX.source}${COLUMN_NAME.source}\\s*(<=|>=|<>|!=|=|<|>)\\s*['"]?(.+?)['"]?$`,
+);
+
 /**
  * Extracts the column name from a potentially table-qualified identifier
  * Handles: table.column, "table"."column", "table".column, table."column"
  * Returns the column name without the table prefix
  */
 const extractColumnName = (identifier: string): string => {
-	// Match pattern: optional table prefix followed by column name
-	// Handles both quoted and unquoted identifiers
-	const match = identifier.match(/(?:["`]?\w+["`]?\.)?["`]?(\w+)["`]?$/);
+	const match = identifier.match(QUALIFIED_COLUMN);
 	return match ? match[1].toLowerCase() : identifier.toLowerCase();
 };
 
@@ -48,9 +94,7 @@ export const parseSqlQuery = (
 	const normalizedSql = sql.replace(/\s+/g, " ").toUpperCase().trim();
 
 	// Parse WHERE clause
-	const whereMatch = normalizedSql.match(
-		/WHERE\s+(.+?)(?:ORDER BY|LIMIT|OFFSET|GROUP BY|HAVING|$)/i,
-	);
+	const whereMatch = normalizedSql.match(WHERE_CLAUSE_REGEX);
 	if (whereMatch && whereMatch[1]) {
 		const whereClause = whereMatch[1].trim();
 		const filters = parseWhereClause(whereClause, availableColumns);
@@ -61,9 +105,7 @@ export const parseSqlQuery = (
 
 	// Parse ORDER BY clause - takes the FIRST column in ORDER BY
 	// Handles quoted identifiers and table-qualified columns: table.column, "table"."column", etc.
-	const orderByMatch = normalizedSql.match(
-		/ORDER\s+BY\s+(?:["`]?\w+["`]?\.)?["`]?(\w+)[`"]?(?:\s+(ASC|DESC))?/i,
-	);
+	const orderByMatch = normalizedSql.match(ORDER_BY_REGEX);
 	if (orderByMatch && orderByMatch[1]) {
 		const column = orderByMatch[1].toLowerCase();
 		if (availableColumns.includes(column)) {
@@ -74,19 +116,19 @@ export const parseSqlQuery = (
 	}
 
 	// Parse LIMIT clause
-	const limitMatch = normalizedSql.match(/LIMIT\s+(\d+)/i);
+	const limitMatch = normalizedSql.match(LIMIT_REGEX);
 	if (limitMatch && limitMatch[1]) {
 		result.limit = parseInt(limitMatch[1], 10);
 	}
 
 	// Parse OFFSET clause
-	const offsetMatch = normalizedSql.match(/OFFSET\s+(\d+)/i);
+	const offsetMatch = normalizedSql.match(OFFSET_REGEX);
 	if (offsetMatch && offsetMatch[1]) {
 		result.offset = parseInt(offsetMatch[1], 10);
 	}
 
 	// Parse SELECT clause to determine hidden columns
-	const selectMatch = normalizedSql.match(/SELECT\s+(.+?)\s+FROM/);
+	const selectMatch = normalizedSql.match(SELECT_REGEX);
 	if (selectMatch && selectMatch[1]) {
 		const selectedPart = selectMatch[1].trim();
 		// If not SELECT *, track which columns are selected
@@ -127,13 +169,13 @@ export const parseWhereClause = (
 
 	// Determine logical operator (AND vs OR)
 	// Default to AND, but if OR is present and more common, use OR
-	const andCount = (whereClause.match(/\s+AND\s+/gi) || []).length;
-	const orCount = (whereClause.match(/\s+OR\s+/gi) || []).length;
+	const andCount = (whereClause.match(AND_SPLIT_REGEX) || []).length;
+	const orCount = (whereClause.match(OR_SPLIT_REGEX) || []).length;
 	const logicalOperator =
 		orCount > andCount ? ("or" as const) : ("and" as const);
 
 	// Split by logical operators while preserving the conditions
-	const parts = whereClause.split(/\s+(?:AND|OR)\s+/gi);
+	const parts = whereClause.split(LOGICAL_SPLIT_REGEX);
 
 	for (const part of parts) {
 		const condition = parseCondition(part.trim(), availableColumns);
@@ -161,9 +203,7 @@ export const parseCondition = (
 
 	// Handle IS NULL / IS NOT NULL
 	// Supports: column IS NULL, "column" IS NULL, table.column IS NULL, "table"."column" IS NULL
-	const nullMatch = condition.match(
-		/^(?:["`]?\w+["`]?\.)?["`]?(\w+)["`]?\s+IS\s+(NOT\s+)?NULL$/i,
-	);
+	const nullMatch = condition.match(IS_NULL_REGEX);
 	if (nullMatch) {
 		const column = extractColumnName(nullMatch[1]);
 		if (availableColumns.includes(column)) {
@@ -178,9 +218,7 @@ export const parseCondition = (
 
 	// Handle IN / NOT IN
 	// Supports: column IN (...), table.column IN (...), "table"."column" IN (...)
-	const inMatch = condition.match(
-		/^(?:["`]?\w+["`]?\.)?["`]?(\w+)["`]?\s+(NOT\s+)?IN\s*\(\s*(.+?)\s*\)$/i,
-	);
+	const inMatch = condition.match(IN_REGEX);
 	if (inMatch) {
 		const column = extractColumnName(inMatch[1]);
 		if (availableColumns.includes(column)) {
@@ -197,9 +235,7 @@ export const parseCondition = (
 
 	// Handle LIKE / NOT LIKE with wildcards
 	// Supports: column LIKE '...', table.column LIKE '...', "table"."column" LIKE '...'
-	const likeMatch = condition.match(
-		/^(?:["`]?\w+["`]?\.)?["`]?(\w+)["`]?\s+(NOT\s+)?LIKE\s+['"](.+?)['"]$/i,
-	);
+	const likeMatch = condition.match(LIKE_REGEX);
 	if (likeMatch) {
 		const column = extractColumnName(likeMatch[1]);
 		if (availableColumns.includes(column)) {
@@ -216,9 +252,7 @@ export const parseCondition = (
 	// Handle standard comparison operators: =, !=, <>, <, >, <=, >=
 	// Supports: column = value, table.column = value, "table"."column" = value
 	// Must check two-character operators before single-character ones
-	const comparisonMatch = condition.match(
-		/^(?:["`]?\w+["`]?\.)?["`]?(\w+)["`]?\s*(<=|>=|<>|!=|=|<|>)\s*['"]?(.+?)['"]?$/,
-	);
+	const comparisonMatch = condition.match(COMPARISON_REGEX);
 	if (comparisonMatch) {
 		const column = extractColumnName(comparisonMatch[1]);
 		if (availableColumns.includes(column)) {
