@@ -1991,4 +1991,256 @@ describe("SQL Query Parser", () => {
 			`);
 		});
 	});
+
+	describe("LEFT JOIN parsing", () => {
+		const accountingColumns = ["id", "category", "amount", "date"];
+		const expensesColumns = ["id", "planned_outcome_id", "name", "amount"];
+
+		it("should parse simple LEFT JOIN without alias", () => {
+			const sql =
+				'SELECT * FROM "accounting_line_planned_outcomes" LEFT JOIN "expenses" ON "expenses"."planned_outcome_id" = "accounting_line_planned_outcomes"."id"';
+			const result = parseSqlQuery(sql, accountingColumns);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("expenses");
+			expect(result.joins?.[0].alias).toBeUndefined();
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "conditions": {
+				        "conditions": [
+				          {
+				            "column": "planned_outcome_id",
+				            "operator": "equals",
+				            "table": "expenses",
+				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES"."ID",
+				          },
+				        ],
+				        "logicalOperator": "and",
+				      },
+				      "table": "expenses",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse LEFT JOIN with AS alias", () => {
+			const sql =
+				'SELECT * FROM "accounting_line_planned_outcomes" LEFT JOIN "expenses" AS "aliased" ON "aliased"."planned_outcome_id" = "accounting_line_planned_outcomes"."id"';
+			const result = parseSqlQuery(sql, accountingColumns);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("expenses");
+			expect(result.joins?.[0].alias).toBe("aliased");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "alias": "aliased",
+				      "conditions": {
+				        "conditions": [
+				          {
+				            "column": "planned_outcome_id",
+				            "operator": "equals",
+				            "table": "aliased",
+				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES"."ID",
+				          },
+				        ],
+				        "logicalOperator": "and",
+				      },
+				      "table": "expenses",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse LEFT JOIN with implicit alias (no AS keyword)", () => {
+			const sql =
+				"SELECT * FROM accounting_line_planned_outcomes LEFT JOIN expenses e ON e.planned_outcome_id = accounting_line_planned_outcomes.id";
+			const result = parseSqlQuery(sql, accountingColumns);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("expenses");
+			expect(result.joins?.[0].alias).toBe("e");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "alias": "e",
+				      "conditions": {
+				        "conditions": [
+				          {
+				            "column": "planned_outcome_id",
+				            "operator": "equals",
+				            "table": "e",
+				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				          },
+				        ],
+				        "logicalOperator": "and",
+				      },
+				      "table": "expenses",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse LEFT JOIN with ON conditions", () => {
+			const sql =
+				"SELECT * FROM accounting_line_planned_outcomes LEFT JOIN expenses AS e ON e.planned_outcome_id = accounting_line_planned_outcomes.id";
+			const result = parseSqlQuery(sql, accountingColumns);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins?.[0].conditions).toBeDefined();
+			expect(result.joins?.[0].conditions?.conditions).toHaveLength(1);
+			expect(result.joins?.[0].conditions?.conditions[0].column).toBe(
+				"planned_outcome_id",
+			);
+			expect(result.joins?.[0].conditions?.conditions[0].table).toBe("e");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "alias": "e",
+				      "conditions": {
+				        "conditions": [
+				          {
+				            "column": "planned_outcome_id",
+				            "operator": "equals",
+				            "table": "e",
+				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				          },
+				        ],
+				        "logicalOperator": "and",
+				      },
+				      "table": "expenses",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse multiple LEFT JOINs", () => {
+			const sql =
+				"SELECT * FROM accounting_line_planned_outcomes LEFT JOIN expenses e ON e.planned_outcome_id = accounting_line_planned_outcomes.id LEFT JOIN other_table o ON o.id = accounting_line_planned_outcomes.id";
+			const result = parseSqlQuery(sql, accountingColumns);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(2);
+			expect(result.joins?.[0].table).toBe("expenses");
+			expect(result.joins?.[0].alias).toBe("e");
+			expect(result.joins?.[1].table).toBe("other_table");
+			expect(result.joins?.[1].alias).toBe("o");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "alias": "e",
+				      "conditions": {
+				        "conditions": [
+				          {
+				            "column": "planned_outcome_id",
+				            "operator": "equals",
+				            "table": "e",
+				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				          },
+				        ],
+				        "logicalOperator": "and",
+				      },
+				      "table": "expenses",
+				    },
+				    {
+				      "alias": "o",
+				      "conditions": {
+				        "conditions": [
+				          {
+				            "column": "id",
+				            "operator": "equals",
+				            "table": "o",
+				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				          },
+				        ],
+				        "logicalOperator": "and",
+				      },
+				      "table": "other_table",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse LEFT JOIN with multiple ON conditions", () => {
+			const sql =
+				"SELECT * FROM accounting_line_planned_outcomes LEFT JOIN expenses e ON e.planned_outcome_id = accounting_line_planned_outcomes.id AND e.amount > 100";
+			const result = parseSqlQuery(sql, accountingColumns);
+
+			expect(result.joins?.[0].conditions?.conditions).toHaveLength(2);
+			expect(result.joins?.[0].conditions?.logicalOperator).toBe("and");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "joins": [
+				    {
+				      "alias": "e",
+				      "conditions": {
+				        "conditions": [
+				          {
+				            "column": "planned_outcome_id",
+				            "operator": "equals",
+				            "table": "e",
+				            "value": "ACCOUNTING_LINE_PLANNED_OUTCOMES.ID",
+				          },
+				          {
+				            "column": "amount",
+				            "operator": "greater_than",
+				            "table": "e",
+				            "value": 100,
+				          },
+				        ],
+				        "logicalOperator": "and",
+				      },
+				      "table": "expenses",
+				    },
+				  ],
+				}
+			`);
+		});
+
+		it("should parse LEFT JOIN without ON conditions", () => {
+			const sql =
+				"SELECT * FROM accounting_line_planned_outcomes LEFT JOIN expenses WHERE amount > 100";
+			const result = parseSqlQuery(sql, accountingColumns);
+
+			expect(result.joins).toBeDefined();
+			expect(result.joins).toHaveLength(1);
+			expect(result.joins?.[0].table).toBe("expenses");
+			expect(result.joins?.[0].conditions).toBeUndefined();
+			expect(result.filters?.conditions).toHaveLength(1);
+			expect(result.filters?.conditions[0].column).toBe("amount");
+			expect(result).toMatchInlineSnapshot(`
+				{
+				  "filters": {
+				    "conditions": [
+				      {
+				        "column": "amount",
+				        "operator": "greater_than",
+				        "value": 100,
+				      },
+				    ],
+				    "logicalOperator": "and",
+				  },
+				  "joins": [
+				    {
+				      "table": "expenses",
+				    },
+				  ],
+				}
+			`);
+		});
+	});
 });

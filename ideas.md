@@ -60,9 +60,12 @@
 - add save action in SQL query bar actions
 - monaco editor editor.changeViewZones for inline actions (run/explain/format/fullscreen/copy/save)
 - display editor line number
+- handle column aliases: SQL parsing, SQL completion, filters, column visibility, sorting etc
 
 ## issues
 - import join config from SQL query
+- inserting a column after typing a table name should only insert the column name, not the full "table.column" name
+- hiddenColumnList should use an object with the column AND the table name
 - SQL editor maximize button should be open a menu with multiple options:
     - expand panel (collapse rows content)
     - fullscreen (collapse sidebar + hide connectionpagefilters + collapse rows content)

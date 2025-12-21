@@ -10,9 +10,16 @@ import type {
  * - ORDER BY clause as orderBy and orderDirection
  * - LIMIT/OFFSET as limit and offset
  * - Selected columns as hiddenColumnList
+ * - LEFT JOIN clauses
  *
  * Returns partial tab state updates that can be merged with existing state
  */
+export interface LeftJoinInfo {
+	table: string;
+	alias?: string;
+	conditions?: QueryFilterType;
+}
+
 export interface ParsedSqlQueryState {
 	filters?: QueryFilterType;
 	orderBy?: string;
@@ -20,6 +27,7 @@ export interface ParsedSqlQueryState {
 	limit?: number;
 	offset?: number;
 	hiddenColumnList?: string[];
+	joins?: LeftJoinInfo[];
 }
 
 // ============================================================================
@@ -52,6 +60,15 @@ const ORDER_BY_REGEX = new RegExp(
 const LIMIT_REGEX = /LIMIT\s+(\d+)/i;
 const OFFSET_REGEX = /OFFSET\s+(\d+)/i;
 const SELECT_REGEX = /SELECT\s+(.+?)\s+FROM/i;
+
+// LEFT JOIN pattern: captures table name, optional alias, and ON conditions
+// Examples:
+// - LEFT JOIN "table"
+// - LEFT JOIN "table" AS alias
+// - LEFT JOIN "table" alias
+// - LEFT JOIN schema.table AS alias ON conditions
+const LEFT_JOIN_REGEX =
+	/LEFT\s+JOIN\s+(["`]?[\w.]+["`]?)(?:\s+(?:AS\s+)?(["`]?\w+["`]?))?(?:\s+ON\s+(.+?))?(?=\s+(?:LEFT|WHERE|ORDER|LIMIT|OFFSET|GROUP|HAVING)|$)/gi;
 
 // Logical operators for WHERE clause
 const AND_SPLIT_REGEX = /\s+AND\s+/gi;
@@ -226,6 +243,12 @@ export const parseSqlQuery = (
 		}
 	}
 
+	// Parse LEFT JOIN clauses
+	const joins = parseLeftJoins(sql, availableColumns);
+	if (joins.length > 0) {
+		result.joins = joins;
+	}
+
 	return result;
 };
 
@@ -265,6 +288,163 @@ export const parseWhereClause = (
 		conditions,
 		logicalOperator,
 	};
+};
+
+/**
+ * Parses ON clause conditions in LEFT JOIN
+ * Similar to parseWhereClause but doesn't filter by availableColumns
+ * since JOIN conditions may reference columns from the joined table
+ */
+const parseOnClause = (onClause: string): QueryFilterType => {
+	const conditions: FilterConditionExpression[] = [];
+
+	// Determine logical operator (AND vs OR)
+	const andCount = (onClause.match(AND_SPLIT_REGEX) || []).length;
+	const orCount = (onClause.match(OR_SPLIT_REGEX) || []).length;
+	const logicalOperator =
+		orCount > andCount ? ("or" as const) : ("and" as const);
+
+	// Split by logical operators while preserving the conditions
+	const parts = onClause.split(LOGICAL_SPLIT_REGEX);
+
+	for (const part of parts) {
+		const condition = parseOnCondition(part.trim());
+		if (condition) {
+			conditions.push(condition);
+		}
+	}
+
+	return {
+		conditions,
+		logicalOperator,
+	};
+};
+
+/**
+ * Parses a single ON condition (doesn't require column to be in availableColumns)
+ * @internal
+ */
+const parseOnCondition = (
+	condition: string,
+): FilterConditionExpression | null => {
+	condition = condition.trim();
+	if (!condition) return null;
+
+	// Handle IS NULL / IS NOT NULL
+	const nullMatch = condition.match(IS_NULL_REGEX);
+	if (nullMatch) {
+		const { column, table } = extractTableAndColumn(nullMatch[1]);
+		return {
+			column,
+			...(table && { table }),
+			operator: nullMatch[2] ? ("is_not_null" as const) : ("is_null" as const),
+		};
+	}
+
+	// Handle IN / NOT IN
+	const inMatch = condition.match(IN_REGEX);
+	if (inMatch) {
+		const { column, table } = extractTableAndColumn(inMatch[1]);
+		const values = inMatch[3]
+			.split(",")
+			.map((v) => v.trim().replace(/^['"]|['"]$/g, ""));
+		return {
+			column,
+			...(table && { table }),
+			operator: inMatch[2] ? ("not_in" as const) : ("in" as const),
+			value: values,
+		};
+	}
+
+	// Handle LIKE / NOT LIKE with wildcards
+	const likeMatch = condition.match(LIKE_REGEX);
+	if (likeMatch) {
+		const { column, table } = extractTableAndColumn(likeMatch[1]);
+		const value = likeMatch[3];
+		const operator = detectLikeOperator(value, likeMatch[2] ? true : false);
+		return {
+			column,
+			...(table && { table }),
+			operator,
+			value: value.replace(/%/g, ""),
+		};
+	}
+
+	// Handle standard comparison operators
+	const comparisonMatch = condition.match(COMPARISON_REGEX);
+	if (comparisonMatch) {
+		const { column, table } = extractTableAndColumn(comparisonMatch[1]);
+		const op = comparisonMatch[2];
+		const value = comparisonMatch[3].trim();
+
+		const operatorMap: Record<string, FilterOperatorType> = {
+			"=": "equals",
+			"!=": "not_equals",
+			"<>": "not_equals",
+			"<": "less_than",
+			">": "greater_than",
+			"<=": "less_than_or_equal",
+			">=": "greater_than_or_equal",
+		};
+
+		return {
+			column,
+			...(table && { table }),
+			operator: operatorMap[op] || "equals",
+			value: isNumeric(value) ? parseFloat(value) : value,
+		};
+	}
+
+	return null;
+};
+export const parseLeftJoins = (
+	sql: string,
+	availableColumns: string[],
+): LeftJoinInfo[] => {
+	const joins: LeftJoinInfo[] = [];
+	const normalizedSql = sql.replace(/\s+/g, " ").toUpperCase();
+
+	// Reset regex state before use
+	LEFT_JOIN_REGEX.lastIndex = 0;
+
+	let match;
+	while ((match = LEFT_JOIN_REGEX.exec(normalizedSql)) !== null) {
+		// Extract and clean table name - remove quotes and get last part (in case of schema.table)
+		const tableRaw = match[1].trim().toLowerCase();
+		const tableParts = tableRaw
+			.replace(/["`]/g, "")
+			.split(".")
+			.filter((p) => p.length > 0);
+		const tableName = tableParts[tableParts.length - 1];
+
+		// Extract and clean alias - remove quotes
+		const aliasRaw = match[2];
+		const alias = aliasRaw
+			? aliasRaw.trim().toLowerCase().replace(/["`]/g, "")
+			: undefined;
+
+		// Extract ON clause (original case to preserve for parsing)
+		const onClause = match[3]?.trim();
+
+		const join: LeftJoinInfo = {
+			table: tableName,
+		};
+
+		if (alias) {
+			join.alias = alias;
+		}
+
+		if (onClause) {
+			const conditions = parseOnClause(onClause);
+			if (conditions.conditions.length > 0) {
+				join.conditions = conditions;
+			}
+		}
+
+		joins.push(join);
+	}
+
+	return joins;
 };
 
 /**
