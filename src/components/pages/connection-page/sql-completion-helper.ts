@@ -573,7 +573,13 @@ function formatColumnMetadata(
 	}
 
 	if (metadata.isForeignKey) {
-		parts.push("FOREIGN KEY");
+		if (metadata.foreignKey) {
+			parts.push(
+				`references: ${metadata.foreignKey.referencedTable}(${metadata.foreignKey.referencedColumn})`,
+			);
+		} else {
+			parts.push("FOREIGN KEY");
+		}
 	}
 
 	if (metadata.defaultValue) {

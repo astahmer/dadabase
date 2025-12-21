@@ -123,6 +123,12 @@ describe("sqlCompletionProvider", () => {
 					unique: false,
 					defaultValue: null,
 					isForeignKey: true,
+					foreignKey: {
+						referencedSchema: "public",
+						referencedTable: "users",
+						referencedColumn: "id",
+						constraintName: "posts_user_id_fk",
+					},
 				},
 				{
 					name: "created_at",
@@ -164,6 +170,12 @@ describe("sqlCompletionProvider", () => {
 					unique: false,
 					defaultValue: null,
 					isForeignKey: true,
+					foreignKey: {
+						referencedSchema: "public",
+						referencedTable: "posts",
+						referencedColumn: "id",
+						constraintName: "comments_post_id_fk",
+					},
 				},
 				{
 					name: "user_id",
@@ -173,6 +185,12 @@ describe("sqlCompletionProvider", () => {
 					unique: false,
 					defaultValue: null,
 					isForeignKey: true,
+					foreignKey: {
+						referencedSchema: "public",
+						referencedTable: "users",
+						referencedColumn: "id",
+						constraintName: "comments_user_id_fk",
+					},
 				},
 			],
 		},
@@ -480,7 +498,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -500,12 +518,12 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -582,7 +600,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -602,12 +620,12 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -682,7 +700,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -702,12 +720,12 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -783,7 +801,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -803,12 +821,12 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -886,7 +904,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -906,12 +924,12 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -1314,7 +1332,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -1334,12 +1352,12 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -1435,7 +1453,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -1538,7 +1556,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -1966,7 +1984,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -1986,12 +2004,12 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -2045,6 +2063,12 @@ describe("sqlCompletionProvider", () => {
 						unique: false,
 						defaultValue: null,
 						isForeignKey: true,
+						foreignKey: {
+							referencedSchema: "public",
+							referencedTable: "accounts",
+							referencedColumn: "id",
+							constraintName: "accounting_imports_account_id_fk",
+						},
 					},
 				],
 			},
@@ -2091,7 +2115,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_accounting_imports.updated_at",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: accounts(id)",
                   "label": "accounting_imports.account_id",
                   "sortText": "1_accounting_imports.account_id",
                 },
@@ -2132,7 +2156,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_accounting_imports.updated_at",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: accounts(id)",
                   "label": "accounting_imports.account_id",
                   "sortText": "1_accounting_imports.account_id",
                 },
@@ -2250,7 +2274,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_accounting_imports.updated_at",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: accounts(id)",
                   "label": "accounting_imports.account_id",
                   "sortText": "1_accounting_imports.account_id",
                 },
@@ -2295,7 +2319,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -2315,12 +2339,12 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -2570,7 +2594,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -2580,7 +2604,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
@@ -2638,7 +2662,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "user_id",
                   "sortText": "1_user_id",
                 },
@@ -2648,7 +2672,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "post_id",
                   "sortText": "1_post_id",
                 },
@@ -2706,7 +2730,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "user_id",
                   "sortText": "1_user_id",
                 },
@@ -2716,7 +2740,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "post_id",
                   "sortText": "1_post_id",
                 },
@@ -2774,7 +2798,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -2784,7 +2808,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
@@ -2845,7 +2869,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "user_id",
                   "sortText": "1_user_id",
                 },
@@ -2855,7 +2879,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "post_id",
                   "sortText": "1_post_id",
                 },
@@ -3112,7 +3136,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "user_id",
                   "sortText": "1_user_id",
                 },
@@ -3254,7 +3278,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -3316,7 +3340,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -3326,7 +3350,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
@@ -3782,7 +3806,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -3802,12 +3826,12 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "comments.user_id",
                   "sortText": "1_comments.user_id",
                 },
@@ -3956,7 +3980,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "user_id",
                   "sortText": "1_user_id",
                 },
@@ -4319,7 +4343,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_posts.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "posts.user_id",
                   "sortText": "1_posts.user_id",
                 },
@@ -4329,7 +4353,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_comments.text",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: posts(id)",
                   "label": "comments.post_id",
                   "sortText": "1_comments.post_id",
                 },
@@ -4609,7 +4633,7 @@ describe("sqlCompletionProvider", () => {
                   "sortText": "1_p.content",
                 },
                 {
-                  "detail": "integer | FOREIGN KEY",
+                  "detail": "integer | references: users(id)",
                   "label": "p.user_id",
                   "sortText": "1_p.user_id",
                 },
