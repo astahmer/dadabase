@@ -156,18 +156,18 @@ export function sqlCompletionProvider(
 
 	// Suggest columns when after column-expecting keywords
 	if (cursorContext.type === "column_after_keyword") {
-		const selectedTables =
+		const selectedTableNames =
 			cursorContext.selectedTables.length > 0
-				? cursorContext.selectedTables
+				? cursorContext.selectedTables.map((t) => t.table)
 				: context.tables.map((t) => t.name);
 
 		// When multiple tables are explicitly aliased, keep columns distinct by table+alias
 		// Otherwise, deduplicate columns with the same name
-		const allTablesAreAliased = selectedTables.every(
+		const allTablesAreAliased = selectedTableNames.every(
 			(t) => cursorContext.tableAliases[t],
 		);
 		const shouldKeepAllColumns =
-			selectedTables.length > 1 && allTablesAreAliased;
+			selectedTableNames.length > 1 && allTablesAreAliased;
 
 		// Map of either "colName" or "tableName.colName" to { tableName, metadata }
 		const availableColumns = new Map<
@@ -175,7 +175,7 @@ export function sqlCompletionProvider(
 			{ tableName: string; metadata?: TableColumnMetadata }
 		>();
 
-		for (const tableName of selectedTables) {
+		for (const tableName of selectedTableNames) {
 			const tableMetadata = context.columns.find((c) => c.table === tableName);
 			if (tableMetadata?.columns) {
 				for (const col of tableMetadata.columns) {

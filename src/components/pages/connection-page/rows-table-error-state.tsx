@@ -99,7 +99,8 @@ const NoTableSelectedState = (props: NoTableSelectedStateProps) => {
 
 			// Parse the SQL query to extract filters, sorting, pagination
 			const parsedState = parseSqlQuery(value, allAvailableColumns);
-			console.log(parsedState);
+			const extractedTables = extractSelectedTables(value);
+			console.log(parsedState, extractedTables);
 
 			return navigate({
 				search: (prev) =>
@@ -205,14 +206,20 @@ const NoTableSelectedState = (props: NoTableSelectedStateProps) => {
 
 		const schema =
 			selectedSchema || getDialectDefaultSchema(connection.dialect);
-		const table = extractSelectedTables(customSql).at(0);
-		if (!table) {
+		const extractedTables = extractSelectedTables(customSql);
+		const firstTable = extractedTables.at(0);
+
+		if (!firstTable?.table) {
 			toaster.create({
 				title: "Failed to detect table",
 				description: "Could not detect table from your SQL query",
 			});
 			return;
 		}
+
+		// Use the extracted schema if available, otherwise use selected schema
+		const effectiveSchema = firstTable.schema || schema;
+		const table = firstTable.table;
 
 		navigate({
 			search: (prev) => {
@@ -221,7 +228,7 @@ const NoTableSelectedState = (props: NoTableSelectedStateProps) => {
 				);
 				const isCurrentTabEmpty = !currentTab?.table;
 
-				const newTab = createTabState(schema, table, {
+				const newTab = createTabState(effectiveSchema, table, {
 					tabName: `${table} (custom)`,
 				});
 

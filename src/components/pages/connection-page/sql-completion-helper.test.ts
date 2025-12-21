@@ -3,6 +3,7 @@ import {
 	createColumnCompletion,
 	createTableCompletion,
 	detectCompletionContext,
+	extractSelectedTables,
 	getContextualKeywords,
 	type SqlKeyword,
 } from "./sql-completion-helper";
@@ -131,30 +132,32 @@ describe("SQL Completion Helper", () => {
 			it("should extract single table from FROM clause", () => {
 				const sql = "SELECT * FROM users ";
 				const context = detectCompletionContext(sql, sql.length);
-				expect(context.selectedTables).toContain("users");
+				expect(context.selectedTables).toContainEqual({ table: "users" });
 			});
 
 			it("should extract multiple tables from multiple JOINs", () => {
 				const sql =
 					"SELECT * FROM users JOIN orders ON users.id = orders.user_id";
 				const context = detectCompletionContext(sql, sql.length);
-				expect(context.selectedTables).toContain("users");
-				expect(context.selectedTables).toContain("orders");
+				expect(context.selectedTables).toContainEqual({ table: "users" });
+				expect(context.selectedTables).toContainEqual({ table: "orders" });
 			});
 
 			it("should extract quoted table names", () => {
 				const sql = 'SELECT * FROM "user_data" JOIN "order_history"';
 				const context = detectCompletionContext(sql, sql.length);
-				expect(context.selectedTables).toContain("user_data");
-				expect(context.selectedTables).toContain("order_history");
+				expect(context.selectedTables).toContainEqual({ table: "user_data" });
+				expect(context.selectedTables).toContainEqual({
+					table: "order_history",
+				});
 			});
 
 			it("should extract tables from LEFT JOIN", () => {
 				const sql =
 					'SELECT * FROM "users" LEFT JOIN "orders" ON "users"."id" = "orders"."user_id"';
 				const context = detectCompletionContext(sql, sql.length);
-				expect(context.selectedTables).toContain("users");
-				expect(context.selectedTables).toContain("orders");
+				expect(context.selectedTables).toContainEqual({ table: "users" });
+				expect(context.selectedTables).toContainEqual({ table: "orders" });
 			});
 		});
 
@@ -260,7 +263,7 @@ describe("SQL Completion Helper", () => {
 		it("should create simple column completion", () => {
 			const context = {
 				type: "column_after_keyword" as const,
-				selectedTables: ["users"],
+				selectedTables: [{ table: "users" }],
 				tableAliases: {},
 				isAtLineStart: false,
 				beforeCursor: "SELECT * FROM users WHERE ",
@@ -302,7 +305,7 @@ describe("SQL Completion Helper", () => {
 		it("should suggest WHERE, ORDER BY, etc after table", () => {
 			const context = {
 				type: "keyword_after_table" as const,
-				selectedTables: ["users"],
+				selectedTables: [{ table: "users" }],
 				tableAliases: {},
 				isAtLineStart: false,
 				beforeCursor: "SELECT * FROM users ",
@@ -348,7 +351,7 @@ describe("SQL Completion Helper", () => {
 		it("should suggest only LIMIT/OFFSET after ORDER BY", () => {
 			const context = {
 				type: "after_condition" as const,
-				selectedTables: ["users"],
+				selectedTables: [{ table: "users" }],
 				tableAliases: {},
 				lastKeyword: "ORDER BY" as SqlKeyword,
 				isAtLineStart: false,
@@ -361,6 +364,196 @@ describe("SQL Completion Helper", () => {
 			expect(keywords).not.toContain("UNION");
 			expect(keywords).not.toContain("UNION ALL");
 			expect(keywords).not.toContain("INTERSECT");
+		});
+	});
+
+	describe("extractSelectedTables", () => {
+		describe("simple table names", () => {
+			it("should extract single unquoted table from FROM", () => {
+				const sql = "SELECT * FROM users";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ table: "users" }]);
+			});
+
+			it("should extract multiple unquoted tables from multiple JOINs", () => {
+				const sql =
+					"SELECT * FROM users JOIN posts ON users.id = posts.user_id JOIN comments ON posts.id = comments.post_id";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				expect(result).toContainEqual({ table: "posts" });
+				expect(result).toContainEqual({ table: "comments" });
+				expect(result.length).toBe(3);
+			});
+
+			it("should extract single quoted table from FROM", () => {
+				const sql = 'SELECT * FROM "users"';
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ table: "users" }]);
+			});
+
+			it("should preserve case in quoted table names", () => {
+				const sql = 'SELECT * FROM "Users"';
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ table: "Users" }]);
+			});
+		});
+
+		describe("schema-qualified table names", () => {
+			it('should extract fully quoted schema.table: "public"."accounting_imports"', () => {
+				const sql = 'SELECT * FROM "public"."accounting_imports" LIMIT 5';
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([
+					{ schema: "public", table: "accounting_imports" },
+				]);
+			});
+
+			it('should extract mixed quoting: "public".accounting_imports', () => {
+				const sql = 'SELECT * FROM "public".accounting_imports LIMIT 5';
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([
+					{ schema: "public", table: "accounting_imports" },
+				]);
+			});
+
+			it('should extract mixed quoting: public."accounting_imports"', () => {
+				const sql = 'SELECT * FROM public."accounting_imports" LIMIT 5';
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([
+					{ schema: "public", table: "accounting_imports" },
+				]);
+			});
+
+			it("should extract unquoted schema.table: public.accounting_imports", () => {
+				const sql = "SELECT * FROM public.accounting_imports LIMIT 5";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([
+					{ schema: "public", table: "accounting_imports" },
+				]);
+			});
+		});
+
+		describe("schema-qualified with JOINs", () => {
+			it("should extract fully quoted tables in JOIN", () => {
+				const sql =
+					'SELECT * FROM "public"."users" JOIN "public"."posts" ON "public"."users"."id" = "public"."posts"."user_id"';
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ schema: "public", table: "users" });
+				expect(result).toContainEqual({ schema: "public", table: "posts" });
+				expect(result.length).toBe(2);
+			});
+
+			it("should extract mixed quoted tables in JOIN", () => {
+				const sql =
+					'SELECT * FROM "public".users JOIN public."posts" ON users.id = posts.user_id';
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ schema: "public", table: "users" });
+				expect(result).toContainEqual({ schema: "public", table: "posts" });
+			});
+
+			it("should extract all tables with multiple JOINs and schema qualifiers", () => {
+				const sql =
+					'SELECT * FROM "public"."users" u JOIN "public"."posts" p ON u.id = p.user_id JOIN "public"."comments" c ON p.id = c.post_id';
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ schema: "public", table: "users" });
+				expect(result).toContainEqual({ schema: "public", table: "posts" });
+				expect(result).toContainEqual({ schema: "public", table: "comments" });
+				expect(result.length).toBe(3);
+			});
+		});
+
+		describe("different JOIN types", () => {
+			it("should extract table from INNER JOIN", () => {
+				const sql =
+					"SELECT * FROM users INNER JOIN posts ON users.id = posts.user_id";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				expect(result).toContainEqual({ table: "posts" });
+			});
+
+			it("should extract table from LEFT JOIN", () => {
+				const sql =
+					"SELECT * FROM users LEFT JOIN posts ON users.id = posts.user_id";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				expect(result).toContainEqual({ table: "posts" });
+			});
+
+			it("should extract table from RIGHT JOIN", () => {
+				const sql =
+					"SELECT * FROM users RIGHT JOIN posts ON users.id = posts.user_id";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				expect(result).toContainEqual({ table: "posts" });
+			});
+
+			it("should extract table from FULL JOIN", () => {
+				const sql =
+					"SELECT * FROM users FULL JOIN posts ON users.id = posts.user_id";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				expect(result).toContainEqual({ table: "posts" });
+			});
+
+			it("should extract table from CROSS JOIN", () => {
+				const sql = "SELECT * FROM users CROSS JOIN posts";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				expect(result).toContainEqual({ table: "posts" });
+			});
+		});
+
+		describe("case insensitivity", () => {
+			it("should extract tables with lowercase from", () => {
+				const sql = "select * from users";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ table: "users" }]);
+			});
+
+			it("should extract tables with mixed case keywords", () => {
+				const sql =
+					"SELECT * FROM users Join posts ON users.id = posts.user_id";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				expect(result).toContainEqual({ table: "posts" });
+			});
+		});
+
+		describe("edge cases", () => {
+			it("should handle empty string", () => {
+				const sql = "";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([]);
+			});
+
+			it("should ignore table names in comments", () => {
+				const sql = "-- This mentions fake_table\nSELECT * FROM users";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				// fake_table should not be extracted (it's in a comment)
+				expect(result.some((t) => t.table === "fake_table")).toBe(false);
+			});
+
+			it("should handle tables with aliases", () => {
+				const sql = "SELECT * FROM users u JOIN posts p ON u.id = p.user_id";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				expect(result).toContainEqual({ table: "posts" });
+			});
+
+			it("should handle whitespace variations", () => {
+				const sql =
+					"SELECT * FROM   users   JOIN   posts   ON users.id = posts.user_id";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				expect(result).toContainEqual({ table: "posts" });
+			});
+
+			it("should not include duplicate table names", () => {
+				const sql =
+					"SELECT * FROM users u1 JOIN users u2 ON u1.id = u2.manager_id";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ table: "users" }]);
+			});
 		});
 	});
 });

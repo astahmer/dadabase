@@ -23,7 +23,7 @@ export interface CompletionContext {
 		| "after_having_condition"
 		| "after_order_by_direction"
 		| "subquery_start";
-	selectedTables: string[];
+	selectedTables: ExtractedTable[];
 	tableAliases: Record<string, string>; // Maps table name to alias (e.g., { "users": "u", "posts": "p" })
 	lastKeyword?: SqlKeyword;
 	isAtLineStart: boolean;
@@ -115,8 +115,15 @@ const REGEX_JOIN_WITH_ALIAS_COMPLETE = new RegExp(
 	`\\b(INNER\\s+JOIN|LEFT\\s+JOIN|RIGHT\\s+JOIN|FULL\\s+JOIN|FULL\\s+OUTER\\s+JOIN|LEFT\\s+OUTER\\s+JOIN|RIGHT\\s+OUTER\\s+JOIN|CROSS\\s+JOIN|JOIN)\\s+(?:\\w+|"[^"]*")\\s+(?:AS\\s+)\\w+\\s+$`,
 	"i",
 );
+// Updated to handle schema-qualified table names in all quoting styles:
+// - "public"."users" (fully quoted)
+// - "public".users (mixed quoted)
+// - public."users" (mixed quoted)
+// - public.users (unquoted)
+// - "users" (quoted table only)
+// - users (unquoted table only)
 const REGEX_TABLE_PATTERN = new RegExp(
-	`\\b(?:${JOIN_KEYWORDS})\\s+(?:"([^"]+)"|(\\w+))`,
+	`\\b(?:${JOIN_KEYWORDS})\\s+(?:"([^"]+)"\\."([^"]+)"|"([^"]+)"\\.(\\w+)|(\\w+)\\."([^"]+)"|(\\w+)\\.(\\w+)|"([^"]+)"|(\\w+))`,
 	"gi",
 );
 const REGEX_TABLE_ALIAS_PAIR = new RegExp(
@@ -456,21 +463,54 @@ export function detectCompletionContext(
 /**
  * Extract all table names that have been selected via FROM/JOIN clauses
  */
-export function extractSelectedTables(sql: string): string[] {
-	const tables = new Set<string>();
+export interface ExtractedTable {
+	schema?: string;
+	table: string;
+}
+
+export function extractSelectedTables(sql: string): ExtractedTable[] {
+	const tables = new Map<string, ExtractedTable>();
 
 	// Match all FROM and JOIN clauses with table names
 	let match;
 	// Reset regex state for reuse
 	REGEX_TABLE_PATTERN.lastIndex = 0;
 	while ((match = REGEX_TABLE_PATTERN.exec(sql)) !== null) {
-		const tableName = match[1] || match[2];
-		if (tableName) {
-			tables.add(tableName);
+		let extracted: ExtractedTable | undefined;
+
+		// Fully quoted schema.table: "public"."users"
+		if (match[1] && match[2]) {
+			extracted = { schema: match[1], table: match[2] };
+		}
+		// Quoted schema, unquoted table: "public".users
+		else if (match[3] && match[4]) {
+			extracted = { schema: match[3], table: match[4] };
+		}
+		// Unquoted schema, quoted table: public."users"
+		else if (match[5] && match[6]) {
+			extracted = { schema: match[5], table: match[6] };
+		}
+		// Unquoted schema.table: public.users
+		else if (match[7] && match[8]) {
+			extracted = { schema: match[7], table: match[8] };
+		}
+		// Just quoted table: "users"
+		else if (match[9]) {
+			extracted = { table: match[9] };
+		}
+		// Just unquoted table: users
+		else if (match[10]) {
+			extracted = { table: match[10] };
+		}
+
+		if (extracted) {
+			// Use table name as key to avoid duplicates
+			const key = `${extracted.schema ?? ""}:${extracted.table}`;
+			tables.set(key, extracted);
 		}
 	}
 
-	return Array.from(tables);
+	return Array.from(tables.values());
 }
 
 /**

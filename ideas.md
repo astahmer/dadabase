@@ -59,15 +59,17 @@
 - SQL snippets
 - add save action in SQL query bar actions
 - monaco editor editor.changeViewZones for inline actions (run/explain/format/fullscreen/copy/save)
-- display editor line number
 - handle column aliases: SQL parsing, SQL completion, filters, column visibility, sorting etc
 - diagnostics in editor for SQL issues (missing table, missing column, syntax error etc?)
 
 ## issues
-- import join config from SQL query
+- error state shows infinite skeleton for the table rows datatable
+- query logger should be resizable with Splitter
 - group by/having support in filters UI
 - inserting a column after typing a table name should only insert the column name, not the full "table.column" name
 - hiddenColumnList should use an object with the column AND the table name
 - SQL editor maximize button should be open a menu with multiple options:
     - expand panel (collapse rows content)
     - fullscreen (collapse sidebar + hide connectionpagefilters + collapse rows content)
+- Update UI components to display/edit the inverted flag
+- Update SQL completion provider for inverted operator suggestions
