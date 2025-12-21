@@ -37,10 +37,10 @@ const QUALIFIER_PREFIX = /(?:(?:["`]?\w+["`]?)\.){0,2}/;
 // Captures quoted or unquoted column name: column or "column" or `column`
 const COLUMN_NAME = /["`]?(\w+)["`]?/;
 
-// Captures the column name and handles schema.table.column or table.column qualified identifiers
-const QUALIFIED_COLUMN = new RegExp(
-	`^${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}$`,
-);
+// Pattern for matching fully qualified identifiers (schema.table.column or table.column)
+// Matches: column, table.column, schema.table.column, with various quoting styles
+// This avoids escaping backticks by using a literal pattern string
+const QUALIFIED_IDENTIFIER_PATTERN = '(?:["`]?\\w+["`]?\\.){0,2}["`]?\\w+["`]?';
 
 // SQL clause patterns
 const WHERE_CLAUSE_REGEX =
@@ -59,21 +59,74 @@ const OR_SPLIT_REGEX = /\s+OR\s+/gi;
 const LOGICAL_SPLIT_REGEX = /\s+(?:AND|OR)\s+/gi;
 
 // Condition patterns (with schema.table.column support)
+// Group 1 captures the full qualified identifier
 const IS_NULL_REGEX = new RegExp(
-	`^${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}\\s+IS\\s+(NOT\\s+)?NULL$`,
+	`^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+IS\\s+(NOT\\s+)?NULL$`,
 	"i",
 );
 const IN_REGEX = new RegExp(
-	`^${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}\\s+(NOT\\s+)?IN\\s*\\(\\s*(.+?)\\s*\\)$`,
+	`^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+(NOT\\s+)?IN\\s*\\(\\s*(.+?)\\s*\\)$`,
 	"i",
 );
 const LIKE_REGEX = new RegExp(
-	`^${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}\\s+(NOT\\s+)?LIKE\\s+['"](.+?)['"]$`,
+	`^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+(NOT\\s+)?LIKE\\s+['"](.+?)['"]$`,
 	"i",
 );
 const COMPARISON_REGEX = new RegExp(
-	`^${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}\\s*(<=|>=|<>|!=|=|<|>)\\s*['"]?(.+?)['"]?$`,
+	`^(${QUALIFIED_IDENTIFIER_PATTERN})\\s*(<=|>=|<>|!=|=|<|>)\\s*['"]?(.+?)['"]?$`,
 );
+
+/**
+ * Extracts the column name and table/schema prefix from a qualified identifier
+ * Handles:
+ * - Simple: column, "column", `column` → { column: "column", table: undefined }
+ * - Table-qualified: table.column, "table"."column" → { column: "column", table: "table" }
+ * - Schema-qualified: schema.table.column → { column: "column", table: "table" }
+ * Returns object with column name and optional table name
+ */
+const extractTableAndColumn = (
+	identifier: string,
+): { column: string; table?: string } => {
+	const identifier_clean = identifier.trim().toLowerCase();
+
+	// Match fully qualified identifier: optional schema, optional table, column
+	// Pattern: [schema.][table.]column
+	const fullMatch = identifier_clean.match(
+		/^(?:(?:["`]?\w+["`]?)\.){0,2}["`]?(\w+)["`]?$/,
+	);
+
+	if (!fullMatch) {
+		return { column: identifier_clean };
+	}
+
+	// Split by dots to extract parts (removing quotes)
+	const parts = identifier_clean
+		.split(".")
+		.map((part) => part.replace(/["`]/g, ""));
+
+	// Filter out empty parts
+	const cleanParts = parts.filter((p) => p.length > 0);
+
+	if (cleanParts.length === 1) {
+		// Just column name
+		return { column: cleanParts[0] };
+	}
+
+	if (cleanParts.length === 2) {
+		// table.column
+		return { table: cleanParts[0], column: cleanParts[1] };
+	}
+
+	if (cleanParts.length >= 3) {
+		// schema.table.column - return table (second-to-last part) and column (last part)
+		return {
+			table: cleanParts[cleanParts.length - 2],
+			column: cleanParts[cleanParts.length - 1],
+		};
+	}
+
+	return { column: identifier_clean };
+};
 
 /**
  * Extracts the column name from a potentially qualified identifier
@@ -84,8 +137,8 @@ const COMPARISON_REGEX = new RegExp(
  * Returns the column name without any prefix
  */
 const extractColumnName = (identifier: string): string => {
-	const match = identifier.match(QUALIFIED_COLUMN);
-	return match ? match[1].toLowerCase() : identifier.toLowerCase();
+	const { column } = extractTableAndColumn(identifier);
+	return column;
 };
 
 /**
@@ -229,10 +282,11 @@ export const parseCondition = (
 	// Supports: column IS NULL, "column" IS NULL, table.column IS NULL, "table"."column" IS NULL
 	const nullMatch = condition.match(IS_NULL_REGEX);
 	if (nullMatch) {
-		const column = extractColumnName(nullMatch[1]);
+		const { column, table } = extractTableAndColumn(nullMatch[1]);
 		if (availableColumns.includes(column)) {
 			return {
 				column,
+				...(table && { table }),
 				operator: nullMatch[2]
 					? ("is_not_null" as const)
 					: ("is_null" as const),
@@ -244,13 +298,14 @@ export const parseCondition = (
 	// Supports: column IN (...), table.column IN (...), "table"."column" IN (...)
 	const inMatch = condition.match(IN_REGEX);
 	if (inMatch) {
-		const column = extractColumnName(inMatch[1]);
+		const { column, table } = extractTableAndColumn(inMatch[1]);
 		if (availableColumns.includes(column)) {
 			const values = inMatch[3].split(",").map(
 				(v) => v.trim().replace(/^['"]|['"]$/g, ""), // Remove quotes
 			);
 			return {
 				column,
+				...(table && { table }),
 				operator: inMatch[2] ? ("not_in" as const) : ("in" as const),
 				value: values,
 			};
@@ -261,12 +316,13 @@ export const parseCondition = (
 	// Supports: column LIKE '...', table.column LIKE '...', "table"."column" LIKE '...'
 	const likeMatch = condition.match(LIKE_REGEX);
 	if (likeMatch) {
-		const column = extractColumnName(likeMatch[1]);
+		const { column, table } = extractTableAndColumn(likeMatch[1]);
 		if (availableColumns.includes(column)) {
 			const value = likeMatch[3];
 			const operator = detectLikeOperator(value, likeMatch[2] ? true : false);
 			return {
 				column,
+				...(table && { table }),
 				operator,
 				value: value.replace(/%/g, ""),
 			};
@@ -278,7 +334,7 @@ export const parseCondition = (
 	// Must check two-character operators before single-character ones
 	const comparisonMatch = condition.match(COMPARISON_REGEX);
 	if (comparisonMatch) {
-		const column = extractColumnName(comparisonMatch[1]);
+		const { column, table } = extractTableAndColumn(comparisonMatch[1]);
 		if (availableColumns.includes(column)) {
 			const op = comparisonMatch[2];
 			const value = comparisonMatch[3].trim();
@@ -295,6 +351,7 @@ export const parseCondition = (
 
 			return {
 				column,
+				...(table && { table }),
 				operator: operatorMap[op] || "equals",
 				value: isNumeric(value) ? parseFloat(value) : value,
 			};

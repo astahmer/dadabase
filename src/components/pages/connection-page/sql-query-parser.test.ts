@@ -492,7 +492,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
-			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
+			expect(result.filters?.conditions[0].table).toBe("users");
 		});
 
 		it("should parse WHERE with fully quoted table.column syntax", () => {
@@ -510,6 +510,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].table).toBe("users");
 		});
 
 		it("should parse WHERE with backtick-quoted table.column", () => {
@@ -526,6 +527,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].operator).toBe("is_null");
 		});
 
@@ -536,6 +538,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].operator).toBe("in");
 			expect(result.filters?.conditions[0].value).toEqual([
 				"ACTIVE",
@@ -549,6 +552,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("name");
+			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].operator).toBe("contains");
 		});
 
@@ -586,7 +590,9 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(2);
 			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[1].column).toBe("email");
+			expect(result.filters?.conditions[1].table).toBe("users");
 			expect(result.filters?.logicalOperator).toBe("and");
 		});
 
@@ -597,6 +603,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].table).toBe("accounting_imports");
 			expect(result.filters?.conditions[0].value).toBe("LEGACY");
 			expect(result.orderBy).toBe("category");
 			expect(result.limit).toBe(2);
@@ -611,6 +618,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
 		});
 
@@ -621,6 +629,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].value).toBe("ACTIVE");
 		});
 
@@ -631,6 +640,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].operator).toBe("is_null");
 		});
 
@@ -641,6 +651,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].table).toBe("users");
 			expect(result.filters?.conditions[0].operator).toBe("in");
 		});
 
@@ -726,6 +737,7 @@ describe("SQL Query Parser", () => {
 			expect(result.hiddenColumnList).not.toContain("email");
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("status");
+			expect(result.filters?.conditions[0].table).toBe("u");
 		});
 	});
 
@@ -779,6 +791,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].table).toBe("accounting_imports");
 			expect(result.filters?.conditions[0].value).toBe("LEGACY");
 		});
 
@@ -789,6 +802,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].table).toBe("accounting_imports");
 			expect(result.filters?.conditions[0].value).toBe("LEGACY");
 		});
 
@@ -799,6 +813,7 @@ describe("SQL Query Parser", () => {
 
 			expect(result.filters?.conditions).toHaveLength(1);
 			expect(result.filters?.conditions[0].column).toBe("category");
+			expect(result.filters?.conditions[0].table).toBe("accounting_imports");
 			expect(result.filters?.conditions[0].value).toBe("LEGACY");
 		});
 
