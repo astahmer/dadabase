@@ -250,7 +250,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 		navigate({
 			search: (prev) => ({
 				...prev,
-				...updateTabState(prev, { tabName: newName }),
+				...updateTabState(prev, { tabName: newName }, tabId),
 			}),
 		});
 	};

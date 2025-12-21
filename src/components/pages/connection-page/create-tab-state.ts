@@ -51,9 +51,11 @@ export const createTabState = (
 export const updateTabState = (
 	prev: ConnectionPageSearch,
 	updates: Partial<TabState> | ((prev: TabState) => Partial<TabState>),
+	tabId?: string,
 ): ConnectionPageSearch => {
+	const tabIdToUpdate = tabId ?? prev.activeTabId;
 	const updatedTabList = (prev.tabs ?? []).map((tab) => {
-		if (tab.tabId === prev.activeTabId) {
+		if (tab.tabId === tabIdToUpdate) {
 			return {
 				...tab,
 				...(typeof updates === "function" ? updates(tab) : updates),
@@ -62,9 +64,7 @@ export const updateTabState = (
 
 		return tab;
 	});
-	const updatedTab = updatedTabList.find(
-		(tab) => tab.tabId === prev.activeTabId,
-	);
+	const updatedTab = updatedTabList.find((tab) => tab.tabId === tabIdToUpdate);
 
 	return {
 		...prev,
