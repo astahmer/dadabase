@@ -79,7 +79,7 @@ const SQL_KEYWORDS = [
 	"NULLS FIRST",
 	"NULLS LAST",
 ] as const;
-type SqlKeyword = (typeof SQL_KEYWORDS)[number];
+export type SqlKeyword = (typeof SQL_KEYWORDS)[number];
 
 // Memoized regex patterns (compiled once)
 // Reusable pattern fragments
@@ -258,7 +258,7 @@ export function detectCompletionContext(
 			type: "after_condition",
 			selectedTables,
 			tableAliases,
-			lastKeyword: "ORDER" as SqlKeyword,
+			lastKeyword: "ORDER BY" as SqlKeyword,
 			isAtLineStart,
 			beforeCursor,
 		};
@@ -649,9 +649,9 @@ export function getContextualKeywords(
 			return ["WHERE", "ORDER BY", "GROUP BY", "LIMIT"];
 		}
 
-		// After ORDER BY with ASC/DESC
+		// After ORDER BY with ASC/DESC or NULLS FIRST/LAST - only LIMIT and OFFSET allowed
 		if (context.lastKeyword === "ORDER BY") {
-			return ["LIMIT", "OFFSET", "UNION", "UNION ALL", "INTERSECT"];
+			return ["LIMIT", "OFFSET"];
 		}
 
 		// After WHERE/AND/OR, suggest AND/OR to continue the condition

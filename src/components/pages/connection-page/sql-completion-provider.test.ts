@@ -5271,7 +5271,7 @@ describe("sqlCompletionProvider", () => {
 			const labels = suggestions.map((s) => s.label);
 			expect(labels).toContain("LIMIT");
 			expect(labels).toContain("OFFSET");
-			expect(labels).toContain("UNION");
+			expect(labels).not.toContain("UNION");
 		});
 
 		it("should suggest keywords after NULLS LAST", () => {

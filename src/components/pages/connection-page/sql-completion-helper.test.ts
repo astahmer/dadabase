@@ -4,6 +4,7 @@ import {
 	createTableCompletion,
 	detectCompletionContext,
 	getContextualKeywords,
+	type SqlKeyword,
 } from "./sql-completion-helper";
 
 describe("SQL Completion Helper", () => {
@@ -342,6 +343,24 @@ describe("SQL Completion Helper", () => {
 			const keywords = getContextualKeywords(context);
 
 			expect(keywords).toHaveLength(0);
+		});
+
+		it("should suggest only LIMIT/OFFSET after ORDER BY", () => {
+			const context = {
+				type: "after_condition" as const,
+				selectedTables: ["users"],
+				tableAliases: {},
+				lastKeyword: "ORDER BY" as SqlKeyword,
+				isAtLineStart: false,
+				beforeCursor: "SELECT * FROM users ORDER BY name ASC ",
+			};
+
+			const keywords = getContextualKeywords(context);
+
+			expect(keywords).toEqual(["LIMIT", "OFFSET"]);
+			expect(keywords).not.toContain("UNION");
+			expect(keywords).not.toContain("UNION ALL");
+			expect(keywords).not.toContain("INTERSECT");
 		});
 	});
 });
