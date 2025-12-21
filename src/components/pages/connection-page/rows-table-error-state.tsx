@@ -269,8 +269,25 @@ const NoTableSelectedState = (props: NoTableSelectedStateProps) => {
 						size="sm"
 						onClick={() => {
 							navigate({
-								search: (prev) =>
-									updateTabState(prev, { initialTabMode: "table" }),
+								search: (prev) => {
+									// If we're in fallback state (no real tab), create a new one
+									if (!prev.tabs?.length) {
+										const schema =
+											selectedSchema ||
+											getDialectDefaultSchema(connection.dialect);
+										const newTab = createTabState(schema, "");
+
+										return {
+											...prev,
+											...newTab,
+											tabs: [...(prev.tabs ?? []), newTab],
+											activeTabId: newTab.tabId,
+											initialTabMode: "table",
+										};
+									}
+
+									return updateTabState(prev, { initialTabMode: "table" });
+								},
 							});
 						}}
 						className="rounded-none border-b-2 border-transparent data-active:border-primary px-4 py-2"
@@ -283,8 +300,26 @@ const NoTableSelectedState = (props: NoTableSelectedStateProps) => {
 						size="sm"
 						onClick={() => {
 							navigate({
-								search: (prev) =>
-									updateTabState(prev, { initialTabMode: "sql" }),
+								search: (prev) => {
+									// If we're in fallback state (no real tab), create a new one
+									if (!prev.tabs?.length) {
+										const schema =
+											selectedSchema ||
+											getDialectDefaultSchema(connection.dialect);
+										const newTab = createTabState(schema, "", {
+											initialTabMode: "sql",
+										});
+
+										return {
+											...prev,
+											...newTab,
+											tabs: [...(prev.tabs ?? []), newTab],
+											activeTabId: newTab.tabId,
+										};
+									}
+
+									return updateTabState(prev, { initialTabMode: "sql" });
+								},
 							});
 						}}
 						className="rounded-none border-b-2 border-transparent data-active:border-primary px-4 py-2"

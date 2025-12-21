@@ -1,7 +1,5 @@
-import { useSearch } from "@tanstack/react-router";
-import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
-import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { FileRouteTypes } from "#src/routeTree.gen.ts";
+import { useSearch } from "@tanstack/react-router";
 
 type ConnectionPage =
 	FileRouteTypes["fileRoutesByFullPath"]["/connections/$connectionName"];
@@ -12,15 +10,7 @@ type TabState = NonNullable<ConnectionPageSearch["tabs"]>[number];
 export const createTabState = (
 	schema: string,
 	table: string,
-	options?: {
-		filters?: QueryFilterType;
-		offset?: number;
-		limit?: number;
-		filtersOpened?: boolean;
-		fkValue?: string;
-		joinConfig?: JoinTablesConfig;
-		tabName?: string;
-	},
+	options?: Partial<TabState>,
 ): TabState => {
 	const tabName = options?.tabName ?? (table ? table : "New Tab");
 
@@ -29,23 +19,27 @@ export const createTabState = (
 		schema,
 		table,
 		tabName: tabName,
-		orderBy: undefined,
-		orderDirection: undefined,
-		nullsOrder: undefined,
-		relationshipRowId: undefined,
+		orderBy: options?.orderBy,
+		orderDirection: options?.orderDirection,
+		nullsOrder: options?.nullsOrder,
+		relationshipRowId: options?.relationshipRowId,
 		limit: options?.limit ?? 50,
 		offset: options?.offset ?? 0,
-		viewMode: "rows" as const,
-		tableSize: "cozy" as const,
-		hiddenColumnList: undefined,
-		columnVisibilityMode: "client" as const,
+		viewMode: options?.viewMode ?? ("rows" as const),
+		tableSize: options?.tableSize ?? ("cozy" as const),
+		hiddenColumnList: options?.hiddenColumnList,
+		columnVisibilityMode: options?.columnVisibilityMode ?? ("client" as const),
 		filters: options?.filters,
 		filtersOpened: options?.filtersOpened ?? false,
 		fkValue: options?.fkValue,
-		joins: options?.joinConfig?.joins,
-		sqlEditorMode: "preview" as const,
-		customSql: undefined,
-		initialTabMode: undefined,
+		joins: options?.joins,
+		sqlEditorMode: options?.sqlEditorMode ?? ("preview" as const),
+		customSql: options?.customSql,
+		initialTabMode: options?.initialTabMode,
+		columnOrder: options?.columnOrder,
+		columnPinning: options?.columnPinning,
+		prefixWithTable: options?.prefixWithTable,
+		sqlPreviewSize: options?.sqlPreviewSize,
 	};
 };
 
