@@ -164,7 +164,7 @@ export const useConnectionPageState = ({
 			excludedColumns: columnVisibilityFilters.excludedColumns,
 			customSql: search.customSql,
 		}),
-		enabled: !!search.schema && !!search.table,
+		enabled: Boolean(search.schema && search.table),
 	});
 
 	// Fetch the SQL query string (without executing)

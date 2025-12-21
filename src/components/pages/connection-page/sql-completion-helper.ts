@@ -456,7 +456,7 @@ export function detectCompletionContext(
 /**
  * Extract all table names that have been selected via FROM/JOIN clauses
  */
-function extractSelectedTables(sql: string): string[] {
+export function extractSelectedTables(sql: string): string[] {
 	const tables = new Set<string>();
 
 	// Match all FROM and JOIN clauses with table names
