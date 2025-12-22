@@ -1,5 +1,12 @@
 ## raw SQL viewer/editor
 - edit in datatable line? double click triggers the edit UI with a commit phase (nothing is persisted until you click save with the count + list of changes available to review / the translated raw SQL update)
+- monaco editor editor.changeViewZones for inline actions (run/explain/format/fullscreen/copy/save)
+- diagnostics in editor for SQL issues (missing table, missing column, syntax error etc?)
+- suggest keywords like SELECT/CREATE/UPDATE/DELETE/DROP/ALTER
+- warning/confirmation dialog on execute queries with DROP/ALTER
+- support `<>` operator (same as !=)
+- support BETWEEN operand AND operand
+
 
 ## exports
 
@@ -40,6 +47,7 @@
 - query history (persisted across sessions; only saves successful queries that were made by a user action) with a Badge distinction for the saved/favorites queries
 - query logger -> show results on the right, or top/bottom + rows returned/affected
 - add a way to view (explicit/manual) query history
+- query logger should be resizable with Splitter
 
 
 ## new features
@@ -58,13 +66,11 @@
 - autosave manually executed queries
 - SQL snippets
 - add save action in SQL query bar actions
-- monaco editor editor.changeViewZones for inline actions (run/explain/format/fullscreen/copy/save)
+
 - handle column aliases: SQL parsing, SQL completion, filters, column visibility, sorting etc
-- diagnostics in editor for SQL issues (missing table, missing column, syntax error etc?)
 
 ## issues
 - error state shows infinite skeleton for the table rows datatable
-- query logger should be resizable with Splitter
 - group by/having support in filters UI
 - inserting a column after typing a table name should only insert the column name, not the full "table.column" name
 - hiddenColumnList should use an object with the column AND the table name
@@ -73,3 +79,4 @@
     - fullscreen (collapse sidebar + hide connectionpagefilters + collapse rows content)
 - Update UI components to display/edit the inverted flag
 - Update SQL completion provider for inverted operator suggestions
+- update deps

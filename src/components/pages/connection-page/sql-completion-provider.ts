@@ -13,6 +13,8 @@ import {
 	getContextualKeywords,
 } from "./sql-completion-helper";
 
+// https://forcedotcom.github.io/phoenix/index.html#order
+
 export function sqlCompletionProvider(
 	input: {
 		fullText: string;

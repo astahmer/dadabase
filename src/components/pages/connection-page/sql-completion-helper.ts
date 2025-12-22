@@ -99,8 +99,12 @@ const REGEX_TABLE_NAME = new RegExp(
 );
 const REGEX_SELECT_QUALIFIED =
 	/\bSELECT\s+(?:"[^"]*"|\w+)\.(?:"[^"]*"|\w+)\s*$/i;
+// Updated to handle schema-qualified table names (e.g., "public"."users", public.users, etc.)
+// Matches: FROM/JOIN table_name [AS alias] followed by optional whitespace
+// Order matters: more specific patterns first (schema.table), then less specific (table only)
+// The trailing \s* makes the space optional to handle cases where cursor is right at the table name
 const REGEX_KEYWORD_AFTER_TABLE = new RegExp(
-	`\\b(${JOIN_KEYWORDS})\\s+(\\w+|"\\w+")(AS\s+(\w*))?\\s+$`,
+	`\\b(${JOIN_KEYWORDS})\\s+(?:"[^"]+"\\.\\w+|\\w+\\."[^"]+"|"[^"]+"\\."[^"]+"|\\w+\\.\\w+|"[^"]+"|\\w+)(?:\\s+AS\\s+\\w+)?\\s*$`,
 	"i",
 );
 const REGEX_JOIN_TABLE_WITHOUT_ALIAS = new RegExp(

@@ -2164,6 +2164,104 @@ describe("sqlCompletionProvider", () => {
             `);
 		});
 
+		it("should suggest keywords after schema-qualified table", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: 'select * from "public"."accounting_imports" ',
+					cursorOffset: 44,
+				},
+				contextWithAccountingTable,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("WHERE");
+			expect(labels).toContain("ORDER BY");
+			expect(labels).not.toContain("accounting_imports");
+			expect(suggestions.length).toBe(9);
+			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WHERE",
+                  "sortText": "2_WHERE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ORDER BY",
+                  "sortText": "2_ORDER BY",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "GROUP BY",
+                  "sortText": "2_GROUP BY",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "LIMIT",
+                  "sortText": "2_LIMIT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "JOIN",
+                  "sortText": "2_JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "LEFT JOIN",
+                  "sortText": "2_LEFT JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INNER JOIN",
+                  "sortText": "2_INNER JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CROSS JOIN",
+                  "sortText": "2_CROSS JOIN",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "AS",
+                  "sortText": "2_AS",
+                },
+              ]
+            `);
+		});
+
+		it("should suggest keywords after mixed-case schema-qualified table", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: 'select * from "public".accounting_imports ',
+					cursorOffset: 41,
+				},
+				contextWithAccountingTable,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("WHERE");
+			expect(labels).toContain("AS");
+			expect(suggestions.length).toBe(9);
+		});
+
+		it("should suggest keywords after unquoted schema-qualified table", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "select * from public.accounting_imports ",
+					cursorOffset: 39,
+				},
+				contextWithAccountingTable,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("WHERE");
+			expect(labels).toContain("AS");
+			expect(suggestions.length).toBe(9);
+		});
+
 		it("should suggest alias when typing after AS in FROM clause", () => {
 			const suggestions = sqlCompletionProvider(
 				{
