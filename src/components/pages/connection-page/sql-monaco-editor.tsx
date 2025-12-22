@@ -108,6 +108,11 @@ export function SqlMonacoEditor({
 			label: "Format SQL",
 			contextMenuGroupId: "1_modification",
 			contextMenuOrder: 1,
+			keybindings: [
+				OriginalMonaco.KeyMod.CtrlCmd |
+					OriginalMonaco.KeyMod.Shift |
+					OriginalMonaco.KeyCode.KeyF,
+			],
 			run: (editor) => {
 				const content = editor.getValue();
 				const formatted = formatSQL(content);
