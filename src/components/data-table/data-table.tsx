@@ -580,7 +580,7 @@ const TableBody = (
 	);
 	const centerLeafColumns = leafColumns.filter((c) => !c.getIsPinned());
 
-	return props.isLoading ? (
+	return props.isLoading && !props.hasError ? (
 		<tbody>
 			{Array(state.pagination.pageSize)
 				.fill(state.pagination.pageSize)

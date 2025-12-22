@@ -69,9 +69,7 @@
 - handle column aliases: SQL parsing, SQL completion, filters, column visibility, sorting etc
 
 ## issues
-- error state shows infinite skeleton for the table rows datatable
 - group by/having support in filters UI
-- inserting a column after typing a table name should only insert the column name, not the full "table.column" name
 - hiddenColumnList should use an object with the column AND the table name
 - SQL editor maximize button should be open a menu with multiple options:
     - expand panel (collapse rows content)
