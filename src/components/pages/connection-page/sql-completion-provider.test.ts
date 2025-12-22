@@ -2093,31 +2093,31 @@ describe("sqlCompletionProvider", () => {
 			);
 
 			const labels = suggestions.map((s) => s.label);
-			expect(labels).toContain("accounting_imports.id");
-			expect(labels).toContain("accounting_imports.created_at");
-			expect(labels).toContain("accounting_imports.account_id");
+			expect(labels).toContain("id");
+			expect(labels).toContain("created_at");
+			expect(labels).toContain("account_id");
 			expect(suggestions.length).toBe(4);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "integer | PRIMARY KEY | UNIQUE",
-                  "label": "accounting_imports.id",
-                  "sortText": "1_accounting_imports.id",
+                  "label": "id",
+                  "sortText": "1_id",
                 },
                 {
                   "detail": "timestamp",
-                  "label": "accounting_imports.created_at",
-                  "sortText": "1_accounting_imports.created_at",
+                  "label": "created_at",
+                  "sortText": "1_created_at",
                 },
                 {
                   "detail": "timestamp",
-                  "label": "accounting_imports.updated_at",
-                  "sortText": "1_accounting_imports.updated_at",
+                  "label": "updated_at",
+                  "sortText": "1_updated_at",
                 },
                 {
                   "detail": "integer | references: accounts(id)",
-                  "label": "accounting_imports.account_id",
-                  "sortText": "1_accounting_imports.account_id",
+                  "label": "account_id",
+                  "sortText": "1_account_id",
                 },
               ]
             `);
@@ -2135,30 +2135,111 @@ describe("sqlCompletionProvider", () => {
 			);
 
 			const labels = suggestions.map((s) => s.label);
-			expect(labels).toContain("accounting_imports.id");
-			expect(labels).toContain("accounting_imports.created_at");
+			expect(labels).toContain("id");
+			expect(labels).toContain("created_at");
 			expect(suggestions.length).toBe(4);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
                   "detail": "integer | PRIMARY KEY | UNIQUE",
-                  "label": "accounting_imports.id",
-                  "sortText": "1_accounting_imports.id",
+                  "label": "id",
+                  "sortText": "1_id",
                 },
                 {
                   "detail": "timestamp",
-                  "label": "accounting_imports.created_at",
-                  "sortText": "1_accounting_imports.created_at",
+                  "label": "created_at",
+                  "sortText": "1_created_at",
                 },
                 {
                   "detail": "timestamp",
-                  "label": "accounting_imports.updated_at",
-                  "sortText": "1_accounting_imports.updated_at",
+                  "label": "updated_at",
+                  "sortText": "1_updated_at",
                 },
                 {
                   "detail": "integer | references: accounts(id)",
-                  "label": "accounting_imports.account_id",
-                  "sortText": "1_accounting_imports.account_id",
+                  "label": "account_id",
+                  "sortText": "1_account_id",
+                },
+              ]
+            `);
+		});
+
+		it("should suggest table columns with unqualified names in SELECT without FROM", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: 'SELECT "accounting_imports".',
+					cursorOffset: 29,
+				},
+				contextWithAccountingTable,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("id");
+			expect(labels).toContain("created_at");
+			expect(labels).toContain("account_id");
+			expect(suggestions.length).toBe(4);
+			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
+                  "label": "id",
+                  "sortText": "1_id",
+                },
+                {
+                  "detail": "timestamp",
+                  "label": "created_at",
+                  "sortText": "1_created_at",
+                },
+                {
+                  "detail": "timestamp",
+                  "label": "updated_at",
+                  "sortText": "1_updated_at",
+                },
+                {
+                  "detail": "integer | references: accounts(id)",
+                  "label": "account_id",
+                  "sortText": "1_account_id",
+                },
+              ]
+            `);
+		});
+
+		it("should suggest table columns with unqualified names in SELECT without FROM (unquoted)", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT accounting_imports.",
+					cursorOffset: 26,
+				},
+				contextWithAccountingTable,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			expect(labels).toContain("id");
+			expect(labels).toContain("created_at");
+			expect(suggestions.length).toBe(4);
+			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+              [
+                {
+                  "detail": "integer | PRIMARY KEY | UNIQUE",
+                  "label": "id",
+                  "sortText": "1_id",
+                },
+                {
+                  "detail": "timestamp",
+                  "label": "created_at",
+                  "sortText": "1_created_at",
+                },
+                {
+                  "detail": "timestamp",
+                  "label": "updated_at",
+                  "sortText": "1_updated_at",
+                },
+                {
+                  "detail": "integer | references: accounts(id)",
+                  "label": "account_id",
+                  "sortText": "1_account_id",
                 },
               ]
             `);

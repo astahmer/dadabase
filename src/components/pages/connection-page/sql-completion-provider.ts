@@ -158,10 +158,28 @@ export function sqlCompletionProvider(
 
 	// Suggest columns when after column-expecting keywords
 	if (cursorContext.type === "column_after_keyword") {
-		const selectedTableNames =
+		let selectedTableNames =
 			cursorContext.selectedTables.length > 0
 				? cursorContext.selectedTables.map((t) => t.table)
 				: context.tables.map((t) => t.name);
+
+		// Special case: SELECT table. without FROM clause
+		// Extract the table name from the pattern and filter to just that table
+		if (
+			cursorContext.lastKeyword === "SELECT" &&
+			cursorContext.selectedTables.length === 0
+		) {
+			const selectTableMatch = cursorContext.beforeCursor.match(
+				/\bSELECT\s+(?:"([^"]+)"|(\w+))\s*\.\s*$/i,
+			);
+			if (selectTableMatch) {
+				const tableNameFromSelect = selectTableMatch[1] || selectTableMatch[2];
+				// Only use this table if it exists in our available tables
+				if (context.tables.some((t) => t.name === tableNameFromSelect)) {
+					selectedTableNames = [tableNameFromSelect];
+				}
+			}
+		}
 
 		// When multiple tables are explicitly aliased, keep columns distinct by table+alias
 		// Otherwise, deduplicate columns with the same name

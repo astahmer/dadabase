@@ -654,8 +654,37 @@ export function createColumnCompletion(
 		context.lastKeyword === "ON" &&
 		context.beforeCursor.trimEnd().endsWith(".");
 
-	// Use unqualified names only when inside function with table or in JOIN ON with table
-	const shouldUseQualified = !isInsideFunctionWithTable && !inJoinOnWithTable;
+	// Check if cursor is right after a table name and dot (typing table.column)
+	// Only when the table name is directly after a column-expecting keyword (not an alias)
+	// Pattern: SELECT|WHERE|ON|HAVING|ORDER|GROUP <table_name>. or <table_name>"<table_name>".
+	let afterTableDot = false;
+	if (
+		context.beforeCursor.trimEnd().endsWith(".") &&
+		context.type === "column_after_keyword"
+	) {
+		const tableNameMatch = context.beforeCursor.match(
+			/\b(SELECT|WHERE|ON|HAVING|ORDER|GROUP|CASE|WHEN)\s+(?:"([^"]+)"|(\w+))\s*\.\s*$/,
+		);
+		if (tableNameMatch) {
+			const identifier = tableNameMatch[2] || tableNameMatch[3];
+			const keyword = tableNameMatch[1];
+
+			// For SELECT without FROM clause, always allow unqualified column names
+			if (keyword === "SELECT" && context.selectedTables.length === 0) {
+				afterTableDot = true;
+			} else {
+				// For other cases, check if it's an actual table name (not an alias)
+				const isTableName = context.selectedTables.some(
+					(t) => t.table === identifier,
+				);
+				afterTableDot = isTableName;
+			}
+		}
+	}
+
+	// Use unqualified names only when inside function with table, in JOIN ON with table, or after table dot
+	const shouldUseQualified =
+		!isInsideFunctionWithTable && !inJoinOnWithTable && !afterTableDot;
 
 	let insertText =
 		shouldUseQualified && tableName
