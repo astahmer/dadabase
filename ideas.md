@@ -47,7 +47,6 @@
 - query history (persisted across sessions; only saves successful queries that were made by a user action) with a Badge distinction for the saved/favorites queries
 - query logger -> show results on the right, or top/bottom + rows returned/affected
 - add a way to view (explicit/manual) query history
-- query logger should be resizable with Splitter
 
 
 ## new features

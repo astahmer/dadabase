@@ -73,6 +73,7 @@ const searchSchema = Schema.Struct({
 		Schema.optional,
 	),
 	sidebarSize: Schema.Number.pipe(Schema.optional),
+	queryLoggerSize: Schema.Number.pipe(Schema.optional), // Query logger panel height as percentage
 	rowJsonViewerOpen: Schema.Boolean.pipe(Schema.optional),
 	// Primary key value to identify which row to display
 	rowJsonViewerRowId: Schema.Union(Schema.String, Schema.Number).pipe(

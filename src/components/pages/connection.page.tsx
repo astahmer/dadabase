@@ -1,9 +1,3 @@
-import { Splitter } from "@ark-ui/react";
-import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
-import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
 import {
@@ -15,14 +9,19 @@ import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
+import { Splitter, type UseSplitterContext } from "@ark-ui/react";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
+import { type Dispatch, type SetStateAction, useState } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
-import { QueryLoggerPanel } from "../query-logger/query-logger-panel.tsx";
+import { QueryLoggerContent } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { Button } from "../ui/button.tsx";
 import { Stack } from "../ui/layout.tsx";
@@ -42,8 +41,6 @@ import {
 } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
-import { ConnectionForm } from "./connection.form.tsx";
-import type { DbConnection } from "./connection.types";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
@@ -60,6 +57,8 @@ import { RowsTableErrorState } from "./connection-page/rows-table-error-state.ts
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
+import { ConnectionForm } from "./connection.form.tsx";
+import type { DbConnection } from "./connection.types";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -91,6 +90,7 @@ const panels = {
 	rowsContent: "rows-content",
 	rowsTable: "rows-table",
 	relationships: "relationships",
+	queryLogger: "query-logger",
 };
 
 const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
@@ -99,7 +99,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 	const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
 	const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
+	const queryLoggerSize = useActiveTabState(
+		(_tab, search) => search.queryLoggerSize,
+	);
 	const sidebarMinSize = fromPixelToPercentage(224, "horizontal");
+	const queryLoggerMinSize = fromPixelToPercentage(48, "vertical");
+	const defaultQueryLoggerSize = queryLoggerSize ?? 25; // Default 25% if not set
 
 	return (
 		<div className="h-screen bg-background flex flex-col">
@@ -163,7 +168,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 									tryFn(() => ctx.isPanelCollapsed(panels.sidebar))
 										? "w-3"
 										: "w-1.5",
-									"h-full bg-border hover:bg-primary/50 cursor-row-resize transition-colors",
+									"h-full bg-border hover:bg-primary/50 cursor-col-resize transition-colors",
 								)}
 								title="Drag to resize, double-click to toggle"
 								onDoubleClick={() => {
@@ -175,17 +180,106 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 						)}
 					</Splitter.Context>
 
-					{/* Main Content Panel */}
+					{/* Main Content Panel - Contains Vertical Splitter for Query Logger */}
 					<Splitter.Panel
 						id={panels.mainContent}
 						className="h-full min-h-0 flex-1 flex flex-col overflow-hidden"
 					>
-						<MainContent connection={connection} />
+						<Splitter.Context>
+							{(outerCtx) => (
+								<Splitter.Root
+									orientation="vertical"
+									defaultSize={[
+										100 - defaultQueryLoggerSize,
+										defaultQueryLoggerSize,
+									]}
+									panels={[
+										{
+											id: panels.rowsContent,
+											collapsible: false,
+										},
+										{
+											id: panels.queryLogger,
+											collapsible: true,
+											collapsedSize: queryLoggerMinSize,
+											minSize: queryLoggerMinSize,
+											maxSize: 50,
+										},
+									]}
+									onResizeEnd={(details) => {
+										void navigate({
+											search: (prev) => ({
+												...prev,
+												queryLoggerSize: details.size[1],
+											}),
+										});
+									}}
+									onExpand={(details) => {
+										if (details.panelId === panels.queryLogger) {
+											void navigate({
+												search: (prev) => ({
+													...prev,
+													queryLoggerSize: details.size,
+												}),
+											});
+										}
+									}}
+									onCollapse={(details) => {
+										if (details.panelId === panels.queryLogger) {
+											void navigate({
+												search: (prev) => ({
+													...prev,
+													queryLoggerSize: details.size,
+												}),
+											});
+										}
+									}}
+									className="flex-1 flex flex-col h-full min-h-0"
+								>
+									{/* Rows Content Panel */}
+									<Splitter.Panel
+										id={panels.rowsContent}
+										className="h-full min-h-0 flex-1 flex flex-col overflow-hidden"
+									>
+										<MainContent
+											connection={connection}
+											sidebarAndMainContentSplitterContext={outerCtx}
+										/>
+									</Splitter.Panel>
+
+									{/* Resize Handle for Query Logger */}
+									<Splitter.Context>
+										{(ctx) => (
+											<Splitter.ResizeTrigger
+												id={`${panels.rowsContent}:${panels.queryLogger}`}
+												className={cn(
+													tryFn(() => ctx.isPanelCollapsed(panels.queryLogger))
+														? "h-3"
+														: "h-1.5",
+													"w-full bg-border hover:bg-primary/50 cursor-row-resize transition-colors",
+												)}
+												title="Drag to resize, double-click to toggle"
+												onDoubleClick={() => {
+													ctx.isPanelExpanded(panels.queryLogger)
+														? ctx.collapsePanel(panels.queryLogger)
+														: ctx.expandPanel(panels.queryLogger);
+												}}
+											/>
+										)}
+									</Splitter.Context>
+
+									{/* Query Logger Panel */}
+									<Splitter.Panel
+										id={panels.queryLogger}
+										className="h-full min-h-0 flex flex-col overflow-hidden border-t bg-background"
+									>
+										<QueryLoggerContent connectionUrl={activeConnectionUrl} />
+									</Splitter.Panel>
+								</Splitter.Root>
+							)}
+						</Splitter.Context>
 					</Splitter.Panel>
 				</Splitter.Root>
-
-				{/* Query Logger Panel */}
-				<QueryLoggerPanel connectionUrl={activeConnectionUrl} />
 			</div>
 
 			{/* Add Connection Drawer */}
@@ -212,8 +306,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	);
 };
 
-const MainContent = (props: { connection: DbConnection }) => {
-	const { connection } = props;
+const MainContent = (props: {
+	connection: DbConnection;
+	sidebarAndMainContentSplitterContext: UseSplitterContext;
+}) => {
+	const { connection, sidebarAndMainContentSplitterContext } = props;
 	const pageState = useConnectionPageState({ connection });
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
@@ -311,32 +408,34 @@ const MainContent = (props: { connection: DbConnection }) => {
 	return (
 		<>
 			{/* Tabs */}
-			<Splitter.Context>
-				{(ctx) => (
-					<ConnectionPageTabs
-						activeConnectionUrl={pageState.activeConnectionUrl}
-						dialect={connection.dialect}
-						onToggleSidebar={() => {
-							if (ctx.isPanelExpanded(panels.sidebar)) {
-								ctx.collapsePanel(panels.sidebar);
-								void navigate({
-									search: (prev) => ({ ...prev, sidebarSize: 0 }),
-								});
-								return;
-							}
+			<ConnectionPageTabs
+				activeConnectionUrl={pageState.activeConnectionUrl}
+				dialect={connection.dialect}
+				onToggleSidebar={() => {
+					if (
+						sidebarAndMainContentSplitterContext.isPanelExpanded(panels.sidebar)
+					) {
+						sidebarAndMainContentSplitterContext.collapsePanel(panels.sidebar);
+						void navigate({
+							search: (prev) => ({ ...prev, sidebarSize: 0 }),
+						});
+						return;
+					}
 
-							ctx.expandPanel(panels.sidebar);
-							void navigate({
-								search: (prev) => ({
-									...prev,
-									sidebarSize: ctx.getPanelSize(panels.sidebar),
-								}),
-							});
-						}}
-						isSidebarCollapsed={ctx.isPanelCollapsed(panels.sidebar)}
-					/>
+					sidebarAndMainContentSplitterContext.expandPanel(panels.sidebar);
+					void navigate({
+						search: (prev) => ({
+							...prev,
+							sidebarSize: sidebarAndMainContentSplitterContext.getPanelSize(
+								panels.sidebar,
+							),
+						}),
+					});
+				}}
+				isSidebarCollapsed={sidebarAndMainContentSplitterContext.isPanelCollapsed(
+					panels.sidebar,
 				)}
-			</Splitter.Context>
+			/>
 
 			{search.table && search.schema ? (
 				<>
