@@ -2,7 +2,6 @@
 - edit in datatable line? double click triggers the edit UI with a commit phase (nothing is persisted until you click save with the count + list of changes available to review / the translated raw SQL update)
 - monaco editor editor.changeViewZones for inline actions (run/explain/format/fullscreen/copy/save)
 - diagnostics in editor for SQL issues (missing table, missing column, syntax error etc?)
-- warning/confirmation dialog on execute queries with DROP/ALTER
 - support BETWEEN operand AND operand
 
 

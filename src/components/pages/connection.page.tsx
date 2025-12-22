@@ -1,10 +1,15 @@
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
+import { DestructiveQueryConfirmDialog } from "#src/components/pages/connection-page/destructive-query-confirm.dialog.tsx";
 import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
 import {
 	useActiveConnectionUrl,
 	useConnectionPageState,
 } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
 import { DatabaseDialect } from "#src/db/dialect.ts";
+import {
+	getDestructiveQuerySummary,
+	isDestructiveQuery,
+} from "#src/server/introspection/detect-destructive-sql.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
@@ -333,6 +338,10 @@ const MainContent = (props: {
 		null,
 	);
 	const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
+	const [showDestructiveConfirm, setShowDestructiveConfirm] = useState(false);
+	const [pendingQueryExecution, setPendingQueryExecution] = useState<
+		(() => void) | null
+	>(null);
 
 	// Fetch available tables for intellisense
 	const tablesQuery = useQuery({
@@ -574,6 +583,18 @@ const MainContent = (props: {
 													})
 												}
 												onRun={() => {
+													// Check for destructive queries
+													const sqlToRun =
+														search.customSql || pageState.sqlQuery?.sql;
+													if (sqlToRun && isDestructiveQuery(sqlToRun)) {
+														setPendingQueryExecution(() => () => {
+															pageState.rowsQuery.refetch();
+															setShowDestructiveConfirm(false);
+															setPendingQueryExecution(null);
+														});
+														setShowDestructiveConfirm(true);
+														return;
+													}
 													// Trigger refetch of the rows query
 													pageState.rowsQuery.refetch();
 												}}
@@ -975,6 +996,21 @@ const MainContent = (props: {
 				showExplainPanel={showExplainPanel}
 				setShowExplainPanel={setShowExplainPanel}
 				output={explainQuery.data ?? null}
+			/>
+
+			<DestructiveQueryConfirmDialog
+				isOpen={showDestructiveConfirm}
+				onConfirm={() => {
+					pendingQueryExecution?.();
+				}}
+				onCancel={() => {
+					setShowDestructiveConfirm(false);
+					setPendingQueryExecution(null);
+				}}
+				queryType={getDestructiveQuerySummary(
+					search.customSql || pageState.sqlQuery?.sql || "",
+				)}
+				isLoading={pageState.rowsQuery.isLoading}
 			/>
 		</>
 	);
