@@ -22,7 +22,8 @@ export interface CompletionContext {
 		| "after_order_by_column"
 		| "after_having_condition"
 		| "after_order_by_direction"
-		| "subquery_start";
+		| "subquery_start"
+		| "partial_join_keyword";
 	selectedTables: ExtractedTable[];
 	tableAliases: Record<string, string>; // Maps table name to alias (e.g., { "users": "u", "posts": "p" })
 	lastKeyword?: SqlKeyword;
@@ -157,6 +158,9 @@ const REGEX_CROSS_JOIN = /\b(CROSS\s+JOIN)\s+(\w+|"[^"]*")\s+$/i;
 
 // Detect ORDER BY with ASC/DESC and optional NULLS FIRST/LAST
 const REGEX_ORDER_BY_WITH_NULLS = /\b(?:NULLS\s+(?:FIRST|LAST))\s+$/i;
+
+// Detect partial JOIN keywords (LEFT, RIGHT, INNER, FULL, CROSS without JOIN yet)
+const REGEX_PARTIAL_JOIN_KEYWORD = /\b(LEFT|RIGHT|INNER|FULL|CROSS)\s+$/i;
 
 // Detect opening parenthesis (for subqueries) - NOT after function names
 const REGEX_OPENING_PAREN =
@@ -315,6 +319,18 @@ export function detectCompletionContext(
 	if (REGEX_TABLE_ALIAS_INCOMPLETE.test(beforeCursor)) {
 		return {
 			type: "none",
+			selectedTables,
+			tableAliases,
+			isAtLineStart,
+			beforeCursor,
+		};
+	}
+
+	// Check if we just typed a partial JOIN keyword (LEFT, RIGHT, INNER, FULL, CROSS)
+	// In this case, suggest "JOIN" to complete the keyword
+	if (REGEX_PARTIAL_JOIN_KEYWORD.test(beforeCursor)) {
+		return {
+			type: "partial_join_keyword",
 			selectedTables,
 			tableAliases,
 			isAtLineStart,

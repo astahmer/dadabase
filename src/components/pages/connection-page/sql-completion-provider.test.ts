@@ -2311,6 +2311,44 @@ describe("sqlCompletionProvider", () => {
             `);
 		});
 
+		it("should suggest only JOIN when typing 'left ' after column reference", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: 'SELECT "accounting_imports"."category" left ',
+					cursorOffset: 45,
+				},
+				contextWithAccountingTable,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			// Should suggest JOIN keyword to complete "LEFT JOIN"
+			expect(labels).toContain("JOIN");
+			// LEFT also allows OUTER JOIN
+			expect(labels).toContain("OUTER JOIN");
+			// Should not suggest column names
+			expect(labels).not.toContain("id");
+			expect(labels).not.toContain("accounting_imports.id");
+		});
+
+		it("should suggest only JOIN when typing 'cross ' after column reference", () => {
+			const suggestions = sqlCompletionProvider(
+				{
+					fullText: "SELECT * FROM users cross ",
+					cursorOffset: 27,
+				},
+				singleSchemaContext,
+				mockMonaco,
+			);
+
+			const labels = suggestions.map((s) => s.label);
+			// CROSS only suggests JOIN, not OUTER JOIN
+			expect(labels).toContain("JOIN");
+			expect(labels).not.toContain("OUTER JOIN");
+			// Should not suggest table names or other keywords
+			expect(labels).not.toContain("WHERE");
+		});
+
 		it("should suggest keywords after mixed-case schema-qualified table", () => {
 			const suggestions = sqlCompletionProvider(
 				{

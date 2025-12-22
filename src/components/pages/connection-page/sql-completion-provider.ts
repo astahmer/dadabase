@@ -156,6 +156,39 @@ export function sqlCompletionProvider(
 		);
 	}
 
+	// Suggest JOIN keyword when typing partial JOIN keywords (LEFT, RIGHT, INNER, etc.)
+	if (cursorContext.type === "partial_join_keyword") {
+		// Extract which partial keyword was typed
+		const partialMatch = cursorContext.beforeCursor.match(
+			/\b(LEFT|RIGHT|INNER|FULL|CROSS)\s+$/i,
+		);
+		const partialKeyword = partialMatch?.[1]?.toUpperCase();
+
+		// Suggest appropriate completions based on the partial keyword
+		if (partialKeyword) {
+			if (partialKeyword === "CROSS") {
+				// CROSS only goes with JOIN
+				suggestions.push(createKeywordCompletion("JOIN", monaco));
+			} else {
+				// LEFT, RIGHT, INNER, FULL can have optional OUTER or go directly to JOIN
+				if (partialKeyword === "FULL") {
+					suggestions.push(
+						createKeywordCompletion("OUTER JOIN", monaco),
+						createKeywordCompletion("JOIN", monaco),
+					);
+				} else if (partialKeyword === "LEFT" || partialKeyword === "RIGHT") {
+					suggestions.push(
+						createKeywordCompletion("OUTER JOIN", monaco),
+						createKeywordCompletion("JOIN", monaco),
+					);
+				} else {
+					// INNER
+					suggestions.push(createKeywordCompletion("JOIN", monaco));
+				}
+			}
+		}
+	}
+
 	// Suggest columns when after column-expecting keywords
 	if (cursorContext.type === "column_after_keyword") {
 		let selectedTableNames =
