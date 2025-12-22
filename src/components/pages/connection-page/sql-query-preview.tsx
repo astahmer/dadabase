@@ -1,3 +1,12 @@
+import { Button } from "#src/components/ui/button.tsx";
+import {
+	HoverCard,
+	HoverCardContent,
+	HoverCardTrigger,
+} from "#src/components/ui/hovercard.tsx";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
+import { cn } from "#src/lib/utils.ts";
+import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 import { Portal } from "@ark-ui/react";
 import { Tabs } from "@ark-ui/react/tabs";
 import {
@@ -12,13 +21,6 @@ import {
 	Zap,
 } from "lucide-react";
 import { useEffectEvent, useRef, useState } from "react";
-import { Button } from "#src/components/ui/button.tsx";
-import { Tooltip } from "#src/components/ui/tooltip.tsx";
-import { cn } from "#src/lib/utils.ts";
-import type {
-	TableColumnMetadata,
-	TableWithColumnsMetadata,
-} from "#src/server/introspection/introspection.ts";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
 
 interface SqlQueryPreviewProps {
@@ -180,19 +182,30 @@ export function SqlQueryPreview({
 										}
 							}
 						>
-							<Button
-								size="sm"
-								variant={customSql ? "default" : "ghost"}
-								onClick={() => onToggleCollapsed?.(!isCollapsed)}
-								className="flex items-center gap-2 text-xs self-center"
-							>
-								{isCollapsed ? (
-									<ChevronRight className="h-4 w-4" />
-								) : (
-									<ChevronDown className="h-4 w-4" />
+							<HoverCard>
+								<HoverCardTrigger asChild>
+									<Button
+										size="sm"
+										variant={customSql ? "default" : "ghost"}
+										onClick={() => onToggleCollapsed?.(!isCollapsed)}
+										className="flex items-center gap-2 text-xs self-center"
+									>
+										{isCollapsed ? (
+											<ChevronRight className="h-4 w-4" />
+										) : (
+											<ChevronDown className="h-4 w-4" />
+										)}
+										SQL Query
+									</Button>
+								</HoverCardTrigger>
+								{isCollapsed && (
+									<HoverCardContent className="max-w-md">
+										<pre className="font-mono text-xs text-foreground whitespace-pre-wrap overflow-x-auto max-h-64">
+											{sql}
+										</pre>
+									</HoverCardContent>
 								)}
-								SQL Query
-							</Button>
+							</HoverCard>
 						</Portal>
 
 						{/* Editor mode tabs */}
