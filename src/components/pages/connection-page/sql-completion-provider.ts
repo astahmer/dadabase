@@ -102,8 +102,14 @@ export function sqlCompletionProvider(
 		);
 	}
 
-	// Suggest tables+columns combo on empty line
+	// Suggest keywords and tables+columns combo on empty line
 	if (cursorContext.type === "empty_line") {
+		// Suggest major SQL keywords first
+		const keywords = getContextualKeywords(cursorContext);
+		suggestions.push(
+			...keywords.map((kw) => createKeywordCompletion(kw, monaco)),
+		);
+
 		// Suggest all tables
 		suggestions.push(
 			...context.tables.map((table) =>

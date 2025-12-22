@@ -440,8 +440,52 @@ describe("sqlCompletionProvider", () => {
 			expect(tableLabels).toContain("users");
 			expect(tableLabels).toContain("posts");
 			expect(tableLabels).toContain("comments");
+			// Verify keywords are present
+			expect(tableLabels).toContain("SELECT");
+			expect(tableLabels).toContain("CREATE");
+			expect(tableLabels).toContain("DROP");
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "SELECT",
+                  "sortText": "2_SELECT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CREATE",
+                  "sortText": "2_CREATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ALTER",
+                  "sortText": "2_ALTER",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DROP",
+                  "sortText": "2_DROP",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INSERT",
+                  "sortText": "2_INSERT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "UPDATE",
+                  "sortText": "2_UPDATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DELETE",
+                  "sortText": "2_DELETE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WITH",
+                  "sortText": "2_WITH",
+                },
                 {
                   "detail": "Table",
                   "label": "users",
@@ -545,6 +589,46 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
+                  "detail": "SQL Keyword",
+                  "label": "SELECT",
+                  "sortText": "2_SELECT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CREATE",
+                  "sortText": "2_CREATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ALTER",
+                  "sortText": "2_ALTER",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DROP",
+                  "sortText": "2_DROP",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INSERT",
+                  "sortText": "2_INSERT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "UPDATE",
+                  "sortText": "2_UPDATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DELETE",
+                  "sortText": "2_DELETE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WITH",
+                  "sortText": "2_WITH",
+                },
+                {
                   "detail": "Table",
                   "label": "users",
                   "sortText": "1_users",
@@ -644,6 +728,46 @@ describe("sqlCompletionProvider", () => {
 			expect(tablesSuggestion?.insertText).toBe('SELECT * FROM "users"');
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "SELECT",
+                  "sortText": "2_SELECT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CREATE",
+                  "sortText": "2_CREATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ALTER",
+                  "sortText": "2_ALTER",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DROP",
+                  "sortText": "2_DROP",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INSERT",
+                  "sortText": "2_INSERT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "UPDATE",
+                  "sortText": "2_UPDATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DELETE",
+                  "sortText": "2_DELETE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WITH",
+                  "sortText": "2_WITH",
+                },
                 {
                   "detail": "Table",
                   "label": "users",
@@ -745,6 +869,46 @@ describe("sqlCompletionProvider", () => {
 			expect(columnSuggestion?.insertText).toMatch(/SELECT "id" FROM/);
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "SELECT",
+                  "sortText": "2_SELECT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CREATE",
+                  "sortText": "2_CREATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ALTER",
+                  "sortText": "2_ALTER",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DROP",
+                  "sortText": "2_DROP",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INSERT",
+                  "sortText": "2_INSERT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "UPDATE",
+                  "sortText": "2_UPDATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DELETE",
+                  "sortText": "2_DELETE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WITH",
+                  "sortText": "2_WITH",
+                },
                 {
                   "detail": "Table",
                   "label": "users",
@@ -848,6 +1012,46 @@ describe("sqlCompletionProvider", () => {
 			expect(idCount).toBeLessThanOrEqual(3); // One per table max
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "SELECT",
+                  "sortText": "2_SELECT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CREATE",
+                  "sortText": "2_CREATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ALTER",
+                  "sortText": "2_ALTER",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DROP",
+                  "sortText": "2_DROP",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INSERT",
+                  "sortText": "2_INSERT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "UPDATE",
+                  "sortText": "2_UPDATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DELETE",
+                  "sortText": "2_DELETE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WITH",
+                  "sortText": "2_WITH",
+                },
                 {
                   "detail": "Table",
                   "label": "users",
@@ -1857,6 +2061,46 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
+                  "detail": "SQL Keyword",
+                  "label": "SELECT",
+                  "sortText": "2_SELECT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CREATE",
+                  "sortText": "2_CREATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ALTER",
+                  "sortText": "2_ALTER",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DROP",
+                  "sortText": "2_DROP",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INSERT",
+                  "sortText": "2_INSERT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "UPDATE",
+                  "sortText": "2_UPDATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DELETE",
+                  "sortText": "2_DELETE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WITH",
+                  "sortText": "2_WITH",
+                },
+                {
                   "detail": "Table",
                   "label": "users",
                   "sortText": "1_users",
@@ -1899,6 +2143,46 @@ describe("sqlCompletionProvider", () => {
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
                 {
+                  "detail": "SQL Keyword",
+                  "label": "SELECT",
+                  "sortText": "2_SELECT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CREATE",
+                  "sortText": "2_CREATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ALTER",
+                  "sortText": "2_ALTER",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DROP",
+                  "sortText": "2_DROP",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INSERT",
+                  "sortText": "2_INSERT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "UPDATE",
+                  "sortText": "2_UPDATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DELETE",
+                  "sortText": "2_DELETE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WITH",
+                  "sortText": "2_WITH",
+                },
+                {
                   "detail": "Table",
                   "label": "users",
                   "sortText": "1_users",
@@ -1928,6 +2212,46 @@ describe("sqlCompletionProvider", () => {
 			expect(tableLabels).toContain("users");
 			expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
               [
+                {
+                  "detail": "SQL Keyword",
+                  "label": "SELECT",
+                  "sortText": "2_SELECT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "CREATE",
+                  "sortText": "2_CREATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "ALTER",
+                  "sortText": "2_ALTER",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DROP",
+                  "sortText": "2_DROP",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "INSERT",
+                  "sortText": "2_INSERT",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "UPDATE",
+                  "sortText": "2_UPDATE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "DELETE",
+                  "sortText": "2_DELETE",
+                },
+                {
+                  "detail": "SQL Keyword",
+                  "label": "WITH",
+                  "sortText": "2_WITH",
+                },
                 {
                   "detail": "Table",
                   "label": "users",

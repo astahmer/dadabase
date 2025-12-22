@@ -33,6 +33,9 @@ export interface CompletionContext {
 
 const SQL_KEYWORDS = [
 	"SELECT",
+	"CREATE",
+	"ALTER",
+	"DROP",
 	"AS",
 	"WITH",
 	"INSERT",
@@ -826,8 +829,17 @@ export function getContextualKeywords(
 	}
 
 	if (context.type === "empty_line") {
-		// At the start, suggest SELECT, WITH, INSERT, UPDATE, DELETE
-		return ["SELECT", "WITH", "INSERT", "UPDATE", "DELETE"];
+		// At the start, suggest major SQL keywords (CREATE, ALTER, DROP, SELECT, INSERT, UPDATE, DELETE, WITH)
+		return [
+			"SELECT",
+			"CREATE",
+			"ALTER",
+			"DROP",
+			"INSERT",
+			"UPDATE",
+			"DELETE",
+			"WITH",
+		];
 	}
 
 	return [];
