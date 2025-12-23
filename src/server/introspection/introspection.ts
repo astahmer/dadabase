@@ -1,6 +1,6 @@
 import { SqlClient } from "@effect/sql";
 import { SqlError } from "@effect/sql/SqlError";
-import { Effect } from "effect";
+import { Effect, Scope } from "effect";
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
@@ -13,6 +13,7 @@ import {
 } from "../query-logger/query-logger.types.ts";
 import { withQueryLogging } from "../query-logger/with-query-logging.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
+import { isSelectQuery } from "./detect-destructive-sql.ts";
 import {
 	buildJoinSqlClauses,
 	buildPgSelectWithJoins,
@@ -1675,6 +1676,7 @@ export const queryTableRows = <TData>(input: {
 		rowCount: number;
 		columnList: string[];
 		hasNextPage: boolean;
+		rowsAffected?: number; // For non-SELECT queries (DELETE, UPDATE, INSERT, etc.)
 	},
 	SqlError,
 	RemoteConnection | QueryLogger | SqlClient.SqlClient
@@ -1696,9 +1698,9 @@ export const queryTableRows = <TData>(input: {
 
 		// If custom SQL is provided, execute it directly
 		if (customSql) {
-			// For custom SQL, we can't determine columns easily, so we'll get them from the first result
 			// Execute the custom query
-			const rows = yield* sql.unsafe(customSql).pipe(
+			const conn = yield* Effect.orDie(sql.reserve).pipe(Effect.scoped);
+			const rawResult = yield* conn.executeRaw(customSql, []).pipe(
 				withQueryLogging({
 					type: QueryLogType.TableRows,
 					sql: customSql,
@@ -1710,18 +1712,70 @@ export const queryTableRows = <TData>(input: {
 					meta: { input, customQuery: true },
 				}),
 			);
-
-			// Get the column list from the first row or use empty list
-			const columnList = rows && rows.length > 0 ? Object.keys(rows[0]) : [];
-
-			// For custom queries, we can't paginate or get counts efficiently
-			// Return the results as-is
-			return {
-				rows: (rows ?? []) as TData[],
-				columnList,
-				rowCount: rows?.length ?? 0,
-				hasNextPage: false,
+			const result = rawResult as {
+				columns: string[];
+				columnTypes: string[];
+				rows: unknown[];
+				rowsAffected: number;
 			};
+			console.log(result, { customSql });
+
+			// Determine if this is a SELECT query to know how to handle the result
+			const isSelect = isSelectQuery(customSql);
+			if (isSelect) {
+				// For SELECT queries, result is an array of row objects
+				const rows = Array.isArray(result) ? result : [];
+				const columnList = rows && rows.length > 0 ? Object.keys(rows[0]) : [];
+				return {
+					rows: rows as TData[],
+					columnList,
+					rowCount: rows?.length ?? 0,
+					hasNextPage: false,
+				};
+			} else {
+				// For non-SELECT queries (DELETE, UPDATE, INSERT, etc.)
+				// Different databases return affected rows count in different ways:
+				// - PostgreSQL: result.rowCount or result.command might have count
+				// - libSQL/SQLite: result might be an empty array but have rowCount property
+				// Need to check both the object itself and any nested metadata
+				let rowsAffected = 0;
+
+				if (result && typeof result === "object") {
+					// For PostgreSQL, the result object should have rowCount
+					if ("rowCount" in result && typeof result.rowCount === "number") {
+						rowsAffected = result.rowCount;
+					}
+					// For libSQL/SQLite, check changes property
+					else if ("changes" in result && typeof result.changes === "number") {
+						rowsAffected = result.changes;
+					}
+					// If result is an array (e.g., from sql.unsafe for non-SELECT),
+					// check if it has metadata attached
+					else if (Array.isArray(result)) {
+						// Try to get count from array properties
+						const arrayWithMeta = result as any;
+						if (
+							arrayWithMeta.rowCount !== undefined &&
+							typeof arrayWithMeta.rowCount === "number"
+						) {
+							rowsAffected = arrayWithMeta.rowCount;
+						} else if (
+							arrayWithMeta.changes !== undefined &&
+							typeof arrayWithMeta.changes === "number"
+						) {
+							rowsAffected = arrayWithMeta.changes;
+						}
+					}
+				}
+
+				return {
+					rows: [] as TData[],
+					columnList: [],
+					rowCount: 0,
+					hasNextPage: false,
+					rowsAffected,
+				};
+			}
 		}
 
 		const defaultSchema = yield* sql.onDialectOrElse({

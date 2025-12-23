@@ -130,6 +130,7 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 					columns: output.columnList,
 					timeTaken: endTime - startTime,
 					ranAt: startTime,
+					rowsAffected: output.rowsAffected,
 				};
 			}),
 		),

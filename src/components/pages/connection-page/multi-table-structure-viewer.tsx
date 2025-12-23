@@ -388,7 +388,7 @@ export const MultiTableStructureViewer = (
 														<CheckboxControl />
 														<CheckboxLabel>
 															<HStack align="center">
-																<h3 className="font-semibold text-sm">
+																<h3 className="font-semibold text-sm select-text">
 																	{tableStructure.table}
 																</h3>
 																<span className="text-xs text-muted-foreground">

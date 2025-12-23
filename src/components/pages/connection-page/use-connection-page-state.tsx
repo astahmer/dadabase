@@ -194,9 +194,12 @@ export const useConnectionPageState = ({
 		rowCount: 0,
 		timeTaken: 0,
 		ranAt: 0,
+		rowsAffected: undefined,
 	};
 	const rowsList = queryResponse.rows;
 	const totalRowCount = queryResponse.rowCount;
+	const rowsAffected = queryResponse.rowsAffected;
+	// console.log(queryResponse);
 
 	const formattedTableRowsData = useMemo(
 		() =>
@@ -672,6 +675,7 @@ export const useConnectionPageState = ({
 		isColumnMetadataLoading: tableMetadata.isLoading,
 		queryResponse,
 		totalRowCount,
+		rowsAffected,
 		rowsDataTable,
 		rowsColumns,
 		joins,

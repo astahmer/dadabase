@@ -54,3 +54,23 @@ export function getDestructiveQuerySummary(sql: string): string {
 
 	return "Execute a destructive operation";
 }
+
+/**
+ * Detects if a SQL query is a SELECT statement
+ * Returns true if the query primarily returns rows
+ */
+export function isSelectQuery(sql: string): boolean {
+	if (!sql || typeof sql !== "string") {
+		return false;
+	}
+
+	// Normalize: remove comments, convert to uppercase, trim whitespace
+	const normalized = sql
+		.replace(/--.*$/gm, "") // Remove single-line comments
+		.replace(/\/\*[\s\S]*?\*\//g, "") // Remove block comments
+		.toUpperCase()
+		.trim();
+
+	// Check if it starts with SELECT or WITH (for CTEs)
+	return /^\s*(SELECT|WITH)\s+/.test(normalized);
+}

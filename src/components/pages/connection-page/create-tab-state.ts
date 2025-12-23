@@ -39,7 +39,7 @@ export const createTabState = (
 		columnOrder: options?.columnOrder,
 		columnPinning: options?.columnPinning,
 		prefixWithTable: options?.prefixWithTable,
-		sqlPreviewSize: options?.sqlPreviewSize,
+		sqlPreviewSize: options?.sqlPreviewSize ?? 0,
 	};
 };
 

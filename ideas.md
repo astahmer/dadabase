@@ -3,6 +3,7 @@
 - monaco editor editor.changeViewZones for inline actions (run/explain/format/fullscreen/copy/save)
 - diagnostics in editor for SQL issues (missing table, missing column, syntax error etc?)
 - support BETWEEN operand AND operand
+- unlink/detach editor from current table = allows to write arbitrary queries without changing the table context/while viewing results using UI controls or another editor = kinda like a tab inside another
 
 
 ## exports
@@ -44,6 +45,7 @@
 - query history (persisted across sessions; only saves successful queries that were made by a user action) with a Badge distinction for the saved/favorites queries
 - query logger -> show results on the right, or top/bottom + rows returned/affected
 - add a way to view (explicit/manual) query history
+- query logger should be expansible in one click with an expand/arrow button
 
 
 ## new features
@@ -74,3 +76,8 @@
 - Update UI components to display/edit the inverted flag
 - Update SQL completion provider for inverted operator suggestions
 - update deps
+- log affected rows for mutation queries (visible in the detail dialog)
+- preview/editor -> segmented control component
+- schema explorer -> copy table name / copy structure as JSON/CSV menu on each item/view table rows/insert row
+- completion provider -> insert {here} suggest "into" / insert into {here} suggest tables and insert snippet with prefilled column names / values?
+- insert into -> failed to detect table

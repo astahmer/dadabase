@@ -88,8 +88,16 @@ export const withQueryLogging =
 					) {
 						updates.rowsReturned = result.rows.length;
 					}
-					if (result && typeof result === "object" && "rowCount" in result) {
-						updates.rowsAffected = result.rowCount as number;
+					// Check for rowCount (PostgreSQL) or changes (libSQL/SQLite)
+					if (result && typeof result === "object") {
+						if ("rowCount" in result && typeof result.rowCount === "number") {
+							updates.rowsAffected = result.rowCount;
+						} else if (
+							"changes" in result &&
+							typeof result.changes === "number"
+						) {
+							updates.rowsAffected = result.changes;
+						}
 					}
 
 					return queryLogger.update(entryId, updates);

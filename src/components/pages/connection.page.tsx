@@ -586,6 +586,11 @@ const MainContent = (props: {
 													// Check for destructive queries
 													const sqlToRun =
 														search.customSql || pageState.sqlQuery?.sql;
+													console.log(
+														sqlToRun,
+														search,
+														isDestructiveQuery(sqlToRun),
+													);
 													if (sqlToRun && isDestructiveQuery(sqlToRun)) {
 														setPendingQueryExecution(() => () => {
 															pageState.rowsQuery.refetch();
@@ -596,7 +601,9 @@ const MainContent = (props: {
 														return;
 													}
 													// Trigger refetch of the rows query
-													pageState.rowsQuery.refetch();
+													pageState.rowsQuery.refetch().then((result) => {
+														console.log(123, result);
+													});
 												}}
 												onExplain={explainQuery.refetch}
 												disableExplain={
@@ -829,6 +836,22 @@ const MainContent = (props: {
 															isLoading={
 																pageState.rowsQuery.isLoading ||
 																pageState.isColumnMetadataLoading
+															}
+															emptyState={
+																pageState.rowsAffected !== undefined ? (
+																	<div className="text-center py-8">
+																		<p className="text-lg font-semibold text-foreground mb-2">
+																			Query executed successfully
+																		</p>
+																		<p className="text-base text-muted-foreground">
+																			{pageState.rowsAffected === 1
+																				? `${pageState.rowsAffected} row affected`
+																				: `${pageState.rowsAffected} rows affected`}
+																		</p>
+																	</div>
+																) : (
+																	true
+																)
 															}
 															size={search.tableSize}
 															onColumnFilterClick={(columnId) => {

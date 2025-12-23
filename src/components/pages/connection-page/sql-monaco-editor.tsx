@@ -176,7 +176,7 @@ export function SqlMonacoEditor({
 				},
 			},
 		);
-		console.log({ disposable, tables, columns, hasMultipleSchemas });
+		// console.log({ disposable, tables, columns, hasMultipleSchemas });
 
 		return () => {
 			disposable.dispose();

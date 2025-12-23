@@ -220,7 +220,7 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
 	} = props;
 
 	return (
-		<div className="border-b bg-muted/50">
+		<div className="border-b bg-muted/50 min-h-0 shrink-0">
 			<Tabs.Root
 				value={activeTabId || ""}
 				onValueChange={(details) => {
