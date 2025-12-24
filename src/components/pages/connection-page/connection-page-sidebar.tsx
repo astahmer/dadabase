@@ -484,7 +484,7 @@ const ScrollToSidebarTable = (props: {
 		if (tableIndex !== -1) {
 			props.virtualizer.scrollToIndex(tableIndex, {
 				align: "center",
-				behavior: "smooth",
+				// behavior: "smooth",
 			});
 		}
 	}, [props.virtualizer, props.selectedTable, props.tableList]);

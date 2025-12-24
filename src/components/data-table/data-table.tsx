@@ -688,7 +688,7 @@ const TableBody = (
 			) : (
 				<tr>
 					{props.emptyState ? (
-						<td className="text-center absolute ml-12 text-2xl">
+						<td className="absolute ml-4 text-2xl">
 							<div className={tableEmptyStateStyles()}>
 								{typeof props.emptyState === "boolean" ? (
 									<span>

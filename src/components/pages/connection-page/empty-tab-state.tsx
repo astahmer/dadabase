@@ -447,7 +447,7 @@ const CustomSqlTab = (props: {
 							table,
 							customSql,
 							sqlEditorMode: "editor",
-							sqlPreviewSize: fromPixelToPercentage(200, "vertical"),
+							sqlPreviewSize: 100 - fromPixelToPercentage(250, "vertical"),
 							initialTabMode: undefined,
 							tabName: `${table} (custom)`,
 						}),

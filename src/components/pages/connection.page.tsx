@@ -379,6 +379,7 @@ const MainTableContent = (props: { connection: DbConnection }) => {
 
 	const search = useActiveTabState((tab, search) => {
 		return {
+			tabId: tab.tabId,
 			schema: tab.schema,
 			table: tab.table,
 			filtersOpened: tab.filtersOpened,
@@ -522,20 +523,14 @@ const MainTableContent = (props: { connection: DbConnection }) => {
 					</div>
 				) : (
 					<Splitter.Root
-						// key={search.table}
+						key={search.tabId}
 						orientation="vertical"
 						className="flex-1 flex flex-col h-full overflow-hidden"
-						// kinda weird issue where swapping tabs doesnt reset the internal Splitter state
-						// another way to fix this would be to use a key on the Splitter.Root
-						// but then this would reset every children as well i think? so kinda sucks
-						size={
-							search.sqlPreviewSize === 0
-								? [search.sqlPreviewSize, 100]
-								: undefined
-						}
 						defaultSize={[
 							search.sqlPreviewSize ?? fromPixelToPercentage(200, "vertical"),
-							fromPixelToPercentage(656, "vertical"),
+							search.sqlPreviewSize
+								? 100 - search.sqlPreviewSize
+								: fromPixelToPercentage(656, "vertical"),
 						]}
 						panels={[
 							{
@@ -858,7 +853,7 @@ const MainTableContent = (props: { connection: DbConnection }) => {
 													}
 													emptyState={
 														pageState.rowsAffected !== undefined ? (
-															<div className="text-center py-8">
+															<div className="py-2">
 																<p className="text-lg font-semibold text-foreground mb-2">
 																	Query executed successfully
 																</p>

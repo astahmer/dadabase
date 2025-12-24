@@ -77,6 +77,5 @@
 - Update SQL completion provider for inverted operator suggestions
 - update deps
 - log affected rows for mutation queries (visible in the detail dialog)
-- preview/editor -> segmented control component
 - schema explorer -> copy table name / copy structure as JSON/CSV menu on each item/view table rows/insert row
 - completion provider -> insert {here} suggest "into" / insert into {here} suggest tables and insert snippet with prefilled column names / values?
