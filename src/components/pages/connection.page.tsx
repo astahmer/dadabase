@@ -4,6 +4,7 @@ import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query
 import {
 	useActiveConnectionUrl,
 	useConnectionPageState,
+	type ConnectionPageState,
 } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
@@ -66,6 +67,7 @@ import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
+import type { Table } from "@tanstack/react-table";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -293,7 +295,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 												activeConnectionUrl={activeConnectionUrl}
 											/>
 										) : search.table && search.schema ? (
-											<MainTableContent connection={connection} />
+											<RowsTabPage connection={connection} />
 										) : (
 											<EmptyTabContent
 												activeConnectionUrl={activeConnectionUrl}
@@ -372,7 +374,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	);
 };
 
-const MainTableContent = (props: { connection: DbConnection }) => {
+const RowsTabPage = (props: { connection: DbConnection }) => {
 	const { connection } = props;
 	const pageState = useConnectionPageState({ connection });
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -385,93 +387,13 @@ const MainTableContent = (props: { connection: DbConnection }) => {
 			filtersOpened: tab.filtersOpened,
 			viewMode: tab.viewMode,
 			tableSize: tab.tableSize,
-			limit: tab.limit,
-			sidebarSize: search.sidebarSize,
 			sqlPreviewSize: tab.sqlPreviewSize,
-			sqlEditorMode: tab.sqlEditorMode,
 			customSql: tab.customSql,
 		};
 	});
-
-	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
-		null,
-	);
-	const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
-	const [showDestructiveConfirm, setShowDestructiveConfirm] = useState(false);
-	const [pendingQueryExecution, setPendingQueryExecution] = useState<
-		(() => void) | null
-	>(null);
-
-	// Fetch available tables for intellisense
-	const tablesQuery = useQuery({
-		...listAvailableTablesQueryOptions({
-			url: pageState.activeConnectionUrl,
-			schema: search.schema,
-		}),
-		enabled: !!search.schema,
-	});
-	const tables = tablesQuery.data || [];
-
-	// Fetch columns for each table
-	const columnQuery = useQuery(
-		getAllTablesColumnsQueryOptions({
-			url: pageState.activeConnectionUrl,
-			schema: search.schema,
-		}),
-	);
-	const columns = columnQuery.data ?? [];
-
-	const explainQuery = useQuery({
-		enabled: false,
-		queryKey: ["remote", "explain", search.customSql],
-		queryFn: async () => {
-			// Only allow explain for PostgreSQL databases
-			if (connection.dialect !== DatabaseDialect.Postgres) {
-				alert("Query explain is only supported for PostgreSQL databases");
-				return;
-			}
-
-			const sqlToExplain = search.customSql || pageState.sqlQuery?.sql;
-			if (!sqlToExplain) {
-				alert("No SQL query to explain");
-				return;
-			}
-
-			try {
-				setShowExplainPanel(true);
-				const result = await explainQueryServerFn({
-					data: {
-						url: pageState.activeConnectionUrl,
-						sql: sqlToExplain,
-					},
-				});
-
-				if (result) {
-					return result.plan;
-				}
-			} catch (error) {
-				const message =
-					error instanceof Error ? error.message : "Failed to explain query";
-				return `Error: ${message}`;
-			}
-		},
-	});
-	const [showExplainPanel, setShowExplainPanel] = useState(false);
-
 	const { filters: structureFilters } = useStructureFilters();
-	const relationshipPanelSize = fromPixelToPercentage(50, "vertical");
 
-	const onEditorValueChange = useDebouncedCallback(
-		(value: string) => {
-			return navigate({
-				search: (prev) =>
-					updateTabState(prev, {
-						customSql: value,
-					}),
-			});
-		},
-		{ wait: 500 },
-	);
+	console.log(pageState);
 
 	return (
 		<>
@@ -573,100 +495,16 @@ const MainTableContent = (props: { connection: DbConnection }) => {
 						<Splitter.Panel id={panels.sqlPreview} className="overflow-hidden">
 							<Splitter.Context>
 								{(ctx) => (
-									<SqlQueryPreview
-										tables={tables}
-										columns={columns}
-										sql={pageState.sqlQuery?.sql || ""}
-										// isLoading={pageState.sqlQuery.isLoading}
-										// error={pageState.sqlQuery.error}
+									<RowsTableSqlEditor
+										connection={props.connection}
 										isCollapsed={Boolean(
 											tryFn(() => ctx.isPanelCollapsed(panels.sqlPreview)),
 										)}
-										onToggleCollapsed={() =>
-											ctx.isPanelExpanded(panels.sqlPreview)
-												? ctx.collapsePanel(panels.sqlPreview)
-												: ctx.expandPanel(panels.sqlPreview)
-										}
-										editorMode={search.sqlEditorMode ?? "preview"}
-										onEditorModeChange={(mode) =>
-											navigate({
-												search: (prev) =>
-													updateTabState(prev, {
-														sqlEditorMode: mode,
-													}),
-											})
-										}
-										customSql={search.customSql}
-										onEditorChange={(value) => onEditorValueChange(value)}
-										onResetCustomSql={() =>
-											navigate({
-												search: (prev) =>
-													updateTabState(prev, {
-														customSql: undefined,
-													}),
-											})
-										}
-										onRun={() => {
-											// Check for destructive queries
-											const sqlToRun =
-												search.customSql || pageState.sqlQuery?.sql;
-											if (sqlToRun && isDestructiveQuery(sqlToRun)) {
-												setPendingQueryExecution(() => () => {
-													pageState.rowsQuery.refetch();
-													setShowDestructiveConfirm(false);
-													setPendingQueryExecution(null);
-												});
-												setShowDestructiveConfirm(true);
-												return;
-											}
-											// Trigger refetch of the rows query
-											pageState.rowsQuery.refetch();
-										}}
-										onExplain={explainQuery.refetch}
-										disableExplain={
-											connection?.dialect !== DatabaseDialect.Postgres
-										}
-										onFormat={() => {
-											const sqlToFormat =
-												search.customSql || pageState.sqlQuery?.sql;
-											if (!sqlToFormat) {
-												alert("No SQL query to format");
-												return;
-											}
-
-											try {
-												const formatted = formatSQL(sqlToFormat, {
-													language:
-														connection.dialect === DatabaseDialect.Postgres
-															? "postgresql"
-															: "sqlite",
-													onError: (error) => {
-														toaster.create({
-															title: "Failed to format SQL",
-															description: error.message,
-														});
-													},
-												});
-												navigate({
-													search: (prev) =>
-														updateTabState(prev, {
-															customSql: formatted,
-															sqlEditorMode: "editor",
-														}),
-												});
-											} catch (error) {
-												const message =
-													error instanceof Error
-														? error.message
-														: "Failed to format SQL";
-												alert(`Error formatting SQL: ${message}`);
-											}
-										}}
-										onToggleFullscreen={() =>
-											setIsEditorFullscreen(!isEditorFullscreen)
-										}
-										isFullscreen={isEditorFullscreen}
-										className="text-sm h-full"
+										onExpand={() => ctx.expandPanel(panels.sqlPreview)}
+										onCollapse={() => ctx.collapsePanel(panels.sqlPreview)}
+										activeConnectionUrl={pageState.activeConnectionUrl}
+										sqlQuery={pageState.sqlQuery}
+										rowsQuery={pageState.rowsQuery}
 									/>
 								)}
 							</Splitter.Context>
@@ -721,218 +559,13 @@ const MainTableContent = (props: { connection: DbConnection }) => {
 									</Stack>
 								</div>
 							) : (
-								<>
-									<Splitter.Root
-										orientation="vertical"
-										className="flex-1 flex flex-col h-full overflow-hidden"
-										panels={[
-											{
-												id: panels.rowsTable,
-												collapsible: true,
-												minSize: 0,
-											},
-											{
-												id: panels.relationships,
-												collapsible: true,
-												collapsedSize: relationshipPanelSize,
-												minSize: relationshipPanelSize,
-											},
-										]}
-									>
-										<Splitter.Panel
-											id={panels.rowsTable}
-											className="flex-1 overflow-auto flex flex-col relative"
-										>
-											<ColumnHeaderContextProvider
-												renderColumnHeaderMenuItems={({ column }) => (
-													<>
-														<Menu
-															positioning={{
-																placement: "right-start",
-																gutter: -2,
-															}}
-															lazyMount
-														>
-															<MenuTriggerItem>
-																<ArrowDownUp className="size-4" />
-																Sort with nulls...
-															</MenuTriggerItem>
-															<MenuContent className="z-50">
-																<MenuItem
-																	value="sort-asc-nulls-first"
-																	onClick={() => {
-																		column.toggleSorting(false, false);
-																		pageState.onNullsOrderChange("first");
-																	}}
-																	disabled={
-																		column.getIsSorted() === "asc" &&
-																		pageState.currentNullsOrder === "first"
-																	}
-																>
-																	<ArrowUp className="size-4" />
-																	<MenuItemText>
-																		Sort asc, nulls first
-																	</MenuItemText>
-																</MenuItem>
-																<MenuItem
-																	value="sort-asc-nulls-last"
-																	onClick={() => {
-																		column.toggleSorting(false, false);
-																		pageState.onNullsOrderChange("last");
-																	}}
-																	disabled={
-																		column.getIsSorted() === "asc" &&
-																		pageState.currentNullsOrder === "last"
-																	}
-																>
-																	<ArrowUp className="size-4" />
-																	<MenuItemText>
-																		Sort asc, nulls last
-																	</MenuItemText>
-																</MenuItem>
-																<MenuItem
-																	value="sort-desc-nulls-first"
-																	onClick={() => {
-																		column.toggleSorting(true, false);
-																		pageState.onNullsOrderChange("first");
-																	}}
-																	disabled={
-																		column.getIsSorted() === "desc" &&
-																		pageState.currentNullsOrder === "first"
-																	}
-																>
-																	<ArrowDown className="size-4" />
-																	<MenuItemText>
-																		Sort desc, nulls first
-																	</MenuItemText>
-																</MenuItem>
-																<MenuItem
-																	value="sort-desc-nulls-last"
-																	onClick={() => {
-																		column.toggleSorting(true, false);
-																		pageState.onNullsOrderChange("last");
-																	}}
-																	disabled={
-																		column.getIsSorted() === "desc" &&
-																		pageState.currentNullsOrder === "last"
-																	}
-																>
-																	<ArrowDown className="size-4" />
-																	<MenuItemText>
-																		Sort desc, nulls last
-																	</MenuItemText>
-																</MenuItem>
-																{(column.getIsSorted() ||
-																	pageState.currentNullsOrder) && (
-																	<MenuItem
-																		value="clear-sort-and-nulls"
-																		onClick={() => {
-																			column.clearSorting();
-																			pageState.onNullsOrderChange(undefined);
-																		}}
-																	>
-																		<MenuItemText>
-																			Clear sort &amp; nulls order
-																		</MenuItemText>
-																	</MenuItem>
-																)}
-															</MenuContent>
-														</Menu>
-													</>
-												)}
-											>
-												<DataTable
-													// virtualized={search.limit > 100}
-													enableRowVirtualization
-													enableColumnOrdering
-													table={pageState.rowsDataTable}
-													getTableContainer={setTableContainer}
-													isLoading={
-														pageState.rowsQuery.isLoading ||
-														pageState.isColumnMetadataLoading
-													}
-													emptyState={
-														pageState.rowsAffected !== undefined ? (
-															<div className="py-2">
-																<p className="text-lg font-semibold text-foreground mb-2">
-																	Query executed successfully
-																</p>
-																<p className="text-base text-muted-foreground">
-																	{pageState.rowsAffected === 1
-																		? `${pageState.rowsAffected} row affected`
-																		: `${pageState.rowsAffected} rows affected`}
-																</p>
-															</div>
-														) : (
-															true
-														)
-													}
-													size={search.tableSize}
-													onColumnFilterClick={(columnId) => {
-														navigate({
-															search: (prev) =>
-																updateTabState(prev, (tab) => ({
-																	filtersOpened: true,
-																	filters: {
-																		conditions: [
-																			...(tab.filters?.conditions ?? []),
-																			{
-																				column: columnId,
-																				operator: "equals",
-																			},
-																		],
-																		logicalOperator:
-																			tab.filters?.logicalOperator ?? "and",
-																	},
-																})),
-														});
-													}}
-													onExpandRowJson={(row) => {
-														const primaryKeyColumn =
-															pageState.columnMetadata.find(
-																(col) => col.primaryKey,
-															);
-														const rowId = primaryKeyColumn
-															? String(row[primaryKeyColumn.name])
-															: undefined;
-														navigate({
-															search: (prev) => ({
-																...prev,
-																rowJsonViewerRowId: rowId,
-																rowJsonViewerOpen: !!rowId,
-															}),
-														});
-													}}
-												/>
-												{!pageState.rowsQuery.isLoading &&
-													!pageState.isColumnMetadataLoading && (
-														<ScrollToColumnButton
-															table={pageState.rowsDataTable}
-															containerRef={{
-																current: tableContainer,
-															}}
-														/>
-													)}
-											</ColumnHeaderContextProvider>
-										</Splitter.Panel>
-
-										{pageState.relationshipRowId && search.table && (
-											<BottomRelationshipPanel
-												activeConnectionUrl={pageState.activeConnectionUrl}
-												relationshipRowId={pageState.relationshipRowId}
-												schema={search.schema}
-												table={search.table!}
-												rowData={
-													pageState.rowsDataTable
-														.getRowModel()
-														.rows.find(
-															(row) => row.id === pageState.relationshipRowId,
-														)?.original ?? {}
-												}
-											/>
-										)}
-									</Splitter.Root>
-								</>
+								<RowsTableContent
+									activeConnectionUrl={pageState.activeConnectionUrl}
+									rowsDataTable={pageState.rowsDataTable}
+									rowsQuery={pageState.rowsQuery}
+									isColumnMetadataLoading={pageState.isColumnMetadataLoading}
+									columnMetadata={pageState.columnMetadata}
+								/>
 							)}
 							{/* Status Bar */}
 							<div className="shrink-0 border-t">
@@ -943,7 +576,7 @@ const MainTableContent = (props: { connection: DbConnection }) => {
 									refetch={pageState.rowsQuery.refetch}
 									timeTaken={pageState.queryResponse.timeTaken}
 									ranAt={pageState.queryResponse.ranAt}
-									totalRowCount={pageState.totalRowCount}
+									totalRowCount={pageState.queryResponse.rowCount}
 									rowsColumnsCount={pageState.rowsColumns.length - 1} // minus select column
 								/>
 							</div>
@@ -951,6 +584,191 @@ const MainTableContent = (props: { connection: DbConnection }) => {
 					</Splitter.Root>
 				)}
 			</div>
+		</>
+	);
+};
+
+const RowsTableSqlEditor = (
+	props: Pick<
+		ConnectionPageState,
+		"activeConnectionUrl" | "sqlQuery" | "rowsQuery"
+	> & {
+		connection: DbConnection;
+		isCollapsed?: boolean;
+		onExpand: () => void;
+		onCollapse: () => void;
+	},
+) => {
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
+	const search = useActiveTabState((tab, search) => {
+		return {
+			schema: tab.schema,
+			table: tab.table,
+			sqlEditorMode: tab.sqlEditorMode,
+			customSql: tab.customSql,
+		};
+	});
+
+	const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
+	const [showDestructiveConfirm, setShowDestructiveConfirm] = useState(false);
+	const [pendingQueryExecution, setPendingQueryExecution] = useState<
+		(() => void) | null
+	>(null);
+
+	// Fetch available tables for intellisense
+	const tablesQuery = useQuery({
+		...listAvailableTablesQueryOptions({
+			url: props.activeConnectionUrl,
+			schema: search.schema,
+		}),
+		enabled: !!search.schema,
+	});
+	const tables = tablesQuery.data || [];
+
+	// Fetch columns for each table
+	const columnQuery = useQuery(
+		getAllTablesColumnsQueryOptions({
+			url: props.activeConnectionUrl,
+			schema: search.schema,
+		}),
+	);
+	const columns = columnQuery.data ?? [];
+
+	const [showExplainPanel, setShowExplainPanel] = useState(false);
+	const explainQuery = useQuery({
+		enabled: false,
+		queryKey: ["remote", "explain", search.customSql],
+		queryFn: async () => {
+			// Only allow explain for PostgreSQL databases
+			if (props.connection.dialect !== DatabaseDialect.Postgres) {
+				alert("Query explain is only supported for PostgreSQL databases");
+				return;
+			}
+
+			const sqlToExplain = search.customSql || props.sqlQuery?.sql;
+			if (!sqlToExplain) {
+				alert("No SQL query to explain");
+				return;
+			}
+
+			try {
+				setShowExplainPanel(true);
+				const result = await explainQueryServerFn({
+					data: {
+						url: props.activeConnectionUrl,
+						sql: sqlToExplain,
+					},
+				});
+
+				if (result) {
+					return result.plan;
+				}
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : "Failed to explain query";
+				return `Error: ${message}`;
+			}
+		},
+	});
+
+	const onEditorValueChange = useDebouncedCallback(
+		(value: string) => {
+			return navigate({
+				search: (prev) =>
+					updateTabState(prev, {
+						customSql: value,
+					}),
+			});
+		},
+		{ wait: 500 },
+	);
+
+	return (
+		<>
+			<SqlQueryPreview
+				tables={tables}
+				columns={columns}
+				sql={props.sqlQuery?.sql || ""}
+				// isLoading={props.sqlQuery.isLoading}
+				// error={props.sqlQuery.error}
+				isCollapsed={props.isCollapsed}
+				onToggleCollapsed={() =>
+					props.isCollapsed ? props.onExpand() : props.onCollapse()
+				}
+				editorMode={search.sqlEditorMode ?? "preview"}
+				onEditorModeChange={(mode) =>
+					navigate({
+						search: (prev) =>
+							updateTabState(prev, {
+								sqlEditorMode: mode,
+							}),
+					})
+				}
+				customSql={search.customSql}
+				onEditorChange={(value) => onEditorValueChange(value)}
+				onResetCustomSql={() =>
+					navigate({
+						search: (prev) =>
+							updateTabState(prev, {
+								customSql: undefined,
+							}),
+					})
+				}
+				onRun={() => {
+					// Check for destructive queries
+					const sqlToRun = search.customSql || props.sqlQuery?.sql;
+					if (sqlToRun && isDestructiveQuery(sqlToRun)) {
+						setPendingQueryExecution(() => () => {
+							props.rowsQuery.refetch();
+							setShowDestructiveConfirm(false);
+							setPendingQueryExecution(null);
+						});
+						setShowDestructiveConfirm(true);
+						return;
+					}
+					// Trigger refetch of the rows query
+					props.rowsQuery.refetch();
+				}}
+				onExplain={explainQuery.refetch}
+				disableExplain={props.connection?.dialect !== DatabaseDialect.Postgres}
+				onFormat={() => {
+					const sqlToFormat = search.customSql || props.sqlQuery?.sql;
+					if (!sqlToFormat) {
+						alert("No SQL query to format");
+						return;
+					}
+
+					try {
+						const formatted = formatSQL(sqlToFormat, {
+							language:
+								props.connection.dialect === DatabaseDialect.Postgres
+									? "postgresql"
+									: "sqlite",
+							onError: (error) => {
+								toaster.create({
+									title: "Failed to format SQL",
+									description: error.message,
+								});
+							},
+						});
+						navigate({
+							search: (prev) =>
+								updateTabState(prev, {
+									customSql: formatted,
+									sqlEditorMode: "editor",
+								}),
+						});
+					} catch (error) {
+						const message =
+							error instanceof Error ? error.message : "Failed to format SQL";
+						alert(`Error formatting SQL: ${message}`);
+					}
+				}}
+				onToggleFullscreen={() => setIsEditorFullscreen(!isEditorFullscreen)}
+				isFullscreen={isEditorFullscreen}
+				className="text-sm h-full"
+			/>
 			<ExplainOutputDrawer
 				showExplainPanel={showExplainPanel}
 				setShowExplainPanel={setShowExplainPanel}
@@ -967,10 +785,249 @@ const MainTableContent = (props: { connection: DbConnection }) => {
 					setPendingQueryExecution(null);
 				}}
 				queryType={getDestructiveQuerySummary(
-					search.customSql || pageState.sqlQuery?.sql || "",
+					search.customSql || props.sqlQuery?.sql || "",
 				)}
-				isLoading={pageState.rowsQuery.isLoading}
+				isLoading={props.rowsQuery.isLoading}
 			/>
+		</>
+	);
+};
+
+const RowsTableContent = (
+	props: Pick<
+		ConnectionPageState,
+		| "activeConnectionUrl"
+		| "rowsDataTable"
+		| "rowsQuery"
+		| "isColumnMetadataLoading"
+		| "columnMetadata"
+	>,
+) => {
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
+	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
+		null,
+	);
+	const relationshipPanelSize = fromPixelToPercentage(50, "vertical");
+
+	const search = useActiveTabState((tab, search) => {
+		return {
+			schema: tab.schema,
+			table: tab.table,
+			tableSize: tab.tableSize,
+			relationshipRowId: tab.relationshipRowId,
+			nullsOrder: tab.nullsOrder,
+		};
+	});
+
+	const onNullsOrderChange = (nullsOrder: "first" | "last" | undefined) => {
+		navigate({
+			search: (prev) => {
+				return updateTabState(prev, {
+					nullsOrder,
+				});
+			},
+		});
+	};
+
+	return (
+		<>
+			<Splitter.Root
+				orientation="vertical"
+				className="flex-1 flex flex-col h-full overflow-hidden"
+				panels={[
+					{
+						id: panels.rowsTable,
+						collapsible: true,
+						minSize: 0,
+					},
+					{
+						id: panels.relationships,
+						collapsible: true,
+						collapsedSize: relationshipPanelSize,
+						minSize: relationshipPanelSize,
+					},
+				]}
+			>
+				<Splitter.Panel
+					id={panels.rowsTable}
+					className="flex-1 overflow-auto flex flex-col relative"
+				>
+					<ColumnHeaderContextProvider
+						renderColumnHeaderMenuItems={({ column }) => (
+							<>
+								<Menu
+									positioning={{
+										placement: "right-start",
+										gutter: -2,
+									}}
+									lazyMount
+								>
+									<MenuTriggerItem>
+										<ArrowDownUp className="size-4" />
+										Sort with nulls...
+									</MenuTriggerItem>
+									<MenuContent className="z-50">
+										<MenuItem
+											value="sort-asc-nulls-first"
+											onClick={() => {
+												column.toggleSorting(false, false);
+												onNullsOrderChange("first");
+											}}
+											disabled={
+												column.getIsSorted() === "asc" &&
+												search.nullsOrder === "first"
+											}
+										>
+											<ArrowUp className="size-4" />
+											<MenuItemText>Sort asc, nulls first</MenuItemText>
+										</MenuItem>
+										<MenuItem
+											value="sort-asc-nulls-last"
+											onClick={() => {
+												column.toggleSorting(false, false);
+												onNullsOrderChange("last");
+											}}
+											disabled={
+												column.getIsSorted() === "asc" &&
+												search.nullsOrder === "last"
+											}
+										>
+											<ArrowUp className="size-4" />
+											<MenuItemText>Sort asc, nulls last</MenuItemText>
+										</MenuItem>
+										<MenuItem
+											value="sort-desc-nulls-first"
+											onClick={() => {
+												column.toggleSorting(true, false);
+												onNullsOrderChange("first");
+											}}
+											disabled={
+												column.getIsSorted() === "desc" &&
+												search.nullsOrder === "first"
+											}
+										>
+											<ArrowDown className="size-4" />
+											<MenuItemText>Sort desc, nulls first</MenuItemText>
+										</MenuItem>
+										<MenuItem
+											value="sort-desc-nulls-last"
+											onClick={() => {
+												column.toggleSorting(true, false);
+												onNullsOrderChange("last");
+											}}
+											disabled={
+												column.getIsSorted() === "desc" &&
+												search.nullsOrder === "last"
+											}
+										>
+											<ArrowDown className="size-4" />
+											<MenuItemText>Sort desc, nulls last</MenuItemText>
+										</MenuItem>
+										{(column.getIsSorted() || search.nullsOrder) && (
+											<MenuItem
+												value="clear-sort-and-nulls"
+												onClick={() => {
+													column.clearSorting();
+													onNullsOrderChange(undefined);
+												}}
+											>
+												<MenuItemText>
+													Clear sort &amp; nulls order
+												</MenuItemText>
+											</MenuItem>
+										)}
+									</MenuContent>
+								</Menu>
+							</>
+						)}
+					>
+						<DataTable
+							// virtualized={search.limit > 100}
+							enableRowVirtualization
+							enableColumnOrdering
+							table={props.rowsDataTable}
+							getTableContainer={setTableContainer}
+							isLoading={
+								props.rowsQuery.isLoading || props.isColumnMetadataLoading
+							}
+							emptyState={
+								props.rowsQuery.data?.rowsAffected !== undefined ? (
+									<div className="py-2">
+										<p className="text-lg font-semibold text-foreground mb-2">
+											Query executed successfully
+										</p>
+										<p className="text-base text-muted-foreground">
+											{props.rowsQuery.data?.rowsAffected === 1
+												? `${props.rowsQuery.data?.rowsAffected} row affected`
+												: `${props.rowsQuery.data?.rowsAffected} rows affected`}
+										</p>
+									</div>
+								) : (
+									true
+								)
+							}
+							size={search.tableSize}
+							onColumnFilterClick={(columnId) => {
+								navigate({
+									search: (prev) =>
+										updateTabState(prev, (tab) => ({
+											filtersOpened: true,
+											filters: {
+												conditions: [
+													...(tab.filters?.conditions ?? []),
+													{
+														column: columnId,
+														operator: "equals",
+													},
+												],
+												logicalOperator: tab.filters?.logicalOperator ?? "and",
+											},
+										})),
+								});
+							}}
+							onExpandRowJson={(row) => {
+								const primaryKeyColumn = props.columnMetadata.find(
+									(col) => col.primaryKey,
+								);
+								const rowId = primaryKeyColumn
+									? String(row[primaryKeyColumn.name])
+									: undefined;
+								navigate({
+									search: (prev) => ({
+										...prev,
+										rowJsonViewerRowId: rowId,
+										rowJsonViewerOpen: !!rowId,
+									}),
+								});
+							}}
+						/>
+						{!props.rowsQuery.isLoading && !props.isColumnMetadataLoading && (
+							<ScrollToColumnButton
+								table={props.rowsDataTable}
+								containerRef={{
+									current: tableContainer,
+								}}
+							/>
+						)}
+					</ColumnHeaderContextProvider>
+				</Splitter.Panel>
+
+				{search.relationshipRowId && search.table && (
+					<BottomRelationshipPanel
+						activeConnectionUrl={props.activeConnectionUrl}
+						relationshipRowId={search.relationshipRowId}
+						schema={search.schema}
+						table={search.table!}
+						rowData={
+							props.rowsDataTable
+								.getRowModel()
+								.rows.find((row) => row.id === search.relationshipRowId)
+								?.original ?? {}
+						}
+					/>
+				)}
+			</Splitter.Root>
 		</>
 	);
 };

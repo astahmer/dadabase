@@ -196,21 +196,18 @@ export const useConnectionPageState = ({
 		ranAt: 0,
 		rowsAffected: undefined,
 	};
-	const rowsList = queryResponse.rows;
-	const totalRowCount = queryResponse.rowCount;
-	const rowsAffected = queryResponse.rowsAffected;
 	// console.log(queryResponse);
 
 	const formattedTableRowsData = useMemo(
 		() =>
-			rowsList.map((row) => {
+			queryResponse.rows.map((row) => {
 				const formatted: Record<string, unknown> = {};
 				for (const [key, value] of Object.entries(row)) {
 					formatted[key] = formatTableValue(value);
 				}
 				return formatted;
 			}),
-		[rowsList],
+		[queryResponse.rows],
 	);
 
 	// Static columns
@@ -576,7 +573,7 @@ export const useConnectionPageState = ({
 		enableRowSelection: true,
 		enableColumnPinning: true,
 		onRowSelectionChange: setRowSelection,
-		rowCount: totalRowCount,
+		rowCount: queryResponse.rowCount,
 		defaultColumn: {
 			minSize: 100,
 			size: defaultColumnSize,
@@ -655,16 +652,6 @@ export const useConnectionPageState = ({
 		},
 	});
 
-	const onNullsOrderChange = (nullsOrder: "first" | "last" | undefined) => {
-		navigate({
-			search: (prev) => {
-				return updateTabState(prev, {
-					nullsOrder,
-				});
-			},
-		});
-	};
-
 	return {
 		activeConnectionUrl,
 		queryBuilder,
@@ -674,16 +661,13 @@ export const useConnectionPageState = ({
 		columnNameList: columnNameList,
 		isColumnMetadataLoading: tableMetadata.isLoading,
 		queryResponse,
-		totalRowCount,
-		rowsAffected,
 		rowsDataTable,
 		rowsColumns,
 		joins,
 		hasUuid,
-		relationshipRowId: search.relationshipRowId,
 		relationships,
 		renderSubrows,
-		onNullsOrderChange,
-		currentNullsOrder: search.nullsOrder,
 	};
 };
+
+export type ConnectionPageState = ReturnType<typeof useConnectionPageState>;
