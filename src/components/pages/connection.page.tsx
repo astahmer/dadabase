@@ -58,12 +58,14 @@ import {
 } from "./connection-page/create-tab-state.ts";
 import { ExplainOutput } from "./connection-page/explain-output.tsx";
 import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
-import { RowsTableErrorState } from "./connection-page/rows-table-error-state.tsx";
+import { TabErrorState } from "./connection-page/tab-error-state.tsx";
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
+import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
+import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -110,6 +112,17 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	const sidebarMinSize = fromPixelToPercentage(224, "horizontal");
 	const queryLoggerMinSize = fromPixelToPercentage(48, "vertical");
 	const defaultQueryLoggerSize = queryLoggerSize ?? 25; // Default 25% if not set
+
+	const search = useActiveTabState((tab) => ({
+		schema: tab.schema,
+		table: tab.table,
+	}));
+
+	const schemaListQuery = useQuery({
+		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
+		enabled: !!activeConnectionUrl,
+		retry: 3,
+	});
 
 	return (
 		<div className="h-screen bg-background flex flex-col">
@@ -191,7 +204,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 						className="h-full min-h-0 flex-1 flex flex-col overflow-hidden"
 					>
 						<Splitter.Context>
-							{(outerCtx) => (
+							{(sidebarSplitterCtx) => (
 								<Splitter.Root
 									orientation="vertical"
 									defaultSize={[
@@ -246,10 +259,47 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 										id={panels.rowsContent}
 										className="h-full min-h-0 flex-1 flex flex-col overflow-hidden"
 									>
-										<MainContent
-											connection={connection}
-											sidebarAndMainContentSplitterContext={outerCtx}
+										{/* Tabs */}
+										<ConnectionPageTabs
+											activeConnectionUrl={activeConnectionUrl}
+											dialect={connection.dialect}
+											onToggleSidebar={() => {
+												if (
+													sidebarSplitterCtx.isPanelExpanded(panels.sidebar)
+												) {
+													sidebarSplitterCtx.collapsePanel(panels.sidebar);
+													void navigate({
+														search: (prev) => ({ ...prev, sidebarSize: 0 }),
+													});
+													return;
+												}
+
+												sidebarSplitterCtx.expandPanel(panels.sidebar);
+												void navigate({
+													search: (prev) => ({
+														...prev,
+														sidebarSize: sidebarSplitterCtx.getPanelSize(
+															panels.sidebar,
+														),
+													}),
+												});
+											}}
+											isSidebarCollapsed={sidebarSplitterCtx.isPanelCollapsed(
+												panels.sidebar,
+											)}
 										/>
+										{schemaListQuery.isError ? (
+											<TabErrorState
+												activeConnectionUrl={activeConnectionUrl}
+											/>
+										) : search.table && search.schema ? (
+											<MainTableContent connection={connection} />
+										) : (
+											<EmptyTabContent
+												activeConnectionUrl={activeConnectionUrl}
+												connection={connection}
+											/>
+										)}
 									</Splitter.Panel>
 
 									{/* Resize Handle for Query Logger */}
@@ -322,11 +372,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	);
 };
 
-const MainContent = (props: {
-	connection: DbConnection;
-	sidebarAndMainContentSplitterContext: UseSplitterContext;
-}) => {
-	const { connection, sidebarAndMainContentSplitterContext } = props;
+const MainTableContent = (props: { connection: DbConnection }) => {
+	const { connection } = props;
 	const pageState = useConnectionPageState({ connection });
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
@@ -427,613 +474,488 @@ const MainContent = (props: {
 
 	return (
 		<>
-			{/* Tabs */}
-			<ConnectionPageTabs
-				activeConnectionUrl={pageState.activeConnectionUrl}
-				dialect={connection.dialect}
-				onToggleSidebar={() => {
-					if (
-						sidebarAndMainContentSplitterContext.isPanelExpanded(panels.sidebar)
-					) {
-						sidebarAndMainContentSplitterContext.collapsePanel(panels.sidebar);
-						void navigate({
-							search: (prev) => ({ ...prev, sidebarSize: 0 }),
-						});
-						return;
-					}
-
-					sidebarAndMainContentSplitterContext.expandPanel(panels.sidebar);
-					void navigate({
-						search: (prev) => ({
-							...prev,
-							sidebarSize: sidebarAndMainContentSplitterContext.getPanelSize(
-								panels.sidebar,
-							),
-						}),
-					});
-				}}
-				isSidebarCollapsed={sidebarAndMainContentSplitterContext.isPanelCollapsed(
-					panels.sidebar,
-				)}
+			{/* Filters */}
+			<ConnectionPageFilters
+				columnList={pageState.columnNameList}
+				table={pageState.rowsDataTable}
+				isLoading={
+					pageState.rowsQuery.isLoading || pageState.isColumnMetadataLoading
+				}
+				queryBuilder={pageState.queryBuilder}
+				url={pageState.activeConnectionUrl}
+				schema={search.schema}
+				tableName={search.table}
 			/>
 
-			{search.table && search.schema ? (
-				<>
-					{/* Filters */}
-					<ConnectionPageFilters
-						columnList={pageState.columnNameList}
-						table={pageState.rowsDataTable}
-						isLoading={
-							pageState.rowsQuery.isLoading || pageState.isColumnMetadataLoading
+			{/* Query Filter Builder */}
+			{search.viewMode === "rows" &&
+				pageState.rowsColumns.length > 0 &&
+				search.filtersOpened && (
+					<QueryFilterBuilder
+						key={search.table}
+						conditions={pageState.queryBuilder.filter.conditions}
+						onUpdateCondition={pageState.queryBuilder.updateCondition}
+						onRemoveCondition={pageState.queryBuilder.removeCondition}
+						onLogicalOperatorChange={pageState.queryBuilder.setLogicalOperator}
+						onAddCondition={pageState.queryBuilder.addCondition}
+						onClearAll={pageState.queryBuilder.clearConditions}
+						logicalOperator={pageState.queryBuilder.filter.logicalOperator}
+						availableColumns={pageState.columnNameList}
+						isLoading={pageState.rowsQuery.isLoading}
+						disabled={
+							Boolean(search.customSql) &&
+							search.customSql !== pageState.sqlQuery?.sql
 						}
-						queryBuilder={pageState.queryBuilder}
-						url={pageState.activeConnectionUrl}
-						schema={search.schema}
-						tableName={search.table}
 					/>
+				)}
 
-					{/* Query Filter Builder */}
-					{search.viewMode === "rows" &&
-						pageState.rowsColumns.length > 0 &&
-						search.filtersOpened && (
-							<QueryFilterBuilder
-								key={search.table}
-								conditions={pageState.queryBuilder.filter.conditions}
-								onUpdateCondition={pageState.queryBuilder.updateCondition}
-								onRemoveCondition={pageState.queryBuilder.removeCondition}
-								onLogicalOperatorChange={
-									pageState.queryBuilder.setLogicalOperator
-								}
-								onAddCondition={pageState.queryBuilder.addCondition}
-								onClearAll={pageState.queryBuilder.clearConditions}
-								logicalOperator={pageState.queryBuilder.filter.logicalOperator}
-								availableColumns={pageState.columnNameList}
-								isLoading={pageState.rowsQuery.isLoading}
-								disabled={
-									Boolean(search.customSql) &&
-									search.customSql !== pageState.sqlQuery?.sql
-								}
-							/>
-						)}
+			{/* Content */}
+			<div className="flex-1 overflow-hidden flex flex-col h-full">
+				{search.viewMode === "structure" ? (
+					<div className="flex-1 overflow-auto p-2 pt-0">
+						<StructureTable
+							columnMetadata={pageState.columnMetadata}
+							isLoading={pageState.isColumnMetadataLoading}
+							tableSize={search.tableSize}
+							filters={structureFilters}
+						/>
+					</div>
+				) : (
+					<Splitter.Root
+						// key={search.table}
+						orientation="vertical"
+						className="flex-1 flex flex-col h-full overflow-hidden"
+						// kinda weird issue where swapping tabs doesnt reset the internal Splitter state
+						// another way to fix this would be to use a key on the Splitter.Root
+						// but then this would reset every children as well i think? so kinda sucks
+						size={
+							search.sqlPreviewSize === 0
+								? [search.sqlPreviewSize, 100]
+								: undefined
+						}
+						defaultSize={[
+							search.sqlPreviewSize ?? fromPixelToPercentage(200, "vertical"),
+							fromPixelToPercentage(656, "vertical"),
+						]}
+						panels={[
+							{
+								id: panels.sqlPreview,
+								collapsible: true,
+								minSize: fromPixelToPercentage(220, "vertical"),
+							},
+							{ id: panels.rowsContent, collapsible: false },
+						]}
+						onResizeEnd={(details) => {
+							void navigate({
+								search: (prev) =>
+									updateTabState(prev, {
+										sqlPreviewSize: details.size[0],
+									}),
+							});
+						}}
+						onExpand={(details) => {
+							if (details.panelId === panels.sqlPreview) {
+								void navigate({
+									search: (prev) =>
+										updateTabState(prev, {
+											sqlPreviewSize: details.size,
+										}),
+								});
+							}
+						}}
+						onCollapse={(details) => {
+							if (details.panelId === panels.sqlPreview) {
+								void navigate({
+									search: (prev) =>
+										updateTabState(prev, {
+											sqlPreviewSize: details.size,
+										}),
+								});
+							}
+						}}
+					>
+						{/* SQL Query Preview */}
+						<Splitter.Panel id={panels.sqlPreview} className="overflow-hidden">
+							<Splitter.Context>
+								{(ctx) => (
+									<SqlQueryPreview
+										tables={tables}
+										columns={columns}
+										sql={pageState.sqlQuery?.sql || ""}
+										// isLoading={pageState.sqlQuery.isLoading}
+										// error={pageState.sqlQuery.error}
+										isCollapsed={Boolean(
+											tryFn(() => ctx.isPanelCollapsed(panels.sqlPreview)),
+										)}
+										onToggleCollapsed={() =>
+											ctx.isPanelExpanded(panels.sqlPreview)
+												? ctx.collapsePanel(panels.sqlPreview)
+												: ctx.expandPanel(panels.sqlPreview)
+										}
+										editorMode={search.sqlEditorMode ?? "preview"}
+										onEditorModeChange={(mode) =>
+											navigate({
+												search: (prev) =>
+													updateTabState(prev, {
+														sqlEditorMode: mode,
+													}),
+											})
+										}
+										customSql={search.customSql}
+										onEditorChange={(value) => onEditorValueChange(value)}
+										onResetCustomSql={() =>
+											navigate({
+												search: (prev) =>
+													updateTabState(prev, {
+														customSql: undefined,
+													}),
+											})
+										}
+										onRun={() => {
+											// Check for destructive queries
+											const sqlToRun =
+												search.customSql || pageState.sqlQuery?.sql;
+											if (sqlToRun && isDestructiveQuery(sqlToRun)) {
+												setPendingQueryExecution(() => () => {
+													pageState.rowsQuery.refetch();
+													setShowDestructiveConfirm(false);
+													setPendingQueryExecution(null);
+												});
+												setShowDestructiveConfirm(true);
+												return;
+											}
+											// Trigger refetch of the rows query
+											pageState.rowsQuery.refetch();
+										}}
+										onExplain={explainQuery.refetch}
+										disableExplain={
+											connection?.dialect !== DatabaseDialect.Postgres
+										}
+										onFormat={() => {
+											const sqlToFormat =
+												search.customSql || pageState.sqlQuery?.sql;
+											if (!sqlToFormat) {
+												alert("No SQL query to format");
+												return;
+											}
 
-					{/* Content */}
-					<div className="flex-1 overflow-hidden flex flex-col h-full">
-						{search.viewMode === "structure" ? (
-							<div className="flex-1 overflow-auto p-2 pt-0">
-								<StructureTable
-									columnMetadata={pageState.columnMetadata}
-									isLoading={pageState.isColumnMetadataLoading}
-									tableSize={search.tableSize}
-									filters={structureFilters}
+											try {
+												const formatted = formatSQL(sqlToFormat, {
+													language:
+														connection.dialect === DatabaseDialect.Postgres
+															? "postgresql"
+															: "sqlite",
+													onError: (error) => {
+														toaster.create({
+															title: "Failed to format SQL",
+															description: error.message,
+														});
+													},
+												});
+												navigate({
+													search: (prev) =>
+														updateTabState(prev, {
+															customSql: formatted,
+															sqlEditorMode: "editor",
+														}),
+												});
+											} catch (error) {
+												const message =
+													error instanceof Error
+														? error.message
+														: "Failed to format SQL";
+												alert(`Error formatting SQL: ${message}`);
+											}
+										}}
+										onToggleFullscreen={() =>
+											setIsEditorFullscreen(!isEditorFullscreen)
+										}
+										isFullscreen={isEditorFullscreen}
+										className="text-sm h-full"
+									/>
+								)}
+							</Splitter.Context>
+						</Splitter.Panel>
+						<Splitter.Context>
+							{(ctx) => (
+								<Splitter.ResizeTrigger
+									id={`${panels.sqlPreview}:${panels.rowsContent}`}
+									className={cn(
+										tryFn(() => ctx.isPanelCollapsed(panels.sqlPreview))
+											? "h-2"
+											: "h-1.5",
+										"bg-border hover:bg-primary/50 cursor-row-resize transition-colors",
+									)}
+									title="Drag to resize"
+									onDoubleClick={() =>
+										ctx.isPanelExpanded(panels.sqlPreview)
+											? ctx.collapsePanel(panels.sqlPreview)
+											: ctx.expandPanel(panels.sqlPreview)
+									}
 								/>
-							</div>
-						) : (
-							<Splitter.Root
-								// key={search.table}
-								orientation="vertical"
-								className="flex-1 flex flex-col h-full overflow-hidden"
-								// kinda weird issue where swapping tabs doesnt reset the internal Splitter state
-								// another way to fix this would be to use a key on the Splitter.Root
-								// but then this would reset every children as well i think? so kinda sucks
-								size={
-									search.sqlPreviewSize === 0
-										? [search.sqlPreviewSize, 100]
-										: undefined
-								}
-								defaultSize={[
-									search.sqlPreviewSize ??
-										fromPixelToPercentage(200, "vertical"),
-									fromPixelToPercentage(656, "vertical"),
-								]}
-								panels={[
-									{
-										id: panels.sqlPreview,
-										collapsible: true,
-										minSize: fromPixelToPercentage(220, "vertical"),
-									},
-									{ id: panels.rowsContent, collapsible: false },
-								]}
-								onResizeEnd={(details) => {
-									void navigate({
-										search: (prev) =>
-											updateTabState(prev, {
-												sqlPreviewSize: details.size[0],
-											}),
-									});
-								}}
-								onExpand={(details) => {
-									if (details.panelId === panels.sqlPreview) {
-										void navigate({
-											search: (prev) =>
-												updateTabState(prev, {
-													sqlPreviewSize: details.size,
-												}),
-										});
-									}
-								}}
-								onCollapse={(details) => {
-									if (details.panelId === panels.sqlPreview) {
-										void navigate({
-											search: (prev) =>
-												updateTabState(prev, {
-													sqlPreviewSize: details.size,
-												}),
-										});
-									}
-								}}
-							>
-								{/* SQL Query Preview */}
-								<Splitter.Panel
-									id={panels.sqlPreview}
-									className="overflow-hidden"
-								>
-									<Splitter.Context>
-										{(ctx) => (
-											<SqlQueryPreview
-												tables={tables}
-												columns={columns}
-												sql={pageState.sqlQuery?.sql || ""}
-												// isLoading={pageState.sqlQuery.isLoading}
-												// error={pageState.sqlQuery.error}
-												isCollapsed={Boolean(
-													tryFn(() => ctx.isPanelCollapsed(panels.sqlPreview)),
-												)}
-												onToggleCollapsed={() =>
-													ctx.isPanelExpanded(panels.sqlPreview)
-														? ctx.collapsePanel(panels.sqlPreview)
-														: ctx.expandPanel(panels.sqlPreview)
-												}
-												editorMode={search.sqlEditorMode ?? "preview"}
-												onEditorModeChange={(mode) =>
-													navigate({
-														search: (prev) =>
-															updateTabState(prev, {
-																sqlEditorMode: mode,
-															}),
-													})
-												}
-												customSql={search.customSql}
-												onEditorChange={(value) => onEditorValueChange(value)}
-												onResetCustomSql={() =>
-													navigate({
-														search: (prev) =>
-															updateTabState(prev, {
-																customSql: undefined,
-															}),
-													})
-												}
-												onRun={() => {
-													// Check for destructive queries
-													const sqlToRun =
-														search.customSql || pageState.sqlQuery?.sql;
-													console.log(
-														sqlToRun,
-														search,
-														isDestructiveQuery(sqlToRun),
-													);
-													if (sqlToRun && isDestructiveQuery(sqlToRun)) {
-														setPendingQueryExecution(() => () => {
-															pageState.rowsQuery.refetch();
-															setShowDestructiveConfirm(false);
-															setPendingQueryExecution(null);
-														});
-														setShowDestructiveConfirm(true);
-														return;
-													}
-													// Trigger refetch of the rows query
-													pageState.rowsQuery.refetch().then((result) => {
-														console.log(123, result);
-													});
-												}}
-												onExplain={explainQuery.refetch}
-												disableExplain={
-													connection?.dialect !== DatabaseDialect.Postgres
-												}
-												onFormat={() => {
-													const sqlToFormat =
-														search.customSql || pageState.sqlQuery?.sql;
-													if (!sqlToFormat) {
-														alert("No SQL query to format");
-														return;
-													}
+							)}
+						</Splitter.Context>
 
-													try {
-														const formatted = formatSQL(sqlToFormat, {
-															language:
-																connection.dialect === DatabaseDialect.Postgres
-																	? "postgresql"
-																	: "sqlite",
-															onError: (error) => {
-																toaster.create({
-																	title: "Failed to format SQL",
-																	description: error.message,
-																});
-															},
-														});
+						<Splitter.Panel
+							id={panels.rowsContent}
+							className="overflow-hidden flex flex-col"
+						>
+							{pageState.rowsQuery.isLoading ? (
+								<Stack className="flex-1 flex items-center justify-center">
+									<Spinner />
+									<span className="text-muted-foreground">
+										{pageState.rowsQuery.failureCount > 0 ? (
+											<>
+												Failed {pageState.rowsQuery.failureCount} time
+												{pageState.rowsQuery.failureCount > 1 ? "s" : ""},
+												retrying...
+											</>
+										) : (
+											"Loading table data..."
+										)}
+									</span>
+								</Stack>
+							) : pageState.rowsQuery.isError ? (
+								<div className="flex-1 flex items-center justify-center p-4">
+									<Stack className="max-w-2xl w-full">
+										<ErrorBoundaryCard
+											error={pageState.rowsQuery.error}
+											title="Error loading table data"
+											onRetry={() => pageState.rowsQuery.refetch()}
+										/>
+									</Stack>
+								</div>
+							) : (
+								<>
+									<Splitter.Root
+										orientation="vertical"
+										className="flex-1 flex flex-col h-full overflow-hidden"
+										panels={[
+											{
+												id: panels.rowsTable,
+												collapsible: true,
+												minSize: 0,
+											},
+											{
+												id: panels.relationships,
+												collapsible: true,
+												collapsedSize: relationshipPanelSize,
+												minSize: relationshipPanelSize,
+											},
+										]}
+									>
+										<Splitter.Panel
+											id={panels.rowsTable}
+											className="flex-1 overflow-auto flex flex-col relative"
+										>
+											<ColumnHeaderContextProvider
+												renderColumnHeaderMenuItems={({ column }) => (
+													<>
+														<Menu
+															positioning={{
+																placement: "right-start",
+																gutter: -2,
+															}}
+															lazyMount
+														>
+															<MenuTriggerItem>
+																<ArrowDownUp className="size-4" />
+																Sort with nulls...
+															</MenuTriggerItem>
+															<MenuContent className="z-50">
+																<MenuItem
+																	value="sort-asc-nulls-first"
+																	onClick={() => {
+																		column.toggleSorting(false, false);
+																		pageState.onNullsOrderChange("first");
+																	}}
+																	disabled={
+																		column.getIsSorted() === "asc" &&
+																		pageState.currentNullsOrder === "first"
+																	}
+																>
+																	<ArrowUp className="size-4" />
+																	<MenuItemText>
+																		Sort asc, nulls first
+																	</MenuItemText>
+																</MenuItem>
+																<MenuItem
+																	value="sort-asc-nulls-last"
+																	onClick={() => {
+																		column.toggleSorting(false, false);
+																		pageState.onNullsOrderChange("last");
+																	}}
+																	disabled={
+																		column.getIsSorted() === "asc" &&
+																		pageState.currentNullsOrder === "last"
+																	}
+																>
+																	<ArrowUp className="size-4" />
+																	<MenuItemText>
+																		Sort asc, nulls last
+																	</MenuItemText>
+																</MenuItem>
+																<MenuItem
+																	value="sort-desc-nulls-first"
+																	onClick={() => {
+																		column.toggleSorting(true, false);
+																		pageState.onNullsOrderChange("first");
+																	}}
+																	disabled={
+																		column.getIsSorted() === "desc" &&
+																		pageState.currentNullsOrder === "first"
+																	}
+																>
+																	<ArrowDown className="size-4" />
+																	<MenuItemText>
+																		Sort desc, nulls first
+																	</MenuItemText>
+																</MenuItem>
+																<MenuItem
+																	value="sort-desc-nulls-last"
+																	onClick={() => {
+																		column.toggleSorting(true, false);
+																		pageState.onNullsOrderChange("last");
+																	}}
+																	disabled={
+																		column.getIsSorted() === "desc" &&
+																		pageState.currentNullsOrder === "last"
+																	}
+																>
+																	<ArrowDown className="size-4" />
+																	<MenuItemText>
+																		Sort desc, nulls last
+																	</MenuItemText>
+																</MenuItem>
+																{(column.getIsSorted() ||
+																	pageState.currentNullsOrder) && (
+																	<MenuItem
+																		value="clear-sort-and-nulls"
+																		onClick={() => {
+																			column.clearSorting();
+																			pageState.onNullsOrderChange(undefined);
+																		}}
+																	>
+																		<MenuItemText>
+																			Clear sort &amp; nulls order
+																		</MenuItemText>
+																	</MenuItem>
+																)}
+															</MenuContent>
+														</Menu>
+													</>
+												)}
+											>
+												<DataTable
+													// virtualized={search.limit > 100}
+													enableRowVirtualization
+													enableColumnOrdering
+													table={pageState.rowsDataTable}
+													getTableContainer={setTableContainer}
+													isLoading={
+														pageState.rowsQuery.isLoading ||
+														pageState.isColumnMetadataLoading
+													}
+													emptyState={
+														pageState.rowsAffected !== undefined ? (
+															<div className="text-center py-8">
+																<p className="text-lg font-semibold text-foreground mb-2">
+																	Query executed successfully
+																</p>
+																<p className="text-base text-muted-foreground">
+																	{pageState.rowsAffected === 1
+																		? `${pageState.rowsAffected} row affected`
+																		: `${pageState.rowsAffected} rows affected`}
+																</p>
+															</div>
+														) : (
+															true
+														)
+													}
+													size={search.tableSize}
+													onColumnFilterClick={(columnId) => {
 														navigate({
 															search: (prev) =>
-																updateTabState(prev, {
-																	customSql: formatted,
-																	sqlEditorMode: "editor",
-																}),
-														});
-													} catch (error) {
-														const message =
-															error instanceof Error
-																? error.message
-																: "Failed to format SQL";
-														alert(`Error formatting SQL: ${message}`);
-													}
-												}}
-												onToggleFullscreen={() =>
-													setIsEditorFullscreen(!isEditorFullscreen)
-												}
-												isFullscreen={isEditorFullscreen}
-												className="text-sm h-full"
-											/>
-										)}
-									</Splitter.Context>
-								</Splitter.Panel>
-								<Splitter.Context>
-									{(ctx) => (
-										<Splitter.ResizeTrigger
-											id={`${panels.sqlPreview}:${panels.rowsContent}`}
-											className={cn(
-												tryFn(() => ctx.isPanelCollapsed(panels.sqlPreview))
-													? "h-2"
-													: "h-1.5",
-												"bg-border hover:bg-primary/50 cursor-row-resize transition-colors",
-											)}
-											title="Drag to resize"
-											onDoubleClick={() =>
-												ctx.isPanelExpanded(panels.sqlPreview)
-													? ctx.collapsePanel(panels.sqlPreview)
-													: ctx.expandPanel(panels.sqlPreview)
-											}
-										/>
-									)}
-								</Splitter.Context>
-
-								<Splitter.Panel
-									id={panels.rowsContent}
-									className="overflow-hidden flex flex-col"
-								>
-									{pageState.rowsQuery.isLoading ? (
-										<Stack className="flex-1 flex items-center justify-center">
-											<Spinner />
-											<span className="text-muted-foreground">
-												{pageState.rowsQuery.failureCount > 0 ? (
-													<>
-														Failed {pageState.rowsQuery.failureCount} time
-														{pageState.rowsQuery.failureCount > 1 ? "s" : ""},
-														retrying...
-													</>
-												) : (
-													"Loading table data..."
-												)}
-											</span>
-										</Stack>
-									) : pageState.rowsQuery.isError ? (
-										<div className="flex-1 flex items-center justify-center p-4">
-											<Stack className="max-w-2xl w-full">
-												<ErrorBoundaryCard
-													error={pageState.rowsQuery.error}
-													title="Error loading table data"
-													onRetry={() => pageState.rowsQuery.refetch()}
-												/>
-											</Stack>
-										</div>
-									) : (
-										<>
-											<Splitter.Root
-												orientation="vertical"
-												className="flex-1 flex flex-col h-full overflow-hidden"
-												panels={[
-													{
-														id: panels.rowsTable,
-														collapsible: true,
-														minSize: 0,
-													},
-													{
-														id: panels.relationships,
-														collapsible: true,
-														collapsedSize: relationshipPanelSize,
-														minSize: relationshipPanelSize,
-													},
-												]}
-											>
-												<Splitter.Panel
-													id={panels.rowsTable}
-													className="flex-1 overflow-auto flex flex-col relative"
-												>
-													<ColumnHeaderContextProvider
-														renderColumnHeaderMenuItems={({ column }) => (
-															<>
-																<Menu
-																	positioning={{
-																		placement: "right-start",
-																		gutter: -2,
-																	}}
-																	lazyMount
-																>
-																	<MenuTriggerItem>
-																		<ArrowDownUp className="size-4" />
-																		Sort with nulls...
-																	</MenuTriggerItem>
-																	<MenuContent className="z-50">
-																		<MenuItem
-																			value="sort-asc-nulls-first"
-																			onClick={() => {
-																				column.toggleSorting(false, false);
-																				pageState.onNullsOrderChange("first");
-																			}}
-																			disabled={
-																				column.getIsSorted() === "asc" &&
-																				pageState.currentNullsOrder === "first"
-																			}
-																		>
-																			<ArrowUp className="size-4" />
-																			<MenuItemText>
-																				Sort asc, nulls first
-																			</MenuItemText>
-																		</MenuItem>
-																		<MenuItem
-																			value="sort-asc-nulls-last"
-																			onClick={() => {
-																				column.toggleSorting(false, false);
-																				pageState.onNullsOrderChange("last");
-																			}}
-																			disabled={
-																				column.getIsSorted() === "asc" &&
-																				pageState.currentNullsOrder === "last"
-																			}
-																		>
-																			<ArrowUp className="size-4" />
-																			<MenuItemText>
-																				Sort asc, nulls last
-																			</MenuItemText>
-																		</MenuItem>
-																		<MenuItem
-																			value="sort-desc-nulls-first"
-																			onClick={() => {
-																				column.toggleSorting(true, false);
-																				pageState.onNullsOrderChange("first");
-																			}}
-																			disabled={
-																				column.getIsSorted() === "desc" &&
-																				pageState.currentNullsOrder === "first"
-																			}
-																		>
-																			<ArrowDown className="size-4" />
-																			<MenuItemText>
-																				Sort desc, nulls first
-																			</MenuItemText>
-																		</MenuItem>
-																		<MenuItem
-																			value="sort-desc-nulls-last"
-																			onClick={() => {
-																				column.toggleSorting(true, false);
-																				pageState.onNullsOrderChange("last");
-																			}}
-																			disabled={
-																				column.getIsSorted() === "desc" &&
-																				pageState.currentNullsOrder === "last"
-																			}
-																		>
-																			<ArrowDown className="size-4" />
-																			<MenuItemText>
-																				Sort desc, nulls last
-																			</MenuItemText>
-																		</MenuItem>
-																		{(column.getIsSorted() ||
-																			pageState.currentNullsOrder) && (
-																			<MenuItem
-																				value="clear-sort-and-nulls"
-																				onClick={() => {
-																					column.clearSorting();
-																					pageState.onNullsOrderChange(
-																						undefined,
-																					);
-																				}}
-																			>
-																				<MenuItemText>
-																					Clear sort &amp; nulls order
-																				</MenuItemText>
-																			</MenuItem>
-																		)}
-																	</MenuContent>
-																</Menu>
-															</>
-														)}
-													>
-														<DataTable
-															// virtualized={search.limit > 100}
-															enableRowVirtualization
-															enableColumnOrdering
-															table={pageState.rowsDataTable}
-															getTableContainer={setTableContainer}
-															isLoading={
-																pageState.rowsQuery.isLoading ||
-																pageState.isColumnMetadataLoading
-															}
-															emptyState={
-																pageState.rowsAffected !== undefined ? (
-																	<div className="text-center py-8">
-																		<p className="text-lg font-semibold text-foreground mb-2">
-																			Query executed successfully
-																		</p>
-																		<p className="text-base text-muted-foreground">
-																			{pageState.rowsAffected === 1
-																				? `${pageState.rowsAffected} row affected`
-																				: `${pageState.rowsAffected} rows affected`}
-																		</p>
-																	</div>
-																) : (
-																	true
-																)
-															}
-															size={search.tableSize}
-															onColumnFilterClick={(columnId) => {
-																navigate({
-																	search: (prev) =>
-																		updateTabState(prev, (tab) => ({
-																			filtersOpened: true,
-																			filters: {
-																				conditions: [
-																					...(tab.filters?.conditions ?? []),
-																					{
-																						column: columnId,
-																						operator: "equals",
-																					},
-																				],
-																				logicalOperator:
-																					tab.filters?.logicalOperator ?? "and",
+																updateTabState(prev, (tab) => ({
+																	filtersOpened: true,
+																	filters: {
+																		conditions: [
+																			...(tab.filters?.conditions ?? []),
+																			{
+																				column: columnId,
+																				operator: "equals",
 																			},
-																		})),
-																});
-															}}
-															onExpandRowJson={(row) => {
-																const primaryKeyColumn =
-																	pageState.columnMetadata.find(
-																		(col) => col.primaryKey,
-																	);
-																const rowId = primaryKeyColumn
-																	? String(row[primaryKeyColumn.name])
-																	: undefined;
-																navigate({
-																	search: (prev) => ({
-																		...prev,
-																		rowJsonViewerRowId: rowId,
-																		rowJsonViewerOpen: !!rowId,
-																	}),
-																});
+																		],
+																		logicalOperator:
+																			tab.filters?.logicalOperator ?? "and",
+																	},
+																})),
+														});
+													}}
+													onExpandRowJson={(row) => {
+														const primaryKeyColumn =
+															pageState.columnMetadata.find(
+																(col) => col.primaryKey,
+															);
+														const rowId = primaryKeyColumn
+															? String(row[primaryKeyColumn.name])
+															: undefined;
+														navigate({
+															search: (prev) => ({
+																...prev,
+																rowJsonViewerRowId: rowId,
+																rowJsonViewerOpen: !!rowId,
+															}),
+														});
+													}}
+												/>
+												{!pageState.rowsQuery.isLoading &&
+													!pageState.isColumnMetadataLoading && (
+														<ScrollToColumnButton
+															table={pageState.rowsDataTable}
+															containerRef={{
+																current: tableContainer,
 															}}
 														/>
-														{!pageState.rowsQuery.isLoading &&
-															!pageState.isColumnMetadataLoading && (
-																<ScrollToColumnButton
-																	table={pageState.rowsDataTable}
-																	containerRef={{
-																		current: tableContainer,
-																	}}
-																/>
-															)}
-													</ColumnHeaderContextProvider>
-												</Splitter.Panel>
+													)}
+											</ColumnHeaderContextProvider>
+										</Splitter.Panel>
 
-												{pageState.relationshipRowId && search.table && (
-													<>
-														<Splitter.Context>
-															{(ctx) => (
-																<Splitter.ResizeTrigger
-																	id="rows-table:relationships"
-																	className={cn(
-																		tryFn(() =>
-																			ctx.isPanelCollapsed(
-																				panels.relationships,
-																			),
-																		)
-																			? "h-2"
-																			: "h-1.5",
-																		"bg-border hover:bg-primary/50 cursor-row-resize transition-colors",
-																	)}
-																	title="Drag to resize"
-																	onDoubleClick={() =>
-																		ctx.isPanelExpanded(panels.rowsTable)
-																			? ctx.collapsePanel(panels.rowsTable)
-																			: ctx.expandPanel(panels.rowsTable)
-																	}
-																/>
-															)}
-														</Splitter.Context>
-														<Splitter.Panel
-															id={panels.relationships}
-															className="overflow-hidden flex flex-col mb-2.5"
-														>
-															<Splitter.Context>
-																{(ctx) => {
-																	return (
-																		<RelationshipsPanel
-																			key={
-																				pageState.activeConnectionUrl +
-																				search.table +
-																				pageState.relationshipRowId
-																			}
-																			connectionUrl={
-																				pageState.activeConnectionUrl
-																			}
-																			schema={search.schema}
-																			table={search.table!}
-																			selectedRowId={
-																				pageState.relationshipRowId ?? null
-																			}
-																			rowData={
-																				pageState.rowsDataTable
-																					.getRowModel()
-																					.rows.find(
-																						(row) =>
-																							row.id ===
-																							pageState.relationshipRowId,
-																					)?.original ?? {}
-																			}
-																			isPanelExpanded={Boolean(
-																				tryFn(() =>
-																					ctx.isPanelExpanded(
-																						panels.relationships,
-																					),
-																				),
-																			)}
-																			onCollapse={() => {
-																				ctx.collapsePanel(panels.relationships);
-																			}}
-																			onExpand={() => {
-																				ctx.expandPanel(panels.relationships);
-																			}}
-																			onClose={() => {
-																				navigate({
-																					search: (prev) =>
-																						updateTabState(prev, {
-																							relationshipRowId: undefined,
-																						}),
-																				});
-																			}}
-																		/>
-																	);
-																}}
-															</Splitter.Context>
-														</Splitter.Panel>
-													</>
-												)}
-											</Splitter.Root>
-										</>
-									)}
-									{/* Status Bar */}
-									<div className="shrink-0 border-t">
-										<ConnectionPageStatusBar
-											table={pageState.rowsDataTable}
-											hasUuid={pageState.hasUuid}
-											isLoading={pageState.rowsQuery.isLoading}
-											refetch={pageState.rowsQuery.refetch}
-											timeTaken={pageState.queryResponse.timeTaken}
-											ranAt={pageState.queryResponse.ranAt}
-											totalRowCount={pageState.totalRowCount}
-											rowsColumnsCount={pageState.rowsColumns.length - 1} // minus select column
-										/>
-									</div>
-								</Splitter.Panel>
-							</Splitter.Root>
-						)}
-					</div>
-				</>
-			) : (
-				<RowsTableErrorState
-					activeConnectionUrl={pageState.activeConnectionUrl}
-					connection={connection}
-					tables={tables}
-					columns={columns}
-				/>
-			)}
-
+										{pageState.relationshipRowId && search.table && (
+											<BottomRelationshipPanel
+												activeConnectionUrl={pageState.activeConnectionUrl}
+												relationshipRowId={pageState.relationshipRowId}
+												schema={search.schema}
+												table={search.table!}
+												rowData={
+													pageState.rowsDataTable
+														.getRowModel()
+														.rows.find(
+															(row) => row.id === pageState.relationshipRowId,
+														)?.original ?? {}
+												}
+											/>
+										)}
+									</Splitter.Root>
+								</>
+							)}
+							{/* Status Bar */}
+							<div className="shrink-0 border-t">
+								<ConnectionPageStatusBar
+									table={pageState.rowsDataTable}
+									hasUuid={pageState.hasUuid}
+									isLoading={pageState.rowsQuery.isLoading}
+									refetch={pageState.rowsQuery.refetch}
+									timeTaken={pageState.queryResponse.timeTaken}
+									ranAt={pageState.queryResponse.ranAt}
+									totalRowCount={pageState.totalRowCount}
+									rowsColumnsCount={pageState.rowsColumns.length - 1} // minus select column
+								/>
+							</div>
+						</Splitter.Panel>
+					</Splitter.Root>
+				)}
+			</div>
 			<ExplainOutputDrawer
 				showExplainPanel={showExplainPanel}
 				setShowExplainPanel={setShowExplainPanel}
@@ -1054,6 +976,117 @@ const MainContent = (props: {
 				)}
 				isLoading={pageState.rowsQuery.isLoading}
 			/>
+		</>
+	);
+};
+
+const EmptyTabContent = (props: {
+	activeConnectionUrl: string;
+	connection: DbConnection;
+}) => {
+	const search = useActiveTabState((tab) => ({
+		schema: tab.schema,
+		table: tab.table,
+	}));
+
+	// Fetch available tables/columns for intellisense
+	const tablesQuery = useQuery({
+		...listAvailableTablesQueryOptions({
+			url: props.activeConnectionUrl,
+			schema: search.schema,
+		}),
+		enabled: !!search.schema,
+	});
+	const tables = tablesQuery.data || [];
+
+	const columnQuery = useQuery(
+		getAllTablesColumnsQueryOptions({
+			url: props.activeConnectionUrl,
+			schema: search.schema,
+		}),
+	);
+	const columns = columnQuery.data ?? [];
+
+	return (
+		<EmptyTabState
+			activeConnectionUrl={props.activeConnectionUrl}
+			connection={props.connection}
+			tables={tables}
+			columns={columns}
+		/>
+	);
+};
+
+const BottomRelationshipPanel = (props: {
+	activeConnectionUrl: string;
+	relationshipRowId: string;
+	schema: string;
+	table: string;
+	rowData: Record<string, unknown>;
+}) => {
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
+	return (
+		<>
+			<Splitter.Context>
+				{(ctx) => (
+					<Splitter.ResizeTrigger
+						id="rows-table:relationships"
+						className={cn(
+							tryFn(() => ctx.isPanelCollapsed(panels.relationships))
+								? "h-2"
+								: "h-1.5",
+							"bg-border hover:bg-primary/50 cursor-row-resize transition-colors",
+						)}
+						title="Drag to resize"
+						onDoubleClick={() =>
+							ctx.isPanelExpanded(panels.rowsTable)
+								? ctx.collapsePanel(panels.rowsTable)
+								: ctx.expandPanel(panels.rowsTable)
+						}
+					/>
+				)}
+			</Splitter.Context>
+			<Splitter.Panel
+				id={panels.relationships}
+				className="overflow-hidden flex flex-col mb-2.5"
+			>
+				<Splitter.Context>
+					{(ctx) => {
+						return (
+							<RelationshipsPanel
+								key={
+									props.activeConnectionUrl +
+									props.table +
+									props.relationshipRowId
+								}
+								connectionUrl={props.activeConnectionUrl}
+								schema={props.schema}
+								table={props.table!}
+								selectedRowId={props.relationshipRowId ?? null}
+								rowData={props.rowData}
+								isPanelExpanded={Boolean(
+									tryFn(() => ctx.isPanelExpanded(panels.relationships)),
+								)}
+								onCollapse={() => {
+									ctx.collapsePanel(panels.relationships);
+								}}
+								onExpand={() => {
+									ctx.expandPanel(panels.relationships);
+								}}
+								onClose={() => {
+									navigate({
+										search: (prev) =>
+											updateTabState(prev, {
+												relationshipRowId: undefined,
+											}),
+									});
+								}}
+							/>
+						);
+					}}
+				</Splitter.Context>
+			</Splitter.Panel>
 		</>
 	);
 };
