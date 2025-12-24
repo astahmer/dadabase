@@ -690,7 +690,13 @@ const TableBody = (
 					{props.emptyState ? (
 						<td className="text-center absolute ml-12 text-2xl">
 							<div className={tableEmptyStateStyles()}>
-								<span>{props.hasError ? i18n.errorText : i18n.emptyText}</span>
+								{typeof props.emptyState === "boolean" ? (
+									<span>
+										{props.hasError ? i18n.errorText : i18n.emptyText}
+									</span>
+								) : (
+									props.emptyState
+								)}
 							</div>
 						</td>
 					) : null}

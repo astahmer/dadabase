@@ -22,6 +22,7 @@ import {
 import { extractSelectedTables } from "./sql-completion-helper.ts";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
 import { parseSqlQuery } from "./sql-query-parser.ts";
+import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 
 interface RowsTableErrorStateProps {
 	activeConnectionUrl: string;
@@ -241,6 +242,7 @@ const NoTableSelectedState = (props: NoTableSelectedStateProps) => {
 							table,
 							customSql,
 							sqlEditorMode: "editor",
+							sqlPreviewSize: fromPixelToPercentage(200, "vertical"),
 							initialTabMode: undefined,
 							tabName: `${table} (custom)`,
 						}),

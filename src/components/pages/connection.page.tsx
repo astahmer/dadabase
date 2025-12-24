@@ -6,14 +6,14 @@ import {
 	useConnectionPageState,
 } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
 import { DatabaseDialect } from "#src/db/dialect.ts";
-import {
-	getDestructiveQuerySummary,
-	isDestructiveQuery,
-} from "#src/server/introspection/detect-destructive-sql.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import {
+	getDestructiveQuerySummary,
+	isDestructiveQuery,
+} from "#src/server/introspection/detect-destructive-sql.ts";
 import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
@@ -509,8 +509,17 @@ const MainContent = (props: {
 							</div>
 						) : (
 							<Splitter.Root
+								// key={search.table}
 								orientation="vertical"
 								className="flex-1 flex flex-col h-full overflow-hidden"
+								// kinda weird issue where swapping tabs doesnt reset the internal Splitter state
+								// another way to fix this would be to use a key on the Splitter.Root
+								// but then this would reset every children as well i think? so kinda sucks
+								size={
+									search.sqlPreviewSize === 0
+										? [search.sqlPreviewSize, 100]
+										: undefined
+								}
 								defaultSize={[
 									search.sqlPreviewSize ??
 										fromPixelToPercentage(200, "vertical"),
@@ -665,7 +674,6 @@ const MainContent = (props: {
 										)}
 									</Splitter.Context>
 								</Splitter.Panel>
-
 								<Splitter.Context>
 									{(ctx) => (
 										<Splitter.ResizeTrigger

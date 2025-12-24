@@ -63,6 +63,7 @@
 - autosave manually executed queries
 - SQL snippets
 - add save action in SQL query bar actions
+- drag/drop tabs to reorder
 
 - handle column aliases: SQL parsing, SQL completion, filters, column visibility, sorting etc
 
