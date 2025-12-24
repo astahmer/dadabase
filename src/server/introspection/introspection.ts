@@ -1698,7 +1698,6 @@ export const queryTableRows = <TData>(input: {
 
 		// If custom SQL is provided, execute it directly
 		if (customSql) {
-			// Execute the custom query
 			const conn = yield* Effect.orDie(sql.reserve).pipe(Effect.scoped);
 			const rawResult = yield* conn.executeRaw(customSql, []).pipe(
 				withQueryLogging({
@@ -1712,70 +1711,40 @@ export const queryTableRows = <TData>(input: {
 					meta: { input, customQuery: true },
 				}),
 			);
-			const result = rawResult as {
+			const result = { rows: [], ...((rawResult as any) ?? {}) } as {
 				columns: string[];
 				columnTypes: string[];
 				rows: unknown[];
-				rowsAffected: number;
+				rowCount?: number; // PostgreSQL only
+				rowsAffected?: number; // libSQL/SQLite only
+				affectedRows?: number; // PgLite only
 			};
-			console.log(result, { customSql });
-
 			// Determine if this is a SELECT query to know how to handle the result
 			const isSelect = isSelectQuery(customSql);
 			if (isSelect) {
 				// For SELECT queries, result is an array of row objects
-				const rows = Array.isArray(result) ? result : [];
-				const columnList = rows && rows.length > 0 ? Object.keys(rows[0]) : [];
+				const rows = result.rows;
+				const columnList =
+					rows && rows.length > 0 ? Object.keys(rows[0] as object) : [];
 				return {
 					rows: rows as TData[],
 					columnList,
 					rowCount: rows?.length ?? 0,
 					hasNextPage: false,
-				};
-			} else {
-				// For non-SELECT queries (DELETE, UPDATE, INSERT, etc.)
-				// Different databases return affected rows count in different ways:
-				// - PostgreSQL: result.rowCount or result.command might have count
-				// - libSQL/SQLite: result might be an empty array but have rowCount property
-				// Need to check both the object itself and any nested metadata
-				let rowsAffected = 0;
-
-				if (result && typeof result === "object") {
-					// For PostgreSQL, the result object should have rowCount
-					if ("rowCount" in result && typeof result.rowCount === "number") {
-						rowsAffected = result.rowCount;
-					}
-					// For libSQL/SQLite, check changes property
-					else if ("changes" in result && typeof result.changes === "number") {
-						rowsAffected = result.changes;
-					}
-					// If result is an array (e.g., from sql.unsafe for non-SELECT),
-					// check if it has metadata attached
-					else if (Array.isArray(result)) {
-						// Try to get count from array properties
-						const arrayWithMeta = result as any;
-						if (
-							arrayWithMeta.rowCount !== undefined &&
-							typeof arrayWithMeta.rowCount === "number"
-						) {
-							rowsAffected = arrayWithMeta.rowCount;
-						} else if (
-							arrayWithMeta.changes !== undefined &&
-							typeof arrayWithMeta.changes === "number"
-						) {
-							rowsAffected = arrayWithMeta.changes;
-						}
-					}
-				}
-
-				return {
-					rows: [] as TData[],
-					columnList: [],
-					rowCount: 0,
-					hasNextPage: false,
-					rowsAffected,
+					rowsAffected: undefined,
 				};
 			}
+
+			const rowsAffected =
+				result.rowCount ?? result.rowsAffected ?? result.affectedRows ?? 0;
+			// console.log(result, { rawResult, rowsAffected, customSql });
+			return {
+				rows: [] as TData[],
+				columnList: [],
+				rowCount: 0,
+				hasNextPage: false,
+				rowsAffected: rowsAffected,
+			};
 		}
 
 		const defaultSchema = yield* sql.onDialectOrElse({

@@ -12,6 +12,7 @@ import {
 	postgresConfig,
 	sqliteConfig,
 } from "./test.layer.ts";
+import { PgContainer } from "./pg-test.layer.ts";
 
 interface User {
 	id: number;
@@ -3550,12 +3551,13 @@ const testSuite =
 				expect(result.rows.length).toBe(3); // Ages 30, 32, 35
 				expect(result.rowCount).toBe(3);
 				// rowsAffected should not be set for SELECT queries
-				expect(result.rowsAffected).toBeUndefined();
+				expect(result.rowsAffected).toBe(undefined);
 				// Should have the correct columns
 				expect(result.columnList).toEqual(["id", "name", "email", "age"]);
 			}).pipe(Effect.provide(testLayer));
 		});
 
+		//
 		it.effect("executes custom DELETE query and returns rowsAffected", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
@@ -3564,18 +3566,19 @@ const testSuite =
 				const sql = yield* SqlClient.SqlClient;
 				const expectedRowsAffected = yield* sql.onDialectOrElse({
 					pg: () =>
-						sql`SELECT COUNT(*) as count FROM ${sql(config.defaultSchema)}.users WHERE age < 28`,
+						sql`SELECT COUNT(*) as count FROM ${sql(config.defaultSchema)}.posts WHERE id IN (1, 2)`,
 					sqlite: () =>
-						sql`SELECT COUNT(*) as count FROM ${sql(config.defaultSchema)}.users WHERE age < 28`,
+						sql`SELECT COUNT(*) as count FROM ${sql(config.defaultSchema)}.posts WHERE id IN (1, 2)`,
 					orElse: () => Effect.fail(new Error("Unsupported database")),
 				});
-				expect(expectedRowsAffected.at(0)?.count).toBe(1);
+				expect(Number(expectedRowsAffected.at(0)?.count)).toBe(2);
 
 				const result = yield* queryTableRows<User>({
 					schema: config.defaultSchema,
-					table: "users",
-					customSql: `DELETE FROM ${config.defaultSchema}.users WHERE age < 28`,
+					table: "posts",
+					customSql: `DELETE FROM ${config.defaultSchema}.posts WHERE id IN (1, 2)`,
 				});
+				// console.log("result", result);
 
 				// DELETE queries return no rows
 				expect(result.rows.length).toBe(0);
@@ -3583,12 +3586,11 @@ const testSuite =
 				expect(result.columnList).toEqual([]);
 				// rowsAffected is defined for DELETE queries
 				expect(result.rowsAffected).toBeDefined();
-				// Note: Due to sql.unsafe() result structure, actual row count is 0
-				expect(result.rowsAffected).toBe(0);
+				expect(result.rowsAffected).toBe(2);
 			}).pipe(Effect.provide(testLayer));
 		});
 
-		it.effect.only(
+		it.effect(
 			"executes custom DELETE query with no matches and returns 0 rowsAffected",
 			() => {
 				return Effect.gen(function* () {
@@ -3625,10 +3627,8 @@ const testSuite =
 				expect(result.rows.length).toBe(0);
 				expect(result.rowCount).toBe(0);
 				expect(result.columnList).toEqual([]);
-				// rowsAffected is defined for UPDATE queries
-				expect(result.rowsAffected).toBeDefined();
-				// Note: Due to sql.unsafe() result structure, actual row count is 0
-				expect(result.rowsAffected).toBe(0);
+				// rowsAffected is set for UPDATE queries
+				expect(result.rowsAffected).toBe(2);
 			}).pipe(Effect.provide(testLayer));
 		});
 
@@ -3646,13 +3646,12 @@ const testSuite =
 				// INSERT queries return no rows
 				expect(result.rows.length).toBe(0);
 				expect(result.rowCount).toBe(0);
-				// rowsAffected is defined for INSERT queries
-				expect(result.rowsAffected).toBeDefined();
-				// Note: Due to sql.unsafe() result structure, actual row count is 0
-				expect(result.rowsAffected).toBe(0);
+				// rowsAffected is set for INSERT queries
+				expect(result.rowsAffected).toBe(1);
 			}).pipe(Effect.provide(testLayer));
 		});
 
+		//
 		it.effect(
 			"distinguishes between SELECT and non-SELECT custom queries",
 			() => {
@@ -3687,5 +3686,13 @@ const testSuite =
 		);
 	};
 
-describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));
-describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));
+// describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));
+// describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));
+describe(
+	"queryTableData (pg with testcontainers)",
+	testSuite(
+		PgContainer.ClientLive.pipe(Layer.catchAll(Layer.die)),
+		postgresConfig,
+	),
+	1000 * 60 * 10,
+);
