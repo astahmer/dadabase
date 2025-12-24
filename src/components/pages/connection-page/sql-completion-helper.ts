@@ -90,6 +90,10 @@ export type SqlKeyword = (typeof SQL_KEYWORDS)[number];
 const JOIN_KEYWORDS =
 	"FROM|JOIN|INNER\\s+JOIN|LEFT\\s+JOIN|RIGHT\\s+JOIN|FULL\\s+JOIN|CROSS\\s+JOIN";
 
+// Keywords for table extraction that include INSERT INTO, UPDATE, DELETE FROM, etc.
+const TABLE_SOURCE_KEYWORDS =
+	"FROM|JOIN|INNER\\s+JOIN|LEFT\\s+JOIN|RIGHT\\s+JOIN|FULL\\s+JOIN|CROSS\\s+JOIN|INTO|UPDATE|DELETE\\s+FROM";
+
 const REGEX_SELECT_START = /\bselect\s+$/i;
 const REGEX_SELECT_ASTERISK = /\bselect\s+\*\s+$/i;
 const REGEX_COLUMN_OPERATOR =
@@ -130,8 +134,9 @@ const REGEX_JOIN_WITH_ALIAS_COMPLETE = new RegExp(
 // - public.users (unquoted)
 // - "users" (quoted table only)
 // - users (unquoted table only)
+// Also matches INSERT INTO, UPDATE, and DELETE FROM statements
 const REGEX_TABLE_PATTERN = new RegExp(
-	`\\b(?:${JOIN_KEYWORDS})\\s+(?:"([^"]+)"\\."([^"]+)"|"([^"]+)"\\.(\\w+)|(\\w+)\\."([^"]+)"|(\\w+)\\.(\\w+)|"([^"]+)"|(\\w+))`,
+	`\\b(?:${TABLE_SOURCE_KEYWORDS})\\s+(?:"([^"]+)"\\."([^"]+)"|"([^"]+)"\\.(\\w+)|(\\w+)\\."([^"]+)"|(\\w+)\\.(\\w+)|"([^"]+)"|(\\w+))`,
 	"gi",
 );
 const REGEX_TABLE_ALIAS_PAIR = new RegExp(

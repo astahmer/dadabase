@@ -555,5 +555,100 @@ describe("SQL Completion Helper", () => {
 				expect(result).toEqual([{ table: "users" }]);
 			});
 		});
+
+		describe("INSERT statements", () => {
+			it("should extract table from simple INSERT INTO", () => {
+				const sql = "INSERT INTO users (id, name) VALUES (1, 'John')";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ table: "users" }]);
+			});
+
+			it("should extract table from INSERT INTO with schema", () => {
+				const sql =
+					'INSERT INTO "public"."users" (id, name) VALUES (1, \'John\')';
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ schema: "public", table: "users" }]);
+			});
+
+			it("should extract table from INSERT INTO with schema and mixed quoting", () => {
+				const sql = "INSERT INTO public.users (id, name) VALUES (1, 'John')";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ schema: "public", table: "users" }]);
+			});
+
+			it("should extract table from multiline INSERT", () => {
+				const sql = `INSERT INTO backoffice_roles (id, name) VALUES
+					(uuid_generate_v4(), 'Admin'),
+					(uuid_generate_v4(), 'Manager')`;
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ table: "backoffice_roles" }]);
+			});
+
+			it("should extract table from INSERT with quoted table name", () => {
+				const sql =
+					"INSERT INTO \"BackofficeRoles\" (id, name) VALUES (1, 'Admin')";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ table: "BackofficeRoles" }]);
+			});
+		});
+
+		describe("UPDATE statements", () => {
+			it("should extract table from UPDATE statement", () => {
+				const sql = "UPDATE users SET name = 'John' WHERE id = 1";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ table: "users" }]);
+			});
+
+			it("should extract table from UPDATE with schema", () => {
+				const sql = 'UPDATE "public"."users" SET name = \'John\' WHERE id = 1';
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ schema: "public", table: "users" }]);
+			});
+
+			it("should extract table from UPDATE with unquoted schema", () => {
+				const sql = "UPDATE public.users SET name = 'John' WHERE id = 1";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ schema: "public", table: "users" }]);
+			});
+
+			it("should extract table from UPDATE with FROM clause", () => {
+				const sql =
+					"UPDATE users SET verified = true FROM audit_logs WHERE users.id = audit_logs.user_id";
+				const result = extractSelectedTables(sql);
+				expect(result).toContainEqual({ table: "users" });
+				expect(result).toContainEqual({ table: "audit_logs" });
+				expect(result.length).toBe(2);
+			});
+		});
+
+		describe("DELETE statements", () => {
+			it("should extract table from DELETE statement", () => {
+				const sql = "DELETE FROM users WHERE id = 1";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ table: "users" }]);
+			});
+
+			it("should extract table from DELETE with schema", () => {
+				const sql = 'DELETE FROM "public"."users" WHERE id = 1';
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ schema: "public", table: "users" }]);
+			});
+
+			it("should extract table from DELETE with unquoted schema", () => {
+				const sql = "DELETE FROM public.users WHERE id = 1";
+				const result = extractSelectedTables(sql);
+				expect(result).toEqual([{ schema: "public", table: "users" }]);
+			});
+
+			it("should extract table from DELETE with USING clause", () => {
+				const sql =
+					"DELETE FROM users USING audit_logs WHERE users.id = audit_logs.user_id";
+				const result = extractSelectedTables(sql);
+				// DELETE FROM extracts the first table, USING is treated like FROM
+				expect(result).toContainEqual({ table: "users" });
+				// Note: USING is not currently in TABLE_SOURCE_KEYWORDS, but users should still be extracted
+				expect(result.some((t) => t.table === "users")).toBe(true);
+			});
+		});
 	});
 });

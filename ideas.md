@@ -79,4 +79,3 @@
 - preview/editor -> segmented control component
 - schema explorer -> copy table name / copy structure as JSON/CSV menu on each item/view table rows/insert row
 - completion provider -> insert {here} suggest "into" / insert into {here} suggest tables and insert snippet with prefilled column names / values?
-- insert into -> failed to detect table
