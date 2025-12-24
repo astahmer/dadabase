@@ -1,6 +1,6 @@
 import { createListCollection } from "@ark-ui/react";
 import { cx } from "class-variance-authority";
-import { Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useQueryLogger } from "#src/components/query-logger/use-query-logger.ts";
 import {
@@ -18,10 +18,16 @@ import { QueryLoggerDetailDialog } from "./query-logger-detail-dialog.tsx";
 
 interface QueryLoggerContentProps {
 	connectionUrl: string;
+	isExpanded?: boolean;
+	onCollapse?: () => void;
+	onExpand?: () => void;
 }
 
 export const QueryLoggerContent = ({
 	connectionUrl,
+	isExpanded,
+	onCollapse,
+	onExpand,
 }: QueryLoggerContentProps) => {
 	const queryLogger = useQueryLogger({ connectionUrl });
 	const [selectedEntry, setSelectedEntry] = useState<QueryLogEntryType | null>(
@@ -64,10 +70,35 @@ export const QueryLoggerContent = ({
 			<div className="flex items-center px-4 py-2 border-b bg-muted/50 h-12 shrink-0 hover:bg-muted transition-colors group">
 				<div className="flex items-center gap-2 font-medium">
 					<span>Query Logger</span>
+					{(isExpanded !== undefined || onCollapse || onExpand) && (
+						<button
+							className="ml-2 p-1 rounded hover:bg-primary/20 transition-colors opacity-0 group-hover:opacity-100"
+							title={isExpanded ? "Collapse" : "Expand"}
+							onClick={(e) => {
+								e.stopPropagation();
+								if (isExpanded) {
+									onCollapse?.();
+								} else {
+									onExpand?.();
+								}
+							}}
+						>
+							{isExpanded ? (
+								<ChevronDown className="h-4 w-4" />
+							) : (
+								<ChevronUp className="h-4 w-4" />
+							)}
+						</button>
+					)}
 				</div>
 				<HStack className="ml-2 gap-1 mr-auto">
 					<div
-						onClick={() => toggleStatusFilter("success")}
+						onClick={() => {
+							toggleStatusFilter("success");
+							if (!isExpanded) {
+								onExpand?.();
+							}
+						}}
 						title="Filter by success"
 						className={cx(
 							buttonVariants({ size: "sm", variant: "ghost" }),
@@ -83,7 +114,12 @@ export const QueryLoggerContent = ({
 						</span>
 					</div>
 					<div
-						onClick={() => toggleStatusFilter("pending")}
+						onClick={() => {
+							toggleStatusFilter("pending");
+							if (!isExpanded) {
+								onExpand?.();
+							}
+						}}
 						title="Filter by pending"
 						className={cx(
 							buttonVariants({ size: "sm", variant: "ghost" }),
@@ -99,7 +135,12 @@ export const QueryLoggerContent = ({
 						</span>
 					</div>
 					<div
-						onClick={() => toggleStatusFilter("error")}
+						onClick={() => {
+							toggleStatusFilter("error");
+							if (!isExpanded) {
+								onExpand?.();
+							}
+						}}
 						title="Filter by error"
 						className={cx(
 							buttonVariants({ size: "sm", variant: "ghost" }),

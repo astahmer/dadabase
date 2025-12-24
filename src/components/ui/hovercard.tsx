@@ -8,7 +8,7 @@ import * as React from "react";
 import { cn } from "#src/lib/utils.ts";
 
 const HoverCard = (props: HoverCardRootProps) => (
-	<HoverCardPrimitive.Root lazyMount openDelay={0} closeDelay={0} {...props} />
+	<HoverCardPrimitive.Root lazyMount openDelay={0} {...props} />
 );
 
 const HoverCardTrigger = HoverCardPrimitive.Trigger;

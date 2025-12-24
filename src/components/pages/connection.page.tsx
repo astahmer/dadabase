@@ -274,12 +274,23 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 									</Splitter.Context>
 
 									{/* Query Logger Panel */}
-									<Splitter.Panel
-										id={panels.queryLogger}
-										className="h-full min-h-0 flex flex-col overflow-hidden border-t bg-background"
-									>
-										<QueryLoggerContent connectionUrl={activeConnectionUrl} />
-									</Splitter.Panel>
+									<Splitter.Context>
+										{(ctx) => (
+											<Splitter.Panel
+												id={panels.queryLogger}
+												className="h-full min-h-0 flex flex-col overflow-hidden border-t bg-background"
+											>
+												<QueryLoggerContent
+													connectionUrl={activeConnectionUrl}
+													isExpanded={ctx.isPanelExpanded(panels.queryLogger)}
+													onCollapse={() =>
+														ctx.collapsePanel(panels.queryLogger)
+													}
+													onExpand={() => ctx.expandPanel(panels.queryLogger)}
+												/>
+											</Splitter.Panel>
+										)}
+									</Splitter.Context>
 								</Splitter.Root>
 							)}
 						</Splitter.Context>
