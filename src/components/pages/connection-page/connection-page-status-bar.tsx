@@ -64,7 +64,7 @@ export const ConnectionPageStatusBar = (
 				<HStack className="flex-1 min-w-0 whitespace-nowrap overflow-x-auto">
 					{isLoading ? (
 						<span className="text-muted-foreground/50">Loading...</span>
-					) : !isCustomSql ? (
+					) : isCustomSql ? (
 						<span className="truncate">
 							{tableDisplayName}
 							<span className="hidden sm:inline text-muted-foreground">
