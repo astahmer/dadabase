@@ -194,6 +194,16 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 		});
 	};
 
+	const onCloseAllTabs = () => {
+		navigate({
+			search: (prev) => ({
+				...prev,
+				tabs: [],
+				activeTabId: undefined,
+			}),
+		});
+	};
+
 	const handleCopyTabUrl = (tabId: string) => {
 		const tab = tabs.find((t) => t.tabId === tabId);
 		if (!tab) return;
@@ -349,6 +359,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			onCloseTabsOnLeft={handleDeleteTabsOnLeft}
 			onCloseTabsOnRight={handleDeleteTabsOnRight}
 			onCloseOtherTabs={handleDeleteOtherTabs}
+			onCloseAllTabs={onCloseAllTabs}
 			onCopyTabUrl={handleCopyTabUrl}
 			onRenameTab={handleRenameTab}
 			onAddTab={() => {

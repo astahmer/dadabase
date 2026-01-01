@@ -5,12 +5,15 @@ import {
 	ArrowLeftFromLine,
 	ArrowLeftRight,
 	ArrowRightFromLine,
+	CircleXIcon,
 	ClipboardIcon,
 	CopyPlus,
 	Edit2,
 	PanelLeft,
 	Plus,
+	SquareXIcon,
 	X,
+	XIcon,
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Menu, MenuContent, MenuContextTrigger, MenuItem } from "../../ui/menu";
@@ -37,6 +40,7 @@ interface TableTabsBarProps {
 	onCloseTabsOnLeft?: (tabId: string) => void;
 	onCloseTabsOnRight?: (tabId: string) => void;
 	onCloseOtherTabs?: (tabId: string) => void;
+	onCloseAllTabs?: () => void;
 	onCopyTabUrl?: (tabId: string) => void;
 	onRenameTab?: (tabId: string, newName: string) => void;
 	onToggleSidebar?: () => void;
@@ -55,6 +59,7 @@ const TabItem = ({
 	onCloseOtherTabs,
 	onCloseTabsOnLeft,
 	onCloseTabsOnRight,
+	onCloseAllTabs,
 	onCopyTabUrl,
 	tabs,
 }: {
@@ -69,6 +74,7 @@ const TabItem = ({
 	onCloseOtherTabs?: (tabId: string) => void;
 	onCloseTabsOnLeft?: (tabId: string) => void;
 	onCloseTabsOnRight?: (tabId: string) => void;
+	onCloseAllTabs?: (tabId: string) => void;
 	onCopyTabUrl?: (tabId: string) => void;
 	tabs: readonly TableTab[];
 }) => {
@@ -183,6 +189,13 @@ const TabItem = ({
 							<span>Close to the right</span>
 						</MenuItem>
 					)}
+					<MenuItem
+						value="close-all"
+						onClick={() => onCloseAllTabs?.(tab.tabId)}
+					>
+						<CircleXIcon className="h-3! w-3!" />
+						<span>Close all</span>
+					</MenuItem>
 					<div className="my-1 h-px bg-border" />
 					<MenuItem
 						value="duplicate"
@@ -213,6 +226,7 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
 		onCloseTabsOnLeft,
 		onCloseTabsOnRight,
 		onCloseOtherTabs,
+		onCloseAllTabs,
 		onCopyTabUrl,
 		onRenameTab,
 		onToggleSidebar,
