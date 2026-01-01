@@ -610,6 +610,7 @@ const RowsTabContent = (props: {
 									ranAt={pageState.queryResponse.ranAt}
 									totalRowCount={pageState.queryResponse.rowCount}
 									rowsColumnsCount={pageState.rowsColumns.length - 1}
+									isCustomSql={false}
 								/>
 							</div>
 						</Splitter.Panel>

@@ -99,14 +99,10 @@ export function CustomSqlTabContent({
 		schema: search.schema,
 	});
 
-	// Query for previously executed custom SQL (when customSqlId is set)
-	const customSqlExecutionQuery = useQuery(
-		customSqlExecutionQueryOptions(search.customSqlId),
-	);
-
 	// Mutation for executing new custom SQL
 	const executeCustomSqlMutation = useMutation({
 		mutationFn: executeAndStoreCustomSqlServerFn,
+		meta: { noInvalidate: true },
 		onSuccess: (data) => {
 			// After successful execution, update the URL to use the new customSqlId
 			// and clear the customSql (since it's now stored in the database)
@@ -123,6 +119,19 @@ export function CustomSqlTabContent({
 		},
 	});
 
+	// Check if we already have mutation results (fresh execution)
+	const mutationResult = executeCustomSqlMutation.data as
+		| CustomSqlMutationResult
+		| undefined;
+	const hasMutationResult = !!mutationResult?.rows;
+
+	// Query for previously executed custom SQL (when customSqlId is set)
+	// Disabled if we already have mutation results (fresh execution)
+	const customSqlExecutionQuery = useQuery({
+		...customSqlExecutionQueryOptions(search.customSqlId),
+		enabled: !!search.customSqlId && !hasMutationResult,
+	});
+
 	// Determine current state
 	const hasStoredExecution = !!search.customSqlId;
 	const hasPendingCustomSql = !!search.customSql?.trim();
@@ -130,12 +139,6 @@ export function CustomSqlTabContent({
 	// Get the SQL to display in editor
 	const displaySql =
 		search.customSql ?? customSqlExecutionQuery.data?.sql ?? baseSql;
-
-	// Get mutation result with proper type
-	const mutationResult = executeCustomSqlMutation.data as
-		| CustomSqlMutationResult
-		| undefined;
-	const hasMutationResult = !!mutationResult?.rows;
 
 	// Get execution result (either from mutation or from stored execution)
 	const executionResult: {
