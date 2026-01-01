@@ -123,7 +123,9 @@ export const withQueryLogging =
 						},
 					};
 
-					return queryLogger.update(entryId, updates);
+					return queryLogger
+						.update(entryId, updates)
+						.pipe(Effect.flatMap(() => Effect.fail(error)));
 				}),
 			);
 		}) as Effect.Effect<TOutput, E, R | QueryLogger>;

@@ -427,7 +427,7 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 						isLoading={pageState.rowsQuery.isLoading}
 						disabled={
 							Boolean(search.customSql) &&
-							search.customSql !== pageState.sqlQuery?.sql
+							search.customSql !== pageState.sqlQueryAsText
 						}
 					/>
 				)}
@@ -503,7 +503,7 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 										onExpand={() => ctx.expandPanel(panels.sqlPreview)}
 										onCollapse={() => ctx.collapsePanel(panels.sqlPreview)}
 										activeConnectionUrl={pageState.activeConnectionUrl}
-										sqlQuery={pageState.sqlQuery}
+										sqlQueryAsText={pageState.sqlQueryAsText}
 										rowsQuery={pageState.rowsQuery}
 									/>
 								)}
@@ -591,7 +591,7 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 const RowsTableSqlEditor = (
 	props: Pick<
 		ConnectionPageState,
-		"activeConnectionUrl" | "sqlQuery" | "rowsQuery"
+		"activeConnectionUrl" | "sqlQueryAsText" | "rowsQuery"
 	> & {
 		connection: DbConnection;
 		isCollapsed?: boolean;
@@ -646,7 +646,7 @@ const RowsTableSqlEditor = (
 				return;
 			}
 
-			const sqlToExplain = search.customSql || props.sqlQuery?.sql;
+			const sqlToExplain = search.customSql || props.sqlQueryAsText;
 			if (!sqlToExplain) {
 				alert("No SQL query to explain");
 				return;
@@ -689,7 +689,7 @@ const RowsTableSqlEditor = (
 			<SqlQueryPreview
 				tables={tables}
 				columns={columns}
-				sql={props.sqlQuery?.sql || ""}
+				sql={props.sqlQueryAsText}
 				// isLoading={props.sqlQuery.isLoading}
 				// error={props.sqlQuery.error}
 				isCollapsed={props.isCollapsed}
@@ -717,7 +717,7 @@ const RowsTableSqlEditor = (
 				}
 				onRun={() => {
 					// Check for destructive queries
-					const sqlToRun = search.customSql || props.sqlQuery?.sql;
+					const sqlToRun = search.customSql || props.sqlQueryAsText;
 					if (sqlToRun && isDestructiveQuery(sqlToRun)) {
 						setPendingQueryExecution(() => () => {
 							props.rowsQuery.refetch();
@@ -733,7 +733,7 @@ const RowsTableSqlEditor = (
 				onExplain={explainQuery.refetch}
 				disableExplain={props.connection?.dialect !== DatabaseDialect.Postgres}
 				onFormat={() => {
-					const sqlToFormat = search.customSql || props.sqlQuery?.sql;
+					const sqlToFormat = search.customSql || props.sqlQueryAsText;
 					if (!sqlToFormat) {
 						alert("No SQL query to format");
 						return;
@@ -785,7 +785,7 @@ const RowsTableSqlEditor = (
 					setPendingQueryExecution(null);
 				}}
 				queryType={getDestructiveQuerySummary(
-					search.customSql || props.sqlQuery?.sql || "",
+					search.customSql || props.sqlQueryAsText || "",
 				)}
 				isLoading={props.rowsQuery.isLoading}
 			/>
@@ -952,15 +952,15 @@ const RowsTableContent = (
 								props.rowsQuery.isLoading || props.isColumnMetadataLoading
 							}
 							emptyState={
-								props.rowsQuery.data?.rowsAffected !== undefined ? (
+								(props.rowsQuery.data as any)?.rowsAffected !== undefined ? (
 									<div className="py-2">
 										<p className="text-lg font-semibold text-foreground mb-2">
 											Query executed successfully
 										</p>
 										<p className="text-base text-muted-foreground">
-											{props.rowsQuery.data?.rowsAffected === 1
-												? `${props.rowsQuery.data?.rowsAffected} row affected`
-												: `${props.rowsQuery.data?.rowsAffected} rows affected`}
+											{(props.rowsQuery.data as any)?.rowsAffected === 1
+												? `${(props.rowsQuery.data as any)?.rowsAffected} row affected`
+												: `${(props.rowsQuery.data as any)?.rowsAffected} rows affected`}
 										</p>
 									</div>
 								) : (

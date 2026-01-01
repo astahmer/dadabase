@@ -64,7 +64,7 @@
 - SQL snippets
 - add save action in SQL query bar actions
 - drag/drop tabs to reorder
-
+- sidebar fixed part with icons cant be collapsed: icons ideas -> switch connection, dark mode, refresh results, reset page, saved queries, query history, settings (localstorage saved prefs that are used as defaults for url params?)
 - handle column aliases: SQL parsing, SQL completion, filters, column visibility, sorting etc
 
 ## issues

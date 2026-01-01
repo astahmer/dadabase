@@ -1669,7 +1669,6 @@ export const queryTableRows = <TData>(input: {
 	joins?: JoinTablesConfig["joins"];
 	selectedColumns?: string[];
 	excludedColumns?: string[];
-	customSql?: string;
 }): Effect.Effect<
 	{
 		rows: TData[];
@@ -1693,59 +1692,7 @@ export const queryTableRows = <TData>(input: {
 			filters,
 			selectedColumns = [],
 			excludedColumns = [],
-			customSql,
 		} = input;
-
-		// If custom SQL is provided, execute it directly
-		if (customSql) {
-			const conn = yield* Effect.orDie(sql.reserve).pipe(Effect.scoped);
-			const rawResult = yield* conn.executeRaw(customSql, []).pipe(
-				withQueryLogging({
-					type: QueryLogType.TableRows,
-					sql: customSql,
-					params: [],
-					schema: input.schema,
-					table: input.table,
-					level: QueryLogLevel.Info,
-					connectionId: connectionId,
-					meta: { input, customQuery: true },
-				}),
-			);
-			const result = { rows: [], ...((rawResult as any) ?? {}) } as {
-				columns: string[];
-				columnTypes: string[];
-				rows: unknown[];
-				rowCount?: number; // PostgreSQL only
-				rowsAffected?: number; // libSQL/SQLite only
-				affectedRows?: number; // PgLite only
-			};
-			// Determine if this is a SELECT query to know how to handle the result
-			const isSelect = isSelectQuery(customSql);
-			if (isSelect) {
-				// For SELECT queries, result is an array of row objects
-				const rows = result.rows;
-				const columnList =
-					rows && rows.length > 0 ? Object.keys(rows[0] as object) : [];
-				return {
-					rows: rows as TData[],
-					columnList,
-					rowCount: rows?.length ?? 0,
-					hasNextPage: false,
-					rowsAffected: undefined,
-				};
-			}
-
-			const rowsAffected =
-				result.rowCount ?? result.rowsAffected ?? result.affectedRows ?? 0;
-			// console.log(result, { rawResult, rowsAffected, customSql });
-			return {
-				rows: [] as TData[],
-				columnList: [],
-				rowCount: 0,
-				hasNextPage: false,
-				rowsAffected: rowsAffected,
-			};
-		}
 
 		const defaultSchema = yield* sql.onDialectOrElse({
 			pg: () =>
@@ -2000,4 +1947,82 @@ export const queryTableRows = <TData>(input: {
 		});
 
 		return result;
+	});
+/**
+ * Execute custom SQL and return results
+ * For SELECT queries: returns rows with column list
+ * For other queries (INSERT, UPDATE, DELETE): returns rows affected
+ */
+export const executeCustomSql = (input: {
+	sql: string;
+	connectionId?: string;
+}): Effect.Effect<
+	{
+		rows: unknown[];
+		columns: string[];
+		rowCount: number;
+		rowsAffected?: number;
+		timeTaken: number;
+		ranAt: number;
+	},
+	SqlError,
+	RemoteConnection | QueryLogger | SqlClient.SqlClient
+> =>
+	Effect.gen(function* () {
+		const connectionId = yield* RemoteConnection;
+		const sql = yield* SqlClient.SqlClient;
+
+		const startTime = Date.now();
+
+		const conn = yield* Effect.orDie(sql.reserve).pipe(Effect.scoped);
+		const rawResult = yield* conn.executeRaw(input.sql, []).pipe(
+			withQueryLogging({
+				type: QueryLogType.TableRows,
+				sql: input.sql,
+				params: [],
+				level: QueryLogLevel.Info,
+				connectionId: connectionId,
+				meta: { customQuery: true },
+			}),
+		);
+
+		const result = { rows: [], ...((rawResult as any) ?? {}) } as {
+			columns: string[];
+			columnTypes: string[];
+			rows: unknown[];
+			rowCount?: number;
+			rowsAffected?: number;
+			affectedRows?: number;
+		};
+
+		const endTime = Date.now();
+
+		// Determine if this is a SELECT query to know how to handle the result
+		const isSelect = isSelectQuery(input.sql);
+		if (isSelect) {
+			// For SELECT queries, result is an array of row objects
+			const rows = result.rows;
+			const columnList =
+				rows && rows.length > 0 ? Object.keys(rows[0] as object) : [];
+			return {
+				rows: rows as unknown[],
+				columns: columnList,
+				rowCount: rows?.length ?? 0,
+				timeTaken: endTime - startTime,
+				ranAt: startTime,
+				rowsAffected: undefined,
+			};
+		}
+
+		const rowsAffected =
+			result.rowCount ?? result.rowsAffected ?? result.affectedRows ?? 0;
+
+		return {
+			rows: [] as unknown[],
+			columns: [],
+			rowCount: 0,
+			rowsAffected: rowsAffected,
+			timeTaken: endTime - startTime,
+			ranAt: startTime,
+		};
 	});

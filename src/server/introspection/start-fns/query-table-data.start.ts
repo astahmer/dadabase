@@ -82,7 +82,6 @@ export const QueryTableRowsInputSchema = Schema.Struct({
 		Schema.mutable,
 		Schema.optional,
 	),
-	customSql: Schema.String.pipe(Schema.optional),
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
 	.inputValidator(QueryTableRowsInputSchema.pipe(Schema.standardSchemaV1))
@@ -115,7 +114,6 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 					excludedColumns: input.excludedColumns
 						? Array.from(input.excludedColumns)
 						: undefined,
-					customSql: input.customSql,
 				});
 
 				const endTime = Date.now();
@@ -149,16 +147,12 @@ export type QueryTableDataInput = {
 	joins?: JoinTablesConfig["joins"];
 	selectedColumns?: string[];
 	excludedColumns?: string[];
-	customSql?: string;
 };
 
 export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
 	// console.log("[rows query]", input)
-	// Create query key without customSql to prevent auto-refetch when user edits the query
-	// customSql is still passed to the server function, but changes don't trigger automatic refetch
-	const { customSql: _, ...keyInput } = input;
 	return queryOptions({
-		queryKey: ["remote", "rows", keyInput],
+		queryKey: ["remote", "rows", input],
 		queryFn: async () => queryTableDataServerFn({ data: input }),
 		meta: { loggable: true },
 		placeholderData: keepPreviousData,

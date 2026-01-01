@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import type {
 	AccessorKeyColumnDef,
@@ -6,7 +6,7 @@ import type {
 	ColumnPinningState,
 	Row,
 } from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RowContextMenu } from "#src/components/app/row-context-menu.tsx";
 import type { DataTableRowSubrow } from "#src/components/data-table/data-table.row.tsx";
 import { useDataTable } from "#src/components/data-table/use-data-table.ts";
@@ -28,6 +28,7 @@ import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { getQueryAsSql } from "#src/server/introspection/start-fns/get-query-sql.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
+import { executeCustomSqlServerFn } from "#src/server/introspection/start-fns/execute-custom-sql.start.ts";
 import type { DbConnection } from "../connection.types.ts";
 import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
@@ -41,6 +42,15 @@ export const useActiveConnectionUrl = (connection: DbConnection) => {
 				: connection.url,
 	});
 };
+
+interface QueryResponse {
+	rows: Array<Record<string, unknown>>;
+	columns: string[];
+	rowCount: number;
+	timeTaken: number;
+	ranAt: number;
+	rowsAffected?: number;
+}
 
 export const useConnectionPageState = ({
 	connection,
@@ -146,7 +156,10 @@ export const useConnectionPageState = ({
 		}
 	}
 
-	const rowsQuery = useQuery({
+	// Determine if we're executing custom SQL or a regular table query
+	const isCustomSql = Boolean(search.customSql?.trim());
+
+	const tableQuery = useQuery({
 		...queryTableDataQueryOptions({
 			url: activeConnectionUrl,
 			schema: search.schema || "",
@@ -163,32 +176,39 @@ export const useConnectionPageState = ({
 			joins: joins,
 			selectedColumns: columnVisibilityFilters.selectedColumns,
 			excludedColumns: columnVisibilityFilters.excludedColumns,
-			customSql: search.customSql,
 		}),
-		enabled: Boolean(search.schema && search.table),
+		enabled: !isCustomSql && Boolean(search.schema && search.table),
 	});
 
-	// Fetch the SQL query string (without executing)
-	const sqlQuery = getQueryAsSql({
-		dialect: connection.dialect as DatabaseDialect,
-		schema: search.schema || "",
-		table: search.table || "",
-		limit: search.limit,
-		offset: search.offset,
-		orderBy: search.orderBy,
-		orderDirection: search.orderDirection,
-		nullsOrder: search.nullsOrder,
-		filters: queryBuilder.getWhereClause() ?? {
-			conditions: [],
-			logicalOperator: "and",
-		},
-		joins: joins,
-		selectedColumns: columnVisibilityFilters.selectedColumns,
-		excludedColumns: columnVisibilityFilters.excludedColumns,
+	const customSqlMutation = useMutation({
+		mutationFn: executeCustomSqlServerFn,
 	});
+
+	const rowsQuery = isCustomSql ? customSqlMutation : tableQuery;
+
+	// Fetch the SQL query string (without executing) - only for non-custom queries
+	const sqlQueryAsText = isCustomSql
+		? ""
+		: getQueryAsSql({
+				dialect: connection.dialect as DatabaseDialect,
+				schema: search.schema || "",
+				table: search.table || "",
+				limit: search.limit,
+				offset: search.offset,
+				orderBy: search.orderBy,
+				orderDirection: search.orderDirection,
+				nullsOrder: search.nullsOrder,
+				filters: queryBuilder.getWhereClause() ?? {
+					conditions: [],
+					logicalOperator: "and",
+				},
+				joins: joins,
+				selectedColumns: columnVisibilityFilters.selectedColumns,
+				excludedColumns: columnVisibilityFilters.excludedColumns,
+			}).sql;
 
 	// Format row data
-	const queryResponse = rowsQuery.data || {
+	const queryResponse: QueryResponse = (rowsQuery.data as any) || {
 		rows: [],
 		columns: [],
 		rowCount: 0,
@@ -655,8 +675,20 @@ export const useConnectionPageState = ({
 	return {
 		activeConnectionUrl,
 		queryBuilder,
-		rowsQuery,
-		sqlQuery,
+		// TODO?
+		rowsQuery: {
+			...rowsQuery,
+			isLoading: isCustomSql
+				? customSqlMutation.isPending
+				: tableQuery.isLoading,
+			refetch: isCustomSql
+				? () =>
+						customSqlMutation.mutate({
+							data: { url: activeConnectionUrl, sql: search.customSql || "" },
+						})
+				: tableQuery.refetch,
+		},
+		sqlQueryAsText: sqlQueryAsText,
 		columnMetadata: tableMetadata.columnMetadata,
 		columnNameList: columnNameList,
 		isColumnMetadataLoading: tableMetadata.isLoading,
