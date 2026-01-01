@@ -20,7 +20,12 @@ import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { Splitter, type UseSplitterContext } from "@ark-ui/react";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import {
+	useMutation,
+	useQuery,
+	useSuspenseQuery,
+	type UseMutationResult,
+} from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
 import { type Dispatch, type SetStateAction, useState } from "react";
@@ -68,6 +73,7 @@ import type { DbConnection } from "./connection.types";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
 import type { Table } from "@tanstack/react-table";
+import { executeCustomSqlServerFn } from "#src/server/introspection/start-fns/execute-custom-sql.start.ts";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -113,7 +119,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	);
 	const sidebarMinSize = fromPixelToPercentage(224, "horizontal");
 	const queryLoggerMinSize = fromPixelToPercentage(48, "vertical");
-	const defaultQueryLoggerSize = queryLoggerSize ?? 25; // Default 25% if not set
+	const defaultQueryLoggerSize = queryLoggerSize ?? 0; // Default 25% if not set
 
 	const search = useActiveTabState((tab) => ({
 		schema: tab.schema,
@@ -393,7 +399,9 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 	});
 	const { filters: structureFilters } = useStructureFilters();
 
-	console.log(pageState);
+	const customSqlMutation = useMutation({
+		mutationFn: executeCustomSqlServerFn,
+	});
 
 	return (
 		<>
@@ -504,7 +512,7 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 										onCollapse={() => ctx.collapsePanel(panels.sqlPreview)}
 										activeConnectionUrl={pageState.activeConnectionUrl}
 										sqlQueryAsText={pageState.sqlQueryAsText}
-										rowsQuery={pageState.rowsQuery}
+										customSqlMutation={customSqlMutation}
 									/>
 								)}
 							</Splitter.Context>
@@ -558,6 +566,17 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 										/>
 									</Stack>
 								</div>
+							) : customSqlMutation.data?.rowsAffected !== undefined ? (
+								<div className="py-2">
+									<p className="text-lg font-semibold text-foreground mb-2">
+										Query executed successfully
+									</p>
+									<p className="text-base text-muted-foreground">
+										{customSqlMutation.data?.rowsAffected === 1
+											? `${customSqlMutation.data?.rowsAffected} row affected`
+											: `${customSqlMutation.data?.rowsAffected} rows affected`}
+									</p>
+								</div>
 							) : (
 								<RowsTableContent
 									activeConnectionUrl={pageState.activeConnectionUrl}
@@ -589,19 +608,28 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 };
 
 const RowsTableSqlEditor = (
-	props: Pick<
-		ConnectionPageState,
-		"activeConnectionUrl" | "sqlQueryAsText" | "rowsQuery"
-	> & {
+	props: Pick<ConnectionPageState, "activeConnectionUrl" | "sqlQueryAsText"> & {
 		connection: DbConnection;
 		isCollapsed?: boolean;
 		onExpand: () => void;
 		onCollapse: () => void;
+		customSqlMutation: UseMutationResult<
+			{
+				rows: any[];
+				columns: string[];
+				rowCount: number;
+				rowsAffected: number | undefined;
+				timeTaken: number;
+				ranAt: number;
+			},
+			any,
+			any
+		>;
 	},
 ) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
-	const search = useActiveTabState((tab, search) => {
+	const search = useActiveTabState((tab) => {
 		return {
 			schema: tab.schema,
 			table: tab.table,
@@ -717,23 +745,33 @@ const RowsTableSqlEditor = (
 				}
 				onRun={() => {
 					// Check for destructive queries
-					const sqlToRun = search.customSql || props.sqlQueryAsText;
+					const sqlToRun = search.customSql;
 					if (sqlToRun && isDestructiveQuery(sqlToRun)) {
 						setPendingQueryExecution(() => () => {
-							props.rowsQuery.refetch();
+							props.customSqlMutation.mutate({
+								data: {
+									url: props.activeConnectionUrl,
+									sql: search.customSql || "",
+								},
+							});
 							setShowDestructiveConfirm(false);
 							setPendingQueryExecution(null);
 						});
 						setShowDestructiveConfirm(true);
 						return;
 					}
-					// Trigger refetch of the rows query
-					props.rowsQuery.refetch();
+
+					props.customSqlMutation.mutate({
+						data: {
+							url: props.activeConnectionUrl,
+							sql: search.customSql || "",
+						},
+					});
 				}}
 				onExplain={explainQuery.refetch}
 				disableExplain={props.connection?.dialect !== DatabaseDialect.Postgres}
 				onFormat={() => {
-					const sqlToFormat = search.customSql || props.sqlQueryAsText;
+					const sqlToFormat = search.customSql;
 					if (!sqlToFormat) {
 						alert("No SQL query to format");
 						return;
@@ -784,10 +822,8 @@ const RowsTableSqlEditor = (
 					setShowDestructiveConfirm(false);
 					setPendingQueryExecution(null);
 				}}
-				queryType={getDestructiveQuerySummary(
-					search.customSql || props.sqlQueryAsText || "",
-				)}
-				isLoading={props.rowsQuery.isLoading}
+				queryType={getDestructiveQuerySummary(search.customSql || "")}
+				isLoading={props.customSqlMutation.isPending}
 			/>
 		</>
 	);
@@ -950,22 +986,6 @@ const RowsTableContent = (
 							getTableContainer={setTableContainer}
 							isLoading={
 								props.rowsQuery.isLoading || props.isColumnMetadataLoading
-							}
-							emptyState={
-								(props.rowsQuery.data as any)?.rowsAffected !== undefined ? (
-									<div className="py-2">
-										<p className="text-lg font-semibold text-foreground mb-2">
-											Query executed successfully
-										</p>
-										<p className="text-base text-muted-foreground">
-											{(props.rowsQuery.data as any)?.rowsAffected === 1
-												? `${(props.rowsQuery.data as any)?.rowsAffected} row affected`
-												: `${(props.rowsQuery.data as any)?.rowsAffected} rows affected`}
-										</p>
-									</div>
-								) : (
-									true
-								)
 							}
 							size={search.tableSize}
 							onColumnFilterClick={(columnId) => {

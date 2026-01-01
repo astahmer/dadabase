@@ -156,10 +156,10 @@ export const useConnectionPageState = ({
 		}
 	}
 
-	// Determine if we're executing custom SQL or a regular table query
-	const isCustomSql = Boolean(search.customSql?.trim());
+	const customSql = search.customSql?.trim();
+	const isCustomSql = Boolean(customSql);
 
-	const tableQuery = useQuery({
+	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
 			url: activeConnectionUrl,
 			schema: search.schema || "",
@@ -180,32 +180,26 @@ export const useConnectionPageState = ({
 		enabled: !isCustomSql && Boolean(search.schema && search.table),
 	});
 
-	const customSqlMutation = useMutation({
-		mutationFn: executeCustomSqlServerFn,
-	});
-
-	const rowsQuery = isCustomSql ? customSqlMutation : tableQuery;
-
-	// Fetch the SQL query string (without executing) - only for non-custom queries
-	const sqlQueryAsText = isCustomSql
-		? ""
-		: getQueryAsSql({
-				dialect: connection.dialect as DatabaseDialect,
-				schema: search.schema || "",
-				table: search.table || "",
-				limit: search.limit,
-				offset: search.offset,
-				orderBy: search.orderBy,
-				orderDirection: search.orderDirection,
-				nullsOrder: search.nullsOrder,
-				filters: queryBuilder.getWhereClause() ?? {
-					conditions: [],
-					logicalOperator: "and",
-				},
-				joins: joins,
-				selectedColumns: columnVisibilityFilters.selectedColumns,
-				excludedColumns: columnVisibilityFilters.excludedColumns,
-			}).sql;
+	const sqlQueryAsText =
+		(isCustomSql
+			? search.customSql
+			: getQueryAsSql({
+					dialect: connection.dialect as DatabaseDialect,
+					schema: search.schema || "",
+					table: search.table || "",
+					limit: search.limit,
+					offset: search.offset,
+					orderBy: search.orderBy,
+					orderDirection: search.orderDirection,
+					nullsOrder: search.nullsOrder,
+					filters: queryBuilder.getWhereClause() ?? {
+						conditions: [],
+						logicalOperator: "and",
+					},
+					joins: joins,
+					selectedColumns: columnVisibilityFilters.selectedColumns,
+					excludedColumns: columnVisibilityFilters.excludedColumns,
+				}).sql) || "";
 
 	// Format row data
 	const queryResponse: QueryResponse = (rowsQuery.data as any) || {
@@ -676,18 +670,20 @@ export const useConnectionPageState = ({
 		activeConnectionUrl,
 		queryBuilder,
 		// TODO?
-		rowsQuery: {
-			...rowsQuery,
-			isLoading: isCustomSql
-				? customSqlMutation.isPending
-				: tableQuery.isLoading,
-			refetch: isCustomSql
-				? () =>
-						customSqlMutation.mutate({
-							data: { url: activeConnectionUrl, sql: search.customSql || "" },
-						})
-				: tableQuery.refetch,
-		},
+		// rowsQuery: {
+		// 	...rowsQuery,
+		// 	isLoading: isCustomSql
+		// 		? customSqlMutation.isPending
+		// 		: tableQuery.isLoading,
+		// 	refetch: isCustomSql
+		// 		? () =>
+		// 				customSqlMutation.mutate({
+		// 					data: { url: activeConnectionUrl, sql: search.customSql || "" },
+		// 				})
+		// 		: tableQuery.refetch,
+		// },
+		rowsQuery,
+		// customSqlMutation,
 		sqlQueryAsText: sqlQueryAsText,
 		columnMetadata: tableMetadata.columnMetadata,
 		columnNameList: columnNameList,

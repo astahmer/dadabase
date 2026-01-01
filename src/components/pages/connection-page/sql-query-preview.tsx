@@ -99,6 +99,7 @@ export function SqlQueryPreview({
 }: SqlQueryPreviewProps) {
 	const [copied, setCopied] = useState(false);
 	const editorValueRef = useRef<string>(sql);
+	// console.log({ sql, customSql });
 
 	const handleCopy = async () => {
 		try {
