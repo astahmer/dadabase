@@ -374,9 +374,6 @@ export function CustomSqlTabContent({
 			return (
 				<div className="flex-1 flex items-center justify-center">
 					<div className="text-center">
-						<p className="text-lg font-semibold text-foreground mb-2">
-							Custom SQL ready
-						</p>
 						<p className="text-sm text-muted-foreground mb-4">
 							Click Execute or press Ctrl+Enter in the editor to run
 						</p>

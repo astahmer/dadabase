@@ -1,16 +1,12 @@
+import { formatSQL } from "#src/lib/format-sql";
+import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 import Editor from "@monaco-editor/react";
 import type * as OriginalMonacoEditor from "monaco-editor";
 import * as OriginalMonaco from "monaco-editor";
 import { useEffect, useEffectEvent, useState } from "react";
-import { formatSQL } from "#src/lib/format-sql";
-import type {
-	TableColumnMetadata,
-	TableWithColumnsMetadata,
-} from "#src/server/introspection/introspection.ts";
 import { sqlCompletionProvider } from "./sql-completion-provider.ts";
 
 type Monaco = typeof OriginalMonaco;
-type MonacoEditor = typeof OriginalMonacoEditor;
 
 // snippets
 // https://github.com/DTStack/monaco-sql-languages/blob/6c745d44019229d79a33c5471d8a90c5a4d206cd/src/languages/pgsql/pgsql.snippet.ts
@@ -64,40 +60,11 @@ export function SqlMonacoEditor({
 	autoFocus = false,
 	placeholder,
 }: SqlMonacoEditorProps) {
-	// const monacoRef = useRef<Monaco>(null);
 	const [monacoRef, setMonacoRef] = useState<Monaco | null>(null);
-	// const editorRef =
-	// 	useRef<OriginalMonacoEditor.editor.IStandaloneCodeEditor | null>(null);
 	const [editorRef, setEditorRef] =
 		useState<OriginalMonacoEditor.editor.IStandaloneCodeEditor | null>(null);
-	const [theme, setTheme] = useState<"vs-light" | "vs-dark">("vs-light");
 
-	// Determine the current theme based on dark mode
-	const getTheme = useEffectEvent((): "vs-light" | "vs-dark" => {
-		return document.documentElement.classList.contains("dark")
-			? "vs-dark"
-			: "vs-light";
-	});
-
-	// Watch for dark mode changes
-	useEffect(() => {
-		const initialTheme = getTheme();
-		setTheme(initialTheme);
-
-		const observer = new MutationObserver(() => {
-			const newTheme = getTheme();
-			setTheme(newTheme);
-		});
-
-		observer.observe(document.documentElement, {
-			attributes: true,
-			attributeFilter: ["class"],
-		});
-
-		return () => {
-			observer.disconnect();
-		};
-	}, []);
+	const monacoTheme = useMonacoTheme();
 
 	useEffect(() => {
 		if (!editorRef) return;
@@ -186,7 +153,6 @@ export function SqlMonacoEditor({
 	return (
 		<Editor
 			onMount={(editor) => {
-				// editorRef.current = editor;
 				setEditorRef(editor);
 				if (autoFocus) {
 					editor.focus();
@@ -203,7 +169,7 @@ export function SqlMonacoEditor({
 					onChange(value);
 				}
 			}}
-			theme={theme}
+			theme={monacoTheme}
 			className={className}
 			options={{
 				automaticLayout: true,
@@ -224,6 +190,38 @@ export function SqlMonacoEditor({
 		/>
 	);
 }
+
+const useMonacoTheme = () => {
+	const [theme, setTheme] = useState<"vs-light" | "vs-dark">("vs-light");
+
+	const getTheme = useEffectEvent((): "vs-light" | "vs-dark" => {
+		return document.documentElement.classList.contains("dark")
+			? "vs-dark"
+			: "vs-light";
+	});
+
+	// Watch for dark mode changes
+	useEffect(() => {
+		const initialTheme = getTheme();
+		setTheme(initialTheme);
+
+		const observer = new MutationObserver(() => {
+			const newTheme = getTheme();
+			setTheme(newTheme);
+		});
+
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ["class"],
+		});
+
+		return () => {
+			observer.disconnect();
+		};
+	}, []);
+
+	return theme;
+};
 
 const pgConfig = {
 	keywords: [
