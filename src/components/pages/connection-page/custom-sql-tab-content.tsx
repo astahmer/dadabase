@@ -126,7 +126,6 @@ export function CustomSqlTabContent({
 	// Determine current state
 	const hasStoredExecution = !!search.customSqlId;
 	const hasPendingCustomSql = !!search.customSql?.trim();
-	const isExecuting = executeCustomSqlMutation.isPending;
 
 	// Get the SQL to display in editor
 	const displaySql =
@@ -276,12 +275,15 @@ export function CustomSqlTabContent({
 	// Determine what to render in the content area
 	const renderContent = () => {
 		// Loading state
-		if (isExecuting || customSqlExecutionQuery.isLoading) {
+		if (
+			executeCustomSqlMutation.isPending ||
+			customSqlExecutionQuery.isLoading
+		) {
 			return (
 				<Stack className="flex-1 flex items-center justify-center">
 					<Spinner />
 					<span className="text-muted-foreground">
-						{isExecuting
+						{executeCustomSqlMutation.isPending
 							? "Executing custom SQL..."
 							: "Loading execution result..."}
 					</span>
@@ -592,17 +594,13 @@ export function CustomSqlTabContent({
 							<ConnectionPageStatusBar
 								table={table}
 								hasUuid={false}
-								isLoading={isExecuting}
+								isLoading={executeCustomSqlMutation.isPending}
 								refetch={handleExecute}
 								timeTaken={executionResult?.timeTaken ?? 0}
 								ranAt={executionResult?.ranAt ?? 0}
 								totalRowCount={executionResult?.rowCount ?? 0}
 								rowsColumnsCount={resultColumns.length}
-								customSqlResult={
-									executionResult?.rowsAffected !== undefined
-										? { rowsAffected: executionResult.rowsAffected }
-										: undefined
-								}
+								isCustomSql
 							/>
 						</div>
 					</Splitter.Panel>
@@ -629,7 +627,7 @@ export function CustomSqlTabContent({
 				queryType={getDestructiveQuerySummary(
 					search.customSql || displaySql || "",
 				)}
-				isLoading={isExecuting}
+				isLoading={executeCustomSqlMutation.isPending}
 			/>
 		</>
 	);

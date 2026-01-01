@@ -35,16 +35,13 @@ interface ConnectionPageStatusBarProps {
 	ranAt: number;
 	totalRowCount: number;
 	rowsColumnsCount: number;
-	/** Custom SQL result info - when set, indicates this is a custom SQL query */
-	customSqlResult?: {
-		rowsAffected: number | undefined;
-	};
+	isCustomSql: boolean;
 }
 
 export const ConnectionPageStatusBar = (
 	props: ConnectionPageStatusBarProps,
 ) => {
-	const { isLoading, refetch, customSqlResult } = props;
+	const { isLoading, refetch, isCustomSql } = props;
 
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
@@ -60,9 +57,6 @@ export const ConnectionPageStatusBar = (
 	const prefixWithTable = useActiveTabState((s) => s.prefixWithTable);
 	const joins = useActiveTabState((s) => s.joins);
 
-	// For non-SELECT custom SQL queries, show simplified status
-	const isNonSelectCustomSql = customSqlResult?.rowsAffected !== undefined;
-
 	return (
 		<div className="border-t bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
 			<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 lg:gap-4">
@@ -70,7 +64,7 @@ export const ConnectionPageStatusBar = (
 				<HStack className="flex-1 min-w-0 whitespace-nowrap overflow-x-auto">
 					{isLoading ? (
 						<span className="text-muted-foreground/50">Loading...</span>
-					) : isNonSelectCustomSql ? (
+					) : !isCustomSql ? (
 						<span className="truncate">
 							{tableDisplayName}
 							<span className="hidden sm:inline text-muted-foreground">
@@ -112,7 +106,7 @@ export const ConnectionPageStatusBar = (
 				{/* Right side - Controls */}
 				<div className="flex flex-wrap items-center gap-2 lg:gap-3">
 					{/* Hide pagination and sizing controls for non-SELECT custom SQL */}
-					{!isNonSelectCustomSql && (
+					{!isCustomSql && (
 						<>
 							{/* Pagination Controls */}
 							<Pagination.Root
