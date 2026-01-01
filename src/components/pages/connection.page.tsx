@@ -10,9 +10,6 @@ import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
-import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
-import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
-import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { Splitter } from "@ark-ui/react";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -52,12 +49,14 @@ import {
 	updateTabState,
 	useActiveTabState,
 } from "./connection-page/create-tab-state.ts";
-import { ExplainOutput } from "./connection-page/explain-output.tsx";
+import { ExplainOutputDrawer } from "./connection-page/explain-output-drawer.tsx";
 import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
 import { TabErrorState } from "./connection-page/tab-error-state.tsx";
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
+import { useExplainQuery } from "./connection-page/use-explain-query.ts";
+import { useTablesColumnsForIntellisense } from "./connection-page/use-tables-columns-intellisense.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
@@ -290,7 +289,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 												activeConnectionUrl={activeConnectionUrl}
 											/>
 										) : search.table && search.schema ? (
-											<RowsTabPage
+											<MainContentRouter
 												connection={connection}
 												activeConnectionUrl={activeConnectionUrl}
 											/>
@@ -372,11 +371,51 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	);
 };
 
-const RowsTabPage = (props: {
+/**
+ * Router component to switch between RowsTabContent and CustomSqlTabContent
+ * based on whether user is in custom SQL mode
+ */
+const MainContentRouter = (props: {
 	connection: DbConnection;
 	activeConnectionUrl: string;
 }) => {
 	const { connection, activeConnectionUrl } = props;
+	const pageState = useConnectionPageState({ connection });
+
+	const search = useActiveTabState((tab) => ({
+		customSql: tab.customSql,
+		customSqlId: tab.customSqlId,
+		viewMode: tab.viewMode,
+	}));
+
+	// Determine if we're in custom SQL mode (either pending edit or stored execution)
+	const isCustomSqlMode =
+		Boolean(search.customSql?.trim()) || Boolean(search.customSqlId);
+
+	// If in custom SQL mode and viewing rows, render the dedicated component
+	if (isCustomSqlMode && search.viewMode === "rows") {
+		return (
+			<CustomSqlTabContent
+				connection={connection}
+				activeConnectionUrl={activeConnectionUrl}
+				baseSql={pageState.sqlQueryAsText}
+			/>
+		);
+	}
+
+	return (
+		<RowsTabContent
+			connection={connection}
+			activeConnectionUrl={activeConnectionUrl}
+		/>
+	);
+};
+
+const RowsTabContent = (props: {
+	connection: DbConnection;
+	activeConnectionUrl: string;
+}) => {
+	const { connection } = props;
 	const pageState = useConnectionPageState({ connection });
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
@@ -389,26 +428,9 @@ const RowsTabPage = (props: {
 			viewMode: tab.viewMode,
 			tableSize: tab.tableSize,
 			sqlPreviewSize: tab.sqlPreviewSize,
-			customSql: tab.customSql,
-			customSqlId: tab.customSqlId,
 		};
 	});
 	const { filters: structureFilters } = useStructureFilters();
-
-	// Determine if we're in custom SQL mode (either pending edit or stored execution)
-	const isCustomSqlMode =
-		Boolean(search.customSql?.trim()) || Boolean(search.customSqlId);
-
-	// If in custom SQL mode, render the dedicated component
-	if (isCustomSqlMode && search.viewMode === "rows") {
-		return (
-			<CustomSqlTabContent
-				connection={connection}
-				activeConnectionUrl={activeConnectionUrl}
-				baseSql={pageState.sqlQueryAsText}
-			/>
-		);
-	}
 
 	return (
 		<>
@@ -618,59 +640,22 @@ const RowsTableSqlEditor = (
 
 	const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
 
-	// Fetch available tables for intellisense
-	const tablesQuery = useQuery({
-		...listAvailableTablesQueryOptions({
-			url: props.activeConnectionUrl,
-			schema: search.schema,
-		}),
-		enabled: !!search.schema,
+	// Fetch available tables/columns for intellisense
+	const { tables, columns } = useTablesColumnsForIntellisense({
+		connectionUrl: props.activeConnectionUrl,
+		schema: search.schema,
 	});
-	const tables = tablesQuery.data || [];
 
-	// Fetch columns for each table
-	const columnQuery = useQuery(
-		getAllTablesColumnsQueryOptions({
-			url: props.activeConnectionUrl,
-			schema: search.schema,
-		}),
-	);
-	const columns = columnQuery.data ?? [];
-
-	const [showExplainPanel, setShowExplainPanel] = useState(false);
-	const explainQuery = useQuery({
-		enabled: false,
-		queryKey: ["remote", "explain", props.sqlQueryAsText],
-		queryFn: async () => {
-			// Only allow explain for PostgreSQL databases
-			if (props.connection.dialect !== DatabaseDialect.Postgres) {
-				alert("Query explain is only supported for PostgreSQL databases");
-				return;
-			}
-
-			if (!props.sqlQueryAsText) {
-				alert("No SQL query to explain");
-				return;
-			}
-
-			try {
-				setShowExplainPanel(true);
-				const result = await explainQueryServerFn({
-					data: {
-						url: props.activeConnectionUrl,
-						sql: props.sqlQueryAsText,
-					},
-				});
-
-				if (result) {
-					return result.plan;
-				}
-			} catch (error) {
-				const message =
-					error instanceof Error ? error.message : "Failed to explain query";
-				return `Error: ${message}`;
-			}
-		},
+	// Explain query functionality
+	const {
+		explainQuery,
+		showExplainPanel,
+		setShowExplainPanel,
+		isExplainDisabled,
+	} = useExplainQuery({
+		connectionUrl: props.activeConnectionUrl,
+		sql: props.sqlQueryAsText,
+		dialect: props.connection.dialect,
 	});
 
 	// When user starts editing in preview mode, switch to custom SQL mode
@@ -709,7 +694,7 @@ const RowsTableSqlEditor = (
 				}
 				onEditorChange={(value) => onEditorValueChange(value)}
 				onExplain={explainQuery.refetch}
-				disableExplain={props.connection?.dialect !== DatabaseDialect.Postgres}
+				disableExplain={isExplainDisabled}
 				onFormat={() => {
 					try {
 						const formatted = formatSQL(props.sqlQueryAsText, {
@@ -984,22 +969,10 @@ const EmptyTabContent = (props: {
 	}));
 
 	// Fetch available tables/columns for intellisense
-	const tablesQuery = useQuery({
-		...listAvailableTablesQueryOptions({
-			url: props.activeConnectionUrl,
-			schema: search.schema,
-		}),
-		enabled: !!search.schema,
+	const { tables, columns } = useTablesColumnsForIntellisense({
+		connectionUrl: props.activeConnectionUrl,
+		schema: search.schema,
 	});
-	const tables = tablesQuery.data || [];
-
-	const columnQuery = useQuery(
-		getAllTablesColumnsQueryOptions({
-			url: props.activeConnectionUrl,
-			schema: search.schema,
-		}),
-	);
-	const columns = columnQuery.data ?? [];
 
 	return (
 		<EmptyTabState
@@ -1113,76 +1086,6 @@ const AddConnectionDrawer = (props: {
 							}
 						}}
 					/>
-				</div>
-			</SheetContent>
-		</Sheet>
-	);
-};
-
-const ExplainOutputDrawer = (props: {
-	showExplainPanel: boolean;
-	setShowExplainPanel: Dispatch<SetStateAction<boolean>>;
-	output: string | null;
-}) => {
-	const { showExplainPanel, setShowExplainPanel, output } = props;
-
-	const [viewMode, onViewModeChange] = useState<"smart" | "raw">("smart");
-
-	return (
-		<Sheet
-			open={showExplainPanel}
-			onOpenChange={(details) => {
-				if (!details.open) setShowExplainPanel(false);
-			}}
-		>
-			<SheetContent side="right" size="full" className="flex flex-col p-0">
-				<SheetHeader className="px-6 pt-6 pb-4 border-b">
-					<div className="flex items-center justify-between gap-4">
-						<div className="flex-1">
-							<SheetTitle>Query Execution Plan</SheetTitle>
-							<SheetDescription>
-								EXPLAIN ANALYZE output for performance optimization
-							</SheetDescription>
-						</div>
-						<div className="flex items-center gap-2 shrink-0 mr-4">
-							<Button
-								size="sm"
-								onClick={() =>
-									onViewModeChange(viewMode === "smart" ? "raw" : "smart")
-								}
-								className="h-8 px-2 text-xs font-medium"
-								title={viewMode === "smart" ? "Show raw" : "Show parsed"}
-							>
-								Swap to {viewMode === "smart" ? "Raw" : "Smart"} display
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => {
-									if (output) {
-										navigator.clipboard.writeText(output);
-									}
-								}}
-								className="h-8 w-8 p-0"
-								title="Copy raw output"
-							>
-								<Copy className="h-4 w-4" />
-							</Button>
-						</div>
-					</div>
-				</SheetHeader>
-				<div className="flex-1 overflow-hidden">
-					{output ? (
-						<ExplainOutput
-							output={output}
-							viewMode={viewMode}
-							onViewModeChange={onViewModeChange}
-						/>
-					) : (
-						<div className="flex items-center justify-center h-full text-gray-500">
-							Loading...
-						</div>
-					)}
 				</div>
 			</SheetContent>
 		</Sheet>

@@ -9,7 +9,6 @@ import { Button } from "#src/components/ui/button.tsx";
 import { Stack } from "#src/components/ui/layout.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
 import { toaster } from "#src/components/ui/toaster.tsx";
-import { DatabaseDialect } from "#src/db/dialect.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
@@ -21,9 +20,6 @@ import {
 	getDestructiveQuerySummary,
 	isDestructiveQuery,
 } from "#src/server/introspection/detect-destructive-sql.ts";
-import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
-import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
-import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { Splitter } from "@ark-ui/react";
 import {
 	createColumnHelper,
@@ -32,19 +28,14 @@ import {
 } from "@tanstack/react-table";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 import { DestructiveQueryConfirmDialog } from "./destructive-query-confirm.dialog.tsx";
-import { ExplainOutput } from "./explain-output.tsx";
+import { ExplainOutputDrawer } from "./explain-output-drawer.tsx";
 import { SqlQueryPreview } from "./sql-query-preview.tsx";
 import { ConnectionPageStatusBar } from "./connection-page-status-bar.tsx";
 import type { DbConnection } from "../connection.types.ts";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-} from "#src/components/ui/sheet.tsx";
-import { Copy } from "lucide-react";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
+import { useExplainQuery } from "./use-explain-query.ts";
+import { useTablesColumnsForIntellisense } from "./use-tables-columns-intellisense.ts";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 
 interface CustomSqlTabContentProps {
 	connection: DbConnection;
@@ -101,25 +92,12 @@ export function CustomSqlTabContent({
 	const [pendingQueryExecution, setPendingQueryExecution] = useState<
 		(() => void) | null
 	>(null);
-	const [showExplainPanel, setShowExplainPanel] = useState(false);
 
 	// Fetch available tables/columns for intellisense
-	const tablesQuery = useQuery({
-		...listAvailableTablesQueryOptions({
-			url: activeConnectionUrl,
-			schema: search.schema,
-		}),
-		enabled: !!search.schema,
+	const { tables, columns } = useTablesColumnsForIntellisense({
+		connectionUrl: activeConnectionUrl,
+		schema: search.schema,
 	});
-	const tables = tablesQuery.data || [];
-
-	const columnQuery = useQuery(
-		getAllTablesColumnsQueryOptions({
-			url: activeConnectionUrl,
-			schema: search.schema,
-		}),
-	);
-	const columns = columnQuery.data ?? [];
 
 	// Query for previously executed custom SQL (when customSqlId is set)
 	const customSqlExecutionQuery = useQuery(
@@ -254,38 +232,16 @@ export function CustomSqlTabContent({
 		{ wait: 500 },
 	);
 
-	const explainQuery = useQuery({
-		enabled: false,
-		queryKey: ["remote", "explain", displaySql],
-		queryFn: async () => {
-			if (connection.dialect !== DatabaseDialect.Postgres) {
-				alert("Query explain is only supported for PostgreSQL databases");
-				return;
-			}
-
-			if (!displaySql) {
-				alert("No SQL query to explain");
-				return;
-			}
-
-			try {
-				setShowExplainPanel(true);
-				const result = await explainQueryServerFn({
-					data: {
-						url: activeConnectionUrl,
-						sql: displaySql,
-					},
-				});
-
-				if (result) {
-					return result.plan;
-				}
-			} catch (error) {
-				const message =
-					error instanceof Error ? error.message : "Failed to explain query";
-				return `Error: ${message}`;
-			}
-		},
+	// Explain query functionality
+	const {
+		explainQuery,
+		showExplainPanel,
+		setShowExplainPanel,
+		isExplainDisabled,
+	} = useExplainQuery({
+		connectionUrl: activeConnectionUrl,
+		sql: displaySql,
+		dialect: connection.dialect,
 	});
 
 	// Build TanStack Table for custom SQL results
@@ -559,9 +515,7 @@ export function CustomSqlTabContent({
 									}
 									onRun={handleExecute}
 									onExplain={explainQuery.refetch}
-									disableExplain={
-										connection.dialect !== DatabaseDialect.Postgres
-									}
+									disableExplain={isExplainDisabled}
 									onFormat={() => {
 										const sqlToFormat = search.customSql ?? displaySql;
 										if (!sqlToFormat) {
@@ -678,75 +632,5 @@ export function CustomSqlTabContent({
 				isLoading={isExecuting}
 			/>
 		</>
-	);
-}
-
-// Local ExplainOutputDrawer component (copied from connection.page.tsx for isolation)
-function ExplainOutputDrawer(props: {
-	showExplainPanel: boolean;
-	setShowExplainPanel: (show: boolean) => void;
-	output: string | null;
-}) {
-	const { showExplainPanel, setShowExplainPanel, output } = props;
-	const [viewMode, onViewModeChange] = useState<"smart" | "raw">("smart");
-
-	return (
-		<Sheet
-			open={showExplainPanel}
-			onOpenChange={(details) => {
-				if (!details.open) setShowExplainPanel(false);
-			}}
-		>
-			<SheetContent side="right" size="full" className="flex flex-col p-0">
-				<SheetHeader className="px-6 pt-6 pb-4 border-b">
-					<div className="flex items-center justify-between gap-4">
-						<div className="flex-1">
-							<SheetTitle>Query Execution Plan</SheetTitle>
-							<SheetDescription>
-								EXPLAIN ANALYZE output for performance optimization
-							</SheetDescription>
-						</div>
-						<div className="flex items-center gap-2 shrink-0 mr-4">
-							<Button
-								size="sm"
-								onClick={() =>
-									onViewModeChange(viewMode === "smart" ? "raw" : "smart")
-								}
-								className="h-8 px-2 text-xs font-medium"
-								title={viewMode === "smart" ? "Show raw" : "Show parsed"}
-							>
-								Swap to {viewMode === "smart" ? "Raw" : "Smart"} display
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => {
-									if (output) {
-										navigator.clipboard.writeText(output);
-									}
-								}}
-								className="h-8 w-8 p-0"
-								title="Copy raw output"
-							>
-								<Copy className="h-4 w-4" />
-							</Button>
-						</div>
-					</div>
-				</SheetHeader>
-				<div className="flex-1 overflow-hidden">
-					{output ? (
-						<ExplainOutput
-							output={output}
-							viewMode={viewMode}
-							onViewModeChange={onViewModeChange}
-						/>
-					) : (
-						<div className="flex items-center justify-center h-full text-gray-500">
-							Loading...
-						</div>
-					)}
-				</div>
-			</SheetContent>
-		</Sheet>
 	);
 }
