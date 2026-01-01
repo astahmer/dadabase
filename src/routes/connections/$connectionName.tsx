@@ -55,7 +55,8 @@ const TabStateSchema = Schema.Struct({
 	prefixWithTable: Schema.Boolean.pipe(Schema.optional),
 	sqlPreviewSize: Schema.Number.pipe(Schema.optional), // SQL preview collapsed state
 	sqlEditorMode: Schema.Literal("preview", "editor").pipe(Schema.optional), // SQL editor tab mode
-	customSql: Schema.String.pipe(Schema.optional), // Custom SQL query edited by user (when set, overrides generated SQL)
+	customSql: Schema.String.pipe(Schema.optional), // Custom SQL query being edited (before execution)
+	customSqlId: Schema.String.pipe(Schema.optional), // ID of executed custom SQL (replaces customSql after execution)
 	initialTabMode: Schema.Literal("table", "sql").pipe(Schema.optional), // Initial mode for empty tabs
 });
 

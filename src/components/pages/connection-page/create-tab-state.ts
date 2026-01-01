@@ -35,6 +35,7 @@ export const createTabState = (
 		joins: options?.joins,
 		sqlEditorMode: options?.sqlEditorMode ?? ("preview" as const),
 		customSql: options?.customSql,
+		customSqlId: options?.customSqlId,
 		initialTabMode: options?.initialTabMode,
 		columnOrder: options?.columnOrder,
 		columnPinning: options?.columnPinning,
