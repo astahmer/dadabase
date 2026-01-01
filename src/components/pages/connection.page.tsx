@@ -622,6 +622,36 @@ const RowsTabPage = (props: {
 										</p>
 									</div>
 								</div>
+							) : isCustomSql && !customSqlMutation.data ? (
+								// Custom SQL is set but mutation hasn't run yet (e.g., page refresh)
+								// Don't show the table - just show a message in the content area
+								<div className="flex-1 flex items-center justify-center">
+									<div className="text-center">
+										<p className="text-lg font-semibold text-foreground mb-2">
+											Custom SQL on {"some"} table
+										</p>
+										<Button
+											onClick={() =>
+												customSqlMutation.mutate({
+													data: {
+														url: pageState.activeConnectionUrl,
+														sql: search.customSql || "",
+													},
+												})
+											}
+											className="gap-2"
+										>
+											<svg
+												className="h-4 w-4"
+												fill="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path d="M8 5v14l11-7z" />
+											</svg>
+											Execute Query
+										</Button>
+									</div>
+								</div>
 							) : (
 								<RowsTableContent
 									activeConnectionUrl={pageState.activeConnectionUrl}
