@@ -28,7 +28,7 @@ import {
 } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
-import { type Dispatch, type SetStateAction, useState } from "react";
+import React, { type Dispatch, type SetStateAction, useState } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
@@ -78,6 +78,20 @@ import { executeCustomSqlServerFn } from "#src/server/introspection/start-fns/ex
 interface ConnectionPageProps {
 	connectionName: string;
 }
+
+/** Shared type for custom SQL mutation */
+type CustomSqlMutation = UseMutationResult<
+	{
+		rows: any[];
+		columns: string[];
+		rowCount: number;
+		rowsAffected: number | undefined;
+		timeTaken: number;
+		ranAt: number;
+	},
+	Error,
+	{ data: { url: string; sql: string } }
+>;
 
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 	const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
@@ -130,6 +144,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 		...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
 		enabled: !!activeConnectionUrl,
 		retry: 3,
+	});
+
+	// Shared custom SQL mutation - used by both RowsTabPage and EmptyTabContent
+	const customSqlMutation = useMutation({
+		mutationFn: executeCustomSqlServerFn,
 	});
 
 	return (
@@ -301,11 +320,15 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 												activeConnectionUrl={activeConnectionUrl}
 											/>
 										) : search.table && search.schema ? (
-											<RowsTabPage connection={connection} />
+											<RowsTabPage
+												connection={connection}
+												customSqlMutation={customSqlMutation}
+											/>
 										) : (
 											<EmptyTabContent
 												activeConnectionUrl={activeConnectionUrl}
 												connection={connection}
+												customSqlMutation={customSqlMutation}
 											/>
 										)}
 									</Splitter.Panel>
@@ -380,8 +403,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	);
 };
 
-const RowsTabPage = (props: { connection: DbConnection }) => {
-	const { connection } = props;
+const RowsTabPage = (props: {
+	connection: DbConnection;
+	customSqlMutation: CustomSqlMutation;
+}) => {
+	const { connection, customSqlMutation } = props;
 	const pageState = useConnectionPageState({ connection });
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
@@ -399,9 +425,7 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 	});
 	const { filters: structureFilters } = useStructureFilters();
 
-	const customSqlMutation = useMutation({
-		mutationFn: executeCustomSqlServerFn,
-	});
+	const isCustomSql = Boolean(search.customSql?.trim());
 
 	return (
 		<>
@@ -541,7 +565,7 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 							id={panels.rowsContent}
 							className="overflow-hidden flex flex-col"
 						>
-							{pageState.rowsQuery.isLoading ? (
+							{pageState.rowsQuery.isLoading || customSqlMutation.isPending ? (
 								<Stack className="flex-1 flex items-center justify-center">
 									<Spinner />
 									<span className="text-muted-foreground">
@@ -551,6 +575,8 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 												{pageState.rowsQuery.failureCount > 1 ? "s" : ""},
 												retrying...
 											</>
+										) : isCustomSql ? (
+											"Executing custom SQL..."
 										) : (
 											"Loading table data..."
 										)}
@@ -566,16 +592,35 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 										/>
 									</Stack>
 								</div>
+							) : customSqlMutation.isError ? (
+								<div className="flex-1 flex items-center justify-center p-4">
+									<Stack className="max-w-2xl w-full">
+										<ErrorBoundaryCard
+											error={customSqlMutation.error}
+											title="Error executing custom SQL"
+											onRetry={() =>
+												customSqlMutation.mutate({
+													data: {
+														url: pageState.activeConnectionUrl,
+														sql: search.customSql || "",
+													},
+												})
+											}
+										/>
+									</Stack>
+								</div>
 							) : customSqlMutation.data?.rowsAffected !== undefined ? (
-								<div className="py-2">
-									<p className="text-lg font-semibold text-foreground mb-2">
-										Query executed successfully
-									</p>
-									<p className="text-base text-muted-foreground">
-										{customSqlMutation.data?.rowsAffected === 1
-											? `${customSqlMutation.data?.rowsAffected} row affected`
-											: `${customSqlMutation.data?.rowsAffected} rows affected`}
-									</p>
+								<div className="flex-1 flex items-center justify-center">
+									<div className="text-center">
+										<p className="text-lg font-semibold text-foreground mb-2">
+											Query executed successfully
+										</p>
+										<p className="text-base text-muted-foreground">
+											{customSqlMutation.data?.rowsAffected === 1
+												? `${customSqlMutation.data?.rowsAffected} row affected`
+												: `${customSqlMutation.data?.rowsAffected} rows affected`}
+										</p>
+									</div>
 								</div>
 							) : (
 								<RowsTableContent
@@ -591,12 +636,43 @@ const RowsTabPage = (props: { connection: DbConnection }) => {
 								<ConnectionPageStatusBar
 									table={pageState.rowsDataTable}
 									hasUuid={pageState.hasUuid}
-									isLoading={pageState.rowsQuery.isLoading}
-									refetch={pageState.rowsQuery.refetch}
-									timeTaken={pageState.queryResponse.timeTaken}
-									ranAt={pageState.queryResponse.ranAt}
-									totalRowCount={pageState.queryResponse.rowCount}
+									isLoading={
+										pageState.rowsQuery.isLoading || customSqlMutation.isPending
+									}
+									refetch={
+										isCustomSql
+											? () =>
+													customSqlMutation.mutate({
+														data: {
+															url: pageState.activeConnectionUrl,
+															sql: search.customSql || "",
+														},
+													})
+											: pageState.rowsQuery.refetch
+									}
+									timeTaken={
+										isCustomSql && customSqlMutation.data
+											? customSqlMutation.data.timeTaken
+											: pageState.queryResponse.timeTaken
+									}
+									ranAt={
+										isCustomSql && customSqlMutation.data
+											? customSqlMutation.data.ranAt
+											: pageState.queryResponse.ranAt
+									}
+									totalRowCount={
+										isCustomSql && customSqlMutation.data
+											? customSqlMutation.data.rowCount
+											: pageState.queryResponse.rowCount
+									}
 									rowsColumnsCount={pageState.rowsColumns.length - 1} // minus select column
+									customSqlResult={
+										isCustomSql && customSqlMutation.data
+											? {
+													rowsAffected: customSqlMutation.data.rowsAffected,
+												}
+											: undefined
+									}
 								/>
 							</div>
 						</Splitter.Panel>
@@ -613,18 +689,7 @@ const RowsTableSqlEditor = (
 		isCollapsed?: boolean;
 		onExpand: () => void;
 		onCollapse: () => void;
-		customSqlMutation: UseMutationResult<
-			{
-				rows: any[];
-				columns: string[];
-				rowCount: number;
-				rowsAffected: number | undefined;
-				timeTaken: number;
-				ranAt: number;
-			},
-			any,
-			any
-		>;
+		customSqlMutation: CustomSqlMutation;
 	},
 ) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -1055,6 +1120,7 @@ const RowsTableContent = (
 const EmptyTabContent = (props: {
 	activeConnectionUrl: string;
 	connection: DbConnection;
+	customSqlMutation: CustomSqlMutation;
 }) => {
 	const search = useActiveTabState((tab) => ({
 		schema: tab.schema,
@@ -1085,6 +1151,11 @@ const EmptyTabContent = (props: {
 			connection={props.connection}
 			tables={tables}
 			columns={columns}
+			onExecuteCustomSql={(sql) =>
+				props.customSqlMutation.mutate({
+					data: { url: props.activeConnectionUrl, sql },
+				})
+			}
 		/>
 	);
 };

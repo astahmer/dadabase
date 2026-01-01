@@ -27,6 +27,8 @@ interface EmptyTabState {
 	connection: DbConnection;
 	tables: Array<{ schema: string; name: string }>;
 	columns: Array<TableWithColumnsMetadata>;
+	/** Callback to execute custom SQL - called after navigation to trigger the mutation */
+	onExecuteCustomSql?: (sql: string) => void;
 }
 
 export const EmptyTabState = (props: EmptyTabState) => {
@@ -137,6 +139,7 @@ export const EmptyTabState = (props: EmptyTabState) => {
 					connection={connection}
 					tables={props.tables}
 					columns={props.columns}
+					onExecuteCustomSql={props.onExecuteCustomSql}
 				/>
 			)}
 		</div>
@@ -379,6 +382,7 @@ const CustomSqlTab = (props: {
 	connection: DbConnection;
 	tables: Array<{ schema: string; name: string }>;
 	columns: Array<TableWithColumnsMetadata>;
+	onExecuteCustomSql?: (sql: string) => void;
 }) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
@@ -462,6 +466,9 @@ const CustomSqlTab = (props: {
 					activeTabId: newTab.tabId,
 				};
 			},
+		}).then(() => {
+			// Execute the custom SQL after navigation completes
+			props.onExecuteCustomSql?.(customSql);
 		});
 	};
 
