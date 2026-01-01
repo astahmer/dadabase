@@ -1,7 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { useState, useMemo } from "react";
+import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import { DataTable } from "#src/components/data-table/data-table.tsx";
 import { ScrollToColumnButton } from "#src/components/data-table/scroll-to-column.button.tsx";
 import { ErrorBoundaryCard } from "#src/components/shared/error-boundary-card.tsx";
@@ -9,33 +6,37 @@ import { Button } from "#src/components/ui/button.tsx";
 import { Stack } from "#src/components/ui/layout.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
 import { toaster } from "#src/components/ui/toaster.tsx";
+import { DatabaseDialect } from "#src/db/dialect.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
+import { queryClient } from "#src/query-client.ts";
 import {
-	executeAndStoreCustomSqlServerFn,
 	customSqlExecutionQueryOptions,
+	executeAndStoreCustomSqlServerFn,
 } from "#src/server/custom-sql/start-fns/execute-custom-sql.start.ts";
 import {
 	getDestructiveQuerySummary,
 	isDestructiveQuery,
 } from "#src/server/introspection/detect-destructive-sql.ts";
 import { Splitter } from "@ark-ui/react";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
 	createColumnHelper,
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import { useMemo, useState } from "react";
+import type { DbConnection } from "../connection.types.ts";
+import { ConnectionPageStatusBar } from "./connection-page-status-bar.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 import { DestructiveQueryConfirmDialog } from "./destructive-query-confirm.dialog.tsx";
 import { ExplainOutputDrawer } from "./explain-output-drawer.tsx";
 import { SqlQueryPreview } from "./sql-query-preview.tsx";
-import { ConnectionPageStatusBar } from "./connection-page-status-bar.tsx";
-import type { DbConnection } from "../connection.types.ts";
-import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import { useExplainQuery } from "./use-explain-query.ts";
 import { useTablesColumnsForIntellisense } from "./use-tables-columns-intellisense.ts";
-import { DatabaseDialect } from "#src/db/dialect.ts";
 
 interface CustomSqlTabContentProps {
 	connection: DbConnection;
@@ -106,16 +107,17 @@ export function CustomSqlTabContent({
 		onSuccess: (data) => {
 			// After successful execution, update the URL to use the new customSqlId
 			// and clear the customSql (since it's now stored in the database)
-			const result = data as CustomSqlMutationResult | undefined;
-			if (result?.customSqlId) {
-				navigate({
-					search: (prev) =>
-						updateTabState(prev, {
-							customSqlId: result.customSqlId,
-							customSql: undefined,
-						}),
-				});
-			}
+			if (!data?.customSqlId) return;
+			queryClient.invalidateQueries(
+				customSqlExecutionQueryOptions(search.customSqlId),
+			);
+			navigate({
+				search: (prev) =>
+					updateTabState(prev, {
+						customSqlId: data.customSqlId,
+						customSql: undefined,
+					}),
+			});
 		},
 	});
 
@@ -129,7 +131,10 @@ export function CustomSqlTabContent({
 	// Disabled if we already have mutation results (fresh execution)
 	const customSqlExecutionQuery = useQuery({
 		...customSqlExecutionQueryOptions(search.customSqlId),
-		enabled: !!search.customSqlId && !hasMutationResult,
+		enabled:
+			!!search.customSqlId &&
+			!hasMutationResult &&
+			!executeCustomSqlMutation.isPending,
 	});
 
 	// Determine current state
@@ -175,7 +180,10 @@ export function CustomSqlTabContent({
 	const needsReExecution = hasStoredExecution && !hasMutationResult;
 
 	const handleExecute = () => {
-		const sqlToRun = search.customSql ?? customSqlExecutionQuery.data?.sql;
+		const sqlToRun =
+			search.customSql ??
+			customSqlExecutionQuery.data?.sql ??
+			executeCustomSqlMutation.variables?.data.sql;
 		if (!sqlToRun) return;
 
 		// Check for destructive queries
