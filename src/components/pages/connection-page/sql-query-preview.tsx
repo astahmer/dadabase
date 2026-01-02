@@ -313,7 +313,6 @@ export function SqlQueryPreview({
 							</Tooltip>
 							<pre
 								className="font-mono text-sm text-gray-800 whitespace-pre-wrap wrap-break-word"
-								onClick={handleCopy}
 								onDoubleClick={() => onEditorModeChange?.("editor")}
 							>
 								{sql}
