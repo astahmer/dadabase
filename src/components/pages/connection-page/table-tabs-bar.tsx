@@ -277,6 +277,7 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
 								onCloseOtherTabs={onCloseOtherTabs}
 								onCloseTabsOnLeft={onCloseTabsOnLeft}
 								onCloseTabsOnRight={onCloseTabsOnRight}
+								onCloseAllTabs={onCloseAllTabs}
 								onCopyTabUrl={onCopyTabUrl}
 								tabs={tabs}
 							/>
