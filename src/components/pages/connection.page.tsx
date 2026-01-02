@@ -11,7 +11,6 @@ import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { Splitter } from "@ark-ui/react";
-import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
@@ -641,13 +640,17 @@ const RowsTableSqlEditor = (
 
 	const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
 
+	// Keep draft SQL locally - don't switch to custom SQL mode until user runs
+	const [draftSql, setDraftSql] = useState<string | null>(null);
+
 	// Fetch available tables/columns for intellisense
 	const { tables, columns } = useTablesColumnsForIntellisense({
 		connectionUrl: props.activeConnectionUrl,
 		schema: search.schema,
 	});
 
-	// Explain query functionality
+	// Explain query functionality - use draft SQL if available
+	const sqlForExplain = draftSql ?? props.sqlQueryAsText;
 	const {
 		explainQuery,
 		showExplainPanel,
@@ -655,24 +658,24 @@ const RowsTableSqlEditor = (
 		isExplainDisabled,
 	} = useExplainQuery({
 		connectionUrl: props.activeConnectionUrl,
-		sql: props.sqlQueryAsText,
+		sql: sqlForExplain,
 		dialect: props.connection.dialect,
 	});
 
-	// When user starts editing in preview mode, switch to custom SQL mode
-	const onEditorValueChange = useDebouncedCallback(
-		(value: string) => {
-			// Set the customSql - this will trigger CustomSqlTabContent to render
-			return navigate({
-				search: (prev) =>
-					updateTabState(prev, {
-						customSql: value,
-						sqlEditorMode: "editor",
-					}),
-			});
-		},
-		{ wait: 500 },
-	);
+	// Run query: switch to custom SQL mode only when user clicks Run
+	const handleRunQuery = () => {
+		const sqlToRun = draftSql ?? props.sqlQueryAsText;
+		if (!sqlToRun) return;
+
+		// Switch to custom SQL mode and execute
+		navigate({
+			search: (prev) =>
+				updateTabState(prev, {
+					customSql: sqlToRun,
+					sqlEditorMode: "editor",
+				}),
+		});
+	};
 
 	return (
 		<>
@@ -680,6 +683,7 @@ const RowsTableSqlEditor = (
 				tables={tables}
 				columns={columns}
 				sql={props.sqlQueryAsText}
+				customSql={draftSql ?? undefined}
 				isCollapsed={props.isCollapsed}
 				onToggleCollapsed={() =>
 					props.isCollapsed ? props.onExpand() : props.onCollapse()
@@ -693,12 +697,15 @@ const RowsTableSqlEditor = (
 							}),
 					})
 				}
-				onEditorChange={(value) => onEditorValueChange(value)}
+				onEditorChange={(value) => setDraftSql(value)}
+				onResetCustomSql={() => setDraftSql(null)}
+				onRun={handleRunQuery}
 				onExplain={explainQuery.refetch}
 				disableExplain={isExplainDisabled}
 				onFormat={() => {
 					try {
-						const formatted = formatSQL(props.sqlQueryAsText, {
+						const sqlToFormat = draftSql ?? props.sqlQueryAsText;
+						const formatted = formatSQL(sqlToFormat, {
 							language:
 								props.connection.dialect === DatabaseDialect.Postgres
 									? "postgresql"
@@ -710,14 +717,8 @@ const RowsTableSqlEditor = (
 								});
 							},
 						});
-						// Set formatted SQL as custom SQL (switches to custom SQL mode)
-						navigate({
-							search: (prev) =>
-								updateTabState(prev, {
-									customSql: formatted,
-									sqlEditorMode: "editor",
-								}),
-						});
+						// Just update the draft, don't switch to custom SQL mode
+						setDraftSql(formatted);
 					} catch (error) {
 						const message =
 							error instanceof Error ? error.message : "Failed to format SQL";

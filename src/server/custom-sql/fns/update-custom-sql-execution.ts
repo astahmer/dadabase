@@ -6,6 +6,7 @@ export interface UpdateCustomSqlExecutionSuccessInput {
 	rowsReturned: number;
 	rowsAffected: number | undefined;
 	columns: string[];
+	resultRows: Record<string, unknown>[]; // Store the actual rows
 	endedAt: number;
 	timeTaken: number;
 }
@@ -32,6 +33,7 @@ export const updateCustomSqlExecutionSuccess = Effect.fn(function* (
 			rows_returned: input.rowsReturned,
 			rows_affected: input.rowsAffected ?? null,
 			columns: JSON.stringify(input.columns),
+			result_rows: JSON.stringify(input.resultRows),
 			ended_at: input.endedAt,
 			time_taken: input.timeTaken,
 		},

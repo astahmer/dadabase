@@ -338,6 +338,7 @@ export function SqlQueryPreview({
 							<SqlMonacoEditor
 								sql={customSql || sql}
 								onChange={handleEditorChange}
+								onSubmit={onRun}
 								className="w-full h-full"
 								tables={tables}
 								columns={columns}

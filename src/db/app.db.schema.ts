@@ -100,6 +100,7 @@ export const custom_sql_executions = sqlite.sqliteTable(
 			.references(() => database_connections.id),
 		schema_name: sqlite.text(), // optional schema context
 		table_name: sqlite.text(), // optional table context (if opened from a table tab)
+		previous_id: sqlite.text(), // reference to parent execution (for edit chains)
 		// Input
 		sql: sqlite.text().notNull(),
 		// Output
@@ -107,6 +108,7 @@ export const custom_sql_executions = sqlite.sqliteTable(
 		rows_returned: sqlite.integer(), // number of rows in result set
 		rows_affected: sqlite.integer(), // for INSERT/UPDATE/DELETE
 		columns: json(), // JSON array of column names in result
+		result_rows: json(), // JSON array of result rows (for immediate display)
 		error_message: sqlite.text(), // error message if failed
 		// Timing
 		started_at: timestamp(),

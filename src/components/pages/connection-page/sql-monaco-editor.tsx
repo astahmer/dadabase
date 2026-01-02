@@ -69,12 +69,12 @@ export function SqlMonacoEditor({
 	useEffect(() => {
 		if (!editorRef) return;
 
-		const actionId = "editor.action.formatSQL";
-		const action: OriginalMonacoEditor.editor.IActionDescriptor = {
-			id: actionId,
+		const formatSqlActionId = "editor.action.formatSQL";
+		const formatSqlAction: OriginalMonacoEditor.editor.IActionDescriptor = {
+			id: formatSqlActionId,
 			label: "Format SQL",
 			contextMenuGroupId: "1_modification",
-			contextMenuOrder: 1,
+			contextMenuOrder: 0,
 			keybindings: [
 				OriginalMonaco.KeyMod.CtrlCmd |
 					OriginalMonaco.KeyMod.Shift |
@@ -87,9 +87,31 @@ export function SqlMonacoEditor({
 			},
 		};
 
-		const disposable = editorRef.addAction(action);
+		const formatOneLinerActionId = "editor.action.formatSQLOneLiner";
+		const formatOneLinerAction: OriginalMonacoEditor.editor.IActionDescriptor =
+			{
+				id: formatOneLinerActionId,
+				label: "Format SQL as One-liner",
+				contextMenuGroupId: "1_modification",
+				contextMenuOrder: 1,
+				run: (editor) => {
+					const content = editor.getValue();
+					// Collapse all whitespace to single spaces
+					const oneLiner = content
+						.replace(/\s+/g, " ") // Replace all whitespace with single space
+						.replace(/\s*,\s*/g, ", ") // Normalize comma spacing
+						.replace(/\s*\(\s*/g, "(") // Remove space after opening paren
+						.replace(/\s*\)\s*/g, ") ") // Normalize closing paren
+						.trim();
+					editor.setValue(oneLiner);
+				},
+			};
+
+		const disposable1 = editorRef.addAction(formatSqlAction);
+		const disposable2 = editorRef.addAction(formatOneLinerAction);
 		return () => {
-			disposable.dispose();
+			disposable1.dispose();
+			disposable2.dispose();
 		};
 	}, [editorRef]);
 
@@ -97,6 +119,8 @@ export function SqlMonacoEditor({
 	useEffect(() => {
 		if (!editorRef || !onSubmit) return;
 
+		// addCommand returns an ID string, not a disposable
+		// The command is bound to the editor and cleaned up when the editor is disposed
 		editorRef.addCommand(
 			OriginalMonaco.KeyMod.CtrlCmd | OriginalMonaco.KeyCode.Enter,
 			() => {

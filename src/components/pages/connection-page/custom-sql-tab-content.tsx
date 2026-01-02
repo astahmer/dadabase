@@ -11,6 +11,7 @@ import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { queryClient } from "#src/query-client.ts";
+import type { CustomSqlExecutionResult } from "#src/server/custom-sql/fns/get-custom-sql-execution.ts";
 import {
 	customSqlExecutionQueryOptions,
 	executeAndStoreCustomSqlServerFn,
@@ -94,13 +95,11 @@ export function CustomSqlTabContent({
 		(() => void) | null
 	>(null);
 
-	// Fetch available tables/columns for intellisense
 	const { tables, columns } = useTablesColumnsForIntellisense({
 		connectionUrl: activeConnectionUrl,
 		schema: search.schema,
 	});
 
-	// Mutation for executing new custom SQL
 	const executeCustomSqlMutation = useMutation({
 		mutationFn: executeAndStoreCustomSqlServerFn,
 		meta: { noInvalidate: true },
@@ -122,9 +121,7 @@ export function CustomSqlTabContent({
 	});
 
 	// Check if we already have mutation results (fresh execution)
-	const mutationResult = executeCustomSqlMutation.data as
-		| CustomSqlMutationResult
-		| undefined;
+	const mutationResult = executeCustomSqlMutation.data;
 	const hasMutationResult = !!mutationResult?.rows;
 
 	// Query for previously executed custom SQL (when customSqlId is set)
@@ -141,9 +138,11 @@ export function CustomSqlTabContent({
 	const hasStoredExecution = !!search.customSqlId;
 	const hasPendingCustomSql = !!search.customSql?.trim();
 
+	// Get the stored data with proper type
+	const storedData = customSqlExecutionQuery.data;
+
 	// Get the SQL to display in editor
-	const displaySql =
-		search.customSql ?? customSqlExecutionQuery.data?.sql ?? baseSql;
+	const displaySql = search.customSql ?? storedData?.sql ?? baseSql;
 
 	// Get execution result (either from mutation or from stored execution)
 	const executionResult: {
@@ -163,28 +162,30 @@ export function CustomSqlTabContent({
 					timeTaken: mutationResult.timeTaken,
 					ranAt: mutationResult.ranAt,
 				}
-			: customSqlExecutionQuery.data
+			: storedData
 				? {
-						rows: [] as Record<string, unknown>[], // We don't store rows in the database, only metadata
-						columns: (customSqlExecutionQuery.data.columns ?? []) as string[],
-						rowCount: customSqlExecutionQuery.data.rowsReturned ?? 0,
-						rowsAffected:
-							customSqlExecutionQuery.data.rowsAffected ?? undefined,
-						timeTaken: customSqlExecutionQuery.data.timeTaken ?? 0,
-						ranAt: customSqlExecutionQuery.data.startedAt ?? 0,
+						// Use stored rows if available
+						rows: (storedData.resultRows ?? []) as Record<string, unknown>[],
+						columns: (storedData.columns ?? []) as string[],
+						rowCount: storedData.rowsReturned ?? 0,
+						rowsAffected: storedData.rowsAffected ?? undefined,
+						timeTaken: storedData.timeTaken ?? 0,
+						ranAt: storedData.startedAt ?? 0,
 					}
 				: null;
 
-	// Note: For stored executions, we need to re-execute to get the actual rows
-	// since we only store metadata, not the actual result data
-	const needsReExecution = hasStoredExecution && !hasMutationResult;
+	// Check if we have stored rows or need to re-execute
+	const hasStoredRows = !!storedData?.resultRows?.length;
 
 	const handleExecute = () => {
 		const sqlToRun =
 			search.customSql ??
-			customSqlExecutionQuery.data?.sql ??
+			storedData?.sql ??
 			executeCustomSqlMutation.variables?.data.sql;
 		if (!sqlToRun) return;
+
+		// If editing from a stored execution, track the parent query
+		const previousId = search.customSqlId;
 
 		// Check for destructive queries
 		if (isDestructiveQuery(sqlToRun)) {
@@ -195,6 +196,7 @@ export function CustomSqlTabContent({
 						sql: sqlToRun,
 						schemaName: search.schema,
 						tableName: search.table,
+						previousId,
 					},
 				});
 				setShowDestructiveConfirm(false);
@@ -210,14 +212,16 @@ export function CustomSqlTabContent({
 				sql: sqlToRun,
 				schemaName: search.schema,
 				tableName: search.table,
+				previousId,
 			},
 		});
 	};
 
 	const handleReExecuteStored = () => {
-		const sql = customSqlExecutionQuery.data?.sql;
+		const sql = storedData?.sql;
 		if (!sql) return;
 
+		// Re-executing same query, no previousId needed (it's the same query)
 		executeCustomSqlMutation.mutate({
 			data: {
 				url: activeConnectionUrl,
@@ -242,7 +246,6 @@ export function CustomSqlTabContent({
 		{ wait: 500 },
 	);
 
-	// Explain query functionality
 	const {
 		explainQuery,
 		showExplainPanel,
@@ -254,11 +257,8 @@ export function CustomSqlTabContent({
 		dialect: connection.dialect,
 	});
 
-	// Build TanStack Table for custom SQL results
-	const resultRows =
-		hasMutationResult && mutationResult ? mutationResult.rows : [];
-	const resultColumns =
-		hasMutationResult && mutationResult ? mutationResult.columns : [];
+	const resultRows = executionResult?.rows ?? [];
+	const resultColumns = executionResult?.columns ?? [];
 
 	const columnHelper = createColumnHelper<Record<string, unknown>>();
 	const tableColumns = useMemo(() => {
@@ -339,9 +339,14 @@ export function CustomSqlTabContent({
 			);
 		}
 
-		// Stored execution without fresh data - prompt to re-execute
-		if (needsReExecution && customSqlExecutionQuery.data) {
-			const storedResult = customSqlExecutionQuery.data;
+		// Stored execution without stored rows (legacy data) - prompt to re-execute
+		// This only applies to executions created before we started storing result_rows
+		if (
+			hasStoredExecution &&
+			!hasMutationResult &&
+			storedData &&
+			!hasStoredRows
+		) {
 			return (
 				<div className="flex-1 flex items-center justify-center">
 					<div className="text-center space-y-4">
@@ -350,12 +355,12 @@ export function CustomSqlTabContent({
 								Previous execution
 							</p>
 							<p className="text-sm text-muted-foreground mb-1">
-								Ran at {new Date(storedResult.startedAt).toLocaleString()}
+								Ran at {new Date(storedData.startedAt).toLocaleString()}
 							</p>
 							<p className="text-sm text-muted-foreground">
-								{storedResult.rowsReturned} row
-								{storedResult.rowsReturned !== 1 ? "s" : ""} returned
-								{storedResult.timeTaken && ` in ${storedResult.timeTaken}ms`}
+								{storedData.rowsReturned} row
+								{storedData.rowsReturned !== 1 ? "s" : ""} returned
+								{storedData.timeTaken && ` in ${storedData.timeTaken}ms`}
 							</p>
 						</div>
 						<Button onClick={handleReExecuteStored} className="gap-2">
@@ -408,8 +413,12 @@ export function CustomSqlTabContent({
 			);
 		}
 
-		// Empty result
-		if (hasMutationResult && resultRows.length === 0) {
+		// Empty result (either from mutation or stored execution)
+		if (
+			(hasMutationResult || hasStoredExecution) &&
+			executionResult &&
+			resultRows.length === 0
+		) {
 			return (
 				<div className="flex-1 flex items-center justify-center">
 					<div className="text-center">

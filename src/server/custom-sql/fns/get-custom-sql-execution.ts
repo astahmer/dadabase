@@ -17,11 +17,15 @@ export const getCustomSqlExecution = Effect.fn(function* (id: string) {
 		connectionId: result.connection_id,
 		schemaName: result.schema_name,
 		tableName: result.table_name,
+		previousId: result.previous_id,
 		sql: result.sql,
 		status: result.status,
 		rowsReturned: result.rows_returned,
 		rowsAffected: result.rows_affected,
 		columns: result.columns ? JSON.parse(result.columns) : null,
+		resultRows: result.result_rows
+			? (JSON.parse(result.result_rows) as Record<string, {}>[] | null)
+			: null,
 		errorMessage: result.error_message,
 		startedAt: result.started_at,
 		endedAt: result.ended_at,

@@ -17,6 +17,7 @@ export const ExecuteAndStoreCustomSqlInputSchema = Schema.Struct({
 	sql: Schema.String,
 	schemaName: Schema.optional(Schema.String),
 	tableName: Schema.optional(Schema.String),
+	previousId: Schema.optional(Schema.String), // Reference to parent execution (for edit chains)
 });
 
 export type ExecuteAndStoreCustomSqlInput = Schema.Schema.Type<
@@ -50,6 +51,7 @@ export const executeAndStoreCustomSqlServerFn = createServerFn({
 					connectionId: connection.id,
 					schemaName: ctx.data.schemaName,
 					tableName: ctx.data.tableName,
+					previousId: ctx.data.previousId,
 					sql: ctx.data.sql,
 				});
 
@@ -64,13 +66,14 @@ export const executeAndStoreCustomSqlServerFn = createServerFn({
 					executeCustomSql({ sql: input.sql }),
 			)({ data: ctx.data });
 
-			// Update the execution record with success
+			// Update the execution record with success (including the result rows)
 			await AppRuntime.runPromise(
 				updateCustomSqlExecutionSuccess({
 					id,
 					rowsReturned: result.rowCount,
 					rowsAffected: result.rowsAffected,
 					columns: result.columns,
+					resultRows: result.rows as Record<string, unknown>[],
 					endedAt: result.ranAt + result.timeTaken,
 					timeTaken: result.timeTaken,
 				}),
