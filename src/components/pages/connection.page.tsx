@@ -11,10 +11,10 @@ import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { Splitter } from "@ark-ui/react";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowDown, ArrowDownUp, ArrowUp, Copy, RotateCcw } from "lucide-react";
-import { type Dispatch, type SetStateAction, useState } from "react";
+import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
@@ -60,7 +60,18 @@ import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
-import { CustomSqlTabContent } from "./connection-page/custom-sql-tab-content.tsx";
+import {
+	customSqlExecutionQueryOptions,
+	executeAndStoreCustomSqlServerFn,
+} from "#src/server/custom-sql/start-fns/execute-custom-sql.start.ts";
+import { queryClient } from "#src/query-client.ts";
+import {
+	getDestructiveQuerySummary,
+	isDestructiveQuery,
+} from "#src/server/introspection/detect-destructive-sql.ts";
+import { DestructiveQueryConfirmDialog } from "./connection-page/destructive-query-confirm.dialog.tsx";
+import { createColumnHelper } from "@tanstack/react-table";
+import { useDataTable } from "../data-table/use-data-table.ts";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -288,7 +299,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 												activeConnectionUrl={activeConnectionUrl}
 											/>
 										) : search.table && search.schema ? (
-											<MainContentRouter
+											<RowsTabContent
 												connection={connection}
 												activeConnectionUrl={activeConnectionUrl}
 											/>
@@ -370,46 +381,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	);
 };
 
-/**
- * Router component to switch between RowsTabContent and CustomSqlTabContent
- * based on whether user is in custom SQL mode
- */
-const MainContentRouter = (props: {
-	connection: DbConnection;
-	activeConnectionUrl: string;
-}) => {
-	const { connection, activeConnectionUrl } = props;
-	const pageState = useConnectionPageState({ connection });
-
-	const search = useActiveTabState((tab) => ({
-		customSql: tab.customSql,
-		customSqlId: tab.customSqlId,
-		viewMode: tab.viewMode,
-	}));
-
-	// Determine if we're in custom SQL mode (either pending edit or stored execution)
-	const isCustomSqlMode =
-		Boolean(search.customSql?.trim()) || Boolean(search.customSqlId);
-
-	// If in custom SQL mode and viewing rows, render the dedicated component
-	if (isCustomSqlMode && search.viewMode === "rows") {
-		return (
-			<CustomSqlTabContent
-				connection={connection}
-				activeConnectionUrl={activeConnectionUrl}
-				baseSql={pageState.sqlQueryAsText}
-			/>
-		);
-	}
-
-	return (
-		<RowsTabContent
-			connection={connection}
-			activeConnectionUrl={activeConnectionUrl}
-		/>
-	);
-};
-
 const RowsTabContent = (props: {
 	connection: DbConnection;
 	activeConnectionUrl: string;
@@ -418,7 +389,7 @@ const RowsTabContent = (props: {
 	const pageState = useConnectionPageState({ connection });
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
-	const search = useActiveTabState((tab, search) => {
+	const search = useActiveTabState((tab) => {
 		return {
 			tabId: tab.tabId,
 			schema: tab.schema,
@@ -427,42 +398,65 @@ const RowsTabContent = (props: {
 			viewMode: tab.viewMode,
 			tableSize: tab.tableSize,
 			sqlPreviewSize: tab.sqlPreviewSize,
+			customSql: tab.customSql,
+			customSqlId: tab.customSqlId,
+			sqlEditorMode: tab.sqlEditorMode,
 		};
 	});
 	const { filters: structureFilters } = useStructureFilters();
 
+	const isUsingCustomSql =
+		Boolean(search.customSql?.trim()) || Boolean(search.customSqlId);
+
+	const executeCustomSql = useExecuteCustomSql({
+		activeConnectionUrl: pageState.activeConnectionUrl,
+	});
+	const isCustomSqlMode = Boolean(
+		isUsingCustomSql ||
+			executeCustomSql.mutation.isPending ||
+			executeCustomSql.storedQuery.isLoading ||
+			executeCustomSql.output,
+	);
+
 	return (
 		<>
-			{/* Filters */}
-			<ConnectionPageFilters
-				columnList={pageState.columnNameList}
-				table={pageState.rowsDataTable}
-				isLoading={
-					pageState.rowsQuery.isLoading || pageState.isColumnMetadataLoading
-				}
-				queryBuilder={pageState.queryBuilder}
-				url={pageState.activeConnectionUrl}
-				schema={search.schema}
-				tableName={search.table}
-			/>
-
-			{/* Query Filter Builder */}
-			{search.viewMode === "rows" &&
-				pageState.rowsColumns.length > 0 &&
-				search.filtersOpened && (
-					<QueryFilterBuilder
-						key={search.table}
-						conditions={pageState.queryBuilder.filter.conditions}
-						onUpdateCondition={pageState.queryBuilder.updateCondition}
-						onRemoveCondition={pageState.queryBuilder.removeCondition}
-						onLogicalOperatorChange={pageState.queryBuilder.setLogicalOperator}
-						onAddCondition={pageState.queryBuilder.addCondition}
-						onClearAll={pageState.queryBuilder.clearConditions}
-						logicalOperator={pageState.queryBuilder.filter.logicalOperator}
-						availableColumns={pageState.columnNameList}
-						isLoading={pageState.rowsQuery.isLoading}
+			{/* Show filters and query builder only in table browse mode */}
+			{!isCustomSqlMode && (
+				<>
+					{/* Filters */}
+					<ConnectionPageFilters
+						columnList={pageState.columnNameList}
+						table={pageState.rowsDataTable}
+						isLoading={
+							pageState.rowsQuery.isLoading || pageState.isColumnMetadataLoading
+						}
+						queryBuilder={pageState.queryBuilder}
+						url={pageState.activeConnectionUrl}
+						schema={search.schema}
+						tableName={search.table}
 					/>
-				)}
+
+					{/* Query Filter Builder */}
+					{search.viewMode === "rows" &&
+						pageState.rowsColumns.length > 0 &&
+						search.filtersOpened && (
+							<QueryFilterBuilder
+								key={search.table}
+								conditions={pageState.queryBuilder.filter.conditions}
+								onUpdateCondition={pageState.queryBuilder.updateCondition}
+								onRemoveCondition={pageState.queryBuilder.removeCondition}
+								onLogicalOperatorChange={
+									pageState.queryBuilder.setLogicalOperator
+								}
+								onAddCondition={pageState.queryBuilder.addCondition}
+								onClearAll={pageState.queryBuilder.clearConditions}
+								logicalOperator={pageState.queryBuilder.filter.logicalOperator}
+								availableColumns={pageState.columnNameList}
+								isLoading={pageState.rowsQuery.isLoading}
+							/>
+						)}
+				</>
+			)}
 
 			{/* Content */}
 			<div className="flex-1 overflow-hidden flex flex-col h-full">
@@ -536,6 +530,7 @@ const RowsTabContent = (props: {
 										onCollapse={() => ctx.collapsePanel(panels.sqlPreview)}
 										activeConnectionUrl={pageState.activeConnectionUrl}
 										sqlQueryAsText={pageState.sqlQueryAsText}
+										onRunQuery={executeCustomSql.onRunQuery}
 									/>
 								)}
 							</Splitter.Context>
@@ -564,7 +559,9 @@ const RowsTabContent = (props: {
 							id={panels.rowsContent}
 							className="overflow-hidden flex flex-col"
 						>
-							{pageState.rowsQuery.isLoading ? (
+							{isCustomSqlMode ? (
+								<CustomSqlTabContent executeCustomSql={executeCustomSql} />
+							) : pageState.rowsQuery.isLoading ? (
 								<Stack className="flex-1 flex items-center justify-center">
 									<Spinner />
 									<span className="text-muted-foreground">
@@ -609,7 +606,7 @@ const RowsTabContent = (props: {
 									ranAt={pageState.queryResponse.ranAt}
 									totalRowCount={pageState.queryResponse.rowCount}
 									rowsColumnsCount={pageState.rowsColumns.length - 1}
-									isCustomSql={false}
+									isCustomSql={isCustomSqlMode}
 								/>
 							</div>
 						</Splitter.Panel>
@@ -626,6 +623,7 @@ const RowsTableSqlEditor = (
 		isCollapsed?: boolean;
 		onExpand: () => void;
 		onCollapse: () => void;
+		onRunQuery: () => void;
 	},
 ) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -635,6 +633,8 @@ const RowsTableSqlEditor = (
 			schema: tab.schema,
 			table: tab.table,
 			sqlEditorMode: tab.sqlEditorMode,
+			customSql: tab.customSql,
+			customSqlId: tab.customSqlId,
 		};
 	});
 
@@ -662,21 +662,6 @@ const RowsTableSqlEditor = (
 		dialect: props.connection.dialect,
 	});
 
-	// Run query: switch to custom SQL mode only when user clicks Run
-	const handleRunQuery = () => {
-		const sqlToRun = draftSql ?? props.sqlQueryAsText;
-		if (!sqlToRun) return;
-
-		// Switch to custom SQL mode and execute
-		navigate({
-			search: (prev) =>
-				updateTabState(prev, {
-					customSql: sqlToRun,
-					sqlEditorMode: "editor",
-				}),
-		});
-	};
-
 	return (
 		<>
 			<SqlQueryPreview
@@ -698,7 +683,7 @@ const RowsTableSqlEditor = (
 					})
 				}
 				onEditorChange={(value) => setDraftSql(value)}
-				onRun={handleRunQuery}
+				onRun={props.onRunQuery}
 				onExplain={explainQuery.refetch}
 				disableExplain={isExplainDisabled}
 				onFormat={() => {
@@ -731,8 +716,7 @@ const RowsTableSqlEditor = (
 					draftSql && (
 						<div className="ml-auto flex items-center justify-between gap-3 px-4">
 							<p className="text-xs font-medium text-amber-900">
-								📝 Run custom query with Ctrl+Enter (will switch to custom SQL
-								view)
+								📝 Run custom query with Ctrl+Enter to execute
 							</p>
 							<Button
 								variant="ghost"
@@ -1110,5 +1094,347 @@ const AddConnectionDrawer = (props: {
 				</div>
 			</SheetContent>
 		</Sheet>
+	);
+};
+
+const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
+
+	const search = useActiveTabState((tab) => ({
+		schema: tab.schema,
+		table: tab.table,
+		customSql: tab.customSql,
+		customSqlId: tab.customSqlId,
+		sqlEditorMode: tab.sqlEditorMode,
+		sqlPreviewSize: tab.sqlPreviewSize,
+		tableSize: tab.tableSize,
+	}));
+	const [showDestructiveConfirm, setShowDestructiveConfirm] = useState(false);
+	const [pendingQueryExecution, setPendingQueryExecution] = useState<
+		(() => void) | null
+	>(null);
+
+	const executeCustomSqlMutation = useMutation({
+		mutationFn: executeAndStoreCustomSqlServerFn,
+		meta: { noInvalidate: true },
+		onSuccess: (data) => {
+			// After successful execution, update the URL to use the new customSqlId
+			// and clear the customSql (since it's now stored in the database)
+			if (!data?.customSqlId) return;
+			queryClient.invalidateQueries(
+				customSqlExecutionQueryOptions(search.customSqlId),
+			);
+			navigate({
+				search: (prev) =>
+					updateTabState(prev, {
+						customSqlId: data.customSqlId,
+						customSql: undefined,
+					}),
+			});
+		},
+	});
+
+	// Check if we already have mutation results (fresh execution)
+	const mutationResult = executeCustomSqlMutation.data;
+	const hasMutationResult = !!mutationResult?.rows;
+
+	// Query for previously executed custom SQL (when customSqlId is set)
+	// Disabled if we already have mutation results (fresh execution)
+	const customSqlExecutionQuery = useQuery({
+		...customSqlExecutionQueryOptions(search.customSqlId),
+		enabled:
+			!!search.customSqlId &&
+			!hasMutationResult &&
+			!executeCustomSqlMutation.isPending,
+	});
+
+	const storedData = customSqlExecutionQuery.data;
+
+	// console.log({ storedData, displaySql, search });
+
+	// Get execution result (either from mutation or from stored execution)
+	const output: {
+		rows: Record<string, unknown>[];
+		columns: string[];
+		rowCount: number;
+		rowsAffected: number | undefined;
+		timeTaken: number;
+		ranAt: number;
+	} | null =
+		hasMutationResult && mutationResult
+			? {
+					rows: mutationResult.rows,
+					columns: mutationResult.columns,
+					rowCount: mutationResult.rowCount,
+					rowsAffected: mutationResult.rowsAffected,
+					timeTaken: mutationResult.timeTaken,
+					ranAt: mutationResult.ranAt,
+				}
+			: storedData
+				? {
+						// Use stored rows if available
+						rows: (storedData.resultRows ?? []) as Record<string, unknown>[],
+						columns: (storedData.columns ?? []) as string[],
+						rowCount: storedData.rowsReturned ?? 0,
+						rowsAffected: storedData.rowsAffected ?? undefined,
+						timeTaken: storedData.timeTaken ?? 0,
+						ranAt: storedData.startedAt ?? 0,
+					}
+				: null;
+
+	const onRunQuery = (editorValue?: string) => {
+		const sqlToRun =
+			editorValue ??
+			search.customSql ??
+			storedData?.sql ??
+			executeCustomSqlMutation.variables?.data.sql;
+		console.log("onRunQuery", { sqlToRun });
+		if (!sqlToRun) return;
+
+		// If editing from a stored execution, track the parent query
+		const previousId = search.customSqlId;
+
+		// Check for destructive queries
+		if (isDestructiveQuery(sqlToRun)) {
+			setPendingQueryExecution(() => () => {
+				executeCustomSqlMutation.mutate({
+					data: {
+						url: props.activeConnectionUrl,
+						sql: sqlToRun,
+						schemaName: search.schema,
+						tableName: search.table,
+						previousId,
+					},
+				});
+				setShowDestructiveConfirm(false);
+				setPendingQueryExecution(null);
+			});
+			setShowDestructiveConfirm(true);
+			return;
+		}
+
+		executeCustomSqlMutation.mutate({
+			data: {
+				url: props.activeConnectionUrl,
+				sql: sqlToRun,
+				schemaName: search.schema,
+				tableName: search.table,
+				previousId,
+			},
+		});
+	};
+
+	const handleReExecuteStored = () => {
+		const sql = storedData?.sql;
+		if (!sql) return;
+
+		// Re-executing same query, no previousId needed (it's the same query)
+		executeCustomSqlMutation.mutate({
+			data: {
+				url: props.activeConnectionUrl,
+				sql,
+				schemaName: search.schema,
+				tableName: search.table,
+			},
+		});
+	};
+
+	return {
+		onRunQuery,
+		onRerunStoredQuery: handleReExecuteStored,
+		output,
+		mutation: executeCustomSqlMutation,
+		storedQuery: customSqlExecutionQuery,
+		hasStoredExecution: !!search.customSqlId,
+		hasPendingCustomSql: !!search.customSql?.trim(),
+		hasStoredRows: !!storedData?.resultRows?.length,
+		hasMutationResult,
+		DestructiveDialog: (
+			<DestructiveQueryConfirmDialog
+				isOpen={showDestructiveConfirm}
+				onConfirm={() => {
+					pendingQueryExecution?.();
+				}}
+				onCancel={() => {
+					setShowDestructiveConfirm(false);
+					setPendingQueryExecution(null);
+				}}
+				queryType={getDestructiveQuerySummary(
+					search.customSql || storedData?.sql || "",
+				)}
+				isLoading={executeCustomSqlMutation.isPending}
+			/>
+		),
+	};
+};
+
+type UseExecuteCustomSqlOutput = ReturnType<typeof useExecuteCustomSql>;
+
+const CustomSqlTabContent = (props: {
+	executeCustomSql: UseExecuteCustomSqlOutput;
+}) => {
+	const { executeCustomSql } = props;
+
+	const outputRows = executeCustomSql.output?.rows ?? [];
+	const outputColumns = executeCustomSql.output?.columns ?? [];
+
+	const tableColumns = useMemo(() => {
+		const columnHelper = createColumnHelper<Record<string, unknown>>();
+		return outputColumns.map((col: string) =>
+			columnHelper.accessor(col, {
+				id: col,
+				header: col,
+				cell: (info) => {
+					const value = info.getValue();
+					if (value === null)
+						return <span className="text-muted-foreground italic">NULL</span>;
+					if (typeof value === "object") return JSON.stringify(value);
+					return String(value);
+				},
+			}),
+		);
+	}, [outputColumns]);
+
+	const table = useDataTable({
+		data: outputRows as Record<string, unknown>[],
+		columns: tableColumns,
+	});
+	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
+		null,
+	);
+
+	const search = useActiveTabState((tab) => ({
+		tableSize: tab.tableSize,
+	}));
+
+	// Loading state
+	if (
+		executeCustomSql.mutation.isPending ||
+		executeCustomSql.storedQuery.isLoading
+	) {
+		return (
+			<Stack className="flex-1 flex items-center justify-center">
+				<Spinner />
+				<span className="text-muted-foreground">
+					{executeCustomSql.mutation.isPending
+						? "Executing SQL query..."
+						: "Fetching previous output..."}
+				</span>
+			</Stack>
+		);
+	}
+
+	// Error state
+	if (executeCustomSql.mutation.isError) {
+		return (
+			<div className="flex-1 flex items-center justify-center p-4">
+				<Stack className="max-w-2xl w-full">
+					<ErrorBoundaryCard
+						error={executeCustomSql.mutation.error}
+						title="Error executing custom SQL"
+						onRetry={executeCustomSql.onRunQuery}
+					/>
+				</Stack>
+			</div>
+		);
+	}
+
+	// Rows affected (non-SELECT query)
+	if (
+		executeCustomSql.hasMutationResult &&
+		executeCustomSql.mutation.data?.rowsAffected !== undefined
+	) {
+		return (
+			<div className="flex-1 flex items-center justify-center">
+				<div className="text-center">
+					<p className="text-lg font-semibold text-foreground mb-2">
+						Query executed successfully
+					</p>
+					<p className="text-base text-muted-foreground">
+						{executeCustomSql.mutation.data.rowsAffected === 1
+							? `${executeCustomSql.mutation.data.rowsAffected} row affected`
+							: `${executeCustomSql.mutation.data.rowsAffected} rows affected`}
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	// Pending custom SQL (not yet executed)
+	if (
+		executeCustomSql.hasPendingCustomSql &&
+		!executeCustomSql.hasMutationResult
+	) {
+		return (
+			<div className="flex-1 flex items-center justify-center">
+				<div className="text-center">
+					<p className="text-sm text-muted-foreground mb-4">
+						Click Execute or press Ctrl+Enter in the editor to run
+					</p>
+					<Button
+						onClick={() => executeCustomSql.onRunQuery()}
+						className="gap-2"
+					>
+						<svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+							<path d="M8 5v14l11-7z" />
+						</svg>
+						Execute Query
+					</Button>
+				</div>
+			</div>
+		);
+	}
+
+	// Results table
+	if (outputRows.length > 0) {
+		return (
+			<ColumnHeaderContextProvider>
+				<DataTable
+					enableRowVirtualization
+					enableColumnOrdering
+					table={table}
+					getTableContainer={setTableContainer}
+					isLoading={false}
+					size={search.tableSize}
+				/>
+				<ScrollToColumnButton
+					table={table}
+					containerRef={{ current: tableContainer }}
+				/>
+			</ColumnHeaderContextProvider>
+		);
+	}
+
+	// Empty result (either from mutation or stored execution)
+	if (
+		(executeCustomSql.hasMutationResult ||
+			executeCustomSql.hasStoredExecution) &&
+		executeCustomSql.output &&
+		outputRows.length === 0
+	) {
+		return (
+			<div className="flex-1 flex items-center justify-center">
+				<div className="text-center">
+					<p className="text-lg font-semibold text-foreground mb-2">
+						Query executed successfully
+					</p>
+					<p className="text-sm text-muted-foreground">No rows returned</p>
+				</div>
+			</div>
+		);
+	}
+
+	// Default: show prompt to write SQL
+	return (
+		<div className="flex-1 flex items-center justify-center">
+			<div className="text-center">
+				<p className="text-lg font-semibold text-foreground mb-2">
+					Write your SQL query
+				</p>
+				<p className="text-sm text-muted-foreground">
+					Use the editor above to write and execute custom SQL
+				</p>
+			</div>
+		</div>
 	);
 };

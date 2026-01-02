@@ -42,7 +42,7 @@ interface SqlQueryPreviewProps {
 	/** Custom SQL that user has edited (if different from generated SQL) */
 	customSql?: string;
 	/** Callback to run the query */
-	onRun?: () => void;
+	onRun?: (editorValue: string) => void;
 	/** Callback to explain the query */
 	onExplain?: () => void;
 	/** Whether to disable the explain button */
@@ -251,7 +251,7 @@ export function SqlQueryPreview({
 								<Button
 									variant="ghost"
 									size="sm"
-									onClick={onRun}
+									onClick={() => onRun?.(editorValueRef.current ?? "")}
 									className="h-8 px-2"
 								>
 									<Play className="h-4 w-4" />

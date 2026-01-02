@@ -939,7 +939,8 @@ const HeaderCell = memo(
 										showColumnBorder: props.showColumnBorder,
 										textAlign: hasBulkActions ? "right" : textAlign,
 									}),
-									"sticky left-[50px] z-1 bg-background",
+									"sticky z-1 bg-background",
+									headerCell.subHeaders.length !== 0 && "left-[50px]",
 									className,
 								)}
 							>

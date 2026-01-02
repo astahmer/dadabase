@@ -28,7 +28,7 @@ interface SqlMonacoEditorProps {
 	columns?: TableWithColumnsMetadata[];
 	hasMultipleSchemas?: boolean;
 	/** Callback when Ctrl+Enter is pressed */
-	onSubmit?: () => void;
+	onSubmit?: (editorValue: string) => void;
 	/** Auto-focus the editor on mount */
 	autoFocus?: boolean;
 	/** Placeholder text to show when editor is empty */
@@ -124,7 +124,7 @@ export function SqlMonacoEditor({
 		editorRef.addCommand(
 			OriginalMonaco.KeyMod.CtrlCmd | OriginalMonaco.KeyCode.Enter,
 			() => {
-				onSubmit();
+				onSubmit(editorRef.getValue());
 			},
 		);
 	}, [editorRef, onSubmit]);
