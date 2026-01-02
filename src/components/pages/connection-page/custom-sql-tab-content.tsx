@@ -11,7 +11,6 @@ import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { queryClient } from "#src/query-client.ts";
-import type { CustomSqlExecutionResult } from "#src/server/custom-sql/fns/get-custom-sql-execution.ts";
 import {
 	customSqlExecutionQueryOptions,
 	executeAndStoreCustomSqlServerFn,
@@ -29,6 +28,7 @@ import {
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import { RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DbConnection } from "../connection.types.ts";
 import { ConnectionPageStatusBar } from "./connection-page-status-bar.tsx";
@@ -38,7 +38,6 @@ import { ExplainOutputDrawer } from "./explain-output-drawer.tsx";
 import { SqlQueryPreview } from "./sql-query-preview.tsx";
 import { useExplainQuery } from "./use-explain-query.ts";
 import { useTablesColumnsForIntellisense } from "./use-tables-columns-intellisense.ts";
-import { RotateCcw } from "lucide-react";
 
 interface CustomSqlTabContentProps {
 	connection: DbConnection;
@@ -144,6 +143,7 @@ export function CustomSqlTabContent({
 
 	// Get the SQL to display in editor
 	const displaySql = search.customSql ?? storedData?.sql ?? baseSql;
+	console.log({ storedData, displaySql, baseSql, search });
 
 	// Get execution result (either from mutation or from stored execution)
 	const executionResult: {

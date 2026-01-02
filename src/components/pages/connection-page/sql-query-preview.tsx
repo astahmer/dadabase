@@ -247,7 +247,7 @@ export function SqlQueryPreview({
 					{/* Action buttons - shown in editor mode */}
 					{editorMode === "editor" && !isCollapsed && (
 						<div className="flex items-center gap-2">
-							<Tooltip content="Run query">
+							<Tooltip content="Run query (Ctrl+Enter)">
 								<Button
 									variant="ghost"
 									size="sm"
@@ -311,7 +311,11 @@ export function SqlQueryPreview({
 									)}
 								</Button>
 							</Tooltip>
-							<pre className="font-mono text-sm text-gray-800 whitespace-pre-wrap wrap-break-word">
+							<pre
+								className="font-mono text-sm text-gray-800 whitespace-pre-wrap wrap-break-word"
+								onClick={handleCopy}
+								onDoubleClick={() => onEditorModeChange?.("editor")}
+							>
 								{sql}
 							</pre>
 						</HStack>
