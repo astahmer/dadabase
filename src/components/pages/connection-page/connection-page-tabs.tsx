@@ -365,10 +365,11 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			onAddTab={() => {
 				const currentTab = tabs.find((t) => t.tabId === activeTabId);
 				const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+				const defaultSchema = getDialectDefaultSchema(dialect);
 				const schema =
-					currentTab?.schema ??
-					schemaList[0] ??
-					getDialectDefaultSchema(dialect);
+					currentTab?.schema || schemaList.includes(defaultSchema)
+						? defaultSchema
+						: schemaList[0] || defaultSchema;
 				const emptyTabState = {
 					...createTabState(schema, ""),
 					tabId,

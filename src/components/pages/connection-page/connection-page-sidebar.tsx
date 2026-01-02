@@ -60,12 +60,12 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 		retry: 3,
 	});
 	const schemaList = schemaListQuery.data || [];
-	const selectedSchema = useActiveTabState(
-		(s) =>
-			s.schema ??
-			(schemaList.length === 1 ? schemaList.at(0) : undefined) ??
-			getDialectDefaultSchema(connection.dialect),
-	);
+	const selectedSchema = useActiveTabState((s) => {
+		const defaultSchema = getDialectDefaultSchema(connection.dialect);
+		return (s.schema ?? schemaList.includes(defaultSchema))
+			? defaultSchema
+			: schemaList.at(0) || getDialectDefaultSchema(connection.dialect);
+	});
 
 	const tablesListQuery = useQuery({
 		...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
