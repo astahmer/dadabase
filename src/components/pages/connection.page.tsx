@@ -13,7 +13,7 @@ import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fn
 import { Splitter } from "@ark-ui/react";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowDown, ArrowDownUp, ArrowUp, Copy } from "lucide-react";
+import { ArrowDown, ArrowDownUp, ArrowUp, Copy, RotateCcw } from "lucide-react";
 import { type Dispatch, type SetStateAction, useState } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
@@ -698,7 +698,6 @@ const RowsTableSqlEditor = (
 					})
 				}
 				onEditorChange={(value) => setDraftSql(value)}
-				onResetCustomSql={() => setDraftSql(null)}
 				onRun={handleRunQuery}
 				onExplain={explainQuery.refetch}
 				disableExplain={isExplainDisabled}
@@ -728,6 +727,26 @@ const RowsTableSqlEditor = (
 				onToggleFullscreen={() => setIsEditorFullscreen(!isEditorFullscreen)}
 				isFullscreen={isEditorFullscreen}
 				className="text-sm h-full"
+				warning={
+					draftSql && (
+						<div className="ml-auto flex items-center justify-between gap-3 px-4">
+							<p className="text-xs font-medium text-amber-900">
+								📝 Run custom query with Ctrl+Enter (will switch to custom SQL
+								view)
+							</p>
+							<Button
+								variant="ghost"
+								size="xs"
+								onClick={() => setDraftSql(null)}
+								title="Reset to generated query and restore UI controls"
+								className="px-2 text-xs gap-1 shrink-0"
+							>
+								<RotateCcw />
+								Reset
+							</Button>
+						</div>
+					)
+				}
 			/>
 			<ExplainOutputDrawer
 				showExplainPanel={showExplainPanel}

@@ -106,7 +106,11 @@ export const ConnectionPageStatusBar = (
 				{/* Right side - Controls */}
 				<div className="flex flex-wrap items-center gap-2 lg:gap-3">
 					{/* Hide pagination and sizing controls for non-SELECT custom SQL */}
-					{!isCustomSql && (
+					{isCustomSql ? (
+						<div className="flex items-center gap-1">
+							<span className="text-xs mx-2">{props.totalRowCount} rows</span>
+						</div>
+					) : (
 						<>
 							{/* Pagination Controls */}
 							<Pagination.Root
@@ -235,6 +239,7 @@ export const ConnectionPageStatusBar = (
 							)}
 						</>
 					)}
+
 					<Tooltip
 						content={`Refresh rows (last ran at ${DateTime.formatIso(DateTime.unsafeMake(props.ranAt))})`}
 					>

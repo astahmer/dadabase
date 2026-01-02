@@ -38,6 +38,7 @@ import { ExplainOutputDrawer } from "./explain-output-drawer.tsx";
 import { SqlQueryPreview } from "./sql-query-preview.tsx";
 import { useExplainQuery } from "./use-explain-query.ts";
 import { useTablesColumnsForIntellisense } from "./use-tables-columns-intellisense.ts";
+import { RotateCcw } from "lucide-react";
 
 interface CustomSqlTabContentProps {
 	connection: DbConnection;
@@ -355,19 +356,23 @@ export function CustomSqlTabContent({
 								Previous execution
 							</p>
 							<p className="text-sm text-muted-foreground mb-1">
-								Ran at {new Date(storedData.startedAt).toLocaleString()}
+								Ran at {new Date(storedData.startedAt).toLocaleString()}{" "}
+								{storedData.timeTaken && ` in ${storedData.timeTaken}ms`}
 							</p>
 							<p className="text-sm text-muted-foreground">
 								{storedData.rowsReturned} row
 								{storedData.rowsReturned !== 1 ? "s" : ""} returned
-								{storedData.timeTaken && ` in ${storedData.timeTaken}ms`}
+							</p>
+							<p className="text-sm text-muted-foreground">
+								{storedData.rowsAffected} row
+								{storedData.rowsAffected !== 1 ? "s" : ""} affected
 							</p>
 						</div>
 						<Button onClick={handleReExecuteStored} className="gap-2">
 							<svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
 								<path d="M8 5v14l11-7z" />
 							</svg>
-							Re-execute to see results
+							Re-execute
 						</Button>
 					</div>
 				</div>
@@ -523,15 +528,6 @@ export function CustomSqlTabContent({
 									}
 									customSql={search.customSql}
 									onEditorChange={(value) => onEditorValueChange(value)}
-									onResetCustomSql={() =>
-										navigate({
-											search: (prev) =>
-												updateTabState(prev, {
-													customSql: undefined,
-													customSqlId: undefined,
-												}),
-										})
-									}
 									onRun={handleExecute}
 									onExplain={explainQuery.refetch}
 									disableExplain={isExplainDisabled}
@@ -575,6 +571,34 @@ export function CustomSqlTabContent({
 									}
 									isFullscreen={isEditorFullscreen}
 									className="text-sm h-full"
+									warning={
+										search.customSql && (
+											<div className="ml-auto flex items-center justify-between gap-3 px-4">
+												<p className="text-xs font-medium text-amber-900">
+													📝 Updated SQL since last execution - use Ctrl+Enter
+													to run
+												</p>
+												<Button
+													variant="ghost"
+													size="xs"
+													onClick={() =>
+														navigate({
+															search: (prev) =>
+																updateTabState(prev, {
+																	customSql: undefined,
+																	customSqlId: undefined,
+																}),
+														})
+													}
+													title="Reset to generated query and restore UI controls"
+													className="px-2 text-xs gap-1 shrink-0"
+												>
+													<RotateCcw />
+													Reset
+												</Button>
+											</div>
+										)
+									}
 								/>
 							)}
 						</Splitter.Context>

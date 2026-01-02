@@ -20,8 +20,9 @@ import {
 	Wand2,
 	Zap,
 } from "lucide-react";
-import { useEffectEvent, useRef, useState } from "react";
+import { useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
+import { HStack } from "#src/components/ui/layout.tsx";
 
 interface SqlQueryPreviewProps {
 	/** The raw SQL query string */
@@ -40,8 +41,6 @@ interface SqlQueryPreviewProps {
 	onEditorChange?: (value: string) => void;
 	/** Custom SQL that user has edited (if different from generated SQL) */
 	customSql?: string;
-	/** Callback to reset custom SQL */
-	onResetCustomSql?: () => void;
 	/** Callback to run the query */
 	onRun?: () => void;
 	/** Callback to explain the query */
@@ -64,6 +63,8 @@ interface SqlQueryPreviewProps {
 	columns?: TableWithColumnsMetadata[];
 	/** Custom CSS class */
 	className?: string;
+	/** Warning message to display next to the tabs */
+	warning?: ReactNode;
 }
 
 /**
@@ -84,7 +85,6 @@ export function SqlQueryPreview({
 	onEditorModeChange,
 	onEditorChange,
 	customSql,
-	onResetCustomSql,
 	onRun,
 	onExplain,
 	disableExplain = false,
@@ -96,6 +96,7 @@ export function SqlQueryPreview({
 	tables = [],
 	columns = [],
 	className,
+	warning,
 }: SqlQueryPreviewProps) {
 	const [copied, setCopied] = useState(false);
 	const editorValueRef = useRef<string>(sql);
@@ -238,25 +239,7 @@ export function SqlQueryPreview({
 									Editor
 								</Tabs.Trigger>
 
-								{/* Custom query warning - inline below tabs */}
-								{customSql && (
-									<div className="ml-auto flex items-center justify-between gap-3 -mx-4 px-4 py-2">
-										<p className="text-xs font-medium text-amber-900">
-											📝 Editing raw SQL — filters and other controls are
-											disabled
-										</p>
-										<Button
-											variant="ghost"
-											size="sm"
-											onClick={onResetCustomSql}
-											title="Reset to generated query and restore UI controls"
-											className="h-6 px-2 text-xs gap-1 shrink-0"
-										>
-											<RotateCcw className="h-3 w-3" />
-											Reset
-										</Button>
-									</div>
-								)}
+								{warning}
 							</Tabs.List>
 						</Tabs.Root>
 					</div>
@@ -307,32 +290,31 @@ export function SqlQueryPreview({
 							</Tooltip>
 						</div>
 					)}
-
-					<Tooltip content="Copy SQL to clipboard">
-						<Button
-							variant="ghost"
-							size="sm"
-							onClick={handleCopy}
-							className="h-8 px-2 shrink-0"
-						>
-							{copied ? (
-								<Check className="h-4 w-4 text-green-600" />
-							) : (
-								<Copy className="h-4 w-4" />
-							)}
-						</Button>
-					</Tooltip>
 				</div>
 			</div>
 			{/* Content - collapsed by default */}
 			{!isCollapsed && (
 				<>
 					{editorMode === "preview" ? (
-						<div className="overflow-x-auto bg-gray-50 px-4 py-3">
+						<HStack className="overflow-x-auto bg-gray-50 px-4 py-3 relative group">
+							<Tooltip content="Copy SQL to clipboard" portalled>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={handleCopy}
+									className="h-8 px-2 shrink-0 absolute top-2 right-4 opacity-0 group-hover:opacity-100"
+								>
+									{copied ? (
+										<Check className="h-4 w-4 text-green-600" />
+									) : (
+										<Copy className="h-4 w-4" />
+									)}
+								</Button>
+							</Tooltip>
 							<pre className="font-mono text-sm text-gray-800 whitespace-pre-wrap wrap-break-word">
 								{sql}
 							</pre>
-						</div>
+						</HStack>
 					) : (
 						<div className="bg-gray-50 border-t border-gray-200 h-full">
 							<SqlMonacoEditor
