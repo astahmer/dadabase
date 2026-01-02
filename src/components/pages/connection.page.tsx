@@ -414,8 +414,7 @@ const RowsTabContent = (props: {
 	const isCustomSqlMode = Boolean(
 		isUsingCustomSql ||
 			executeCustomSql.mutation.isPending ||
-			executeCustomSql.storedQuery.isLoading ||
-			executeCustomSql.output,
+			executeCustomSql.storedQuery.isLoading,
 	);
 
 	return (
@@ -716,12 +715,23 @@ const RowsTableSqlEditor = (
 					draftSql && (
 						<div className="ml-auto flex items-center justify-between gap-3 px-4">
 							<p className="text-xs font-medium text-amber-900">
-								📝 Run custom query with Ctrl+Enter to execute
+								📝 Run custom query with Ctrl+Enter
 							</p>
 							<Button
 								variant="ghost"
 								size="xs"
-								onClick={() => setDraftSql(null)}
+								onClick={() => {
+									setDraftSql(null);
+									props.onCollapse();
+									navigate({
+										search: (prev) =>
+											updateTabState(prev, {
+												customSql: undefined,
+												customSqlId: undefined,
+												sqlEditorMode: "preview",
+											}),
+									});
+								}}
 								title="Reset to generated query and restore UI controls"
 								className="px-2 text-xs gap-1 shrink-0"
 							>
@@ -1388,20 +1398,22 @@ const CustomSqlTabContent = (props: {
 	// Results table
 	if (outputRows.length > 0) {
 		return (
-			<ColumnHeaderContextProvider>
-				<DataTable
-					enableRowVirtualization
-					enableColumnOrdering
-					table={table}
-					getTableContainer={setTableContainer}
-					isLoading={false}
-					size={search.tableSize}
-				/>
-				<ScrollToColumnButton
-					table={table}
-					containerRef={{ current: tableContainer }}
-				/>
-			</ColumnHeaderContextProvider>
+			<div className="flex-1 overflow-auto flex flex-col relative">
+				<ColumnHeaderContextProvider>
+					<DataTable
+						enableRowVirtualization
+						enableColumnOrdering
+						table={table}
+						getTableContainer={setTableContainer}
+						isLoading={false}
+						size={search.tableSize}
+					/>
+					<ScrollToColumnButton
+						table={table}
+						containerRef={{ current: tableContainer }}
+					/>
+				</ColumnHeaderContextProvider>
+			</div>
 		);
 	}
 

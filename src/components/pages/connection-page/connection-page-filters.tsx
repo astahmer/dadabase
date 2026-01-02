@@ -1,3 +1,5 @@
+import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
+import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
 import { useNavigate } from "@tanstack/react-router";
 import type { Table as TanstackTable } from "@tanstack/react-table";
 import {
@@ -9,9 +11,6 @@ import {
 	Rows,
 } from "lucide-react";
 import { useState } from "react";
-import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
-import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
-import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { OrderBySelect } from "../../app/order-by-select.tsx";
 import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
 import { NaturalLanguageSearch } from "../../query-builder/natural-language-search.tsx";
@@ -51,7 +50,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 	const columnVisibilityMode = useActiveTabState((s) => s.columnVisibilityMode);
 
 	return (
-		<div className="relative border-b bg-muted/50">
+		<div className="relative w-full min-w-0 border-b bg-muted/50">
 			{isLoading && (
 				<div
 					className="absolute inset-x-0 top-0 h-0.5 bg-primary"
@@ -62,7 +61,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 					}}
 				/>
 			)}
-			<HStack className="px-4 py-2 items-center justify-between">
+			<HStack className="px-4 py-2 items-center justify-between w-full min-w-0">
 				<div className="flex gap-2">
 					<Tooltip content="View rows">
 						<Button
