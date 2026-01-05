@@ -433,6 +433,7 @@ const RowsTabContent = (props: {
 						url={pageState.activeConnectionUrl}
 						schema={search.schema}
 						tableName={search.table}
+						columnMetadata={pageState.columnMetadata}
 					/>
 
 					{/* Query Filter Builder */}

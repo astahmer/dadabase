@@ -28,11 +28,33 @@ interface ConnectionPageFiltersProps {
 	url: string;
 	schema: string;
 	tableName: string;
+	columnMetadata?: Array<{
+		name: string;
+		dataType: string;
+		nullable: boolean;
+		primaryKey?: boolean | undefined;
+		unique: boolean;
+		defaultValue: string | null;
+		isForeignKey?: boolean;
+		foreignKey?: {
+			referencedSchema: string;
+			referencedTable: string;
+			referencedColumn: string;
+		};
+	}>;
 }
 
 export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
-	const { columnList, isLoading, table, queryBuilder, url, schema, tableName } =
-		props;
+	const {
+		columnList,
+		isLoading,
+		table,
+		queryBuilder,
+		url,
+		schema,
+		tableName,
+		columnMetadata,
+	} = props;
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
 
@@ -96,7 +118,13 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 						</Button>
 					</Tooltip>
 				</div>
-				{viewMode === "structure" && <StructureFilterControls />}
+				{viewMode === "structure" && (
+					<StructureFilterControls
+						columnMetadata={columnMetadata}
+						schema={schema}
+						table={tableName}
+					/>
+				)}
 				{viewMode === "rows" && (
 					<>
 						<div id="connection-page-filters-top-row" className="contents" />
