@@ -103,11 +103,6 @@ const JoinTablesDialogContent = (
 		joins: joinState.config.joins,
 	});
 
-	const selectedTableIds = [
-		`${schema}.${table}`,
-		...joinState.config.joins.map((j) => `${j.schema}.${j.table}`),
-	];
-
 	const relationshipsBySource = useMemo(() => {
 		const map = new Map<string, TableRelationship[]>();
 		if (relationshipsQuery.data) {

@@ -9,14 +9,26 @@ import { DatabaseDialect } from "#src/db/dialect.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
+import { queryClient } from "#src/query-client.ts";
+import {
+	customSqlExecutionQueryOptions,
+	executeAndStoreCustomSqlServerFn,
+} from "#src/server/custom-sql/start-fns/execute-custom-sql.start.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
+import {
+	getDestructiveQuerySummary,
+	isDestructiveQuery,
+} from "#src/server/introspection/detect-destructive-sql.ts";
+import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { Splitter } from "@ark-ui/react";
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowDown, ArrowDownUp, ArrowUp, Copy, RotateCcw } from "lucide-react";
-import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
+import { createColumnHelper } from "@tanstack/react-table";
+import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
+import { useDataTable } from "../data-table/use-data-table.ts";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
 import { QueryLoggerContent } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
@@ -48,30 +60,19 @@ import {
 	updateTabState,
 	useActiveTabState,
 } from "./connection-page/create-tab-state.ts";
+import { DestructiveQueryConfirmDialog } from "./connection-page/destructive-query-confirm.dialog.tsx";
+import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
 import { ExplainOutputDrawer } from "./connection-page/explain-output-drawer.tsx";
+import { useJoinedTables } from "./connection-page/join-tables/use-joined-tables.ts";
 import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
-import { TabErrorState } from "./connection-page/tab-error-state.tsx";
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
-import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
+import { TabErrorState } from "./connection-page/tab-error-state.tsx";
 import { useExplainQuery } from "./connection-page/use-explain-query.ts";
+import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 import { useTablesColumnsForIntellisense } from "./connection-page/use-tables-columns-intellisense.ts";
 import { ConnectionForm } from "./connection.form.tsx";
 import type { DbConnection } from "./connection.types";
-import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
-import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
-import {
-	customSqlExecutionQueryOptions,
-	executeAndStoreCustomSqlServerFn,
-} from "#src/server/custom-sql/start-fns/execute-custom-sql.start.ts";
-import { queryClient } from "#src/query-client.ts";
-import {
-	getDestructiveQuerySummary,
-	isDestructiveQuery,
-} from "#src/server/introspection/detect-destructive-sql.ts";
-import { DestructiveQueryConfirmDialog } from "./connection-page/destructive-query-confirm.dialog.tsx";
-import { createColumnHelper } from "@tanstack/react-table";
-import { useDataTable } from "../data-table/use-data-table.ts";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -419,6 +420,11 @@ const RowsTabContent = (props: {
 			executeCustomSql.storedQuery.isLoading,
 	);
 
+	const columnQueries = useJoinedTables({
+		url: pageState.activeConnectionUrl,
+		joins: pageState.joins,
+	});
+
 	return (
 		<>
 			{/* Show filters and query builder only in table browse mode */}
@@ -455,7 +461,22 @@ const RowsTabContent = (props: {
 								logicalOperator={pageState.queryBuilder.filter.logicalOperator}
 								availableColumns={pageState.columnNameList}
 								isLoading={pageState.rowsQuery.isLoading}
-								columnMetadata={pageState.columnMetadata}
+								columnMetadata={pageState.columnMetadata
+									.map((meta) => ({
+										...meta,
+										name: `${search.table}.${meta.name}`,
+									}))
+									.concat(
+										(columnQueries ?? []).flatMap((q, index) =>
+											(q.data ?? []).map((meta) => {
+												const table = pageState.joins[index].table;
+												return {
+													...meta,
+													name: `${table}.${meta.name}`,
+												};
+											}),
+										),
+									)}
 							/>
 						)}
 				</>

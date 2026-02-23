@@ -204,10 +204,6 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 		[],
 	);
 
-	const getColumnDataType = (columnName: string): string | undefined => {
-		return columnMetadata?.find((col) => col.name === columnName)?.dataType;
-	};
-
 	return (
 		<Stack className="gap-0">
 			{showLogicalLabel && index > 0 && (
@@ -256,7 +252,11 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 											{columnMetadata && (
 												<div className="ml-auto">
 													<DataTypeBadge
-														dataType={getColumnDataType(item.value) || ""}
+														dataType={
+															columnMetadata?.find(
+																(col) => col.name === item.value,
+															)?.dataType || ""
+														}
 													/>
 												</div>
 											)}

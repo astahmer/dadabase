@@ -574,6 +574,7 @@ export const JoinedTableRow = ({
 												logicalOperator={joinFilterLogicalOperator}
 												availableColumns={availableColumns.map((c) => c.name)}
 												tableReference={alias || joined.table}
+												columnMetadata={availableColumns}
 											/>
 										)}
 									</AccordionItemContent>
@@ -660,6 +661,7 @@ export const JoinedTableRow = ({
 											}
 											logicalOperator={logicalOperator}
 											availableColumns={availableColumns.map((c) => c.name)}
+											columnMetadata={availableColumns}
 										/>
 									)}
 								</AccordionItemContent>
