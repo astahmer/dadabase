@@ -10,18 +10,13 @@ import {
 import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
 import { useMutation } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
-import { Check, Copy, Play } from "lucide-react";
+import { Check, Copy, Play, Maximize2, Minimize2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { useDataTable } from "../data-table/use-data-table.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Button } from "../ui/button.tsx";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "../ui/dialog.tsx";
+import { Dialog, DialogContent, DialogTitle } from "../ui/dialog.tsx";
 import { JsonViewer } from "../ui/json-viewer.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { Spinner } from "../ui/spinner.tsx";
@@ -48,6 +43,7 @@ export const QueryLoggerDetailDialog = ({
 	const [copied, setCopied] = useState(false);
 	const [resultsData, setResultsData] = useState<any[]>([]);
 	const [activeTab, setActiveTab] = useState("sql");
+	const [isFullscreen, setIsFullscreen] = useState(false);
 
 	const runQueryMutation = useMutation({
 		mutationFn: async (input: ExecuteAndStoreCustomSqlInput) => {
@@ -147,10 +143,10 @@ export const QueryLoggerDetailDialog = ({
 	return (
 		<Dialog open={open} onOpenChange={(details) => onOpenChange(details.open)}>
 			<DialogContent
-				className="max-w-4xl h-[90vh] flex flex-col gap-0 p-0"
-				size="4xl"
+				className="flex flex-col gap-0 p-0 max-w-4xl h-[90vh]"
+				size={isFullscreen ? "full" : "2xl"}
 			>
-				<DialogHeader className="border-b px-6 py-4 shrink-0">
+				<div className="border-b px-6 py-4 shrink-0 flex items-center justify-between gap-2 relative">
 					<DialogTitle className="flex items-center gap-2">
 						Query Details
 						<Badge
@@ -160,8 +156,20 @@ export const QueryLoggerDetailDialog = ({
 						>
 							{entry.status}
 						</Badge>
+						<Button
+							size="sm"
+							variant="ghost"
+							onClick={() => setIsFullscreen(!isFullscreen)}
+							className="gap-2"
+						>
+							{isFullscreen ? (
+								<Minimize2 className="h-4 w-4" />
+							) : (
+								<Maximize2 className="h-4 w-4" />
+							)}
+						</Button>
 					</DialogTitle>
-				</DialogHeader>
+				</div>
 
 				<Tabs
 					value={activeTab}

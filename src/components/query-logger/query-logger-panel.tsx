@@ -286,6 +286,7 @@ export const QueryLoggerContent = ({
 			</div>
 
 			<QueryLoggerDetailDialog
+				key={selectedEntry?.id}
 				entry={selectedEntry}
 				open={dialogOpen}
 				onOpenChange={setDialogOpen}
