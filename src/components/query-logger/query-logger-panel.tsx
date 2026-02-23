@@ -289,6 +289,7 @@ export const QueryLoggerContent = ({
 				entry={selectedEntry}
 				open={dialogOpen}
 				onOpenChange={setDialogOpen}
+				connectionUrl={connectionUrl}
 			/>
 		</>
 	);

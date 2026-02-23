@@ -40,8 +40,6 @@
 
 ## query history/logger
 - query history (persisted across sessions; only saves successful queries that were made by a user action) with a Badge distinction for the saved/favorites queries
-- query logger -> show results on the right, or top/bottom + rows returned/affected
-- add a way to view (explicit/manual) query history
 
 
 ## new features
@@ -76,5 +74,4 @@
 - log affected rows for mutation queries (visible in the detail dialog)
 - completion provider -> insert {here} suggest "into" / insert into {here} suggest tables and insert snippet with prefilled column names / values?
 - when updating the SQL through the UI (ex: adding a join); if currently looking at the SQL editor we should update its content
-- copy/download table structure as JSON/CSV
 - replace biome with oxc
