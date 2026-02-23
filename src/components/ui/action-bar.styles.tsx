@@ -2,7 +2,7 @@ import { cva } from "class-variance-authority";
 
 export const actionBarVariants = {
 	positioner: cva(
-		"fixed inset-x-0 top-auto bottom-[calc(env(safe-area-inset-bottom)_+_20px)] flex justify-center pointer-events-none",
+		"absolute inset-x-0 top-auto bottom-4 flex justify-center pointer-events-none z-40",
 	),
 
 	content: cva(
@@ -19,7 +19,7 @@ export const actionBarVariants = {
 			},
 		},
 	),
-	contentOffset: cva("translate-x-[calc(-1_*_var(--scrollbar-width)_/_2)]"),
+	contentOffset: cva("translate-x-[calc(-1*var(--scrollbar-width)/2)]"),
 
 	separator: cva("w-px h-5 bg-border"),
 

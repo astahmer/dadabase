@@ -42,4 +42,6 @@ export interface ExposedTextareaProps
 		| "onChange"
 		| "onChangeCapture"
 		| "onBlur"
+		| "placeholder"
+		| "disabled"
 	> {}
