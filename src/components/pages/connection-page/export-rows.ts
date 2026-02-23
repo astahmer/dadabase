@@ -54,6 +54,57 @@ function rowsToJSON(rows: Array<Record<string, unknown>>): string {
 }
 
 /**
+ * Copies text to clipboard
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+	try {
+		await navigator.clipboard.writeText(text);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Generates SQL INSERT statements for the selected rows
+ */
+export function rowsToInsertStatements(
+	rows: Array<Record<string, unknown>>,
+	columns: string[],
+	tableName: string,
+	schemaName?: string,
+): string {
+	if (rows.length === 0) return "";
+
+	const fullTableName = schemaName ? `${schemaName}.${tableName}` : tableName;
+	const columnList = columns.map((col) => `"${col}"`).join(", ");
+
+	const statements = rows.map((row) => {
+		const values = columns
+			.map((col) => {
+				const value = row[col];
+				if (value === null || value === undefined) {
+					return "NULL";
+				}
+				if (typeof value === "number") {
+					return String(value);
+				}
+				if (typeof value === "boolean") {
+					return value ? "TRUE" : "FALSE";
+				}
+				// Escape single quotes and wrap in quotes
+				const escaped = String(value).replace(/'/g, "''");
+				return `'${escaped}'`;
+			})
+			.join(", ");
+
+		return `INSERT INTO ${fullTableName} (${columnList}) VALUES (${values});`;
+	});
+
+	return statements.join("\n");
+}
+
+/**
  * Exports rows to a file
  */
 export function exportRows(

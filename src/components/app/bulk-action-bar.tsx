@@ -1,4 +1,4 @@
-import { Copy, Trash2, X } from "lucide-react";
+import { Copy, FileJson, FileSpreadsheet, Trash2, X } from "lucide-react";
 import * as ActionBar from "../ui/action-bar";
 import { Button } from "../ui/button";
 import { HStack } from "../ui/layout";
@@ -6,14 +6,22 @@ import { HStack } from "../ui/layout";
 interface BulkActionBarProps {
 	selectedCount: number;
 	onDelete?: () => void;
-	onExport?: () => void;
+	onExportJson?: () => void;
+	onExportCsv?: () => void;
+	onCopyJson?: () => void;
+	onCopyCsv?: () => void;
+	onCopyInsert?: () => void;
 	isLoading?: boolean;
 }
 
 export function BulkActionBar({
 	selectedCount,
 	onDelete,
-	onExport,
+	onExportJson,
+	onExportCsv,
+	onCopyJson,
+	onCopyCsv,
+	onCopyInsert,
 	isLoading = false,
 }: BulkActionBarProps) {
 	if (selectedCount === 0) return null;
@@ -29,17 +37,66 @@ export function BulkActionBar({
 					<ActionBar.ActionBarSeparator />
 
 					<HStack>
-						{onExport && (
+						{onCopyJson && (
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={onExport}
+								onClick={onCopyJson}
 								disabled={isLoading}
 							>
 								<Copy className="h-4 w-4 mr-1" />
-								Export
+								Copy JSON
 							</Button>
 						)}
+						{onCopyCsv && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onCopyCsv}
+								disabled={isLoading}
+							>
+								<Copy className="h-4 w-4 mr-1" />
+								Copy CSV
+							</Button>
+						)}
+						{onCopyInsert && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onCopyInsert}
+								disabled={isLoading}
+							>
+								<FileSpreadsheet className="h-4 w-4 mr-1" />
+								Copy INSERT
+							</Button>
+						)}
+						{onExportJson && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onExportJson}
+								disabled={isLoading}
+							>
+								<FileJson className="h-4 w-4 mr-1" />
+								Export JSON
+							</Button>
+						)}
+						{onExportCsv && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={onExportCsv}
+								disabled={isLoading}
+							>
+								<FileSpreadsheet className="h-4 w-4 mr-1" />
+								Export CSV
+							</Button>
+						)}
+					</HStack>
+
+					<ActionBar.ActionBarSeparator />
+
+					<HStack>
 						{onDelete && (
 							<Button
 								variant="destructive"

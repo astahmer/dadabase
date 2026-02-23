@@ -6,7 +6,11 @@ import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
 import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
 import { BulkActionBar } from "#src/components/app/bulk-action-bar.tsx";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
-import { exportRows } from "#src/components/pages/connection-page/export-rows.ts";
+import {
+	copyToClipboard,
+	exportRows,
+	rowsToInsertStatements,
+} from "#src/components/pages/connection-page/export-rows.ts";
 import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
 import {
 	type ConnectionPageState,
@@ -1078,7 +1082,7 @@ const BulkActions = (
 		},
 	});
 
-	const handleExport = () => {
+	const handleExportJson = () => {
 		const rows = selectedRows.map(
 			(row) => row.original as Record<string, unknown>,
 		);
@@ -1098,6 +1102,102 @@ const BulkActions = (
 		});
 	};
 
+	const handleExportCsv = () => {
+		const rows = selectedRows.map(
+			(row) => row.original as Record<string, unknown>,
+		);
+		const columns = props.rowsDataTable
+			.getVisibleLeafColumns()
+			.map((col) => col.id);
+
+		exportRows(rows, columns, {
+			format: "csv",
+			filename: `${search.table}-export.csv`,
+		});
+
+		toaster.create({
+			title: "Success",
+			description: `Exported ${rows.length} row${rows.length !== 1 ? "s" : ""}`,
+			type: "success",
+		});
+	};
+
+	const handleCopyJson = async () => {
+		const rows = selectedRows.map(
+			(row) => row.original as Record<string, unknown>,
+		);
+		const content = JSON.stringify(rows, null, 2);
+		const success = await copyToClipboard(content);
+
+		toaster.create({
+			title: success ? "Copied" : "Error",
+			description: success
+				? `Copied ${rows.length} row${rows.length !== 1 ? "s" : ""} as JSON`
+				: "Failed to copy to clipboard",
+			type: success ? "success" : "error",
+		});
+	};
+
+	const handleCopyCsv = async () => {
+		const rows = selectedRows.map(
+			(row) => row.original as Record<string, unknown>,
+		);
+		const columns = props.rowsDataTable
+			.getVisibleLeafColumns()
+			.map((col) => col.id);
+
+		const content = rows
+			.map((row) =>
+				columns
+					.map((col) => {
+						const value = row[col];
+						const stringValue =
+							value === null || value === undefined ? "" : String(value);
+						const escaped = stringValue.replace(/"/g, '""');
+						return escaped.includes(",") || escaped.includes("\n")
+							? `"${escaped}"`
+							: escaped;
+					})
+					.join(","),
+			)
+			.join("\n");
+
+		const success = await copyToClipboard(content);
+
+		toaster.create({
+			title: success ? "Copied" : "Error",
+			description: success
+				? `Copied ${rows.length} row${rows.length !== 1 ? "s" : ""} as CSV`
+				: "Failed to copy to clipboard",
+			type: success ? "success" : "error",
+		});
+	};
+
+	const handleCopyInsert = async () => {
+		const rows = selectedRows.map(
+			(row) => row.original as Record<string, unknown>,
+		);
+		const columns = props.rowsDataTable
+			.getVisibleLeafColumns()
+			.map((col) => col.id);
+
+		const content = rowsToInsertStatements(
+			rows,
+			columns,
+			search.table!,
+			search.schema,
+		);
+		const success = await copyToClipboard(content);
+
+		toaster.create({
+			title: success ? "Copied" : "Error",
+			description: success
+				? `Copied ${rows.length} INSERT statement${rows.length !== 1 ? "s" : ""}`
+				: "Failed to copy to clipboard",
+			type: success ? "success" : "error",
+		});
+	};
+
 	const handleBulkDelete = () => {
 		setShowDeleteConfirm(true);
 	};
@@ -1107,7 +1207,11 @@ const BulkActions = (
 			<BulkActionBar
 				selectedCount={selectedRowsCount}
 				onDelete={handleBulkDelete}
-				onExport={handleExport}
+				onExportJson={handleExportJson}
+				onExportCsv={handleExportCsv}
+				onCopyJson={handleCopyJson}
+				onCopyCsv={handleCopyCsv}
+				onCopyInsert={handleCopyInsert}
 				isLoading={deleteMutation.isPending}
 			/>
 
