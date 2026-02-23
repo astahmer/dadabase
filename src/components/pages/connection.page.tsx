@@ -1,13 +1,22 @@
+import { Splitter } from "@ark-ui/react";
+import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { createColumnHelper } from "@tanstack/react-table";
+import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
+import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
+import { BulkActionBar } from "#src/components/app/bulk-action-bar.tsx";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
+import { exportRows } from "#src/components/pages/connection-page/export-rows.ts";
 import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
 import {
+	type ConnectionPageState,
 	useActiveConnectionUrl,
 	useConnectionPageState,
-	type ConnectionPageState,
 } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
+import { getErrorMessage } from "#src/lib/get-error-message.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { queryClient } from "#src/query-client.ts";
 import {
@@ -19,20 +28,23 @@ import {
 	getDestructiveQuerySummary,
 	isDestructiveQuery,
 } from "#src/server/introspection/detect-destructive-sql.ts";
+import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
-import { Splitter } from "@ark-ui/react";
-import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { createColumnHelper } from "@tanstack/react-table";
-import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { useDataTable } from "../data-table/use-data-table.ts";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
 import { QueryLoggerContent } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
+import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button } from "../ui/button.tsx";
+import {
+	Dialog,
+	DialogCloseTrigger,
+	DialogContent,
+	DialogDescription,
+	DialogTitle,
+} from "../ui/dialog.tsx";
 import { Stack } from "../ui/layout.tsx";
 import {
 	Menu,
@@ -50,6 +62,8 @@ import {
 } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
+import { ConnectionForm } from "./connection.form.tsx";
+import type { DbConnection } from "./connection.types";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
@@ -71,8 +85,6 @@ import { TabErrorState } from "./connection-page/tab-error-state.tsx";
 import { useExplainQuery } from "./connection-page/use-explain-query.ts";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 import { useTablesColumnsForIntellisense } from "./connection-page/use-tables-columns-intellisense.ts";
-import { ConnectionForm } from "./connection.form.tsx";
-import type { DbConnection } from "./connection.types";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -814,7 +826,13 @@ const RowsTableContent = (
 	};
 
 	return (
-		<>
+		<div className="flex-1 flex flex-col h-full relative">
+			<BulkActions
+				activeConnectionUrl={props.activeConnectionUrl}
+				rowsDataTable={props.rowsDataTable}
+				columnMetadata={props.columnMetadata}
+			/>
+
 			<Splitter.Root
 				orientation="vertical"
 				className="flex-1 flex flex-col h-full overflow-hidden"
@@ -995,6 +1013,140 @@ const RowsTableContent = (
 					/>
 				)}
 			</Splitter.Root>
+		</div>
+	);
+};
+
+const BulkActions = (
+	props: Pick<
+		ConnectionPageState,
+		"activeConnectionUrl" | "rowsDataTable" | "columnMetadata"
+	>,
+) => {
+	const search = useActiveTabState((tab) => ({
+		schema: tab.schema,
+		table: tab.table,
+	}));
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+	const selectedRows = props.rowsDataTable.getSelectedRowModel().rows;
+	const selectedRowsCount = selectedRows.length;
+	const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
+
+	const deleteMutation = useMutation({
+		mutationFn: async () => {
+			if (!primaryKeyColumn || !search.schema || !search.table) {
+				throw new Error("Missing required metadata for bulk delete");
+			}
+			const ids = selectedRows.map((row) => {
+				const value = row.original[primaryKeyColumn.name];
+				return typeof value === "string" || typeof value === "number"
+					? value
+					: String(value);
+			});
+
+			await bulkDeleteRowsServerFn({
+				data: {
+					url: props.activeConnectionUrl,
+					schema: search.schema,
+					table: search.table,
+					primaryKeyColumn: primaryKeyColumn.name,
+					ids,
+				},
+			});
+
+			return ids;
+		},
+		onSuccess: (deletedIds) => {
+			// Clear selection
+			props.rowsDataTable.resetRowSelection();
+
+			toaster.create({
+				title: "Success",
+				description: `Deleted ${deletedIds.length} row${deletedIds.length !== 1 ? "s" : ""}`,
+				type: "success",
+			});
+
+			setShowDeleteConfirm(false);
+		},
+		onError: (error) => {
+			toaster.create({
+				title: "Error",
+				description: `Failed to delete rows: ${getErrorMessage(error)}`,
+				type: "error",
+			});
+		},
+	});
+
+	const handleExport = () => {
+		const rows = selectedRows.map(
+			(row) => row.original as Record<string, unknown>,
+		);
+		const columns = props.rowsDataTable
+			.getVisibleLeafColumns()
+			.map((col) => col.id);
+
+		exportRows(rows, columns, {
+			format: "json",
+			filename: `${search.table}-export.json`,
+		});
+
+		toaster.create({
+			title: "Success",
+			description: `Exported ${rows.length} row${rows.length !== 1 ? "s" : ""}`,
+			type: "success",
+		});
+	};
+
+	const handleBulkDelete = () => {
+		setShowDeleteConfirm(true);
+	};
+
+	return (
+		<>
+			<BulkActionBar
+				selectedCount={selectedRowsCount}
+				onDelete={handleBulkDelete}
+				onExport={handleExport}
+				isLoading={deleteMutation.isPending}
+			/>
+
+			<Dialog
+				open={showDeleteConfirm}
+				onOpenChange={(details) => setShowDeleteConfirm(details.open)}
+			>
+				<DialogContent>
+					<div className="space-y-4">
+						<div className="space-y-2">
+							<DialogTitle className="text-lg font-semibold">
+								Delete rows?
+							</DialogTitle>
+							<DialogDescription className="text-sm">
+								Are you sure you want to delete {selectedRowsCount} row
+								{selectedRowsCount !== 1 ? "s" : ""}? This action cannot be
+								undone.
+							</DialogDescription>
+						</div>
+						<div className="flex gap-3 justify-end">
+							<DialogCloseTrigger asChild>
+								<Button variant="outline" size="sm">
+									Cancel
+								</Button>
+							</DialogCloseTrigger>
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={() => {
+									deleteMutation.mutate();
+								}}
+								disabled={deleteMutation.isPending}
+							>
+								{deleteMutation.isPending ? "Deleting..." : "Delete"}
+							</Button>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
 		</>
 	);
 };
