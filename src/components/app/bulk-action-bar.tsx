@@ -1,7 +1,14 @@
-import { Copy, FileJson, FileSpreadsheet, Trash2, X } from "lucide-react";
+import { Copy, FileJson, Trash2, X } from "lucide-react";
 import * as ActionBar from "../ui/action-bar";
 import { Button } from "../ui/button";
 import { HStack } from "../ui/layout";
+import {
+	Menu,
+	MenuContent,
+	MenuItem,
+	MenuItemText,
+	MenuTrigger,
+} from "../ui/menu";
 
 interface BulkActionBarProps {
 	selectedCount: number;
@@ -29,7 +36,7 @@ export function BulkActionBar({
 	return (
 		<ActionBar.ActionBarRoot open={selectedCount > 0}>
 			<ActionBar.ActionBarPositioner>
-				<ActionBar.ActionBarContent>
+				<ActionBar.ActionBarContent className="dark">
 					<ActionBar.ActionBarSelectionTrigger disabled>
 						{selectedCount} row{selectedCount !== 1 ? "s" : ""} selected
 					</ActionBar.ActionBarSelectionTrigger>
@@ -37,61 +44,62 @@ export function BulkActionBar({
 					<ActionBar.ActionBarSeparator />
 
 					<HStack>
-						{onCopyJson && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={onCopyJson}
-								disabled={isLoading}
-							>
-								<Copy className="h-4 w-4 mr-1" />
-								Copy JSON
-							</Button>
-						)}
-						{onCopyCsv && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={onCopyCsv}
-								disabled={isLoading}
-							>
-								<Copy className="h-4 w-4 mr-1" />
-								Copy CSV
-							</Button>
-						)}
-						{onCopyInsert && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={onCopyInsert}
-								disabled={isLoading}
-							>
-								<FileSpreadsheet className="h-4 w-4 mr-1" />
-								Copy INSERT
-							</Button>
-						)}
-						{onExportJson && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={onExportJson}
-								disabled={isLoading}
-							>
-								<FileJson className="h-4 w-4 mr-1" />
-								Export JSON
-							</Button>
-						)}
-						{onExportCsv && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={onExportCsv}
-								disabled={isLoading}
-							>
-								<FileSpreadsheet className="h-4 w-4 mr-1" />
-								Export CSV
-							</Button>
-						)}
+						<Menu>
+							<MenuTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={isLoading}
+									className="border-background/20"
+								>
+									<Copy className="h-4 w-4 mr-1" />
+									Copy
+								</Button>
+							</MenuTrigger>
+							<MenuContent>
+								{onCopyJson && (
+									<MenuItem value="copy-json" onClick={onCopyJson}>
+										<MenuItemText>Copy as JSON</MenuItemText>
+									</MenuItem>
+								)}
+								{onCopyCsv && (
+									<MenuItem value="copy-csv" onClick={onCopyCsv}>
+										<MenuItemText>Copy as CSV</MenuItemText>
+									</MenuItem>
+								)}
+								{onCopyInsert && (
+									<MenuItem value="copy-insert" onClick={onCopyInsert}>
+										<MenuItemText>Copy as INSERT</MenuItemText>
+									</MenuItem>
+								)}
+							</MenuContent>
+						</Menu>
+
+						<Menu>
+							<MenuTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={isLoading}
+									className="border-background/20"
+								>
+									<FileJson className="h-4 w-4 mr-1" />
+									Export
+								</Button>
+							</MenuTrigger>
+							<MenuContent>
+								{onExportJson && (
+									<MenuItem value="export-json" onClick={onExportJson}>
+										<MenuItemText>Export as JSON</MenuItemText>
+									</MenuItem>
+								)}
+								{onExportCsv && (
+									<MenuItem value="export-csv" onClick={onExportCsv}>
+										<MenuItemText>Export as CSV</MenuItemText>
+									</MenuItem>
+								)}
+							</MenuContent>
+						</Menu>
 					</HStack>
 
 					<ActionBar.ActionBarSeparator />
@@ -113,7 +121,11 @@ export function BulkActionBar({
 					<ActionBar.ActionBarSeparator />
 
 					<ActionBar.ActionBarCloseTrigger asChild>
-						<Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-6 w-6 p-0 hover:bg-background/20"
+						>
 							<X className="h-4 w-4" />
 						</Button>
 					</ActionBar.ActionBarCloseTrigger>

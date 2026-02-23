@@ -33,7 +33,11 @@ function rowsToCSV(
 			.map((col) => {
 				const value = row[col];
 				const stringValue =
-					value === null || value === undefined ? "" : String(value);
+					value === null || value === undefined
+						? ""
+						: typeof value === "object"
+							? JSON.stringify(value)
+							: String(value);
 				// Escape quotes and wrap in quotes if contains comma, newline, or quotes
 				const escaped = stringValue.replace(/"/g, '""');
 				return escaped.includes(",") || escaped.includes("\n")
@@ -91,6 +95,10 @@ export function rowsToInsertStatements(
 				}
 				if (typeof value === "boolean") {
 					return value ? "TRUE" : "FALSE";
+				}
+				if (typeof value === "object") {
+					const escaped = JSON.stringify(value).replace(/'/g, "''");
+					return `'${escaped}'`;
 				}
 				// Escape single quotes and wrap in quotes
 				const escaped = String(value).replace(/'/g, "''");

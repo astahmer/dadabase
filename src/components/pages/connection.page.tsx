@@ -1152,7 +1152,11 @@ const BulkActions = (
 					.map((col) => {
 						const value = row[col];
 						const stringValue =
-							value === null || value === undefined ? "" : String(value);
+							value === null || value === undefined
+								? ""
+								: typeof value === "object"
+									? JSON.stringify(value)
+									: String(value);
 						const escaped = stringValue.replace(/"/g, '""');
 						return escaped.includes(",") || escaped.includes("\n")
 							? `"${escaped}"`

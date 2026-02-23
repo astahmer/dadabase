@@ -51,7 +51,6 @@
 - cmd+k command palette for all actions (new query, switch connection, table, switch db, view indexes, view foreign keys, view query plan etc)
 - investigate using the lib that allows to move/reorder components in a gridlike manner with snap, like dashboard widgets, for full customization -> https://dockview.dev/ ?
 - expandable table row with nested entity -> kinda solved already with bottom relationship panel but some people might prefer inline expansion
-- row selection with checkboxes + bulk actions (delete, export, copy etc)
 - cancellable queries (+ rm disabled state for buttons while a query is running)
 - after a `select {selection} from {table} j` (or `jo`/`joi`/`join`/`l`/`le`/`lef`/`left`/`left j`/etc) we should suggest a prefilled line of `join {otherTableWithForeignKeysOnTheCurrentFromTable} ON {table}.{primaryKey} = {otherTableWithForeignKeysOnTheCurrentFromTable}.{foreignKey}`
 - editor themes (one dark pro etc)

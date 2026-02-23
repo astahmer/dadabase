@@ -6,15 +6,19 @@ export const actionBarVariants = {
 	),
 
 	content: cva(
-		"bg-card shadow-md flex items-center gap-3 rounded-lg py-2.5 px-3 pointer-events-auto transition-all",
+		"shadow-md flex items-center gap-3 rounded-lg py-2.5 px-3 pointer-events-auto transition-all",
 		{
 			variants: {
+				variant: {
+					default: "bg-card text-card-foreground",
+				},
 				state: {
 					open: "animate-in fade-in slide-in-from-bottom duration-200",
 					closed: "animate-out fade-out slide-out-to-bottom duration-150",
 				},
 			},
 			defaultVariants: {
+				variant: "default",
 				state: "open",
 			},
 		},

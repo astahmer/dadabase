@@ -46,16 +46,18 @@ export interface ActionBarContentProps
 	extends ArkPopover.ContentBaseProps,
 		React.HTMLAttributes<HTMLDivElement> {
 	state?: "open" | "closed";
+	variant?: "default";
 }
 
 export const ActionBarContent = ({
 	className,
 	state,
+	variant = "default",
 	...props
 }: ActionBarContentProps) => (
 	<ArkPopover.Content
 		className={cn(
-			actionBarVariants.content({ state }),
+			actionBarVariants.content({ state, variant }),
 			actionBarVariants.contentOffset(),
 			className,
 		)}
