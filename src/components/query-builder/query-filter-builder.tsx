@@ -9,11 +9,15 @@ import {
 	getOperatorLabel,
 	getOperatorSymbols,
 	nullOperators,
+	specialValueSupportedOperators,
+	SPECIAL_VALUES_LIST,
+	isSpecialValue,
 } from "#src/components/query-builder/query-filter.ts";
 import { useListCollection } from "@ark-ui/react";
 import { useFilter } from "@ark-ui/react/locale";
 import { Plus, X } from "lucide-react";
 import { useEffect, useMemo } from "react";
+import { DataTypeBadge } from "../app/data-type-badge.tsx";
 import { Button } from "../ui/button.tsx";
 import {
 	Combobox,
@@ -48,6 +52,21 @@ interface QueryFilterBuilderProps {
 	tableReference?: string;
 	/** Disable the filter builder (e.g., when in custom query mode) */
 	disabled?: boolean;
+	/** Optional column metadata to display data types in the column dropdown */
+	columnMetadata?: Array<{
+		name: string;
+		dataType: string;
+		nullable: boolean;
+		primaryKey?: boolean;
+		unique: boolean;
+		defaultValue: string | null;
+		isForeignKey?: boolean;
+		foreignKey?: {
+			referencedSchema: string;
+			referencedTable: string;
+			referencedColumn: string;
+		};
+	}>;
 }
 
 const operatorCollection = createListCollection({
@@ -76,6 +95,7 @@ export const QueryFilterBuilder = ({
 	isLoading = false,
 	tableReference,
 	disabled = false,
+	columnMetadata,
 }: QueryFilterBuilderProps) => {
 	const columnCollection = useMemo(
 		() =>
@@ -118,6 +138,7 @@ export const QueryFilterBuilder = ({
 						isLast={index === conditions.length - 1}
 						hasMultipleConditions={conditions.length > 1}
 						tableReference={tableReference}
+						columnMetadata={columnMetadata}
 					/>
 				))}
 			</Stack>
@@ -148,6 +169,20 @@ interface FilterConditionRowProps {
 	showLogicalLabel?: boolean;
 	logicalOperator?: LogicalOperatorType;
 	tableReference?: string;
+	columnMetadata?: Array<{
+		name: string;
+		dataType: string;
+		nullable: boolean;
+		primaryKey?: boolean;
+		unique: boolean;
+		defaultValue: string | null;
+		isForeignKey?: boolean;
+		foreignKey?: {
+			referencedSchema: string;
+			referencedTable: string;
+			referencedColumn: string;
+		};
+	}>;
 }
 
 const FilterConditionRow = (props: FilterConditionRowProps) => {
@@ -164,9 +199,13 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 		showLogicalLabel = false,
 		isLast,
 		logicalOperator = "and",
+		columnMetadata,
 	} = props;
 	const isNullOperator = nullOperators.includes(condition.operator);
 	const isArrayOperator = arrayOperators.includes(condition.operator);
+	const supportsSpecialValues = specialValueSupportedOperators.includes(
+		condition.operator,
+	);
 
 	const filters = useFilter({ sensitivity: "base" });
 	const columnList = useListCollection({
@@ -185,6 +224,15 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 		operatorList.set(operatorCollection.items);
 	}, [operatorCollection.items, operatorList.set]);
 
+	const specialValuesCollection = useMemo(
+		() => createListCollection({ items: SPECIAL_VALUES_LIST }),
+		[],
+	);
+
+	const getColumnDataType = (columnName: string): string | undefined => {
+		return columnMetadata?.find((col) => col.name === columnName)?.dataType;
+	};
+
 	return (
 		<Stack className="gap-0">
 			{showLogicalLabel && index > 0 && (
@@ -201,7 +249,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 					onClick={() => {
 						onRemove(String(index));
 					}}
-					className="h-8 w-8 p-0 flex-shrink-0 mt-5"
+					className="h-8 w-8 p-0 shrink-0 mt-5"
 					title="Remove this filter"
 				>
 					<X className="h-4 w-4" />
@@ -228,7 +276,16 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 							<ComboboxList>
 								{columnList.collection.items.map((item) => (
 									<ComboboxItem key={item.value} item={item}>
-										{item.label}
+										<div className="flex items-center justify-between w-full gap-3">
+											<span>{item.label}</span>
+											{columnMetadata && (
+												<div className="ml-auto">
+													<DataTypeBadge
+														dataType={getColumnDataType(item.value) || ""}
+													/>
+												</div>
+											)}
+										</div>
 									</ComboboxItem>
 								))}
 							</ComboboxList>
@@ -290,27 +347,81 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 
 				{!isNullOperator && (
 					<div className="flex-1 min-w-0">
-						<Input
-							className="w-full h-8 text-sm rounded-md border border-input bg-transparent shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-							type="text"
-							placeholder="Value"
-							value={
-								isArrayOperator && Array.isArray(condition.value)
-									? condition.value.join(", ")
-									: (condition.value as string) || ""
-							}
-							onChange={(e) => {
-								const val = e.target.value;
-								onUpdate(String(index), {
-									value: isArrayOperator
-										? val.split(",").map((v) => v.trim())
-										: val,
-								});
-							}}
-						/>
+						{supportsSpecialValues ? (
+							<Combobox
+								collection={specialValuesCollection}
+								value={
+									isArrayOperator && Array.isArray(condition.value)
+										? condition.value.map(String)
+										: condition.value
+											? [String(condition.value)]
+											: []
+								}
+								onValueChange={(details) => {
+									onUpdate(String(index), {
+										value:
+											details.value.length === 1
+												? details.value[0]
+												: details.value || "",
+									});
+								}}
+								onInputValueChange={(details) => {
+									const val = details.inputValue;
+									if (!val || val.trim() === "") return;
+									onUpdate(String(index), {
+										value: isArrayOperator
+											? val.split(",").map((v) => v.trim())
+											: val,
+									});
+								}}
+								allowCustomValue
+								openOnClick
+							>
+								<ComboboxControl size="sm">
+									<ComboboxInput
+										placeholder="Value or select special value..."
+										className="w-full"
+									/>
+									<ComboboxTrigger />
+								</ComboboxControl>
+								<ComboboxContent>
+									<ComboboxList>
+										{specialValuesCollection.items.map((item) => (
+											<ComboboxItem
+												key={item.value}
+												item={item}
+												className="text-sm"
+											>
+												<span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+													{item.label}
+												</span>
+											</ComboboxItem>
+										))}
+									</ComboboxList>
+								</ComboboxContent>
+							</Combobox>
+						) : (
+							<Input
+								className="w-full h-8 text-sm rounded-md border border-input bg-transparent shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+								type="text"
+								placeholder="Value"
+								value={
+									isArrayOperator && Array.isArray(condition.value)
+										? condition.value.join(", ")
+										: (condition.value as string) || ""
+								}
+								onChange={(e) => {
+									const val = e.target.value;
+									onUpdate(String(index), {
+										value: isArrayOperator
+											? val.split(",").map((v) => v.trim())
+											: val,
+									});
+								}}
+							/>
+						)}{" "}
 					</div>
 				)}
-
 				{props.isFirst && props.hasMultipleConditions && (
 					<div style={{ minWidth: "100px" }}>
 						<ArkSelect.Select
@@ -349,7 +460,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 							variant="outline"
 							size="sm"
 							onClick={() => onAdd?.()}
-							className="text-xs h-8 px-2 flex-shrink-0"
+							className="text-xs h-8 px-2 shrink-0"
 						>
 							<Plus className="h-4 w-4" />
 						</Button>
@@ -362,7 +473,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 							variant="ghost"
 							size="sm"
 							onClick={() => onClearAll()}
-							className="text-xs h-8 px-2 flex-shrink-0"
+							className="text-xs h-8 px-2 shrink-0"
 						>
 							<X className="h-4 w-4" />
 						</Button>

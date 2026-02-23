@@ -15,10 +15,7 @@
 - support NOT operator in natural language search
 - support IN operator
 - try to match possible operators based on datatype; ex: timestamps shouldnt have
-- the filter "column" dropdown should show informations like data type badge etc (like the column header) next to each column name, align it to the right
-- the filter "column" dropdown should be prefixed with the table name (because later on we will add the ability to filter with joins)
 - date filter with calendar/date range with presets (today, last 7 days, last 30 days, this month, last month, this year, last year)
-- value listbox > handle special values like `null` / today / now() / ...
 
 
 ## json viewer/editor

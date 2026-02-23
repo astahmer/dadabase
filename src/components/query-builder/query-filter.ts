@@ -83,13 +83,23 @@ export const conditionToWhereClause = (
 
 	switch (condition.operator) {
 		case "equals": {
-			baseClause = `${column} = ${paramName}`;
-			params = { [paramName]: condition.value };
+			if (isSpecialValue(condition.value)) {
+				baseClause = `${column} = ${condition.value}`;
+				params = {};
+			} else {
+				baseClause = `${column} = ${paramName}`;
+				params = { [paramName]: condition.value };
+			}
 			break;
 		}
 		case "not_equals": {
-			baseClause = `${column} != ${paramName}`;
-			params = { [paramName]: condition.value };
+			if (isSpecialValue(condition.value)) {
+				baseClause = `${column} != ${condition.value}`;
+				params = {};
+			} else {
+				baseClause = `${column} != ${paramName}`;
+				params = { [paramName]: condition.value };
+			}
 			break;
 		}
 		case "contains": {
@@ -113,23 +123,43 @@ export const conditionToWhereClause = (
 			break;
 		}
 		case "greater_than": {
-			baseClause = `${column} > ${paramName}`;
-			params = { [paramName]: condition.value };
+			if (isSpecialValue(condition.value)) {
+				baseClause = `${column} > ${condition.value}`;
+				params = {};
+			} else {
+				baseClause = `${column} > ${paramName}`;
+				params = { [paramName]: condition.value };
+			}
 			break;
 		}
 		case "greater_than_or_equal": {
-			baseClause = `${column} >= ${paramName}`;
-			params = { [paramName]: condition.value };
+			if (isSpecialValue(condition.value)) {
+				baseClause = `${column} >= ${condition.value}`;
+				params = {};
+			} else {
+				baseClause = `${column} >= ${paramName}`;
+				params = { [paramName]: condition.value };
+			}
 			break;
 		}
 		case "less_than": {
-			baseClause = `${column} < ${paramName}`;
-			params = { [paramName]: condition.value };
+			if (isSpecialValue(condition.value)) {
+				baseClause = `${column} < ${condition.value}`;
+				params = {};
+			} else {
+				baseClause = `${column} < ${paramName}`;
+				params = { [paramName]: condition.value };
+			}
 			break;
 		}
 		case "less_than_or_equal": {
-			baseClause = `${column} <= ${paramName}`;
-			params = { [paramName]: condition.value };
+			if (isSpecialValue(condition.value)) {
+				baseClause = `${column} <= ${condition.value}`;
+				params = {};
+			} else {
+				baseClause = `${column} <= ${paramName}`;
+				params = { [paramName]: condition.value };
+			}
 			break;
 		}
 		case "is_null": {
@@ -275,6 +305,55 @@ export const getOperatorLabel = (operator: FilterOperatorType): string => {
 	};
 	return labels[operator];
 };
+
+/**
+ * Special SQL values that should not be parameterized
+ */
+export const SPECIAL_VALUES = {
+	NULL: "null",
+	NOW: "NOW()",
+	TODAY: "TODAY()",
+	CURRENT_DATE: "CURRENT_DATE",
+	CURRENT_TIMESTAMP: "CURRENT_TIMESTAMP",
+	CURRENT_TIME: "CURRENT_TIME",
+} as const;
+
+export type SpecialValueKey = keyof typeof SPECIAL_VALUES;
+export type SpecialValue = (typeof SPECIAL_VALUES)[SpecialValueKey];
+
+/**
+ * List of all special values for UI dropdowns
+ */
+export const SPECIAL_VALUES_LIST: { label: string; value: SpecialValue }[] = [
+	{ label: "NULL", value: SPECIAL_VALUES.NULL },
+	{ label: "NOW()", value: SPECIAL_VALUES.NOW },
+	{ label: "TODAY()", value: SPECIAL_VALUES.TODAY },
+	{ label: "CURRENT_DATE", value: SPECIAL_VALUES.CURRENT_DATE },
+	{ label: "CURRENT_TIMESTAMP", value: SPECIAL_VALUES.CURRENT_TIMESTAMP },
+	{ label: "CURRENT_TIME", value: SPECIAL_VALUES.CURRENT_TIME },
+];
+
+/**
+ * Check if a value is a special SQL value
+ */
+export const isSpecialValue = (value: unknown): value is SpecialValue => {
+	if (typeof value !== "string") return false;
+	return Object.values(SPECIAL_VALUES).some(
+		(sv) => sv.toLowerCase() === value.toLowerCase(),
+	);
+};
+
+/**
+ * Operators that support special values
+ */
+export const specialValueSupportedOperators: FilterOperatorType[] = [
+	"equals",
+	"not_equals",
+	"greater_than",
+	"greater_than_or_equal",
+	"less_than",
+	"less_than_or_equal",
+];
 
 /**
  * Get operator symbol alternatives

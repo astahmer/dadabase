@@ -455,6 +455,7 @@ const RowsTabContent = (props: {
 								logicalOperator={pageState.queryBuilder.filter.logicalOperator}
 								availableColumns={pageState.columnNameList}
 								isLoading={pageState.rowsQuery.isLoading}
+								columnMetadata={pageState.columnMetadata}
 							/>
 						)}
 				</>
