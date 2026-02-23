@@ -1,7 +1,3 @@
-import { JsonTreeView } from "@ark-ui/react";
-import { useMutation } from "@tanstack/react-query";
-import { Check, ChevronRightIcon, Copy, Play } from "lucide-react";
-import { useState } from "react";
 import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import {
 	normalizeSql,
@@ -12,6 +8,12 @@ import {
 	type ExecuteAndStoreCustomSqlInput,
 } from "#src/server/custom-sql/start-fns/execute-custom-sql.start.ts";
 import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
+import { useMutation } from "@tanstack/react-query";
+import { createColumnHelper } from "@tanstack/react-table";
+import { Check, Copy, Play } from "lucide-react";
+import { useMemo, useState } from "react";
+import { DataTable } from "../data-table/data-table.tsx";
+import { useDataTable } from "../data-table/use-data-table.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Button } from "../ui/button.tsx";
 import {
@@ -21,7 +23,7 @@ import {
 	DialogTitle,
 } from "../ui/dialog.tsx";
 import { JsonViewer } from "../ui/json-viewer.tsx";
-import { HStack, Stack } from "../ui/layout.tsx";
+import { HStack } from "../ui/layout.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
@@ -57,6 +59,33 @@ export const QueryLoggerDetailDialog = ({
 			}
 			setActiveTab("results");
 		},
+	});
+
+	// Create table columns from results data - called unconditionally
+	const tableColumns = useMemo(() => {
+		if (resultsData.length === 0) return [];
+
+		const columnHelper = createColumnHelper<Record<string, unknown>>();
+		const firstRow = resultsData[0];
+
+		return Object.keys(firstRow).map((columnName) =>
+			columnHelper.accessor(columnName, {
+				id: columnName,
+				header: columnName,
+				cell: (info) => {
+					const value = info.getValue();
+					if (value === null)
+						return <span className="text-muted-foreground italic">NULL</span>;
+					if (typeof value === "object") return JSON.stringify(value);
+					return String(value);
+				},
+			}),
+		);
+	}, [resultsData]);
+
+	const table = useDataTable({
+		data: resultsData as Record<string, unknown>[],
+		columns: tableColumns,
 	});
 
 	if (!entry) return null;
@@ -248,75 +277,37 @@ export const QueryLoggerDetailDialog = ({
 						</TabsContent>
 
 						{resultsData.length > 0 && (
-							<TabsContent value="results" className="space-y-4 p-6 m-0">
-								<Stack gap="4" className="flex-1 min-h-0 flex flex-col">
-									<div>
-										<p className="text-xs font-medium text-muted-foreground mb-2">
-											Results
-										</p>
-										<p className="text-sm font-semibold">
-											{resultsData.length} row
-											{resultsData.length !== 1 ? "s" : ""} returned
+							<TabsContent
+								value="results"
+								className="space-y-4 p-6 m-0 flex-1 overflow-hidden flex flex-col"
+							>
+								<div>
+									<p className="text-xs font-medium text-muted-foreground mb-2">
+										Results
+									</p>
+									<p className="text-sm font-semibold">
+										{resultsData.length} row
+										{resultsData.length !== 1 ? "s" : ""} returned
+									</p>
+								</div>
+
+								{runQueryMutation.isError && (
+									<div className="bg-destructive/10 p-3 rounded-lg">
+										<p className="text-sm text-destructive">
+											{runQueryMutation.error?.message || "Error running query"}
 										</p>
 									</div>
+								)}
 
-									{runQueryMutation.isError && (
-										<div className="bg-destructive/10 p-3 rounded-lg">
-											<p className="text-sm text-destructive">
-												{runQueryMutation.error?.message ||
-													"Error running query"}
-											</p>
-										</div>
-									)}
-
-									<div className="flex-1 min-h-0 overflow-auto border rounded-lg">
-										<table className="w-full text-sm">
-											<thead className="sticky top-0 bg-muted border-b">
-												<tr>
-													{resultsData.length > 0 &&
-														Object.keys(resultsData[0]).map((key) => (
-															<th
-																key={key}
-																className="px-3 py-2 text-left font-medium text-xs"
-															>
-																{key}
-															</th>
-														))}
-												</tr>
-											</thead>
-											<tbody>
-												{resultsData.map((row, idx) => (
-													<tr
-														key={idx}
-														className="border-b hover:bg-muted/50 transition-colors"
-													>
-														{Object.values(row).map((value, colIdx) => (
-															<td
-																key={colIdx}
-																className="px-3 py-2 text-xs font-mono text-muted-foreground"
-															>
-																{value === null ? (
-																	<span className="text-muted-foreground italic">
-																		null
-																	</span>
-																) : typeof value === "object" ? (
-																	<span
-																		className="text-muted-foreground cursor-help"
-																		title={JSON.stringify(value, null, 2)}
-																	>
-																		{"{...}"}
-																	</span>
-																) : (
-																	String(value)
-																)}
-															</td>
-														))}
-													</tr>
-												))}
-											</tbody>
-										</table>
-									</div>
-								</Stack>
+								<div className="flex-1 overflow-hidden">
+									<DataTable
+										table={table}
+										emptyState="No results"
+										stickyHeader
+										interactive
+										variant="outline"
+									/>
+								</div>
 							</TabsContent>
 						)}
 
