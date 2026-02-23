@@ -19,7 +19,7 @@ Skills teach focused techniques in a concise, actionable format. They're stored 
 ## SKILL.md Template
 
 ```markdown
-````skill
+
 ---
 name: skill-name
 description: One-line description of what this teaches
@@ -45,7 +45,7 @@ Link to an actual implementation: [file-name.ts](../../path/to/file.ts)
 
 Numbered steps (optional, only if sequence matters).
 
-````
+
 ```
 
 ## Key Principles
