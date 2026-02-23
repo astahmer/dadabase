@@ -9,9 +9,15 @@ export const Route = createFileRoute("/sandbox")({
 
 function RouteComponent() {
 	return (
-		<Stack w="full" h="full" align="center" justify="center">
-			<ListboxMenuExample />
-			<ComboboxExample />
-		</Stack>
+		<div className="grid grid-cols-2 gap-6 p-6 w-full h-full">
+			<Stack>
+				<h4 className="text-lg font-semibold">Listbox Menu</h4>
+				<ListboxMenuExample />
+			</Stack>
+			<Stack>
+				<h4 className="text-lg font-semibold">Combobox</h4>
+				<ComboboxExample />
+			</Stack>
+		</div>
 	);
 }

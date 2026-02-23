@@ -14,6 +14,7 @@ import {
 	ComboboxList,
 	ComboboxTrigger,
 } from "#src/components/ui/combobox.tsx";
+import { Stack } from "./layout.tsx";
 
 const frameworks = [
 	{ label: "React", value: "react" },
@@ -46,7 +47,7 @@ export function ComboboxExample() {
 	);
 
 	return (
-		<div className="space-y-4 p-4">
+		<Stack>
 			<div className="space-y-2">
 				<Combobox
 					collection={collection}
@@ -101,6 +102,6 @@ export function ComboboxExample() {
 					</p>
 				</div>
 			)}
-		</div>
+		</Stack>
 	);
 }
