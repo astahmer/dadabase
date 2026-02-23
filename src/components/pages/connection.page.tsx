@@ -1204,18 +1204,20 @@ const BulkActions = (
 	};
 
 	const handleViewJson = () => {
-		const rows = selectedRows.map(
-			(row) => row.original as Record<string, unknown>,
-		);
-		toaster.create({
-			title: "JSON Preview",
-			description: (
-				<pre className="max-h-96 max-w-md overflow-auto text-xs">
-					{JSON.stringify(rows, null, 2)}
-				</pre>
-			),
-			type: "info",
-			duration: 10000,
+		const firstSelectedRow = selectedRows[0];
+		if (!firstSelectedRow) return;
+
+		const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
+		const rowId = primaryKeyColumn
+			? String(firstSelectedRow.original[primaryKeyColumn.name])
+			: firstSelectedRow.id;
+
+		navigate({
+			search: (prev) => ({
+				...prev,
+				rowJsonViewerRowId: rowId,
+				rowJsonViewerOpen: true,
+			}),
 		});
 	};
 
