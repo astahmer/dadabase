@@ -1,4 +1,4 @@
-import { Copy, FileJson, Trash2, X } from "lucide-react";
+import { Copy, FileJson, MoreHorizontal, Trash2, X } from "lucide-react";
 import * as ActionBar from "../ui/action-bar";
 import { Button } from "../ui/button";
 import { HStack } from "../ui/layout";
@@ -18,6 +18,9 @@ interface BulkActionBarProps {
 	onCopyJson?: () => void;
 	onCopyCsv?: () => void;
 	onCopyInsert?: () => void;
+	onViewJson?: () => void;
+	onLogRows?: () => void;
+	onExpandRelationships?: () => void;
 	isLoading?: boolean;
 }
 
@@ -29,6 +32,9 @@ export function BulkActionBar({
 	onCopyJson,
 	onCopyCsv,
 	onCopyInsert,
+	onViewJson,
+	onLogRows,
+	onExpandRelationships,
 	isLoading = false,
 }: BulkActionBarProps) {
 	if (selectedCount === 0) return null;
@@ -96,6 +102,40 @@ export function BulkActionBar({
 								{onExportCsv && (
 									<MenuItem value="export-csv" onClick={onExportCsv}>
 										<MenuItemText>Export as CSV</MenuItemText>
+									</MenuItem>
+								)}
+							</MenuContent>
+						</Menu>
+
+						<Menu>
+							<MenuTrigger asChild>
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={isLoading}
+									className="border-background/20"
+								>
+									<MoreHorizontal className="h-4 w-4 mr-1" />
+									More
+								</Button>
+							</MenuTrigger>
+							<MenuContent>
+								{onViewJson && (
+									<MenuItem value="view-json" onClick={onViewJson}>
+										<MenuItemText>View JSON</MenuItemText>
+									</MenuItem>
+								)}
+								{onLogRows && (
+									<MenuItem value="log-rows" onClick={onLogRows}>
+										<MenuItemText>Log rows to console</MenuItemText>
+									</MenuItem>
+								)}
+								{onExpandRelationships && (
+									<MenuItem
+										value="expand-relationships"
+										onClick={onExpandRelationships}
+									>
+										<MenuItemText>Expand relationships</MenuItemText>
 									</MenuItem>
 								)}
 							</MenuContent>

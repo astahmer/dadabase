@@ -1027,6 +1027,7 @@ const BulkActions = (
 		"activeConnectionUrl" | "rowsDataTable" | "columnMetadata"
 	>,
 ) => {
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
 	const search = useActiveTabState((tab) => ({
 		schema: tab.schema,
 		table: tab.table,
@@ -1202,6 +1203,51 @@ const BulkActions = (
 		});
 	};
 
+	const handleViewJson = () => {
+		const rows = selectedRows.map(
+			(row) => row.original as Record<string, unknown>,
+		);
+		toaster.create({
+			title: "JSON Preview",
+			description: (
+				<pre className="max-h-96 max-w-md overflow-auto text-xs">
+					{JSON.stringify(rows, null, 2)}
+				</pre>
+			),
+			type: "info",
+			duration: 10000,
+		});
+	};
+
+	const handleLogRows = () => {
+		const rows = selectedRows.map(
+			(row) => row.original as Record<string, unknown>,
+		);
+		console.log("Rows:", rows);
+		toaster.create({
+			title: "Logged",
+			description: `Logged ${rows.length} row${rows.length !== 1 ? "s" : ""} to console`,
+			type: "success",
+		});
+	};
+
+	const handleExpandRelationships = () => {
+		const firstSelectedRow = selectedRows[0];
+		if (!firstSelectedRow) return;
+
+		const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
+		const rowId = primaryKeyColumn
+			? String(firstSelectedRow.original[primaryKeyColumn.name])
+			: firstSelectedRow.id;
+
+		navigate({
+			search: (prev) =>
+				updateTabState(prev, {
+					relationshipRowId: rowId,
+				}),
+		});
+	};
+
 	const handleBulkDelete = () => {
 		setShowDeleteConfirm(true);
 	};
@@ -1216,6 +1262,11 @@ const BulkActions = (
 				onCopyJson={handleCopyJson}
 				onCopyCsv={handleCopyCsv}
 				onCopyInsert={handleCopyInsert}
+				onViewJson={handleViewJson}
+				onLogRows={handleLogRows}
+				onExpandRelationships={
+					selectedRowsCount === 1 ? handleExpandRelationships : undefined
+				}
 				isLoading={deleteMutation.isPending}
 			/>
 
