@@ -34,6 +34,7 @@ import { Kbd } from "../ui/kbd.tsx";
 import { Stack } from "../ui/layout.tsx";
 import * as ArkSelect from "../ui/select.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 interface QueryFilterBuilderProps {
 	conditions: readonly FilterConditionExpression[];
@@ -53,20 +54,7 @@ interface QueryFilterBuilderProps {
 	/** Disable the filter builder (e.g., when in custom query mode) */
 	disabled?: boolean;
 	/** Optional column metadata to display data types in the column dropdown */
-	columnMetadata?: Array<{
-		name: string;
-		dataType: string;
-		nullable: boolean;
-		primaryKey?: boolean;
-		unique: boolean;
-		defaultValue: string | null;
-		isForeignKey?: boolean;
-		foreignKey?: {
-			referencedSchema: string;
-			referencedTable: string;
-			referencedColumn: string;
-		};
-	}>;
+	columnMetadata?: Array<TableColumnMetadata>;
 }
 
 const operatorCollection = createListCollection({
@@ -169,20 +157,7 @@ interface FilterConditionRowProps {
 	showLogicalLabel?: boolean;
 	logicalOperator?: LogicalOperatorType;
 	tableReference?: string;
-	columnMetadata?: Array<{
-		name: string;
-		dataType: string;
-		nullable: boolean;
-		primaryKey?: boolean;
-		unique: boolean;
-		defaultValue: string | null;
-		isForeignKey?: boolean;
-		foreignKey?: {
-			referencedSchema: string;
-			referencedTable: string;
-			referencedColumn: string;
-		};
-	}>;
+	columnMetadata?: Array<TableColumnMetadata>;
 }
 
 const FilterConditionRow = (props: FilterConditionRowProps) => {

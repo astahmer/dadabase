@@ -16,6 +16,7 @@ import {
 	hasActiveStructureFilters,
 	useStructureFilters,
 } from "./use-structure-filter-state.ts";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 const filterOptions: Array<{
 	key: keyof Omit<StructureFilters, "search">;
@@ -29,20 +30,7 @@ const filterOptions: Array<{
 ];
 
 interface StructureFilterControlsProps {
-	columnMetadata?: Array<{
-		name: string;
-		dataType: string;
-		nullable: boolean;
-		primaryKey?: boolean | undefined;
-		unique: boolean;
-		defaultValue: string | null;
-		isForeignKey?: boolean;
-		foreignKey?: {
-			referencedSchema: string;
-			referencedTable: string;
-			referencedColumn: string;
-		};
-	}>;
+	columnMetadata?: Array<TableColumnMetadata>;
 	schema?: string;
 	table?: string;
 }

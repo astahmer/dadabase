@@ -8,22 +8,10 @@ import { DataTable } from "../../data-table/data-table.tsx";
 import { useDataTable } from "../../data-table/use-data-table.ts";
 import { HStack } from "../../ui/layout.tsx";
 import type { StructureFilters } from "./use-structure-filter-state.ts";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 interface StructureTableProps {
-	columnMetadata: Array<{
-		name: string;
-		dataType: string;
-		nullable: boolean;
-		primaryKey?: boolean | undefined;
-		unique: boolean;
-		defaultValue: string | null;
-		isForeignKey?: boolean;
-		foreignKey?: {
-			referencedSchema: string;
-			referencedTable: string;
-			referencedColumn: string;
-		};
-	}>;
+	columnMetadata: Array<TableColumnMetadata>;
 	isLoading: boolean;
 	tableSize: DataTableSize;
 	filters?: StructureFilters;

@@ -19,6 +19,7 @@ import { HStack } from "../../ui/layout.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 import { StructureFilterControls } from "./structure-table-filters.tsx";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 interface ConnectionPageFiltersProps {
 	columnList: string[];
@@ -28,20 +29,7 @@ interface ConnectionPageFiltersProps {
 	url: string;
 	schema: string;
 	tableName: string;
-	columnMetadata?: Array<{
-		name: string;
-		dataType: string;
-		nullable: boolean;
-		primaryKey?: boolean | undefined;
-		unique: boolean;
-		defaultValue: string | null;
-		isForeignKey?: boolean;
-		foreignKey?: {
-			referencedSchema: string;
-			referencedTable: string;
-			referencedColumn: string;
-		};
-	}>;
+	columnMetadata?: Array<TableColumnMetadata>;
 }
 
 export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
