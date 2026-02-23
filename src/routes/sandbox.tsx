@@ -1,3 +1,4 @@
+import { ComboboxExample } from "#src/components/ui/combobox.example.tsx";
 import { Stack } from "#src/components/ui/layout.tsx";
 import { ListboxMenuExample } from "#src/components/ui/listbox-menu.example.tsx";
 import { createFileRoute } from "@tanstack/react-router";
@@ -10,6 +11,7 @@ function RouteComponent() {
 	return (
 		<Stack w="full" h="full" align="center" justify="center">
 			<ListboxMenuExample />
+			<ComboboxExample />
 		</Stack>
 	);
 }
