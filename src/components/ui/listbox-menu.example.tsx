@@ -6,6 +6,7 @@ import { useState } from "react";
 export function ListboxMenuExample() {
 	const [isOpen, setIsOpen] = useState(false);
 	const [filterValue, setFilterValue] = useState("");
+	const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
 
 	const { contains } = useFilter({ sensitivity: "base" });
 
@@ -41,6 +42,7 @@ export function ListboxMenuExample() {
 						collection={columnCollection}
 						onValueChange={(details) => {
 							if (details.value && details.value.length > 0) {
+								setSelectedColumn(details.value[0]);
 								setFilterValue("");
 								setIsOpen(false);
 							}
@@ -73,6 +75,13 @@ export function ListboxMenuExample() {
 					</ListboxMenu.ListboxRoot>
 				</ListboxMenu.ListboxMenuContent>
 			</ListboxMenu.ListboxMenuRoot>
+			{selectedColumn && (
+				<div className="mt-4 rounded-md bg-accent p-3 text-sm">
+					<p className="font-medium text-accent-foreground">
+						Selected: <span className="font-semibold">{selectedColumn}</span>
+					</p>
+				</div>
+			)}
 		</div>
 	);
 }
