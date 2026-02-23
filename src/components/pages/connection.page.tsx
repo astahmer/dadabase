@@ -117,7 +117,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 	);
 	const sidebarMinSize = fromPixelToPercentage(224, "horizontal");
 	const queryLoggerMinSize = fromPixelToPercentage(48, "vertical");
-	const defaultQueryLoggerSize = queryLoggerSize ?? 0; // Default 25% if not set
+	const defaultQueryLoggerSize = queryLoggerSize ?? 0;
 
 	const search = useActiveTabState((tab) => ({
 		schema: tab.schema,
@@ -345,7 +345,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 													onCollapse={() =>
 														ctx.collapsePanel(panels.queryLogger)
 													}
-													onExpand={() => ctx.expandPanel(panels.queryLogger)}
+													onExpand={() =>
+														ctx.expandPanel(panels.queryLogger, 48)
+													}
 												/>
 											</Splitter.Panel>
 										)}

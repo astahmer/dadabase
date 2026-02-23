@@ -70,9 +70,9 @@ export const QueryLoggerContent = ({
 			<div className="flex items-center px-4 py-2 border-b bg-muted/50 h-12 shrink-0 hover:bg-muted transition-colors group">
 				<div className="flex items-center gap-2 font-medium">
 					<span>Query Logger</span>
-					{(isExpanded !== undefined || onCollapse || onExpand) && (
+					{isExpanded !== undefined && (onCollapse || onExpand) && (
 						<button
-							className="ml-2 p-1 rounded hover:bg-primary/20 transition-colors opacity-0 group-hover:opacity-100"
+							className="ml-2 p-1 rounded hover:bg-primary/20 transition-colors opacity-60 hover:opacity-100"
 							title={isExpanded ? "Collapse" : "Expand"}
 							onClick={(e) => {
 								e.stopPropagation();
