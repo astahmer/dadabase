@@ -86,10 +86,12 @@ export const ActionBarSelectionTrigger = ({
 	className,
 	...props
 }: ActionBarSelectionTriggerProps) => (
-	<button
-		className={cn(actionBarVariants.selectionTrigger(), className)}
-		{...props}
-	/>
+	<ArkPopover.Trigger asChild>
+		<button
+			className={cn(actionBarVariants.selectionTrigger(), className)}
+			{...props}
+		/>
+	</ArkPopover.Trigger>
 );
 ActionBarSelectionTrigger.displayName = "ActionBarSelectionTrigger";
 

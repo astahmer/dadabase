@@ -1,3 +1,4 @@
+import * as React from "react";
 import {
 	BreadcrumbCurrentLink,
 	BreadcrumbItem,
@@ -23,16 +24,20 @@ export function BreadcrumbExample() {
 					<BreadcrumbRoot>
 						<BreadcrumbList>
 							{breadcrumbs.map((item, index) => (
-								<BreadcrumbItem key={index}>
-									{item.current ? (
-										<BreadcrumbCurrentLink>{item.label}</BreadcrumbCurrentLink>
-									) : (
-										<BreadcrumbLink href={item.href}>
-											{item.label}
-										</BreadcrumbLink>
-									)}
+								<React.Fragment key={index}>
+									<BreadcrumbItem>
+										{item.current ? (
+											<BreadcrumbCurrentLink>
+												{item.label}
+											</BreadcrumbCurrentLink>
+										) : (
+											<BreadcrumbLink href={item.href}>
+												{item.label}
+											</BreadcrumbLink>
+										)}
+									</BreadcrumbItem>
 									{index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
-								</BreadcrumbItem>
+								</React.Fragment>
 							))}
 						</BreadcrumbList>
 					</BreadcrumbRoot>
@@ -43,16 +48,20 @@ export function BreadcrumbExample() {
 					<BreadcrumbRoot>
 						<BreadcrumbList size="sm">
 							{breadcrumbs.map((item, index) => (
-								<BreadcrumbItem key={index}>
-									{item.current ? (
-										<BreadcrumbCurrentLink>{item.label}</BreadcrumbCurrentLink>
-									) : (
-										<BreadcrumbLink href={item.href}>
-											{item.label}
-										</BreadcrumbLink>
-									)}
+								<React.Fragment key={index}>
+									<BreadcrumbItem>
+										{item.current ? (
+											<BreadcrumbCurrentLink>
+												{item.label}
+											</BreadcrumbCurrentLink>
+										) : (
+											<BreadcrumbLink href={item.href}>
+												{item.label}
+											</BreadcrumbLink>
+										)}
+									</BreadcrumbItem>
 									{index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
-								</BreadcrumbItem>
+								</React.Fragment>
 							))}
 						</BreadcrumbList>
 					</BreadcrumbRoot>
@@ -63,16 +72,20 @@ export function BreadcrumbExample() {
 					<BreadcrumbRoot>
 						<BreadcrumbList size="lg">
 							{breadcrumbs.map((item, index) => (
-								<BreadcrumbItem key={index}>
-									{item.current ? (
-										<BreadcrumbCurrentLink>{item.label}</BreadcrumbCurrentLink>
-									) : (
-										<BreadcrumbLink href={item.href}>
-											{item.label}
-										</BreadcrumbLink>
-									)}
+								<React.Fragment key={index}>
+									<BreadcrumbItem>
+										{item.current ? (
+											<BreadcrumbCurrentLink>
+												{item.label}
+											</BreadcrumbCurrentLink>
+										) : (
+											<BreadcrumbLink href={item.href}>
+												{item.label}
+											</BreadcrumbLink>
+										)}
+									</BreadcrumbItem>
 									{index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
-								</BreadcrumbItem>
+								</React.Fragment>
 							))}
 						</BreadcrumbList>
 					</BreadcrumbRoot>
