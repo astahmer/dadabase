@@ -4,7 +4,7 @@ import type { Table as TanstackTable } from "@tanstack/react-table";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import * as ListboxMenu from "../ui/listbox-menu";
+import { ListboxMenu } from "../ui/listbox-menu.export.ts";
 
 interface ScrollToColumnButtonProps {
 	table: TanstackTable<any>;

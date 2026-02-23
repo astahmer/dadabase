@@ -4,7 +4,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "#src/components/ui/button";
 import { Stack } from "#src/components/ui/layout.tsx";
-import * as ListboxMenu from "#src/components/ui/listbox-menu";
+import { ListboxMenu } from "#src/components/ui/listbox-menu.export.ts";
 
 interface RowsPerPageSelectorProps {
 	value: number;

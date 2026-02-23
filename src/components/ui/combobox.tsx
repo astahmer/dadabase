@@ -181,5 +181,3 @@ export {
 	type ListCollection,
 	useCombobox,
 } from "@ark-ui/react/combobox";
-
-export { comboboxVariants } from "./combobox.styles";

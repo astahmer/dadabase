@@ -24,7 +24,7 @@ import { queryClient } from "#src/query-client.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
-import * as ListboxMenu from "../../ui/listbox-menu";
+import { ListboxMenu } from "#src/components/ui/listbox-menu.export.ts";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import type { DbConnection } from "../connection.types";
 
