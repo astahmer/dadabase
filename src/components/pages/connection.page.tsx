@@ -1,9 +1,3 @@
-import { Splitter } from "@ark-ui/react";
-import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { createColumnHelper } from "@tanstack/react-table";
-import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
-import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
 import { BulkActionBar } from "#src/components/app/bulk-action-bar.tsx";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import {
@@ -34,13 +28,19 @@ import {
 } from "#src/server/introspection/detect-destructive-sql.ts";
 import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
+import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
+import { Splitter } from "@ark-ui/react";
+import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { createColumnHelper } from "@tanstack/react-table";
+import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
+import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { useDataTable } from "../data-table/use-data-table.ts";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
 import { QueryLoggerContent } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
-import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button } from "../ui/button.tsx";
 import {
 	Dialog,
@@ -49,6 +49,7 @@ import {
 	DialogDescription,
 	DialogTitle,
 } from "../ui/dialog.tsx";
+import { Input } from "../ui/input.tsx";
 import { Stack } from "../ui/layout.tsx";
 import {
 	Menu,
@@ -66,8 +67,6 @@ import {
 } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
-import { ConnectionForm } from "./connection.form.tsx";
-import type { DbConnection } from "./connection.types";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
@@ -89,6 +88,8 @@ import { TabErrorState } from "./connection-page/tab-error-state.tsx";
 import { useExplainQuery } from "./connection-page/use-explain-query.ts";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 import { useTablesColumnsForIntellisense } from "./connection-page/use-tables-columns-intellisense.ts";
+import { ConnectionForm } from "./connection.form.tsx";
+import type { DbConnection } from "./connection.types";
 
 interface ConnectionPageProps {
 	connectionName: string;
@@ -420,6 +421,15 @@ const RowsTabContent = (props: {
 			customSql: tab.customSql,
 			customSqlId: tab.customSqlId,
 			sqlEditorMode: tab.sqlEditorMode,
+			orderBy: tab.orderBy,
+			orderDirection: tab.orderDirection,
+			nullsOrder: tab.nullsOrder,
+			filters: tab.filters,
+			hiddenColumnList: tab.hiddenColumnList,
+			columnVisibilityMode: tab.columnVisibilityMode,
+			joins: tab.joins,
+			limit: tab.limit,
+			offset: tab.offset,
 		};
 	});
 	const { filters: structureFilters } = useStructureFilters();
@@ -440,6 +450,156 @@ const RowsTabContent = (props: {
 		url: pageState.activeConnectionUrl,
 		joins: pageState.joins,
 	});
+
+	const handleExportAll = async (
+		format:
+			| "json"
+			| "csv"
+			| "tsv"
+			| "copy-json"
+			| "copy-csv"
+			| "copy-tsv"
+			| "copy-insert",
+	) => {
+		if (!search.schema || !search.table || !search.limit) return;
+
+		const { queryClient } = await import("#src/query-client.ts");
+
+		const visibleColumns = pageState.rowsDataTable
+			.getVisibleLeafColumns()
+			.map((c) => c.id);
+		const hiddenColumnList = Array.from(search.hiddenColumnList ?? []);
+		const columnVisibilityMode = search.columnVisibilityMode ?? "client";
+
+		let selectedColumns: string[] | undefined;
+		let excludedColumns: string[] | undefined;
+		const columnNameList = pageState.columnNameList;
+		if (columnVisibilityMode === "server" && hiddenColumnList.length) {
+			const visibleCount = columnNameList.length - hiddenColumnList.length;
+			if (visibleCount <= hiddenColumnList.length) {
+				selectedColumns = columnNameList.filter(
+					(col) => !hiddenColumnList.includes(col),
+				);
+			} else {
+				excludedColumns = hiddenColumnList;
+			}
+		}
+
+		toaster.create({
+			title: "Fetching all rows...",
+			description: `This may take a while for large tables`,
+			type: "info",
+		});
+
+		const allRows: Record<string, unknown>[] = [];
+		const pageSize = 1000;
+		const totalRowCount = pageState.queryResponse.rowCount;
+		let offset = 0;
+
+		while (offset < totalRowCount) {
+			const data = await queryClient.fetchQuery(
+				queryTableDataQueryOptions({
+					url: pageState.activeConnectionUrl,
+					schema: search.schema,
+					table: search.table,
+					limit: pageSize,
+					offset,
+					orderBy: search.orderBy,
+					orderDirection: search.orderDirection,
+					nullsOrder: search.nullsOrder,
+					filters: search.filters ?? { conditions: [], logicalOperator: "and" },
+					joins: search.joins as any,
+					selectedColumns,
+					excludedColumns,
+				}),
+			);
+			allRows.push(...data.rows);
+			offset += pageSize;
+		}
+
+		const columns = visibleColumns;
+		const tableName = search.table;
+		const schemaName = search.schema;
+
+		if (format === "copy-insert") {
+			const content = rowsToInsertStatements(
+				allRows,
+				columns,
+				tableName,
+				schemaName,
+			);
+			const success = await copyToClipboard(content);
+			toaster.create({
+				title: success ? "Copied" : "Error",
+				description: success
+					? `Copied ${allRows.length} INSERT statements`
+					: "Failed to copy",
+				type: success ? "success" : "error",
+			});
+		} else if (format.startsWith("copy-")) {
+			const copyFormat = format.replace("copy-", "") as "json" | "csv" | "tsv";
+			let content: string;
+			if (copyFormat === "json") {
+				content = JSON.stringify(allRows, null, 2);
+			} else if (copyFormat === "csv") {
+				const header = columns.join(",");
+				const csvRows = allRows.map((row) =>
+					columns
+						.map((col) => {
+							const value = row[col];
+							const stringValue =
+								value === null || value === undefined
+									? ""
+									: typeof value === "object"
+										? JSON.stringify(value)
+										: String(value);
+							const escaped = stringValue.replace(/"/g, '""');
+							return escaped.includes(",") || escaped.includes("\n")
+								? `"${escaped}"`
+								: escaped;
+						})
+						.join(","),
+				);
+				content = [header, ...csvRows].join("\n");
+			} else {
+				const header = columns.join("\t");
+				const tsvRows = allRows.map((row) =>
+					columns
+						.map((col) => {
+							const value = row[col];
+							const stringValue =
+								value === null || value === undefined
+									? ""
+									: typeof value === "object"
+										? JSON.stringify(value)
+										: String(value);
+							return stringValue.replace(/\t/g, " ");
+						})
+						.join("\t"),
+				);
+				content = [header, ...tsvRows].join("\n");
+			}
+			const success = await copyToClipboard(content);
+			toaster.create({
+				title: success ? "Copied" : "Error",
+				description: success
+					? `Copied ${allRows.length} rows as ${copyFormat.toUpperCase()}`
+					: "Failed to copy",
+				type: success ? "success" : "error",
+			});
+		} else {
+			const exportFormat = format as "json" | "csv" | "tsv";
+			exportRows(allRows, columns, {
+				format: exportFormat,
+				filename: `${tableName}-export.${exportFormat}`,
+			});
+			toaster.create({
+				title: "Success",
+				description: `Exported ${allRows.length} rows`,
+				type: "success",
+			});
+		}
+	};
 
 	return (
 		<>
@@ -571,6 +731,8 @@ const RowsTabContent = (props: {
 										activeConnectionUrl={pageState.activeConnectionUrl}
 										sqlQueryAsText={pageState.sqlQueryAsText}
 										onRunQuery={executeCustomSql.onRunQuery}
+										onCancelQuery={executeCustomSql.onCancel}
+										isLoading={executeCustomSql.mutation.isPending}
 									/>
 								)}
 							</Splitter.Context>
@@ -647,6 +809,12 @@ const RowsTabContent = (props: {
 									totalRowCount={pageState.queryResponse.rowCount}
 									rowsColumnsCount={pageState.rowsColumns.length - 1}
 									isCustomSql={isCustomSqlMode}
+									schema={search.schema}
+									tableName={search.table}
+									columns={pageState.rowsDataTable
+										.getVisibleLeafColumns()
+										.map((col) => col.id)}
+									onExportAll={handleExportAll}
 								/>
 							</div>
 						</Splitter.Panel>
@@ -664,6 +832,8 @@ const RowsTableSqlEditor = (
 		onExpand: () => void;
 		onCollapse: () => void;
 		onRunQuery: () => void;
+		onCancelQuery: () => void;
+		isLoading?: boolean;
 	},
 ) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -710,6 +880,7 @@ const RowsTableSqlEditor = (
 				sql={props.sqlQueryAsText}
 				customSql={draftSql ?? undefined}
 				isCollapsed={props.isCollapsed}
+				isLoading={props.isLoading}
 				onToggleCollapsed={() =>
 					props.isCollapsed ? props.onExpand() : props.onCollapse()
 				}
@@ -724,6 +895,7 @@ const RowsTableSqlEditor = (
 				}
 				onEditorChange={(value) => setDraftSql(value)}
 				onRun={props.onRunQuery}
+				onCancel={props.onCancelQuery}
 				onExplain={explainQuery.refetch}
 				disableExplain={isExplainDisabled}
 				onFormat={() => {
@@ -809,6 +981,9 @@ const RowsTableContent = (
 	);
 	const relationshipPanelSize = fromPixelToPercentage(50, "vertical");
 
+	const [jsFilter, setJsFilter] = useState("");
+	const [jsError, setJsError] = useState<string | null>(null);
+
 	const search = useActiveTabState((tab, search) => {
 		return {
 			schema: tab.schema,
@@ -816,6 +991,7 @@ const RowsTableContent = (
 			tableSize: tab.tableSize,
 			relationshipRowId: tab.relationshipRowId,
 			nullsOrder: tab.nullsOrder,
+			clientFilter: tab.clientFilter,
 		};
 	});
 
@@ -829,6 +1005,21 @@ const RowsTableContent = (
 		});
 	};
 
+	// Initialize jsFilter from tab state
+	if (search.clientFilter !== undefined && jsFilter !== search.clientFilter) {
+		setJsFilter(search.clientFilter);
+	}
+
+	const handleJsFilterChange = (value: string) => {
+		setJsFilter(value);
+		navigate({
+			search: (prev) =>
+				updateTabState(prev, {
+					clientFilter: value || undefined,
+				}),
+		});
+	};
+
 	return (
 		<div className="flex-1 flex flex-col h-full relative">
 			<BulkActions
@@ -836,6 +1027,21 @@ const RowsTableContent = (
 				rowsDataTable={props.rowsDataTable}
 				columnMetadata={props.columnMetadata}
 			/>
+
+			<div className="px-2 py-1 border-b flex flex-col gap-1">
+				<div className="flex items-center gap-2">
+					<Input
+						placeholder="r.name.includes('test')"
+						value={jsFilter}
+						onChange={(e) => handleJsFilterChange(e.target.value)}
+						className="h-7 text-xs font-mono"
+					/>
+					{search.clientFilter && (
+						<span className="text-xs text-muted-foreground">(filtered)</span>
+					)}
+				</div>
+				{jsError && <p className="text-red-500 text-xs">{jsError}</p>}
+			</div>
 
 			<Splitter.Root
 				orientation="vertical"
@@ -1592,6 +1798,7 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
 	return {
 		onRunQuery,
 		onRerunStoredQuery: handleReExecuteStored,
+		onCancel: () => executeCustomSqlMutation.reset(),
 		output,
 		mutation: executeCustomSqlMutation,
 		storedQuery: customSqlExecutionQuery,

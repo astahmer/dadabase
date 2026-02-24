@@ -1,12 +1,3 @@
-import { Button } from "#src/components/ui/button.tsx";
-import {
-	HoverCard,
-	HoverCardContent,
-	HoverCardTrigger,
-} from "#src/components/ui/hovercard.tsx";
-import { Tooltip } from "#src/components/ui/tooltip.tsx";
-import { cn } from "#src/lib/utils.ts";
-import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 import { Portal } from "@ark-ui/react";
 import { Tabs } from "@ark-ui/react/tabs";
 import {
@@ -17,12 +8,22 @@ import {
 	Maximize2,
 	Play,
 	RotateCcw,
+	Square,
 	Wand2,
 	Zap,
 } from "lucide-react";
-import { useEffectEvent, useRef, useState, type ReactNode } from "react";
-import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
+import { type ReactNode, useEffectEvent, useRef, useState } from "react";
+import { Button } from "#src/components/ui/button.tsx";
+import {
+	HoverCard,
+	HoverCardContent,
+	HoverCardTrigger,
+} from "#src/components/ui/hovercard.tsx";
 import { HStack } from "#src/components/ui/layout.tsx";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
+import { cn } from "#src/lib/utils.ts";
+import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
+import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
 
 interface SqlQueryPreviewProps {
 	/** The raw SQL query string */
@@ -43,8 +44,11 @@ interface SqlQueryPreviewProps {
 	customSql?: string;
 	/** Callback to run the query */
 	onRun?: (editorValue: string) => void;
+	/** Callback to cancel the running query */
+	onCancel?: () => void;
 	/** Callback to explain the query */
 	onExplain?: () => void;
+	//
 	/** Whether to disable the explain button */
 	disableExplain?: boolean;
 	/** Callback to format the SQL */
@@ -86,6 +90,7 @@ export function SqlQueryPreview({
 	onEditorChange,
 	customSql,
 	onRun,
+	onCancel,
 	onExplain,
 	disableExplain = false,
 	onFormat,
@@ -245,18 +250,31 @@ export function SqlQueryPreview({
 					</div>
 
 					{/* Action buttons - shown in editor mode */}
-					{editorMode === "editor" && !isCollapsed && (
+					{(editorMode === "editor" || isLoading) && !isCollapsed && (
 						<div className="flex items-center gap-2">
-							<Tooltip content="Run query (Ctrl+Enter)">
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => onRun?.(editorValueRef.current ?? "")}
-									className="h-8 px-2"
-								>
-									<Play className="h-4 w-4" />
-								</Button>
-							</Tooltip>
+							{isLoading ? (
+								<Tooltip content="Cancel query">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={onCancel}
+										className="h-8 px-2 text-destructive hover:text-destructive"
+									>
+										<Square className="h-4 w-4" />
+									</Button>
+								</Tooltip>
+							) : (
+								<Tooltip content="Run query (Ctrl+Enter)">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => onRun?.(editorValueRef.current ?? "")}
+										className="h-8 px-2"
+									>
+										<Play className="h-4 w-4" />
+									</Button>
+								</Tooltip>
+							)}
 							<Tooltip content="Explain query">
 								<Button
 									variant="ghost"
