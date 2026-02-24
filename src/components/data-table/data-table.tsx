@@ -38,8 +38,8 @@ import { PageLimitSelect } from "../app/page-limit.select.tsx";
 import { Button } from "../ui/button.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
-import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
+import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import {
 	type DataTableSize,
 	tableCellStyles,
@@ -247,6 +247,7 @@ const TableContainer = (
 	});
 
 	// Keep measurements fresh when column sizes change (resize, order, pinning)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: ok
 	useEffect(() => {
 		columnVirtualizer.measure();
 	}, [
@@ -579,7 +580,7 @@ const TableBody = (
 	);
 	const centerLeafColumns = leafColumns.filter((c) => !c.getIsPinned());
 
-	return props.isLoading ? (
+	return props.isLoading && !props.hasError ? (
 		<tbody>
 			{Array(state.pagination.pageSize)
 				.fill(state.pagination.pageSize)
@@ -687,9 +688,15 @@ const TableBody = (
 			) : (
 				<tr>
 					{props.emptyState ? (
-						<td className="text-center fixed ml-12 text-2xl">
+						<td className="absolute ml-4 text-2xl">
 							<div className={tableEmptyStateStyles()}>
-								<span>{props.hasError ? i18n.errorText : i18n.emptyText}</span>
+								{typeof props.emptyState === "boolean" ? (
+									<span>
+										{props.hasError ? i18n.errorText : i18n.emptyText}
+									</span>
+								) : (
+									props.emptyState
+								)}
 							</div>
 						</td>
 					) : null}
@@ -932,7 +939,8 @@ const HeaderCell = memo(
 										showColumnBorder: props.showColumnBorder,
 										textAlign: hasBulkActions ? "right" : textAlign,
 									}),
-									"sticky left-[50px] z-1 bg-background",
+									"sticky z-1 bg-background",
+									headerCell.subHeaders.length !== 0 && "left-[50px]",
 									className,
 								)}
 							>

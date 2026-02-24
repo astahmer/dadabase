@@ -1,6 +1,6 @@
 import { Popover, Portal } from "@ark-ui/react";
 import { Link as LinkIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 import type { ForeignKeyInfo } from "../data-table/cell-context-menu.tsx";
 import { Button } from "../ui/button.tsx";
@@ -44,7 +44,8 @@ export function InlineReferencesButton({
 	const mousePositionRef = useRef({ x: 0, y: 0 });
 	const isModifierPressedRef = useRef(false);
 
-	const updateDataAttribute = () => {
+	// TODO share logic with InlineJsonButton
+	const updateDataAttribute = useEffectEvent(() => {
 		if (!divRef.current) return;
 
 		// Use parent's bounding box to avoid overflow issues
@@ -66,7 +67,7 @@ export function InlineReferencesButton({
 		} else {
 			delete divRef.current.dataset.cmdHover;
 		}
-	};
+	});
 
 	useEffect(() => {
 		const trackMouse = (e: MouseEvent) => {

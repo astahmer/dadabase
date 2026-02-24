@@ -6,9 +6,12 @@
  */
 export function calculatePercentageFromPixelsInContainer(
 	pixels: number,
+	mode: "horizontal" | "vertical" = "horizontal",
 	containerSize: number = typeof window !== "undefined"
-		? window.innerHeight
-		: 800,
+		? mode === "horizontal"
+			? window.innerWidth
+			: window.innerHeight
+		: 1280,
 ): number {
 	if (containerSize <= 0) return 0;
 	return (pixels / containerSize) * 100;
@@ -22,10 +25,12 @@ export function calculatePercentageFromPixelsInContainer(
  */
 export function fromPixelToPercentage(
 	pixelHeight: number = 40,
+	mode: "horizontal" | "vertical" = "horizontal",
 	containerSize?: number,
 ): number {
 	const percentage = calculatePercentageFromPixelsInContainer(
 		pixelHeight,
+		mode,
 		containerSize,
 	);
 	// Round to 2 decimal places for cleaner values

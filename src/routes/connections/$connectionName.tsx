@@ -3,9 +3,9 @@ import { Schema } from "effect";
 import { Suspense } from "react";
 import { ConnectionPage } from "#src/components/pages/connection.page.tsx";
 import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
+import { JoinedTableSchema } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { FullCenter } from "../../components/ui/layout.tsx";
 import { Spinner } from "../../components/ui/spinner.tsx";
-import { JoinedTableSchema } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 
 const tableSize = Schema.Literal(
 	"excel",
@@ -53,6 +53,13 @@ const TabStateSchema = Schema.Struct({
 	relationshipRowId: Schema.String.pipe(Schema.optional), // Row ID for expanded relationships panel
 	joins: Schema.Array(JoinedTableSchema).pipe(Schema.optional),
 	prefixWithTable: Schema.Boolean.pipe(Schema.optional),
+	sqlPreviewSize: Schema.Number.pipe(Schema.optional), // SQL preview collapsed state
+	sqlEditorMode: Schema.Literal("preview", "editor").pipe(Schema.optional), // SQL editor tab mode
+	customSql: Schema.String.pipe(Schema.optional), // Custom SQL query being edited (before execution)
+	customSqlId: Schema.String.pipe(Schema.optional), // ID of executed custom SQL (replaces customSql after execution)
+	initialTabMode: Schema.Literal("table", "sql").pipe(Schema.optional), // Initial mode for empty tabs
+	clientFilter: Schema.String.pipe(Schema.optional), // Client-side JS filter expression (draft input)
+	clientFilterApproved: Schema.String.pipe(Schema.optional), // Approved client-side JS filter expression (active)
 });
 
 const searchSchema = Schema.Struct({
@@ -69,9 +76,15 @@ const searchSchema = Schema.Struct({
 		Schema.optional,
 	),
 	sidebarSize: Schema.Number.pipe(Schema.optional),
+	queryLoggerSize: Schema.Number.pipe(Schema.optional), // Query logger panel height as percentage
 	rowJsonViewerOpen: Schema.Boolean.pipe(Schema.optional),
 	// Primary key value to identify which row to display
 	rowJsonViewerRowId: Schema.Union(Schema.String, Schema.Number).pipe(
+		Schema.optional,
+	),
+	// Array of primary key values for bulk JSON viewer
+	rowJsonViewerRowIds: Schema.Union(Schema.String, Schema.Number).pipe(
+		Schema.Array,
 		Schema.optional,
 	),
 });

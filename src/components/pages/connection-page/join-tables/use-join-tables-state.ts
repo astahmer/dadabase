@@ -1,10 +1,10 @@
 import { useCallback, useState } from "react";
+import { cascadeRemoveJoins } from "./cascade-remove-joins.ts";
 import type {
 	JoinConditionMode,
 	JoinedTable,
 	JoinTablesConfig,
 } from "./join-tables.types";
-import { cascadeRemoveJoins } from "./cascade-remove-joins.ts";
 
 /**
  * Manages join tables configuration state
@@ -17,21 +17,24 @@ export const useJoinTablesState = (
 		() => initialConfig ?? { joins: [] },
 	);
 
-	const add = useCallback((join: JoinedTable) => {
-		let alias: string | undefined;
-		if (join.table === parentTable && join.joinCondition.referencedColumn) {
-			alias = join.joinCondition.referencedColumn.replace(/_id$/, "");
-		}
-		setConfig((prev) => ({
-			...prev,
-			joins: [
-				...prev.joins.filter(
-					(j) => !(j.table === join.table && j.schema === join.schema),
-				),
-				{ ...join, alias: alias || join.alias },
-			],
-		}));
-	}, []);
+	const add = useCallback(
+		(join: JoinedTable) => {
+			let alias: string | undefined;
+			if (join.table === parentTable && join.joinCondition.referencedColumn) {
+				alias = join.joinCondition.referencedColumn.replace(/_id$/, "");
+			}
+			setConfig((prev) => ({
+				...prev,
+				joins: [
+					...prev.joins.filter(
+						(j) => !(j.table === join.table && j.schema === join.schema),
+					),
+					{ ...join, alias: alias || join.alias },
+				],
+			}));
+		},
+		[parentTable],
+	);
 
 	const remove = useCallback((table: string, schema: string) => {
 		setConfig((prev) => {

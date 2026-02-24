@@ -29,6 +29,19 @@ describe("buildPgWhereFragment", () => {
 		expect(result).toBe(`"public"."users"."name" ILIKE '%alice%'`);
 	});
 
+	it("builds inverted contains condition", () => {
+		const conditions = [
+			{
+				column: "name",
+				operator: "contains" as const,
+				inverted: true,
+				value: "test",
+			},
+		];
+		const result = buildPgWhereFragment(conditions, "and", "public", "users");
+		expect(result).toBe(`NOT ("public"."users"."name" ILIKE '%test%')`);
+	});
+
 	it("builds not_contains condition", () => {
 		const conditions = [
 			{ column: "name", operator: "not_contains" as const, value: "test" },

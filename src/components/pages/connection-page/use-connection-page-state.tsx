@@ -23,27 +23,43 @@ import { useQueryBuilder } from "#src/components/query-builder/use-query-builder
 import { Button } from "#src/components/ui/button.tsx";
 import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
+import type { DatabaseDialect } from "#src/db/dialect.ts";
+import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
+import { getQueryAsSql } from "#src/server/introspection/start-fns/get-query-sql.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
+import type { DbConnection } from "../connection.types.ts";
 import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
+import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
 
-interface UseConnectionPageStateProps {
-	connection: {
-		url: string;
-	};
+export const useActiveConnectionUrl = (connection: DbConnection) => {
+	return useSearch({
+		from: "/connections/$connectionName",
+		select: (s) =>
+			s.dbName && connection.url
+				? replaceDatabaseInConnectionUrl(connection.url, s.dbName)
+				: connection.url,
+	});
+};
+
+interface QueryResponse {
+	rows: Array<Record<string, unknown>>;
+	columns: string[];
+	rowCount: number;
+	timeTaken: number;
+	ranAt: number;
+	rowsAffected?: number;
 }
 
 export const useConnectionPageState = ({
 	connection,
-}: UseConnectionPageStateProps) => {
+}: {
+	connection: DbConnection;
+}) => {
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
-	const dbName = useSearch({
-		from: "/connections/$connectionName",
-		select: (s) => s.dbName,
-	});
+	const activeConnectionUrl = useActiveConnectionUrl(connection);
 	const search = useActiveTabState((s) => {
 		return {
 			schema: s.schema,
@@ -62,13 +78,12 @@ export const useConnectionPageState = ({
 			columnOrder: s.columnOrder,
 			relationshipRowId: s.relationshipRowId,
 			joins: s.joins,
+			customSql: s.customSql,
+			clientFilter: s.clientFilter,
+			clientFilterApproved: s.clientFilterApproved,
 		};
 	});
-
-	const connectionUrl = connection.url || "";
-	const activeConnectionUrl = dbName
-		? replaceDatabaseInConnectionUrl(connectionUrl, dbName)
-		: connectionUrl;
+	// console.log(search);
 
 	// Query builder setup
 	const queryBuilder = useQueryBuilder(
@@ -143,6 +158,9 @@ export const useConnectionPageState = ({
 		}
 	}
 
+	const customSql = search.customSql?.trim();
+	const isCustomSql = Boolean(customSql);
+
 	const rowsQuery = useQuery({
 		...queryTableDataQueryOptions({
 			url: activeConnectionUrl,
@@ -161,31 +179,68 @@ export const useConnectionPageState = ({
 			selectedColumns: columnVisibilityFilters.selectedColumns,
 			excludedColumns: columnVisibilityFilters.excludedColumns,
 		}),
-		enabled: !!search.schema && !!search.table,
+		enabled: !isCustomSql && Boolean(search.schema && search.table),
 	});
 
+	const sqlQueryAsText =
+		(isCustomSql
+			? search.customSql
+			: getQueryAsSql({
+					dialect: connection.dialect as DatabaseDialect,
+					schema: search.schema || "",
+					table: search.table || "",
+					limit: search.limit,
+					offset: search.offset,
+					orderBy: search.orderBy,
+					orderDirection: search.orderDirection,
+					nullsOrder: search.nullsOrder,
+					filters: queryBuilder.getWhereClause() ?? {
+						conditions: [],
+						logicalOperator: "and",
+					},
+					joins: joins,
+					selectedColumns: columnVisibilityFilters.selectedColumns,
+					excludedColumns: columnVisibilityFilters.excludedColumns,
+				}).sql) || "";
+
 	// Format row data
-	const queryResponse = rowsQuery.data || {
+	const queryResponse: QueryResponse = (rowsQuery.data as any) || {
 		rows: [],
 		columns: [],
 		rowCount: 0,
 		timeTaken: 0,
 		ranAt: 0,
+		rowsAffected: undefined,
 	};
-	const rowsList = queryResponse.rows;
-	const totalRowCount = queryResponse.rowCount;
+	// console.log(queryResponse);
 
-	const formattedTableRowsData = useMemo(
-		() =>
-			rowsList.map((row) => {
-				const formatted: Record<string, unknown> = {};
-				for (const [key, value] of Object.entries(row)) {
-					formatted[key] = formatTableValue(value);
-				}
-				return formatted;
-			}),
-		[rowsList],
-	);
+	const formattedTableRowsData = useMemo(() => {
+		const formatted = queryResponse.rows.map((row) => {
+			const formattedRow: Record<string, unknown> = {};
+			for (const [key, value] of Object.entries(row)) {
+				formattedRow[key] = formatTableValue(value);
+			}
+			return formattedRow;
+		});
+
+		return formatted;
+	}, [queryResponse.rows]);
+
+	const jsFilterResult = useJsEvalFilter(search.clientFilterApproved, {
+		paramName: "r",
+		sampleData:
+			formattedTableRowsData.length > 0 ? formattedTableRowsData[0] : undefined,
+	});
+
+	const filteredTableRowsData = useMemo(() => {
+		if (!search.clientFilterApproved?.trim() || !jsFilterResult.fn) {
+			return formattedTableRowsData;
+		}
+		return formattedTableRowsData.filter((row) => {
+			const result = jsFilterResult.fn!(row);
+			return result === true;
+		});
+	}, [formattedTableRowsData, search.clientFilterApproved, jsFilterResult.fn]);
 
 	// Static columns
 	const staticColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(
@@ -226,6 +281,7 @@ export const useConnectionPageState = ({
 										size="xs"
 										className="w-full text-xs text-center"
 										variant="ghost"
+										onClick={() => ctx.table.toggleAllRowsSelected(true)}
 									>
 										#
 									</Button>
@@ -358,7 +414,15 @@ export const useConnectionPageState = ({
 			// 	enablePinning: false,
 			// } as ColumnDef<Record<string, unknown>>,
 		],
-		[tableMetadata.columnMetadata, navigate, search.offset, search.limit],
+		[
+			activeConnectionUrl,
+			search.schema,
+			search.table,
+			tableMetadata.columnMetadata,
+			navigate,
+			search.offset,
+			search.limit,
+		],
 	);
 
 	const rowActions = useRowsColumnsAction({
@@ -524,7 +588,7 @@ export const useConnectionPageState = ({
 		getRowId: primaryCols.length
 			? (row) => primaryCols.map((col) => row[col]).join("-")
 			: undefined,
-		data: formattedTableRowsData,
+		data: filteredTableRowsData,
 		columns: rowsColumns,
 		state: {
 			pagination: {
@@ -542,7 +606,7 @@ export const useConnectionPageState = ({
 		enableRowSelection: true,
 		enableColumnPinning: true,
 		onRowSelectionChange: setRowSelection,
-		rowCount: totalRowCount,
+		rowCount: queryResponse.rowCount,
 		defaultColumn: {
 			minSize: 100,
 			size: defaultColumnSize,
@@ -621,33 +685,36 @@ export const useConnectionPageState = ({
 		},
 	});
 
-	const onNullsOrderChange = (nullsOrder: "first" | "last" | undefined) => {
-		navigate({
-			search: (prev) => {
-				return updateTabState(prev, {
-					nullsOrder,
-				});
-			},
-		});
-	};
-
 	return {
 		activeConnectionUrl,
 		queryBuilder,
+		// TODO?
+		// rowsQuery: {
+		// 	...rowsQuery,
+		// 	isLoading: isCustomSql
+		// 		? customSqlMutation.isPending
+		// 		: tableQuery.isLoading,
+		// 	refetch: isCustomSql
+		// 		? () =>
+		// 				customSqlMutation.mutate({
+		// 					data: { url: activeConnectionUrl, sql: search.customSql || "" },
+		// 				})
+		// 		: tableQuery.refetch,
+		// },
 		rowsQuery,
+		// customSqlMutation,
+		sqlQueryAsText: sqlQueryAsText,
 		columnMetadata: tableMetadata.columnMetadata,
 		columnNameList: columnNameList,
 		isColumnMetadataLoading: tableMetadata.isLoading,
 		queryResponse,
-		totalRowCount,
 		rowsDataTable,
 		rowsColumns,
 		joins,
 		hasUuid,
-		relationshipRowId: search.relationshipRowId,
 		relationships,
 		renderSubrows,
-		onNullsOrderChange,
-		currentNullsOrder: search.nullsOrder,
 	};
 };
+
+export type ConnectionPageState = ReturnType<typeof useConnectionPageState>;

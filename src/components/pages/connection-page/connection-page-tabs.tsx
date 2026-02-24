@@ -194,6 +194,16 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 		});
 	};
 
+	const onCloseAllTabs = () => {
+		navigate({
+			search: (prev) => ({
+				...prev,
+				tabs: [],
+				activeTabId: undefined,
+			}),
+		});
+	};
+
 	const handleCopyTabUrl = (tabId: string) => {
 		const tab = tabs.find((t) => t.tabId === tabId);
 		if (!tab) return;
@@ -218,6 +228,9 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			fkValue: tab.fkValue,
 			relationshipRowId: tab.relationshipRowId,
 			columnVisibilityMode: tab.columnVisibilityMode,
+			sqlPreviewSize: tab.sqlPreviewSize,
+			sqlEditorMode: tab.sqlEditorMode,
+			customSql: tab.customSql,
 		};
 
 		const currentSearch = (router.state.matches.find(
@@ -247,7 +260,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 		navigate({
 			search: (prev) => ({
 				...prev,
-				...updateTabState(prev, { tabName: newName }),
+				...updateTabState(prev, { tabName: newName }, tabId),
 			}),
 		});
 	};
@@ -346,15 +359,17 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
 			onCloseTabsOnLeft={handleDeleteTabsOnLeft}
 			onCloseTabsOnRight={handleDeleteTabsOnRight}
 			onCloseOtherTabs={handleDeleteOtherTabs}
+			onCloseAllTabs={onCloseAllTabs}
 			onCopyTabUrl={handleCopyTabUrl}
 			onRenameTab={handleRenameTab}
 			onAddTab={() => {
 				const currentTab = tabs.find((t) => t.tabId === activeTabId);
 				const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+				const defaultSchema = getDialectDefaultSchema(dialect);
 				const schema =
-					currentTab?.schema ??
-					schemaList[0] ??
-					getDialectDefaultSchema(dialect);
+					currentTab?.schema || schemaList.includes(defaultSchema)
+						? defaultSchema
+						: schemaList[0] || defaultSchema;
 				const emptyTabState = {
 					...createTabState(schema, ""),
 					tabId,

@@ -1,42 +1,104 @@
-import { JsonTreeView } from "@ark-ui/react";
-import { Check, ChevronRightIcon, Copy } from "lucide-react";
-import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { createColumnHelper } from "@tanstack/react-table";
+import { Check, Copy, Maximize2, Minimize2, Play } from "lucide-react";
+import { useMemo, useState } from "react";
 import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import {
 	normalizeSql,
 	replaceSqlParameters,
 } from "#src/lib/replace-sql-parameters.ts";
+import {
+	type ExecuteAndStoreCustomSqlInput,
+	executeAndStoreCustomSqlServerFn as executeAndStoreCustomSqlServerFn$1,
+} from "#src/server/custom-sql/start-fns/execute-custom-sql.start.ts";
 import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
+import { DataTable } from "../data-table/data-table.tsx";
+import { useDataTable } from "../data-table/use-data-table.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Button } from "../ui/button.tsx";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "../ui/dialog.tsx";
+import { Dialog, DialogContent, DialogTitle } from "../ui/dialog.tsx";
+import { JsonViewer } from "../ui/json-viewer.tsx";
+import { HStack } from "../ui/layout.tsx";
+import { Spinner } from "../ui/spinner.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import {
 	QueryLogLevelBadge,
 	QueryLogTypeBadge,
 } from "./query-log-type-badge.tsx";
-import { JsonViewer } from "../ui/json-viewer.tsx";
 
 interface QueryLoggerDetailDialogProps {
 	entry: QueryLogEntryType | null;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	connectionUrl?: string;
 }
 
 export const QueryLoggerDetailDialog = ({
 	entry,
 	open,
 	onOpenChange,
+	connectionUrl,
 }: QueryLoggerDetailDialogProps) => {
 	const [copied, setCopied] = useState(false);
+	const [resultsData, setResultsData] = useState<any[]>([]);
+	const [activeTab, setActiveTab] = useState("sql");
+	const [isFullscreen, setIsFullscreen] = useState(false);
+
+	const runQueryMutation = useMutation({
+		mutationFn: async (input: ExecuteAndStoreCustomSqlInput) => {
+			return executeAndStoreCustomSqlServerFn$1({ data: input });
+		},
+		onSuccess: (response) => {
+			if (response && typeof response === "object" && "rows" in response) {
+				setResultsData(Array.isArray(response.rows) ? response.rows : []);
+			}
+			setActiveTab("results");
+		},
+	});
+
+	// Create table columns from results data - called unconditionally
+	const tableColumns = useMemo(() => {
+		if (resultsData.length === 0) return [];
+
+		const columnHelper = createColumnHelper<Record<string, unknown>>();
+		const firstRow = resultsData[0];
+
+		return Object.keys(firstRow).map((columnName) =>
+			columnHelper.accessor(columnName, {
+				id: columnName,
+				header: columnName,
+				cell: (info) => {
+					const value = info.getValue();
+					if (value === null)
+						return <span className="text-muted-foreground italic">NULL</span>;
+					if (typeof value === "object") return JSON.stringify(value);
+					return String(value);
+				},
+			}),
+		);
+	}, [resultsData]);
+
+	const table = useDataTable({
+		data: resultsData as Record<string, unknown>[],
+		columns: tableColumns,
+		manualPagination: true, // Disable pagination to show all results
+	});
 
 	if (!entry) return null;
+
+	const handleRunQuery = () => {
+		if (!connectionUrl || !entry) return;
+
+		const sql = replaceSqlParameters(entry.sql, entry.params) || entry.sql;
+
+		runQueryMutation.mutate({
+			url: connectionUrl,
+			sql,
+			schemaName: entry.schema,
+			tableName: entry.table,
+		});
+	};
 
 	const statusColorMap: Record<
 		string,
@@ -81,8 +143,11 @@ export const QueryLoggerDetailDialog = ({
 
 	return (
 		<Dialog open={open} onOpenChange={(details) => onOpenChange(details.open)}>
-			<DialogContent className="max-w-4xl h-[90vh] flex flex-col gap-0 p-0">
-				<DialogHeader className="border-b px-6 py-4 shrink-0">
+			<DialogContent
+				className="flex flex-col gap-0 p-0 max-w-4xl h-[90vh]"
+				size={isFullscreen ? "full" : "2xl"}
+			>
+				<div className="border-b px-6 py-4 shrink-0 flex items-center justify-between gap-2 relative">
 					<DialogTitle className="flex items-center gap-2">
 						Query Details
 						<Badge
@@ -92,16 +157,34 @@ export const QueryLoggerDetailDialog = ({
 						>
 							{entry.status}
 						</Badge>
+						<Button
+							size="sm"
+							variant="ghost"
+							onClick={() => setIsFullscreen(!isFullscreen)}
+							className="gap-2"
+						>
+							{isFullscreen ? (
+								<Minimize2 className="h-4 w-4" />
+							) : (
+								<Maximize2 className="h-4 w-4" />
+							)}
+						</Button>
 					</DialogTitle>
-				</DialogHeader>
+				</div>
 
 				<Tabs
-					defaultValue="sql"
+					value={activeTab}
+					onValueChange={(details) => setActiveTab(details.value)}
 					className="flex-1 flex flex-col overflow-hidden"
 				>
 					<TabsList className="w-full rounded-none border-b px-6 py-0 bg-transparent h-auto justify-start">
 						<TabsTrigger value="sql">SQL</TabsTrigger>
 						<TabsTrigger value="metadata">Metadata</TabsTrigger>
+						{resultsData.length > 0 && (
+							<TabsTrigger value="results">
+								Results ({resultsData.length})
+							</TabsTrigger>
+						)}
 						{entry.error && <TabsTrigger value="error">Error</TabsTrigger>}
 					</TabsList>
 
@@ -110,24 +193,47 @@ export const QueryLoggerDetailDialog = ({
 							<div className="space-y-3">
 								<div className="flex items-center justify-between">
 									<h3 className="text-sm font-semibold">Query</h3>
-									<Button
-										size="sm"
-										variant="outline"
-										onClick={() => handleCopy(entry.sql)}
-										className="gap-2"
-									>
-										{copied ? (
-											<>
-												<Check className="h-4 w-4" />
-												Copied
-											</>
-										) : (
-											<>
-												<Copy className="h-4 w-4" />
-												Copy
-											</>
+									<HStack gap="2">
+										{connectionUrl && (
+											<Button
+												size="sm"
+												variant="outline"
+												onClick={handleRunQuery}
+												disabled={runQueryMutation.isPending}
+												className="gap-2"
+											>
+												{runQueryMutation.isPending ? (
+													<>
+														<Spinner className="h-4 w-4" />
+														Running...
+													</>
+												) : (
+													<>
+														<Play className="h-4 w-4" />
+														Run Query
+													</>
+												)}
+											</Button>
 										)}
-									</Button>
+										<Button
+											size="sm"
+											variant="outline"
+											onClick={() => handleCopy(entry.sql)}
+											className="gap-2"
+										>
+											{copied ? (
+												<>
+													<Check className="h-4 w-4" />
+													Copied
+												</>
+											) : (
+												<>
+													<Copy className="h-4 w-4" />
+													Copy
+												</>
+											)}
+										</Button>
+									</HStack>
 								</div>
 								<pre className="bg-muted p-3 rounded-lg overflow-x-auto text-xs font-mono wrap-break-word whitespace-pre-wrap leading-relaxed">
 									<code>{normalizeSql(entry.sql)}</code>
@@ -178,6 +284,41 @@ export const QueryLoggerDetailDialog = ({
 								</div>
 							)}
 						</TabsContent>
+
+						{resultsData.length > 0 && (
+							<TabsContent
+								value="results"
+								className="space-y-4 p-6 m-0 flex-1 overflow-hidden flex flex-col"
+							>
+								<div>
+									<p className="text-xs font-medium text-muted-foreground mb-2">
+										Results
+									</p>
+									<p className="text-sm font-semibold">
+										{resultsData.length} row
+										{resultsData.length !== 1 ? "s" : ""} returned
+									</p>
+								</div>
+
+								{runQueryMutation.isError && (
+									<div className="bg-destructive/10 p-3 rounded-lg">
+										<p className="text-sm text-destructive">
+											{runQueryMutation.error?.message || "Error running query"}
+										</p>
+									</div>
+								)}
+
+								<div className="flex-1 overflow-hidden">
+									<DataTable
+										table={table}
+										emptyState="No results"
+										stickyHeader
+										interactive
+										variant="outline"
+									/>
+								</div>
+							</TabsContent>
+						)}
 
 						<TabsContent value="metadata" className="space-y-4 p-6 m-0">
 							<div className="grid grid-cols-2 gap-4">

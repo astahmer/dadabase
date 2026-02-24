@@ -3,7 +3,10 @@ import { useFilter } from "@ark-ui/react/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import type { Virtualizer } from "@tanstack/react-virtual";
+import { Database, DatabaseIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "#src/components/ui/button.tsx";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { listAvailableDatabase } from "#src/server/introspection/start-fns/get-available-database-list.start.ts";
@@ -25,9 +28,6 @@ import {
 	useActiveTabState,
 } from "./create-tab-state.ts";
 import { TableContextMenu } from "./table-context-menu.tsx";
-import { Button } from "#src/components/ui/button.tsx";
-import { Database, DatabaseIcon } from "lucide-react";
-import { Tooltip } from "#src/components/ui/tooltip.tsx";
 
 interface ConnectionPageSidebarProps {
 	connection: DbConnection;
@@ -60,12 +60,12 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 		retry: 3,
 	});
 	const schemaList = schemaListQuery.data || [];
-	const selectedSchema = useActiveTabState(
-		(s) =>
-			s.schema ??
-			(schemaList.length === 1 ? schemaList.at(0) : undefined) ??
-			getDialectDefaultSchema(connection.dialect),
-	);
+	const selectedSchema = useActiveTabState((s) => {
+		const defaultSchema = getDialectDefaultSchema(connection.dialect);
+		return (s.schema ?? schemaList.includes(defaultSchema))
+			? defaultSchema
+			: schemaList.at(0) || getDialectDefaultSchema(connection.dialect);
+	});
 
 	const tablesListQuery = useQuery({
 		...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
@@ -94,7 +94,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 					(tableFilter ? contains(table.name, tableFilter) : true) &&
 					(isNotSqlite ? selectedSchema === table.schema : true),
 			),
-		[tableList, tableFilter, selectedSchema, contains],
+		[tableList, tableFilter, selectedSchema, contains, isNotSqlite],
 	);
 	const filteredTablesNames = useMemo(
 		() => filteredTables.map((t) => t.name),
@@ -484,7 +484,7 @@ const ScrollToSidebarTable = (props: {
 		if (tableIndex !== -1) {
 			props.virtualizer.scrollToIndex(tableIndex, {
 				align: "center",
-				behavior: "smooth",
+				// behavior: "smooth",
 			});
 		}
 	}, [props.virtualizer, props.selectedTable, props.tableList]);

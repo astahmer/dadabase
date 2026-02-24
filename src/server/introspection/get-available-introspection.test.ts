@@ -1,18 +1,18 @@
+import { SqlClient } from "@effect/sql";
+import { describe, expect, it } from "@effect/vitest";
+import { Effect, Layer } from "effect";
 import {
 	getAvailableDatabases,
 	getAvailableSchemas,
 	getAvailableTables,
 } from "#src/server/introspection/introspection.ts";
-import { SqlClient } from "@effect/sql";
-import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
 import {
+	type DatabaseTestConfig,
 	libsqlLayer,
 	makeTestLayer,
 	pgliteLayer,
 	postgresConfig,
 	sqliteConfig,
-	type DatabaseTestConfig,
 } from "./test.layer.ts";
 
 // Helper to set up test schema

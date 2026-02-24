@@ -16,7 +16,6 @@ import {
 	Type,
 } from "lucide-react";
 import { ReactNode } from "react";
-import { useColumnHeaderContext } from "./column-header-context";
 import {
 	Menu,
 	MenuContent,
@@ -26,6 +25,7 @@ import {
 	MenuSeparator,
 	MenuTriggerItem,
 } from "../ui/menu";
+import { useColumnHeaderContext } from "./column-header-context";
 
 export interface ColumnHeaderContextMenuProps<TData = unknown> {
 	column: Column<TData>;

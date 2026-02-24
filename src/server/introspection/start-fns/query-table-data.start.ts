@@ -47,7 +47,7 @@ export const JoinedTableSchema = Schema.Struct({
 		table: Schema.String,
 	}).pipe(Schema.optional),
 	alias: Schema.String.pipe(Schema.optional),
-	type: Schema.Literal("left", "inner"),
+	type: Schema.Literal("left", "inner", "right", "full", "cross"),
 	columns: Schema.Union(
 		Schema.Literal("all"),
 		Schema.Array(Schema.String).pipe(Schema.mutable),
@@ -60,7 +60,7 @@ type JoinedTableType = typeof JoinedTableSchema.Type;
 const _lint = {} as JoinedTableType satisfies JoinedTable;
 _lint;
 
-const InputSchema = Schema.Struct({
+export const QueryTableRowsInputSchema = Schema.Struct({
 	url: Schema.String,
 	dbName: Schema.String.pipe(Schema.optional),
 	schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
@@ -84,7 +84,7 @@ const InputSchema = Schema.Struct({
 	),
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
-	.inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
+	.inputValidator(QueryTableRowsInputSchema.pipe(Schema.standardSchemaV1))
 	.handler(
 		createRemoteIntrospectionHandler((input) =>
 			Effect.gen(function* () {
@@ -128,6 +128,7 @@ const queryTableDataServerFn = createServerFn({ method: "POST" })
 					columns: output.columnList,
 					timeTaken: endTime - startTime,
 					ranAt: startTime,
+					rowsAffected: output.rowsAffected,
 				};
 			}),
 		),

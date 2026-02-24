@@ -1,3 +1,4 @@
+import { debounce } from "@tanstack/react-pacer";
 import type { QueryObserverOptions } from "@tanstack/react-query";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 
@@ -15,24 +16,33 @@ export const queryClient = new QueryClient({
 		},
 	},
 	queryCache: new QueryCache({
-		onSuccess(_data, query) {
-			if (query.queryKey.includes("remote")) {
-				queryClient.invalidateQueries({
-					queryKey: ["app", "queryHistory"],
-				});
-			}
-		},
+		onSuccess: debounce(
+			(_data, query) => {
+				if (
+					query.queryKey.at(0) === "remote" &&
+					query.queryKey.at(1) === "rows"
+				) {
+					queryClient.invalidateQueries({
+						queryKey: ["app", "queryHistory"],
+					});
+				}
+			},
+			{ wait: 300 },
+		),
 	}),
 	mutationCache: new MutationCache({
-		onSuccess: async (_data, _variables, _context, _mutation) => {
+		onSuccess: async (_data, _variables, _context, mutation) => {
+			if (mutation.meta?.noInvalidate) return;
+
 			await queryClient.invalidateQueries(
 				{
 					predicate: (query) => {
 						if (
 							(query.options as QueryObserverOptions).staleTime ===
 							Number.POSITIVE_INFINITY
-						)
+						) {
 							return false;
+						}
 
 						// Why do we invalidate everything ? cause it's hard to track which mutation is linked to which queries, more details below
 						// https://x.com/alexdotjs/status/1744467890277921095

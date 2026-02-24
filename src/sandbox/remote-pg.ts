@@ -4,16 +4,16 @@ import { Config, Effect } from "effect";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { makeRemoteSqlClientLayer } from "#src/db/postgres/remote-sql-client.layer.ts";
 import {
+	makeRemoteConnectionLayer,
+	RemoteConnectionId,
+} from "#src/server/db-connection/remote-connection.tag.ts";
+import {
 	getAvailableDatabases,
 	getAvailableTables,
 	queryTableRows,
 } from "#src/server/introspection/introspection.ts";
 import { QueryLoggerInMemoryLayer } from "#src/server/query-logger/query-logger.layer.in-memory.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
-import {
-	makeRemoteConnectionLayer,
-	RemoteConnectionId,
-} from "#src/server/db-connection/remote-connection.tag.ts";
 
 // const program = Effect.gen(function* () {
 // 	const dbList = yield* getAvailableDatabases();

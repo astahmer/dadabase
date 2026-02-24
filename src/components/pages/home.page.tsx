@@ -73,7 +73,9 @@ export const HomePage = () => {
 				id: "_connect",
 				size: 280,
 				cell: (ctx) => {
+					// biome-ignore lint/correctness/useHookAtTopLevel: ok
 					const testPgConnectionUrl = useServerFn(tryConnectionServerFn);
+					// biome-ignore lint/correctness/useHookAtTopLevel: ok
 					const [state, setState] = useState("idle");
 					return (
 						<HStack>
@@ -184,6 +186,7 @@ export const HomePage = () => {
 				header: "Actions",
 				size: 80,
 				cell: (ctx) => {
+					// biome-ignore lint/correctness/useHookAtTopLevel: ok
 					const deleteMutation = useMutation(deleteDbConnectionMutation);
 					return (
 						<Menu>

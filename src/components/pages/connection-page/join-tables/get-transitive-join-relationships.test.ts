@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getTransitiveJoinRelationships } from "./get-transitive-join-relationships.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
+import { getTransitiveJoinRelationships } from "./get-transitive-join-relationships.ts";
 
 const rel = (r: TableRelationship): TableRelationship => r;
 

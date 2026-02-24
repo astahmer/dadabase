@@ -1,3 +1,9 @@
+import { CheckboxLabel } from "@ark-ui/react";
+import { createListCollection } from "@ark-ui/react/combobox";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { Copy, Download, ExternalLink } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
 	Menu,
 	MenuContent,
@@ -6,11 +12,6 @@ import {
 	MenuTrigger,
 } from "#src/components/ui/menu.tsx";
 import { getTablesStructuresQueryOptions } from "#src/server/introspection/start-fns/get-tables-structures.start.ts";
-import { CheckboxLabel } from "@ark-ui/react";
-import { createListCollection } from "@ark-ui/react/combobox";
-import { useQuery } from "@tanstack/react-query";
-import { Copy, Download } from "lucide-react";
-import { useMemo, useState } from "react";
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 import { Button } from "../../ui/button";
 import { Checkbox, CheckboxControl } from "../../ui/checkbox";
@@ -26,7 +27,11 @@ import {
 import { HStack, Stack } from "../../ui/layout.tsx";
 import { Spinner } from "../../ui/spinner.tsx";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
-import { StructureFilterControls } from "./structure-table-filters.tsx";
+import {
+	addTabStateAfterCurrent,
+	createTabState,
+	scrollToTab,
+} from "./create-tab-state.ts";
 import { StructureTable } from "./structure-table.tsx";
 import { useStructureFilters } from "./use-structure-filter-state.ts";
 
@@ -40,7 +45,8 @@ export const MultiTableStructureViewer = (
 	props: MultiTableStructureViewerProps,
 ) => {
 	const { activeConnectionUrl, schema, tableSize } = props;
-	const { filters, clearFilters } = useStructureFilters();
+	const { filters } = useStructureFilters();
+	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
 	// Fetch all table structures
 	const tablesStructuresQuery = useQuery({
@@ -201,6 +207,59 @@ export const MultiTableStructureViewer = (
 
 		const csv = rows.join("\n");
 		navigator.clipboard.writeText(csv);
+	};
+
+	const copySingleTableName = (tableName: string) => {
+		navigator.clipboard.writeText(tableName);
+	};
+
+	const copySingleTableJSON = (tableStructure: (typeof tableStructures)[0]) => {
+		const data = {
+			table: tableStructure.table,
+			schema,
+			columns: tableStructure.columns,
+		};
+
+		const json = JSON.stringify(data, null, 2);
+		navigator.clipboard.writeText(json);
+	};
+
+	const copySingleTableCSV = (tableStructure: (typeof tableStructures)[0]) => {
+		const rows: string[] = [];
+		rows.push(
+			"Column Name,Data Type,Nullable,Primary Key,Unique,Default Value,Foreign Key",
+		);
+
+		for (const col of tableStructure.columns) {
+			const fkRef = col.foreignKey
+				? `${col.foreignKey.referencedSchema}.${col.foreignKey.referencedTable}.${col.foreignKey.referencedColumn}`
+				: "";
+			const row = [
+				`"${col.name}"`,
+				`"${col.dataType}"`,
+				col.nullable ? "Yes" : "No",
+				col.primaryKey ? "Yes" : "No",
+				col.unique ? "Yes" : "No",
+				`"${col.defaultValue ?? ""}"`,
+				`"${fkRef}"`,
+			];
+			rows.push(row.join(","));
+		}
+
+		const csv = rows.join("\n");
+		navigator.clipboard.writeText(csv);
+	};
+
+	const viewTableRows = (tableName: string) => {
+		const newTabState = createTabState(schema, tableName);
+		navigate({
+			search: (prev) => ({
+				...prev,
+				...addTabStateAfterCurrent(prev, newTabState),
+				activeTabId: newTabState.tabId,
+				schemaExplorerOpen: false,
+			}),
+		}).then(() => scrollToTab(newTabState.tabId));
 	};
 
 	return (
@@ -371,7 +430,7 @@ export const MultiTableStructureViewer = (
 													: "border-border bg-card"
 											}`}
 										>
-											<div className="flex items-start gap-3 mb-3">
+											<div className="flex items-start gap-3 mb-3 justify-between">
 												<Checkbox
 													checked={isSelected}
 													onCheckedChange={(checked) => {
@@ -388,7 +447,7 @@ export const MultiTableStructureViewer = (
 														<CheckboxControl />
 														<CheckboxLabel>
 															<HStack align="center">
-																<h3 className="font-semibold text-sm">
+																<h3 className="font-semibold text-sm select-text">
 																	{tableStructure.table}
 																</h3>
 																<span className="text-xs text-muted-foreground">
@@ -398,6 +457,57 @@ export const MultiTableStructureViewer = (
 														</CheckboxLabel>
 													</HStack>
 												</Checkbox>
+												<div className="flex gap-2">
+													<Button
+														variant="ghost"
+														size="sm"
+														className="h-6 px-2"
+														onClick={() => viewTableRows(tableStructure.table)}
+													>
+														<ExternalLink className="h-4 w-4" />
+													</Button>
+													<Menu>
+														<MenuTrigger asChild>
+															<Button
+																variant="ghost"
+																size="sm"
+																className="h-6 px-2"
+															>
+																<Copy className="h-4 w-4" />
+															</Button>
+														</MenuTrigger>
+														<MenuContent className="z-100">
+															<MenuItem
+																onClick={() =>
+																	copySingleTableName(tableStructure.table)
+																}
+																value="copy-name"
+															>
+																<Copy className="h-4 w-4 mr-2" />
+																Copy table name
+															</MenuItem>
+															<MenuSeparator />
+															<MenuItem
+																onClick={() =>
+																	copySingleTableJSON(tableStructure)
+																}
+																value="copy-json"
+															>
+																<Copy className="h-4 w-4 mr-2" />
+																Copy structure as JSON
+															</MenuItem>
+															<MenuItem
+																onClick={() =>
+																	copySingleTableCSV(tableStructure)
+																}
+																value="copy-csv"
+															>
+																<Copy className="h-4 w-4 mr-2" />
+																Copy structure as CSV
+															</MenuItem>
+														</MenuContent>
+													</Menu>
+												</div>
 											</div>
 											<div className="overflow-auto">
 												<StructureTable

@@ -86,8 +86,48 @@ export const query_favorites = sqlite.sqliteTable(
 	],
 );
 
+/**
+ * Custom SQL execution log - append-only log of manually executed SQL queries
+ * Each execution creates a new row, allowing full history and traceability
+ */
+export const custom_sql_executions = sqlite.sqliteTable(
+	"custom_sql_executions",
+	{
+		id: primaryId(), // nanoid short id
+		connection_id: sqlite
+			.text()
+			.notNull()
+			.references(() => database_connections.id),
+		schema_name: sqlite.text(), // optional schema context
+		table_name: sqlite.text(), // optional table context (if opened from a table tab)
+		previous_id: sqlite.text(), // reference to parent execution (for edit chains)
+		// Input
+		sql: sqlite.text().notNull(),
+		// Output
+		status: sqlite.text().notNull().$type<"pending" | "success" | "error">(),
+		rows_returned: sqlite.integer(), // number of rows in result set
+		rows_affected: sqlite.integer(), // for INSERT/UPDATE/DELETE
+		columns: json(), // JSON array of column names in result
+		result_rows: json(), // JSON array of result rows (for immediate display)
+		error_message: sqlite.text(), // error message if failed
+		// Timing
+		started_at: timestamp(),
+		ended_at: sqlite.integer().$type<number>(),
+		time_taken: sqlite.integer(), // in milliseconds
+		created_at: timestamp(),
+	},
+	(self) => [
+		sqlite
+			.index("custom_sql_executions_connection_id_index")
+			.on(self.connection_id),
+		sqlite.index("custom_sql_executions_status_index").on(self.status),
+		sqlite.index("custom_sql_executions_started_at_index").on(self.started_at),
+	],
+);
+
 export interface AppDatabaseSchema {
 	database_connections: Kyselify<typeof database_connections>;
 	query_logs: Kyselify<typeof query_logs>;
 	query_favorites: Kyselify<typeof query_favorites>;
+	custom_sql_executions: Kyselify<typeof custom_sql_executions>;
 }

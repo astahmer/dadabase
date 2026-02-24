@@ -2,12 +2,19 @@ import { Pagination } from "@ark-ui/react/pagination";
 import { useNavigate } from "@tanstack/react-router";
 import type { Table as TanstackTable } from "@tanstack/react-table";
 import { DateTime } from "effect";
-import { Layers, RefreshCw } from "lucide-react";
+import { Download, Layers, RefreshCw } from "lucide-react";
 import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
+import {
+	Menu,
+	MenuContent,
+	MenuItem,
+	MenuItemText,
+	MenuTrigger,
+} from "../../ui/menu";
 import * as ArkSelect from "../../ui/select";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
@@ -35,12 +42,26 @@ interface ConnectionPageStatusBarProps {
 	ranAt: number;
 	totalRowCount: number;
 	rowsColumnsCount: number;
+	isCustomSql: boolean;
+	schema?: string;
+	tableName?: string;
+	onExportAll?: (
+		format:
+			| "json"
+			| "csv"
+			| "tsv"
+			| "copy-json"
+			| "copy-csv"
+			| "copy-tsv"
+			| "copy-insert",
+	) => void;
+	columns?: string[];
 }
 
 export const ConnectionPageStatusBar = (
 	props: ConnectionPageStatusBarProps,
 ) => {
-	const { isLoading, refetch } = props;
+	const { isLoading, refetch, isCustomSql } = props;
 
 	const navigate = useNavigate({ from: "/connections/$connectionName" });
 
@@ -63,6 +84,14 @@ export const ConnectionPageStatusBar = (
 				<HStack className="flex-1 min-w-0 whitespace-nowrap overflow-x-auto">
 					{isLoading ? (
 						<span className="text-muted-foreground/50">Loading...</span>
+					) : isCustomSql ? (
+						<span className="truncate">
+							{tableDisplayName}
+							<span className="hidden sm:inline text-muted-foreground">
+								{" "}
+								• Custom SQL
+							</span>
+						</span>
 					) : (
 						<>
 							<span className="truncate">
@@ -96,130 +125,141 @@ export const ConnectionPageStatusBar = (
 				</span>
 				{/* Right side - Controls */}
 				<div className="flex flex-wrap items-center gap-2 lg:gap-3">
-					{/* Pagination Controls */}
-					<Pagination.Root
-						count={props.totalRowCount}
-						pageSize={limit}
-						siblingCount={1}
-						page={Math.floor(offset / limit) + 1}
-						onPageChange={(details) => {
-							navigate({
-								search: (prev) =>
-									updateTabState(prev, {
-										offset: (details.page - 1) * limit,
-									}),
-							});
-						}}
-					>
-						<Pagination.Context>
-							{(pagination) => (
-								<div className="flex items-center gap-1">
-									<Pagination.PrevTrigger asChild>
-										<Button variant="ghost" size="sm" className="h-6 px-1">
-											‹
-										</Button>
-									</Pagination.PrevTrigger>
-									<span className="text-xs mx-2">
-										{pagination.page} /{" "}
-										{pagination.totalPages === 0
-											? "..."
-											: pagination.totalPages}
-									</span>
-									<Pagination.NextTrigger asChild>
-										<Button variant="ghost" size="sm" className="h-6 px-1">
-											›
-										</Button>
-									</Pagination.NextTrigger>
-								</div>
-							)}
-						</Pagination.Context>
-					</Pagination.Root>
-
-					<div className="flex items-center gap-2 text-foreground">
-						<label className="font-medium uppercase tracking-wide whitespace-nowrap">
-							Limit:
-						</label>
-						<RowsPerPageSelector
-							value={limit}
-							onValueChange={(newLimit: number) => {
-								navigate({
-									search: (prev) =>
-										updateTabState(prev, {
-											limit: newLimit,
-											offset: 0,
-										}),
-								});
-							}}
-						/>
-					</div>
-					<div className="flex items-center gap-2 text-foreground">
-						<ArkSelect.Select
-							className="w-28"
-							value={[tableSize]}
-							collection={TableSizeCollection}
-							positioning={{ sameWidth: true }}
-							onValueChange={(details) => {
-								const newSize = (details.value?.[0] || "cozy") as DataTableSize;
-								navigate({
-									search: (prev) =>
-										updateTabState(prev, {
-											tableSize: newSize,
-										}),
-								});
-
-								const newSizing: Record<string, number> = {};
-								const defaultSize = getDefaultColumnSize({
-									tableSize: newSize,
-									hasUuid: props.hasUuid,
-								});
-								for (const col of props.table.getAllColumns()) {
-									newSizing[col.id] = defaultSize;
-								}
-
-								props.table.setColumnSizing(newSizing);
-							}}
-						>
-							<ArkSelect.SelectControl>
-								<ArkSelect.SelectTrigger>
-									<ArkSelect.SelectValueText />
-									<ArkSelect.SelectIndicator />
-								</ArkSelect.SelectTrigger>
-							</ArkSelect.SelectControl>
-							<ArkSelect.SelectContent>
-								{TableSizeCollection.items.map((item) => (
-									<ArkSelect.SelectItem key={item.value} item={item}>
-										{item.label}
-									</ArkSelect.SelectItem>
-								))}
-							</ArkSelect.SelectContent>
-						</ArkSelect.Select>
-					</div>
-					{(joins?.length ?? 0) > 0 && (
-						<Tooltip
-							content={
-								prefixWithTable
-									? "Disable table prefix"
-									: "Prefix columns with table"
-							}
-						>
-							<Button
-								variant={prefixWithTable ? "default" : "ghost"}
-								size="sm"
-								onClick={() => {
+					{/* Hide pagination and sizing controls for non-SELECT custom SQL */}
+					{isCustomSql ? (
+						<div className="flex items-center gap-1">
+							<span className="text-xs mx-2">{props.totalRowCount} rows</span>
+						</div>
+					) : (
+						<>
+							{/* Pagination Controls */}
+							<Pagination.Root
+								count={props.totalRowCount}
+								pageSize={limit}
+								siblingCount={1}
+								page={Math.floor(offset / limit) + 1}
+								onPageChange={(details) => {
 									navigate({
 										search: (prev) =>
-											updateTabState(prev, (tab) => ({
-												prefixWithTable: !tab.prefixWithTable,
-											})),
+											updateTabState(prev, {
+												offset: (details.page - 1) * limit,
+											}),
 									});
 								}}
-								className="h-6 px-2"
-								title="Prefix column names by table"
 							>
-								<Layers className="h-3.5 w-3.5" />
-							</Button>
-						</Tooltip>
+								<Pagination.Context>
+									{(pagination) => (
+										<div className="flex items-center gap-1">
+											<Pagination.PrevTrigger asChild>
+												<Button variant="ghost" size="sm" className="h-6 px-1">
+													‹
+												</Button>
+											</Pagination.PrevTrigger>
+											<span className="text-xs mx-2">
+												{pagination.page} /{" "}
+												{pagination.totalPages === 0
+													? "..."
+													: pagination.totalPages}
+											</span>
+											<Pagination.NextTrigger asChild>
+												<Button variant="ghost" size="sm" className="h-6 px-1">
+													›
+												</Button>
+											</Pagination.NextTrigger>
+										</div>
+									)}
+								</Pagination.Context>
+							</Pagination.Root>
+
+							<div className="flex items-center gap-2 text-foreground">
+								<label className="font-medium uppercase tracking-wide whitespace-nowrap">
+									Limit:
+								</label>
+								<RowsPerPageSelector
+									value={limit}
+									onValueChange={(newLimit: number) => {
+										navigate({
+											search: (prev) =>
+												updateTabState(prev, {
+													limit: newLimit,
+													offset: 0,
+												}),
+										});
+									}}
+								/>
+							</div>
+							<div className="flex items-center gap-2 text-foreground">
+								<ArkSelect.Select
+									className="w-28"
+									value={[tableSize]}
+									collection={TableSizeCollection}
+									positioning={{ sameWidth: true }}
+									onValueChange={(details) => {
+										const newSize = (details.value?.[0] ||
+											"cozy") as DataTableSize;
+										navigate({
+											search: (prev) =>
+												updateTabState(prev, {
+													tableSize: newSize,
+												}),
+										});
+
+										const newSizing: Record<string, number> = {};
+										const defaultSize = getDefaultColumnSize({
+											tableSize: newSize,
+											hasUuid: props.hasUuid,
+										});
+										for (const col of props.table.getAllColumns()) {
+											newSizing[col.id] = defaultSize;
+										}
+
+										props.table.setColumnSizing(newSizing);
+									}}
+								>
+									<ArkSelect.SelectControl>
+										<ArkSelect.SelectTrigger>
+											<ArkSelect.SelectValueText />
+											<ArkSelect.SelectIndicator />
+										</ArkSelect.SelectTrigger>
+									</ArkSelect.SelectControl>
+									<ArkSelect.SelectContent>
+										{TableSizeCollection.items.map((item) => (
+											<ArkSelect.SelectItem key={item.value} item={item}>
+												{item.label}
+											</ArkSelect.SelectItem>
+										))}
+									</ArkSelect.SelectContent>
+								</ArkSelect.Select>
+							</div>
+							{(joins?.length ?? 0) > 0 && (
+								<Tooltip
+									content={
+										prefixWithTable
+											? "Disable table prefix"
+											: "Prefix columns with table"
+									}
+								>
+									<Button
+										variant={prefixWithTable ? "default" : "ghost"}
+										size="sm"
+										onClick={() => {
+											navigate({
+												search: (prev) =>
+													updateTabState(prev, (tab) => ({
+														prefixWithTable: !tab.prefixWithTable,
+													})),
+											});
+										}}
+										className="h-6 px-2"
+										title="Prefix column names by table"
+									>
+										<Layers className="h-3.5 w-3.5" />
+									</Button>
+								</Tooltip>
+							)}
+						</>
 					)}
+
 					<Tooltip
 						content={`Refresh rows (last ran at ${DateTime.formatIso(DateTime.unsafeMake(props.ranAt))})`}
 					>
@@ -232,6 +272,61 @@ export const ConnectionPageStatusBar = (
 							<RefreshCw className="h-3 w-3" />
 						</Button>
 					</Tooltip>
+					{props.totalRowCount > 0 && !isCustomSql && (
+						<Menu>
+							<MenuTrigger asChild>
+								<Button variant="ghost" size="sm" className="h-6 px-2">
+									<Download className="h-3 w-3 mr-1" />
+									<span className="hidden sm:inline">Export All</span>
+									<span className="sm:hidden">Export</span>
+								</Button>
+							</MenuTrigger>
+							<MenuContent>
+								<MenuItem
+									value="export-json"
+									onClick={() => props.onExportAll?.("json")}
+								>
+									<MenuItemText>Export as JSON</MenuItemText>
+								</MenuItem>
+								<MenuItem
+									value="export-csv"
+									onClick={() => props.onExportAll?.("csv")}
+								>
+									<MenuItemText>Export as CSV</MenuItemText>
+								</MenuItem>
+								<MenuItem
+									value="export-tsv"
+									onClick={() => props.onExportAll?.("tsv")}
+								>
+									<MenuItemText>Export as TSV</MenuItemText>
+								</MenuItem>
+								<MenuItem
+									value="copy-insert"
+									onClick={() => props.onExportAll?.("copy-insert")}
+								>
+									<MenuItemText>Copy as INSERT</MenuItemText>
+								</MenuItem>
+								<MenuItem
+									value="copy-json"
+									onClick={() => props.onExportAll?.("copy-json")}
+								>
+									<MenuItemText>Copy as JSON</MenuItemText>
+								</MenuItem>
+								<MenuItem
+									value="copy-csv"
+									onClick={() => props.onExportAll?.("copy-csv")}
+								>
+									<MenuItemText>Copy as CSV</MenuItemText>
+								</MenuItem>
+								<MenuItem
+									value="copy-tsv"
+									onClick={() => props.onExportAll?.("copy-tsv")}
+								>
+									<MenuItemText>Copy as TSV</MenuItemText>
+								</MenuItem>
+							</MenuContent>
+						</Menu>
+					)}
 				</div>
 			</div>
 		</div>

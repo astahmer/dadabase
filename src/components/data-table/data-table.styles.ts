@@ -126,5 +126,5 @@ export const tableSortButtonStyles = cva(
 );
 
 export const tableEmptyStateStyles = cva(
-	"flex flex-col gap-4 justify-center items-center text-center py-8",
+	"flex flex-col gap-4 justify-center py-2",
 );

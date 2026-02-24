@@ -1,6 +1,4 @@
 import { useSearch } from "@tanstack/react-router";
-import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
-import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { FileRouteTypes } from "#src/routeTree.gen.ts";
 
 type ConnectionPage =
@@ -12,15 +10,7 @@ type TabState = NonNullable<ConnectionPageSearch["tabs"]>[number];
 export const createTabState = (
 	schema: string,
 	table: string,
-	options?: {
-		filters?: QueryFilterType;
-		offset?: number;
-		limit?: number;
-		filtersOpened?: boolean;
-		fkValue?: string;
-		joinConfig?: JoinTablesConfig;
-		tabName?: string;
-	},
+	options?: Partial<TabState>,
 ): TabState => {
 	const tabName = options?.tabName ?? (table ? table : "New Tab");
 
@@ -29,29 +19,41 @@ export const createTabState = (
 		schema,
 		table,
 		tabName: tabName,
-		orderBy: undefined,
-		orderDirection: undefined,
-		nullsOrder: undefined,
-		relationshipRowId: undefined,
+		orderBy: options?.orderBy,
+		orderDirection: options?.orderDirection,
+		nullsOrder: options?.nullsOrder,
+		relationshipRowId: options?.relationshipRowId,
 		limit: options?.limit ?? 50,
 		offset: options?.offset ?? 0,
-		viewMode: "rows" as const,
-		tableSize: "cozy" as const,
-		hiddenColumnList: undefined,
-		columnVisibilityMode: "client" as const,
+		viewMode: options?.viewMode ?? ("rows" as const),
+		tableSize: options?.tableSize ?? ("cozy" as const),
+		hiddenColumnList: options?.hiddenColumnList,
+		columnVisibilityMode: options?.columnVisibilityMode ?? ("client" as const),
 		filters: options?.filters,
 		filtersOpened: options?.filtersOpened ?? false,
 		fkValue: options?.fkValue,
-		joins: options?.joinConfig?.joins,
+		joins: options?.joins,
+		sqlEditorMode: options?.sqlEditorMode ?? ("preview" as const),
+		customSql: options?.customSql,
+		customSqlId: options?.customSqlId,
+		initialTabMode: options?.initialTabMode,
+		columnOrder: options?.columnOrder,
+		columnPinning: options?.columnPinning,
+		prefixWithTable: options?.prefixWithTable,
+		sqlPreviewSize: options?.sqlPreviewSize ?? 0,
+		clientFilter: options?.clientFilter,
+		clientFilterApproved: options?.clientFilterApproved,
 	};
 };
 
 export const updateTabState = (
 	prev: ConnectionPageSearch,
 	updates: Partial<TabState> | ((prev: TabState) => Partial<TabState>),
+	tabId?: string,
 ): ConnectionPageSearch => {
+	const tabIdToUpdate = tabId ?? prev.activeTabId;
 	const updatedTabList = (prev.tabs ?? []).map((tab) => {
-		if (tab.tabId === prev.activeTabId) {
+		if (tab.tabId === tabIdToUpdate) {
 			return {
 				...tab,
 				...(typeof updates === "function" ? updates(tab) : updates),
@@ -60,9 +62,7 @@ export const updateTabState = (
 
 		return tab;
 	});
-	const updatedTab = updatedTabList.find(
-		(tab) => tab.tabId === prev.activeTabId,
-	);
+	const updatedTab = updatedTabList.find((tab) => tab.tabId === tabIdToUpdate);
 
 	return {
 		...prev,

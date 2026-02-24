@@ -21,6 +21,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
+import type * as Pg from "pg";
 
 type Primitive =
 	| string
@@ -177,6 +178,27 @@ export const make = <TExtensions extends Extensions = Extensions>(
 				});
 			}
 
+			private runWithClient(query: Promise<any>) {
+				return Effect.async<Pg.QueryResult, SqlError>((resume) => {
+					query.then(
+						(result) => {
+							// console.log(123, result);
+							resume(Effect.succeed(result));
+						},
+						(cause) => {
+							resume(
+								new SqlError({
+									cause,
+									message: `Failed to execute statement: ${cause.message}`,
+								}),
+							);
+						},
+					);
+					// PGlite doesn't have a cancel method like postgres.js
+					return Effect.succeed(void 0);
+				});
+			}
+
 			execute(
 				sql: string,
 				params: ReadonlyArray<Primitive>,
@@ -199,15 +221,20 @@ export const make = <TExtensions extends Extensions = Extensions>(
 						: this.run(this.pg.query(sql, params as any));
 			}
 			executeRaw(sql: string, params: ReadonlyArray<Primitive>) {
-				return this.run(this.pg.exec(sql, params as any));
+				return this.runWithClient(this.pg.query(sql, params as any));
 			}
 			executeWithoutTransform(sql: string, params: ReadonlyArray<Primitive>) {
 				return this.run(this.pg.query(sql, params as any));
 			}
-			executeValues(sql: string, params: ReadonlyArray<Primitive>) {
-				// PGlite doesn't have a values() method like postgres.js
-				// We'll just return the regular query results
-				return this.run(this.pg.query(sql, params as any));
+			executeValues(
+				sql: string,
+				params: ReadonlyArray<Primitive>,
+			): Effect.Effect<ReadonlyArray<ReadonlyArray<unknown>>, SqlError> {
+				return this.runWithClient(
+					this.pg.query(sql, params as any, {
+						rowMode: "array",
+					}),
+				) as any;
 			}
 			executeUnprepared(
 				sql: string,

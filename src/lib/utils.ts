@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-export const tryFn = (fn: () => unknown) => {
+export const tryFn = <T>(fn: () => T) => {
 	try {
 		return fn();
 	} catch (e) {

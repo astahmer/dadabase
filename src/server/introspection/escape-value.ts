@@ -4,6 +4,7 @@
 export const escapeValue = (value: any): string => {
 	if (value === null || value === undefined) return "";
 	if (typeof value === "boolean") return value ? "true" : "false";
+	if (typeof value === "number") return String(value);
 	// Escape single quotes by doubling them
 	return String(value).replace(/'/g, "''");
 };

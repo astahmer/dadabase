@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SandboxRouteImport } from './routes/sandbox'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ConnectionsConnectionNameRouteImport } from './routes/connections/$connectionName'
 
+const SandboxRoute = SandboxRouteImport.update({
+  id: '/sandbox',
+  path: '/sandbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -26,32 +32,43 @@ const ConnectionsConnectionNameRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/sandbox': typeof SandboxRoute
   '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/sandbox': typeof SandboxRoute
   '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/sandbox': typeof SandboxRoute
   '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/connections/$connectionName'
+  fullPaths: '/' | '/sandbox' | '/connections/$connectionName'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/connections/$connectionName'
-  id: '__root__' | '/' | '/connections/$connectionName'
+  to: '/' | '/sandbox' | '/connections/$connectionName'
+  id: '__root__' | '/' | '/sandbox' | '/connections/$connectionName'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SandboxRoute: typeof SandboxRoute
   ConnectionsConnectionNameRoute: typeof ConnectionsConnectionNameRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sandbox': {
+      id: '/sandbox'
+      path: '/sandbox'
+      fullPath: '/sandbox'
+      preLoaderRoute: typeof SandboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SandboxRoute: SandboxRoute,
   ConnectionsConnectionNameRoute: ConnectionsConnectionNameRoute,
 }
 export const routeTree = rootRouteImport

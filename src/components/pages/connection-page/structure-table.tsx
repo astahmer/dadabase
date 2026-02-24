@@ -1,5 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import { DataTypeBadge } from "../../app/data-type-badge.tsx";
 import { PrimaryKeyIcon } from "../../app/primary-key-icon.tsx";
 import { UniqueConstraintIcon } from "../../app/unique-constraint-icon.tsx";
@@ -10,20 +11,7 @@ import { HStack } from "../../ui/layout.tsx";
 import type { StructureFilters } from "./use-structure-filter-state.ts";
 
 interface StructureTableProps {
-	columnMetadata: Array<{
-		name: string;
-		dataType: string;
-		nullable: boolean;
-		primaryKey?: boolean | undefined;
-		unique: boolean;
-		defaultValue: string | null;
-		isForeignKey?: boolean;
-		foreignKey?: {
-			referencedSchema: string;
-			referencedTable: string;
-			referencedColumn: string;
-		};
-	}>;
+	columnMetadata: Array<TableColumnMetadata>;
 	isLoading: boolean;
 	tableSize: DataTableSize;
 	filters?: StructureFilters;
@@ -81,6 +69,7 @@ export const StructureTable = (props: StructureTableProps) => {
 		data: filteredMetadata,
 		columns: structureColumns,
 		getRowId: (row) => row.name,
+		manualPagination: true, // Disable pagination to show all results
 	});
 
 	return (

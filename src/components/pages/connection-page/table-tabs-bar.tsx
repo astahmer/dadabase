@@ -1,16 +1,19 @@
 import { Portal } from "@ark-ui/react";
-import { Tabs } from "@ark-ui/react/tabs";
 import { Editable, useEditable } from "@ark-ui/react/editable";
+import { Tabs } from "@ark-ui/react/tabs";
 import {
 	ArrowLeftFromLine,
 	ArrowLeftRight,
 	ArrowRightFromLine,
+	CircleXIcon,
 	ClipboardIcon,
 	CopyPlus,
+	Edit2,
 	PanelLeft,
 	Plus,
+	SquareXIcon,
 	X,
-	Edit2,
+	XIcon,
 } from "lucide-react";
 import { Button } from "../../ui/button";
 import { Menu, MenuContent, MenuContextTrigger, MenuItem } from "../../ui/menu";
@@ -37,6 +40,7 @@ interface TableTabsBarProps {
 	onCloseTabsOnLeft?: (tabId: string) => void;
 	onCloseTabsOnRight?: (tabId: string) => void;
 	onCloseOtherTabs?: (tabId: string) => void;
+	onCloseAllTabs?: () => void;
 	onCopyTabUrl?: (tabId: string) => void;
 	onRenameTab?: (tabId: string, newName: string) => void;
 	onToggleSidebar?: () => void;
@@ -55,6 +59,7 @@ const TabItem = ({
 	onCloseOtherTabs,
 	onCloseTabsOnLeft,
 	onCloseTabsOnRight,
+	onCloseAllTabs,
 	onCopyTabUrl,
 	tabs,
 }: {
@@ -69,6 +74,7 @@ const TabItem = ({
 	onCloseOtherTabs?: (tabId: string) => void;
 	onCloseTabsOnLeft?: (tabId: string) => void;
 	onCloseTabsOnRight?: (tabId: string) => void;
+	onCloseAllTabs?: (tabId: string) => void;
 	onCopyTabUrl?: (tabId: string) => void;
 	tabs: readonly TableTab[];
 }) => {
@@ -183,6 +189,13 @@ const TabItem = ({
 							<span>Close to the right</span>
 						</MenuItem>
 					)}
+					<MenuItem
+						value="close-all"
+						onClick={() => onCloseAllTabs?.(tab.tabId)}
+					>
+						<CircleXIcon className="h-3! w-3!" />
+						<span>Close all</span>
+					</MenuItem>
 					<div className="my-1 h-px bg-border" />
 					<MenuItem
 						value="duplicate"
@@ -213,18 +226,15 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
 		onCloseTabsOnLeft,
 		onCloseTabsOnRight,
 		onCloseOtherTabs,
+		onCloseAllTabs,
 		onCopyTabUrl,
 		onRenameTab,
 		onToggleSidebar,
 		isSidebarCollapsed,
 	} = props;
 
-	if (tabs.length === 0) {
-		return null;
-	}
-
 	return (
-		<div className="border-b bg-muted/50">
+		<div className="border-b bg-muted/50 min-h-0 shrink-0">
 			<Tabs.Root
 				value={activeTabId || ""}
 				onValueChange={(details) => {
@@ -267,6 +277,7 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
 								onCloseOtherTabs={onCloseOtherTabs}
 								onCloseTabsOnLeft={onCloseTabsOnLeft}
 								onCloseTabsOnRight={onCloseTabsOnRight}
+								onCloseAllTabs={onCloseAllTabs}
 								onCopyTabUrl={onCopyTabUrl}
 								tabs={tabs}
 							/>

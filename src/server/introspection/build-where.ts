@@ -30,50 +30,73 @@ export const buildPgWhereFragment = (
 		if (c.table) {
 			// Explicit table in condition (for joined tables)
 			col = `${escapeIdentifier(c.table)}.${escapeIdentifier(c.column)}`;
-		} else if (schema && table) {
-			// Use provided schema and table
-			col = `${escapeIdentifier(schema)}.${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`;
+		} else if (schema !== undefined && table) {
+			// Use provided schema and table (schema can be empty string for default schema)
+			col = schema
+				? `${escapeIdentifier(schema)}.${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`
+				: `${escapeIdentifier(table)}.${escapeIdentifier(c.column)}`;
 		} else {
 			// Just the column name
 			col = `${escapeIdentifier(c.column)}`;
 		}
 
+		const inverted = c.inverted ?? false;
+		let baseClause: string;
+
 		switch (c.operator) {
 			case "equals":
-				return `${col} = '${escapeValue(c.value)}'`;
+				baseClause = `${col} = '${escapeValue(c.value)}'`;
+				break;
 			case "not_equals":
-				return `${col} != '${escapeValue(c.value)}'`;
+				baseClause = `${col} != '${escapeValue(c.value)}'`;
+				break;
 			case "contains":
-				return `${col} ILIKE '%${escapeValue(c.value)}%'`;
+				baseClause = `${col} ILIKE '%${escapeValue(c.value)}%'`;
+				break;
 			case "not_contains":
-				return `${col} NOT ILIKE '%${escapeValue(c.value)}%'`;
+				baseClause = `${col} NOT ILIKE '%${escapeValue(c.value)}%'`;
+				break;
 			case "starts_with":
-				return `${col} ILIKE '${escapeValue(c.value)}%'`;
+				baseClause = `${col} ILIKE '${escapeValue(c.value)}%'`;
+				break;
 			case "ends_with":
-				return `${col} ILIKE '%${escapeValue(c.value)}'`;
+				baseClause = `${col} ILIKE '%${escapeValue(c.value)}'`;
+				break;
 			case "greater_than":
-				return `${col} > '${escapeValue(c.value)}'`;
+				baseClause = `${col} > '${escapeValue(c.value)}'`;
+				break;
 			case "greater_than_or_equal":
-				return `${col} >= '${escapeValue(c.value)}'`;
+				baseClause = `${col} >= '${escapeValue(c.value)}'`;
+				break;
 			case "less_than":
-				return `${col} < '${escapeValue(c.value)}'`;
+				baseClause = `${col} < '${escapeValue(c.value)}'`;
+				break;
 			case "less_than_or_equal":
-				return `${col} <= '${escapeValue(c.value)}'`;
+				baseClause = `${col} <= '${escapeValue(c.value)}'`;
+				break;
 			case "is_null":
-				return `${col} IS NULL`;
+				baseClause = `${col} IS NULL`;
+				break;
 			case "is_not_null":
-				return `${col} IS NOT NULL`;
+				baseClause = `${col} IS NOT NULL`;
+				break;
 			case "in": {
 				const values = Array.isArray(c.value) ? c.value : [c.value];
-				return `${col} = ANY(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
+				baseClause = `${col} = ANY(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
+				break;
 			}
 			case "not_in": {
 				const values = Array.isArray(c.value) ? c.value : [c.value];
-				return `${col} != ALL(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
+				baseClause = `${col} != ALL(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
+				break;
 			}
 			default:
-				return;
+				const _exhaustive: never = c.operator;
+				return _exhaustive;
 		}
+
+		// Apply inversion with NOT if needed (for operators like NOT LIKE, NOT (...))
+		return inverted ? `NOT (${baseClause})` : baseClause;
 	});
 
 	const joiner = logicalOp === "and" ? " AND " : " OR ";
@@ -122,49 +145,70 @@ export const buildSqliteWhereFragment = (
 			return `'${escapeValue(val)}'`;
 		};
 
+		const inverted = c.inverted ?? false;
+		let baseClause: string;
+
 		switch (c.operator) {
 			case "equals":
-				return `${col} = ${formatValue(sqliteValue)}`;
+				baseClause = `${col} = ${formatValue(sqliteValue)}`;
+				break;
 			case "not_equals":
-				return `${col} != ${formatValue(sqliteValue)}`;
+				baseClause = `${col} != ${formatValue(sqliteValue)}`;
+				break;
 			case "contains":
 				// SQLite uses LIKE (case-insensitive with COLLATE NOCASE)
-				return `${col} LIKE '%${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
-			case "not_contains":
-				return `${col} NOT LIKE '%${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
+				baseClause = `${col} LIKE '%${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
+				break;
 			case "starts_with":
-				return `${col} LIKE '${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
+				baseClause = `${col} LIKE '${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
+				break;
+			case "not_contains":
+				baseClause = `${col} NOT LIKE '%${escapeValue(sqliteValue)}%' COLLATE NOCASE`;
+				break;
 			case "ends_with":
-				return `${col} LIKE '%${escapeValue(sqliteValue)}' COLLATE NOCASE`;
+				baseClause = `${col} LIKE '%${escapeValue(sqliteValue)}' COLLATE NOCASE`;
+				break;
 			case "greater_than":
-				return `${col} > ${formatValue(sqliteValue)}`;
+				baseClause = `${col} > ${formatValue(sqliteValue)}`;
+				break;
 			case "greater_than_or_equal":
-				return `${col} >= ${formatValue(sqliteValue)}`;
+				baseClause = `${col} >= ${formatValue(sqliteValue)}`;
+				break;
 			case "less_than":
-				return `${col} < ${formatValue(sqliteValue)}`;
+				baseClause = `${col} < ${formatValue(sqliteValue)}`;
+				break;
 			case "less_than_or_equal":
-				return `${col} <= ${formatValue(sqliteValue)}`;
+				baseClause = `${col} <= ${formatValue(sqliteValue)}`;
+				break;
 			case "is_null":
-				return `${col} IS NULL`;
+				baseClause = `${col} IS NULL`;
+				break;
 			case "is_not_null":
-				return `${col} IS NOT NULL`;
+				baseClause = `${col} IS NOT NULL`;
+				break;
 			case "in": {
 				const values = Array.isArray(c.value) ? c.value : [c.value];
 				const sqliteValues = values.map((v) =>
 					typeof v === "boolean" ? (v ? 1 : 0) : v,
 				);
-				return `${col} IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
+				baseClause = `${col} IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
+				break;
 			}
 			case "not_in": {
 				const values = Array.isArray(c.value) ? c.value : [c.value];
 				const sqliteValues = values.map((v) =>
 					typeof v === "boolean" ? (v ? 1 : 0) : v,
 				);
-				return `${col} NOT IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
+				baseClause = `${col} NOT IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
+				break;
 			}
 			default:
-				return "";
+				const _exhaustive: never = c.operator;
+				return _exhaustive;
 		}
+
+		// Apply inversion with NOT if needed (for operators like NOT LIKE, NOT (...))
+		return inverted ? `NOT (${baseClause})` : baseClause;
 	});
 
 	const joiner = logicalOp === "and" ? " AND " : " OR ";

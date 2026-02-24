@@ -15,6 +15,7 @@ export interface FilterCondition {
 	field: string;
 	operator: FilterOperator;
 	value: string | number | (string | number)[];
+	inverted?: boolean;
 }
 
 export interface ParsedNLQuery {
@@ -129,6 +130,9 @@ function parseFilters(
 		if (!bestColumn) continue;
 
 		const operator = extractOperator(match[0]);
+		const isInverted =
+			(operator === "contains" && match[0].toLowerCase().includes("not")) ||
+			(operator === "not_eq" && match[0].toLowerCase().includes("not"));
 		let value: string | number;
 
 		// Try to parse as number if appropriate operator
@@ -143,6 +147,7 @@ function parseFilters(
 			field: bestColumn,
 			operator,
 			value,
+			...(isInverted && { inverted: true }),
 		});
 	}
 

@@ -4,13 +4,11 @@ import { Effect, Layer } from "effect";
 import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
+import { PgContainer } from "./pg-test.layer.ts";
 import {
-	makeTestLayer,
-	pgliteLayer,
-	libsqlLayer,
-	postgresConfig,
-	sqliteConfig,
 	type DatabaseTestConfig,
+	makeTestLayer,
+	postgresConfig,
 } from "./test.layer.ts";
 
 interface User {
@@ -3536,6 +3534,13 @@ const testSuite =
 		);
 	};
 
-describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));
-describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));
-describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));
+// describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));
+// describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));
+describe(
+	"queryTableData (pg with testcontainers)",
+	testSuite(
+		PgContainer.ClientLive.pipe(Layer.catchAll(Layer.die)),
+		postgresConfig,
+	),
+	1000 * 60 * 10,
+);

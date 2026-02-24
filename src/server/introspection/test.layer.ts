@@ -2,11 +2,11 @@ import { PgLiteClient } from "@dadabase/effect-pglite";
 import type { SqlClient } from "@effect/sql";
 import { LibsqlClient } from "@effect/sql-libsql";
 import { Layer } from "effect";
-import { QueryLoggerNoopLayer } from "../query-logger/query-logger.layer.noop.ts";
 import {
 	makeRemoteConnectionLayer,
 	RemoteConnectionId,
 } from "../db-connection/remote-connection.tag.ts";
+import { QueryLoggerNoopLayer } from "../query-logger/query-logger.layer.noop.ts";
 
 export interface DatabaseTestConfig {
 	defaultSchema: string;

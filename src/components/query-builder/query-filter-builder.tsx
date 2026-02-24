@@ -12,8 +12,13 @@ import {
 	arrayOperators,
 	getOperatorLabel,
 	getOperatorSymbols,
+	isSpecialValue,
 	nullOperators,
+	SPECIAL_VALUES_LIST,
+	specialValueSupportedOperators,
 } from "#src/components/query-builder/query-filter.ts";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
+import { DataTypeBadge } from "../app/data-type-badge.tsx";
 import { Button } from "../ui/button.tsx";
 import {
 	Combobox,
@@ -27,8 +32,9 @@ import {
 } from "../ui/combobox.tsx";
 import { Input } from "../ui/input.tsx";
 import { Kbd } from "../ui/kbd.tsx";
-import { HStack, Stack } from "../ui/layout.tsx";
+import { Stack } from "../ui/layout.tsx";
 import * as ArkSelect from "../ui/select.tsx";
+import { Tooltip } from "../ui/tooltip.tsx";
 
 interface QueryFilterBuilderProps {
 	conditions: readonly FilterConditionExpression[];
@@ -45,6 +51,10 @@ interface QueryFilterBuilderProps {
 	isLoading?: boolean;
 	/** Optional table name/alias for display in column headers (useful for joined table filters) */
 	tableReference?: string;
+	/** Disable the filter builder (e.g., when in custom query mode) */
+	disabled?: boolean;
+	/** Optional column metadata to display data types in the column dropdown */
+	columnMetadata?: Array<TableColumnMetadata>;
 }
 
 const operatorCollection = createListCollection({
@@ -72,6 +82,8 @@ export const QueryFilterBuilder = ({
 	availableColumns,
 	isLoading = false,
 	tableReference,
+	disabled = false,
+	columnMetadata,
 }: QueryFilterBuilderProps) => {
 	const columnCollection = useMemo(
 		() =>
@@ -89,7 +101,11 @@ export const QueryFilterBuilder = ({
 	}
 
 	return (
-		<div className="p-4 space-y-3 border-b">
+		<div
+			className={`p-4 space-y-3 border-b ${
+				disabled ? "opacity-50 pointer-events-none" : ""
+			}`}
+		>
 			<Stack gap="2">
 				{conditions.map((condition, index) => (
 					<FilterConditionRow
@@ -110,6 +126,7 @@ export const QueryFilterBuilder = ({
 						isLast={index === conditions.length - 1}
 						hasMultipleConditions={conditions.length > 1}
 						tableReference={tableReference}
+						columnMetadata={columnMetadata}
 					/>
 				))}
 			</Stack>
@@ -140,6 +157,7 @@ interface FilterConditionRowProps {
 	showLogicalLabel?: boolean;
 	logicalOperator?: LogicalOperatorType;
 	tableReference?: string;
+	columnMetadata?: Array<TableColumnMetadata>;
 }
 
 const FilterConditionRow = (props: FilterConditionRowProps) => {
@@ -156,9 +174,13 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 		showLogicalLabel = false,
 		isLast,
 		logicalOperator = "and",
+		columnMetadata,
 	} = props;
 	const isNullOperator = nullOperators.includes(condition.operator);
 	const isArrayOperator = arrayOperators.includes(condition.operator);
+	const supportsSpecialValues = specialValueSupportedOperators.includes(
+		condition.operator,
+	);
 
 	const filters = useFilter({ sensitivity: "base" });
 	const columnList = useListCollection({
@@ -167,7 +189,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 	});
 	useEffect(() => {
 		columnList.set(columnCollection.items);
-	}, [columnCollection.items]);
+	}, [columnCollection.items, columnList.set]);
 
 	const operatorList = useListCollection({
 		initialItems: operatorCollection.items,
@@ -175,129 +197,210 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 	});
 	useEffect(() => {
 		operatorList.set(operatorCollection.items);
-	}, [operatorCollection.items]);
+	}, [operatorCollection.items, operatorList.set]);
+
+	const specialValuesCollection = useMemo(
+		() => createListCollection({ items: SPECIAL_VALUES_LIST }),
+		[],
+	);
 
 	return (
-		<Stack>
+		<Stack className="gap-0">
 			{showLogicalLabel && index > 0 && (
-				<div className="text-xs font-medium text-muted-foreground uppercase">
+				<div className="flex items-center px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase bg-muted/40 rounded-t-md border-b">
 					{logicalOperator}
 				</div>
 			)}
-			<div className="flex gap-2 items-start">
+			<div
+				className={`flex gap-3 items-end p-3 border rounded-md ${showLogicalLabel && index > 0 ? "rounded-t-none border-t-0" : ""}`}
+			>
 				<Button
 					variant="ghost"
 					size="sm"
 					onClick={() => {
 						onRemove(String(index));
 					}}
+					className="h-8 w-8 p-0 shrink-0 mt-5"
+					title="Remove this filter"
 				>
-					<X />
+					<X className="h-4 w-4" />
 				</Button>
 
-				<Combobox
-					openOnClick
-					collection={columnList.collection}
-					value={condition.column ? [condition.column] : []}
-					onValueChange={(details) => {
-						onUpdate(String(index), { column: details.value?.[0] || "" });
-					}}
-					onInputValueChange={(details) =>
-						columnList.filter(details.inputValue)
-					}
-					className="flex-1 min-w-0"
-				>
-					<ComboboxControl size="sm">
-						<ComboboxInput placeholder="Select column" />
-						<ComboboxTrigger />
-					</ComboboxControl>
-					<ComboboxContent>
-						<ComboboxList>
-							{columnList.collection.items.map((item) => (
-								<ComboboxItem key={item.value} item={item}>
-									{item.label}
-								</ComboboxItem>
-							))}
-						</ComboboxList>
-					</ComboboxContent>
-				</Combobox>
-
-				<Combobox
-					openOnClick
-					collection={operatorList.collection}
-					value={[condition.operator]}
-					onValueChange={(details) => {
-						onUpdate(String(index), {
-							operator: details.value?.[0] as FilterOperatorType,
-						});
-					}}
-					onInputValueChange={(details) =>
-						operatorList.filter(details.inputValue)
-					}
-					className="flex-1 min-w-0"
-				>
-					<ComboboxControl size="sm">
-						<ComboboxInput placeholder="Select operator" />
-						<ComboboxTrigger />
-					</ComboboxControl>
-					<ComboboxContent>
-						<ComboboxList>
-							{operatorList.collection.items.map((item) => {
-								const symbols = getOperatorSymbols(
-									item.value as FilterOperatorType,
-								);
-								return (
+				<div className="flex-1 min-w-0">
+					<Combobox
+						openOnClick
+						collection={columnList.collection}
+						value={condition.column ? [condition.column] : []}
+						onValueChange={(details) => {
+							onUpdate(String(index), { column: details.value?.[0] || "" });
+						}}
+						onInputValueChange={(details) =>
+							columnList.filter(details.inputValue)
+						}
+						className="w-full"
+					>
+						<ComboboxControl size="sm">
+							<ComboboxInput placeholder="Column" />
+							<ComboboxTrigger />
+						</ComboboxControl>
+						<ComboboxContent>
+							<ComboboxList>
+								{columnList.collection.items.map((item) => (
 									<ComboboxItem key={item.value} item={item}>
 										<div className="flex items-center justify-between w-full gap-3">
-											<span className="text-sm lowercase">{item.label}</span>
-											{symbols.length > 0 && (
-												<div className="flex gap-1 ml-auto">
-													{symbols.map((symbol) => (
-														<Kbd
-															key={symbol}
-															variant="outline"
-															size="sm"
-															className="text-xs lowercase"
-														>
-															{symbol}
-														</Kbd>
-													))}
+											<span>{item.label}</span>
+											{columnMetadata && (
+												<div className="ml-auto">
+													<DataTypeBadge
+														dataType={
+															columnMetadata?.find(
+																(col) => col.name === item.value,
+															)?.dataType || ""
+														}
+													/>
 												</div>
 											)}
 										</div>
 									</ComboboxItem>
-								);
-							})}
-						</ComboboxList>
-					</ComboboxContent>
-				</Combobox>
+								))}
+							</ComboboxList>
+						</ComboboxContent>
+					</Combobox>
+				</div>
 
-				{!isNullOperator && (
-					<Input
-						className="flex-1 min-w-0 rounded-md border border-input bg-transparent shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-						size="sm"
-						type="text"
-						placeholder="Value"
-						value={
-							isArrayOperator && Array.isArray(condition.value)
-								? condition.value.join(", ")
-								: (condition.value as string) || ""
-						}
-						onChange={(e) => {
-							const val = e.target.value;
+				<div style={{ minWidth: "140px" }}>
+					<Combobox
+						openOnClick
+						collection={operatorList.collection}
+						value={[condition.operator]}
+						onValueChange={(details) => {
 							onUpdate(String(index), {
-								value: isArrayOperator
-									? val.split(",").map((v) => v.trim())
-									: val,
+								operator: details.value?.[0] as FilterOperatorType,
 							});
 						}}
-					/>
-				)}
+						onInputValueChange={(details) =>
+							operatorList.filter(details.inputValue)
+						}
+						className="w-full"
+					>
+						<ComboboxControl size="sm">
+							<ComboboxInput placeholder="Operator" />
+							<ComboboxTrigger />
+						</ComboboxControl>
+						<ComboboxContent>
+							<ComboboxList>
+								{operatorList.collection.items.map((item) => {
+									const symbols = getOperatorSymbols(
+										item.value as FilterOperatorType,
+									);
+									return (
+										<ComboboxItem key={item.value} item={item}>
+											<div className="flex items-center justify-between w-full gap-3">
+												<span className="text-sm lowercase">{item.label}</span>
+												{symbols.length > 0 && (
+													<div className="flex gap-1 ml-auto">
+														{symbols.map((symbol) => (
+															<Kbd
+																key={symbol}
+																variant="outline"
+																size="sm"
+																className="text-xs lowercase"
+															>
+																{symbol}
+															</Kbd>
+														))}
+													</div>
+												)}
+											</div>
+										</ComboboxItem>
+									);
+								})}
+							</ComboboxList>
+						</ComboboxContent>
+					</Combobox>
+				</div>
 
-				<HStack className="min-w-[210px]">
-					{props.isFirst && props.hasMultipleConditions && (
+				{!isNullOperator && (
+					<div className="flex-1 min-w-0">
+						{supportsSpecialValues ? (
+							<Combobox
+								collection={specialValuesCollection}
+								value={
+									isArrayOperator && Array.isArray(condition.value)
+										? condition.value.map(String)
+										: condition.value
+											? [String(condition.value)]
+											: []
+								}
+								onValueChange={(details) => {
+									onUpdate(String(index), {
+										value:
+											details.value.length === 1
+												? details.value[0]
+												: details.value || "",
+									});
+								}}
+								onInputValueChange={(details) => {
+									const val = details.inputValue;
+									if (!val || val.trim() === "") return;
+									onUpdate(String(index), {
+										value: isArrayOperator
+											? val.split(",").map((v) => v.trim())
+											: val,
+									});
+								}}
+								allowCustomValue
+								openOnClick
+							>
+								<ComboboxControl size="sm">
+									<ComboboxInput
+										placeholder="Value or select special value..."
+										className="w-full"
+									/>
+									<ComboboxTrigger />
+								</ComboboxControl>
+								<ComboboxContent>
+									<ComboboxList>
+										{specialValuesCollection.items.map((item) => (
+											<ComboboxItem
+												key={item.value}
+												item={item}
+												className="text-sm"
+											>
+												<span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+													{item.label}
+												</span>
+											</ComboboxItem>
+										))}
+									</ComboboxList>
+								</ComboboxContent>
+							</Combobox>
+						) : (
+							<Input
+								className="w-full h-8 text-sm rounded-md border border-input bg-transparent shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+								type="text"
+								placeholder="Value"
+								value={
+									isArrayOperator && Array.isArray(condition.value)
+										? condition.value.join(", ")
+										: (condition.value as string) || ""
+								}
+								onChange={(e) => {
+									const val = e.target.value;
+									onUpdate(String(index), {
+										value: isArrayOperator
+											? val.split(",").map((v) => v.trim())
+											: val,
+									});
+								}}
+							/>
+						)}{" "}
+					</div>
+				)}
+				{props.isFirst && props.hasMultipleConditions && (
+					<div style={{ minWidth: "100px" }}>
 						<ArkSelect.Select
-							className="w-24"
+							className="w-full"
 							value={[logicalOperator]}
 							collection={logicalOperatorCollection}
 							positioning={{ sameWidth: true }}
@@ -323,21 +426,34 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 								)}
 							</ArkSelect.SelectContent>
 						</ArkSelect.Select>
-					)}
-					{isLast && (
-						<>
-							<Button variant="outline" size="sm" onClick={() => onAdd?.()}>
-								<Plus />
-								<span className="text-xs">Add filter</span>
-							</Button>
+					</div>
+				)}
 
-							<Button variant="ghost" size="sm" onClick={() => onClearAll()}>
-								<X />
-								<span className="text-xs">Clear all</span>
-							</Button>
-						</>
-					)}
-				</HStack>
+				{isLast && (
+					<Tooltip content="Add another filter">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => onAdd?.()}
+							className="text-xs h-8 px-2 shrink-0"
+						>
+							<Plus className="h-4 w-4" />
+						</Button>
+					</Tooltip>
+				)}
+
+				{isLast && (
+					<Tooltip content="Remove all filters">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => onClearAll()}
+							className="text-xs h-8 px-2 shrink-0"
+						>
+							<X className="h-4 w-4" />
+						</Button>
+					</Tooltip>
+				)}
 			</div>
 		</Stack>
 	);

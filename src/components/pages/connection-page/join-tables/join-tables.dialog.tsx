@@ -1,3 +1,20 @@
+import { createListCollection, useFilter } from "@ark-ui/react";
+import {
+	closestCenter,
+	DndContext,
+	type DragEndEvent,
+	KeyboardSensor,
+	PointerSensor,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
+import {
+	SortableContext,
+	sortableKeyboardCoordinates,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { Button } from "#src/components/ui/button.tsx";
 import {
 	Dialog,
@@ -22,28 +39,10 @@ import { listAvailableSchemasQueryOptions } from "#src/server/introspection/star
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
 import type { TableRelationship } from "../relationships/relationships.ts";
-import { createListCollection, useFilter } from "@ark-ui/react";
-import {
-	closestCenter,
-	DndContext,
-	KeyboardSensor,
-	PointerSensor,
-	useSensor,
-	useSensors,
-	type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-	SortableContext,
-	sortableKeyboardCoordinates,
-	verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { useQuery } from "@tanstack/react-query";
-import { useQueries } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
 import { TableName } from "../table-name.tsx";
 import { cascadeRemoveJoins } from "./cascade-remove-joins.ts";
-import type { JoinTablesConfig } from "./join-tables.types";
 import { getTransitiveJoinRelationships } from "./get-transitive-join-relationships.ts";
+import type { JoinTablesConfig } from "./join-tables.types";
 import { SortableJoinedTableRow } from "./sortable-joined-table-row.tsx";
 import { useJoinTablesState } from "./use-join-tables-state.ts";
 import { useJoinedTables } from "./use-joined-tables.ts";
@@ -103,11 +102,6 @@ const JoinTablesDialogContent = (
 		url: url,
 		joins: joinState.config.joins,
 	});
-
-	const selectedTableIds = [
-		`${schema}.${table}`,
-		...joinState.config.joins.map((j) => `${j.schema}.${j.table}`),
-	];
 
 	const relationshipsBySource = useMemo(() => {
 		const map = new Map<string, TableRelationship[]>();
@@ -448,6 +442,7 @@ const JoinTablesDialogContent = (
 					<div className="space-y-2">
 						<div className="text-sm font-medium">Generated SQL:</div>
 						<div className="p-3 bg-slate-900 rounded text-xs font-mono text-slate-100 overflow-x-auto whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+							{/* TODO use getQueryAsSql */}
 							{buildJoinSqlPreview(
 								schema,
 								table,
