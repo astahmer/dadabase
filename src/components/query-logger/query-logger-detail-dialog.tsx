@@ -82,6 +82,7 @@ export const QueryLoggerDetailDialog = ({
 	const table = useDataTable({
 		data: resultsData as Record<string, unknown>[],
 		columns: tableColumns,
+		manualPagination: true, // Disable pagination to show all results
 	});
 
 	if (!entry) return null;

@@ -34,7 +34,6 @@ import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
 import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
-import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
 import {
 	type Dispatch,
 	type SetStateAction,
@@ -1869,6 +1868,7 @@ const CustomSqlTabContent = (props: {
 	const table = useDataTable({
 		data: outputRows as Record<string, unknown>[],
 		columns: tableColumns,
+		manualPagination: true, // Disable pagination to show all results
 	});
 	const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(
 		null,

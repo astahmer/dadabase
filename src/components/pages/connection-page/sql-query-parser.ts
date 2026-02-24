@@ -243,12 +243,18 @@ export const parseSqlQuery = (
 	const limitMatch = normalizedSqlUpper.match(LIMIT_REGEX);
 	if (limitMatch && limitMatch[1]) {
 		result.limit = parseInt(limitMatch[1], 10);
+	} else {
+		// Explicitly set to undefined to clear any previous limit from URL state
+		result.limit = undefined;
 	}
 
 	// Parse OFFSET clause
 	const offsetMatch = normalizedSqlUpper.match(OFFSET_REGEX);
 	if (offsetMatch && offsetMatch[1]) {
 		result.offset = parseInt(offsetMatch[1], 10);
+	} else {
+		// Explicitly set to undefined to clear any previous offset from URL state
+		result.offset = undefined;
 	}
 
 	// Parse GROUP BY clause

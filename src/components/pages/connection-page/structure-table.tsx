@@ -69,6 +69,7 @@ export const StructureTable = (props: StructureTableProps) => {
 		data: filteredMetadata,
 		columns: structureColumns,
 		getRowId: (row) => row.name,
+		manualPagination: true, // Disable pagination to show all results
 	});
 
 	return (
