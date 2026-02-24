@@ -994,10 +994,9 @@ const RowsTableContent = (
 	);
 	const relationshipPanelSize = fromPixelToPercentage(50, "vertical");
 
-	const [jsFilter, setJsFilter] = useState("");
 	const [jsError, setJsError] = useState<string | null>(null);
 
-	const search = useActiveTabState((tab, search) => {
+	const search = useActiveTabState((tab, _search) => {
 		return {
 			schema: tab.schema,
 			table: tab.table,
@@ -1007,6 +1006,22 @@ const RowsTableContent = (
 			clientFilter: tab.clientFilter,
 		};
 	});
+
+	// Validate JS filter and set error
+	useEffect(() => {
+		if (!search.clientFilter?.trim()) {
+			setJsError(null);
+			return;
+		}
+		try {
+			const fn = new Function("r", `return ${search.clientFilter}`);
+			fn(props.rowsQuery.data?.rows[0] as Record<string, unknown>);
+			setJsError(null);
+		} catch (e) {
+			console.log(e);
+			setJsError(e instanceof Error ? e.message : String(e));
+		}
+	}, [search.clientFilter, props.rowsQuery.data]);
 
 	const onNullsOrderChange = (nullsOrder: "first" | "last" | undefined) => {
 		navigate({
@@ -1018,13 +1033,7 @@ const RowsTableContent = (
 		});
 	};
 
-	// Initialize jsFilter from tab state
-	if (search.clientFilter !== undefined && jsFilter !== search.clientFilter) {
-		setJsFilter(search.clientFilter);
-	}
-
 	const handleJsFilterChange = (value: string) => {
-		setJsFilter(value);
 		navigate({
 			search: (prev) =>
 				updateTabState(prev, {
@@ -1045,7 +1054,7 @@ const RowsTableContent = (
 				<div className="flex items-center gap-2">
 					<Input
 						placeholder="r.name.includes('test')"
-						value={jsFilter}
+						value={search.clientFilter || ""}
 						onChange={(e) => handleJsFilterChange(e.target.value)}
 						className="h-7 text-xs font-mono"
 					/>
@@ -1053,7 +1062,7 @@ const RowsTableContent = (
 						<span className="text-xs text-muted-foreground">(filtered)</span>
 					)}
 				</div>
-				{jsError && <p className="text-red-500 text-xs">{jsError}</p>}
+				{jsError && <p className="text-red-500 text-xs mt-1">{jsError}</p>}
 			</div>
 
 			<Splitter.Root

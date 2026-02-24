@@ -17,7 +17,6 @@
 - copy button should use the <Clipboard> component with a temp success state
 
 ## rows table
-- chrome-like JS repl for visible rows
 - filters in datatable header (th) ?
 - double clicking a cell value should copy it to the clipboard (?)
 - cmd+f in table (virtualized rows needs it) -> highlight/filter?

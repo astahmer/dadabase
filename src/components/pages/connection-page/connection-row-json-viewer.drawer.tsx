@@ -113,7 +113,7 @@ export const ConnectionRowJsonViewerDrawer = ({
 			setJsError(e instanceof Error ? e.message : String(e));
 			return rowJsonData;
 		}
-	}, [rowJsonData, jsFilter]);
+	}, [rowJsonData, jsFilter, isMultiSelect]);
 
 	if (!rowJsonSheetOpen) {
 		return null;
