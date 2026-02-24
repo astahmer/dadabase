@@ -187,7 +187,7 @@ export function SqlMonacoEditor({
 			}}
 			height="100%"
 			defaultLanguage="pgsql"
-			defaultValue={sql}
+			value={sql}
 			onChange={(value) => {
 				if (value !== undefined && onChange) {
 					onChange(value);

@@ -35,6 +35,13 @@ import { useNavigate } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
 import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
 import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
+import {
+	type Dispatch,
+	type SetStateAction,
+	useEffect,
+	useMemo,
+	useState,
+} from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { useDataTable } from "../data-table/use-data-table.ts";
@@ -852,6 +859,13 @@ const RowsTableSqlEditor = (
 
 	// Keep draft SQL locally - don't switch to custom SQL mode until user runs
 	const [draftSql, setDraftSql] = useState<string | null>(null);
+
+	// When the generated SQL changes (e.g., from adding a join via UI), clear the draft
+	// so the editor syncs with the new generated SQL
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset draft when generated SQL changes
+	useEffect(() => {
+		setDraftSql(null);
+	}, [props.sqlQueryAsText]);
 
 	// Fetch available tables/columns for intellisense
 	const { tables, columns } = useTablesColumnsForIntellisense({
