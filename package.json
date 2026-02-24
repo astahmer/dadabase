@@ -112,6 +112,7 @@
 		"@types/react-dom": "19.2.3",
 		"@typescript/native-preview": "7.0.0-dev.20251204.1",
 		"@vitejs/plugin-react": "5.1.1",
+		"chrome-devtools-mcp": "^0.17.3",
 		"drizzle-kit": "0.31.8",
 		"kysely-pglite": "0.6.1",
 		"lefthook": "^2.0.8",
