@@ -1,11 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
 import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
 import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
 import { HStack, Stack } from "#src/components/ui/layout.tsx";
+import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { Input } from "../../ui/input.tsx";
 import { JsonViewer } from "../../ui/json-viewer.tsx";
 import {
@@ -94,26 +95,23 @@ export const ConnectionRowJsonViewerDrawer = ({
 	}, [rowIds, primaryKeyColumn, rowsQuery.data, isMultiSelect]);
 
 	const [jsFilter, setJsFilter] = useState("");
-	const [jsError, setJsError] = useState<string | null>(null);
+
+	const jsFilterResult = useJsEvalFilter(jsFilter, {
+		paramName: isMultiSelect ? "rows" : "row",
+		sampleData: rowJsonData,
+	});
 
 	const filteredData = useMemo(() => {
-		if (!rowJsonData || !jsFilter.trim()) {
-			setJsError(null);
+		if (!rowJsonData || !jsFilter.trim() || !jsFilterResult.fn) {
 			return rowJsonData;
 		}
 		try {
-			const fn = new Function(
-				isMultiSelect ? "rows" : "row",
-				`return ${jsFilter}`,
-			);
-			const result = fn(rowJsonData);
-			setJsError(null);
+			const result = jsFilterResult.fn(rowJsonData);
 			return result !== undefined ? result : rowJsonData;
-		} catch (e) {
-			setJsError(e instanceof Error ? e.message : String(e));
+		} catch {
 			return rowJsonData;
 		}
-	}, [rowJsonData, jsFilter, isMultiSelect]);
+	}, [rowJsonData, jsFilter, jsFilterResult.fn]);
 
 	if (!rowJsonSheetOpen) {
 		return null;
@@ -160,7 +158,9 @@ export const ConnectionRowJsonViewerDrawer = ({
 						onChange={(e) => setJsFilter(e.target.value)}
 						className="mt-2 font-mono text-sm"
 					/>
-					{jsError && <p className="text-red-500 text-xs mt-1">{jsError}</p>}
+					{jsFilterResult.error && (
+						<p className="text-red-500 text-xs mt-1">{jsFilterResult.error}</p>
+					)}
 				</SheetHeader>
 				<div className="p-4 flex-1 overflow-auto">
 					{rowJsonData ? (

@@ -18,6 +18,7 @@ import { formatTableValue } from "#src/components/pages/connection-page/format-t
 import { RelationshipSubrowTable } from "#src/components/pages/connection-page/relationships/relationship-subrow-table.tsx";
 import { useRowsColumns } from "#src/components/pages/connection-page/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
+import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { useTableRelationships } from "#src/components/pages/connection-page/use-table-relationships.ts";
 import { useQueryBuilder } from "#src/components/query-builder/use-query-builder.ts";
 import { Button } from "#src/components/ui/button.tsx";
@@ -221,21 +222,24 @@ export const useConnectionPageState = ({
 			return formattedRow;
 		});
 
-		// Apply client-side JS filter if present
-		if (search.clientFilter?.trim()) {
-			try {
-				const fn = new Function("r", `return ${search.clientFilter}`);
-				return formatted.filter((row) => {
-					const result = fn(row);
-					return result === true;
-				});
-			} catch {
-				return formatted;
-			}
-		}
-
 		return formatted;
-	}, [queryResponse.rows, search.clientFilter]);
+	}, [queryResponse.rows]);
+
+	const jsFilterResult = useJsEvalFilter(search.clientFilter, {
+		paramName: "r",
+		sampleData:
+			formattedTableRowsData.length > 0 ? formattedTableRowsData[0] : undefined,
+	});
+
+	const filteredTableRowsData = useMemo(() => {
+		if (!search.clientFilter?.trim() || !jsFilterResult.fn) {
+			return formattedTableRowsData;
+		}
+		return formattedTableRowsData.filter((row) => {
+			const result = jsFilterResult.fn!(row);
+			return result === true;
+		});
+	}, [formattedTableRowsData, search.clientFilter, jsFilterResult.fn]);
 
 	// Static columns
 	const staticColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(
@@ -583,7 +587,7 @@ export const useConnectionPageState = ({
 		getRowId: primaryCols.length
 			? (row) => primaryCols.map((col) => row[col]).join("-")
 			: undefined,
-		data: formattedTableRowsData,
+		data: filteredTableRowsData,
 		columns: rowsColumns,
 		state: {
 			pagination: {

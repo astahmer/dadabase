@@ -16,6 +16,7 @@ import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { getErrorMessage } from "#src/lib/get-error-message.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
+import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { queryClient } from "#src/query-client.ts";
 import {
 	customSqlExecutionQueryOptions,
@@ -994,8 +995,6 @@ const RowsTableContent = (
 	);
 	const relationshipPanelSize = fromPixelToPercentage(50, "vertical");
 
-	const [jsError, setJsError] = useState<string | null>(null);
-
 	const search = useActiveTabState((tab, _search) => {
 		return {
 			schema: tab.schema,
@@ -1007,21 +1006,10 @@ const RowsTableContent = (
 		};
 	});
 
-	// Validate JS filter and set error
-	useEffect(() => {
-		if (!search.clientFilter?.trim()) {
-			setJsError(null);
-			return;
-		}
-		try {
-			const fn = new Function("r", `return ${search.clientFilter}`);
-			fn(props.rowsQuery.data?.rows[0] as Record<string, unknown>);
-			setJsError(null);
-		} catch (e) {
-			console.log(e);
-			setJsError(e instanceof Error ? e.message : String(e));
-		}
-	}, [search.clientFilter, props.rowsQuery.data]);
+	const jsFilterResult = useJsEvalFilter(search.clientFilter, {
+		paramName: "r",
+		sampleData: props.rowsQuery.data?.rows[0] as Record<string, unknown>,
+	});
 
 	const onNullsOrderChange = (nullsOrder: "first" | "last" | undefined) => {
 		navigate({
@@ -1062,7 +1050,9 @@ const RowsTableContent = (
 						<span className="text-xs text-muted-foreground">(filtered)</span>
 					)}
 				</div>
-				{jsError && <p className="text-red-500 text-xs mt-1">{jsError}</p>}
+				{jsFilterResult.error && (
+					<p className="text-red-500 text-xs mt-1">{jsFilterResult.error}</p>
+				)}
 			</div>
 
 			<Splitter.Root
@@ -1858,43 +1848,25 @@ const CustomSqlTabContent = (props: {
 	const outputColumns = executeCustomSql.output?.columns ?? [];
 
 	const [jsFilter, setJsFilter] = useState("");
-	const [jsError, setJsError] = useState<string | null>(null);
 
-	// Validate JS filter and set error
-	useEffect(() => {
-		if (!jsFilter.trim()) {
-			setJsError(null);
-			return;
-		}
-		try {
-			const fn = new Function("r", `return ${jsFilter}`);
-			// Try to run against a sample row if available
-			if (outputRows.length > 0) {
-				fn(outputRows[0]);
-			}
-			setJsError(null);
-		} catch (e) {
-			setJsError(e instanceof Error ? e.message : String(e));
-		}
-	}, [jsFilter, outputRows]);
+	const jsFilterResult = useJsEvalFilter(jsFilter, {
+		paramName: "r",
+		sampleData: outputRows.length > 0 ? outputRows[0] : undefined,
+	});
 
 	const filteredRows = useMemo(() => {
-		if (!jsFilter.trim()) {
-			return outputRows;
-		}
-		if (jsError) {
+		if (!jsFilter.trim() || !jsFilterResult.fn) {
 			return outputRows;
 		}
 		try {
-			const fn = new Function("r", `return ${jsFilter}`);
 			return outputRows.filter((row) => {
-				const result = fn(row);
+				const result = jsFilterResult.fn!(row);
 				return result === true;
 			});
 		} catch {
 			return outputRows;
 		}
-	}, [outputRows, jsFilter, jsError]);
+	}, [outputRows, jsFilter, jsFilterResult.fn]);
 
 	const tableColumns = useMemo(() => {
 		const columnHelper = createColumnHelper<Record<string, unknown>>();
@@ -2017,7 +1989,9 @@ const CustomSqlTabContent = (props: {
 							className="h-7 text-xs font-mono"
 						/>
 					</div>
-					{jsError && <p className="text-red-500 text-xs mt-1">{jsError}</p>}
+					{jsFilterResult.error && (
+						<p className="text-red-500 text-xs mt-1">{jsFilterResult.error}</p>
+					)}
 				</div>
 				<ColumnHeaderContextProvider>
 					<DataTable
