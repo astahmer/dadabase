@@ -1204,18 +1204,20 @@ const BulkActions = (
 	};
 
 	const handleViewJson = () => {
-		const firstSelectedRow = selectedRows[0];
-		if (!firstSelectedRow) return;
+		if (selectedRows.length === 0) return;
 
 		const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
-		const rowId = primaryKeyColumn
-			? String(firstSelectedRow.original[primaryKeyColumn.name])
-			: firstSelectedRow.id;
+
+		// Get all selected row IDs
+		const rowIds = selectedRows.map((row) =>
+			primaryKeyColumn ? String(row.original[primaryKeyColumn.name]) : row.id,
+		);
 
 		navigate({
 			search: (prev) => ({
 				...prev,
-				rowJsonViewerRowId: rowId,
+				rowJsonViewerRowIds: rowIds,
+				rowJsonViewerRowId: undefined,
 				rowJsonViewerOpen: true,
 			}),
 		});

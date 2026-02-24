@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
 import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
+import { HStack, Stack } from "#src/components/ui/layout.tsx";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
+import { Input } from "../../ui/input.tsx";
 import { JsonViewer } from "../../ui/json-viewer.tsx";
 import {
 	Sheet,
@@ -34,6 +36,7 @@ export const ConnectionRowJsonViewerDrawer = ({
 		filters: tab.filters,
 		rowJsonViewerOpen: s.rowJsonViewerOpen,
 		rowJsonViewerRowId: s.rowJsonViewerRowId,
+		rowJsonViewerRowIds: s.rowJsonViewerRowIds,
 	}));
 
 	const connectionUrl = connection.url || "";
@@ -68,18 +71,49 @@ export const ConnectionRowJsonViewerDrawer = ({
 		enabled: !!search.schema && !!search.table,
 	});
 
-	// Reconstruct row data from URL rowId by looking it up in current table data
+	// Get row IDs - either from bulk selection (rowJsonViewerRowIds) or single row (rowJsonViewerRowId)
+	const rowIds =
+		search.rowJsonViewerRowIds ??
+		(search.rowJsonViewerRowId ? [search.rowJsonViewerRowId] : []);
+	const isMultiSelect = (search.rowJsonViewerRowIds?.length ?? 0) > 1;
+
+	// Reconstruct row data from URL rowId(s) by looking them up in current table data
 	const rowJsonData = useMemo(() => {
-		if (!search.rowJsonViewerRowId || !primaryKeyColumn || !rowsQuery.data) {
+		if (!rowIds.length || !primaryKeyColumn || !rowsQuery.data) {
 			return null;
 		}
 		const rows = rowsQuery.data.rows || [];
-		const row = rows.find(
-			(r) =>
-				String(r[primaryKeyColumn.name]) === String(search.rowJsonViewerRowId),
+		const matchedRows = rows.filter((r) =>
+			rowIds.includes(String(r[primaryKeyColumn.name])),
 		);
-		return row ? formatTableValue(row) : null;
-	}, [search.rowJsonViewerRowId, primaryKeyColumn, rowsQuery.data]);
+		if (matchedRows.length === 0) return null;
+
+		// Return array for multi-select, single object for single select
+		const formattedRows = matchedRows.map((row) => formatTableValue(row));
+		return isMultiSelect ? formattedRows : formattedRows[0];
+	}, [rowIds, primaryKeyColumn, rowsQuery.data, isMultiSelect]);
+
+	const [jsFilter, setJsFilter] = useState("");
+	const [jsError, setJsError] = useState<string | null>(null);
+
+	const filteredData = useMemo(() => {
+		if (!rowJsonData || !jsFilter.trim()) {
+			setJsError(null);
+			return rowJsonData;
+		}
+		try {
+			const fn = new Function(
+				isMultiSelect ? "rows" : "row",
+				`return ${jsFilter}`,
+			);
+			const result = fn(rowJsonData);
+			setJsError(null);
+			return result !== undefined ? result : rowJsonData;
+		} catch (e) {
+			setJsError(e instanceof Error ? e.message : String(e));
+			return rowJsonData;
+		}
+	}, [rowJsonData, jsFilter]);
 
 	if (!rowJsonSheetOpen) {
 		return null;
@@ -101,6 +135,7 @@ export const ConnectionRowJsonViewerDrawer = ({
 						search: (prev) => ({
 							...prev,
 							rowJsonViewerRowId: undefined,
+							rowJsonViewerRowIds: undefined,
 							rowJsonViewerOpen: false,
 						}),
 					});
@@ -109,30 +144,108 @@ export const ConnectionRowJsonViewerDrawer = ({
 		>
 			<SheetContent className="z-50 w-full sm:max-w-[800px] p-0 flex flex-col">
 				<SheetHeader>
-					<SheetTitle>Row Data</SheetTitle>
-					<SheetDescription>Expanded JSON viewer</SheetDescription>
+					<SheetTitle>
+						{isMultiSelect ? `${rowIds.length} Rows` : "Row Data"}
+					</SheetTitle>
+					<SheetDescription>
+						{isMultiSelect ? "Bulk JSON viewer" : "Expanded JSON viewer"}
+					</SheetDescription>
+					<Input
+						placeholder={
+							isMultiSelect
+								? "rows[0].id === 1 || rows[1].id === 2 || rows.filter(r => r.isAdmin)"
+								: "row.nested.prop.name.includes('test')"
+						}
+						value={jsFilter}
+						onChange={(e) => setJsFilter(e.target.value)}
+						className="mt-2 font-mono text-sm"
+					/>
+					{jsError && <p className="text-red-500 text-xs mt-1">{jsError}</p>}
 				</SheetHeader>
 				<div className="p-4 flex-1 overflow-auto">
 					{rowJsonData ? (
 						useRelationshipExplorer ? (
-							<RelationshipExplorer
-								row={rowJsonData as Record<string, unknown>}
-								schema={search.schema!}
-								table={search.table!}
-								connectionUrl={activeConnectionUrl}
-								className="h-full"
-								maxDepth={5}
-								showRelationships={true}
-							/>
+							Array.isArray(filteredData) ? (
+								<div className="flex flex-col gap-4 overflow-auto h-full">
+									{filteredData.map((row, idx) => (
+										<div key={idx} className="border rounded-md p-2">
+											<div className="text-sm font-medium mb-2">#{idx + 1}</div>
+											{row && typeof row === "object" ? (
+												<RelationshipExplorer
+													row={row as Record<string, unknown>}
+													schema={search.schema!}
+													table={search.table!}
+													connectionUrl={activeConnectionUrl}
+													className="h-full"
+													maxDepth={5}
+													showRelationships={true}
+												/>
+											) : (
+												<JsonViewer
+													data={row}
+													defaultExpanded={false}
+													maxDepth={3}
+												/>
+											)}
+										</div>
+									))}
+								</div>
+							) : filteredData && typeof filteredData === "object" ? (
+								<RelationshipExplorer
+									row={filteredData as Record<string, unknown>}
+									schema={search.schema!}
+									table={search.table!}
+									connectionUrl={activeConnectionUrl}
+									className="h-full"
+									maxDepth={5}
+									showRelationships={true}
+								/>
+							) : (
+								<JsonViewer
+									data={filteredData}
+									defaultExpanded={false}
+									maxDepth={3}
+								/>
+							)
+						) : isMultiSelect ? (
+							<Stack>
+								{Array.isArray(filteredData) ? (
+									filteredData.map((row, filteredIndex) => {
+										const rowIndex =
+											row &&
+											typeof row === "object" &&
+											primaryKeyColumn?.name &&
+											rowIds.indexOf(String(row[primaryKeyColumn.name]));
+										return (
+											<HStack key={filteredIndex}>
+												<span className="text-sm font-medium mb-2">
+													#{rowIndex === -1 ? filteredIndex + 1 : rowIndex + 1}
+												</span>
+												<JsonViewer
+													data={row}
+													defaultExpanded={false}
+													maxDepth={3}
+												/>
+											</HStack>
+										);
+									})
+								) : (
+									<JsonViewer
+										data={filteredData}
+										defaultExpanded={false}
+										maxDepth={3}
+									/>
+								)}
+							</Stack>
 						) : (
 							<JsonViewer
-								data={rowJsonData}
+								data={filteredData}
 								defaultExpanded={true}
 								maxDepth={5}
 								className="h-full"
 							/>
 						)
-					) : !search.rowJsonViewerRowId ? (
+					) : !rowIds.length ? (
 						<div className="text-sm text-muted-foreground">No data</div>
 					) : (
 						// Loading skeleton

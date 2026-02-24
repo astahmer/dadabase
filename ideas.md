@@ -19,11 +19,9 @@
 
 
 ## json viewer/editor
-- easy to use JSON filters -> search in path / contains string; eval JS expression (row.nested.prop.name.includes('test') or rows.filter(r => r.nested.prop.name === 'test') ) / use JSON path to navigate to nested objects
 - copy button should use the <Clipboard> component with a temp success state
 - when clicking a table row -> JSON viewer that auto fetch nested entities with foreign keys (up to a limit of 50 rows per relation)
 - inline popover + expanded view copy button should also include expanded nested entities (relationships based on foreign keys)
-- JSON viewer like chrome console evaluated array
 
 ## rows table
 - chrome-like JS repl for visible rows

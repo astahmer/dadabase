@@ -80,6 +80,11 @@ const searchSchema = Schema.Struct({
 	rowJsonViewerRowId: Schema.Union(Schema.String, Schema.Number).pipe(
 		Schema.optional,
 	),
+	// Array of primary key values for bulk JSON viewer
+	rowJsonViewerRowIds: Schema.Union(Schema.String, Schema.Number).pipe(
+		Schema.Array,
+		Schema.optional,
+	),
 });
 
 export const Route = createFileRoute("/connections/$connectionName")({
