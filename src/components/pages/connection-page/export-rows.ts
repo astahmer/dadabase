@@ -3,7 +3,7 @@
  */
 
 export interface ExportOptions {
-	format: "json" | "csv";
+	format: "json" | "csv" | "tsv";
 	filename?: string;
 }
 
@@ -55,6 +55,35 @@ function rowsToCSV(
  */
 function rowsToJSON(rows: Array<Record<string, unknown>>): string {
 	return JSON.stringify(rows, null, 2);
+}
+
+/**
+ * Converts rows to TSV format
+ */
+function rowsToTSV(
+	rows: Array<Record<string, unknown>>,
+	columns: string[],
+): string {
+	if (rows.length === 0) return "";
+
+	const header = columns.join("\t");
+
+	const tsvRows = rows.map((row) =>
+		columns
+			.map((col) => {
+				const value = row[col];
+				const stringValue =
+					value === null || value === undefined
+						? ""
+						: typeof value === "object"
+							? JSON.stringify(value)
+							: String(value);
+				return stringValue.replace(/\t/g, " ");
+			})
+			.join("\t"),
+	);
+
+	return [header, ...tsvRows].join("\n");
 }
 
 /**
@@ -130,6 +159,10 @@ export function exportRows(
 		content = rowsToCSV(rows, columns);
 		mimeType = "text/csv;charset=utf-8;";
 		extension = "csv";
+	} else if (options.format === "tsv") {
+		content = rowsToTSV(rows, columns);
+		mimeType = "text/tab-separated-values;charset=utf-8;";
+		extension = "tsv";
 	} else {
 		content = rowsToJSON(rows);
 		mimeType = "application/json;charset=utf-8;";
