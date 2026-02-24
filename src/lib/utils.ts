@@ -2,13 +2,13 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-	return twMerge(clsx(inputs));
+  return twMerge(clsx(inputs));
 }
 
 export const tryFn = <T>(fn: () => T) => {
-	try {
-		return fn();
-	} catch (e) {
-		return undefined;
-	}
+  try {
+    return fn();
+  } catch (e) {
+    return undefined;
+  }
 };

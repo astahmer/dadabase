@@ -12,11 +12,11 @@ https://github.com/TanStack/table/discussions/5505 / https://github.com/TanStack
 
 ```ts
 const useDialogContext = () => {
-	try {
-		return useArkDialogContext();
-	} catch {
-		return;
-	}
+  try {
+    return useArkDialogContext();
+  } catch {
+    return;
+  }
 };
 ```
 
@@ -25,7 +25,6 @@ const useDialogContext = () => {
 ```ts
 let isPanelExpanded = false;
 try {
-    isPanelExpanded =
-        ctx.isPanelExpanded("relationships");
+  isPanelExpanded = ctx.isPanelExpanded("relationships");
 } catch {}
 ```

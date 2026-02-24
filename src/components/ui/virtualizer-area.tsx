@@ -1,29 +1,21 @@
-import {
-	useVirtualizer,
-	type Virtualizer,
-	type VirtualizerOptions,
-} from "@tanstack/react-virtual";
+import { useVirtualizer, type Virtualizer, type VirtualizerOptions } from "@tanstack/react-virtual";
 import { ReactNode, useRef } from "react";
 
 interface VirtualizerAreaProps {
-	/** Number of items in the list */
-	count: number;
-	/** Optional virtualizer configuration overrides */
-	virtualizerOptions?: Partial<
-		VirtualizerOptions<HTMLDivElement, HTMLDivElement>
-	>;
-	/** Render function that receives virtual items and rendering context */
-	children: (context: {
-		virtualizer: Virtualizer<HTMLDivElement, HTMLDivElement>;
-		virtualItems: ReturnType<
-			ReturnType<typeof useVirtualizer>["getVirtualItems"]
-		>;
-		totalSize: number;
-		paddingTop: number;
-		paddingBottom: number;
-	}) => ReactNode;
-	/** CSS class for the scroll container */
-	className?: string;
+  /** Number of items in the list */
+  count: number;
+  /** Optional virtualizer configuration overrides */
+  virtualizerOptions?: Partial<VirtualizerOptions<HTMLDivElement, HTMLDivElement>>;
+  /** Render function that receives virtual items and rendering context */
+  children: (context: {
+    virtualizer: Virtualizer<HTMLDivElement, HTMLDivElement>;
+    virtualItems: ReturnType<ReturnType<typeof useVirtualizer>["getVirtualItems"]>;
+    totalSize: number;
+    paddingTop: number;
+    paddingBottom: number;
+  }) => ReactNode;
+  /** CSS class for the scroll container */
+  className?: string;
 }
 
 /**
@@ -52,44 +44,37 @@ interface VirtualizerAreaProps {
  * ```
  */
 export const VirtualizerArea = ({
-	count,
-	virtualizerOptions,
-	children,
-	className = "overflow-y-auto flex-1 max-h-96",
+  count,
+  virtualizerOptions,
+  children,
+  className = "overflow-y-auto flex-1 max-h-96",
 }: VirtualizerAreaProps) => {
-	const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-	const virtualizer = useVirtualizer({
-		count,
-		getScrollElement: () => scrollContainerRef.current,
-		estimateSize: () => 41, // Default: py-2.5 + border = ~41px
-		overscan: 10,
-		...virtualizerOptions,
-	});
+  const virtualizer = useVirtualizer({
+    count,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: () => 41, // Default: py-2.5 + border = ~41px
+    overscan: 10,
+    ...virtualizerOptions,
+  });
 
-	const virtualItems = virtualizer.getVirtualItems();
-	const totalSize = virtualizer.getTotalSize();
+  const virtualItems = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
 
-	const paddingTop =
-		virtualItems.length > 0 ? (virtualItems[0]?.start ?? 0) : 0;
-	const paddingBottom =
-		virtualItems.length > 0
-			? totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0)
-			: 0;
+  const paddingTop = virtualItems.length > 0 ? (virtualItems[0]?.start ?? 0) : 0;
+  const paddingBottom =
+    virtualItems.length > 0 ? totalSize - (virtualItems[virtualItems.length - 1]?.end ?? 0) : 0;
 
-	return (
-		<div
-			ref={scrollContainerRef}
-			className={className}
-			style={{ minHeight: 0 }}
-		>
-			{children({
-				virtualizer,
-				virtualItems,
-				totalSize,
-				paddingTop,
-				paddingBottom,
-			})}
-		</div>
-	);
+  return (
+    <div ref={scrollContainerRef} className={className} style={{ minHeight: 0 }}>
+      {children({
+        virtualizer,
+        virtualItems,
+        totalSize,
+        paddingTop,
+        paddingBottom,
+      })}
+    </div>
+  );
 };

@@ -12,17 +12,18 @@ import { YourComponent } from "#src/components/ui/your-component.tsx";
 import { useState } from "react";
 
 export function YourComponentExample() {
-	const [state, setState] = useState("");
+  const [state, setState] = useState("");
 
-	return (
-		<div className="p-4">
-			<YourComponent value={state} onChange={setState} />
-		</div>
-	);
+  return (
+    <div className="p-4">
+      <YourComponent value={state} onChange={setState} />
+    </div>
+  );
 }
 ```
 
 **Rules:**
+
 - File: `your-component.example.tsx` → Function: `YourComponentExample`
 - Use `#src/` import alias
 - Keep state minimal (only what's needed)

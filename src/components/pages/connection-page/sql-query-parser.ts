@@ -1,8 +1,8 @@
 import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type {
-	FilterConditionExpression,
-	FilterOperatorType,
-	QueryFilterType,
+  FilterConditionExpression,
+  FilterOperatorType,
+  QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
 
 /**
@@ -19,16 +19,16 @@ import type {
  * Returns partial tab state updates that can be merged with existing state
  */
 export interface ParsedSqlQueryState {
-	filters?: QueryFilterType;
-	groupBy?: string[];
-	having?: QueryFilterType;
-	orderBy?: string;
-	orderDirection?: "asc" | "desc";
-	nullsOrder?: "first" | "last";
-	limit?: number;
-	offset?: number;
-	hiddenColumnList?: string[];
-	joins?: JoinedTable[];
+  filters?: QueryFilterType;
+  groupBy?: string[];
+  having?: QueryFilterType;
+  orderBy?: string;
+  orderDirection?: "asc" | "desc";
+  nullsOrder?: "first" | "last";
+  limit?: number;
+  offset?: number;
+  hiddenColumnList?: string[];
+  joins?: JoinedTable[];
 }
 
 // ============================================================================
@@ -52,14 +52,13 @@ const COLUMN_NAME = /["`]?(\w+)["`]?/;
 const QUALIFIED_IDENTIFIER_PATTERN = '(?:["`]?\\w+["`]?\\.){0,2}["`]?\\w+["`]?';
 
 // SQL clause patterns
-const WHERE_CLAUSE_REGEX =
-	/WHERE\s+(.+?)(?:ORDER BY|LIMIT|OFFSET|GROUP BY|HAVING|$)/i;
+const WHERE_CLAUSE_REGEX = /WHERE\s+(.+?)(?:ORDER BY|LIMIT|OFFSET|GROUP BY|HAVING|$)/i;
 const GROUP_BY_REGEX = /GROUP\s+BY\s+(.+?)(?:HAVING|ORDER BY|LIMIT|OFFSET|$)/i;
 const HAVING_REGEX = /HAVING\s+(.+?)(?:ORDER BY|LIMIT|OFFSET|$)/i;
 // Extended ORDER BY regex to capture NULLS FIRST/NULLS LAST
 const ORDER_BY_REGEX = new RegExp(
-	`ORDER\\s+BY\\s+${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}(?:\\s+(ASC|DESC))?(?:\\s+(NULLS\\s+(?:FIRST|LAST)))?`,
-	"i",
+  `ORDER\\s+BY\\s+${QUALIFIER_PREFIX.source}${COLUMN_NAME.source}(?:\\s+(ASC|DESC))?(?:\\s+(NULLS\\s+(?:FIRST|LAST)))?`,
+  "i",
 );
 const LIMIT_REGEX = /LIMIT\s+(\d+)/i;
 const OFFSET_REGEX = /OFFSET\s+(\d+)/i;
@@ -74,7 +73,7 @@ const SELECT_REGEX = /SELECT\s+(.+?)\s+FROM/i;
 // - FULL OUTER JOIN "table" ON conditions
 // - CROSS JOIN "table"
 const JOIN_TYPE_REGEX =
-	/(LEFT|INNER|RIGHT|FULL\s+OUTER|CROSS)(?:\s+OUTER)?\s+JOIN\s+(["`]?[\w.]+["`]?)(?:\s+(?:AS\s+)?(["`]?\w+["`]?))?(?:\s+ON\s+(.+?))?(?=\s+(?:LEFT|INNER|RIGHT|FULL|CROSS|WHERE|ORDER|LIMIT|OFFSET|GROUP|HAVING)|$)/gi;
+  /(LEFT|INNER|RIGHT|FULL\s+OUTER|CROSS)(?:\s+OUTER)?\s+JOIN\s+(["`]?[\w.]+["`]?)(?:\s+(?:AS\s+)?(["`]?\w+["`]?))?(?:\s+ON\s+(.+?))?(?=\s+(?:LEFT|INNER|RIGHT|FULL|CROSS|WHERE|ORDER|LIMIT|OFFSET|GROUP|HAVING)|$)/gi;
 
 // Logical operators for WHERE clause
 const AND_SPLIT_REGEX = /\s+AND\s+/gi;
@@ -84,23 +83,22 @@ const LOGICAL_SPLIT_REGEX = /\s+(?:AND|OR)\s+/gi;
 // Condition patterns (with schema.table.column support)
 // Group 1 captures the full qualified identifier
 const IS_NULL_REGEX = new RegExp(
-	`^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+IS\\s+(NOT\\s+)?NULL$`,
-	"i",
+  `^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+IS\\s+(NOT\\s+)?NULL$`,
+  "i",
 );
 const IN_REGEX = new RegExp(
-	`^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+(NOT\\s+)?IN\\s*\\(\\s*(.+?)\\s*\\)$`,
-	"i",
+  `^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+(NOT\\s+)?IN\\s*\\(\\s*(.+?)\\s*\\)$`,
+  "i",
 );
 const LIKE_REGEX = new RegExp(
-	`^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+(NOT\\s+)?LIKE\\s+['"](.+?)['"]$`,
-	"i",
+  `^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+(NOT\\s+)?LIKE\\s+['"](.+?)['"]$`,
+  "i",
 );
 const COMPARISON_REGEX = new RegExp(
-	`^(${QUALIFIED_IDENTIFIER_PATTERN})\\s*(<=|>=|<>|!=|=|<|>)\\s*['"]?(.+?)['"]?$`,
+  `^(${QUALIFIED_IDENTIFIER_PATTERN})\\s*(<=|>=|<>|!=|=|<|>)\\s*['"]?(.+?)['"]?$`,
 );
 // Aggregate function pattern for HAVING clauses: COUNT(*), SUM(col), AVG(col), etc.
-const AGGREGATE_COMPARISON_REGEX =
-	/^(\w+\([^)]*\))\s*(<=|>=|<>|!=|=|<|>)\s*['"]?(.+?)['"]?$/;
+const AGGREGATE_COMPARISON_REGEX = /^(\w+\([^)]*\))\s*(<=|>=|<>|!=|=|<|>)\s*['"]?(.+?)['"]?$/;
 // Pattern for NOT conditions: NOT (condition) or NOT column = value
 const NOT_REGEX = /^NOT\s+(.+)$/i;
 
@@ -112,48 +110,42 @@ const NOT_REGEX = /^NOT\s+(.+)$/i;
  * - Schema-qualified: schema.table.column → { column: "column", table: "table" }
  * Returns object with column name and optional table name
  */
-const extractTableAndColumn = (
-	identifier: string,
-): { column: string; table?: string } => {
-	const identifier_clean = identifier.trim().toLowerCase();
+const extractTableAndColumn = (identifier: string): { column: string; table?: string } => {
+  const identifier_clean = identifier.trim().toLowerCase();
 
-	// Match fully qualified identifier: optional schema, optional table, column
-	// Pattern: [schema.][table.]column
-	const fullMatch = identifier_clean.match(
-		/^(?:(?:["`]?\w+["`]?)\.){0,2}["`]?(\w+)["`]?$/,
-	);
+  // Match fully qualified identifier: optional schema, optional table, column
+  // Pattern: [schema.][table.]column
+  const fullMatch = identifier_clean.match(/^(?:(?:["`]?\w+["`]?)\.){0,2}["`]?(\w+)["`]?$/);
 
-	if (!fullMatch) {
-		return { column: identifier_clean };
-	}
+  if (!fullMatch) {
+    return { column: identifier_clean };
+  }
 
-	// Split by dots to extract parts (removing quotes)
-	const parts = identifier_clean
-		.split(".")
-		.map((part) => part.replace(/["`]/g, ""));
+  // Split by dots to extract parts (removing quotes)
+  const parts = identifier_clean.split(".").map((part) => part.replace(/["`]/g, ""));
 
-	// Filter out empty parts
-	const cleanParts = parts.filter((p) => p.length > 0);
+  // Filter out empty parts
+  const cleanParts = parts.filter((p) => p.length > 0);
 
-	if (cleanParts.length === 1) {
-		// Just column name
-		return { column: cleanParts[0] };
-	}
+  if (cleanParts.length === 1) {
+    // Just column name
+    return { column: cleanParts[0] };
+  }
 
-	if (cleanParts.length === 2) {
-		// table.column
-		return { table: cleanParts[0], column: cleanParts[1] };
-	}
+  if (cleanParts.length === 2) {
+    // table.column
+    return { table: cleanParts[0], column: cleanParts[1] };
+  }
 
-	if (cleanParts.length >= 3) {
-		// schema.table.column - return table (second-to-last part) and column (last part)
-		return {
-			table: cleanParts[cleanParts.length - 2],
-			column: cleanParts[cleanParts.length - 1],
-		};
-	}
+  if (cleanParts.length >= 3) {
+    // schema.table.column - return table (second-to-last part) and column (last part)
+    return {
+      table: cleanParts[cleanParts.length - 2],
+      column: cleanParts[cleanParts.length - 1],
+    };
+  }
 
-	return { column: identifier_clean };
+  return { column: identifier_clean };
 };
 
 /**
@@ -165,8 +157,8 @@ const extractTableAndColumn = (
  * Returns the column name without any prefix
  */
 const extractColumnName = (identifier: string): string => {
-	const { column } = extractTableAndColumn(identifier);
-	return column;
+  const { column } = extractTableAndColumn(identifier);
+  return column;
 };
 
 /**
@@ -175,134 +167,129 @@ const extractColumnName = (identifier: string): string => {
  * Returns just the column name (left side of AS or space-separated alias)
  */
 const extractColumnNameWithAlias = (columnExpression: string): string => {
-	// Remove alias: split on AS keyword (case-insensitive)
-	const withoutAlias = columnExpression.split(/\s+AS\s+/i)[0].trim();
+  // Remove alias: split on AS keyword (case-insensitive)
+  const withoutAlias = columnExpression.split(/\s+AS\s+/i)[0].trim();
 
-	// Also handle space-separated aliases without AS (e.g., "col alias")
-	// Only take the first part if multiple space-separated identifiers
-	const parts = withoutAlias.split(/\s+/);
-	const columnPart = parts[0].trim();
+  // Also handle space-separated aliases without AS (e.g., "col alias")
+  // Only take the first part if multiple space-separated identifiers
+  const parts = withoutAlias.split(/\s+/);
+  const columnPart = parts[0].trim();
 
-	return extractColumnName(columnPart);
+  return extractColumnName(columnPart);
 };
 
 /**
  * Simple regex-based SQL WHERE clause parser
  * Handles basic operators and conditions, not full SQL parsing
  */
-export const parseSqlQuery = (
-	sql: string,
-	availableColumns: string[],
-): ParsedSqlQueryState => {
-	const result: ParsedSqlQueryState = {};
+export const parseSqlQuery = (sql: string, availableColumns: string[]): ParsedSqlQueryState => {
+  const result: ParsedSqlQueryState = {};
 
-	// Normalize the SQL (remove extra whitespace, handle line breaks)
-	const normalizedSql = sql.replace(/\s+/g, " ").trim();
-	const normalizedSqlUpper = normalizedSql.toUpperCase();
+  // Normalize the SQL (remove extra whitespace, handle line breaks)
+  const normalizedSql = sql.replace(/\s+/g, " ").trim();
+  const normalizedSqlUpper = normalizedSql.toUpperCase();
 
-	// Parse WHERE clause
-	const whereMatch = normalizedSqlUpper.match(WHERE_CLAUSE_REGEX);
-	if (whereMatch && whereMatch[1]) {
-		// Extract the where clause from the ORIGINAL SQL (not uppercased)
-		// to preserve case sensitivity of string literals
-		const whereMatchUpper = whereMatch[1]; // The captured WHERE clause from uppercase SQL
-		const whereStartIndex = normalizedSqlUpper.indexOf(whereMatchUpper);
-		const whereClause = normalizedSql
-			.substring(whereStartIndex, whereStartIndex + whereMatchUpper.length)
-			.trim();
-		const filters = parseWhereClause(whereClause, availableColumns);
-		if (filters.conditions.length > 0) {
-			result.filters = filters;
-		}
-	}
+  // Parse WHERE clause
+  const whereMatch = normalizedSqlUpper.match(WHERE_CLAUSE_REGEX);
+  if (whereMatch && whereMatch[1]) {
+    // Extract the where clause from the ORIGINAL SQL (not uppercased)
+    // to preserve case sensitivity of string literals
+    const whereMatchUpper = whereMatch[1]; // The captured WHERE clause from uppercase SQL
+    const whereStartIndex = normalizedSqlUpper.indexOf(whereMatchUpper);
+    const whereClause = normalizedSql
+      .substring(whereStartIndex, whereStartIndex + whereMatchUpper.length)
+      .trim();
+    const filters = parseWhereClause(whereClause, availableColumns);
+    if (filters.conditions.length > 0) {
+      result.filters = filters;
+    }
+  }
 
-	// Parse ORDER BY clause - takes the FIRST column in ORDER BY
-	// Handles quoted identifiers and table-qualified columns: table.column, "table"."column", etc.
-	// Also captures NULLS FIRST/NULLS LAST
-	const orderByMatch = normalizedSqlUpper.match(ORDER_BY_REGEX);
-	if (orderByMatch && orderByMatch[1]) {
-		const column = orderByMatch[1].toLowerCase();
-		if (availableColumns.includes(column)) {
-			result.orderBy = column;
-			result.orderDirection =
-				(orderByMatch[2]?.toLowerCase() as "asc" | "desc") || ("asc" as const);
+  // Parse ORDER BY clause - takes the FIRST column in ORDER BY
+  // Handles quoted identifiers and table-qualified columns: table.column, "table"."column", etc.
+  // Also captures NULLS FIRST/NULLS LAST
+  const orderByMatch = normalizedSqlUpper.match(ORDER_BY_REGEX);
+  if (orderByMatch && orderByMatch[1]) {
+    const column = orderByMatch[1].toLowerCase();
+    if (availableColumns.includes(column)) {
+      result.orderBy = column;
+      result.orderDirection =
+        (orderByMatch[2]?.toLowerCase() as "asc" | "desc") || ("asc" as const);
 
-			// Parse NULLS FIRST/LAST if present
-			if (orderByMatch[3]) {
-				const nullsClause = orderByMatch[3].toUpperCase();
-				if (nullsClause.includes("FIRST")) {
-					result.nullsOrder = "first";
-				} else if (nullsClause.includes("LAST")) {
-					result.nullsOrder = "last";
-				}
-			}
-		}
-	}
+      // Parse NULLS FIRST/LAST if present
+      if (orderByMatch[3]) {
+        const nullsClause = orderByMatch[3].toUpperCase();
+        if (nullsClause.includes("FIRST")) {
+          result.nullsOrder = "first";
+        } else if (nullsClause.includes("LAST")) {
+          result.nullsOrder = "last";
+        }
+      }
+    }
+  }
 
-	// Parse LIMIT clause
-	const limitMatch = normalizedSqlUpper.match(LIMIT_REGEX);
-	if (limitMatch && limitMatch[1]) {
-		result.limit = parseInt(limitMatch[1], 10);
-	}
+  // Parse LIMIT clause
+  const limitMatch = normalizedSqlUpper.match(LIMIT_REGEX);
+  if (limitMatch && limitMatch[1]) {
+    result.limit = parseInt(limitMatch[1], 10);
+  }
 
-	// Parse OFFSET clause
-	const offsetMatch = normalizedSqlUpper.match(OFFSET_REGEX);
-	if (offsetMatch && offsetMatch[1]) {
-		result.offset = parseInt(offsetMatch[1], 10);
-	}
+  // Parse OFFSET clause
+  const offsetMatch = normalizedSqlUpper.match(OFFSET_REGEX);
+  if (offsetMatch && offsetMatch[1]) {
+    result.offset = parseInt(offsetMatch[1], 10);
+  }
 
-	// Parse GROUP BY clause
-	const groupByMatch = normalizedSqlUpper.match(GROUP_BY_REGEX);
-	if (groupByMatch && groupByMatch[1]) {
-		const groupByClause = groupByMatch[1].trim();
-		const groupByColumns = groupByClause.split(",").map((col) => {
-			const cleaned = extractColumnName(col.trim());
-			return cleaned;
-		});
-		if (groupByColumns.length > 0) {
-			result.groupBy = groupByColumns;
-		}
-	}
+  // Parse GROUP BY clause
+  const groupByMatch = normalizedSqlUpper.match(GROUP_BY_REGEX);
+  if (groupByMatch && groupByMatch[1]) {
+    const groupByClause = groupByMatch[1].trim();
+    const groupByColumns = groupByClause.split(",").map((col) => {
+      const cleaned = extractColumnName(col.trim());
+      return cleaned;
+    });
+    if (groupByColumns.length > 0) {
+      result.groupBy = groupByColumns;
+    }
+  }
 
-	// Parse HAVING clause
-	const havingMatch = normalizedSqlUpper.match(HAVING_REGEX);
-	if (havingMatch && havingMatch[1]) {
-		const havingClause = havingMatch[1].trim();
-		// HAVING conditions don't filter by availableColumns (can reference aggregates)
-		const having = parseHavingClause(havingClause);
-		if (having.conditions.length > 0) {
-			result.having = having;
-		}
-	}
+  // Parse HAVING clause
+  const havingMatch = normalizedSqlUpper.match(HAVING_REGEX);
+  if (havingMatch && havingMatch[1]) {
+    const havingClause = havingMatch[1].trim();
+    // HAVING conditions don't filter by availableColumns (can reference aggregates)
+    const having = parseHavingClause(havingClause);
+    if (having.conditions.length > 0) {
+      result.having = having;
+    }
+  }
 
-	// Parse SELECT clause to determine hidden columns
-	const selectMatch = normalizedSqlUpper.match(SELECT_REGEX);
-	if (selectMatch && selectMatch[1]) {
-		const selectedPart = selectMatch[1].trim();
-		// If not SELECT *, track which columns are selected
-		if (selectedPart !== "*") {
-			const selectedColumns = selectedPart.split(",").map((col) => {
-				// Handle aliases and qualified column names
-				return extractColumnNameWithAlias(col.trim());
-			});
+  // Parse SELECT clause to determine hidden columns
+  const selectMatch = normalizedSqlUpper.match(SELECT_REGEX);
+  if (selectMatch && selectMatch[1]) {
+    const selectedPart = selectMatch[1].trim();
+    // If not SELECT *, track which columns are selected
+    if (selectedPart !== "*") {
+      const selectedColumns = selectedPart.split(",").map((col) => {
+        // Handle aliases and qualified column names
+        return extractColumnNameWithAlias(col.trim());
+      });
 
-			// Hidden columns are those NOT in the SELECT list
-			const hidden = availableColumns.filter(
-				(col) => !selectedColumns.includes(col.toLowerCase()),
-			);
-			if (hidden.length > 0) {
-				result.hiddenColumnList = hidden;
-			}
-		}
-	}
+      // Hidden columns are those NOT in the SELECT list
+      const hidden = availableColumns.filter((col) => !selectedColumns.includes(col.toLowerCase()));
+      if (hidden.length > 0) {
+        result.hiddenColumnList = hidden;
+      }
+    }
+  }
 
-	// Parse JOIN clauses (LEFT, INNER, RIGHT, FULL OUTER, CROSS)
-	const joins = parseJoins(sql, availableColumns);
-	if (joins.length > 0) {
-		result.joins = joins;
-	}
+  // Parse JOIN clauses (LEFT, INNER, RIGHT, FULL OUTER, CROSS)
+  const joins = parseJoins(sql, availableColumns);
+  if (joins.length > 0) {
+    result.joins = joins;
+  }
 
-	return result;
+  return result;
 };
 
 /**
@@ -315,32 +302,31 @@ export const parseSqlQuery = (
  * - AND/OR logical operators
  */
 export const parseWhereClause = (
-	whereClause: string,
-	availableColumns: string[],
+  whereClause: string,
+  availableColumns: string[],
 ): QueryFilterType => {
-	const conditions: FilterConditionExpression[] = [];
+  const conditions: FilterConditionExpression[] = [];
 
-	// Determine logical operator (AND vs OR)
-	// Default to AND, but if OR is present and more common, use OR
-	const andCount = (whereClause.match(AND_SPLIT_REGEX) || []).length;
-	const orCount = (whereClause.match(OR_SPLIT_REGEX) || []).length;
-	const logicalOperator =
-		orCount > andCount ? ("or" as const) : ("and" as const);
+  // Determine logical operator (AND vs OR)
+  // Default to AND, but if OR is present and more common, use OR
+  const andCount = (whereClause.match(AND_SPLIT_REGEX) || []).length;
+  const orCount = (whereClause.match(OR_SPLIT_REGEX) || []).length;
+  const logicalOperator = orCount > andCount ? ("or" as const) : ("and" as const);
 
-	// Split by logical operators while preserving the conditions
-	const parts = whereClause.split(LOGICAL_SPLIT_REGEX);
+  // Split by logical operators while preserving the conditions
+  const parts = whereClause.split(LOGICAL_SPLIT_REGEX);
 
-	for (const part of parts) {
-		const condition = parseCondition(part.trim(), availableColumns);
-		if (condition) {
-			conditions.push(condition);
-		}
-	}
+  for (const part of parts) {
+    const condition = parseCondition(part.trim(), availableColumns);
+    if (condition) {
+      conditions.push(condition);
+    }
+  }
 
-	return {
-		conditions,
-		logicalOperator,
-	};
+  return {
+    conditions,
+    logicalOperator,
+  };
 };
 
 /**
@@ -349,78 +335,75 @@ export const parseWhereClause = (
  * since HAVING can reference aggregates and GROUP BY columns
  */
 const parseHavingClause = (havingClause: string): QueryFilterType => {
-	const conditions: FilterConditionExpression[] = [];
+  const conditions: FilterConditionExpression[] = [];
 
-	// Determine logical operator (AND vs OR)
-	const andCount = (havingClause.match(AND_SPLIT_REGEX) || []).length;
-	const orCount = (havingClause.match(OR_SPLIT_REGEX) || []).length;
-	const logicalOperator =
-		orCount > andCount ? ("or" as const) : ("and" as const);
+  // Determine logical operator (AND vs OR)
+  const andCount = (havingClause.match(AND_SPLIT_REGEX) || []).length;
+  const orCount = (havingClause.match(OR_SPLIT_REGEX) || []).length;
+  const logicalOperator = orCount > andCount ? ("or" as const) : ("and" as const);
 
-	// Split by logical operators while preserving the conditions
-	const parts = havingClause.split(LOGICAL_SPLIT_REGEX);
+  // Split by logical operators while preserving the conditions
+  const parts = havingClause.split(LOGICAL_SPLIT_REGEX);
 
-	for (const part of parts) {
-		const condition = parseOnCondition(part.trim());
-		if (condition) {
-			conditions.push(condition);
-		}
-	}
+  for (const part of parts) {
+    const condition = parseOnCondition(part.trim());
+    if (condition) {
+      conditions.push(condition);
+    }
+  }
 
-	return {
-		conditions,
-		logicalOperator,
-	};
+  return {
+    conditions,
+    logicalOperator,
+  };
 };
 
 /**
  * Unwraps a parenthesized condition, handling nested parentheses correctly
  */
 const unwrapParenthesizedCondition = (condition: string): string => {
-	condition = condition.trim();
+  condition = condition.trim();
 
-	// Keep unwrapping outer parentheses while the entire expression is wrapped
-	while (condition.startsWith("(") && condition.endsWith(")")) {
-		const inner = condition.slice(1, -1).trim();
+  // Keep unwrapping outer parentheses while the entire expression is wrapped
+  while (condition.startsWith("(") && condition.endsWith(")")) {
+    const inner = condition.slice(1, -1).trim();
 
-		// Check if the parentheses are actually wrapping the entire condition
-		// by ensuring removing them doesn't break it
-		if (inner.length === 0) {
-			break;
-		}
+    // Check if the parentheses are actually wrapping the entire condition
+    // by ensuring removing them doesn't break it
+    if (inner.length === 0) {
+      break;
+    }
 
-		// Simple validation: the inner content should be valid
-		condition = inner;
-	}
+    // Simple validation: the inner content should be valid
+    condition = inner;
+  }
 
-	return condition;
+  return condition;
 };
 
 /**
  * Negates a filter operator (equals becomes not_equals, etc.)
  */
-const negateOperator = (
-	operator: FilterOperatorType,
-): FilterOperatorType | undefined => {
-	const operatorMap: Record<
-		Exclude<FilterOperatorType, "starts_with" | "ends_with">,
-		FilterOperatorType
-	> = {
-		equals: "not_equals",
-		not_equals: "equals",
-		contains: "not_contains",
-		not_contains: "contains",
-		is_null: "is_not_null",
-		is_not_null: "is_null",
-		greater_than: "less_than_or_equal",
-		less_than: "greater_than_or_equal",
-		greater_than_or_equal: "less_than",
-		less_than_or_equal: "greater_than",
-		in: "not_in",
-		not_in: "in",
-	};
+const negateOperator = (operator: FilterOperatorType): FilterOperatorType | undefined => {
+  const operatorMap: Record<
+    Exclude<FilterOperatorType, "starts_with" | "ends_with">,
+    FilterOperatorType
+  > = {
+    equals: "not_equals",
+    not_equals: "equals",
+    contains: "not_contains",
+    not_contains: "contains",
+    is_null: "is_not_null",
+    is_not_null: "is_null",
+    greater_than: "less_than_or_equal",
+    less_than: "greater_than_or_equal",
+    greater_than_or_equal: "less_than",
+    less_than_or_equal: "greater_than",
+    in: "not_in",
+    not_in: "in",
+  };
 
-	return (operatorMap as any)[operator];
+  return (operatorMap as any)[operator];
 };
 
 /**
@@ -429,246 +412,236 @@ const negateOperator = (
  * since JOIN conditions may reference columns from the joined table
  */
 const parseOnClause = (onClause: string): QueryFilterType => {
-	const conditions: FilterConditionExpression[] = [];
+  const conditions: FilterConditionExpression[] = [];
 
-	// Determine logical operator (AND vs OR)
-	const andCount = (onClause.match(AND_SPLIT_REGEX) || []).length;
-	const orCount = (onClause.match(OR_SPLIT_REGEX) || []).length;
-	const logicalOperator =
-		orCount > andCount ? ("or" as const) : ("and" as const);
+  // Determine logical operator (AND vs OR)
+  const andCount = (onClause.match(AND_SPLIT_REGEX) || []).length;
+  const orCount = (onClause.match(OR_SPLIT_REGEX) || []).length;
+  const logicalOperator = orCount > andCount ? ("or" as const) : ("and" as const);
 
-	// Split by logical operators while preserving the conditions
-	const parts = onClause.split(LOGICAL_SPLIT_REGEX);
+  // Split by logical operators while preserving the conditions
+  const parts = onClause.split(LOGICAL_SPLIT_REGEX);
 
-	for (const part of parts) {
-		const condition = parseOnCondition(part.trim());
-		if (condition) {
-			conditions.push(condition);
-		}
-	}
+  for (const part of parts) {
+    const condition = parseOnCondition(part.trim());
+    if (condition) {
+      conditions.push(condition);
+    }
+  }
 
-	return {
-		conditions,
-		logicalOperator,
-	};
+  return {
+    conditions,
+    logicalOperator,
+  };
 };
 
 /**
  * Parses a single ON condition (doesn't require column to be in availableColumns)
  * @internal
  */
-const parseOnCondition = (
-	condition: string,
-): FilterConditionExpression | null => {
-	condition = condition.trim();
-	if (!condition) return null;
+const parseOnCondition = (condition: string): FilterConditionExpression | null => {
+  condition = condition.trim();
+  if (!condition) return null;
 
-	// Handle parenthesized conditions: (condition)
-	condition = unwrapParenthesizedCondition(condition);
+  // Handle parenthesized conditions: (condition)
+  condition = unwrapParenthesizedCondition(condition);
 
-	// Handle NOT operator: NOT (condition) or NOT expression
-	const notMatch = condition.match(NOT_REGEX);
-	if (notMatch) {
-		const innerCondition = notMatch[1].trim();
-		// Recursively parse the inner condition
-		const parsedCondition = parseOnCondition(innerCondition);
-		if (parsedCondition) {
-			// Negate the operator if possible
-			const negatedOperator = negateOperator(parsedCondition.operator);
-			if (negatedOperator) {
-				return {
-					...parsedCondition,
-					operator: negatedOperator,
-				};
-			}
+  // Handle NOT operator: NOT (condition) or NOT expression
+  const notMatch = condition.match(NOT_REGEX);
+  if (notMatch) {
+    const innerCondition = notMatch[1].trim();
+    // Recursively parse the inner condition
+    const parsedCondition = parseOnCondition(innerCondition);
+    if (parsedCondition) {
+      // Negate the operator if possible
+      const negatedOperator = negateOperator(parsedCondition.operator);
+      if (negatedOperator) {
+        return {
+          ...parsedCondition,
+          operator: negatedOperator,
+        };
+      }
 
-			// Set inverted flag instead of negating operator otherwise
-			return {
-				...parsedCondition,
-				inverted: true,
-			};
-		}
-	}
+      // Set inverted flag instead of negating operator otherwise
+      return {
+        ...parsedCondition,
+        inverted: true,
+      };
+    }
+  }
 
-	// Handle IS NULL / IS NOT NULL
-	const nullMatch = condition.match(IS_NULL_REGEX);
-	if (nullMatch) {
-		const { column, table } = extractTableAndColumn(nullMatch[1]);
-		const isNot = nullMatch[2] ? true : false;
-		return {
-			column,
-			...(table && { table }),
-			operator: isNot ? ("is_not_null" as const) : ("is_null" as const),
-		};
-	}
+  // Handle IS NULL / IS NOT NULL
+  const nullMatch = condition.match(IS_NULL_REGEX);
+  if (nullMatch) {
+    const { column, table } = extractTableAndColumn(nullMatch[1]);
+    const isNot = nullMatch[2] ? true : false;
+    return {
+      column,
+      ...(table && { table }),
+      operator: isNot ? ("is_not_null" as const) : ("is_null" as const),
+    };
+  }
 
-	// Handle IN / NOT IN
-	const inMatch = condition.match(IN_REGEX);
-	if (inMatch) {
-		const { column, table } = extractTableAndColumn(inMatch[1]);
-		const values = inMatch[3]
-			.split(",")
-			.map((v) => v.trim().replace(/^['"]|['"]$/g, ""));
-		const isNot = inMatch[2] ? true : false;
-		return {
-			column,
-			...(table && { table }),
-			operator: isNot ? ("not_in" as const) : ("in" as const),
-			value: values,
-		};
-	}
+  // Handle IN / NOT IN
+  const inMatch = condition.match(IN_REGEX);
+  if (inMatch) {
+    const { column, table } = extractTableAndColumn(inMatch[1]);
+    const values = inMatch[3].split(",").map((v) => v.trim().replace(/^['"]|['"]$/g, ""));
+    const isNot = inMatch[2] ? true : false;
+    return {
+      column,
+      ...(table && { table }),
+      operator: isNot ? ("not_in" as const) : ("in" as const),
+      value: values,
+    };
+  }
 
-	// Handle LIKE / NOT LIKE with wildcards
-	const likeMatch = condition.match(LIKE_REGEX);
-	if (likeMatch) {
-		const { column, table } = extractTableAndColumn(likeMatch[1]);
-		const value = likeMatch[3];
-		const isNot = likeMatch[2] ? true : false;
-		const { operator, inverted: opInverted } = detectLikeOperator(value, isNot);
-		return {
-			column,
-			...(table && { table }),
-			operator,
-			...(opInverted && { inverted: true }),
-			value: value.replace(/%/g, ""),
-		};
-	}
+  // Handle LIKE / NOT LIKE with wildcards
+  const likeMatch = condition.match(LIKE_REGEX);
+  if (likeMatch) {
+    const { column, table } = extractTableAndColumn(likeMatch[1]);
+    const value = likeMatch[3];
+    const isNot = likeMatch[2] ? true : false;
+    const { operator, inverted: opInverted } = detectLikeOperator(value, isNot);
+    return {
+      column,
+      ...(table && { table }),
+      operator,
+      ...(opInverted && { inverted: true }),
+      value: value.replace(/%/g, ""),
+    };
+  }
 
-	// Handle standard comparison operators
-	const comparisonMatch = condition.match(COMPARISON_REGEX);
-	if (comparisonMatch) {
-		const { column, table } = extractTableAndColumn(comparisonMatch[1]);
-		const op = comparisonMatch[2];
-		const value = comparisonMatch[3].trim();
+  // Handle standard comparison operators
+  const comparisonMatch = condition.match(COMPARISON_REGEX);
+  if (comparisonMatch) {
+    const { column, table } = extractTableAndColumn(comparisonMatch[1]);
+    const op = comparisonMatch[2];
+    const value = comparisonMatch[3].trim();
 
-		const operatorMap: Record<string, FilterOperatorType> = {
-			"=": "equals",
-			"!=": "not_equals",
-			"<>": "not_equals",
-			"<": "less_than",
-			">": "greater_than",
-			"<=": "less_than_or_equal",
-			">=": "greater_than_or_equal",
-		};
+    const operatorMap: Record<string, FilterOperatorType> = {
+      "=": "equals",
+      "!=": "not_equals",
+      "<>": "not_equals",
+      "<": "less_than",
+      ">": "greater_than",
+      "<=": "less_than_or_equal",
+      ">=": "greater_than_or_equal",
+    };
 
-		const operator = operatorMap[op] || "equals";
+    const operator = operatorMap[op] || "equals";
 
-		return {
-			column,
-			...(table && { table }),
-			operator,
-			value: isNumeric(value) ? parseFloat(value) : value,
-		};
-	}
+    return {
+      column,
+      ...(table && { table }),
+      operator,
+      value: isNumeric(value) ? parseFloat(value) : value,
+    };
+  }
 
-	// Handle aggregate functions for HAVING clause: COUNT(*), SUM(col), etc.
-	const aggregateMatch = condition.match(AGGREGATE_COMPARISON_REGEX);
-	if (aggregateMatch) {
-		const column = aggregateMatch[1]; // e.g., "COUNT(*)", "SUM(amount)"
-		const op = aggregateMatch[2];
-		const value = aggregateMatch[3].trim();
+  // Handle aggregate functions for HAVING clause: COUNT(*), SUM(col), etc.
+  const aggregateMatch = condition.match(AGGREGATE_COMPARISON_REGEX);
+  if (aggregateMatch) {
+    const column = aggregateMatch[1]; // e.g., "COUNT(*)", "SUM(amount)"
+    const op = aggregateMatch[2];
+    const value = aggregateMatch[3].trim();
 
-		const operatorMap: Record<string, FilterOperatorType> = {
-			"=": "equals",
-			"!=": "not_equals",
-			"<>": "not_equals",
-			"<": "less_than",
-			">": "greater_than",
-			"<=": "less_than_or_equal",
-			">=": "greater_than_or_equal",
-		};
+    const operatorMap: Record<string, FilterOperatorType> = {
+      "=": "equals",
+      "!=": "not_equals",
+      "<>": "not_equals",
+      "<": "less_than",
+      ">": "greater_than",
+      "<=": "less_than_or_equal",
+      ">=": "greater_than_or_equal",
+    };
 
-		return {
-			column,
-			operator: operatorMap[op] || "equals",
-			value: isNumeric(value) ? parseFloat(value) : value,
-		};
-	}
+    return {
+      column,
+      operator: operatorMap[op] || "equals",
+      value: isNumeric(value) ? parseFloat(value) : value,
+    };
+  }
 
-	return null;
+  return null;
 };
 /**
  * Parses JOIN clauses (LEFT, INNER, RIGHT, FULL OUTER, CROSS)
  * Returns array of JoinedTable objects with appropriate join types
  */
-export const parseJoins = (
-	sql: string,
-	availableColumns: string[],
-): JoinedTable[] => {
-	const joins: JoinedTable[] = [];
-	const normalizedSql = sql.replace(/\s+/g, " ").toUpperCase();
+export const parseJoins = (sql: string, availableColumns: string[]): JoinedTable[] => {
+  const joins: JoinedTable[] = [];
+  const normalizedSql = sql.replace(/\s+/g, " ").toUpperCase();
 
-	// Reset regex state before use
-	JOIN_TYPE_REGEX.lastIndex = 0;
+  // Reset regex state before use
+  JOIN_TYPE_REGEX.lastIndex = 0;
 
-	let match;
-	while ((match = JOIN_TYPE_REGEX.exec(normalizedSql)) !== null) {
-		// Extract and normalize JOIN type
-		const joinTypeRaw = match[1].trim();
-		const joinType: JoinedTable["type"] = normalizeJoinType(joinTypeRaw);
+  let match;
+  while ((match = JOIN_TYPE_REGEX.exec(normalizedSql)) !== null) {
+    // Extract and normalize JOIN type
+    const joinTypeRaw = match[1].trim();
+    const joinType: JoinedTable["type"] = normalizeJoinType(joinTypeRaw);
 
-		// Extract and clean table name - remove quotes and get last part (in case of schema.table)
-		const tableRaw = match[2].trim().toLowerCase();
-		const tableParts = tableRaw
-			.replace(/["`]/g, "")
-			.split(".")
-			.filter((p) => p.length > 0);
+    // Extract and clean table name - remove quotes and get last part (in case of schema.table)
+    const tableRaw = match[2].trim().toLowerCase();
+    const tableParts = tableRaw
+      .replace(/["`]/g, "")
+      .split(".")
+      .filter((p) => p.length > 0);
 
-		// Determine schema and table from parts
-		let schema = ""; // empty string if not specified
-		let tableName: string;
+    // Determine schema and table from parts
+    let schema = ""; // empty string if not specified
+    let tableName: string;
 
-		if (tableParts.length === 2) {
-			// schema.table format
-			schema = tableParts[0];
-			tableName = tableParts[1];
-		} else {
-			// Just table name
-			tableName = tableParts[tableParts.length - 1];
-		}
+    if (tableParts.length === 2) {
+      // schema.table format
+      schema = tableParts[0];
+      tableName = tableParts[1];
+    } else {
+      // Just table name
+      tableName = tableParts[tableParts.length - 1];
+    }
 
-		// Extract and clean alias - remove quotes
-		const aliasRaw = match[3];
-		const alias = aliasRaw
-			? aliasRaw.trim().toLowerCase().replace(/["`]/g, "")
-			: undefined;
+    // Extract and clean alias - remove quotes
+    const aliasRaw = match[3];
+    const alias = aliasRaw ? aliasRaw.trim().toLowerCase().replace(/["`]/g, "") : undefined;
 
-		// Extract ON clause (original case to preserve for parsing)
-		// CROSS JOIN doesn't support ON clause
-		const onClause = match[4]?.trim();
+    // Extract ON clause (original case to preserve for parsing)
+    // CROSS JOIN doesn't support ON clause
+    const onClause = match[4]?.trim();
 
-		// Build join condition from parsed ON clause
-		let joinCondition: JoinedTable["joinCondition"] = {
-			mode: "custom",
-			conditions: [],
-		};
+    // Build join condition from parsed ON clause
+    let joinCondition: JoinedTable["joinCondition"] = {
+      mode: "custom",
+      conditions: [],
+    };
 
-		if (onClause) {
-			const parsedFilters = parseOnClause(onClause);
-			if (parsedFilters.conditions.length > 0) {
-				joinCondition = {
-					mode: "filters",
-					filters: parsedFilters,
-				};
-			}
-		}
+    if (onClause) {
+      const parsedFilters = parseOnClause(onClause);
+      if (parsedFilters.conditions.length > 0) {
+        joinCondition = {
+          mode: "filters",
+          filters: parsedFilters,
+        };
+      }
+    }
 
-		const join: JoinedTable = {
-			table: tableName,
-			schema,
-			type: joinType,
-			columns: "all",
-			joinCondition,
-		};
+    const join: JoinedTable = {
+      table: tableName,
+      schema,
+      type: joinType,
+      columns: "all",
+      joinCondition,
+    };
 
-		if (alias) {
-			join.alias = alias;
-		}
+    if (alias) {
+      join.alias = alias;
+    }
 
-		joins.push(join);
-	}
+    joins.push(join);
+  }
 
-	return joins;
+  return joins;
 };
 
 /**
@@ -676,22 +649,19 @@ export const parseJoins = (
  * Maps various JOIN type strings to their normalized JoinedTable type
  */
 const normalizeJoinType = (joinTypeRaw: string): JoinedTable["type"] => {
-	const upper = joinTypeRaw.toUpperCase().trim();
-	if (upper.includes("FULL")) return "full";
-	if (upper.includes("RIGHT")) return "right";
-	if (upper.includes("INNER")) return "inner";
-	if (upper.includes("CROSS")) return "cross";
-	return "left"; // default to left
+  const upper = joinTypeRaw.toUpperCase().trim();
+  if (upper.includes("FULL")) return "full";
+  if (upper.includes("RIGHT")) return "right";
+  if (upper.includes("INNER")) return "inner";
+  if (upper.includes("CROSS")) return "cross";
+  return "left"; // default to left
 };
 
 /**
  * @deprecated Use parseJoins instead
  */
-export const parseLeftJoins = (
-	sql: string,
-	availableColumns: string[],
-): JoinedTable[] => {
-	return parseJoins(sql, availableColumns);
+export const parseLeftJoins = (sql: string, availableColumns: string[]): JoinedTable[] => {
+  return parseJoins(sql, availableColumns);
 };
 
 /**
@@ -699,127 +669,124 @@ export const parseLeftJoins = (
  * @internal
  */
 export const parseCondition = (
-	condition: string,
-	availableColumns: string[],
+  condition: string,
+  availableColumns: string[],
 ): FilterConditionExpression | null => {
-	condition = condition.trim();
-	if (!condition) return null;
+  condition = condition.trim();
+  if (!condition) return null;
 
-	// Handle parenthesized conditions: (condition)
-	condition = unwrapParenthesizedCondition(condition);
+  // Handle parenthesized conditions: (condition)
+  condition = unwrapParenthesizedCondition(condition);
 
-	// Handle NOT operator: NOT (condition) or NOT expression
-	const notMatch = condition.match(NOT_REGEX);
-	if (notMatch) {
-		const innerCondition = notMatch[1].trim();
-		// Recursively parse the inner condition
-		const parsedCondition = parseCondition(innerCondition, availableColumns);
-		if (parsedCondition) {
-			// Negate the operator
-			const negatedOperator = negateOperator(parsedCondition.operator);
-			if (negatedOperator) {
-				return {
-					...parsedCondition,
-					operator: negatedOperator,
-				};
-			}
+  // Handle NOT operator: NOT (condition) or NOT expression
+  const notMatch = condition.match(NOT_REGEX);
+  if (notMatch) {
+    const innerCondition = notMatch[1].trim();
+    // Recursively parse the inner condition
+    const parsedCondition = parseCondition(innerCondition, availableColumns);
+    if (parsedCondition) {
+      // Negate the operator
+      const negatedOperator = negateOperator(parsedCondition.operator);
+      if (negatedOperator) {
+        return {
+          ...parsedCondition,
+          operator: negatedOperator,
+        };
+      }
 
-			// Set inverted flag instead of negating operator
-			return {
-				...parsedCondition,
-				inverted: true,
-			};
-		}
-	}
+      // Set inverted flag instead of negating operator
+      return {
+        ...parsedCondition,
+        inverted: true,
+      };
+    }
+  }
 
-	// Handle IS NULL / IS NOT NULL
-	// Supports: column IS NULL, "column" IS NULL, table.column IS NULL, "table"."column" IS NULL
-	const nullMatch = condition.match(IS_NULL_REGEX);
-	if (nullMatch) {
-		const { column, table } = extractTableAndColumn(nullMatch[1]);
-		if (availableColumns.includes(column)) {
-			const isNot = nullMatch[2] ? true : false;
-			return {
-				column,
-				...(table && { table }),
-				operator: isNot ? ("is_not_null" as const) : ("is_null" as const),
-			};
-		}
-	}
+  // Handle IS NULL / IS NOT NULL
+  // Supports: column IS NULL, "column" IS NULL, table.column IS NULL, "table"."column" IS NULL
+  const nullMatch = condition.match(IS_NULL_REGEX);
+  if (nullMatch) {
+    const { column, table } = extractTableAndColumn(nullMatch[1]);
+    if (availableColumns.includes(column)) {
+      const isNot = nullMatch[2] ? true : false;
+      return {
+        column,
+        ...(table && { table }),
+        operator: isNot ? ("is_not_null" as const) : ("is_null" as const),
+      };
+    }
+  }
 
-	// Handle IN / NOT IN
-	// Supports: column IN (...), table.column IN (...), "table"."column" IN (...)
-	const inMatch = condition.match(IN_REGEX);
-	if (inMatch) {
-		const { column, table } = extractTableAndColumn(inMatch[1]);
-		if (availableColumns.includes(column)) {
-			const values = inMatch[3].split(",").map(
-				(v) => v.trim().replace(/^['"]|['"]$/g, ""), // Remove quotes
-			);
-			const isNot = inMatch[2] ? true : false;
-			return {
-				column,
-				...(table && { table }),
-				operator: isNot ? ("not_in" as const) : ("in" as const),
-				value: values,
-			};
-		}
-	}
+  // Handle IN / NOT IN
+  // Supports: column IN (...), table.column IN (...), "table"."column" IN (...)
+  const inMatch = condition.match(IN_REGEX);
+  if (inMatch) {
+    const { column, table } = extractTableAndColumn(inMatch[1]);
+    if (availableColumns.includes(column)) {
+      const values = inMatch[3].split(",").map(
+        (v) => v.trim().replace(/^['"]|['"]$/g, ""), // Remove quotes
+      );
+      const isNot = inMatch[2] ? true : false;
+      return {
+        column,
+        ...(table && { table }),
+        operator: isNot ? ("not_in" as const) : ("in" as const),
+        value: values,
+      };
+    }
+  }
 
-	// Handle LIKE / NOT LIKE with wildcards
-	// Supports: column LIKE '...', table.column LIKE '...', "table"."column" LIKE '...'
-	const likeMatch = condition.match(LIKE_REGEX);
-	if (likeMatch) {
-		const { column, table } = extractTableAndColumn(likeMatch[1]);
-		if (availableColumns.includes(column)) {
-			const value = likeMatch[3];
-			const isNot = likeMatch[2] ? true : false;
-			const { operator, inverted: opInverted } = detectLikeOperator(
-				value,
-				isNot,
-			);
-			return {
-				column,
-				...(table && { table }),
-				operator,
-				...(opInverted && { inverted: true }),
-				value: value.replace(/%/g, ""),
-			};
-		}
-	}
+  // Handle LIKE / NOT LIKE with wildcards
+  // Supports: column LIKE '...', table.column LIKE '...', "table"."column" LIKE '...'
+  const likeMatch = condition.match(LIKE_REGEX);
+  if (likeMatch) {
+    const { column, table } = extractTableAndColumn(likeMatch[1]);
+    if (availableColumns.includes(column)) {
+      const value = likeMatch[3];
+      const isNot = likeMatch[2] ? true : false;
+      const { operator, inverted: opInverted } = detectLikeOperator(value, isNot);
+      return {
+        column,
+        ...(table && { table }),
+        operator,
+        ...(opInverted && { inverted: true }),
+        value: value.replace(/%/g, ""),
+      };
+    }
+  }
 
-	// Handle standard comparison operators: =, !=, <>, <, >, <=, >=
-	// Supports: column = value, table.column = value, "table"."column" = value
-	// Must check two-character operators before single-character ones
-	const comparisonMatch = condition.match(COMPARISON_REGEX);
-	if (comparisonMatch) {
-		const { column, table } = extractTableAndColumn(comparisonMatch[1]);
-		if (availableColumns.includes(column)) {
-			const op = comparisonMatch[2];
-			const value = comparisonMatch[3].trim();
+  // Handle standard comparison operators: =, !=, <>, <, >, <=, >=
+  // Supports: column = value, table.column = value, "table"."column" = value
+  // Must check two-character operators before single-character ones
+  const comparisonMatch = condition.match(COMPARISON_REGEX);
+  if (comparisonMatch) {
+    const { column, table } = extractTableAndColumn(comparisonMatch[1]);
+    if (availableColumns.includes(column)) {
+      const op = comparisonMatch[2];
+      const value = comparisonMatch[3].trim();
 
-			const operatorMap: Record<string, FilterOperatorType> = {
-				"=": "equals",
-				"!=": "not_equals",
-				"<>": "not_equals",
-				"<": "less_than",
-				">": "greater_than",
-				"<=": "less_than_or_equal",
-				">=": "greater_than_or_equal",
-			};
+      const operatorMap: Record<string, FilterOperatorType> = {
+        "=": "equals",
+        "!=": "not_equals",
+        "<>": "not_equals",
+        "<": "less_than",
+        ">": "greater_than",
+        "<=": "less_than_or_equal",
+        ">=": "greater_than_or_equal",
+      };
 
-			const operator = operatorMap[op] || "equals";
+      const operator = operatorMap[op] || "equals";
 
-			return {
-				column,
-				...(table && { table }),
-				operator,
-				value: isNumeric(value) ? parseFloat(value) : value,
-			};
-		}
-	}
+      return {
+        column,
+        ...(table && { table }),
+        operator,
+        value: isNumeric(value) ? parseFloat(value) : value,
+      };
+    }
+  }
 
-	return null;
+  return null;
 };
 
 /**
@@ -827,36 +794,36 @@ export const parseCondition = (
  * Returns base operator and inverted flag for NOT LIKE handling
  */
 const detectLikeOperator = (
-	pattern: string,
-	isNotLike: boolean,
+  pattern: string,
+  isNotLike: boolean,
 ): { operator: FilterOperatorType; inverted: boolean } => {
-	if (isNotLike) {
-		if (pattern.startsWith("%") && pattern.endsWith("%")) {
-			return { operator: "not_contains", inverted: false };
-		}
-	}
+  if (isNotLike) {
+    if (pattern.startsWith("%") && pattern.endsWith("%")) {
+      return { operator: "not_contains", inverted: false };
+    }
+  }
 
-	let baseOperator: FilterOperatorType = "equals";
-	let inverted = false;
+  let baseOperator: FilterOperatorType = "equals";
+  let inverted = false;
 
-	if (pattern.startsWith("%") && pattern.endsWith("%")) {
-		return { operator: "contains", inverted: false };
-	} else if (pattern.startsWith("%")) {
-		baseOperator = "ends_with";
-	} else if (pattern.endsWith("%")) {
-		baseOperator = "starts_with";
-	}
+  if (pattern.startsWith("%") && pattern.endsWith("%")) {
+    return { operator: "contains", inverted: false };
+  } else if (pattern.startsWith("%")) {
+    baseOperator = "ends_with";
+  } else if (pattern.endsWith("%")) {
+    baseOperator = "starts_with";
+  }
 
-	if (isNotLike) {
-		inverted = true;
-	}
+  if (isNotLike) {
+    inverted = true;
+  }
 
-	return { operator: baseOperator, inverted };
+  return { operator: baseOperator, inverted };
 };
 
 /**
  * Check if a string represents a number
  */
 const isNumeric = (value: string): boolean => {
-	return !isNaN(parseFloat(value)) && isFinite(Number(value));
+  return !isNaN(parseFloat(value)) && isFinite(Number(value));
 };

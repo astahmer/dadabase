@@ -19,7 +19,6 @@ Skills teach focused techniques in a concise, actionable format. They're stored 
 ## SKILL.md Template
 
 ```markdown
-````skill
 ---
 name: skill-name
 description: One-line description of what this teaches
@@ -34,6 +33,7 @@ Brief intro (1-2 sentences max).
 Show the core pattern/code concisely.
 
 **Rules/Guidelines:**
+
 - List key points as bullet items
 - Keep it minimal and direct
 
@@ -44,8 +44,8 @@ Link to an actual implementation: [file-name.ts](../../path/to/file.ts)
 ## Workflow
 
 Numbered steps (optional, only if sequence matters).
+```
 
-````
 ```
 
 ## Key Principles
@@ -67,3 +67,4 @@ Numbered steps (optional, only if sequence matters).
 
 - `example-component/` - Creating minimal interactive UI component demos
 - Write concise skills for: database query patterns, component styling, form handling, etc.
+```

@@ -1,59 +1,56 @@
-import { useState } from "react";
 import {
-	Pagination,
-	PaginationContent,
-	PaginationContext,
-	PaginationEllipsis,
-	PaginationItem,
-	PaginationNextTrigger,
-	PaginationPrevTrigger,
+  Pagination,
+  PaginationContent,
+  PaginationContext,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationNextTrigger,
+  PaginationPrevTrigger,
 } from "#src/components/ui/pagination.tsx";
+import { useState } from "react";
+
 import { Stack } from "./layout.tsx";
 
 export function PaginationExample() {
-	const [currentPage, setCurrentPage] = useState(1);
-	const totalPages = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = 10;
 
-	return (
-		<Stack>
-			<Pagination
-				page={currentPage}
-				onPageChange={(details) => setCurrentPage(details.page)}
-				count={totalPages * 10}
-				pageSize={10}
-			>
-				<PaginationContent>
-					<PaginationPrevTrigger
-						onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-					/>
+  return (
+    <Stack>
+      <Pagination
+        page={currentPage}
+        onPageChange={(details) => setCurrentPage(details.page)}
+        count={totalPages * 10}
+        pageSize={10}
+      >
+        <PaginationContent>
+          <PaginationPrevTrigger onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))} />
 
-					<PaginationContext>
-						{(pagination) =>
-							pagination.pages.map((page, index) =>
-								page.type === "page" ? (
-									<PaginationItem key={index} {...page}>
-										{page.value}
-									</PaginationItem>
-								) : (
-									<li key={index}>
-										<PaginationEllipsis index={index} />
-									</li>
-								),
-							)
-						}
-					</PaginationContext>
+          <PaginationContext>
+            {(pagination) =>
+              pagination.pages.map((page, index) =>
+                page.type === "page" ? (
+                  <PaginationItem key={index} {...page}>
+                    {page.value}
+                  </PaginationItem>
+                ) : (
+                  <li key={index}>
+                    <PaginationEllipsis index={index} />
+                  </li>
+                ),
+              )
+            }
+          </PaginationContext>
 
-					<PaginationNextTrigger
-						onClick={() =>
-							setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-						}
-					/>
-				</PaginationContent>
-			</Pagination>
+          <PaginationNextTrigger
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+          />
+        </PaginationContent>
+      </Pagination>
 
-			<div className="text-sm text-muted-foreground">
-				Page {currentPage} of {totalPages}
-			</div>
-		</Stack>
-	);
+      <div className="text-muted-foreground text-sm">
+        Page {currentPage} of {totalPages}
+      </div>
+    </Stack>
+  );
 }

@@ -1,23 +1,24 @@
+import type { InferServerFnSchema } from "#src/types.ts";
+
+import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
+import { getAvailableSchemas } from "#src/server/introspection/introspection.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
-import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
-import { getAvailableSchemas } from "#src/server/introspection/introspection.ts";
-import type { InferServerFnSchema } from "#src/types.ts";
 
 const getAvailableSchemasServerFn = createServerFn({ method: "POST" })
-	.inputValidator(
-		Schema.Struct({
-			url: Schema.String,
-		}).pipe(Schema.standardSchemaV1),
-	)
-	.handler(createRemoteIntrospectionHandler((_input) => getAvailableSchemas()));
+  .inputValidator(
+    Schema.Struct({
+      url: Schema.String,
+    }).pipe(Schema.standardSchemaV1),
+  )
+  .handler(createRemoteIntrospectionHandler((_input) => getAvailableSchemas()));
 
 export const listAvailableSchemasQueryOptions = (
-	input: InferServerFnSchema<typeof getAvailableSchemasServerFn>,
+  input: InferServerFnSchema<typeof getAvailableSchemasServerFn>,
 ) =>
-	queryOptions({
-		queryKey: ["remote", "schemaList", input],
-		queryFn: () => getAvailableSchemasServerFn({ data: input }),
-		staleTime: 60 * 1000, // 1 minute
-	});
+  queryOptions({
+    queryKey: ["remote", "schemaList", input],
+    queryFn: () => getAvailableSchemasServerFn({ data: input }),
+    staleTime: 60 * 1000, // 1 minute
+  });
