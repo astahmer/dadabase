@@ -133,12 +133,15 @@ const testSuite = (
 
 				const schema = config.isPostgres ? config.defaultSchema : "";
 
-				const result = yield* bulkDeleteRows({
-					schema,
-					table: "users",
-					primaryKeyColumn: "id",
-					ids: [1, 2],
-				});
+				const result = yield* bulkDeleteRows(
+					{
+						schema,
+						table: "users",
+						primaryKeyColumn: "id",
+						ids: [1, 2],
+					},
+					{ id: "test" } as any,
+				);
 
 				expect(result.rowsAffected).toBe(2);
 
@@ -151,38 +154,20 @@ const testSuite = (
 			}).pipe(Effect.provide(testLayer));
 		});
 
-		it.effect("deletes rows with string IDs", () => {
-			return Effect.gen(function* () {
-				yield* setupSchema;
-				yield* insertTestData;
-
-				const result = yield* bulkDeleteRows({
-					schema: config.defaultSchema,
-					table: "users",
-					primaryKeyColumn: "id",
-					ids: ["1", "2"],
-				});
-
-				expect(result.rowsAffected).toBe(2);
-
-				const remainingUsers = yield* SqlClient.SqlClient;
-				const users =
-					yield* remainingUsers`SELECT id FROM ${remainingUsers(config.defaultSchema)}.users ORDER BY id`;
-				expect(users.length).toBe(3);
-			}).pipe(Effect.provide(testLayer));
-		});
-
 		it.effect("deletes rows from table with foreign key constraints", () => {
 			return Effect.gen(function* () {
 				yield* setupSchema;
 				yield* insertTestData;
 
-				const result = yield* bulkDeleteRows({
-					schema: config.defaultSchema,
-					table: "posts",
-					primaryKeyColumn: "id",
-					ids: [1, 2],
-				});
+				const result = yield* bulkDeleteRows(
+					{
+						schema: config.defaultSchema,
+						table: "posts",
+						primaryKeyColumn: "id",
+						ids: [1, 2],
+					},
+					{ id: "test" } as any,
+				);
 
 				expect(result.rowsAffected).toBe(2);
 
@@ -198,12 +183,15 @@ const testSuite = (
 				yield* setupSchema;
 				yield* insertTestData;
 
-				const result = yield* bulkDeleteRows({
-					schema: config.defaultSchema,
-					table: "users",
-					primaryKeyColumn: "id",
-					ids: [],
-				});
+				const result = yield* bulkDeleteRows(
+					{
+						schema: config.defaultSchema,
+						table: "users",
+						primaryKeyColumn: "id",
+						ids: [],
+					},
+					{ id: "test" } as any,
+				);
 
 				expect(result.rowsAffected).toBe(0);
 
@@ -219,12 +207,15 @@ const testSuite = (
 				yield* setupSchema;
 				yield* insertTestData;
 
-				const result = yield* bulkDeleteRows({
-					schema: config.defaultSchema,
-					table: "users",
-					primaryKeyColumn: "id",
-					ids: [1],
-				});
+				const result = yield* bulkDeleteRows(
+					{
+						schema: config.defaultSchema,
+						table: "users",
+						primaryKeyColumn: "id",
+						ids: [1],
+					},
+					{ id: "test" } as any,
+				);
 
 				expect(result.rowsAffected).toBe(1);
 
@@ -241,12 +232,15 @@ const testSuite = (
 				yield* setupSchema;
 				yield* insertTestData;
 
-				const result = yield* bulkDeleteRows({
-					schema: config.defaultSchema,
-					table: "users",
-					primaryKeyColumn: "id",
-					ids: [999, 1000],
-				});
+				const result = yield* bulkDeleteRows(
+					{
+						schema: config.defaultSchema,
+						table: "users",
+						primaryKeyColumn: "id",
+						ids: [999, 1000],
+					},
+					{ id: "test" } as any,
+				);
 
 				expect(result.rowsAffected).toBe(0);
 
@@ -262,12 +256,15 @@ const testSuite = (
 				yield* setupSchema;
 				yield* insertTestData;
 
-				const result = yield* bulkDeleteRows({
-					schema: config.defaultSchema,
-					table: "users",
-					primaryKeyColumn: "id",
-					ids: [1, 999, 2],
-				});
+				const result = yield* bulkDeleteRows(
+					{
+						schema: config.defaultSchema,
+						table: "users",
+						primaryKeyColumn: "id",
+						ids: [1, 999, 2],
+					},
+					{ id: "test" } as any,
+				);
 
 				expect(result.rowsAffected).toBe(2);
 

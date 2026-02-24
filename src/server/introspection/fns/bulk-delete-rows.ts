@@ -1,5 +1,8 @@
 import { SqlClient } from "@effect/sql";
+import type { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
+import type { Selectable } from "kysely";
+import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 import { RemoteConnection } from "#src/server/db-connection/remote-connection.tag.ts";
 import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
 import {
@@ -12,14 +15,17 @@ interface BulkDeleteRowsInput {
 	schema: string;
 	table: string;
 	primaryKeyColumn: string;
-	ids: Array<string | number>;
+	ids: ReadonlyArray<string | number>;
 }
 
 /**
  * Deletes multiple rows by their primary key values
  * Uses SqlClient directly with proper query logging
  */
-export const bulkDeleteRows = (input: BulkDeleteRowsInput) =>
+export const bulkDeleteRows = (
+	input: BulkDeleteRowsInput,
+	_connection: Selectable<AppDatabaseSchema["database_connections"]>,
+) =>
 	Effect.gen(function* () {
 		const sql = yield* SqlClient.SqlClient;
 		const connectionId = yield* RemoteConnection;
@@ -49,7 +55,7 @@ export const bulkDeleteRows = (input: BulkDeleteRowsInput) =>
 				Effect.succeed(
 					`DELETE FROM "${input.table}" WHERE "${input.primaryKeyColumn}" IN (${idList})`,
 				),
-			orElse: () => Effect.fail(new Error("Unsupported database dialect")),
+			orElse: () => Effect.die(new Error("Unsupported database dialect")),
 		});
 
 		// Execute using SqlClient with proper logging
@@ -62,7 +68,7 @@ export const bulkDeleteRows = (input: BulkDeleteRowsInput) =>
 				level: QueryLogLevel.Info,
 				connectionId,
 				meta: { bulkDelete: true },
-			}),
+			} as const),
 		);
 
 		const rowsAffected =
