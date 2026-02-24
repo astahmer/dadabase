@@ -42,6 +42,7 @@ export const createTabState = (
 		prefixWithTable: options?.prefixWithTable,
 		sqlPreviewSize: options?.sqlPreviewSize ?? 0,
 		clientFilter: options?.clientFilter,
+		clientFilterApproved: options?.clientFilterApproved,
 	};
 };
 

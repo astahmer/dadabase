@@ -80,6 +80,7 @@ export const useConnectionPageState = ({
 			joins: s.joins,
 			customSql: s.customSql,
 			clientFilter: s.clientFilter,
+			clientFilterApproved: s.clientFilterApproved,
 		};
 	});
 	// console.log(search);
@@ -225,21 +226,21 @@ export const useConnectionPageState = ({
 		return formatted;
 	}, [queryResponse.rows]);
 
-	const jsFilterResult = useJsEvalFilter(search.clientFilter, {
+	const jsFilterResult = useJsEvalFilter(search.clientFilterApproved, {
 		paramName: "r",
 		sampleData:
 			formattedTableRowsData.length > 0 ? formattedTableRowsData[0] : undefined,
 	});
 
 	const filteredTableRowsData = useMemo(() => {
-		if (!search.clientFilter?.trim() || !jsFilterResult.fn) {
+		if (!search.clientFilterApproved?.trim() || !jsFilterResult.fn) {
 			return formattedTableRowsData;
 		}
 		return formattedTableRowsData.filter((row) => {
 			const result = jsFilterResult.fn!(row);
 			return result === true;
 		});
-	}, [formattedTableRowsData, search.clientFilter, jsFilterResult.fn]);
+	}, [formattedTableRowsData, search.clientFilterApproved, jsFilterResult.fn]);
 
 	// Static columns
 	const staticColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(

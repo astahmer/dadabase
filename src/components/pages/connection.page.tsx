@@ -1003,13 +1003,36 @@ const RowsTableContent = (
 			relationshipRowId: tab.relationshipRowId,
 			nullsOrder: tab.nullsOrder,
 			clientFilter: tab.clientFilter,
+			clientFilterApproved: tab.clientFilterApproved,
 		};
 	});
 
-	const jsFilterResult = useJsEvalFilter(search.clientFilter, {
+	// Only evaluate the approved filter, not the draft one
+	const jsFilterResult = useJsEvalFilter(search.clientFilterApproved, {
 		paramName: "r",
 		sampleData: props.rowsQuery.data?.rows[0] as Record<string, unknown>,
 	});
+
+	const handleJsFilterChange = (value: string) => {
+		navigate({
+			search: (prev) =>
+				updateTabState(prev, {
+					clientFilter: value || undefined,
+					clientFilterApproved: undefined, // Reset approval when filter changes
+				}),
+		});
+	};
+
+	const handleApproveFilter = () => {
+		if (search.clientFilter?.trim()) {
+			navigate({
+				search: (prev) =>
+					updateTabState(prev, {
+						clientFilterApproved: search.clientFilter,
+					}),
+			});
+		}
+	};
 
 	const onNullsOrderChange = (nullsOrder: "first" | "last" | undefined) => {
 		navigate({
@@ -1021,14 +1044,12 @@ const RowsTableContent = (
 		});
 	};
 
-	const handleJsFilterChange = (value: string) => {
-		navigate({
-			search: (prev) =>
-				updateTabState(prev, {
-					clientFilter: value || undefined,
-				}),
-		});
-	};
+	// Check if there's a pending (unapproved) filter
+	const hasPendingFilter =
+		search.clientFilter?.trim() &&
+		search.clientFilter !== search.clientFilterApproved;
+
+	const approvedFilter = search.clientFilterApproved;
 
 	return (
 		<div className="flex-1 flex flex-col h-full relative">
@@ -1044,10 +1065,20 @@ const RowsTableContent = (
 						placeholder="r.name.includes('test')"
 						value={search.clientFilter || ""}
 						onChange={(e) => handleJsFilterChange(e.target.value)}
-						className="h-7 text-xs font-mono"
+						className="h-7 text-xs font-mono flex-1"
 					/>
-					{search.clientFilter && (
-						<span className="text-xs text-muted-foreground">(filtered)</span>
+					{hasPendingFilter && (
+						<Button
+							onClick={handleApproveFilter}
+							size="sm"
+							variant="default"
+							className="h-7 text-xs px-2"
+						>
+							Run
+						</Button>
+					)}
+					{approvedFilter && !hasPendingFilter && (
+						<span className="text-xs text-muted-foreground">(active)</span>
 					)}
 				</div>
 				{jsFilterResult.error && (
