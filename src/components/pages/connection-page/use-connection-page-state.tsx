@@ -1,3 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import type {
+	AccessorKeyColumnDef,
+	ColumnDef,
+	ColumnPinningState,
+	Row,
+} from "@tanstack/react-table";
+import { useCallback, useMemo, useState } from "react";
 import { RowContextMenu } from "#src/components/app/row-context-menu.tsx";
 import type { DataTableRowSubrow } from "#src/components/data-table/data-table.row.tsx";
 import { useDataTable } from "#src/components/data-table/use-data-table.ts";
@@ -19,15 +28,6 @@ import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { getQueryAsSql } from "#src/server/introspection/start-fns/get-query-sql.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import type {
-	AccessorKeyColumnDef,
-	ColumnDef,
-	ColumnPinningState,
-	Row,
-} from "@tanstack/react-table";
-import { useCallback, useMemo, useState } from "react";
 import type { DbConnection } from "../connection.types.ts";
 import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
@@ -78,6 +78,7 @@ export const useConnectionPageState = ({
 			relationshipRowId: s.relationshipRowId,
 			joins: s.joins,
 			customSql: s.customSql,
+			clientFilter: s.clientFilter,
 		};
 	});
 	// console.log(search);
@@ -211,17 +212,30 @@ export const useConnectionPageState = ({
 	};
 	// console.log(queryResponse);
 
-	const formattedTableRowsData = useMemo(
-		() =>
-			queryResponse.rows.map((row) => {
-				const formatted: Record<string, unknown> = {};
-				for (const [key, value] of Object.entries(row)) {
-					formatted[key] = formatTableValue(value);
-				}
+	const formattedTableRowsData = useMemo(() => {
+		const formatted = queryResponse.rows.map((row) => {
+			const formattedRow: Record<string, unknown> = {};
+			for (const [key, value] of Object.entries(row)) {
+				formattedRow[key] = formatTableValue(value);
+			}
+			return formattedRow;
+		});
+
+		// Apply client-side JS filter if present
+		if (search.clientFilter?.trim()) {
+			try {
+				const fn = new Function("r", `return ${search.clientFilter}`);
+				return formatted.filter((row) => {
+					const result = fn(row);
+					return result === true;
+				});
+			} catch {
 				return formatted;
-			}),
-		[queryResponse.rows],
-	);
+			}
+		}
+
+		return formatted;
+	}, [queryResponse.rows, search.clientFilter]);
 
 	// Static columns
 	const staticColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(

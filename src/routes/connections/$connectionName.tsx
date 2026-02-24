@@ -58,6 +58,7 @@ const TabStateSchema = Schema.Struct({
 	customSql: Schema.String.pipe(Schema.optional), // Custom SQL query being edited (before execution)
 	customSqlId: Schema.String.pipe(Schema.optional), // ID of executed custom SQL (replaces customSql after execution)
 	initialTabMode: Schema.Literal("table", "sql").pipe(Schema.optional), // Initial mode for empty tabs
+	clientFilter: Schema.String.pipe(Schema.optional), // Client-side JS filter expression
 });
 
 const searchSchema = Schema.Struct({

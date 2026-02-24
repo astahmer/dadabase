@@ -1,5 +1,5 @@
-import { FileRouteTypes } from "#src/routeTree.gen.ts";
 import { useSearch } from "@tanstack/react-router";
+import { FileRouteTypes } from "#src/routeTree.gen.ts";
 
 type ConnectionPage =
 	FileRouteTypes["fileRoutesByFullPath"]["/connections/$connectionName"];
@@ -41,6 +41,7 @@ export const createTabState = (
 		columnPinning: options?.columnPinning,
 		prefixWithTable: options?.prefixWithTable,
 		sqlPreviewSize: options?.sqlPreviewSize ?? 0,
+		clientFilter: options?.clientFilter,
 	};
 };
 
