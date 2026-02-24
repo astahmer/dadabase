@@ -6,11 +6,6 @@
 - unlink/detach editor from current table = allows to write arbitrary queries without changing the table context/while viewing results using UI controls or another editor = kinda like a tab inside another
 
 
-## exports
-
-- copy/export row or whole data (csv, json, tsv, toon) or even as INSERT SQL statement
-- copy/export table structure (csv, json, tsv, toon)
-
 ## filters
 - support NOT operator in natural language search
 - support IN operator
@@ -20,8 +15,6 @@
 
 ## json viewer/editor
 - copy button should use the <Clipboard> component with a temp success state
-- when clicking a table row -> JSON viewer that auto fetch nested entities with foreign keys (up to a limit of 50 rows per relation)
-- inline popover + expanded view copy button should also include expanded nested entities (relationships based on foreign keys)
 
 ## rows table
 - chrome-like JS repl for visible rows
