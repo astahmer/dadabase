@@ -18,13 +18,13 @@ import { formatTableValue } from "#src/components/pages/connection-page/format-t
 import { RelationshipSubrowTable } from "#src/components/pages/connection-page/relationships/relationship-subrow-table.tsx";
 import { useRowsColumns } from "#src/components/pages/connection-page/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
-import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { useTableRelationships } from "#src/components/pages/connection-page/use-table-relationships.ts";
 import { useQueryBuilder } from "#src/components/query-builder/use-query-builder.ts";
 import { Button } from "#src/components/ui/button.tsx";
 import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import type { DatabaseDialect } from "#src/db/dialect.ts";
+import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { getQueryAsSql } from "#src/server/introspection/start-fns/get-query-sql.start.ts";

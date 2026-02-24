@@ -1,3 +1,15 @@
+import { Splitter } from "@ark-ui/react";
+import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { createColumnHelper } from "@tanstack/react-table";
+import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
+import {
+	type Dispatch,
+	type SetStateAction,
+	useEffect,
+	useMemo,
+	useState,
+} from "react";
 import { BulkActionBar } from "#src/components/app/bulk-action-bar.tsx";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import {
@@ -12,11 +24,11 @@ import {
 	useConnectionPageState,
 } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
 import { DatabaseDialect } from "#src/db/dialect.ts";
+import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { getErrorMessage } from "#src/lib/get-error-message.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
-import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { queryClient } from "#src/query-client.ts";
 import {
 	customSqlExecutionQueryOptions,
@@ -30,18 +42,6 @@ import {
 import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { Splitter } from "@ark-ui/react";
-import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { createColumnHelper } from "@tanstack/react-table";
-import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
-import {
-	type Dispatch,
-	type SetStateAction,
-	useEffect,
-	useMemo,
-	useState,
-} from "react";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { useDataTable } from "../data-table/use-data-table.ts";
@@ -74,6 +74,8 @@ import {
 } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
+import { ConnectionForm } from "./connection.form.tsx";
+import type { DbConnection } from "./connection.types";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
@@ -95,8 +97,6 @@ import { TabErrorState } from "./connection-page/tab-error-state.tsx";
 import { useExplainQuery } from "./connection-page/use-explain-query.ts";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 import { useTablesColumnsForIntellisense } from "./connection-page/use-tables-columns-intellisense.ts";
-import { ConnectionForm } from "./connection.form.tsx";
-import type { DbConnection } from "./connection.types";
 
 interface ConnectionPageProps {
 	connectionName: string;

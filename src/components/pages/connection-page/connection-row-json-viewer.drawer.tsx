@@ -1,12 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
 import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
 import { HStack, Stack } from "#src/components/ui/layout.tsx";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
 import { Input } from "../../ui/input.tsx";
 import { JsonViewer } from "../../ui/json-viewer.tsx";
 import {
