@@ -1857,6 +1857,45 @@ const CustomSqlTabContent = (props: {
 	const outputRows = executeCustomSql.output?.rows ?? [];
 	const outputColumns = executeCustomSql.output?.columns ?? [];
 
+	const [jsFilter, setJsFilter] = useState("");
+	const [jsError, setJsError] = useState<string | null>(null);
+
+	// Validate JS filter and set error
+	useEffect(() => {
+		if (!jsFilter.trim()) {
+			setJsError(null);
+			return;
+		}
+		try {
+			const fn = new Function("r", `return ${jsFilter}`);
+			// Try to run against a sample row if available
+			if (outputRows.length > 0) {
+				fn(outputRows[0]);
+			}
+			setJsError(null);
+		} catch (e) {
+			setJsError(e instanceof Error ? e.message : String(e));
+		}
+	}, [jsFilter, outputRows]);
+
+	const filteredRows = useMemo(() => {
+		if (!jsFilter.trim()) {
+			return outputRows;
+		}
+		if (jsError) {
+			return outputRows;
+		}
+		try {
+			const fn = new Function("r", `return ${jsFilter}`);
+			return outputRows.filter((row) => {
+				const result = fn(row);
+				return result === true;
+			});
+		} catch {
+			return outputRows;
+		}
+	}, [outputRows, jsFilter, jsError]);
+
 	const tableColumns = useMemo(() => {
 		const columnHelper = createColumnHelper<Record<string, unknown>>();
 		return outputColumns.map((col: string) =>
@@ -1875,7 +1914,7 @@ const CustomSqlTabContent = (props: {
 	}, [outputColumns]);
 
 	const table = useDataTable({
-		data: outputRows as Record<string, unknown>[],
+		data: filteredRows as Record<string, unknown>[],
 		columns: tableColumns,
 		manualPagination: true, // Disable pagination to show all results
 	});
@@ -1969,6 +2008,17 @@ const CustomSqlTabContent = (props: {
 	if (outputRows.length > 0) {
 		return (
 			<div className="flex-1 overflow-auto flex flex-col relative">
+				<div className="px-2 py-1 border-b flex flex-col gap-1 shrink-0">
+					<div className="flex items-center gap-2">
+						<Input
+							placeholder="r.name.includes('test')"
+							value={jsFilter}
+							onChange={(e) => setJsFilter(e.target.value)}
+							className="h-7 text-xs font-mono"
+						/>
+					</div>
+					{jsError && <p className="text-red-500 text-xs mt-1">{jsError}</p>}
+				</div>
 				<ColumnHeaderContextProvider>
 					<DataTable
 						enableRowVirtualization
