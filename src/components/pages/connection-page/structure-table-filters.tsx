@@ -1,6 +1,7 @@
 import { Popover } from "@ark-ui/react/popover";
 import { ChevronsUpDown, Copy, Download, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { HStack } from "../../ui/layout.tsx";
@@ -16,7 +17,6 @@ import {
 	hasActiveStructureFilters,
 	useStructureFilters,
 } from "./use-structure-filter-state.ts";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 const filterOptions: Array<{
 	key: keyof Omit<StructureFilters, "search">;

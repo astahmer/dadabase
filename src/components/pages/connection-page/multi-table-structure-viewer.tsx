@@ -27,14 +27,13 @@ import {
 import { HStack, Stack } from "../../ui/layout.tsx";
 import { Spinner } from "../../ui/spinner.tsx";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
-import { StructureTable } from "./structure-table.tsx";
-import { StructureFilterControls } from "./structure-table-filters.tsx";
-import { useStructureFilters } from "./use-structure-filter-state.ts";
 import {
 	addTabStateAfterCurrent,
 	createTabState,
 	scrollToTab,
 } from "./create-tab-state.ts";
+import { StructureTable } from "./structure-table.tsx";
+import { useStructureFilters } from "./use-structure-filter-state.ts";
 
 interface MultiTableStructureViewerProps {
 	activeConnectionUrl: string;

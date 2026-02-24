@@ -1,8 +1,8 @@
 import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
-import { executeCustomSql } from "./introspection.ts";
 import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
+import { executeCustomSql } from "./introspection.ts";
 import { PgContainer } from "./pg-test.layer.ts";
 import { makeTestLayer, postgresConfig } from "./test.layer.ts";
 

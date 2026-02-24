@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "#src/components/ui/button.tsx";
 import {
 	Dialog,
 	DialogContent,
@@ -7,7 +8,6 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "#src/components/ui/dialog.tsx";
-import { Button } from "#src/components/ui/button.tsx";
 import { Stack } from "./layout.tsx";
 
 export function DialogExample() {

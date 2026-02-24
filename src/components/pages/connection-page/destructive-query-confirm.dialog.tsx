@@ -1,3 +1,5 @@
+import { AlertTriangle } from "lucide-react";
+import { Button } from "#src/components/ui/button.tsx";
 import {
 	Dialog,
 	DialogContent,
@@ -5,8 +7,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "#src/components/ui/dialog.tsx";
-import { Button } from "#src/components/ui/button.tsx";
-import { AlertTriangle } from "lucide-react";
 
 interface DestructiveQueryConfirmDialogProps {
 	isOpen: boolean;

@@ -1,6 +1,6 @@
-import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { ErrorBoundaryCard } from "../../shared/error-boundary-card.tsx";
 import { Button } from "../../ui/button.tsx";
 

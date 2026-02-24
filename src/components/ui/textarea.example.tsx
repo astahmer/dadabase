@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Textarea } from "#src/components/ui/textarea.tsx";
 import { Label } from "#src/components/ui/label.tsx";
+import { Textarea } from "#src/components/ui/textarea.tsx";
 import { Stack } from "./layout.tsx";
 
 export function TextareaExample() {

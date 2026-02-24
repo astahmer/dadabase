@@ -1,3 +1,7 @@
+import { useListCollection } from "@ark-ui/react";
+import { useFilter } from "@ark-ui/react/locale";
+import { Plus, X } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import type {
 	FilterConditionExpression,
 	FilterOperatorType,
@@ -8,15 +12,12 @@ import {
 	arrayOperators,
 	getOperatorLabel,
 	getOperatorSymbols,
-	nullOperators,
-	specialValueSupportedOperators,
-	SPECIAL_VALUES_LIST,
 	isSpecialValue,
+	nullOperators,
+	SPECIAL_VALUES_LIST,
+	specialValueSupportedOperators,
 } from "#src/components/query-builder/query-filter.ts";
-import { useListCollection } from "@ark-ui/react";
-import { useFilter } from "@ark-ui/react/locale";
-import { Plus, X } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import { DataTypeBadge } from "../app/data-type-badge.tsx";
 import { Button } from "../ui/button.tsx";
 import {
@@ -34,7 +35,6 @@ import { Kbd } from "../ui/kbd.tsx";
 import { Stack } from "../ui/layout.tsx";
 import * as ArkSelect from "../ui/select.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 interface QueryFilterBuilderProps {
 	conditions: readonly FilterConditionExpression[];

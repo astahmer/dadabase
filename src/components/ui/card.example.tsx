@@ -1,3 +1,4 @@
+import { Button } from "#src/components/ui/button.tsx";
 import {
 	Card,
 	CardContent,
@@ -5,7 +6,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#src/components/ui/card.tsx";
-import { Button } from "#src/components/ui/button.tsx";
 import { Stack } from "./layout.tsx";
 
 export function CardExample() {

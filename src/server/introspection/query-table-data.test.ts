@@ -1,9 +1,9 @@
-import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
-import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
-import { queryTableRows } from "#src/server/introspection/introspection.ts";
 import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
+import { queryTableRows } from "#src/server/introspection/introspection.ts";
 import { PgContainer } from "./pg-test.layer.ts";
 import {
 	type DatabaseTestConfig,

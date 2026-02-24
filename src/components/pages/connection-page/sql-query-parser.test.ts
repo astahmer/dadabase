@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
 	parseCondition,
-	parseWhereClause,
 	parseSqlQuery,
+	parseWhereClause,
 } from "./sql-query-parser";
 
 describe("SQL Query Parser", () => {

@@ -1,9 +1,9 @@
+import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type {
 	FilterConditionExpression,
 	FilterOperatorType,
 	QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
-import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 
 /**
  * Parses a SQL query string to extract:

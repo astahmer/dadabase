@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-	isDestructiveQuery,
 	getDestructiveQuerySummary,
+	isDestructiveQuery,
 } from "#src/server/introspection/detect-destructive-sql.ts";
 
 describe("detect-destructive-sql", () => {

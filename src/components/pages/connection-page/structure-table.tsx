@@ -1,5 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import { DataTypeBadge } from "../../app/data-type-badge.tsx";
 import { PrimaryKeyIcon } from "../../app/primary-key-icon.tsx";
 import { UniqueConstraintIcon } from "../../app/unique-constraint-icon.tsx";
@@ -8,7 +9,6 @@ import { DataTable } from "../../data-table/data-table.tsx";
 import { useDataTable } from "../../data-table/use-data-table.ts";
 import { HStack } from "../../ui/layout.tsx";
 import type { StructureFilters } from "./use-structure-filter-state.ts";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 interface StructureTableProps {
 	columnMetadata: Array<TableColumnMetadata>;

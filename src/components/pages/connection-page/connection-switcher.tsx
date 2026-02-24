@@ -4,7 +4,6 @@ import { useNavigate } from "@tanstack/react-router";
 import {
 	ChevronDownIcon,
 	ChevronLeftIcon,
-	ChevronRightIcon,
 	EllipsisIcon,
 	LucidePlus,
 	RefreshCw,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { DarkModeToggle } from "#src/components/ui/dark-mode-toggle.tsx";
+import { ListboxMenu } from "#src/components/ui/listbox-menu.export.ts";
 import {
 	Menu,
 	MenuContent,
@@ -24,7 +24,6 @@ import { queryClient } from "#src/query-client.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
-import { ListboxMenu } from "#src/components/ui/listbox-menu.export.ts";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import type { DbConnection } from "../connection.types";
 

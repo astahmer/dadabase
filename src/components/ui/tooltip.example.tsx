@@ -1,5 +1,5 @@
-import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { Button } from "#src/components/ui/button.tsx";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { Stack } from "./layout.tsx";
 
 export function TooltipExample() {

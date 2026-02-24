@@ -1,9 +1,9 @@
-import { formatSQL } from "#src/lib/format-sql";
-import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 import Editor from "@monaco-editor/react";
 import type * as OriginalMonacoEditor from "monaco-editor";
 import * as OriginalMonaco from "monaco-editor";
 import { useEffect, useEffectEvent, useState } from "react";
+import { formatSQL } from "#src/lib/format-sql";
+import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 import { sqlCompletionProvider } from "./sql-completion-provider.ts";
 
 type Monaco = typeof OriginalMonaco;
