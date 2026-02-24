@@ -13,8 +13,8 @@
 		"start:spa": "PORT=3006 node server.js",
 		"test:run": "vitest run",
 		"test": "vitest",
-		"fmt": "biome format --write src",
-		"check": "biome check --write src",
+		"fmt": "oxfmt",
+		"fmt:check": "oxfmt --check",
 		"typecheck": "tsgo --noEmit",
 		"type:trace": "pnpm tsgo -b ./tsconfig.json --generateTrace trace-dir --diagnostics && npx @typescript/analyze-trace trace-dir",
 		"----db----": "----------",
@@ -98,7 +98,7 @@
 		"zod": "4.1.13"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.3.8",
+		"oxfmt": "0.35.0",
 		"@effect/language-service": "catalog:",
 		"@effect/vitest": "catalog:",
 		"@electric-sql/pglite": "catalog:",
