@@ -16,6 +16,7 @@
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "file",
+  "oxc.enable": true,
   "[jsonc]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   } // tell oxfmt to format the whole file, not only the modified lines
