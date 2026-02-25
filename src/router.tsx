@@ -1,3 +1,4 @@
+import "./server/otel-init";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, parseSearchWith, stringifySearchWith } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
