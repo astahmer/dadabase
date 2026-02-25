@@ -13,6 +13,7 @@ The `ListboxMenu` component is a reusable, composable UI component that combines
 ## Components
 
 ### `ListboxMenu`
+
 Root component that manages the popover state.
 
 ```tsx
@@ -26,6 +27,7 @@ Root component that manages the popover state.
 ---
 
 ### `ListboxMenuTrigger`
+
 The trigger button that opens/closes the menu.
 
 **Size variants**: `sm`, `md`, `lg` (default: `md`)
@@ -39,23 +41,21 @@ The trigger button that opens/closes the menu.
 ---
 
 ### `ListboxMenuContent`
+
 The container that holds the listbox and filter content.
 
 ```tsx
-<ListboxMenuContent>
-  {children}
-</ListboxMenuContent>
+<ListboxMenuContent>{children}</ListboxMenuContent>
 ```
 
 ---
 
 ### `ListboxMenuRoot`
+
 The Listbox root component that manages the list state.
 
 ```tsx
-<ListboxMenuRoot collection={listCollection}>
-  {children}
-</ListboxMenuRoot>
+<ListboxMenuRoot collection={listCollection}>{children}</ListboxMenuRoot>
 ```
 
 **Props**: Requires `collection` prop from `createListCollection()`
@@ -63,12 +63,13 @@ The Listbox root component that manages the list state.
 ---
 
 ### `ListboxMenuList`
+
 The scrollable container for list items.
 
 ```tsx
 <ListboxMenuList>
   <ListboxMenuItemGroup>
-    {items.map(item => (
+    {items.map((item) => (
       <ListboxMenuItem key={item.value} item={item}>
         {item.label}
       </ListboxMenuItem>
@@ -80,9 +81,11 @@ The scrollable container for list items.
 ---
 
 ### `ListboxMenuItem`
+
 Individual list item component.
 
 **Props**:
+
 - `showIndicator?: boolean` - Shows a checkmark when true (default: `true`)
 - `item` - The collection item object
 - `onClick` - Handler when item is selected
@@ -96,11 +99,12 @@ Individual list item component.
 ---
 
 ### `ListboxMenuItemGroup`
+
 Container for grouping list items.
 
 ```tsx
 <ListboxMenuItemGroup>
-  {items.map(item => (
+  {items.map((item) => (
     <ListboxMenuItem key={item.value} item={item}>
       {item.label}
     </ListboxMenuItem>
@@ -111,17 +115,17 @@ Container for grouping list items.
 ---
 
 ### `ListboxMenuItemGroupLabel`
+
 Optional label for item groups.
 
 ```tsx
-<ListboxMenuItemGroupLabel>
-  Group Title
-</ListboxMenuItemGroupLabel>
+<ListboxMenuItemGroupLabel>Group Title</ListboxMenuItemGroupLabel>
 ```
 
 ---
 
 ### `ListboxMenuFilterContainer`
+
 Container for the filter input.
 
 ```tsx
@@ -138,6 +142,7 @@ Container for the filter input.
 ---
 
 ### `ListboxMenuFilterInput`
+
 Pre-styled input for filtering list items.
 
 ```tsx
@@ -154,12 +159,11 @@ Pre-styled input for filtering list items.
 ---
 
 ### `ListboxMenuEmpty`
+
 Component displayed when no items match the filter.
 
 ```tsx
-<ListboxMenuEmpty>
-  No items found
-</ListboxMenuEmpty>
+<ListboxMenuEmpty>No items found</ListboxMenuEmpty>
 ```
 
 ---
@@ -180,10 +184,7 @@ interface RowsPerPageSelectorProps {
   onValueChange: (newLimit: number) => void;
 }
 
-export function RowsPerPageSelector({
-  value,
-  onValueChange,
-}: RowsPerPageSelectorProps) {
+export function RowsPerPageSelector({ value, onValueChange }: RowsPerPageSelectorProps) {
   const [open, setOpen] = useState(false);
   const [filterValue, setFilterValue] = useState("");
 
@@ -245,9 +246,7 @@ export function RowsPerPageSelector({
                 ))}
               </ListboxMenu.ListboxMenuItemGroup>
             ) : (
-              <ListboxMenu.ListboxMenuEmpty>
-                No items found
-              </ListboxMenu.ListboxMenuEmpty>
+              <ListboxMenu.ListboxMenuEmpty>No items found</ListboxMenu.ListboxMenuEmpty>
             )}
           </ListboxMenu.ListboxMenuList>
         </ListboxMenu.ListboxMenuRoot>
@@ -271,6 +270,7 @@ import {
 ```
 
 ### `createListCollection`
+
 Creates a static collection for the listbox.
 
 ```tsx
@@ -283,6 +283,7 @@ const collection = createListCollection({
 ```
 
 ### `useListCollection`
+
 Hook for managing a collection with filtering capability.
 
 ```tsx
@@ -336,6 +337,7 @@ All components accept custom className props:
 ## Best Practices
 
 1. **Always use `useListCollection` with filtering** for better UX when you have more than a few items:
+
    ```tsx
    const filters = useFilter({ sensitivity: "base" });
    const list = useListCollection({
@@ -345,21 +347,21 @@ All components accept custom className props:
    ```
 
 2. **Set `autoFocus` on the filter input** for better accessibility:
+
    ```tsx
    <ListboxMenuFilterInput autoFocus placeholder="Filter..." />
    ```
 
 3. **Always provide `showIndicator` value** based on selection state:
+
    ```tsx
-   <ListboxMenuItem
-     showIndicator={item.value === selectedValue}
-     item={item}
-   >
+   <ListboxMenuItem showIndicator={item.value === selectedValue} item={item}>
      {item.label}
    </ListboxMenuItem>
    ```
 
 4. **Reset filter state when closing the menu**:
+
    ```tsx
    const handleSelect = (value) => {
      onValueChange(value);

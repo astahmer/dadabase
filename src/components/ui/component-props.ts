@@ -1,47 +1,47 @@
 import type { ComponentProps } from "react";
 
 type AllowedProps =
-	| "ref"
-	| "children"
-	| "className"
-	| "id"
-	| "title"
-	| "hidden"
-	| "onClick"
-	| "onMouseOver"
-	| "onMouseEnter"
-	| "onMouseLeave"
-	| "onBlur";
+  | "ref"
+  | "children"
+  | "className"
+  | "id"
+  | "title"
+  | "hidden"
+  | "onClick"
+  | "onMouseOver"
+  | "onMouseEnter"
+  | "onMouseLeave"
+  | "onBlur";
 
-export interface ExposedComponentProps<T extends "div" | "button" | "label">
-	extends Pick<ComponentProps<T>, AllowedProps> {}
+export interface ExposedComponentProps<T extends "div" | "button" | "label"> extends Pick<
+  ComponentProps<T>,
+  AllowedProps
+> {}
 
-export interface ExposedInputProps
-	extends Pick<
-		ComponentProps<"input">,
-		| AllowedProps
-		| "type"
-		| "placeholder"
-		| "value"
-		| "defaultValue"
-		| "onFocus"
-		| "onChange"
-		| "onChangeCapture"
-		| "onBlur"
-		| "disabled"
-	> {}
+export interface ExposedInputProps extends Pick<
+  ComponentProps<"input">,
+  | AllowedProps
+  | "type"
+  | "placeholder"
+  | "value"
+  | "defaultValue"
+  | "onFocus"
+  | "onChange"
+  | "onChangeCapture"
+  | "onBlur"
+  | "disabled"
+> {}
 
-export interface ExposedTextareaProps
-	extends Pick<
-		ComponentProps<"textarea">,
-		| AllowedProps
-		| "rows"
-		| "value"
-		| "defaultValue"
-		| "onFocus"
-		| "onChange"
-		| "onChangeCapture"
-		| "onBlur"
-		| "placeholder"
-		| "disabled"
-	> {}
+export interface ExposedTextareaProps extends Pick<
+  ComponentProps<"textarea">,
+  | AllowedProps
+  | "rows"
+  | "value"
+  | "defaultValue"
+  | "onFocus"
+  | "onChange"
+  | "onChangeCapture"
+  | "onBlur"
+  | "placeholder"
+  | "disabled"
+> {}

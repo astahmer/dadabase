@@ -1,20 +1,20 @@
 {
-	"name": "@dadabase/effect-pglite",
-	"type": "module",
-	"exports": {
-		".": "./src/mod.ts"
-	},
-	"scripts": {
-		"nts": "node --no-warnings=ExperimentalWarning --experimental-strip-types --experimental-transform-types",
-		"typecheck": "tsc --noEmit"
-	},
-	"dependencies": {
-		"@effect/experimental": "catalog:",
-		"@effect/platform": "catalog:",
-		"@effect/sql": "catalog:",
-		"@electric-sql/pglite": "catalog:",
-		"@electric-sql/pglite-tools": "catalog:",
-		"@opentelemetry/semantic-conventions": "1.38.0",
-		"effect": "catalog:"
-	}
+  "name": "@dadabase/effect-pglite",
+  "type": "module",
+  "exports": {
+    ".": "./src/mod.ts"
+  },
+  "scripts": {
+    "nts": "node --no-warnings=ExperimentalWarning --experimental-strip-types --experimental-transform-types",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/experimental": "catalog:",
+    "@effect/platform": "catalog:",
+    "@effect/sql": "catalog:",
+    "@electric-sql/pglite": "catalog:",
+    "@electric-sql/pglite-tools": "catalog:",
+    "@opentelemetry/semantic-conventions": "1.38.0",
+    "effect": "catalog:"
+  }
 }

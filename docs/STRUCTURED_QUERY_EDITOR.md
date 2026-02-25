@@ -65,16 +65,16 @@ User Flow: Building "age > 25"
 
 The system intelligently suggests values based on the column name pattern:
 
-| Column Pattern | Example Values |
-|---|---|
-| `count`, `quantity` | `1, 5, 10, 50, 100` |
-| `price`, `cost`, `amount` | `10.99, 50, 100, 500, 1000` |
-| `age` | `18, 25, 30, 50` |
-| `date`, `time`, `created`, `updated` | `2024-01-01, today, 2024, recent` |
-| `name`, `title`, `label` | `john, alice, example, test` |
-| `status`, `state` | `active, inactive, pending, completed` |
-| `email` | `user@example.com, admin@example.com` |
-| `url`, `link` | `https://example.com, http://localhost` |
+| Column Pattern                       | Example Values                          |
+| ------------------------------------ | --------------------------------------- |
+| `count`, `quantity`                  | `1, 5, 10, 50, 100`                     |
+| `price`, `cost`, `amount`            | `10.99, 50, 100, 500, 1000`             |
+| `age`                                | `18, 25, 30, 50`                        |
+| `date`, `time`, `created`, `updated` | `2024-01-01, today, 2024, recent`       |
+| `name`, `title`, `label`             | `john, alice, example, test`            |
+| `status`, `state`                    | `active, inactive, pending, completed`  |
+| `email`                              | `user@example.com, admin@example.com`   |
+| `url`, `link`                        | `https://example.com, http://localhost` |
 
 ## Supported Operators
 
@@ -93,6 +93,7 @@ The system recognizes these operators (showing all in suggestions at once):
 ### State Analysis (`analyzeQueryState`)
 
 Parses the current input and returns:
+
 - Current state (`empty | column | operator | value | complete`)
 - Parsed tokens (column, operator, value)
 - Current input being typed
@@ -126,6 +127,7 @@ const suggestions = generateSuggestions(context, columns);
 ### Fuzzy Matching
 
 Uses `@tanstack/match-sorter-utils` for intelligent filtering:
+
 - `crea` matches `created_at` because it starts with `crea`
 - `email` finds `email` before `name` in column list
 - Partial matches work via ranking
@@ -133,6 +135,7 @@ Uses `@tanstack/match-sorter-utils` for intelligent filtering:
 ## UI Components
 
 The component uses Ark UI's `Popover` and `Listbox`:
+
 - **Popover**: Opens on input click/focus to show suggestions
 - **Listbox**: Displays suggestions with keyboard navigation support
 - **Adaptive Text**: Changes hint text based on state (`"Suggestions for next token"` vs `"Start typing or pick a column"`)
@@ -149,11 +152,13 @@ The component uses Ark UI's `Popover` and `Listbox`:
 ## Testing
 
 Run tests with:
+
 ```bash
 pnpm test src/lib/query-state-machine.test.ts
 ```
 
 Tests cover:
+
 - State detection for each stage
 - Suggestion generation accuracy
 - Fuzzy matching behavior

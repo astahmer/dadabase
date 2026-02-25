@@ -2,27 +2,25 @@
  * Determines if a data type should be right-aligned (typically numeric types)
  */
 export function isNumericDataType(dataType: string): boolean {
-	const normalized = dataType.toLowerCase().trim();
+  const normalized = dataType.toLowerCase().trim();
 
-	const numericTypes = [
-		"int2",
-		"int4",
-		"int8",
-		"integer",
-		"smallint",
-		"bigint",
-		"numeric",
-		"decimal",
-		"real",
-		"double precision",
-		"double",
-		"float",
-		"money",
-	];
+  const numericTypes = [
+    "int2",
+    "int4",
+    "int8",
+    "integer",
+    "smallint",
+    "bigint",
+    "numeric",
+    "decimal",
+    "real",
+    "double precision",
+    "double",
+    "float",
+    "money",
+  ];
 
-	return numericTypes.some(
-		(type) => normalized === type || normalized.includes(type),
-	);
+  return numericTypes.some((type) => normalized === type || normalized.includes(type));
 }
 
 /**
@@ -30,27 +28,25 @@ export function isNumericDataType(dataType: string): boolean {
  * Date/time types should NOT be treated as relationships
  */
 export function isDateTimeDataType(dataType: string): boolean {
-	const normalized = dataType.toLowerCase().trim();
+  const normalized = dataType.toLowerCase().trim();
 
-	const dateTimeTypes = [
-		"date",
-		"time",
-		"timestamp",
-		"timestamp without time zone",
-		"timestamp with time zone",
-		"timestamptz",
-		"datetime",
-		"datetime2",
-	];
+  const dateTimeTypes = [
+    "date",
+    "time",
+    "timestamp",
+    "timestamp without time zone",
+    "timestamp with time zone",
+    "timestamptz",
+    "datetime",
+    "datetime2",
+  ];
 
-	return dateTimeTypes.some(
-		(type) => normalized === type || normalized.startsWith(type),
-	);
+  return dateTimeTypes.some((type) => normalized === type || normalized.startsWith(type));
 }
 
 /**
  * Determines the text alignment for a column based on its data type
  */
 export function getColumnTextAlignment(dataType: string): "left" | "right" {
-	return isNumericDataType(dataType) ? "right" : "left";
+  return isNumericDataType(dataType) ? "right" : "left";
 }

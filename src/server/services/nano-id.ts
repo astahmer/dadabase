@@ -5,18 +5,18 @@ const nanoid = customAlphabet(urlAlphabet, 12);
 const generate = (prefix: string) => `${prefix}-${nanoid()}`;
 
 export class NanoId extends Effect.Service<NanoId>()("NanoId", {
-	succeed: {
-		unsafeGenerate: generate,
-		unsafeNanoId: defaultNanoId,
-		generate: (prefix: string) => Effect.sync(() => generate(prefix)),
-		generateMany: (prefix: string, count: number) =>
-			Effect.sync(() => Array.from({ length: count }, () => generate(prefix))),
-	},
+  succeed: {
+    unsafeGenerate: generate,
+    unsafeNanoId: defaultNanoId,
+    generate: (prefix: string) => Effect.sync(() => generate(prefix)),
+    generateMany: (prefix: string, count: number) =>
+      Effect.sync(() => Array.from({ length: count }, () => generate(prefix))),
+  },
 }) {
-	// static Test = Layer.succeed(
-	// 	NanoId,
-	// 	new NanoId({
-	// 		generate: (prefix: string) => Effect.succeed(`${prefix}-test-nanoId`),
-	// 	}),
-	// );
+  // static Test = Layer.succeed(
+  // 	NanoId,
+  // 	new NanoId({
+  // 		generate: (prefix: string) => Effect.succeed(`${prefix}-test-nanoId`),
+  // 	}),
+  // );
 }

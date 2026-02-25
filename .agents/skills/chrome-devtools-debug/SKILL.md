@@ -9,16 +9,16 @@ Debug frontend code by inspecting the actual browser state. Use snapshots for DO
 
 ## Available Tools
 
-| Tool | Purpose |
-|------|---------|
-| `take_snapshot` | Get DOM tree with element uids for inspection |
-| `take_screenshot` | Capture visual output for comparison |
-| `list_console_messages` | Get all console logs/errors/warnings |
-| `get_console_message` | Get details of specific console message |
-| `list_network_requests` | List all network requests |
-| `get_network_request` | Get request/response details (headers, body, timing) |
-| `click`, `hover` | Interact with elements (trigger states) |
-| `evaluate_script` | Run JS to get computed styles, dimensions, etc. |
+| Tool                    | Purpose                                              |
+| ----------------------- | ---------------------------------------------------- |
+| `take_snapshot`         | Get DOM tree with element uids for inspection        |
+| `take_screenshot`       | Capture visual output for comparison                 |
+| `list_console_messages` | Get all console logs/errors/warnings                 |
+| `get_console_message`   | Get details of specific console message              |
+| `list_network_requests` | List all network requests                            |
+| `get_network_request`   | Get request/response details (headers, body, timing) |
+| `click`, `hover`        | Interact with elements (trigger states)              |
+| `evaluate_script`       | Run JS to get computed styles, dimensions, etc.      |
 
 ## Workflows
 
@@ -33,6 +33,7 @@ When debugging errors, warnings, or unexpected behavior:
 ```
 
 Example - check for errors:
+
 ```
 list_console_messages with types: ["error", "warn"]
 → Found error msgid 42
@@ -51,6 +52,7 @@ When debugging API calls, failed fetches, or data issues:
 ```
 
 Example - debug failed API call:
+
 ```
 list_network_requests with resourceTypes: ["fetch", "xhr"]
 → Found reqid 15: POST /api/users 422
@@ -60,9 +62,10 @@ get_network_request(15)
 ```
 
 Key details to check:
+
 - **Status code**: 4xx client error, 5xx server error
 - **Request headers**: Authorization, Content-Type
-- **Response headers**: CORS (Access-Control-*), Set-Cookie
+- **Response headers**: CORS (Access-Control-\*), Set-Cookie
 - **Request body**: Payload sent
 - **Response body**: Error messages, data shape
 
@@ -71,6 +74,7 @@ Key details to check:
 When verifying implementation matches design or debugging layout issues:
 
 #### Quick Visual Check
+
 ```
 take_screenshot
 → Compare visually with design/mockup
@@ -78,12 +82,14 @@ take_screenshot
 ```
 
 #### DOM/CSS Inspection
+
 ```
 1. take_snapshot (get element tree with uids)
 2. evaluate_script to get computed styles/dimensions
 ```
 
 Example - check element dimensions:
+
 ```javascript
 // Get element size and position
 evaluate_script({
@@ -100,11 +106,12 @@ evaluate_script({
       overflow: styles.overflow
     };
   }`,
-  args: [{ uid: "element-uid" }]
-})
+  args: [{ uid: "element-uid" }],
+});
 ```
 
 Example - check for overflow issues:
+
 ```javascript
 // Detect overflow
 evaluate_script({
@@ -116,11 +123,12 @@ evaluate_script({
     clientHeight: el.clientHeight,
     hasVerticalOverflow: el.scrollHeight > el.clientHeight
   })`,
-  args: [{ uid: "container-uid" }]
-})
+  args: [{ uid: "container-uid" }],
+});
 ```
 
 Example - get all CSS properties:
+
 ```javascript
 // Full computed styles
 evaluate_script({
@@ -137,11 +145,12 @@ evaluate_script({
       borderRadius: styles.borderRadius
     };
   }`,
-  args: [{ uid: "element-uid" }]
-})
+  args: [{ uid: "element-uid" }],
+});
 ```
 
 #### Hover/Active State Inspection
+
 ```
 1. hover(uid) to trigger hover state
 2. take_screenshot or evaluate_script to check styles
@@ -164,23 +173,26 @@ When implementing a design or fixing UI bugs, use this feedback loop:
 ## Common Patterns
 
 ### Check if element exists
+
 ```javascript
 evaluate_script({
-  function: `() => document.querySelector('.my-class') !== null`
-})
+  function: `() => document.querySelector('.my-class') !== null`,
+});
 ```
 
 ### Get all elements matching selector
+
 ```javascript
 evaluate_script({
   function: `() => [...document.querySelectorAll('.item')].map(el => ({
     text: el.textContent,
     className: el.className
-  }))`
-})
+  }))`,
+});
 ```
 
 ### Compare two elements' alignment
+
 ```javascript
 evaluate_script({
   function: `() => {
@@ -191,16 +203,17 @@ evaluate_script({
       sameLeft: Math.abs(a.left - b.left) < 1,
       gap: b.left - a.right
     };
-  }`
-})
+  }`,
+});
 ```
 
 ### Check responsive breakpoint
+
 ```javascript
 evaluate_script({
   function: `() => ({
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight
-  })`
-})
+  })`,
+});
 ```

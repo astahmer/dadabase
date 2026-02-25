@@ -53,44 +53,32 @@
       "indexes": {
         "database_connections_url_unique": {
           "name": "database_connections_url_unique",
-          "columns": [
-            "url"
-          ],
+          "columns": ["url"],
           "isUnique": true
         },
         "database_connections_name_unique": {
           "name": "database_connections_name_unique",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": true
         },
         "database_connections_url_index": {
           "name": "database_connections_url_index",
-          "columns": [
-            "url"
-          ],
+          "columns": ["url"],
           "isUnique": false
         },
         "database_connections_dialect_index": {
           "name": "database_connections_dialect_index",
-          "columns": [
-            "dialect"
-          ],
+          "columns": ["dialect"],
           "isUnique": false
         },
         "database_connections_name_index": {
           "name": "database_connections_name_index",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": false
         },
         "database_connections_created_at_index": {
           "name": "database_connections_created_at_index",
-          "columns": [
-            "created_at"
-          ],
+          "columns": ["created_at"],
           "isUnique": false
         }
       },
@@ -162,16 +150,12 @@
       "indexes": {
         "query_favorites_connection_id_index": {
           "name": "query_favorites_connection_id_index",
-          "columns": [
-            "connection_id"
-          ],
+          "columns": ["connection_id"],
           "isUnique": false
         },
         "query_favorites_label_index": {
           "name": "query_favorites_label_index",
-          "columns": [
-            "label"
-          ],
+          "columns": ["label"],
           "isUnique": false
         }
       },
@@ -180,12 +164,8 @@
           "name": "query_favorites_connection_id_database_connections_id_fk",
           "tableFrom": "query_favorites",
           "tableTo": "database_connections",
-          "columnsFrom": [
-            "connection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["connection_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -313,37 +293,27 @@
       "indexes": {
         "query_logs_connection_id_index": {
           "name": "query_logs_connection_id_index",
-          "columns": [
-            "connection_id"
-          ],
+          "columns": ["connection_id"],
           "isUnique": false
         },
         "query_logs_type_index": {
           "name": "query_logs_type_index",
-          "columns": [
-            "type"
-          ],
+          "columns": ["type"],
           "isUnique": false
         },
         "query_logs_schema_index": {
           "name": "query_logs_schema_index",
-          "columns": [
-            "schema"
-          ],
+          "columns": ["schema"],
           "isUnique": false
         },
         "query_logs_table_index": {
           "name": "query_logs_table_index",
-          "columns": [
-            "table"
-          ],
+          "columns": ["table"],
           "isUnique": false
         },
         "query_logs_status_index": {
           "name": "query_logs_status_index",
-          "columns": [
-            "status"
-          ],
+          "columns": ["status"],
           "isUnique": false
         }
       },
@@ -352,12 +322,8 @@
           "name": "query_logs_connection_id_database_connections_id_fk",
           "tableFrom": "query_logs",
           "tableTo": "database_connections",
-          "columnsFrom": [
-            "connection_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["connection_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

@@ -1,29 +1,30 @@
 {
-	"compilerOptions": {
-		"esModuleInterop": true,
-		"skipLibCheck": true,
-		"target": "es2022",
-		"allowJs": true,
-		"resolveJsonModule": true,
-		"moduleDetection": "force",
-		"isolatedModules": true,
-		"verbatimModuleSyntax": true,
-		"strict": true,
-		"noUncheckedIndexedAccess": true,
-		"noImplicitOverride": true,
-		"module": "NodeNext",
-		"moduleResolution": "NodeNext",
-		"noEmit": true,
-		"lib": ["es2022"],
-		"incremental": true,
-		"allowImportingTsExtensions": true,
-		"noUnusedLocals": false,
-		"plugins": [
-			{
-				"name": "@effect/language-service",
-				"transform": "@effect/language-service/transform"
-			}
-		]
-	},
-	"exclude": ["node_modules"]
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "es2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "lib": ["es2022"],
+    "incremental": true,
+    "allowImportingTsExtensions": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "transform": "@effect/language-service/transform"
+      }
+    ]
+  },
+  "exclude": ["node_modules"]
 }

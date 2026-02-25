@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { AccordionExample } from "#src/components/ui/accordion.example.tsx";
 import { ActionBarExample } from "#src/components/ui/action-bar.example.tsx";
 import { AlertDialogExample } from "#src/components/ui/alert-dialog.example.tsx";
@@ -26,118 +25,119 @@ import { TagsInputExample } from "#src/components/ui/tags-input.example.tsx";
 import { TextareaExample } from "#src/components/ui/textarea.example.tsx";
 import { ToastExample } from "#src/components/ui/toast.example.tsx";
 import { TooltipExample } from "#src/components/ui/tooltip.example.tsx";
+import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/sandbox")({
-	component: RouteComponent,
+  component: RouteComponent,
 });
 
 function RouteComponent() {
-	return (
-		<div className="grid grid-cols-2 gap-6 p-6 w-full h-full overflow-auto">
-			<Stack>
-				<h4 className="text-lg font-semibold">Accordion</h4>
-				<AccordionExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Badge</h4>
-				<BadgeExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Breadcrumb</h4>
-				<BreadcrumbExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Button</h4>
-				<ButtonExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Card</h4>
-				<CardExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Checkbox</h4>
-				<CheckboxExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Combobox</h4>
-				<ComboboxExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Dialog</h4>
-				<DialogExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Input</h4>
-				<InputExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Listbox Menu</h4>
-				<ListboxMenuExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Pagination</h4>
-				<PaginationExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Select</h4>
-				<SelectExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Spinner</h4>
-				<SpinnerExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Switch</h4>
-				<SwitchExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Tabs</h4>
-				<TabsExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Textarea</h4>
-				<TextareaExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Tooltip</h4>
-				<TooltipExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Alert Dialog</h4>
-				<AlertDialogExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Popover</h4>
-				<PopoverExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Sheet</h4>
-				<SheetExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Hover Card</h4>
-				<HoverCardExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Menu</h4>
-				<MenuExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Tags Input</h4>
-				<TagsInputExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Kbd</h4>
-				<KbdExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Action Bar</h4>
-				<ActionBarExample />
-			</Stack>
-			<Stack>
-				<h4 className="text-lg font-semibold">Toast</h4>
-				<ToastExample />
-			</Stack>
-		</div>
-	);
+  return (
+    <div className="grid h-full w-full grid-cols-2 gap-6 overflow-auto p-6">
+      <Stack>
+        <h4 className="text-lg font-semibold">Accordion</h4>
+        <AccordionExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Badge</h4>
+        <BadgeExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Breadcrumb</h4>
+        <BreadcrumbExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Button</h4>
+        <ButtonExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Card</h4>
+        <CardExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Checkbox</h4>
+        <CheckboxExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Combobox</h4>
+        <ComboboxExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Dialog</h4>
+        <DialogExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Input</h4>
+        <InputExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Listbox Menu</h4>
+        <ListboxMenuExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Pagination</h4>
+        <PaginationExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Select</h4>
+        <SelectExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Spinner</h4>
+        <SpinnerExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Switch</h4>
+        <SwitchExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Tabs</h4>
+        <TabsExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Textarea</h4>
+        <TextareaExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Tooltip</h4>
+        <TooltipExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Alert Dialog</h4>
+        <AlertDialogExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Popover</h4>
+        <PopoverExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Sheet</h4>
+        <SheetExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Hover Card</h4>
+        <HoverCardExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Menu</h4>
+        <MenuExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Tags Input</h4>
+        <TagsInputExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Kbd</h4>
+        <KbdExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Action Bar</h4>
+        <ActionBarExample />
+      </Stack>
+      <Stack>
+        <h4 className="text-lg font-semibold">Toast</h4>
+        <ToastExample />
+      </Stack>
+    </div>
+  );
 }

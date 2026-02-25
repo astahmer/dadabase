@@ -1,22 +1,24 @@
 ## raw SQL viewer/editor
+
 - edit in datatable line? double click triggers the edit UI with a commit phase (nothing is persisted until you click save with the count + list of changes available to review / the translated raw SQL update)
 - monaco editor editor.changeViewZones for inline actions (run/explain/format/fullscreen/copy/save)
 - diagnostics in editor for SQL issues (missing table, missing column, syntax error etc?)
 - support BETWEEN operand AND operand
 - unlink/detach editor from current table = allows to write arbitrary queries without changing the table context/while viewing results using UI controls or another editor = kinda like a tab inside another
 
-
 ## filters
+
 - support NOT operator in natural language search
 - support IN operator
 - try to match possible operators based on datatype; ex: timestamps shouldnt have
 - date filter with calendar/date range with presets (today, last 7 days, last 30 days, this month, last month, this year, last year)
 
-
 ## json viewer/editor
+
 - copy button should use the <Clipboard> component with a temp success state
 
 ## rows table
+
 - filters in datatable header (th) ?
 - double clicking a cell value should copy it to the clipboard (?)
 - cmd+f in table (virtualized rows needs it) -> highlight/filter?
@@ -29,10 +31,11 @@
 - generative UI for queries (?) https://vercel.com/blog/ai-sdk-3-generative-ui
 
 ## query history/logger
+
 - query history (persisted across sessions; only saves successful queries that were made by a user action) with a Badge distinction for the saved/favorites queries
 
-
 ## new features
+
 - add a way to see the query plan for the current query
 - add a way to visualize indexes for the current table
 - add a way to visualize foreign keys for the current table
@@ -52,11 +55,12 @@
 - handle column aliases: SQL parsing, SQL completion, filters, column visibility, sorting etc
 
 ## issues
+
 - group by/having support in filters UI
 - hiddenColumnList should use an object with the column AND the table name
 - SQL editor maximize button should be open a menu with multiple options:
-    - expand panel (collapse rows content)
-    - fullscreen (collapse sidebar + hide connectionpagefilters + collapse rows content)
+  - expand panel (collapse rows content)
+  - fullscreen (collapse sidebar + hide connectionpagefilters + collapse rows content)
 - Update UI components to display/edit the inverted flag
 - Update SQL completion provider for inverted operator suggestions
 - update deps

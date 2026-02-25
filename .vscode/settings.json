@@ -1,16 +1,29 @@
 {
-	"files.watcherExclude": {
-		"**/routeTree.gen.ts": true
-	},
-	"search.exclude": {
-		"**/routeTree.gen.ts": true,
-		"**/example/**": true
-	},
-	"files.readonlyInclude": {
-		"**/routeTree.gen.ts": true
-	},
-	// "typescript.preferences.importModuleSpecifier": "shortest",
-	"typescript.preferences.importModuleSpecifier": "shortest",
-	"typescript.preferences.importModuleSpecifierEnding": "js",
-	"tailwindCSS.experimental.configFile": "src/styles.css"
+  "files.watcherExclude": {
+    "**/routeTree.gen.ts": true
+  },
+  "search.exclude": {
+    "**/routeTree.gen.ts": true,
+    "**/example/**": true
+  },
+  "files.readonlyInclude": {
+    "**/routeTree.gen.ts": true
+  },
+  // "typescript.preferences.importModuleSpecifier": "shortest",
+  "typescript.preferences.importModuleSpecifier": "shortest",
+  "typescript.preferences.importModuleSpecifierEnding": "js",
+  "tailwindCSS.experimental.configFile": "src/styles.css",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  "oxc.enable": true,
+  "[jsonc]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  } // tell oxfmt to format the whole file, not only the modified lines
 }

@@ -8,23 +8,23 @@ const enabled = false;
 scan({ enabled: false });
 
 export const WithDevtools = () => {
-	if (!enabled) return null;
+  if (!enabled) return null;
 
-	return (
-		<TanStackDevtools
-			config={{
-				position: "bottom-right",
-			}}
-			plugins={[
-				{
-					name: "Tanstack Router",
-					render: <TanStackRouterDevtoolsPanel />,
-				},
-				{
-					name: "Tanstack Query",
-					render: <ReactQueryDevtoolsPanel />,
-				},
-			]}
-		/>
-	);
+  return (
+    <TanStackDevtools
+      config={{
+        position: "bottom-right",
+      }}
+      plugins={[
+        {
+          name: "Tanstack Router",
+          render: <TanStackRouterDevtoolsPanel />,
+        },
+        {
+          name: "Tanstack Query",
+          render: <ReactQueryDevtoolsPanel />,
+        },
+      ]}
+    />
+  );
 };

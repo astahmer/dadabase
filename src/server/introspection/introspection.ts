@@ -1,31 +1,31 @@
-import { SqlClient } from "@effect/sql";
-import { SqlError } from "@effect/sql/SqlError";
-import { Effect, Scope } from "effect";
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
+
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
-import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
+import { SqlClient } from "@effect/sql";
+import { SqlError } from "@effect/sql/SqlError";
+import { Effect } from "effect";
+
 import type { QueryLogger } from "../query-logger/query-logger.ts";
-import {
-	QueryLogLevel,
-	QueryLogType,
-} from "../query-logger/query-logger.types.ts";
-import { withQueryLogging } from "../query-logger/with-query-logging.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
+
+import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
+import { QueryLogLevel, QueryLogType } from "../query-logger/query-logger.types.ts";
+import { withQueryLogging } from "../query-logger/with-query-logging.ts";
 import { isSelectQuery } from "./detect-destructive-sql.ts";
 import {
-	buildJoinSqlClauses,
-	buildPgSelectWithJoins,
-	buildSqliteSelectWithJoins,
-	generateJoinAliases,
+  buildJoinSqlClauses,
+  buildPgSelectWithJoins,
+  buildSqliteSelectWithJoins,
+  generateJoinAliases,
 } from "./join-builder.ts";
 import {
-	buildColumnList,
-	buildTableColumnsMap,
-	formatSchemaTable,
-	remapJoins,
-	remapSchema,
+  buildColumnList,
+  buildTableColumnsMap,
+  formatSchemaTable,
+  remapJoins,
+  remapSchema,
 } from "./query-table-rows.helpers.ts";
 import { buildWhereClauseWithJoins } from "./sql-query-builder/build-query-sql.ts";
 
@@ -43,46 +43,46 @@ import { buildWhereClauseWithJoins } from "./sql-query-builder/build-query-sql.t
  * - SQLite: Returns the attached databases
  */
 export const getAvailableDatabases = () =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
 
-		const result = yield* sql.onDialectOrElse({
-			pg: () => {
-				const query = sql<{ datname: string }>`
+    const result = yield* sql.onDialectOrElse({
+      pg: () => {
+        const query = sql<{ datname: string }>`
 					SELECT datname as name FROM pg_catalog.pg_database ORDER BY datname
 				`;
-				const compiled = query.compile();
-				return query.pipe(
-					withQueryLogging({
-						type: QueryLogType.SchemaIntrospection,
-						sql: compiled[0],
-						params: compiled[1],
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			sqlite: () => {
-				const query = sql<{ name: string }>`
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      sqlite: () => {
+        const query = sql<{ name: string }>`
 					PRAGMA database_list
 				`;
-				const compiled = query.compile();
-				return query.pipe(
-					withQueryLogging({
-						type: QueryLogType.SchemaIntrospection,
-						sql: compiled[0],
-						params: compiled[1],
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
 
-		return result as Array<{ name: string }>;
-	});
+    return result as Array<{ name: string }>;
+  });
 
 /**
  * Get available schemas for the connected database
@@ -90,49 +90,49 @@ export const getAvailableDatabases = () =>
  * - SQLite: Returns 'main' and 'temp' schemas
  */
 export const getAvailableSchemas = () =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
 
-		const result = yield* sql.onDialectOrElse({
-			pg: () => {
-				const query = sql<{ schema_name: string }>`
+    const result = yield* sql.onDialectOrElse({
+      pg: () => {
+        const query = sql<{ schema_name: string }>`
 					SELECT schema_name FROM information_schema.schemata
 					WHERE schema_name NOT IN ('pg_catalog', 'information_schema')
 					ORDER BY schema_name
 				`;
-				const compiled = query.compile();
-				return query.pipe(
-					withQueryLogging({
-						type: QueryLogType.SchemaIntrospection,
-						sql: compiled[0],
-						params: compiled[1],
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			sqlite: () => {
-				const query = sql<{ schema_name: string }>`
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      sqlite: () => {
+        const query = sql<{ schema_name: string }>`
 					SELECT 'main' as schema_name
 					UNION SELECT 'temp' as schema_name
 				`;
-				const compiled = query.compile();
-				return query.pipe(
-					withQueryLogging({
-						type: QueryLogType.SchemaIntrospection,
-						sql: compiled[0],
-						params: compiled[1],
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
 
-		return result.map((row) => row.schema_name);
-	});
+    return result.map((row) => row.schema_name);
+  });
 
 /**
  * Get available tables in a schema
@@ -140,61 +140,61 @@ export const getAvailableSchemas = () =>
  * - SQLite: Query sqlite_master
  */
 export const getAvailableTables = (input?: { schema?: string }) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
 
-		const result = yield* sql.onDialectOrElse({
-			pg: () => {
-				const query = sql`
+    const result = yield* sql.onDialectOrElse({
+      pg: () => {
+        const query = sql`
 					SELECT table_name as name, table_schema as schema FROM information_schema.tables
 					WHERE table_schema = ${input?.schema || getDialectDefaultSchema(DatabaseDialect.Postgres)}
 					AND table_type = 'BASE TABLE'
 					ORDER BY table_name
 				`;
-				const compiled = query.compile();
-				return query.pipe(
-					withQueryLogging({
-						type: QueryLogType.SchemaIntrospection,
-						sql: compiled[0],
-						params: compiled[1],
-						schema: input?.schema,
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			sqlite: () => {
-				const query = sql`
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            schema: input?.schema,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      sqlite: () => {
+        const query = sql`
 					SELECT name as name FROM sqlite_master
 					WHERE type = 'table'
 					AND name NOT LIKE 'sqlite_%'
 					ORDER BY name
 				`;
-				const compiled = query.compile();
-				return query.pipe(
-					withQueryLogging({
-						type: QueryLogType.SchemaIntrospection,
-						sql: compiled[0],
-						params: compiled[1],
-						schema: input?.schema,
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            schema: input?.schema,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
 
-		return result as Array<{ name: string; schema: string }>;
-	});
+    return result as Array<{ name: string; schema: string }>;
+  });
 
 export interface ColumnInfo {
-	column_name: string;
-	data_type: string;
-	is_nullable: boolean;
-	column_default: string | null;
-	ordinal_position: number;
+  column_name: string;
+  data_type: string;
+  is_nullable: boolean;
+  column_default: string | null;
+  ordinal_position: number;
 }
 
 /**
@@ -203,21 +203,21 @@ export interface ColumnInfo {
  * - SQLite: PRAGMA table_info
  */
 export const getTableColumns = (input: { schema: string; table: string }) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
 
-		const output = yield* sql.onDialectOrElse({
-			pg: () =>
-				Effect.gen(function* () {
-					// First, get all foreign keys for this table using a simpler query
-					const fkQuery = sql<{
-						columnName: string;
-						referencedSchema: string;
-						referencedTable: string;
-						referencedColumn: string;
-						constraintName: string;
-					}>`
+    const output = yield* sql.onDialectOrElse({
+      pg: () =>
+        Effect.gen(function* () {
+          // First, get all foreign keys for this table using a simpler query
+          const fkQuery = sql<{
+            columnName: string;
+            referencedSchema: string;
+            referencedTable: string;
+            referencedColumn: string;
+            constraintName: string;
+          }>`
 				SELECT
 					a.attname AS "columnName",
 					nf.nspname AS "referencedSchema",
@@ -239,40 +239,40 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 					AND a.attnum > 0
 					AND NOT a.attisdropped
 			`;
-					const fkCompiledQuery = fkQuery.compile();
-					const fkQueryResult = yield* fkQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.ColumnMetadata,
-							sql: fkCompiledQuery[0],
-							params: fkCompiledQuery[1],
-							schema: input.schema,
-							table: input.table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
+          const fkCompiledQuery = fkQuery.compile();
+          const fkQueryResult = yield* fkQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ColumnMetadata,
+              sql: fkCompiledQuery[0],
+              params: fkCompiledQuery[1],
+              schema: input.schema,
+              table: input.table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
 
-					const foreignKeys = fkQueryResult;
-					// Create a map for quick FK lookup
-					const fkMap = new Map<
-						string,
-						{
-							referencedSchema: string;
-							referencedTable: string;
-							referencedColumn: string;
-							constraintName: string;
-						}
-					>();
-					foreignKeys.forEach((fk) => {
-						fkMap.set(fk.columnName, {
-							referencedSchema: fk.referencedSchema,
-							referencedTable: fk.referencedTable,
-							referencedColumn: fk.referencedColumn,
-							constraintName: fk.constraintName,
-						});
-					});
+          const foreignKeys = fkQueryResult;
+          // Create a map for quick FK lookup
+          const fkMap = new Map<
+            string,
+            {
+              referencedSchema: string;
+              referencedTable: string;
+              referencedColumn: string;
+              constraintName: string;
+            }
+          >();
+          foreignKeys.forEach((fk) => {
+            fkMap.set(fk.columnName, {
+              referencedSchema: fk.referencedSchema,
+              referencedTable: fk.referencedTable,
+              referencedColumn: fk.referencedColumn,
+              constraintName: fk.constraintName,
+            });
+          });
 
-					const columnsQuery = sql<TableColumnMetadata>`
+          const columnsQuery = sql<TableColumnMetadata>`
 			SELECT DISTINCT ON (a.attnum)
 				a.attname as name,
 				format_type(a.atttypid, a.atttypmod) as "dataType",
@@ -295,118 +295,119 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 			ORDER BY
 				a.attnum
 		`;
-					const columnsCompiledQuery = columnsQuery.compile();
-					const columns = yield* columnsQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.ColumnMetadata,
-							sql: columnsCompiledQuery[0],
-							params: columnsCompiledQuery[1],
-							schema: input.schema,
-							table: input.table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
-					// Merge FK info with column metadata
-					return columns.map((col) => ({
-						...col,
-						isForeignKey: fkMap.has(col.name),
-						foreignKey: fkMap.get(col.name),
-					}));
-				}),
-			sqlite: () =>
-				Effect.gen(function* () {
-					// Get table schema from PRAGMA table_info
-					const tableInfoQuery = sql<{
-						cid: number;
-						name: string;
-						type: string;
-						notnull: number;
-						dflt_value: string | null;
-						pk: number;
-					}>`PRAGMA table_info(${sql(input.table)})`;
-					const tableInfoCompiled = tableInfoQuery.compile();
-					const tableInfo = yield* tableInfoQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.ColumnMetadata,
-							sql: tableInfoCompiled[0],
-							params: tableInfoCompiled[1],
-							schema: input.schema,
-							table: input.table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
+          const columnsCompiledQuery = columnsQuery.compile();
+          const columns = yield* columnsQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ColumnMetadata,
+              sql: columnsCompiledQuery[0],
+              params: columnsCompiledQuery[1],
+              schema: input.schema,
+              table: input.table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
+          // Merge FK info with column metadata
+          // oxlint-disable-next-line oxc/no-map-spread
+          return columns.map((col) => ({
+            ...col,
+            isForeignKey: fkMap.has(col.name),
+            foreignKey: fkMap.get(col.name),
+          }));
+        }),
+      sqlite: () =>
+        Effect.gen(function* () {
+          // Get table schema from PRAGMA table_info
+          const tableInfoQuery = sql<{
+            cid: number;
+            name: string;
+            type: string;
+            notnull: number;
+            dflt_value: string | null;
+            pk: number;
+          }>`PRAGMA table_info(${sql(input.table)})`;
+          const tableInfoCompiled = tableInfoQuery.compile();
+          const tableInfo = yield* tableInfoQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ColumnMetadata,
+              sql: tableInfoCompiled[0],
+              params: tableInfoCompiled[1],
+              schema: input.schema,
+              table: input.table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
 
-					// Get foreign keys for this table
-					const fksQuery = sql<PragmaForeignKeyInfo>`PRAGMA foreign_key_list(${sql(input.table)})`;
-					const fksCompiled = fksQuery.compile();
-					const fks = yield* fksQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.ForeignKeyLookup,
-							sql: fksCompiled[0],
-							params: fksCompiled[1],
-							schema: input.schema,
-							table: input.table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
+          // Get foreign keys for this table
+          const fksQuery = sql<PragmaForeignKeyInfo>`PRAGMA foreign_key_list(${sql(input.table)})`;
+          const fksCompiled = fksQuery.compile();
+          const fks = yield* fksQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ForeignKeyLookup,
+              sql: fksCompiled[0],
+              params: fksCompiled[1],
+              schema: input.schema,
+              table: input.table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
 
-					// Create FK map for quick lookup
-					const fkMap = new Map<
-						string,
-						{
-							referencedSchema: string;
-							referencedTable: string;
-							referencedColumn: string;
-							constraintName: string;
-						}
-					>();
+          // Create FK map for quick lookup
+          const fkMap = new Map<
+            string,
+            {
+              referencedSchema: string;
+              referencedTable: string;
+              referencedColumn: string;
+              constraintName: string;
+            }
+          >();
 
-					fks.forEach((fk) => {
-						fkMap.set(fk.from, {
-							referencedSchema: "", // SQLite doesn't have schemas
-							referencedTable: fk.table,
-							referencedColumn: fk.to,
-							constraintName: `fk_${fk.id}`,
-						});
-					});
+          fks.forEach((fk) => {
+            fkMap.set(fk.from, {
+              referencedSchema: "", // SQLite doesn't have schemas
+              referencedTable: fk.table,
+              referencedColumn: fk.to,
+              constraintName: `fk_${fk.id}`,
+            });
+          });
 
-					// Convert PRAGMA table_info to our TableColumnMetadata format
-					return tableInfo.map((col) => ({
-						name: col.name,
-						dataType: col.type.toLowerCase(), // Normalize to lowercase like PostgreSQL
-						nullable: col.notnull === 0,
-						primaryKey: col.pk > 0,
-						unique: false, // Would need to check indexes for unique columns
-						defaultValue: col.dflt_value,
-						isForeignKey: fkMap.has(col.name),
-						foreignKey: fkMap.get(col.name),
-					}));
-				}),
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
-		return output as Array<TableColumnMetadata>;
-	});
+          // Convert PRAGMA table_info to our TableColumnMetadata format
+          return tableInfo.map((col) => ({
+            name: col.name,
+            dataType: col.type.toLowerCase(), // Normalize to lowercase like PostgreSQL
+            nullable: col.notnull === 0,
+            primaryKey: col.pk > 0,
+            unique: false, // Would need to check indexes for unique columns
+            defaultValue: col.dflt_value,
+            isForeignKey: fkMap.has(col.name),
+            foreignKey: fkMap.get(col.name),
+          }));
+        }),
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
+    return output as Array<TableColumnMetadata>;
+  });
 
 export interface ForeignKeyInfo {
-	constraint_name: string;
-	column_name: string;
-	referenced_table_schema: string;
-	referenced_table_name: string;
-	referenced_column_name: string;
+  constraint_name: string;
+  column_name: string;
+  referenced_table_schema: string;
+  referenced_table_name: string;
+  referenced_column_name: string;
 }
 
 interface PragmaForeignKeyInfo {
-	id: number;
-	seq: number;
-	table: string;
-	from: string;
-	to: string;
-	on_delete: string;
-	on_update: string;
-	match: string;
+  id: number;
+  seq: number;
+  table: string;
+  from: string;
+  to: string;
+  on_delete: string;
+  on_update: string;
+  match: string;
 }
 
 /**
@@ -415,14 +416,14 @@ interface PragmaForeignKeyInfo {
  * - SQLite: PRAGMA foreign_key_list
  */
 export const getTableForeignKeys = (input: { schema: string; table: string }) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
-		const { schema, table } = input;
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
+    const { schema, table } = input;
 
-		const result = yield* sql.onDialectOrElse({
-			pg: () => {
-				const query = sql<ForeignKeyInfo>`
+    const result = yield* sql.onDialectOrElse({
+      pg: () => {
+        const query = sql<ForeignKeyInfo>`
 					SELECT
 						tc.constraint_name,
 						kcu.column_name,
@@ -438,94 +439,92 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 					AND tc.table_schema = ${schema}
 					AND tc.table_name = ${table}
 				`;
-				const compiled = query.compile();
-				return query.pipe(
-					withQueryLogging({
-						type: QueryLogType.ForeignKeyLookup,
-						sql: compiled[0],
-						params: compiled[1],
-						schema,
-						table,
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			sqlite: () =>
-				Effect.gen(function* () {
-					const rowsQuery = sql<PragmaForeignKeyInfo>`
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.ForeignKeyLookup,
+            sql: compiled[0],
+            params: compiled[1],
+            schema,
+            table,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      sqlite: () =>
+        Effect.gen(function* () {
+          const rowsQuery = sql<PragmaForeignKeyInfo>`
 						PRAGMA foreign_key_list(${sql(table)})
 					`;
-					const rowsCompiled = rowsQuery.compile();
-					const rows = yield* rowsQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.ForeignKeyLookup,
-							sql: rowsCompiled[0],
-							params: rowsCompiled[1],
-							schema,
-							table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
+          const rowsCompiled = rowsQuery.compile();
+          const rows = yield* rowsQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ForeignKeyLookup,
+              sql: rowsCompiled[0],
+              params: rowsCompiled[1],
+              schema,
+              table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
 
-					// Get column positions for ordering
-					const tableInfoQuery = sql<{
-						cid: number;
-						name: string;
-					}>`
+          // Get column positions for ordering
+          const tableInfoQuery = sql<{
+            cid: number;
+            name: string;
+          }>`
 						PRAGMA table_info(${sql(table)})
 					`;
-					const tableInfoCompiled = tableInfoQuery.compile();
-					const tableInfo = yield* tableInfoQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.SchemaIntrospection,
-							sql: tableInfoCompiled[0],
-							params: tableInfoCompiled[1],
-							schema,
-							table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
+          const tableInfoCompiled = tableInfoQuery.compile();
+          const tableInfo = yield* tableInfoQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.SchemaIntrospection,
+              sql: tableInfoCompiled[0],
+              params: tableInfoCompiled[1],
+              schema,
+              table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
 
-					const columnPositions = new Map(
-						tableInfo.map((col) => [col.name, col.cid]),
-					);
+          const columnPositions = new Map(tableInfo.map((col) => [col.name, col.cid]));
 
-					return rows
-						.map((row) => ({
-							constraint_name: `fk_${row.id}`,
-							column_name: row.from,
-							referenced_table_schema: input.schema,
-							referenced_table_name: row.table,
-							referenced_column_name: row.to,
-						}))
-						.sort((a, b) => {
-							const posA = columnPositions.get(a.column_name) ?? 999;
-							const posB = columnPositions.get(b.column_name) ?? 999;
-							return posA - posB;
-						}) as ForeignKeyInfo[];
-				}),
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
+          return rows
+            .map((row) => ({
+              constraint_name: `fk_${row.id}`,
+              column_name: row.from,
+              referenced_table_schema: input.schema,
+              referenced_table_name: row.table,
+              referenced_column_name: row.to,
+            }))
+            .toSorted((a, b) => {
+              const posA = columnPositions.get(a.column_name) ?? 999;
+              const posB = columnPositions.get(b.column_name) ?? 999;
+              return posA - posB;
+            }) as ForeignKeyInfo[];
+        }),
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
 
-		return result as Array<ForeignKeyInfo>;
-	});
+    return result as Array<ForeignKeyInfo>;
+  });
 
 export interface IndexInfo {
-	index_name: string;
-	column_name: string;
-	is_unique: boolean;
-	is_primary: boolean;
+  index_name: string;
+  column_name: string;
+  is_unique: boolean;
+  is_primary: boolean;
 }
 
 interface PragmaIndexInfo {
-	seq: number;
-	name: string;
-	unique: number;
-	partial: number;
-	origin?: string;
+  seq: number;
+  name: string;
+  unique: number;
+  partial: number;
+  origin?: string;
 }
 
 /**
@@ -534,14 +533,14 @@ interface PragmaIndexInfo {
  * - SQLite: PRAGMA index_list
  */
 export const getTableIndexes = (input: { schema: string; table: string }) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
-		const { schema, table } = input;
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
+    const { schema, table } = input;
 
-		const result = yield* sql.onDialectOrElse({
-			pg: () => {
-				const query = sql<IndexInfo>`
+    const result = yield* sql.onDialectOrElse({
+      pg: () => {
+        const query = sql<IndexInfo>`
 				SELECT DISTINCT
 					pi.indexname as index_name,
 					a.attname as column_name,
@@ -556,106 +555,104 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 				WHERE pi.schemaname = ${schema}
 				AND pi.tablename = ${table}
 			`;
-				const compiled = query.compile();
-				return query.pipe(
-					withQueryLogging({
-						type: QueryLogType.SchemaIntrospection,
-						sql: compiled[0],
-						params: compiled[1],
-						schema,
-						table,
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			sqlite: () =>
-				Effect.gen(function* () {
-					const indexListQuery = sql<PragmaIndexInfo>`
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            schema,
+            table,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      sqlite: () =>
+        Effect.gen(function* () {
+          const indexListQuery = sql<PragmaIndexInfo>`
 					PRAGMA index_list(${sql(table)})
 				`;
-					const indexListCompiled = indexListQuery.compile();
-					const indexList = yield* indexListQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.SchemaIntrospection,
-							sql: indexListCompiled[0],
-							params: indexListCompiled[1],
-							schema,
-							table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
+          const indexListCompiled = indexListQuery.compile();
+          const indexList = yield* indexListQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.SchemaIntrospection,
+              sql: indexListCompiled[0],
+              params: indexListCompiled[1],
+              schema,
+              table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
 
-					const results: IndexInfo[] = [];
+          const results: IndexInfo[] = [];
 
-					for (const idx of indexList) {
-						// For each index, get its columns
-						const idxColsQuery = sql<{
-							seqno: number;
-							cid: number;
-							name: string;
-						}>`
+          for (const idx of indexList) {
+            // For each index, get its columns
+            const idxColsQuery = sql<{
+              seqno: number;
+              cid: number;
+              name: string;
+            }>`
 						PRAGMA index_info(${sql(idx.name)})
 					`;
-						const idxColsCompiled = idxColsQuery.compile();
-						const idxCols = yield* idxColsQuery.pipe(
-							withQueryLogging({
-								type: QueryLogType.SchemaIntrospection,
-								sql: idxColsCompiled[0],
-								params: idxColsCompiled[1],
-								schema,
-								table,
-								level: QueryLogLevel.Trace,
-								connectionId,
-							}),
-						);
+            const idxColsCompiled = idxColsQuery.compile();
+            const idxCols = yield* idxColsQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.SchemaIntrospection,
+                sql: idxColsCompiled[0],
+                params: idxColsCompiled[1],
+                schema,
+                table,
+                level: QueryLogLevel.Trace,
+                connectionId,
+              }),
+            );
 
-						for (const col of idxCols) {
-							results.push({
-								index_name: idx.name,
-								column_name: col.name,
-								is_unique: idx.unique === 1,
-								is_primary:
-									idx.origin === "pk" ||
-									idx.name.startsWith("sqlite_autoindex"),
-							});
-						}
-					}
+            for (const col of idxCols) {
+              results.push({
+                index_name: idx.name,
+                column_name: col.name,
+                is_unique: idx.unique === 1,
+                is_primary: idx.origin === "pk" || idx.name.startsWith("sqlite_autoindex"),
+              });
+            }
+          }
 
-					return results as IndexInfo[];
-				}),
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
+          return results;
+        }),
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
 
-		return result as Array<IndexInfo>;
-	});
+    return result as Array<IndexInfo>;
+  });
 export interface AllTablesForeignKeyInfo {
-	referencedSchema: string;
-	referencedTable: string;
-	referencedColumn: string;
-	constraintName: string;
+  referencedSchema: string;
+  referencedTable: string;
+  referencedColumn: string;
+  constraintName: string;
 }
 
 export interface TableColumnMetadata {
-	name: string;
-	dataType: string;
-	nullable: boolean;
-	primaryKey: boolean;
-	unique: boolean;
-	defaultValue: string | null;
-	isForeignKey?: boolean;
-	foreignKey?: {
-		referencedSchema: string;
-		referencedTable: string;
-		referencedColumn: string;
-		constraintName: string;
-	};
+  name: string;
+  dataType: string;
+  nullable: boolean;
+  primaryKey: boolean;
+  unique: boolean;
+  defaultValue: string | null;
+  isForeignKey?: boolean;
+  foreignKey?: {
+    referencedSchema: string;
+    referencedTable: string;
+    referencedColumn: string;
+    constraintName: string;
+  };
 }
 
 export interface TableWithColumnsMetadata {
-	table: string;
-	columns: Array<TableColumnMetadata>;
+  table: string;
+  columns: Array<TableColumnMetadata>;
 }
 
 /**
@@ -664,169 +661,163 @@ export interface TableWithColumnsMetadata {
  * and `getTableForeignKeys` so logic stays consistent across drivers.
  */
 export const getAllTablesColumns = (input: { schema: string }) =>
-	Effect.gen(function* () {
-		const { schema } = input;
+  Effect.gen(function* () {
+    const { schema } = input;
 
-		const tables = yield* getAvailableTables({ schema });
+    const tables = yield* getAvailableTables({ schema });
 
-		// For each table, fetch columns and foreign keys and merge them
-		const tablesWithColumns = yield* Effect.all(
-			tables.map((table) =>
-				Effect.gen(function* () {
-					const [cols, fks, indexes] = yield* Effect.all(
-						[
-							getTableColumns({ schema, table: table.name }),
-							getTableForeignKeys({ schema, table: table.name }),
-							getTableIndexes({ schema, table: table.name }),
-						],
-						{ concurrency: "unbounded" },
-					);
+    // For each table, fetch columns and foreign keys and merge them
+    const tablesWithColumns = yield* Effect.all(
+      tables.map((table) =>
+        Effect.gen(function* () {
+          const [cols, fks, indexes] = yield* Effect.all(
+            [
+              getTableColumns({ schema, table: table.name }),
+              getTableForeignKeys({ schema, table: table.name }),
+              getTableIndexes({ schema, table: table.name }),
+            ],
+            { concurrency: "unbounded" },
+          );
 
-					// Build FK map keyed by column_name (getTableForeignKeys returns snake_case keys)
-					const fkMap = new Map<string, AllTablesForeignKeyInfo>();
-					for (const fk of fks) {
-						fkMap.set(fk.column_name, {
-							referencedSchema: (fk.referenced_table_schema ??
-								fk.referenced_table_schema) as string,
-							referencedTable: fk.referenced_table_name as string,
-							referencedColumn: fk.referenced_column_name as string,
-							constraintName: fk.constraint_name as string,
-						});
-					}
+          // Build FK map keyed by column_name (getTableForeignKeys returns snake_case keys)
+          const fkMap = new Map<string, AllTablesForeignKeyInfo>();
+          for (const fk of fks) {
+            fkMap.set(fk.column_name, {
+              referencedSchema: (fk.referenced_table_schema ??
+                fk.referenced_table_schema),
+              referencedTable: fk.referenced_table_name,
+              referencedColumn: fk.referenced_column_name,
+              constraintName: fk.constraint_name,
+            });
+          }
 
-					// Build sets for primary key and unique columns from indexes (PG) or column info (SQLite)
-					const pkSet = new Set<string>();
-					const uniqueSet = new Set<string>();
+          // Build sets for primary key and unique columns from indexes (PG) or column info (SQLite)
+          const pkSet = new Set<string>();
+          const uniqueSet = new Set<string>();
 
-					// Indexes may contain multiple entries per index (one per column)
-					for (const idx of indexes as IndexInfo[]) {
-						if (idx.is_primary) pkSet.add(idx.column_name);
-						if (idx.is_unique) uniqueSet.add(idx.column_name);
-					}
+          // Indexes may contain multiple entries per index (one per column)
+          for (const idx of indexes) {
+            if (idx.is_primary) pkSet.add(idx.column_name);
+            if (idx.is_unique) uniqueSet.add(idx.column_name);
+          }
 
-					// For sqlite, PRAGMA table_info provides pk flag on columns; ensure we include those
-					for (const c of cols) {
-						if (c.primaryKey) pkSet.add(c.name);
-					}
-					const columns = cols.map((c) => ({
-						name: c.name,
-						dataType: c.dataType,
-						nullable: Boolean(c.nullable),
-						primaryKey: pkSet.has(c.name) || false,
-						unique: uniqueSet.has(c.name) || false,
-						defaultValue: c.defaultValue ?? null,
-						isForeignKey: fkMap.has(c.name),
-						foreignKey: fkMap.has(c.name) ? fkMap.get(c.name) : undefined,
-					}));
+          // For sqlite, PRAGMA table_info provides pk flag on columns; ensure we include those
+          for (const c of cols) {
+            if (c.primaryKey) pkSet.add(c.name);
+          }
+          const columns = cols.map((c) => ({
+            name: c.name,
+            dataType: c.dataType,
+            nullable: Boolean(c.nullable),
+            primaryKey: pkSet.has(c.name) || false,
+            unique: uniqueSet.has(c.name) || false,
+            defaultValue: c.defaultValue ?? null,
+            isForeignKey: fkMap.has(c.name),
+            foreignKey: fkMap.has(c.name) ? fkMap.get(c.name) : undefined,
+          }));
 
-					return {
-						table: table.name,
-						columns,
-					} as TableWithColumnsMetadata;
-				}),
-			),
-			{ concurrency: "unbounded" },
-		);
+          return {
+            table: table.name,
+            columns,
+          } as TableWithColumnsMetadata;
+        }),
+      ),
+      { concurrency: "unbounded" },
+    );
 
-		return tablesWithColumns;
-	});
+    return tablesWithColumns;
+  });
 
 /**
  * Get structures for specific tables (or all tables if none specified) in a schema
  * Returns array of table structures with columns and metadata
  */
-export const getTablesStructures = (input: {
-	schema: string;
-	tables?: string[];
-}) =>
-	Effect.gen(function* () {
-		const { schema, tables: specifiedTables } = input;
+export const getTablesStructures = (input: { schema: string; tables?: string[] }) =>
+  Effect.gen(function* () {
+    const { schema, tables: specifiedTables } = input;
 
-		const allTables = yield* getAvailableTables({ schema });
+    const allTables = yield* getAvailableTables({ schema });
 
-		// Filter to specified tables if provided, otherwise use all
-		const tablesToProcess = specifiedTables
-			? allTables.filter((t) => specifiedTables.includes(t.name))
-			: allTables;
+    // Filter to specified tables if provided, otherwise use all
+    const tablesToProcess = specifiedTables
+      ? allTables.filter((t) => specifiedTables.includes(t.name))
+      : allTables;
 
-		// For each table, fetch columns and foreign keys and merge them
-		const tablesWithColumns = yield* Effect.all(
-			tablesToProcess.map((table) =>
-				Effect.gen(function* () {
-					const [cols, fks, indexes] = yield* Effect.all(
-						[
-							getTableColumns({ schema, table: table.name }),
-							getTableForeignKeys({ schema, table: table.name }),
-							getTableIndexes({ schema, table: table.name }),
-						],
-						{ concurrency: "unbounded" },
-					);
+    // For each table, fetch columns and foreign keys and merge them
+    const tablesWithColumns = yield* Effect.all(
+      tablesToProcess.map((table) =>
+        Effect.gen(function* () {
+          const [cols, fks, indexes] = yield* Effect.all(
+            [
+              getTableColumns({ schema, table: table.name }),
+              getTableForeignKeys({ schema, table: table.name }),
+              getTableIndexes({ schema, table: table.name }),
+            ],
+            { concurrency: "unbounded" },
+          );
 
-					// Build FK map keyed by column_name
-					const fkMap = new Map<string, AllTablesForeignKeyInfo>();
-					for (const fk of fks) {
-						fkMap.set(fk.column_name, {
-							referencedSchema: (fk.referenced_table_schema ??
-								fk.referenced_table_schema) as string,
-							referencedTable: fk.referenced_table_name as string,
-							referencedColumn: fk.referenced_column_name as string,
-							constraintName: fk.constraint_name as string,
-						});
-					}
+          // Build FK map keyed by column_name
+          const fkMap = new Map<string, AllTablesForeignKeyInfo>();
+          for (const fk of fks) {
+            fkMap.set(fk.column_name, {
+              referencedSchema: (fk.referenced_table_schema ??
+                fk.referenced_table_schema),
+              referencedTable: fk.referenced_table_name,
+              referencedColumn: fk.referenced_column_name,
+              constraintName: fk.constraint_name,
+            });
+          }
 
-					// Build sets for primary key and unique columns from indexes
-					const pkSet = new Set<string>();
-					const uniqueSet = new Set<string>();
+          // Build sets for primary key and unique columns from indexes
+          const pkSet = new Set<string>();
+          const uniqueSet = new Set<string>();
 
-					for (const idx of indexes as IndexInfo[]) {
-						if (idx.is_primary) pkSet.add(idx.column_name);
-						if (idx.is_unique) uniqueSet.add(idx.column_name);
-					}
+          for (const idx of indexes) {
+            if (idx.is_primary) pkSet.add(idx.column_name);
+            if (idx.is_unique) uniqueSet.add(idx.column_name);
+          }
 
-					for (const c of cols) {
-						if (c.primaryKey) pkSet.add(c.name);
-					}
+          for (const c of cols) {
+            if (c.primaryKey) pkSet.add(c.name);
+          }
 
-					const columns = cols.map((c) => ({
-						name: c.name,
-						dataType: c.dataType,
-						nullable: Boolean(c.nullable),
-						primaryKey: pkSet.has(c.name) || false,
-						unique: uniqueSet.has(c.name) || false,
-						defaultValue: c.defaultValue ?? null,
-						isForeignKey: fkMap.has(c.name),
-						foreignKey: fkMap.has(c.name) ? fkMap.get(c.name) : undefined,
-					}));
+          const columns = cols.map((c) => ({
+            name: c.name,
+            dataType: c.dataType,
+            nullable: Boolean(c.nullable),
+            primaryKey: pkSet.has(c.name) || false,
+            unique: uniqueSet.has(c.name) || false,
+            defaultValue: c.defaultValue ?? null,
+            isForeignKey: fkMap.has(c.name),
+            foreignKey: fkMap.has(c.name) ? fkMap.get(c.name) : undefined,
+          }));
 
-					return {
-						table: table.name,
-						columns,
-					} as TableWithColumnsMetadata;
-				}),
-			),
-			{ concurrency: "unbounded" },
-		);
+          return {
+            table: table.name,
+            columns,
+          } as TableWithColumnsMetadata;
+        }),
+      ),
+      { concurrency: "unbounded" },
+    );
 
-		return tablesWithColumns;
-	});
+    return tablesWithColumns;
+  });
 
 /**
  * Get all relationships for a table (both incoming and outgoing)
  * - PostgreSQL: Query pg_constraint and information_schema
  * - SQLite: PRAGMA foreign_key_list (limited - only outgoing)
  */
-export const getTableRelationships = (input: {
-	schema: string;
-	table: string;
-}) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
-		const { schema, table } = input;
+export const getTableRelationships = (input: { schema: string; table: string }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
+    const { schema, table } = input;
 
-		const output = yield* sql.onDialectOrElse({
-			pg: () => {
-				const pgRelQuery = sql<TableRelationship>`
+    const output = yield* sql.onDialectOrElse({
+      pg: () => {
+        const pgRelQuery = sql<TableRelationship>`
 					-- Get outgoing relationships (FKs from this table)
 					SELECT
 						'outgoing'::text as type,
@@ -879,97 +870,95 @@ export const getTableRelationships = (input: {
 					ORDER BY
 						type, "referencingTable", "referencingColumn"
 				`;
-				const pgRelCompiledQuery = pgRelQuery.compile();
-				return pgRelQuery.pipe(
-					withQueryLogging({
-						type: QueryLogType.RelationshipDiscovery,
-						sql: pgRelCompiledQuery[0],
-						params: pgRelCompiledQuery[1],
-						schema,
-						table,
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			sqlite: () =>
-				Effect.gen(function* () {
-					// Get outgoing relationships via PRAGMA
-					const outgoingRows = yield* sql<PragmaForeignKeyInfo>`
+        const pgRelCompiledQuery = pgRelQuery.compile();
+        return pgRelQuery.pipe(
+          withQueryLogging({
+            type: QueryLogType.RelationshipDiscovery,
+            sql: pgRelCompiledQuery[0],
+            params: pgRelCompiledQuery[1],
+            schema,
+            table,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      sqlite: () =>
+        Effect.gen(function* () {
+          // Get outgoing relationships via PRAGMA
+          const outgoingRows = yield* sql<PragmaForeignKeyInfo>`
 						PRAGMA foreign_key_list(${sql(table)})
 					`;
 
-					const outgoing = outgoingRows.map((row) => ({
-						type: "outgoing" as const,
-						referencingSchema: schema,
-						referencingTable: table,
-						referencingColumn: row.from,
-						referencedSchema: schema,
-						referencedTable: row.table,
-						referencedColumn: row.to,
-						constraintName: `fk_${row.id}`,
-					}));
+          const outgoing = outgoingRows.map((row) => ({
+            type: "outgoing" as const,
+            referencingSchema: schema,
+            referencingTable: table,
+            referencingColumn: row.from,
+            referencedSchema: schema,
+            referencedTable: row.table,
+            referencedColumn: row.to,
+            constraintName: `fk_${row.id}`,
+          }));
 
-					// Get incoming relationships by finding all FK references to this table
-					// For each column in this table, find tables that reference it
-					const tableInfo = yield* sql<{
-						name: string;
-					}>`
+          // Get incoming relationships by finding all FK references to this table
+          // For each column in this table, find tables that reference it
+          const tableInfo = yield* sql<{
+            name: string;
+          }>`
 						PRAGMA table_info(${sql(table)})
 					`;
 
-					const incomingRelationships: TableRelationship[] = [];
-					for (const col of tableInfo) {
-						const refs = yield* findColumnReferences({
-							referencedSchema: schema,
-							referencedTable: table,
-							referencedColumn: col.name,
-						});
+          const incomingRelationships: TableRelationship[] = [];
+          for (const col of tableInfo) {
+            const refs = yield* findColumnReferences({
+              referencedSchema: schema,
+              referencedTable: table,
+              referencedColumn: col.name,
+            });
 
-						for (const ref of refs) {
-							incomingRelationships.push({
-								type: "incoming" as const,
-								referencingSchema: ref.schema,
-								referencingTable: ref.table,
-								referencingColumn: ref.column,
-								referencedSchema: schema,
-								referencedTable: table,
-								referencedColumn: ref.referencedColumn,
-								constraintName: ref.constraintName,
-							});
-						}
-					}
+            for (const ref of refs) {
+              incomingRelationships.push({
+                type: "incoming" as const,
+                referencingSchema: ref.schema,
+                referencingTable: ref.table,
+                referencingColumn: ref.column,
+                referencedSchema: schema,
+                referencedTable: table,
+                referencedColumn: ref.referencedColumn,
+                constraintName: ref.constraintName,
+              });
+            }
+          }
 
-					// Combine and sort
-					const combined = [...outgoing, ...incomingRelationships].sort(
-						(a, b) => {
-							const typeOrder = { outgoing: 0, incoming: 1 };
-							if (typeOrder[a.type] !== typeOrder[b.type]) {
-								return typeOrder[a.type] - typeOrder[b.type];
-							}
-							if (a.referencingTable !== b.referencingTable) {
-								return a.referencingTable.localeCompare(b.referencingTable);
-							}
-							return a.referencingColumn.localeCompare(b.referencingColumn);
-						},
-					);
+          // Combine and sort
+          const combined = [...outgoing, ...incomingRelationships].toSorted((a, b) => {
+            const typeOrder = { outgoing: 0, incoming: 1 };
+            if (typeOrder[a.type] !== typeOrder[b.type]) {
+              return typeOrder[a.type] - typeOrder[b.type];
+            }
+            if (a.referencingTable !== b.referencingTable) {
+              return a.referencingTable.localeCompare(b.referencingTable);
+            }
+            return a.referencingColumn.localeCompare(b.referencingColumn);
+          });
 
-					return combined;
-				}),
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
+          return combined;
+        }),
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
 
-		return output as Array<TableRelationship>;
-	});
+    return output as Array<TableRelationship>;
+  });
 export interface ColumnReference {
-	schema: string;
-	table: string;
-	column: string;
-	referencedColumn: string;
-	constraintName: string;
+  schema: string;
+  table: string;
+  column: string;
+  referencedColumn: string;
+  constraintName: string;
 }
 export interface ColumnReferenceWithCount extends ColumnReference {
-	matchingRowCount: number;
+  matchingRowCount: number;
 }
 
 /**
@@ -978,18 +967,18 @@ export interface ColumnReferenceWithCount extends ColumnReference {
  * - SQLite: Not directly supported (would need to scan all tables)
  */
 export const findColumnReferences = (input: {
-	referencedSchema: string;
-	referencedTable: string;
-	referencedColumn: string;
+  referencedSchema: string;
+  referencedTable: string;
+  referencedColumn: string;
 }) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
-		const { referencedSchema, referencedTable, referencedColumn } = input;
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
+    const { referencedSchema, referencedTable, referencedColumn } = input;
 
-		const output = yield* sql.onDialectOrElse({
-			pg: () => {
-				const pgRefQuery = sql`
+    const output = yield* sql.onDialectOrElse({
+      pg: () => {
+        const pgRefQuery = sql`
 					SELECT
 						kcu1.table_schema AS schema,
 						kcu1.table_name AS table,
@@ -1013,59 +1002,59 @@ export const findColumnReferences = (input: {
 						kcu1.table_name,
 						kcu1.column_name
 				`;
-				const pgRefCompiledQuery = pgRefQuery.compile();
-				return pgRefQuery.pipe(
-					withQueryLogging({
-						type: QueryLogType.RelationshipDiscovery,
-						sql: pgRefCompiledQuery[0],
-						params: pgRefCompiledQuery[1],
-						schema: referencedSchema,
-						table: referencedTable,
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			sqlite: () =>
-				Effect.gen(function* () {
-					// SQLite: manually scan all tables for foreign keys that reference the target
-					const tables = yield* getAvailableTables();
-					const results: ColumnReference[] = [];
+        const pgRefCompiledQuery = pgRefQuery.compile();
+        return pgRefQuery.pipe(
+          withQueryLogging({
+            type: QueryLogType.RelationshipDiscovery,
+            sql: pgRefCompiledQuery[0],
+            params: pgRefCompiledQuery[1],
+            schema: referencedSchema,
+            table: referencedTable,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      sqlite: () =>
+        Effect.gen(function* () {
+          // SQLite: manually scan all tables for foreign keys that reference the target
+          const tables = yield* getAvailableTables();
+          const results: ColumnReference[] = [];
 
-					for (const tableInfo of tables) {
-						const fks = yield* getTableForeignKeys({
-							schema: referencedSchema,
-							table: tableInfo.name,
-						});
+          for (const tableInfo of tables) {
+            const fks = yield* getTableForeignKeys({
+              schema: referencedSchema,
+              table: tableInfo.name,
+            });
 
-						for (const fk of fks) {
-							if (
-								fk.referenced_table_name === referencedTable &&
-								fk.referenced_column_name === referencedColumn
-							) {
-								results.push({
-									schema: referencedSchema,
-									table: tableInfo.name,
-									column: fk.column_name,
-									referencedColumn: fk.referenced_column_name,
-									constraintName: fk.constraint_name,
-								});
-							}
-						}
-					}
+            for (const fk of fks) {
+              if (
+                fk.referenced_table_name === referencedTable &&
+                fk.referenced_column_name === referencedColumn
+              ) {
+                results.push({
+                  schema: referencedSchema,
+                  table: tableInfo.name,
+                  column: fk.column_name,
+                  referencedColumn: fk.referenced_column_name,
+                  constraintName: fk.constraint_name,
+                });
+              }
+            }
+          }
 
-					return results.sort((a, b) => {
-						if (a.table !== b.table) {
-							return a.table.localeCompare(b.table);
-						}
-						return a.column.localeCompare(b.column);
-					});
-				}),
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
+          return results.toSorted((a, b) => {
+            if (a.table !== b.table) {
+              return a.table.localeCompare(b.table);
+            }
+            return a.column.localeCompare(b.column);
+          });
+        }),
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
 
-		return output as Array<ColumnReference>;
-	});
+    return output as Array<ColumnReference>;
+  });
 
 /**
  * Get all tables and columns that reference a specific column with row counts
@@ -1075,170 +1064,164 @@ export const findColumnReferences = (input: {
  * - SQLite: Not directly supported (would need to scan all tables)
  */
 export const findColumnReferencesWithCounts = (input: {
-	referencedSchema: string;
-	referencedTable: string;
-	referencedColumn: string;
-	cellValue: unknown;
+  referencedSchema: string;
+  referencedTable: string;
+  referencedColumn: string;
+  cellValue: unknown;
 }) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
-		const { referencedSchema, referencedTable, referencedColumn, cellValue } =
-			input;
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
+    const { referencedSchema, referencedTable, referencedColumn, cellValue } = input;
 
-		// First get all references
-		const references = yield* findColumnReferences({
-			referencedSchema,
-			referencedTable,
-			referencedColumn,
-		});
+    // First get all references
+    const references = yield* findColumnReferences({
+      referencedSchema,
+      referencedTable,
+      referencedColumn,
+    });
 
-		// Normalize the cell value: treat string "null" or "undefined" as null
-		const normalizedCellValue =
-			cellValue === undefined || cellValue === null
-				? null
-				: typeof cellValue === "string" &&
-						(cellValue === "null" || cellValue === "undefined")
-					? null
-					: cellValue;
+    // Normalize the cell value: treat string "null" or "undefined" as null
+    const normalizedCellValue =
+      cellValue === undefined || cellValue === null
+        ? null
+        : typeof cellValue === "string" && (cellValue === "null" || cellValue === "undefined")
+          ? null
+          : cellValue;
 
-		// Execute all COUNT queries in parallel
-		const referencesWithCounts = yield* Effect.all(
-			references.map((ref) => {
-				const tableRef = sql`${sql(ref.schema)}.${sql(ref.table)}`;
-				const column = sql(ref.column);
-				return sql.onDialectOrElse({
-					pg: () => {
-						// Build the count query based on whether value is null
-						if (normalizedCellValue === null) {
-							const nullQuery = sql<{ count: number }>`
+    // Execute all COUNT queries in parallel
+    const referencesWithCounts = yield* Effect.all(
+      references.map((ref) => {
+        const tableRef = sql`${sql(ref.schema)}.${sql(ref.table)}`;
+        const column = sql(ref.column);
+        return sql.onDialectOrElse({
+          pg: () => {
+            // Build the count query based on whether value is null
+            if (normalizedCellValue === null) {
+              const nullQuery = sql<{ count: number }>`
 								SELECT COUNT(*) as count
 								FROM ${tableRef}
 								WHERE ${column} IS NULL
 							`;
-							const nullQueryCompiled = nullQuery.compile();
-							return nullQuery.pipe(
-								withQueryLogging({
-									type: QueryLogType.RelationshipCounting,
-									sql: nullQueryCompiled[0],
-									params: nullQueryCompiled[1],
-									schema: ref.schema,
-									table: ref.table,
-									level: QueryLogLevel.Trace,
-									connectionId,
-								}),
-								Effect.map((rows) => ({
-									...ref,
-									matchingRowCount: Number(rows[0]?.count ?? 0),
-								})),
-								Effect.catchAll(() =>
-									Effect.succeed({
-										...ref,
-										matchingRowCount: -1,
-									}),
-								),
-							);
-						}
-						const valueQuery = sql<{ count: number }>`
+              const nullQueryCompiled = nullQuery.compile();
+              return nullQuery.pipe(
+                withQueryLogging({
+                  type: QueryLogType.RelationshipCounting,
+                  sql: nullQueryCompiled[0],
+                  params: nullQueryCompiled[1],
+                  schema: ref.schema,
+                  table: ref.table,
+                  level: QueryLogLevel.Trace,
+                  connectionId,
+                }),
+                Effect.map((rows) => ({
+                  ...ref,
+                  matchingRowCount: Number(rows[0]?.count ?? 0),
+                })),
+                Effect.catchAll(() =>
+                  Effect.succeed({
+                    ...ref,
+                    matchingRowCount: -1,
+                  }),
+                ),
+              );
+            }
+            const valueQuery = sql<{ count: number }>`
 							SELECT COUNT(*) as count
 							FROM ${tableRef}
 							WHERE ${column} = ${normalizedCellValue}
 						`;
-						const valueQueryCompiled = valueQuery.compile();
-						return valueQuery.pipe(
-							withQueryLogging({
-								type: QueryLogType.RelationshipCounting,
-								sql: valueQueryCompiled[0],
-								params: valueQueryCompiled[1],
-								schema: ref.schema,
-								table: ref.table,
-								level: QueryLogLevel.Trace,
-								connectionId,
-							}),
-							Effect.map((rows) => ({
-								...ref,
-								matchingRowCount: Number(rows[0]?.count ?? 0),
-							})),
-							Effect.catchAll(() =>
-								Effect.succeed({
-									...ref,
-									matchingRowCount: -1,
-								}),
-							),
-						);
-					},
-					sqlite: () => {
-						// SQLite: execute the count query dynamically
-						if (normalizedCellValue === null) {
-							const sqliteNullQuery = sql<{ count: number }>`
+            const valueQueryCompiled = valueQuery.compile();
+            return valueQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.RelationshipCounting,
+                sql: valueQueryCompiled[0],
+                params: valueQueryCompiled[1],
+                schema: ref.schema,
+                table: ref.table,
+                level: QueryLogLevel.Trace,
+                connectionId,
+              }),
+              Effect.map((rows) => ({
+                ...ref,
+                matchingRowCount: Number(rows[0]?.count ?? 0),
+              })),
+              Effect.catchAll(() =>
+                Effect.succeed({
+                  ...ref,
+                  matchingRowCount: -1,
+                }),
+              ),
+            );
+          },
+          sqlite: () => {
+            // SQLite: execute the count query dynamically
+            if (normalizedCellValue === null) {
+              const sqliteNullQuery = sql<{ count: number }>`
 								SELECT COUNT(*) as count
 								FROM ${sql(ref.table)}
 								WHERE ${sql(ref.column)} IS NULL
 							`;
-							const sqliteNullCompiled = sqliteNullQuery.compile();
-							return sqliteNullQuery.pipe(
-								withQueryLogging({
-									type: QueryLogType.RelationshipCounting,
-									sql: sqliteNullCompiled[0],
-									params: sqliteNullCompiled[1],
-									schema: ref.schema,
-									table: ref.table,
-									level: QueryLogLevel.Trace,
-									connectionId,
-								}),
-								Effect.map((rows) => ({
-									...ref,
-									matchingRowCount: Number(rows[0]?.count ?? 0),
-								})),
-								Effect.catchAll(() =>
-									Effect.succeed({
-										...ref,
-										matchingRowCount: -1,
-									}),
-								),
-							);
-						}
-						const sqliteValueQuery = sql<{ count: number }>`
+              const sqliteNullCompiled = sqliteNullQuery.compile();
+              return sqliteNullQuery.pipe(
+                withQueryLogging({
+                  type: QueryLogType.RelationshipCounting,
+                  sql: sqliteNullCompiled[0],
+                  params: sqliteNullCompiled[1],
+                  schema: ref.schema,
+                  table: ref.table,
+                  level: QueryLogLevel.Trace,
+                  connectionId,
+                }),
+                Effect.map((rows) => ({
+                  ...ref,
+                  matchingRowCount: Number(rows[0]?.count ?? 0),
+                })),
+                Effect.catchAll(() =>
+                  Effect.succeed({
+                    ...ref,
+                    matchingRowCount: -1,
+                  }),
+                ),
+              );
+            }
+            const sqliteValueQuery = sql<{ count: number }>`
 							SELECT COUNT(*) as count
 							FROM ${sql(ref.table)}
 							WHERE ${sql(ref.column)} = ${normalizedCellValue}
 						`;
-						const sqliteValueCompiled = sqliteValueQuery.compile();
-						return sqliteValueQuery.pipe(
-							withQueryLogging({
-								type: QueryLogType.RelationshipCounting,
-								sql: sqliteValueCompiled[0],
-								params: sqliteValueCompiled[1],
-								schema: ref.schema,
-								table: ref.table,
-								level: QueryLogLevel.Trace,
-								connectionId,
-							}),
-							Effect.map((rows) => ({
-								...ref,
-								matchingRowCount: Number(rows[0]?.count ?? 0),
-							})),
-							Effect.catchAll(() =>
-								Effect.succeed({
-									...ref,
-									matchingRowCount: -1,
-								}),
-							),
-						);
-					},
-					orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-				});
-			}),
-		);
+            const sqliteValueCompiled = sqliteValueQuery.compile();
+            return sqliteValueQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.RelationshipCounting,
+                sql: sqliteValueCompiled[0],
+                params: sqliteValueCompiled[1],
+                schema: ref.schema,
+                table: ref.table,
+                level: QueryLogLevel.Trace,
+                connectionId,
+              }),
+              Effect.map((rows) => ({
+                ...ref,
+                matchingRowCount: Number(rows[0]?.count ?? 0),
+              })),
+              Effect.catchAll(() =>
+                Effect.succeed({
+                  ...ref,
+                  matchingRowCount: -1,
+                }),
+              ),
+            );
+          },
+          orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+        });
+      }),
+    );
 
-		return referencesWithCounts;
-	});
+    return referencesWithCounts;
+  });
 
-export type RelationshipCardinality =
-	| "one-to-one"
-	| "one-to-many"
-	| "many-to-one"
-	| "many-to-many";
+export type RelationshipCardinality = "one-to-one" | "one-to-many" | "many-to-one" | "many-to-many";
 
 /**
  * Detect the cardinality of a foreign key relationship.
@@ -1254,23 +1237,23 @@ export type RelationshipCardinality =
  *   (many-to-one becomes one-to-many and vice versa)
  */
 export const getRelationshipCardinality = (input: {
-	schema: string;
-	table: string;
-	columns: string[];
-	isIncomingRelationship?: boolean;
+  schema: string;
+  table: string;
+  columns: string[];
+  isIncomingRelationship?: boolean;
 }): Effect.Effect<
-	RelationshipCardinality,
-	SqlError,
-	SqlClient.SqlClient | QueryLogger | RemoteConnection
+  RelationshipCardinality,
+  SqlError,
+  SqlClient.SqlClient | QueryLogger | RemoteConnection
 > =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
-		const { schema, table, columns, isIncomingRelationship } = input;
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
+    const { schema, table, columns, isIncomingRelationship } = input;
 
-		const output = yield* sql.onDialectOrElse({
-			pg: () => {
-				const pgCardQuery = sql<{ cardinality: string }>`
+    const output = yield* sql.onDialectOrElse({
+      pg: () => {
+        const pgCardQuery = sql<{ cardinality: string }>`
 					-- Determine cardinality of FK relationship
 					WITH table_oid AS (
 						SELECT oid
@@ -1329,193 +1312,192 @@ export const getRelationshipCardinality = (input: {
 					JOIN referenced_side_unique ref_u ON fk.oid = ref_u.oid
 					LIMIT 1
 				`;
-				const pgCardCompiledQuery = pgCardQuery.compile();
-				return pgCardQuery.pipe(
-					withQueryLogging({
-						type: QueryLogType.RelationshipCardinality,
-						sql: pgCardCompiledQuery[0],
-						params: pgCardCompiledQuery[1],
-						schema,
-						table,
-						level: QueryLogLevel.Trace,
-						connectionId,
-					}),
-				);
-			},
-			sqlite: () =>
-				Effect.gen(function* () {
-					// Get foreign keys for this table
-					const fksQuery = sql<PragmaForeignKeyInfo>`
+        const pgCardCompiledQuery = pgCardQuery.compile();
+        return pgCardQuery.pipe(
+          withQueryLogging({
+            type: QueryLogType.RelationshipCardinality,
+            sql: pgCardCompiledQuery[0],
+            params: pgCardCompiledQuery[1],
+            schema,
+            table,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      sqlite: () =>
+        Effect.gen(function* () {
+          // Get foreign keys for this table
+          const fksQuery = sql<PragmaForeignKeyInfo>`
 						PRAGMA foreign_key_list("${table}")
 					`;
-					const fksCompiledQuery = fksQuery.compile();
-					const fks = yield* fksQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.RelationshipCardinality,
-							sql: fksCompiledQuery[0],
-							params: fksCompiledQuery[1],
-							schema,
-							table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
+          const fksCompiledQuery = fksQuery.compile();
+          const fks = yield* fksQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.RelationshipCardinality,
+              sql: fksCompiledQuery[0],
+              params: fksCompiledQuery[1],
+              schema,
+              table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
 
-					// Find the FK that matches our columns
-					const matchingFk = fks.find((fk) => fk.from === columns[0]);
+          // Find the FK that matches our columns
+          const matchingFk = fks.find((fk) => fk.from === columns[0]);
 
-					if (!matchingFk) {
-						// No matching FK found
-						return [{ cardinality: "many-to-one" }];
-					}
+          if (!matchingFk) {
+            // No matching FK found
+            return [{ cardinality: "many-to-one" }];
+          }
 
-					// Get table info to check if FK column is a primary key
-					const tableInfoQuery = sql<{
-						cid: number;
-						name: string;
-						type: string;
-						notnull: number;
-						dflt_value: string | null;
-						pk: number;
-					}>`
+          // Get table info to check if FK column is a primary key
+          const tableInfoQuery = sql<{
+            cid: number;
+            name: string;
+            type: string;
+            notnull: number;
+            dflt_value: string | null;
+            pk: number;
+          }>`
 					PRAGMA table_info("${table}")
 				`;
-					const tableInfoCompiledQuery = tableInfoQuery.compile();
-					const tableInfo = yield* tableInfoQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.SchemaIntrospection,
-							sql: tableInfoCompiledQuery[0],
-							params: tableInfoCompiledQuery[1],
-							schema,
-							table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
+          const tableInfoCompiledQuery = tableInfoQuery.compile();
+          const tableInfo = yield* tableInfoQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.SchemaIntrospection,
+              sql: tableInfoCompiledQuery[0],
+              params: tableInfoCompiledQuery[1],
+              schema,
+              table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
 
-					// Check if FK column is the primary key
-					const fkColumnInfo = tableInfo.find((col) => col.name === columns[0]);
-					const fkIsPrimaryKey = (fkColumnInfo?.pk ?? 0) > 0;
+          // Check if FK column is the primary key
+          const fkColumnInfo = tableInfo.find((col) => col.name === columns[0]);
+          const fkIsPrimaryKey = (fkColumnInfo?.pk ?? 0) > 0;
 
-					// Get indexes to check if FK columns are unique (non-primary unique index)
-					const indexListQuery = sql<PragmaIndexInfo>`
+          // Get indexes to check if FK columns are unique (non-primary unique index)
+          const indexListQuery = sql<PragmaIndexInfo>`
 					PRAGMA index_list("${table}")
 				`;
-					const indexListCompiledQuery = indexListQuery.compile();
-					const indexList = yield* indexListQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.SchemaIntrospection,
-							sql: indexListCompiledQuery[0],
-							params: indexListCompiledQuery[1],
-							table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
+          const indexListCompiledQuery = indexListQuery.compile();
+          const indexList = yield* indexListQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.SchemaIntrospection,
+              sql: indexListCompiledQuery[0],
+              params: indexListCompiledQuery[1],
+              table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
 
-					let fkIsUnique = fkIsPrimaryKey; // Primary key is unique
+          let fkIsUnique = fkIsPrimaryKey; // Primary key is unique
 
-					if (!fkIsUnique) {
-						for (const idx of indexList) {
-							if (idx.unique === 1 && idx.origin !== "pk") {
-								// Check if it's not the primary key index
-								const idxColsQuery = sql<{
-									seqno: number;
-									cid: number;
-									name: string;
-								}>`
+          if (!fkIsUnique) {
+            for (const idx of indexList) {
+              if (idx.unique === 1 && idx.origin !== "pk") {
+                // Check if it's not the primary key index
+                const idxColsQuery = sql<{
+                  seqno: number;
+                  cid: number;
+                  name: string;
+                }>`
 								PRAGMA index_info("${idx.name}")
 							`;
-								const idxColsCompiledQuery = idxColsQuery.compile();
-								const idxCols = yield* idxColsQuery.pipe(
-									withQueryLogging({
-										type: QueryLogType.SchemaIntrospection,
-										sql: idxColsCompiledQuery[0],
-										params: idxColsCompiledQuery[1],
-										schema,
-										table,
-										level: QueryLogLevel.Trace,
-										connectionId,
-									}),
-								);
+                const idxColsCompiledQuery = idxColsQuery.compile();
+                const idxCols = yield* idxColsQuery.pipe(
+                  withQueryLogging({
+                    type: QueryLogType.SchemaIntrospection,
+                    sql: idxColsCompiledQuery[0],
+                    params: idxColsCompiledQuery[1],
+                    schema,
+                    table,
+                    level: QueryLogLevel.Trace,
+                    connectionId,
+                  }),
+                );
 
-								// Check if this index contains our FK column
-								if (idxCols.some((col) => col.name === columns[0])) {
-									fkIsUnique = true;
-									break;
-								}
-							}
-						}
-					}
+                // Check if this index contains our FK column
+                if (idxCols.some((col) => col.name === columns[0])) {
+                  fkIsUnique = true;
+                  break;
+                }
+              }
+            }
+          }
 
-					// Check if referenced columns are the primary key
-					const referencedTableInfoQuery = sql<{
-						cid: number;
-						name: string;
-						type: string;
-						notnull: number;
-						dflt_value: string | null;
-						pk: number;
-					}>`
+          // Check if referenced columns are the primary key
+          const referencedTableInfoQuery = sql<{
+            cid: number;
+            name: string;
+            type: string;
+            notnull: number;
+            dflt_value: string | null;
+            pk: number;
+          }>`
 					PRAGMA table_info("${matchingFk.table}")
 				`;
-					const referencedTableInfoCompiledQuery =
-						referencedTableInfoQuery.compile();
-					const referencedTableInfo = yield* referencedTableInfoQuery.pipe(
-						withQueryLogging({
-							type: QueryLogType.SchemaIntrospection,
-							sql: referencedTableInfoCompiledQuery[0],
-							params: referencedTableInfoCompiledQuery[1],
-							table,
-							level: QueryLogLevel.Trace,
-							connectionId,
-						}),
-					);
+          const referencedTableInfoCompiledQuery = referencedTableInfoQuery.compile();
+          const referencedTableInfo = yield* referencedTableInfoQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.SchemaIntrospection,
+              sql: referencedTableInfoCompiledQuery[0],
+              params: referencedTableInfoCompiledQuery[1],
+              table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
 
-					const referencedIsPk = referencedTableInfo.some(
-						(col) => col.name === matchingFk.to && col.pk > 0,
-					);
+          const referencedIsPk = referencedTableInfo.some(
+            (col) => col.name === matchingFk.to && col.pk > 0,
+          );
 
-					let cardinality: string = "many-to-one";
-					if (fkIsUnique && referencedIsPk) {
-						cardinality = "one-to-one";
-					} else if (!fkIsUnique && referencedIsPk) {
-						cardinality = "many-to-one";
-					} else if (fkIsUnique && !referencedIsPk) {
-						cardinality = "one-to-many";
-					} else {
-						cardinality = "many-to-many";
-					}
+          let cardinality: string = "many-to-one";
+          if (fkIsUnique && referencedIsPk) {
+            cardinality = "one-to-one";
+          } else if (!fkIsUnique && referencedIsPk) {
+            cardinality = "many-to-one";
+          } else if (fkIsUnique && !referencedIsPk) {
+            cardinality = "one-to-many";
+          } else {
+            cardinality = "many-to-many";
+          }
 
-					return [{ cardinality }];
-				}),
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
-		const result = output as Array<{ cardinality: string }>;
+          return [{ cardinality }];
+        }),
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
+    const result = output as Array<{ cardinality: string }>;
 
-		// If no result found, return defaults based on relationship direction
-		if (result.length === 0) {
-			if (isIncomingRelationship) {
-				return "one-to-many";
-			}
-			return "many-to-one";
-		}
+    // If no result found, return defaults based on relationship direction
+    if (result.length === 0) {
+      if (isIncomingRelationship) {
+        return "one-to-many";
+      }
+      return "many-to-one";
+    }
 
-		let cardinality = result[0].cardinality as RelationshipCardinality;
+    let cardinality = result[0].cardinality as RelationshipCardinality;
 
-		// If this is an incoming relationship, invert the cardinality
-		// many-to-one becomes one-to-many and vice versa
-		if (isIncomingRelationship) {
-			if (cardinality === "many-to-one") {
-				cardinality = "one-to-many";
-			} else if (cardinality === "one-to-many") {
-				cardinality = "many-to-one";
-			}
-			// one-to-one and many-to-many remain the same
-		}
+    // If this is an incoming relationship, invert the cardinality
+    // many-to-one becomes one-to-many and vice versa
+    if (isIncomingRelationship) {
+      if (cardinality === "many-to-one") {
+        cardinality = "one-to-many";
+      } else if (cardinality === "one-to-many") {
+        cardinality = "many-to-one";
+      }
+      // one-to-one and many-to-many remain the same
+    }
 
-		return cardinality;
-	});
+    return cardinality;
+  });
 
 /**
  * Fetch row counts for all relationships of a table in a single batch
@@ -1524,132 +1506,124 @@ export const getRelationshipCardinality = (input: {
  * - SQLite: Same approach
  */
 export const getRelationshipsCounts = (input: {
-	schema: string;
-	table: string;
-	relationships: TableRelationshipInput[];
-	rowData: Record<string, unknown>;
+  schema: string;
+  table: string;
+  relationships: TableRelationshipInput[];
+  rowData: Record<string, unknown>;
 }) =>
-	Effect.gen(function* () {
-		const sql = yield* SqlClient.SqlClient;
-		const connectionId = yield* RemoteConnection;
-		const { relationships, rowData } = input;
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
+    const { relationships, rowData } = input;
 
-		if (relationships.length === 0) {
-			return {};
-		}
+    if (relationships.length === 0) {
+      return {};
+    }
 
-		// Filter out relationships where the FK value is null
-		const validRelationships = relationships.filter((rel) => {
-			const filterValue =
-				rowData[
-					rel.type === "incoming" ? rel.referencedColumn : rel.referencingColumn
-				];
-			const isNullValue =
-				filterValue === null ||
-				filterValue === undefined ||
-				filterValue === "null";
-			return !isNullValue;
-		});
+    // Filter out relationships where the FK value is null
+    const validRelationships = relationships.filter((rel) => {
+      const filterValue =
+        rowData[rel.type === "incoming" ? rel.referencedColumn : rel.referencingColumn];
+      const isNullValue =
+        filterValue === null || filterValue === undefined || filterValue === "null";
+      return !isNullValue;
+    });
 
-		// Execute COUNT queries in parallel
-		const results = yield* Effect.all(
-			validRelationships.map((rel) =>
-				Effect.gen(function* () {
-					const filterValue =
-						rowData[
-							rel.type === "incoming"
-								? rel.referencedColumn
-								: rel.referencingColumn
-						];
-					const tableRef = sql`${sql(rel.referencingSchema)}.${sql(rel.referencingTable)}`;
-					const referencingColumn = sql(rel.referencingColumn);
-					const referencingTable = sql(rel.referencingTable);
+    // Execute COUNT queries in parallel
+    const results = yield* Effect.all(
+      validRelationships.map((rel) =>
+        Effect.gen(function* () {
+          const filterValue =
+            rowData[rel.type === "incoming" ? rel.referencedColumn : rel.referencingColumn];
+          const tableRef = sql`${sql(rel.referencingSchema)}.${sql(rel.referencingTable)}`;
+          const referencingColumn = sql(rel.referencingColumn);
+          const referencingTable = sql(rel.referencingTable);
 
-					const count = yield* sql.onDialectOrElse({
-						pg: () => {
-							const pgCountQuery = sql<{ count: number }>`
+          const count = yield* sql.onDialectOrElse({
+            pg: () => {
+              const pgCountQuery = sql<{ count: number }>`
 							SELECT COUNT(*)::bigint as count
 							FROM ${tableRef}
 							WHERE ${referencingColumn} = ${String(filterValue)}
 						`;
-							const pgCountCompiledQuery = pgCountQuery.compile();
-							return pgCountQuery.pipe(
-								withQueryLogging({
-									type: QueryLogType.RelationshipCounting,
-									sql: pgCountCompiledQuery[0],
-									params: pgCountCompiledQuery[1],
-									schema: input.schema,
-									table: input.table,
-									level: QueryLogLevel.Trace,
-									connectionId,
-								}),
-								Effect.map((rows) => Number(rows[0]?.count ?? 0)),
-								Effect.catchAll(() => Effect.succeed(0)),
-							);
-						},
-						sqlite: () => {
-							const sqliteCountQuery = sql<{ count: number }>`
+              const pgCountCompiledQuery = pgCountQuery.compile();
+              return pgCountQuery.pipe(
+                withQueryLogging({
+                  type: QueryLogType.RelationshipCounting,
+                  sql: pgCountCompiledQuery[0],
+                  params: pgCountCompiledQuery[1],
+                  schema: input.schema,
+                  table: input.table,
+                  level: QueryLogLevel.Trace,
+                  connectionId,
+                }),
+                Effect.map((rows) => Number(rows[0]?.count ?? 0)),
+                Effect.catchAll(() => Effect.succeed(0)),
+              );
+            },
+            sqlite: () => {
+              const sqliteCountQuery = sql<{ count: number }>`
 							SELECT COUNT(*) as count
 							FROM ${referencingTable}
 							WHERE ${referencingColumn} = ${String(filterValue)}
 						`;
-							const sqliteCountCompiledQuery = sqliteCountQuery.compile();
-							return sqliteCountQuery.pipe(
-								withQueryLogging({
-									type: QueryLogType.RelationshipCounting,
-									sql: sqliteCountCompiledQuery[0],
-									params: sqliteCountCompiledQuery[1],
-									schema: input.schema,
-									table: input.table,
-									level: QueryLogLevel.Trace,
-									connectionId,
-								}),
-								Effect.map((rows) => Number(rows[0]?.count ?? 0)),
-								Effect.catchAll(() => Effect.succeed(0)),
-							);
-						},
-						orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-					});
+              const sqliteCountCompiledQuery = sqliteCountQuery.compile();
+              return sqliteCountQuery.pipe(
+                withQueryLogging({
+                  type: QueryLogType.RelationshipCounting,
+                  sql: sqliteCountCompiledQuery[0],
+                  params: sqliteCountCompiledQuery[1],
+                  schema: input.schema,
+                  table: input.table,
+                  level: QueryLogLevel.Trace,
+                  connectionId,
+                }),
+                Effect.map((rows) => Number(rows[0]?.count ?? 0)),
+                Effect.catchAll(() => Effect.succeed(0)),
+              );
+            },
+            orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+          });
 
-					return {
-						constraintName: rel.constraintName,
-						count,
-					};
-				}),
-			),
-		);
+          return {
+            constraintName: rel.constraintName,
+            count,
+          };
+        }),
+      ),
+    );
 
-		// Convert array to object keyed by constraintName
-		const result: Record<string, number> = {};
-		for (const { constraintName, count } of results) {
-			result[constraintName] = count;
-		}
+    // Convert array to object keyed by constraintName
+    const result: Record<string, number> = {};
+    for (const { constraintName, count } of results) {
+      result[constraintName] = count;
+    }
 
-		return result;
-	});
+    return result;
+  });
 
 /**
  * Filter condition for building WHERE clauses
  */
 export interface FilterCondition {
-	column: string;
-	operator:
-		| "equals"
-		| "not_equals"
-		| "contains"
-		| "not_contains"
-		| "starts_with"
-		| "ends_with"
-		| "greater_than"
-		| "greater_than_or_equal"
-		| "less_than"
-		| "less_than_or_equal"
-		| "is_null"
-		| "is_not_null"
-		| "in"
-		| "not_in";
-	value?: string | number | boolean | null | string[];
-	inverted?: boolean;
+  column: string;
+  operator:
+    | "equals"
+    | "not_equals"
+    | "contains"
+    | "not_contains"
+    | "starts_with"
+    | "ends_with"
+    | "greater_than"
+    | "greater_than_or_equal"
+    | "less_than"
+    | "less_than_or_equal"
+    | "is_null"
+    | "is_not_null"
+    | "in"
+    | "not_in";
+  value?: string | number | boolean | null | string[];
+  inverted?: boolean;
 }
 
 /**
@@ -1658,153 +1632,142 @@ export interface FilterCondition {
  * - SQLite: Uses table only (no schema), LIKE with COLLATE NOCASE, IN for arrays
  */
 export const queryTableRows = <TData>(input: {
-	schema: string;
-	table: string;
-	limit?: number;
-	offset?: number;
-	orderBy?: string;
-	orderDirection?: "asc" | "desc";
-	nullsOrder?: "first" | "last";
-	filters?: QueryFilterType;
-	joins?: JoinTablesConfig["joins"];
-	selectedColumns?: string[];
-	excludedColumns?: string[];
+  schema: string;
+  table: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  orderDirection?: "asc" | "desc";
+  nullsOrder?: "first" | "last";
+  filters?: QueryFilterType;
+  joins?: JoinTablesConfig["joins"];
+  selectedColumns?: string[];
+  excludedColumns?: string[];
 }): Effect.Effect<
-	{
-		rows: TData[];
-		rowCount: number;
-		columnList: string[];
-		hasNextPage: boolean;
-		rowsAffected?: number; // For non-SELECT queries (DELETE, UPDATE, INSERT, etc.)
-	},
-	SqlError,
-	RemoteConnection | QueryLogger | SqlClient.SqlClient
+  {
+    rows: TData[];
+    rowCount: number;
+    columnList: string[];
+    hasNextPage: boolean;
+    rowsAffected?: number; // For non-SELECT queries (DELETE, UPDATE, INSERT, etc.)
+  },
+  SqlError,
+  RemoteConnection | QueryLogger | SqlClient.SqlClient
 > =>
-	Effect.gen(function* () {
-		const connectionId = yield* RemoteConnection;
-		const sql = yield* SqlClient.SqlClient;
-		const {
-			limit = 50,
-			offset = 0,
-			orderBy,
-			orderDirection = "asc",
-			nullsOrder,
-			filters,
-			selectedColumns = [],
-			excludedColumns = [],
-		} = input;
+  Effect.gen(function* () {
+    const connectionId = yield* RemoteConnection;
+    const sql = yield* SqlClient.SqlClient;
+    const {
+      limit = 50,
+      offset = 0,
+      orderBy,
+      orderDirection = "asc",
+      nullsOrder,
+      filters,
+      selectedColumns = [],
+      excludedColumns = [],
+    } = input;
 
-		const defaultSchema = yield* sql.onDialectOrElse({
-			pg: () =>
-				Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Postgres)),
-			sqlite: () =>
-				Effect.succeed(getDialectDefaultSchema(DatabaseDialect.SQLite)),
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
-		const baseSchema = remapSchema(input.schema, defaultSchema);
+    const defaultSchema = yield* sql.onDialectOrElse({
+      pg: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Postgres)),
+      sqlite: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.SQLite)),
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
+    const baseSchema = remapSchema(input.schema, defaultSchema);
 
-		const joins = input.joins ?? [];
-		const joinsRemapped = remapJoins(joins, defaultSchema);
+    const joins = input.joins ?? [];
+    const joinsRemapped = remapJoins(joins, defaultSchema);
 
-		// Fetch table columns for proper aliasing when using joins
-		// Build list of tables we need columns for
-		const tablesToFetch = [{ schema: input.schema, table: input.table }];
-		if (joins.length > 0) {
-			tablesToFetch.push(
-				...joins.map((j) => ({ schema: j.schema, table: j.table })),
-			);
-		}
+    // Fetch table columns for proper aliasing when using joins
+    // Build list of tables we need columns for
+    const tablesToFetch = [{ schema: input.schema, table: input.table }];
+    if (joins.length > 0) {
+      tablesToFetch.push(...joins.map((j) => ({ schema: j.schema, table: j.table })));
+    }
 
-		// TODO cache
-		// console.time("fetch columns");
-		const columnResults = yield* Effect.all(
-			tablesToFetch.map((t) =>
-				getTableColumns({ schema: t.schema, table: t.table }).pipe(
-					Effect.map((columns) => ({
-						schemaTable: formatSchemaTable(
-							t.schema === defaultSchema ? "" : t.schema,
-							t.table,
-						),
-						tableOnly: t.table,
-						columns,
-					})),
-				),
-			),
-		);
-		// console.timeEnd("fetch columns");
+    // TODO cache
+    // console.time("fetch columns");
+    const columnResults = yield* Effect.all(
+      tablesToFetch.map((t) =>
+        getTableColumns({ schema: t.schema, table: t.table }).pipe(
+          Effect.map((columns) => ({
+            schemaTable: formatSchemaTable(t.schema === defaultSchema ? "" : t.schema, t.table),
+            tableOnly: t.table,
+            columns,
+          })),
+        ),
+      ),
+    );
+    // console.timeEnd("fetch columns");
 
-		// Generate aliases for joins early so we can use them in columnList
-		const joinAliases =
-			joins.length > 0
-				? generateJoinAliases(joinsRemapped, input.table, baseSchema)
-				: new Map<number, string>();
+    // Generate aliases for joins early so we can use them in columnList
+    const joinAliases =
+      joins.length > 0
+        ? generateJoinAliases(joinsRemapped, input.table, baseSchema)
+        : new Map<number, string>();
 
-		// Build a map of table identifiers -> columns with filtering applied
-		const tableColumnsMap = buildTableColumnsMap(
-			columnResults,
-			selectedColumns,
-			excludedColumns,
-		);
+    // Build a map of table identifiers -> columns with filtering applied
+    const tableColumnsMap = buildTableColumnsMap(columnResults, selectedColumns, excludedColumns);
 
-		// Build the final column list for SELECT clause
-		const columnList = buildColumnList({
-			columnResults,
-			baseTable: input.table,
-			joins,
-			joinAliases,
-			tableColumnsMap,
-		});
+    // Build the final column list for SELECT clause
+    const columnList = buildColumnList({
+      columnResults,
+      baseTable: input.table,
+      joins,
+      joinAliases,
+      tableColumnsMap,
+    });
 
-		// Get count and rows
-		const result = yield* sql.onDialectOrElse({
-			pg: () =>
-				Effect.gen(function* () {
-					// Build WHERE clause (including both main table and join filters)
-					const whereClause = buildWhereClauseWithJoins(
-						DatabaseDialect.Postgres,
-						filters,
-						joins.length > 0 ? joinsRemapped : undefined,
-						joinAliases,
-					);
+    // Get count and rows
+    const result = yield* sql.onDialectOrElse({
+      pg: () =>
+        Effect.gen(function* () {
+          // Build WHERE clause (including both main table and join filters)
+          const whereClause = buildWhereClauseWithJoins(
+            DatabaseDialect.Postgres,
+            filters,
+            joins.length > 0 ? joinsRemapped : undefined,
+            joinAliases,
+          );
 
-					// Build JOIN clauses
-					const joinClauses = buildJoinSqlClauses(
-						joinsRemapped,
-						input.schema,
-						input.table,
-						DatabaseDialect.Postgres,
-						joinAliases,
-					);
+          // Build JOIN clauses
+          const joinClauses = buildJoinSqlClauses(
+            joinsRemapped,
+            input.schema,
+            input.table,
+            DatabaseDialect.Postgres,
+            joinAliases,
+          );
 
-					const countQuery = sql`
+          const countQuery = sql`
 						SELECT COUNT(*) as count
 						FROM ${sql(input.schema)}.${sql(input.table)}
 						${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
 						${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
 					`;
 
-					// Build the SELECT clause with proper aliases for joins
-					const selectPart =
-						joins.length > 0
-							? buildPgSelectWithJoins(
-									baseSchema,
-									input.table,
-									joinsRemapped,
-									tableColumnsMap,
-									joinAliases,
-								)
-							: columnList.length > 0 &&
-									columnList.length < (columnResults[0]?.columns.length ?? 999)
-								? columnList.join(", ")
-								: "*";
+          // Build the SELECT clause with proper aliases for joins
+          const selectPart =
+            joins.length > 0
+              ? buildPgSelectWithJoins(
+                  baseSchema,
+                  input.table,
+                  joinsRemapped,
+                  tableColumnsMap,
+                  joinAliases,
+                )
+              : columnList.length > 0 &&
+                  columnList.length < (columnResults[0]?.columns.length ?? 999)
+                ? columnList.join(", ")
+                : "*";
 
-					const orderClause = orderBy
-						? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${
-								nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
-							}`
-						: "";
+          const orderClause = orderBy
+            ? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${
+                nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
+              }`
+            : "";
 
-					const rowsQuery = sql`
+          const rowsQuery = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(input.schema)}.${sql(input.table)}
 					${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
@@ -1813,90 +1776,85 @@ export const queryTableRows = <TData>(input: {
 					LIMIT ${limit} OFFSET ${offset}
 				`;
 
-					const rowsCompiledQuery = rowsQuery.compile();
-					const countCompiledQuery = countQuery.compile();
+          const rowsCompiledQuery = rowsQuery.compile();
+          const countCompiledQuery = countQuery.compile();
 
-					const [rows, countResult] = yield* Effect.all([
-						rowsQuery.pipe(
-							withQueryLogging({
-								type: QueryLogType.TableRows,
-								sql: rowsCompiledQuery[0],
-								params: rowsCompiledQuery[1],
-								schema: input.schema,
-								table: input.table,
-								level: QueryLogLevel.Info,
-								connectionId: connectionId,
-								meta: { input },
-							}),
-						),
-						countQuery.pipe(
-							withQueryLogging({
-								type: QueryLogType.TableCount,
-								sql: countCompiledQuery[0],
-								params: countCompiledQuery[1],
-								schema: input.schema,
-								table: input.table,
-								level: QueryLogLevel.Trace,
-								connectionId: connectionId,
-								meta: { input },
-							}),
-						),
-					]);
-					const rowCount = Number(countResult?.[0]?.count ?? 0);
-					return {
-						rows: (rows ?? []) as TData[],
-						columnList,
-						rowCount,
-						hasNextPage: offset + limit < rowCount,
-					};
-				}),
-			sqlite: () =>
-				Effect.gen(function* () {
-					// Build WHERE clause (including both main table and join filters)
-					const whereClause = buildWhereClauseWithJoins(
-						DatabaseDialect.SQLite,
-						filters,
-						joins.length > 0 ? joinsRemapped : undefined,
-						joinAliases,
-					);
+          const [rows, countResult] = yield* Effect.all([
+            rowsQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableRows,
+                sql: rowsCompiledQuery[0],
+                params: rowsCompiledQuery[1],
+                schema: input.schema,
+                table: input.table,
+                level: QueryLogLevel.Info,
+                connectionId: connectionId,
+                meta: { input },
+              }),
+            ),
+            countQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableCount,
+                sql: countCompiledQuery[0],
+                params: countCompiledQuery[1],
+                schema: input.schema,
+                table: input.table,
+                level: QueryLogLevel.Trace,
+                connectionId: connectionId,
+                meta: { input },
+              }),
+            ),
+          ]);
+          const rowCount = Number(countResult?.[0]?.count ?? 0);
+          return {
+            rows: (rows ?? []) as TData[],
+            columnList,
+            rowCount,
+            hasNextPage: offset + limit < rowCount,
+          };
+        }),
+      sqlite: () =>
+        Effect.gen(function* () {
+          // Build WHERE clause (including both main table and join filters)
+          const whereClause = buildWhereClauseWithJoins(
+            DatabaseDialect.SQLite,
+            filters,
+            joins.length > 0 ? joinsRemapped : undefined,
+            joinAliases,
+          );
 
-					// Build JOIN clauses
-					const joinClauses = buildJoinSqlClauses(
-						joinsRemapped,
-						input.schema,
-						input.table,
-						DatabaseDialect.SQLite,
-						joinAliases,
-					);
+          // Build JOIN clauses
+          const joinClauses = buildJoinSqlClauses(
+            joinsRemapped,
+            input.schema,
+            input.table,
+            DatabaseDialect.SQLite,
+            joinAliases,
+          );
 
-					const countQuery = sql`
+          const countQuery = sql`
 						SELECT COUNT(*) as count
 						FROM ${sql(input.table)}
 						${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
 						${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
 					`;
 
-					// Build the SELECT clause with proper aliases for joins
-					const selectPart =
-						joins.length > 0
-							? buildSqliteSelectWithJoins(
-									input.table,
-									joinsRemapped,
-									tableColumnsMap,
-									joinAliases,
-								)
-							: columnList.length > 0 &&
-									columnList.length < (columnResults[0]?.columns.length ?? 999)
-								? columnList.join(", ")
-								: "*";
+          // Build the SELECT clause with proper aliases for joins
+          const selectPart =
+            joins.length > 0
+              ? buildSqliteSelectWithJoins(input.table, joinsRemapped, tableColumnsMap, joinAliases)
+              : columnList.length > 0 &&
+                  columnList.length < (columnResults[0]?.columns.length ?? 999)
+                ? columnList.join(", ")
+                : "*";
 
-					const orderClause = orderBy
-						? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${
-								nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
-							}`
-						: "";
+          const orderClause = orderBy
+            ? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${
+                nullsOrder ? ` NULLS ${nullsOrder.toUpperCase()}` : ""
+              }`
+            : "";
 
-					const rowsQuery = sql`
+          const rowsQuery = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(input.table)}
 					${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
@@ -1905,124 +1863,123 @@ export const queryTableRows = <TData>(input: {
 					LIMIT ${limit} OFFSET ${offset}
 				`;
 
-					const rowsCompiledQuery = rowsQuery.compile();
-					const countCompiledQuery = countQuery.compile();
+          const rowsCompiledQuery = rowsQuery.compile();
+          const countCompiledQuery = countQuery.compile();
 
-					const [rows, countResult] = yield* Effect.all([
-						rowsQuery.pipe(
-							withQueryLogging({
-								type: QueryLogType.TableRows,
-								sql: rowsCompiledQuery[0],
-								params: rowsCompiledQuery[1],
-								schema: input.schema,
-								table: input.table,
-								level: QueryLogLevel.Info,
-								connectionId: connectionId,
-								meta: { input },
-							}),
-						),
-						countQuery.pipe(
-							withQueryLogging({
-								type: QueryLogType.TableCount,
-								sql: countCompiledQuery[0],
-								params: countCompiledQuery[1],
-								schema: input.schema,
-								table: input.table,
-								level: QueryLogLevel.Trace,
-								connectionId: connectionId,
-								meta: { input },
-							}),
-						),
-					]);
-					const rowCount = Number(countResult[0]?.count ?? 0);
+          const [rows, countResult] = yield* Effect.all([
+            rowsQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableRows,
+                sql: rowsCompiledQuery[0],
+                params: rowsCompiledQuery[1],
+                schema: input.schema,
+                table: input.table,
+                level: QueryLogLevel.Info,
+                connectionId: connectionId,
+                meta: { input },
+              }),
+            ),
+            countQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableCount,
+                sql: countCompiledQuery[0],
+                params: countCompiledQuery[1],
+                schema: input.schema,
+                table: input.table,
+                level: QueryLogLevel.Trace,
+                connectionId: connectionId,
+                meta: { input },
+              }),
+            ),
+          ]);
+          const rowCount = Number(countResult[0]?.count ?? 0);
 
-					return {
-						rows: rows as TData[],
-						columnList,
-						rowCount,
-						hasNextPage: offset + limit < rowCount,
-					};
-				}),
-			orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-		});
+          return {
+            rows: rows as TData[],
+            columnList,
+            rowCount,
+            hasNextPage: offset + limit < rowCount,
+          };
+        }),
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
 
-		return result;
-	});
+    return result;
+  });
 /**
  * Execute custom SQL and return results
  * For SELECT queries: returns rows with column list
  * For other queries (INSERT, UPDATE, DELETE): returns rows affected
  */
 export const executeCustomSql = (input: {
-	sql: string;
-	connectionId?: string;
+  sql: string;
+  connectionId?: string;
 }): Effect.Effect<
-	{
-		rows: unknown[];
-		columns: string[];
-		rowCount: number;
-		rowsAffected?: number;
-		timeTaken: number;
-		ranAt: number;
-	},
-	SqlError,
-	RemoteConnection | QueryLogger | SqlClient.SqlClient
+  {
+    rows: unknown[];
+    columns: string[];
+    rowCount: number;
+    rowsAffected?: number;
+    timeTaken: number;
+    ranAt: number;
+  },
+  SqlError,
+  RemoteConnection | QueryLogger | SqlClient.SqlClient
 > =>
-	Effect.gen(function* () {
-		const connectionId = yield* RemoteConnection;
-		const sql = yield* SqlClient.SqlClient;
+  Effect.gen(function* () {
+    const connectionId = yield* RemoteConnection;
+    const sql = yield* SqlClient.SqlClient;
 
-		const startTime = Date.now();
+    const startTime = Date.now();
 
-		const conn = yield* Effect.orDie(sql.reserve).pipe(Effect.scoped);
-		const rawResult = yield* conn.executeRaw(input.sql, []).pipe(
-			withQueryLogging({
-				type: QueryLogType.TableRows,
-				sql: input.sql,
-				params: [],
-				level: QueryLogLevel.Info,
-				connectionId: connectionId,
-				meta: { customQuery: true },
-			}),
-		);
+    const conn = yield* Effect.orDie(sql.reserve).pipe(Effect.scoped);
+    const rawResult = yield* conn.executeRaw(input.sql, []).pipe(
+      withQueryLogging({
+        type: QueryLogType.TableRows,
+        sql: input.sql,
+        params: [],
+        level: QueryLogLevel.Info,
+        connectionId: connectionId,
+        meta: { customQuery: true },
+      }),
+    );
 
-		const result = { rows: [], ...((rawResult as any) ?? {}) } as {
-			columns: string[];
-			columnTypes: string[];
-			rows: unknown[];
-			rowCount?: number;
-			rowsAffected?: number;
-			affectedRows?: number;
-		};
+    // oxlint-disable-next-line unicorn/no-useless-fallback-in-spread
+    const result = { rows: [], ...((rawResult as any) ?? {}) } as {
+      columns: string[];
+      columnTypes: string[];
+      rows: unknown[];
+      rowCount?: number;
+      rowsAffected?: number;
+      affectedRows?: number;
+    };
 
-		const endTime = Date.now();
+    const endTime = Date.now();
 
-		// Determine if this is a SELECT query to know how to handle the result
-		const isSelect = isSelectQuery(input.sql);
-		if (isSelect) {
-			// For SELECT queries, result is an array of row objects
-			const rows = result.rows;
-			const columnList =
-				rows && rows.length > 0 ? Object.keys(rows[0] as object) : [];
-			return {
-				rows: rows as unknown[],
-				columns: columnList,
-				rowCount: rows?.length ?? 0,
-				timeTaken: endTime - startTime,
-				ranAt: startTime,
-				rowsAffected: undefined,
-			};
-		}
+    // Determine if this is a SELECT query to know how to handle the result
+    const isSelect = isSelectQuery(input.sql);
+    if (isSelect) {
+      // For SELECT queries, result is an array of row objects
+      const rows = result.rows;
+      const columnList = rows && rows.length > 0 ? Object.keys(rows[0] as object) : [];
+      return {
+        rows: rows,
+        columns: columnList,
+        rowCount: rows?.length ?? 0,
+        timeTaken: endTime - startTime,
+        ranAt: startTime,
+        rowsAffected: undefined,
+      };
+    }
 
-		const rowsAffected =
-			result.rowCount ?? result.rowsAffected ?? result.affectedRows ?? 0;
+    const rowsAffected = result.rowCount ?? result.rowsAffected ?? result.affectedRows ?? 0;
 
-		return {
-			rows: [] as unknown[],
-			columns: [],
-			rowCount: 0,
-			rowsAffected: rowsAffected,
-			timeTaken: endTime - startTime,
-			ranAt: startTime,
-		};
-	});
+    return {
+      rows: [] as unknown[],
+      columns: [],
+      rowCount: 0,
+      rowsAffected: rowsAffected,
+      timeTaken: endTime - startTime,
+      ranAt: startTime,
+    };
+  });

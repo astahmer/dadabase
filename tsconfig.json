@@ -1,32 +1,32 @@
 {
-	"compilerOptions": {
-		"target": "ES2022",
-		"jsx": "react-jsx",
-		"module": "ESNext",
-		"lib": ["ES2022", "DOM", "DOM.Iterable"],
-		"types": ["vite/client"],
-		/* Bundler mode */
-		"moduleResolution": "bundler",
-		"allowImportingTsExtensions": true,
-		"verbatimModuleSyntax": false,
-		"noEmit": true,
-		/* Linting */
-		"skipLibCheck": true,
-		"strict": true,
-		"noUnusedLocals": false,
-		"noUnusedParameters": false,
-		"noFallthroughCasesInSwitch": true,
-		"noUncheckedSideEffectImports": true,
-		"paths": {
-			"#src/*": ["./src/*"],
-			"@dadabase/effect-pglite": ["./packages/effect-pglite/src/mod.ts"]
-		},
-		"plugins": [
-			{
-				"name": "@effect/language-service",
-				"transform": "@effect/language-service/transform"
-			}
-		]
-	},
-	"include": ["src/**/*.ts", "src/**/*.tsx"]
+  "compilerOptions": {
+    "target": "ES2023",
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": false,
+    "noEmit": true,
+    /* Linting */
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "paths": {
+      "#src/*": ["./src/*"],
+      "@dadabase/effect-pglite": ["./packages/effect-pglite/src/mod.ts"]
+    },
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "transform": "@effect/language-service/transform"
+      }
+    ]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

@@ -1,42 +1,43 @@
+import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
 import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
-import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
+
 import {
-	type DatabaseTestConfig,
-	libsqlLayer,
-	makeTestLayer,
-	pgliteLayer,
-	postgresConfig,
-	sqliteConfig,
+  type DatabaseTestConfig,
+  libsqlLayer,
+  makeTestLayer,
+  pgliteLayer,
+  postgresConfig,
+  sqliteConfig,
 } from "./test.layer.ts";
 
 // Type for relationship input matching introspection module
 interface TableRelationship {
-	constraintName: string;
-	referencingSchema: string;
-	referencingTable: string;
-	referencingColumn: string;
-	referencedSchema: string;
-	referencedTable: string;
-	referencedColumn: string;
-	type: "incoming" | "outgoing";
+  constraintName: string;
+  referencingSchema: string;
+  referencingTable: string;
+  referencingColumn: string;
+  referencedSchema: string;
+  referencedTable: string;
+  referencedColumn: string;
+  type: "incoming" | "outgoing";
 }
 
 // Helper to set up test schema
 const setupSchema = Effect.gen(function* () {
-	const client = yield* SqlClient.SqlClient;
+  const client = yield* SqlClient.SqlClient;
 
-	// Create apps table
-	yield* client`
+  // Create apps table
+  yield* client`
 		CREATE TABLE IF NOT EXISTS apps (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL
 		)
 	`;
 
-	// Create activity_rooms with FK to apps
-	yield* client`
+  // Create activity_rooms with FK to apps
+  yield* client`
 		CREATE TABLE IF NOT EXISTS activity_rooms (
 			id TEXT PRIMARY KEY,
 			app_id TEXT NOT NULL REFERENCES apps(id),
@@ -44,8 +45,8 @@ const setupSchema = Effect.gen(function* () {
 		)
 	`;
 
-	// Create activity_logs with nullable FK to activity_rooms
-	yield* client`
+  // Create activity_logs with nullable FK to activity_rooms
+  yield* client`
 		CREATE TABLE IF NOT EXISTS activity_logs (
 			id TEXT PRIMARY KEY,
 			room_id TEXT REFERENCES activity_rooms(id),
@@ -53,8 +54,8 @@ const setupSchema = Effect.gen(function* () {
 		)
 	`;
 
-	// Create users with nullable FK to apps
-	yield* client`
+  // Create users with nullable FK to apps
+  yield* client`
 		CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -62,8 +63,8 @@ const setupSchema = Effect.gen(function* () {
 		)
 	`;
 
-	// Create comments with FK to both activity_rooms and users
-	yield* client`
+  // Create comments with FK to both activity_rooms and users
+  yield* client`
 		CREATE TABLE IF NOT EXISTS comments (
 			id TEXT PRIMARY KEY,
 			room_id TEXT NOT NULL REFERENCES activity_rooms(id),
@@ -75,15 +76,15 @@ const setupSchema = Effect.gen(function* () {
 
 // Helper to insert test data
 const insertTestData = Effect.gen(function* () {
-	const client = yield* SqlClient.SqlClient;
+  const client = yield* SqlClient.SqlClient;
 
-	// Insert apps
-	yield* client`
+  // Insert apps
+  yield* client`
 		INSERT INTO apps (id, name) VALUES ('app-1', 'App 1'), ('app-2', 'App 2')
 	`;
 
-	// Insert activity_rooms for app-1 (parent row we'll query from)
-	yield* client`
+  // Insert activity_rooms for app-1 (parent row we'll query from)
+  yield* client`
 		INSERT INTO activity_rooms (id, app_id, name) VALUES
 		('room-1', 'app-1', 'Room 1'),
 		('room-2', 'app-1', 'Room 2'),
@@ -91,8 +92,8 @@ const insertTestData = Effect.gen(function* () {
 		('room-4', 'app-2', 'Room 4')
 	`;
 
-	// Insert activity_logs
-	yield* client`
+  // Insert activity_logs
+  yield* client`
 		INSERT INTO activity_logs (id, room_id, action) VALUES
 		('log-1', 'room-1', 'open'),
 		('log-2', 'room-1', 'close'),
@@ -101,8 +102,8 @@ const insertTestData = Effect.gen(function* () {
 		('log-5', NULL, 'unknown')
 	`;
 
-	// Insert users
-	yield* client`
+  // Insert users
+  yield* client`
 		INSERT INTO users (id, name, app_id) VALUES
 		('user-1', 'User 1', 'app-1'),
 		('user-2', 'User 2', 'app-1'),
@@ -110,8 +111,8 @@ const insertTestData = Effect.gen(function* () {
 		('user-4', 'User 4', NULL)
 	`;
 
-	// Insert comments
-	yield* client`
+  // Insert comments
+  yield* client`
 		INSERT INTO comments (id, room_id, user_id, text) VALUES
 		('c1', 'room-1', 'user-1', 'Comment 1'),
 		('c2', 'room-1', 'user-2', 'Comment 2'),
@@ -122,352 +123,339 @@ const insertTestData = Effect.gen(function* () {
 });
 
 const testSuite =
-	(sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTestConfig) =>
-	() => {
-		const testLayer = makeTestLayer(sqlLayer);
-		it.effect(
-			"counts rows for incoming relationship (activity_rooms -> apps)",
-			() =>
-				Effect.gen(function* () {
-					yield* setupSchema;
-					yield* insertTestData;
+  (sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTestConfig) => () => {
+    const testLayer = makeTestLayer(sqlLayer);
+    it.effect("counts rows for incoming relationship (activity_rooms -> apps)", () =>
+      Effect.gen(function* () {
+        yield* setupSchema;
+        yield* insertTestData;
 
-					const relationships: TableRelationship[] = [
-						{
-							constraintName: "activity_rooms_app_id_fkey",
-							referencingSchema: config.defaultSchema,
-							referencingTable: "activity_rooms",
-							referencingColumn: "app_id",
-							referencedSchema: config.defaultSchema,
-							referencedTable: "apps",
-							referencedColumn: "id",
-							type: "incoming",
-						},
-					];
+        const relationships: TableRelationship[] = [
+          {
+            constraintName: "activity_rooms_app_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "activity_rooms",
+            referencingColumn: "app_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "apps",
+            referencedColumn: "id",
+            type: "incoming",
+          },
+        ];
 
-					const rowData = { id: "app-1", name: "App 1" };
+        const rowData = { id: "app-1", name: "App 1" };
 
-					const counts = yield* getRelationshipsCounts({
-						schema: config.defaultSchema,
-						table: "apps",
-						relationships,
-						rowData,
-					});
+        const counts = yield* getRelationshipsCounts({
+          schema: config.defaultSchema,
+          table: "apps",
+          relationships,
+          rowData,
+        });
 
-					// app-1 has 3 activity_rooms
-					expect(counts["activity_rooms_app_id_fkey"]).toBe(3);
-				}).pipe(Effect.provide(testLayer)),
-		);
+        // app-1 has 3 activity_rooms
+        expect(counts["activity_rooms_app_id_fkey"]).toBe(3);
+      }).pipe(Effect.provide(testLayer)),
+    );
 
-		it.effect(
-			"counts rows for incoming relationship (comments -> activity_rooms)",
-			() =>
-				Effect.gen(function* () {
-					yield* setupSchema;
-					yield* insertTestData;
+    it.effect("counts rows for incoming relationship (comments -> activity_rooms)", () =>
+      Effect.gen(function* () {
+        yield* setupSchema;
+        yield* insertTestData;
 
-					const relationships: TableRelationship[] = [
-						{
-							constraintName: "comments_room_id_fkey",
-							referencingSchema: config.defaultSchema,
-							referencingTable: "comments",
-							referencingColumn: "room_id",
-							referencedSchema: config.defaultSchema,
-							referencedTable: "activity_rooms",
-							referencedColumn: "id",
-							type: "incoming",
-						},
-					];
+        const relationships: TableRelationship[] = [
+          {
+            constraintName: "comments_room_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "comments",
+            referencingColumn: "room_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "activity_rooms",
+            referencedColumn: "id",
+            type: "incoming",
+          },
+        ];
 
-					const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
+        const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
 
-					const counts = yield* getRelationshipsCounts({
-						schema: config.defaultSchema,
-						table: "activity_rooms",
-						relationships,
-						rowData,
-					});
+        const counts = yield* getRelationshipsCounts({
+          schema: config.defaultSchema,
+          table: "activity_rooms",
+          relationships,
+          rowData,
+        });
 
-					// room-1 has 3 comments
-					expect(counts["comments_room_id_fkey"]).toBe(3);
-				}).pipe(Effect.provide(testLayer)),
-		);
+        // room-1 has 3 comments
+        expect(counts["comments_room_id_fkey"]).toBe(3);
+      }).pipe(Effect.provide(testLayer)),
+    );
 
-		it.effect("counts multiple relationships at once", () =>
-			Effect.gen(function* () {
-				yield* setupSchema;
-				yield* insertTestData;
+    it.effect("counts multiple relationships at once", () =>
+      Effect.gen(function* () {
+        yield* setupSchema;
+        yield* insertTestData;
 
-				const relationships: TableRelationship[] = [
-					{
-						constraintName: "activity_logs_room_id_fkey",
-						referencingSchema: config.defaultSchema,
-						referencingTable: "activity_logs",
-						referencingColumn: "room_id",
-						referencedSchema: config.defaultSchema,
-						referencedTable: "activity_rooms",
-						referencedColumn: "id",
-						type: "incoming",
-					},
-					{
-						constraintName: "comments_room_id_fkey",
-						referencingSchema: config.defaultSchema,
-						referencingTable: "comments",
-						referencingColumn: "room_id",
-						referencedSchema: config.defaultSchema,
-						referencedTable: "activity_rooms",
-						referencedColumn: "id",
-						type: "incoming",
-					},
-				];
+        const relationships: TableRelationship[] = [
+          {
+            constraintName: "activity_logs_room_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "activity_logs",
+            referencingColumn: "room_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "activity_rooms",
+            referencedColumn: "id",
+            type: "incoming",
+          },
+          {
+            constraintName: "comments_room_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "comments",
+            referencingColumn: "room_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "activity_rooms",
+            referencedColumn: "id",
+            type: "incoming",
+          },
+        ];
 
-				const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
+        const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
 
-				const counts = yield* getRelationshipsCounts({
-					schema: config.defaultSchema,
-					table: "activity_rooms",
-					relationships,
-					rowData,
-				});
+        const counts = yield* getRelationshipsCounts({
+          schema: config.defaultSchema,
+          table: "activity_rooms",
+          relationships,
+          rowData,
+        });
 
-				// room-1 has 2 activity_logs and 3 comments
-				expect(counts["activity_logs_room_id_fkey"]).toBe(2);
-				expect(counts["comments_room_id_fkey"]).toBe(3);
-			}).pipe(Effect.provide(testLayer)),
-		);
+        // room-1 has 2 activity_logs and 3 comments
+        expect(counts["activity_logs_room_id_fkey"]).toBe(2);
+        expect(counts["comments_room_id_fkey"]).toBe(3);
+      }).pipe(Effect.provide(testLayer)),
+    );
 
-		it.effect(
-			"counts rows for outgoing relationship (activity_rooms.app_id -> apps)",
-			() =>
-				Effect.gen(function* () {
-					yield* setupSchema;
-					yield* insertTestData;
+    it.effect("counts rows for outgoing relationship (activity_rooms.app_id -> apps)", () =>
+      Effect.gen(function* () {
+        yield* setupSchema;
+        yield* insertTestData;
 
-					const relationships: TableRelationship[] = [
-						{
-							constraintName: "activity_rooms_app_id_fkey",
-							referencingSchema: config.defaultSchema,
-							referencingTable: "activity_rooms",
-							referencingColumn: "app_id",
-							referencedSchema: config.defaultSchema,
-							referencedTable: "apps",
-							referencedColumn: "id",
-							type: "outgoing",
-						},
-					];
+        const relationships: TableRelationship[] = [
+          {
+            constraintName: "activity_rooms_app_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "activity_rooms",
+            referencingColumn: "app_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "apps",
+            referencedColumn: "id",
+            type: "outgoing",
+          },
+        ];
 
-					// We're in activity_rooms table with app_id: "app-1"
-					// This outgoing relationship counts other activity_rooms with the same app_id
-					const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
+        // We're in activity_rooms table with app_id: "app-1"
+        // This outgoing relationship counts other activity_rooms with the same app_id
+        const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
 
-					const counts = yield* getRelationshipsCounts({
-						schema: config.defaultSchema,
-						table: "activity_rooms",
-						relationships,
-						rowData,
-					});
+        const counts = yield* getRelationshipsCounts({
+          schema: config.defaultSchema,
+          table: "activity_rooms",
+          relationships,
+          rowData,
+        });
 
-					// Count activity_rooms WHERE app_id = "app-1" (which includes room-1, room-2, room-3 = 3)
-					expect(counts["activity_rooms_app_id_fkey"]).toBe(3);
-				}).pipe(Effect.provide(testLayer)),
-		);
+        // Count activity_rooms WHERE app_id = "app-1" (which includes room-1, room-2, room-3 = 3)
+        expect(counts["activity_rooms_app_id_fkey"]).toBe(3);
+      }).pipe(Effect.provide(testLayer)),
+    );
 
-		it.effect("ignores relationships when filter value is null", () =>
-			Effect.gen(function* () {
-				yield* setupSchema;
-				yield* insertTestData;
+    it.effect("ignores relationships when filter value is null", () =>
+      Effect.gen(function* () {
+        yield* setupSchema;
+        yield* insertTestData;
 
-				const relationships: TableRelationship[] = [
-					{
-						constraintName: "activity_logs_room_id_fkey",
-						referencingSchema: config.defaultSchema,
-						referencingTable: "activity_logs",
-						referencingColumn: "room_id",
-						referencedSchema: config.defaultSchema,
-						referencedTable: "activity_rooms",
-						referencedColumn: "id",
-						type: "incoming",
-					},
-				];
+        const relationships: TableRelationship[] = [
+          {
+            constraintName: "activity_logs_room_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "activity_logs",
+            referencingColumn: "room_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "activity_rooms",
+            referencedColumn: "id",
+            type: "incoming",
+          },
+        ];
 
-				// When the filter value (id) is null, the relationship is ignored entirely
-				const counts = yield* getRelationshipsCounts({
-					schema: config.defaultSchema,
-					table: "activity_rooms",
-					relationships,
-					rowData: { id: null }, // Null id means this relationship is filtered out
-				});
+        // When the filter value (id) is null, the relationship is ignored entirely
+        const counts = yield* getRelationshipsCounts({
+          schema: config.defaultSchema,
+          table: "activity_rooms",
+          relationships,
+          rowData: { id: null }, // Null id means this relationship is filtered out
+        });
 
-				// Null relationships are not included in the result
-				expect(counts["activity_logs_room_id_fkey"]).toBeUndefined();
-			}).pipe(Effect.provide(testLayer)),
-		);
+        // Null relationships are not included in the result
+        expect(counts["activity_logs_room_id_fkey"]).toBeUndefined();
+      }).pipe(Effect.provide(testLayer)),
+    );
 
-		it.effect("returns zero count for rows with no related records", () =>
-			Effect.gen(function* () {
-				yield* setupSchema;
-				yield* insertTestData;
+    it.effect("returns zero count for rows with no related records", () =>
+      Effect.gen(function* () {
+        yield* setupSchema;
+        yield* insertTestData;
 
-				const relationships: TableRelationship[] = [
-					{
-						constraintName: "activity_logs_room_id_fkey",
-						referencingSchema: config.defaultSchema,
-						referencingTable: "activity_logs",
-						referencingColumn: "room_id",
-						referencedSchema: config.defaultSchema,
-						referencedTable: "activity_rooms",
-						referencedColumn: "id",
-						type: "incoming",
-					},
-				];
+        const relationships: TableRelationship[] = [
+          {
+            constraintName: "activity_logs_room_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "activity_logs",
+            referencingColumn: "room_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "activity_rooms",
+            referencedColumn: "id",
+            type: "incoming",
+          },
+        ];
 
-				// room-4 has only 1 activity_log but 0 comments
-				const rowData = { id: "room-4", app_id: "app-2", name: "Room 4" };
+        // room-4 has only 1 activity_log but 0 comments
+        const rowData = { id: "room-4", app_id: "app-2", name: "Room 4" };
 
-				const counts = yield* getRelationshipsCounts({
-					schema: config.defaultSchema,
-					table: "activity_rooms",
-					relationships,
-					rowData,
-				});
+        const counts = yield* getRelationshipsCounts({
+          schema: config.defaultSchema,
+          table: "activity_rooms",
+          relationships,
+          rowData,
+        });
 
-				expect(counts["activity_logs_room_id_fkey"]).toBe(0);
-			}).pipe(Effect.provide(testLayer)),
-		);
+        expect(counts["activity_logs_room_id_fkey"]).toBe(0);
+      }).pipe(Effect.provide(testLayer)),
+    );
 
-		it.effect("returns empty object for empty relationships array", () =>
-			Effect.gen(function* () {
-				yield* setupSchema;
-				yield* insertTestData;
+    it.effect("returns empty object for empty relationships array", () =>
+      Effect.gen(function* () {
+        yield* setupSchema;
+        yield* insertTestData;
 
-				const counts = yield* getRelationshipsCounts({
-					schema: config.defaultSchema,
-					table: "activity_rooms",
-					relationships: [],
-					rowData: { id: "room-1", app_id: "app-1", name: "Room 1" },
-				});
+        const counts = yield* getRelationshipsCounts({
+          schema: config.defaultSchema,
+          table: "activity_rooms",
+          relationships: [],
+          rowData: { id: "room-1", app_id: "app-1", name: "Room 1" },
+        });
 
-				expect(counts).toEqual({});
-			}).pipe(Effect.provide(testLayer)),
-		);
+        expect(counts).toEqual({});
+      }).pipe(Effect.provide(testLayer)),
+    );
 
-		it.effect("counts relationships with numeric FK values correctly", () =>
-			Effect.gen(function* () {
-				yield* setupSchema;
-				yield* insertTestData;
+    it.effect("counts relationships with numeric FK values correctly", () =>
+      Effect.gen(function* () {
+        yield* setupSchema;
+        yield* insertTestData;
 
-				const relationships: TableRelationship[] = [
-					{
-						constraintName: "comments_user_id_fkey",
-						referencingSchema: config.defaultSchema,
-						referencingTable: "comments",
-						referencingColumn: "user_id",
-						referencedSchema: config.defaultSchema,
-						referencedTable: "users",
-						referencedColumn: "id",
-						type: "incoming",
-					},
-				];
+        const relationships: TableRelationship[] = [
+          {
+            constraintName: "comments_user_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "comments",
+            referencingColumn: "user_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "users",
+            referencedColumn: "id",
+            type: "incoming",
+          },
+        ];
 
-				// user-1 has 2 comments
-				const rowData = { id: "user-1", name: "User 1", app_id: "app-1" };
+        // user-1 has 2 comments
+        const rowData = { id: "user-1", name: "User 1", app_id: "app-1" };
 
-				const counts = yield* getRelationshipsCounts({
-					schema: config.defaultSchema,
-					table: "users",
-					relationships,
-					rowData,
-				});
+        const counts = yield* getRelationshipsCounts({
+          schema: config.defaultSchema,
+          table: "users",
+          relationships,
+          rowData,
+        });
 
-				expect(counts["comments_user_id_fkey"]).toBe(2);
-			}).pipe(Effect.provide(testLayer)),
-		);
+        expect(counts["comments_user_id_fkey"]).toBe(2);
+      }).pipe(Effect.provide(testLayer)),
+    );
 
-		it.effect("correctly handles nullable foreign key columns", () =>
-			Effect.gen(function* () {
-				yield* setupSchema;
-				yield* insertTestData;
+    it.effect("correctly handles nullable foreign key columns", () =>
+      Effect.gen(function* () {
+        yield* setupSchema;
+        yield* insertTestData;
 
-				const relationships: TableRelationship[] = [
-					{
-						constraintName: "users_app_id_fkey",
-						referencingSchema: config.defaultSchema,
-						referencingTable: "users",
-						referencingColumn: "app_id",
-						referencedSchema: config.defaultSchema,
-						referencedTable: "apps",
-						referencedColumn: "id",
-						type: "incoming",
-					},
-				];
+        const relationships: TableRelationship[] = [
+          {
+            constraintName: "users_app_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "users",
+            referencingColumn: "app_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "apps",
+            referencedColumn: "id",
+            type: "incoming",
+          },
+        ];
 
-				const rowData = { id: "app-1", name: "App 1" };
+        const rowData = { id: "app-1", name: "App 1" };
 
-				const counts = yield* getRelationshipsCounts({
-					schema: config.defaultSchema,
-					table: "apps",
-					relationships,
-					rowData,
-				});
+        const counts = yield* getRelationshipsCounts({
+          schema: config.defaultSchema,
+          table: "apps",
+          relationships,
+          rowData,
+        });
 
-				// app-1 has 2 users (user-1 and user-2, user-4 has null app_id)
-				expect(counts["users_app_id_fkey"]).toBe(2);
-			}).pipe(Effect.provide(testLayer)),
-		);
+        // app-1 has 2 users (user-1 and user-2, user-4 has null app_id)
+        expect(counts["users_app_id_fkey"]).toBe(2);
+      }).pipe(Effect.provide(testLayer)),
+    );
 
-		it.effect("returns object keyed by constraint name", () =>
-			Effect.gen(function* () {
-				yield* setupSchema;
-				yield* insertTestData;
+    it.effect("returns object keyed by constraint name", () =>
+      Effect.gen(function* () {
+        yield* setupSchema;
+        yield* insertTestData;
 
-				const relationships: TableRelationship[] = [
-					{
-						constraintName: "activity_logs_room_id_fkey",
-						referencingSchema: config.defaultSchema,
-						referencingTable: "activity_logs",
-						referencingColumn: "room_id",
-						referencedSchema: config.defaultSchema,
-						referencedTable: "activity_rooms",
-						referencedColumn: "id",
-						type: "incoming",
-					},
-					{
-						constraintName: "comments_room_id_fkey",
-						referencingSchema: config.defaultSchema,
-						referencingTable: "comments",
-						referencingColumn: "room_id",
-						referencedSchema: config.defaultSchema,
-						referencedTable: "activity_rooms",
-						referencedColumn: "id",
-						type: "incoming",
-					},
-				];
+        const relationships: TableRelationship[] = [
+          {
+            constraintName: "activity_logs_room_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "activity_logs",
+            referencingColumn: "room_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "activity_rooms",
+            referencedColumn: "id",
+            type: "incoming",
+          },
+          {
+            constraintName: "comments_room_id_fkey",
+            referencingSchema: config.defaultSchema,
+            referencingTable: "comments",
+            referencingColumn: "room_id",
+            referencedSchema: config.defaultSchema,
+            referencedTable: "activity_rooms",
+            referencedColumn: "id",
+            type: "incoming",
+          },
+        ];
 
-				const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
+        const rowData = { id: "room-1", app_id: "app-1", name: "Room 1" };
 
-				const counts = yield* getRelationshipsCounts({
-					schema: config.defaultSchema,
-					table: "activity_rooms",
-					relationships,
-					rowData,
-				});
+        const counts = yield* getRelationshipsCounts({
+          schema: config.defaultSchema,
+          table: "activity_rooms",
+          relationships,
+          rowData,
+        });
 
-				// Result should be keyed by constraint name
-				expect(Object.keys(counts).sort()).toEqual([
-					"activity_logs_room_id_fkey",
-					"comments_room_id_fkey",
-				]);
-				expect(typeof counts["activity_logs_room_id_fkey"]).toBe("number");
-				expect(typeof counts["comments_room_id_fkey"]).toBe("number");
-			}).pipe(Effect.provide(testLayer)),
-		);
-	};
+        // Result should be keyed by constraint name
+        expect(Object.keys(counts).toSorted()).toEqual([
+          "activity_logs_room_id_fkey",
+          "comments_room_id_fkey",
+        ]);
+        expect(typeof counts["activity_logs_room_id_fkey"]).toBe("number");
+        expect(typeof counts["comments_room_id_fkey"]).toBe("number");
+      }).pipe(Effect.provide(testLayer)),
+    );
+  };
 
-describe(
-	"getRelationshipsCounts (pglite)",
-	testSuite(pgliteLayer, postgresConfig),
-);
-describe(
-	"getRelationshipsCounts (libsql)",
-	testSuite(libsqlLayer, sqliteConfig),
-);
+describe("getRelationshipsCounts (pglite)", testSuite(pgliteLayer, postgresConfig));
+describe("getRelationshipsCounts (libsql)", testSuite(libsqlLayer, sqliteConfig));

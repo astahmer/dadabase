@@ -1,62 +1,45 @@
 "use client";
 
+import { cn } from "#src/lib/utils";
 import { Checkbox as CheckboxPrimitive } from "@ark-ui/react/checkbox";
 import { CheckIcon, MinusIcon } from "lucide-react";
-
-import { cn } from "#src/lib/utils";
 
 const Checkbox = CheckboxPrimitive.Root;
 
 const CheckboxContext = CheckboxPrimitive.Context;
 
-const CheckboxControl = ({
-	className,
-	children,
-	...props
-}: CheckboxPrimitive.ControlProps) => (
-	<>
-		<CheckboxPrimitive.Control
-			className={cn(
-				"peer flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input shadow-xs outline-none transition-shadow focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-500 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:aria-invalid:ring-destructive/40",
-				className,
-			)}
-			{...props}
-		>
-			<CheckboxPrimitive.Indicator
-				className="grid place-content-center text-current"
-				indeterminate
-			>
-				<MinusIcon className="size-4" />
-			</CheckboxPrimitive.Indicator>
-			<CheckboxPrimitive.Indicator className="grid place-content-center text-current">
-				<CheckIcon className="size-4" />
-			</CheckboxPrimitive.Indicator>
-		</CheckboxPrimitive.Control>
-		<CheckboxPrimitive.HiddenInput />
-	</>
+const CheckboxControl = ({ className, ...props }: CheckboxPrimitive.ControlProps) => (
+  <>
+    <CheckboxPrimitive.Control
+      className={cn(
+        "peer border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:aria-invalid:ring-destructive/40 flex size-4 shrink-0 items-center justify-center rounded-[4px] border shadow-xs transition-shadow outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-500",
+        className,
+      )}
+      {...props}
+    >
+      <CheckboxPrimitive.Indicator className="grid place-content-center text-current" indeterminate>
+        <MinusIcon className="size-4" />
+      </CheckboxPrimitive.Indicator>
+      <CheckboxPrimitive.Indicator className="grid place-content-center text-current">
+        <CheckIcon className="size-4" />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Control>
+    <CheckboxPrimitive.HiddenInput />
+  </>
 );
 CheckboxControl.displayName = "CheckboxControl";
 
 const CheckboxGroup = CheckboxPrimitive.Group;
 
-const CheckboxLabel = ({
-	className,
-	...props
-}: CheckboxPrimitive.LabelProps) => (
-	<CheckboxPrimitive.Label
-		className={cn(
-			"select-none font-medium text-foreground text-sm leading-4 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
-			className,
-		)}
-		{...props}
-	/>
+const CheckboxLabel = ({ className, ...props }: CheckboxPrimitive.LabelProps) => (
+  <CheckboxPrimitive.Label
+    className={cn(
+      "text-foreground text-sm leading-4 font-medium select-none data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
+      className,
+    )}
+    {...props}
+  />
 );
 CheckboxLabel.displayName = "CheckboxLabel";
 
-export {
-	Checkbox,
-	CheckboxContext,
-	CheckboxControl,
-	CheckboxGroup,
-	CheckboxLabel,
-};
+export { Checkbox, CheckboxContext, CheckboxControl, CheckboxGroup, CheckboxLabel };

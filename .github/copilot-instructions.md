@@ -7,6 +7,7 @@ Dadabase is a full-stack database exploration UI with dynamic table browsing, re
 **Tech Stack**: TypeScript, React 19, TanStack Start/Router/Query/Table/React-Form, Tailwind CSS, Effect.ts, Kysely ORM, Biome
 
 **Key Paths**:
+
 - `src/db/` - Database layer (Kysely, Effect integration, schema)
 - `src/server/` - Backend services (connection management, query building, PG introspection)
 - `src/components/` - React UI (data table, filters, relationships panel)
@@ -29,7 +30,6 @@ Database operations use Effect.ts for dependency injection, error handling, and 
 - **Effect Generators**: Use `Effect.gen(function* () { ... })` for sequencing operations
 - **Context Tags**: Define database access via `Context.Tag` (see `src/db/app.db.ts` using `AppDatabase` tag)
 
-
 ## Developer Workflows
 
 ```bash
@@ -47,6 +47,7 @@ pnpm docker:run         # Run container (port 3006)
 ```
 
 ### Shadcn UI Components
+
 Install with: `pnpx shadcn@latest add button`
 
 ---
@@ -54,10 +55,12 @@ Install with: `pnpx shadcn@latest add button`
 ## File Structure & Conventions
 
 ### Import Aliases
+
 - `#src/*` resolves to `src/` (defined in `tsconfig.json` and vite config)
 - Use this for all cross-module imports
 
 ### Naming Patterns
+
 - **Server functions**: Suffix with `.start.ts` (e.g., `update-db-connection.start.ts`)
 - **Effect functions**: Suffix with `.ts` or `.kysely.ts` for database queries; place in `server/*/fns/` folders (e.g., `get-table-foreign-keys.kysely.ts`)
 - **Component-scoped logic**: Use `.ts` or `.tsx` files in the same component folder (e.g., `use-connection-page-state.tsx`, `format-table-value.ts`, `use-rows-columns.actions.ts`)
@@ -68,6 +71,7 @@ Install with: `pnpx shadcn@latest add button`
 **Important**: Feature-specific state hooks and utilities should be colocated in the component folder where they're used, NOT in `hooks/` or `lib/`. Only use those folders for code with zero feature dependencies.
 
 ### Directory Organization
+
 ```
 src/
   components/
@@ -95,6 +99,7 @@ src/
 ```
 
 ### Schema & Types
+
 - Database schema: `src/db/app.db.schema.ts` (Drizzle with Kyselify type conversion)
 - Type inference: `src/types.ts` has helper types for inferring server function schemas
 - Standard schema validation: `src/standard-schema.ts` for Zod/Schema validation in server functions
@@ -106,6 +111,7 @@ src/
 ### Adding a Database Query
 
 1. **Create core Effect function** in `src/server/pg/fns/`:
+
 ```typescript
 import { KyselyPgDatabase } from "#src/db/postgres/kysely.pg.database.ts";
 import { Effect } from "effect";
@@ -115,13 +121,14 @@ export const getTableData = (input: { schema: string; table: string }) =>
   Effect.gen(function* () {
     const db = yield* KyselyPgDatabase;
     const rows = yield* db.execute(
-      db.selectFrom("my_table").selectAll().where("id", "=", input.id)
+      db.selectFrom("my_table").selectAll().where("id", "=", input.id),
     );
     return { rows };
   }).pipe(withQueryLogging());
 ```
 
 2. **Wrap in TanStack Start server function** in `src/server/pg/start-fns/`:
+
 ```typescript
 import { createServerFn } from "@tanstack/start";
 import { getTableData } from "#src/server/pg/fns/get-table-data.kysely.ts";
@@ -177,17 +184,17 @@ components/pages/connection-page/
 
 ## Key Dependencies & Integrations
 
-| Package | Purpose | Key Files |
-|---------|---------|-----------|
-| `Effect` | Dependency injection, error handling, resources | `src/db/`, `src/server/` |
-| `Kysely` | Type-safe SQL builder, wrapped in Effect | `src/db/effect-kysely.ts` |
-| `TanStack React Table` | Headless table library | `src/components/data-table.tsx` |
-| `@dnd-kit` | Drag-and-drop column reordering | `src/components/data-table.tsx` |
-| `@tanstack/react-virtual` | Virtual scrolling for large tables | `data-table.virtualized-table-body.tsx` |
-| `TanStack React Form` | Form state management | Form components in `src/components/form/` |
-| `TanStack React Query` | Server state caching, mutations | Used with TanStack Start |
-| `Tailwind CSS` | Utility-first CSS (with Biome `tailwindDirectives`) | Global in `src/styles.css`, component imports |
-| `AI SDK` | Anthropic Claude integration (not currently active) | `@ai-sdk/anthropic`, `@ai-sdk/react` |
+| Package                   | Purpose                                             | Key Files                                     |
+| ------------------------- | --------------------------------------------------- | --------------------------------------------- |
+| `Effect`                  | Dependency injection, error handling, resources     | `src/db/`, `src/server/`                      |
+| `Kysely`                  | Type-safe SQL builder, wrapped in Effect            | `src/db/effect-kysely.ts`                     |
+| `TanStack React Table`    | Headless table library                              | `src/components/data-table.tsx`               |
+| `@dnd-kit`                | Drag-and-drop column reordering                     | `src/components/data-table.tsx`               |
+| `@tanstack/react-virtual` | Virtual scrolling for large tables                  | `data-table.virtualized-table-body.tsx`       |
+| `TanStack React Form`     | Form state management                               | Form components in `src/components/form/`     |
+| `TanStack React Query`    | Server state caching, mutations                     | Used with TanStack Start                      |
+| `Tailwind CSS`            | Utility-first CSS (with Biome `tailwindDirectives`) | Global in `src/styles.css`, component imports |
+| `AI SDK`                  | Anthropic Claude integration (not currently active) | `@ai-sdk/anthropic`, `@ai-sdk/react`          |
 
 ---
 
@@ -228,7 +235,7 @@ components/pages/connection-page/
 - **Database changes**: Update `src/db/app.db.schema.ts`, run `pnpm migrate:gen`, commit migrations
 - **New UI component**: Create in `src/components/`, export from parent, follow CVA styling pattern
 - **New query/mutation**: Create Effect.fn in `src/server/`, compose into layer if new service
-- **New hook**: Place in `src/hooks/`, follow naming (use-*), document dependencies
+- **New hook**: Place in `src/hooks/`, follow naming (use-\*), document dependencies
 - **Styling**: Use Tailwind classes with `cn()` helper; define variants in `.styles.ts` files for complex components
 
 ---
@@ -248,13 +255,16 @@ components/pages/connection-page/
 ## Resources for Learning & Reference
 
 ### Effect.ts Examples
+
 For Effect.ts patterns, best practices, and API reference:
+
 - Use `.context/effect/` folder in the workspace - it contains the Effect.ts source code repo
 - Search this folder when you need to understand how to use Effect APIs
 - Look at `src/server/services/`, `src/server/pg/fns/` for applied examples in Dadabase
 - and `docs/effect-patterns.md`
 
 ### Key Patterns to Study
+
 - **Service definition**: `src/server/services/nano-id.ts`, `src/server/services/app.runtime.ts`
 - **Effect generators**: `src/server/pg/fns/*.kysely.ts`, `src/db/effect-kysely.ts`
 - **Query logging wrapper**: `src/server/query-logger/with-query-logging.ts`
