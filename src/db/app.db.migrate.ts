@@ -17,7 +17,7 @@ export const MigrateAppDatabase = Effect.gen(function* () {
     );
     console.log(previous, current);
 
-    return generateSQLiteMigration(previous!, current!);
+    return generateSQLiteMigration(previous, current);
   });
   console.log(AppDbSchema, migrationList);
 

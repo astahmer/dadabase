@@ -59,6 +59,7 @@ export const JoinedTableSchema = Schema.Struct({
 
 type JoinedTableType = typeof JoinedTableSchema.Type;
 const _lint = {} as JoinedTableType satisfies JoinedTable;
+// oxlint-disable-next-line no-unused-expressions
 _lint;
 
 export const QueryTableRowsInputSchema = Schema.Struct({

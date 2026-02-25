@@ -8,7 +8,7 @@ import {
 } from "#src/server/custom-sql/fns/update-custom-sql-execution.ts";
 import { executeCustomSql } from "#src/server/introspection/introspection.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
-import { mutationOptions, queryOptions } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
@@ -34,7 +34,7 @@ export const executeAndStoreCustomSqlServerFn = createServerFn({
   .inputValidator(ExecuteAndStoreCustomSqlInputSchema.pipe(Schema.standardSchemaV1))
   .handler(async (ctx) => {
     // First, create the execution record and get the connection ID
-    const { id, connectionId } = await AppRuntime.runPromise(
+    const { id } = await AppRuntime.runPromise(
       Effect.gen(function* () {
         const repo = yield* DatabaseConnectionRepository;
         const connection = yield* repo.findByUrl(ctx.data.url);
@@ -43,7 +43,7 @@ export const executeAndStoreCustomSqlServerFn = createServerFn({
           return yield* Effect.fail(new Error(`Connection not found for URL: ${ctx.data.url}`));
         }
 
-        const { id } = yield* createCustomSqlExecution({
+        const execution = yield* createCustomSqlExecution({
           connectionId: connection.id,
           schemaName: ctx.data.schemaName,
           tableName: ctx.data.tableName,
@@ -51,7 +51,7 @@ export const executeAndStoreCustomSqlServerFn = createServerFn({
           sql: ctx.data.sql,
         });
 
-        return { id, connectionId: connection.id };
+        return { id: execution.id, connectionId: connection.id };
       }),
     );
 

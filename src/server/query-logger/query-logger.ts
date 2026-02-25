@@ -13,14 +13,12 @@ export interface QueryLoggerInterface {
     {
       rows: QueryLogEntryType[];
       counts: QueryLogCounts;
-    },
-    never,
-    never
+    }
   >;
-  push: (entry: Omit<QueryLogEntryType, "id">) => Effect.Effect<string, never, never>;
-  update: (id: string, updates: Partial<QueryLogEntryType>) => Effect.Effect<void, never, never>;
-  clearAll: () => Effect.Effect<void, never, never>;
-  remove: (id: string) => Effect.Effect<void, never, never>;
+  push: (entry: Omit<QueryLogEntryType, "id">) => Effect.Effect<string>;
+  update: (id: string, updates: Partial<QueryLogEntryType>) => Effect.Effect<void>;
+  clearAll: () => Effect.Effect<void>;
+  remove: (id: string) => Effect.Effect<void>;
 }
 
 export class QueryLogger extends Context.Tag("@dadabase/QueryLogger")<

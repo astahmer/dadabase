@@ -1971,7 +1971,6 @@ describe("SQL Query Parser", () => {
 
   describe("LEFT JOIN parsing", () => {
     const accountingColumns = ["id", "category", "amount", "date"];
-    const expensesColumns = ["id", "planned_outcome_id", "name", "amount"];
 
     it("should parse simple LEFT JOIN without alias", () => {
       const sql =

@@ -1,5 +1,4 @@
 import type {
-  TableColumnMetadata,
   TableWithColumnsMetadata,
 } from "#src/server/introspection/introspection.ts";
 import type * as MonacoType from "monaco-editor";
@@ -4114,7 +4113,6 @@ describe("sqlCompletionProvider", () => {
         mockMonaco,
       );
 
-      const labels = suggestions.map((s) => s.label);
       // NOT should suggest columns from available tables
       expect(suggestions.length).toBe(5);
       expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`

@@ -619,7 +619,7 @@ export const useConnectionPageState = ({ connection }: { connection: DbConnectio
         typeof updater === "function" ? updater(columnVisibilityState) : updater;
       const hiddenCols = Object.keys(newVisibility)
         .filter((key) => !newVisibility[key])
-        .sort();
+        .toSorted();
       navigate({
         search: (prev) => {
           return updateTabState(prev, {

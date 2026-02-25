@@ -522,37 +522,25 @@ const findColumnReferencesWithCountsTestSuite = (
 };
 
 describe("getTableForeignKeys (pglite)", () => {
-  getTableForeignKeysTestSuite(pgliteLayer, postgresConfig).forEach((test) => {
-    test;
-  });
+  getTableForeignKeysTestSuite(pgliteLayer, postgresConfig);
 });
 
 describe("getTableForeignKeys (libsql)", () => {
-  getTableForeignKeysTestSuite(libsqlLayer, sqliteConfig).forEach((test) => {
-    test;
-  });
+  getTableForeignKeysTestSuite(libsqlLayer, sqliteConfig);
 });
 
 describe("findColumnReferences (pglite)", () => {
-  findColumnReferencesTestSuite(pgliteLayer, postgresConfig).forEach((test) => {
-    test;
-  });
+  findColumnReferencesTestSuite(pgliteLayer, postgresConfig);
 });
 
 describe("findColumnReferences (libsql)", () => {
-  findColumnReferencesTestSuite(libsqlLayer, sqliteConfig).forEach((test) => {
-    test;
-  });
+  findColumnReferencesTestSuite(libsqlLayer, sqliteConfig);
 });
 
 describe("findColumnReferencesWithCounts (pglite)", () => {
-  findColumnReferencesWithCountsTestSuite(pgliteLayer, postgresConfig).forEach((test) => {
-    test;
-  });
+  findColumnReferencesWithCountsTestSuite(pgliteLayer, postgresConfig);
 });
 
 describe("findColumnReferencesWithCounts (libsql)", () => {
-  findColumnReferencesWithCountsTestSuite(libsqlLayer, sqliteConfig).forEach((test) => {
-    test;
-  });
+  findColumnReferencesWithCountsTestSuite(libsqlLayer, sqliteConfig);
 });

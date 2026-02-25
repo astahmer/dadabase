@@ -14,7 +14,6 @@ import {
   Copy,
   Maximize2,
   Play,
-  RotateCcw,
   Square,
   Wand2,
   Zap,

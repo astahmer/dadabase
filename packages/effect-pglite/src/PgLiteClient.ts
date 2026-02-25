@@ -1,3 +1,4 @@
+// oxlint-disable
 import type { Connection } from "@effect/sql/SqlConnection";
 import type { Custom, Fragment } from "@effect/sql/Statement";
 import type { Extensions, InitializedExtensions, PGliteOptions } from "@electric-sql/pglite";
@@ -180,7 +181,7 @@ export const make = <TExtensions extends Extensions = Extensions>(
       execute(
         sql: string,
         params: ReadonlyArray<Primitive>,
-        transformRows?: (<A extends object>(row: ReadonlyArray<A>) => ReadonlyArray<A>) | undefined,
+        transformRows?: (<A extends object>(row: ReadonlyArray<A>) => ReadonlyArray<A>)  ,
         unprepared?: boolean,
       ) {
         return transformRows

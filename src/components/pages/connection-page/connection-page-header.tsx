@@ -11,7 +11,7 @@ interface ConnectionPageHeaderProps {
   onOpenSchemaExplorer?: () => void;
 }
 
-export const ConnectionPageHeader = (props: ConnectionPageHeaderProps) => {
+export const ConnectionPageHeader = (_props: ConnectionPageHeaderProps) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate({ from: "/connections/$connectionName" });
 

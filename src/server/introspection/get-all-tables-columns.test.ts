@@ -124,7 +124,7 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
           schema: config.defaultSchema,
         });
 
-        const tableNames = result.map((t) => t.table).sort();
+        const tableNames = result.map((t) => t.table).toSorted();
         expect(tableNames).toEqual(["post_tags", "posts", "tags", "user_profiles", "users"]);
       }).pipe(Effect.provide(testLayer));
     }),
@@ -139,9 +139,9 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         const usersTable = result.find((t) => t.table === "users");
 
         expect(usersTable).toBeDefined();
-        expect(usersTable!.columns.length).toBe(3);
+        expect(usersTable?.columns.length).toBe(3);
 
-        const columnNames = usersTable!.columns.map((c) => c.name).sort();
+        const columnNames = usersTable?.columns.map((c) => c.name).toSorted();
         expect(columnNames).toEqual(["email", "id", "name"]);
       }).pipe(Effect.provide(testLayer));
     }),
@@ -155,10 +155,10 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         });
         const usersTable = result.find((t) => t.table === "users");
 
-        const idColumn = usersTable!.columns.find((c) => c.name === "id");
+        const idColumn = usersTable?.columns.find((c) => c.name === "id");
         expect(idColumn?.primaryKey).toBe(true);
 
-        const nameColumn = usersTable!.columns.find((c) => c.name === "name");
+        const nameColumn = usersTable?.columns.find((c) => c.name === "name");
         expect(nameColumn?.primaryKey).not.toBe(true);
       }).pipe(Effect.provide(testLayer));
     }),
@@ -172,10 +172,10 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         });
         const usersTable = result.find((t) => t.table === "users");
 
-        const emailColumn = usersTable!.columns.find((c) => c.name === "email");
+        const emailColumn = usersTable?.columns.find((c) => c.name === "email");
         expect(emailColumn?.unique).toBe(true);
 
-        const nameColumn = usersTable!.columns.find((c) => c.name === "name");
+        const nameColumn = usersTable?.columns.find((c) => c.name === "name");
         expect(nameColumn?.unique).not.toBe(true);
       }).pipe(Effect.provide(testLayer));
     }),
@@ -189,10 +189,10 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         });
         const postsTable = result.find((t) => t.table === "posts");
 
-        const contentColumn = postsTable!.columns.find((c) => c.name === "content");
+        const contentColumn = postsTable?.columns.find((c) => c.name === "content");
         expect(contentColumn?.nullable).toBe(true);
 
-        const titleColumn = postsTable!.columns.find((c) => c.name === "title");
+        const titleColumn = postsTable?.columns.find((c) => c.name === "title");
         expect(titleColumn?.nullable).toBe(false);
       }).pipe(Effect.provide(testLayer));
     }),
@@ -206,13 +206,13 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         });
         const postsTable = result.find((t) => t.table === "posts");
 
-        const idColumn = postsTable!.columns.find((c) => c.name === "id");
+        const idColumn = postsTable?.columns.find((c) => c.name === "id");
         expect(idColumn?.dataType).toContain("integer");
 
-        const titleColumn = postsTable!.columns.find((c) => c.name === "title");
+        const titleColumn = postsTable?.columns.find((c) => c.name === "title");
         expect(titleColumn?.dataType).toContain("text");
 
-        const publishedColumn = postsTable!.columns.find((c) => c.name === "published");
+        const publishedColumn = postsTable?.columns.find((c) => c.name === "published");
         // SQLite uses INTEGER for boolean, PostgreSQL uses boolean
         expect(publishedColumn?.dataType.toLowerCase()).toMatch(/boolean|integer/);
       }).pipe(Effect.provide(testLayer));
@@ -227,7 +227,7 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         });
         const postsTable = result.find((t) => t.table === "posts");
 
-        const userIdColumn = postsTable!.columns.find((c) => c.name === "user_id");
+        const userIdColumn = postsTable?.columns.find((c) => c.name === "user_id");
         expect(userIdColumn?.isForeignKey).toBe(true);
         expect(userIdColumn?.foreignKey).toBeDefined();
         expect(userIdColumn?.foreignKey?.referencedTable).toBe("users");
@@ -245,7 +245,7 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         });
         const usersTable = result.find((t) => t.table === "users");
 
-        const nameColumn = usersTable!.columns.find((c) => c.name === "name");
+        const nameColumn = usersTable?.columns.find((c) => c.name === "name");
         expect(nameColumn?.isForeignKey).toBe(false);
         expect(nameColumn?.foreignKey).toBeUndefined();
       }).pipe(Effect.provide(testLayer));
@@ -260,7 +260,7 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         });
         const userProfilesTable = result.find((t) => t.table === "user_profiles");
 
-        const userIdColumn = userProfilesTable!.columns.find((c) => c.name === "user_id");
+        const userIdColumn = userProfilesTable?.columns.find((c) => c.name === "user_id");
         expect(userIdColumn?.isForeignKey).toBe(true);
         // user_id is both a PK and a UNIQUE constraint, so it should be marked as primaryKey
         expect(userIdColumn?.primaryKey).toBe(true);
@@ -277,11 +277,11 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         });
         const postTagsTable = result.find((t) => t.table === "post_tags");
 
-        const postIdColumn = postTagsTable!.columns.find((c) => c.name === "post_id");
+        const postIdColumn = postTagsTable?.columns.find((c) => c.name === "post_id");
         expect(postIdColumn?.isForeignKey).toBe(true);
         expect(postIdColumn?.foreignKey?.referencedTable).toBe("posts");
 
-        const tagIdColumn = postTagsTable!.columns.find((c) => c.name === "tag_id");
+        const tagIdColumn = postTagsTable?.columns.find((c) => c.name === "tag_id");
         expect(tagIdColumn?.isForeignKey).toBe(true);
         expect(tagIdColumn?.foreignKey?.referencedTable).toBe("tags");
       }).pipe(Effect.provide(testLayer));
@@ -313,7 +313,7 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         });
         const postsTable = result.find((t) => t.table === "posts");
 
-        const columnNames = postsTable!.columns.map((c) => c.name);
+        const columnNames = postsTable?.columns.map((c) => c.name);
         // Columns should be in the order they were defined: id, user_id, title, content, published
         expect(columnNames).toEqual(["id", "user_id", "title", "content", "published"]);
       }).pipe(Effect.provide(testLayer));
@@ -338,7 +338,7 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         });
         const postsTable = result.find((t) => t.table === "posts");
 
-        const publishedColumn = postsTable!.columns.find((c) => c.name === "published");
+        const publishedColumn = postsTable?.columns.find((c) => c.name === "published");
         // The default value should contain 'false' or '0'
         expect(publishedColumn?.defaultValue).toBeDefined();
       }).pipe(Effect.provide(testLayer));
@@ -359,9 +359,9 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         // which can cause duplicates if DISTINCT ON is not used
 
         expect(userProfilesTable).toBeDefined();
-        expect(userProfilesTable!.columns.length).toBe(3); // user_id, bio, created_at
+        expect(userProfilesTable?.columns.length).toBe(3); // user_id, bio, created_at
 
-        const userIdColumn = userProfilesTable!.columns.find((c) => c.name === "user_id");
+        const userIdColumn = userProfilesTable?.columns.find((c) => c.name === "user_id");
         // Should only appear once despite having multiple constraints
         expect(userIdColumn).toBeDefined();
         expect(userIdColumn?.primaryKey).toBe(true);
@@ -369,7 +369,7 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
         expect(userIdColumn?.unique).not.toBeUndefined();
 
         // Verify no duplicates by checking column count
-        const userIdOccurrences = userProfilesTable!.columns.filter(
+        const userIdOccurrences = userProfilesTable?.columns.filter(
           (c) => c.name === "user_id",
         ).length;
         expect(userIdOccurrences).toBe(1);
@@ -379,13 +379,9 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
 };
 
 describe("getAllTablesColumns (pglite)", () => {
-  testSuite(pgliteLayer, postgresConfig).forEach((test) => {
-    test;
-  });
+  testSuite(pgliteLayer, postgresConfig);
 });
 
 describe("getAllTablesColumns (libsql)", () => {
-  testSuite(libsqlLayer, sqliteConfig).forEach((test) => {
-    test;
-  });
+  testSuite(libsqlLayer, sqliteConfig);
 });

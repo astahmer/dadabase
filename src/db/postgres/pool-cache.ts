@@ -41,7 +41,7 @@ export const makePoolCacheLive = Layer.effect(
         const now = Date.now();
         const newCache = new Map(cache);
 
-        for (const [url, { layer, lastUsed }] of newCache.entries()) {
+        for (const [url, { lastUsed }] of newCache.entries()) {
           if (now - lastUsed > POOL_TTL_MS) {
             // Fire and forget cleanup
             // layer.end().catch(() => {});

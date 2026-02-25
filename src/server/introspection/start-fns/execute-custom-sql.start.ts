@@ -29,7 +29,7 @@ export const executeCustomSqlServerFn = createServerFn({ method: "POST" })
             record[col] = (row as Record<string, unknown>)[col];
           });
           return record as any;
-        }) as any[];
+        });
         console.log({
           rows: rows,
           columns: result.columns,

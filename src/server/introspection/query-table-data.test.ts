@@ -102,7 +102,7 @@ const testSuite =
           }),
         orElse: () =>
           Effect.gen(function* () {
-            return Effect.fail(new Error("Unsupported database"));
+            return yield* Effect.fail(new Error("Unsupported database"));
           }),
       });
     });
@@ -734,7 +734,7 @@ const testSuite =
         });
 
         expect(result.rows.length).toBe(2);
-        const names = result.rows.map((r) => r.name).sort();
+        const names = result.rows.map((r) => r.name).toSorted();
         expect(names).toEqual(["Alice", "Bob"]);
       }).pipe(Effect.provide(testLayer));
     });
@@ -1253,7 +1253,7 @@ const testSuite =
         });
 
         expect(result.rows.length).toBe(3);
-        const names = result.rows.map((r) => r.name).sort();
+        const names = result.rows.map((r) => r.name).toSorted();
         expect(names).toEqual(["Alice", "Bob", "Charlie"]);
       }).pipe(Effect.provide(testLayer));
     });
@@ -2554,7 +2554,7 @@ const testSuite =
             }),
           orElse: () =>
             Effect.gen(function* () {
-              return Effect.fail(new Error("Unsupported database"));
+              return yield* Effect.fail(new Error("Unsupported database"));
             }),
         });
 

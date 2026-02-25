@@ -110,7 +110,7 @@ export const withQueryLogging =
             endTime,
             timeTaken: endTime.getTime() - startTime.getTime(),
             error: {
-              message: errorMessage!,
+              message: errorMessage,
               stack: errorStack,
             },
           };
@@ -120,7 +120,7 @@ export const withQueryLogging =
             .pipe(Effect.flatMap(() => Effect.fail(error)));
         }),
       );
-    }) as Effect.Effect<TOutput, E, R | QueryLogger>;
+    });
   };
 
 function getErrorMessage(error: unknown): string {

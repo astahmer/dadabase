@@ -5,7 +5,6 @@ import {
   RemoteConnectionId,
 } from "#src/server/db-connection/remote-connection.tag.ts";
 import {
-  getAvailableDatabases,
   getAvailableTables,
   queryTableRows,
 } from "#src/server/introspection/introspection.ts";

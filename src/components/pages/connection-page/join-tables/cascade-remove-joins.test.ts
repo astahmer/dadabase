@@ -51,7 +51,7 @@ describe("cascadeRemoveJoins", () => {
     });
 
     // Removes b and c (since c depends on b), but keeps d.
-    expect(out.map((j) => j.table).sort()).toEqual(["d"]);
+    expect(out.map((j) => j.table).toSorted()).toEqual(["d"]);
     expect(removedCount).toBe(2); // b and c
   });
 

@@ -5,7 +5,7 @@ import type { QueryFilterType } from "#src/components/query-builder/query-filter
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { SqlClient } from "@effect/sql";
 import { SqlError } from "@effect/sql/SqlError";
-import { Effect, Scope } from "effect";
+import { Effect } from "effect";
 
 import type { QueryLogger } from "../query-logger/query-logger.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
@@ -308,6 +308,7 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
             }),
           );
           // Merge FK info with column metadata
+          // oxlint-disable-next-line oxc/no-map-spread
           return columns.map((col) => ({
             ...col,
             isForeignKey: fkMap.has(col.name),
@@ -499,7 +500,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
               referenced_table_name: row.table,
               referenced_column_name: row.to,
             }))
-            .sort((a, b) => {
+            .toSorted((a, b) => {
               const posA = columnPositions.get(a.column_name) ?? 999;
               const posB = columnPositions.get(b.column_name) ?? 999;
               return posA - posB;
@@ -619,7 +620,7 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
             }
           }
 
-          return results as IndexInfo[];
+          return results;
         }),
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
@@ -683,10 +684,10 @@ export const getAllTablesColumns = (input: { schema: string }) =>
           for (const fk of fks) {
             fkMap.set(fk.column_name, {
               referencedSchema: (fk.referenced_table_schema ??
-                fk.referenced_table_schema) as string,
-              referencedTable: fk.referenced_table_name as string,
-              referencedColumn: fk.referenced_column_name as string,
-              constraintName: fk.constraint_name as string,
+                fk.referenced_table_schema),
+              referencedTable: fk.referenced_table_name,
+              referencedColumn: fk.referenced_column_name,
+              constraintName: fk.constraint_name,
             });
           }
 
@@ -695,7 +696,7 @@ export const getAllTablesColumns = (input: { schema: string }) =>
           const uniqueSet = new Set<string>();
 
           // Indexes may contain multiple entries per index (one per column)
-          for (const idx of indexes as IndexInfo[]) {
+          for (const idx of indexes) {
             if (idx.is_primary) pkSet.add(idx.column_name);
             if (idx.is_unique) uniqueSet.add(idx.column_name);
           }
@@ -760,10 +761,10 @@ export const getTablesStructures = (input: { schema: string; tables?: string[] }
           for (const fk of fks) {
             fkMap.set(fk.column_name, {
               referencedSchema: (fk.referenced_table_schema ??
-                fk.referenced_table_schema) as string,
-              referencedTable: fk.referenced_table_name as string,
-              referencedColumn: fk.referenced_column_name as string,
-              constraintName: fk.constraint_name as string,
+                fk.referenced_table_schema),
+              referencedTable: fk.referenced_table_name,
+              referencedColumn: fk.referenced_column_name,
+              constraintName: fk.constraint_name,
             });
           }
 
@@ -771,7 +772,7 @@ export const getTablesStructures = (input: { schema: string; tables?: string[] }
           const pkSet = new Set<string>();
           const uniqueSet = new Set<string>();
 
-          for (const idx of indexes as IndexInfo[]) {
+          for (const idx of indexes) {
             if (idx.is_primary) pkSet.add(idx.column_name);
             if (idx.is_unique) uniqueSet.add(idx.column_name);
           }
@@ -931,7 +932,7 @@ export const getTableRelationships = (input: { schema: string; table: string }) 
           }
 
           // Combine and sort
-          const combined = [...outgoing, ...incomingRelationships].sort((a, b) => {
+          const combined = [...outgoing, ...incomingRelationships].toSorted((a, b) => {
             const typeOrder = { outgoing: 0, incoming: 1 };
             if (typeOrder[a.type] !== typeOrder[b.type]) {
               return typeOrder[a.type] - typeOrder[b.type];
@@ -1042,7 +1043,7 @@ export const findColumnReferences = (input: {
             }
           }
 
-          return results.sort((a, b) => {
+          return results.toSorted((a, b) => {
             if (a.table !== b.table) {
               return a.table.localeCompare(b.table);
             }
@@ -1943,6 +1944,7 @@ export const executeCustomSql = (input: {
       }),
     );
 
+    // oxlint-disable-next-line unicorn/no-useless-fallback-in-spread
     const result = { rows: [], ...((rawResult as any) ?? {}) } as {
       columns: string[];
       columnTypes: string[];
@@ -1961,7 +1963,7 @@ export const executeCustomSql = (input: {
       const rows = result.rows;
       const columnList = rows && rows.length > 0 ? Object.keys(rows[0] as object) : [];
       return {
-        rows: rows as unknown[],
+        rows: rows,
         columns: columnList,
         rowCount: rows?.length ?? 0,
         timeTaken: endTime - startTime,

@@ -133,7 +133,7 @@ export const RelationshipsPanel = ({
   const handleSelectAllGroup = (type: "outgoing" | "incoming") => {
     const groupRels = relsByType[type];
     const selectableNames = groupRels
-      .filter((r) => (Number(counts[r.constraintName]) ?? 0) > 0)
+      .filter((r) => Number(counts[r.constraintName]) > 0)
       .map((r) => r.constraintName);
     panelState.selectGroup(selectableNames);
   };
@@ -275,7 +275,7 @@ export const RelationshipsPanel = ({
                         <RelationshipListItem
                           key={`${rel.constraintName}.${rel.referencingColumn}.${rel.referencedColumn}.${rel.referencingTable}.${rel.referencedTable}`}
                           rel={rel}
-                          rowCount={Number(counts[rel.constraintName]) ?? 0}
+                          rowCount={Number(counts[rel.constraintName])}
                           isCountLoading={countsQuery.isLoading}
                           isSelected={selectedRelationships.has(rel.constraintName)}
                           isSticky={stickyRelationship === rel.constraintName && isFocused}
@@ -360,7 +360,7 @@ export const RelationshipsPanel = ({
               <div className="flex-1 space-y-4 overflow-y-auto p-4">
                 {validRelationships
                   .filter((r) => displayedRelationships.has(r.constraintName))
-                  .sort((a, b) => {
+                  .toSorted((a, b) => {
                     if (a.type === "outgoing" && b.type === "incoming") return -1;
                     if (a.type === "incoming" && b.type === "outgoing") return 1;
                     return 0;

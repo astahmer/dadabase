@@ -183,6 +183,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
               className="w-full"
               availableColumns={columnList}
               onApplyFilters={(parsed) => {
+                // oxlint-disable-next-line no-shadow
                 const { filters = [], orderBy, limit } = parsed;
                 console.log("onApplyFilters", filters);
                 const operatorMap: Record<string, any> = {
@@ -218,12 +219,16 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                           value: f.value as string,
                         }))
                         .concat(
-                          filters.map((f) => ({
-                            column: f.field,
-                            operator: operatorMap[f.operator] || "equals",
-                            value: f.value as string,
-                            ...(f.inverted && { inverted: true }),
-                          })),
+                          filters.map((f) =>
+                            Object.assign(
+                              {
+                                column: f.field,
+                                operator: operatorMap[f.operator] || `equals`,
+                                value: f.value as string,
+                              },
+                              f.inverted && { inverted: true },
+                            ),
+                          ),
                         ),
                     );
                   }
@@ -268,6 +273,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
               orderBy={orderBy}
               orderDirection={orderDirection}
               nullsOrder={nullsOrder}
+              // oxlint-disable-next-line no-shadow
               onOrderChange={(orderBy, direction) => {
                 navigate({
                   search: (prev) =>
@@ -279,6 +285,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     }),
                 });
               }}
+              // oxlint-disable-next-line no-shadow
               onNullsOrderChange={(nullsOrder) => {
                 navigate({
                   search: (prev) =>

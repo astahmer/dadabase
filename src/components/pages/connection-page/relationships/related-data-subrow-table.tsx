@@ -25,8 +25,6 @@ interface RelatedDataSubrowTableProps {
   onRemove?: () => void;
 }
 
-const initialLimit = 50;
-
 /**
  * Renders a nested DataTable in a subrow containing the related record from the FK target table
  * For outgoing relationships: queries the referencedTable filtered by referencedColumn = fkValue
@@ -39,8 +37,8 @@ export const RelatedDataSubrowTable = ({
   withHeader = true,
   onRemove,
 }: RelatedDataSubrowTableProps) => {
-  const [limit, setLimit] = useState(initialLimit);
-  const [pageIndex, setPageIndex] = useState(0);
+  const limit = 50;
+  const pageIndex = 0;
   const [isMaximizeSheetOpen, setIsMaximizeSheetOpen] = useState(false);
 
   const { referencedSchema, referencedTable, referencedColumn } = relationship;

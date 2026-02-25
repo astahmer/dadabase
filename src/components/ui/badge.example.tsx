@@ -1,4 +1,4 @@
-import { Badge, badgeVariants } from "#src/components/ui/badge.tsx";
+import { Badge } from "#src/components/ui/badge.tsx";
 
 import { Stack } from "./layout.tsx";
 

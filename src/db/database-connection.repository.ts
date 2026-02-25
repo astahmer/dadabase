@@ -3,7 +3,6 @@ import type { Insertable } from "kysely";
 import { Effect } from "effect";
 
 import type { AppDatabaseSchema } from "./app.db.schema.ts";
-import type { EffectKysely } from "./effect-kysely.ts";
 
 import { AppDatabase } from "./app.db.ts";
 
@@ -12,7 +11,7 @@ export class DatabaseConnectionRepository extends Effect.Service<DatabaseConnect
   {
     dependencies: [],
     effect: Effect.gen(function* () {
-      const db = (yield* AppDatabase) as EffectKysely<AppDatabaseSchema>;
+      const db = yield* AppDatabase;
       return {
         findAll: () => {
           return db.execute(

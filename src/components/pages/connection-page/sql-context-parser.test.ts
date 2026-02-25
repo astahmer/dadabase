@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseSqlContext, type SqlContext } from "./sql-context-parser";
+import { parseSqlContext } from "./sql-context-parser";
 
 describe("parseSqlContext", () => {
   describe("table context detection", () => {

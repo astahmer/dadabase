@@ -116,7 +116,7 @@ describe("getTransitiveJoinRelationships", () => {
         joined: [{ schema: "public", table: "B" }],
         relationshipsBySource,
       });
-      expect(suggestions.map((s) => s.relationship.constraintName).sort()).toEqual(["fk_b_f"]);
+      expect(suggestions.map((s) => s.relationship.constraintName).toSorted()).toEqual(["fk_b_f"]);
     }
 
     // After joining B and F: G becomes joinable
@@ -143,7 +143,7 @@ describe("getTransitiveJoinRelationships", () => {
         ],
         relationshipsBySource,
       });
-      expect(suggestions.map((s) => s.relationship.constraintName).sort()).toEqual([
+      expect(suggestions.map((s) => s.relationship.constraintName).toSorted()).toEqual([
         "fk_g_x",
         "fk_g_y",
         "fk_g_z",

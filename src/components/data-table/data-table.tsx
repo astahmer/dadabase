@@ -1,5 +1,5 @@
 import type { Header, HeaderGroup, Row, Table as TanstackTable } from "@tanstack/react-table";
-import type { ReactNode, Ref, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 
 import {
   closestCenter,

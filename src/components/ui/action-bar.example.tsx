@@ -6,7 +6,6 @@ import {
   ActionBarSelectionTrigger,
 } from "#src/components/ui/action-bar.tsx";
 import { Button } from "#src/components/ui/button.tsx";
-import { useState } from "react";
 
 export function ActionBarExample() {
   return (

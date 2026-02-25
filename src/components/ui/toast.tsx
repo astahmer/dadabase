@@ -4,7 +4,7 @@ import {
   Toaster as ToasterPrimitive,
   Toast as ToastPrimitive,
 } from "@ark-ui/react/toast";
-import { type VariantProps } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 
 import type { ExposedComponentProps } from "./component-props.ts";

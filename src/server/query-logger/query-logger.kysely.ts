@@ -95,7 +95,7 @@ export const getQueryLogs = (
             }) as QueryLogEntryType,
         )
         // Reverse to get chronological order (oldest first),
-        .reverse(),
+        .toReversed(),
       counts: {
         pending: counts?.pending_count ?? 0,
         success: counts?.success_count ?? 0,

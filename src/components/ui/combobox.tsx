@@ -1,7 +1,7 @@
 import { cn } from "#src/lib/utils";
 import { Combobox as ComboboxPrimitive } from "@ark-ui/react/combobox";
 import { Portal } from "@ark-ui/react/portal";
-import { type VariantProps } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import * as React from "react";
 

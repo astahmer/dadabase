@@ -14,7 +14,7 @@ const HoverCardContent = React.forwardRef<
   HoverCardPrimitive.ContentProps & {
     sideOffset?: number;
   }
->(({ className, sideOffset = 4, ...props }, ref) => (
+>(({ className, ...props }, ref) => (
   <Portal>
     <HoverCardPrimitive.Positioner>
       <HoverCardPrimitive.Content

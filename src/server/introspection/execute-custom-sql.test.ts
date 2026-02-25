@@ -1,4 +1,3 @@
-import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
 import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
@@ -6,21 +5,6 @@ import { Effect, Layer } from "effect";
 import { executeCustomSql } from "./introspection.ts";
 import { PgContainer } from "./pg-test.layer.ts";
 import { makeTestLayer, postgresConfig } from "./test.layer.ts";
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  age: number;
-}
-
-interface Post {
-  id: number;
-  userId: number;
-  title: string;
-  content?: string;
-  published: boolean;
-}
 
 const testSuite = (
   pgLayer: Layer.Layer<SqlClient.SqlClient>,
@@ -141,7 +125,7 @@ const testSuite = (
         yield* insertTestData;
 
         // First, delete the comments that reference the posts
-        const deleteComments = yield* executeCustomSql({
+        yield* executeCustomSql({
           sql: `DELETE FROM ${config.defaultSchema}.comments WHERE post_id IN (1, 2)`,
         });
 

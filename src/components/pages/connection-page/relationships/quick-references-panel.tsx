@@ -129,8 +129,7 @@ export function QuickReferencesPanel({
     // Sort based on sortBy state
     if (sortBy === "count") {
       items.sort(
-        (a, b) =>
-          (Number(b.ref.matchingRowCount ?? 0) ?? 0) - (Number(a.ref.matchingRowCount ?? 0) ?? 0),
+        (a, b) => Number(b.ref.matchingRowCount ?? 0) - Number(a.ref.matchingRowCount ?? 0),
       );
     } else {
       // Default sort by name (A-Z ascending)

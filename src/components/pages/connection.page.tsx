@@ -196,6 +196,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                 )}
                 title="Drag to resize, double-click to toggle"
                 onDoubleClick={() => {
+                  // oxlint-disable-next-line no-unused-expressions
                   ctx.isPanelExpanded(panels.sidebar)
                     ? ctx.collapsePanel(panels.sidebar)
                     : ctx.expandPanel(panels.sidebar);
@@ -311,6 +312,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         )}
                         title="Drag to resize, double-click to toggle"
                         onDoubleClick={() => {
+                          // oxlint-disable-next-line no-unused-expressions
                           ctx.isPanelExpanded(panels.queryLogger)
                             ? ctx.collapsePanel(panels.queryLogger)
                             : ctx.expandPanel(panels.queryLogger);

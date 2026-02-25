@@ -16,7 +16,7 @@ export function useStickyRelationshipTracking(
 
     const sortedRels = relationships
       .filter((r) => displayedRelationships.has(r.constraintName))
-      .sort((a, b) => {
+      .toSorted((a, b) => {
         if (a.type === "outgoing" && b.type === "incoming") return -1;
         if (a.type === "incoming" && b.type === "outgoing") return 1;
         return 0;

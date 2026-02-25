@@ -1,3 +1,4 @@
+// oxlint-disable typescript/no-non-null-assertion
 import type {
   CustomJoinCondition,
   FilterJoinCondition,
@@ -361,6 +362,8 @@ const buildFilterJoinCondition = ({
   return filterExpression;
 };
 
+  const joinKey = (s: string, t: string) => `${s}.${t}`;
+
 /**
  * Build SQL JOIN clauses from join configuration for a specific dialect
  * Supports three join condition modes: standard (FK-based), custom (SQL expressions), and filters (QueryFilterBuilder)
@@ -383,7 +386,6 @@ export const buildJoinSqlClauses = (
   const aliases = joinAliases ?? generateJoinAliases(joins, originalTable, originalSchema);
 
   const baseKey = `${originalSchema}.${originalTable}`;
-  const joinKey = (s: string, t: string) => `${s}.${t}`;
 
   const resolveFromRef = (join: JoinedTable): string => {
     if (!join.joinFrom) {

@@ -1,9 +1,7 @@
 import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
-import type { SqlError } from "@effect/sql/SqlError";
 import type { Selectable } from "kysely";
 
 import { RemoteConnection } from "#src/server/db-connection/remote-connection.tag.ts";
-import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
 import { QueryLogLevel, QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import { SqlClient } from "@effect/sql";

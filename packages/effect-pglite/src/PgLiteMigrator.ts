@@ -66,6 +66,7 @@ export const run: <R2 = never>(
       ([schema, migrations]) => `${schema}\n\n${migrations}`,
     );
 
+    // oxlint-disable-next-line no-shadow
     const pgDumpFile = (path: string) =>
       Effect.gen(function* () {
         const fs = yield* FileSystem;

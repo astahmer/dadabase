@@ -153,7 +153,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
           });
           onSuccess?.();
         }
-      } catch (error) {
+      } catch  {
         toaster.create({
           title: (
             <HStack align="center" className="text-chart-1">
@@ -419,7 +419,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                 });
                 setTimeout(() => setTestState("idle"), 2000);
               }
-            } catch (error) {
+            } catch  {
               setTestState("error");
               toaster.create({
                 title: (

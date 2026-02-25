@@ -157,9 +157,6 @@ const REGEX_ORDER_BY_COLUMN =
 // Detect ORDER BY column with sort direction (ASC/DESC)
 const REGEX_ORDER_BY_WITH_DIRECTION = /\b(?:ASC|DESC)\s+$/i;
 
-// Detect CROSS JOIN
-const REGEX_CROSS_JOIN = /\b(CROSS\s+JOIN)\s+(\w+|"[^"]*")\s+$/i;
-
 // Detect ORDER BY with ASC/DESC and optional NULLS FIRST/LAST
 const REGEX_ORDER_BY_WITH_NULLS = /\b(?:NULLS\s+(?:FIRST|LAST))\s+$/i;
 

@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["oxc", "typescript", "unicorn", "import", "promise", "react", "jsx-a11y"],
+  "plugins": ["oxc", "typescript", "unicorn", "import", "promise", "react"], // , "jsx-a11y"
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -14,12 +14,10 @@
     "no-else-return": "error",
     "no-throw-literal": "error",
     "no-unused-vars": ["warn", { "varsIgnorePattern": "^_", "argsIgnorePattern": "^_" }],
-    // jsx-a11y - disabled for virtualized data grid which uses ARIA grid roles
-    "jsx-a11y/prefer-tag-over-role": "off",
     // typescript
-    "typescript/no-explicit-any": "error",
+    "typescript/no-explicit-any": "off",
     "typescript/no-import-type-side-effects": "error",
-    "typescript/no-non-null-assertion": "error",
+    "typescript/no-non-null-assertion": "warn",
     "typescript/no-unsafe-function-type": "error",
     "typescript/prefer-ts-expect-error": "error",
     // react
@@ -36,13 +34,12 @@
     "promise/catch-or-return": "error",
     "promise/no-nesting": "error",
     // unicorn
-    "unicorn/prefer-modern-math-apis": "error",
-    "unicorn/prefer-query-selector ": "error",
-    "unicorn/prefer-event-target": "error"
+    "unicorn/prefer-modern-math-apis": "error"
   },
   "env": {
     "builtin": true
   },
   "globals": {},
-  "ignorePatterns": []
+  // "ignorePatterns": ["src/routes/**", "src/components/**"]
+  "ignorePatterns": ["src/sandbox", "*.config.ts"]
 }

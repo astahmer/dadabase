@@ -3,7 +3,6 @@ import type { Insertable, Updateable } from "kysely";
 import { Effect } from "effect";
 
 import type { AppDatabaseSchema } from "./app.db.schema.ts";
-import type { EffectKysely } from "./effect-kysely.ts";
 
 import { AppDatabase } from "./app.db.ts";
 
@@ -12,7 +11,7 @@ export class CustomSqlExecutionRepository extends Effect.Service<CustomSqlExecut
   {
     dependencies: [],
     effect: Effect.gen(function* () {
-      const db = (yield* AppDatabase) as EffectKysely<AppDatabaseSchema>;
+      const db = yield* AppDatabase;
       return {
         findById: Effect.fn(function* (id: string) {
           const results = yield* db.execute(

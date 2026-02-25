@@ -447,7 +447,7 @@ const testSuite =
         });
 
         // Result should be keyed by constraint name
-        expect(Object.keys(counts).sort()).toEqual([
+        expect(Object.keys(counts).toSorted()).toEqual([
           "activity_logs_room_id_fkey",
           "comments_room_id_fkey",
         ]);

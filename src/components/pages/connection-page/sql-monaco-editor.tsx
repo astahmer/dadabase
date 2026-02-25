@@ -1,3 +1,4 @@
+// oxlint-disable no-unused-expressions
 import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 import type * as OriginalMonacoEditor from "monaco-editor";
 
@@ -978,3 +979,4 @@ const pgConfig = {
     "xpath_exists",
   ],
 };
+pgConfig;

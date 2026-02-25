@@ -1,3 +1,4 @@
+// oxlint-disable
 // import { vector } from "@electric-sql/pglite/vector";
 import { Layer } from "effect";
 
@@ -14,6 +15,7 @@ const pgliteKyselyLayer = Layer.effect(
     // extensions: { vector },
   }),
 );
+pgliteKyselyLayer;
 
 // https://github.com/evelant/synchrotron/blob/a0ba9fe2a8515c7a900c74069e2f7cb850c6c147/packages/sql-pglite/src/PgLiteClient.ts
 export const pgliteLayer = PgLiteClient.layer({

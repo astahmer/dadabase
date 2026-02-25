@@ -8,7 +8,7 @@ const Checkbox = CheckboxPrimitive.Root;
 
 const CheckboxContext = CheckboxPrimitive.Context;
 
-const CheckboxControl = ({ className, children, ...props }: CheckboxPrimitive.ControlProps) => (
+const CheckboxControl = ({ className, ...props }: CheckboxPrimitive.ControlProps) => (
   <>
     <CheckboxPrimitive.Control
       className={cn(

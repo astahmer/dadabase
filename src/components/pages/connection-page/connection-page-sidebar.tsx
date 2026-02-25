@@ -12,8 +12,8 @@ import { createListCollection, Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { Database, DatabaseIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { DatabaseIcon } from "lucide-react";
+import { useEffect, useMemo } from "react";
 
 import type { DbConnection } from "../connection.types";
 

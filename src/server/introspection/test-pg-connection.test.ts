@@ -48,7 +48,7 @@ describe("testPgConnectionUrl", () => {
       testPgConnectionUrl("postgresql://localhost:1/test?connect_timeout=1"),
     );
 
-    if (result.success === false) {
+    if (!result.success) {
       // Message should indicate a network/connection error
       const isConnectionError =
         result.message.toLowerCase().includes("econnrefused") ||
@@ -68,7 +68,7 @@ describe("testPgConnectionUrl", () => {
     expect(typeof result.success).toBe("boolean");
     expect(typeof result.message).toBe("string");
     // When success is false, message should be an error message
-    if (result.success === false) {
+    if (!result.success) {
       expect(result.message.length).toBeGreaterThan(0);
     }
   });
@@ -104,7 +104,7 @@ describe("testPgConnectionUrl", () => {
     expect(result).toHaveProperty("success");
     expect(result).toHaveProperty("message");
     // Connection attempt itself may fail, but parsing should succeed
-    expect(result.success === false).toBe(true); // Expected to fail on connection
+    expect(!result.success).toBe(true); // Expected to fail on connection
   });
 
   it("provides meaningful error messages when connection fails", async () => {
@@ -151,7 +151,7 @@ describe("testPgConnectionUrl", () => {
     );
 
     // URL parsing should succeed even if connection fails
-    expect(result.success === false).toBe(true); // Connection will fail but URL is valid
+    expect(!result.success).toBe(true); // Connection will fail but URL is valid
     expect(result.message).toBeDefined();
   });
 
@@ -163,8 +163,8 @@ describe("testPgConnectionUrl", () => {
     const result2 = await Effect.runPromise(testPgConnectionUrl(url2));
 
     // Both results should have same shape
-    const keys1 = Object.keys(result1).sort();
-    const keys2 = Object.keys(result2).sort();
+    const keys1 = Object.keys(result1).toSorted();
+    const keys2 = Object.keys(result2).toSorted();
     expect(keys1).toEqual(keys2);
 
     // Both should have required properties

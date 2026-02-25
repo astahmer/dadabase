@@ -47,7 +47,7 @@ function findBestColumnMatch(input: string, availableColumns: string[]): string 
       score: rankItem(col, input, { threshold: rankings.CONTAINS }),
     }))
     .filter((item) => item.score.passed)
-    .sort((a, b) => b.score.rank - a.score.rank);
+    .toSorted((a, b) => b.score.rank - a.score.rank);
 
   return scored.length > 0 ? scored[0].col : null;
 }

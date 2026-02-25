@@ -18,6 +18,7 @@
     "incremental": true,
     "allowImportingTsExtensions": true,
     "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "plugins": [
       {
         "name": "@effect/language-service",

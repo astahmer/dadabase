@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useRowsColumnsAction } from "#src/components/pages/connection-page/use-rows-columns.actions.ts";
 import { Popover, Portal } from "@ark-ui/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { LogOut, Maximize2, Minimize, X } from "lucide-react";
+import { LogOut, Maximize2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { getRelationshipCardinalityQueryOptions } from "../../../../server/introspection/start-fns/get-relationship-cardinality.start.ts";

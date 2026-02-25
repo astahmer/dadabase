@@ -244,7 +244,7 @@ export const QueryLoggerContent = ({
                     {/* Padding for virtualizer */}
                     {paddingTop > 0 && <div style={{ height: `${paddingTop}px` }} />}
 
-                    {[...virtualItems].reverse().map((virtualItem) => {
+                    {virtualItems.toReversed().map((virtualItem) => {
                       const entry = queryLogger.history[virtualItem.index];
                       if (!entry) return null;
 

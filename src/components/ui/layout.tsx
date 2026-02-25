@@ -1,5 +1,5 @@
 import { cn } from "#src/lib/utils.ts";
-import { type VariantProps } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 
 import type { ExposedComponentProps } from "./component-props.ts";
 

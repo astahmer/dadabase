@@ -1,4 +1,3 @@
-import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";

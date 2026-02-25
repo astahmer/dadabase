@@ -20,12 +20,7 @@ const limitPerPage = createListCollection({
   ],
 });
 
-export const PageLimitSelect = ({
-  portalled,
-  ...props
-}: Omit<SelectRootProps<any>, "collection"> & {
-  portalled?: boolean;
-}) => {
+export const PageLimitSelect = (props: Omit<SelectRootProps<any>, "collection"> & {}) => {
   return (
     <HStack className="mr-4 font-medium">
       <Field label="Limit" className="w-auto" />

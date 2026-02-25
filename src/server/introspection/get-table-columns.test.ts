@@ -122,7 +122,7 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
       });
 
       expect(columns).toHaveLength(3);
-      const columnNames = columns.map((c) => c.name).sort();
+      const columnNames = columns.map((c) => c.name).toSorted();
       expect(columnNames).toEqual(["email", "id", "name"]);
     }).pipe(Effect.provide(testLayer)),
   );
@@ -266,7 +266,7 @@ const testSuite = (layer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseTest
       });
 
       expect(columns.length).toBe(2);
-      const columnNames = columns.map((c) => c.name).sort();
+      const columnNames = columns.map((c) => c.name).toSorted();
       expect(columnNames).toEqual(["post_id", "tag_id"]);
     }).pipe(Effect.provide(testLayer)),
   );

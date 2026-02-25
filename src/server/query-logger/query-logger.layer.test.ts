@@ -1,5 +1,3 @@
-import type { ColumnType } from "kysely";
-
 import { AppDatabase } from "#src/db/app.db.ts";
 import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 import { describe, expect, it } from "@effect/vitest";
@@ -292,28 +290,6 @@ describe("QueryLoggerInMemoryLayer", () => {
 const testConnectionId = RemoteConnectionId.make("test-conn-123");
 
 // Test database schema with query_logs table
-interface TestDbSchema {
-  query_logs: {
-    id: ColumnType<string, string, never>;
-    connection_id: ColumnType<string, string, never>;
-    sql: ColumnType<string, string, never>;
-    params: ColumnType<string | null, string | null, never>;
-    type: ColumnType<string, string, never>;
-    level: ColumnType<string, string, never>;
-    schema: ColumnType<string | null, string | null, never>;
-    table: ColumnType<string | null, string | null, never>;
-    status: ColumnType<string, string, never>;
-    start_time: ColumnType<Date, string, never>;
-    end_time: ColumnType<Date | null, string | null, never>;
-    time_taken: ColumnType<number | null, number | null, never>;
-    rows_returned: ColumnType<number | null, number | null, never>;
-    rows_affected: ColumnType<number | null, number | null, never>;
-    error: ColumnType<string | null, string | null, never>;
-    meta: ColumnType<string | null, string | null, never>;
-    created_at: ColumnType<Date, string, never>;
-  };
-}
-
 const InMemoryDatabaseLayer = Layer.effect(
   AppDatabase,
   makeEffectKyselyPglite<any>({
@@ -369,7 +345,7 @@ describe("QueryLoggerPersistentLayer", () => {
 
         // Add some logs
         const now = DateTime.unsafeNow();
-        const id1 = yield* queryLogger.push({
+        yield* queryLogger.push({
           sql: "SELECT * FROM users",
           type: QueryLogType.TableRows,
           level: QueryLogLevel.Info,
@@ -379,7 +355,7 @@ describe("QueryLoggerPersistentLayer", () => {
           timeTaken: 100,
         });
 
-        const id2 = yield* queryLogger.push({
+        yield* queryLogger.push({
           sql: "SELECT COUNT(*) FROM users",
           type: QueryLogType.TableCount,
           status: "success",
@@ -435,7 +411,7 @@ describe("QueryLoggerPersistentLayer", () => {
         const queryLogger = yield* QueryLogger;
 
         const now = DateTime.unsafeNow();
-        const entryId = yield* queryLogger.push({
+        yield* queryLogger.push({
           sql: "SELECT * FROM users WHERE id = ?",
           params: [1],
           type: QueryLogType.TableRows,
@@ -613,7 +589,7 @@ describe("QueryLoggerPersistentLayer", () => {
           startTime: DateTime.toDate(now),
         });
 
-        const id2 = yield* queryLogger.push({
+        yield* queryLogger.push({
           sql: "SELECT 2",
           type: QueryLogType.TableRows,
           level: QueryLogLevel.Info,

@@ -1,3 +1,4 @@
+// oxlint-disable no-extra-bind
 import type {
   Compilable,
   Kysely,
@@ -14,16 +15,16 @@ import { Array, Data, Effect, Option } from "effect";
 // taken from https://github.com/Effect-TS/effect/pull/5156
 
 interface EffectExecutor {
-  executeRaw: <O>(query: QueryRaw<O>) => Effect.Effect<QueryResult<O>, SqlError, never>;
-  execute: <O>(query: Query<O>) => Effect.Effect<O[], SqlError, never>;
-  executeTakeFirstOption: <O>(query: Query<O>) => Effect.Effect<Option.Option<O>, SqlError, never>;
+  executeRaw: <O>(query: QueryRaw<O>) => Effect.Effect<QueryResult<O>, SqlError>;
+  execute: <O>(query: Query<O>) => Effect.Effect<O[], SqlError>;
+  executeTakeFirstOption: <O>(query: Query<O>) => Effect.Effect<Option.Option<O>, SqlError>;
   executeTakeFirstOrUndefined: <O>(
     query: Query<O>,
-  ) => Effect.Effect<O | undefined, SqlError, never>;
+  ) => Effect.Effect<O | undefined, SqlError>;
   executeTakeFirstOrError: <O>(
     query: Query<O>,
-  ) => Effect.Effect<O, SqlError | SqlNoFirstResult, never>;
-  executeTakeFirstUnsafe: <O>(query: Query<O>) => Effect.Effect<O, SqlError, never>;
+  ) => Effect.Effect<O, SqlError | SqlNoFirstResult>;
+  executeTakeFirstUnsafe: <O>(query: Query<O>) => Effect.Effect<O, SqlError>;
 }
 
 interface EffectTransition<DB>

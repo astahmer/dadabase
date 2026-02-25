@@ -14,7 +14,7 @@ const PopoverContent = React.forwardRef<
   PopoverPrimitive.ContentProps & {
     sideOffset?: number;
   }
->(({ className, sideOffset = 4, ...props }, ref) => (
+>(({ className, ...props }, ref) => (
   <Portal>
     <PopoverPrimitive.Positioner>
       <PopoverPrimitive.Content

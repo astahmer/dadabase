@@ -182,7 +182,7 @@ const testSuite =
           });
 
           expect(tables1.length).toBe(tables2.length);
-          expect(tables1.map((t) => t.name).sort()).toEqual(tables2.map((t) => t.name).sort());
+          expect(tables1.map((t) => t.name).toSorted()).toEqual(tables2.map((t) => t.name).toSorted());
         }).pipe(Effect.provide(testLayer)),
       );
     });

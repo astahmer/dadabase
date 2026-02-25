@@ -1,8 +1,4 @@
-import type {
-  FilterConditionExpression,
-  LogicalOperatorType,
-  QueryFilterType,
-} from "#src/components/query-builder/query-filter.ts";
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import type { CSSProperties } from "react";
 
@@ -41,7 +37,6 @@ export const SortableJoinedTableRow = ({
   onUpdateCustomJoinConditions,
   onUpdateJoinCondition,
   onRemove,
-  index,
 }: SortableJoinedTableRowProps) => {
   const sortable = useSortable({
     id: `${joined.schema}.${joined.table}`,

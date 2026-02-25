@@ -1,6 +1,3 @@
-import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
-import type { EffectKysely } from "#src/db/effect-kysely.ts";
-
 import { AppDatabase } from "#src/db/app.db.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { DatabaseDialect } from "#src/db/dialect.ts";
@@ -35,7 +32,7 @@ const TestNanoIdLayer = Layer.succeed(
       Effect.sync(() =>
         Array.from(
           { length: count },
-          (_, i) =>
+          (_, _i) =>
             `${prefix}-test-${customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 12)()}`,
         ),
       ),

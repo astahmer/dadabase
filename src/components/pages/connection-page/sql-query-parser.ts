@@ -270,13 +270,13 @@ export const parseSqlQuery = (sql: string, availableColumns: string[]): ParsedSq
     const selectedPart = selectMatch[1].trim();
     // If not SELECT *, track which columns are selected
     if (selectedPart !== "*") {
-      const selectedColumns = selectedPart.split(",").map((col) => {
+      const selectedColumns = new Set(selectedPart.split(",").map((col) => {
         // Handle aliases and qualified column names
         return extractColumnNameWithAlias(col.trim());
-      });
+      }));
 
       // Hidden columns are those NOT in the SELECT list
-      const hidden = availableColumns.filter((col) => !selectedColumns.includes(col.toLowerCase()));
+      const hidden = availableColumns.filter((col) => !selectedColumns.has(col.toLowerCase()));
       if (hidden.length > 0) {
         result.hiddenColumnList = hidden;
       }
@@ -569,7 +569,7 @@ const parseOnCondition = (condition: string): FilterConditionExpression | null =
  * Parses JOIN clauses (LEFT, INNER, RIGHT, FULL OUTER, CROSS)
  * Returns array of JoinedTable objects with appropriate join types
  */
-export const parseJoins = (sql: string, availableColumns: string[]): JoinedTable[] => {
+export const parseJoins = (sql: string, _availableColumns: string[]): JoinedTable[] => {
   const joins: JoinedTable[] = [];
   const normalizedSql = sql.replace(/\s+/g, " ").toUpperCase();
 

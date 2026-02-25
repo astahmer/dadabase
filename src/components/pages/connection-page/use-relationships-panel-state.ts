@@ -1,6 +1,5 @@
 import type { RelationshipViewMode } from "#src/components/pages/connection-page/relationships/relationship-view-mode.ts";
 
-import { RelationshipViewMode as RelationshipViewModeEnum } from "#src/components/pages/connection-page/relationships/relationship-view-mode.ts";
 import { useReducer } from "react";
 
 interface RelationshipsPanelState {

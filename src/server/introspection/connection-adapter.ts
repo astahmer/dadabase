@@ -8,14 +8,14 @@ import { Context, type Effect } from "effect";
 import type { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
 import type { QueryLogger } from "../query-logger/query-logger.ts";
 
-import {
-  type ColumnReference,
-  type ColumnReferenceWithCount,
-  type ForeignKeyInfo,
-  type IndexInfo,
-  type RelationshipCardinality,
-  type TableColumnMetadata,
-  type TableWithColumnsMetadata,
+import type {
+  ColumnReference,
+  ColumnReferenceWithCount,
+  ForeignKeyInfo,
+  IndexInfo,
+  RelationshipCardinality,
+  TableColumnMetadata,
+  TableWithColumnsMetadata,
 } from "./introspection.ts";
 
 /**

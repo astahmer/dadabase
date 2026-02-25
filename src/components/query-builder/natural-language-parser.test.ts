@@ -119,7 +119,7 @@ describe("Natural Language Query Parser", () => {
       // "nm" alone is too fuzzy. We test with "nam" which is closer
       const result = parseNaturalLanguageQuery("nam equals test", columns);
       expect(result.success).toBe(true);
-      if (result.filters?.length ?? 0 > 0) {
+      if ((result.filters?.length ?? 0) > 0) {
         expect(result.filters?.[0].field).toBe("name");
       }
     });

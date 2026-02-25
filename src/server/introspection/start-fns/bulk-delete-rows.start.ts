@@ -20,7 +20,7 @@ export const bulkDeleteRowsServerFn = createServerFn({ method: "POST" })
           schema: input.schema,
           table: input.table,
           primaryKeyColumn: input.primaryKeyColumn,
-          ids: input.ids as ReadonlyArray<string | number>,
+          ids: input.ids,
         },
         connection,
       ),

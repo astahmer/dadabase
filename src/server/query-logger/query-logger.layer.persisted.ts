@@ -33,7 +33,7 @@ export const QueryLoggerPersistentLayer = Layer.effect(
             })),
           );
         }).pipe(Effect.provideService(AppDatabase, db)),
-      push: function (entry: Omit<QueryLogEntryType, "id">): Effect.Effect<string, never, never> {
+      push: function (entry: Omit<QueryLogEntryType, "id">): Effect.Effect<string> {
         return Effect.gen(function* () {
           const entryId = yield* nanoId.generate("ql");
           yield* persistQueryLog(connectionId, { ...entry, id: entryId }).pipe(
@@ -48,7 +48,7 @@ export const QueryLoggerPersistentLayer = Layer.effect(
       update: function (
         entryId: string,
         updates: Partial<QueryLogEntryType>,
-      ): Effect.Effect<void, never, never> {
+      ): Effect.Effect<void> {
         return updatePersistedQueryLog(entryId, updates)
           .pipe(
             Effect.tapError((err) =>
@@ -58,7 +58,7 @@ export const QueryLoggerPersistentLayer = Layer.effect(
           )
           .pipe(Effect.provideService(AppDatabase, db));
       },
-      clearAll: function (): Effect.Effect<void, never, never> {
+      clearAll: function (): Effect.Effect<void> {
         return Effect.gen(function* () {
           yield* db.execute(db.deleteFrom("query_logs").where("id", "is not", null)).pipe(
             Effect.orElseSucceed(() => undefined),
@@ -68,7 +68,7 @@ export const QueryLoggerPersistentLayer = Layer.effect(
           );
         }).pipe(Effect.provideService(AppDatabase, db));
       },
-      remove: function (id: string): Effect.Effect<void, never, never> {
+      remove: function (id: string): Effect.Effect<void> {
         return deleteQueryLog(id).pipe(
           Effect.tapError((err) =>
             Effect.logWarning("Failed to remove query log from database", err),

@@ -10,7 +10,6 @@ import {
   arrayOperators,
   getOperatorLabel,
   getOperatorSymbols,
-  isSpecialValue,
   nullOperators,
   SPECIAL_VALUES_LIST,
   specialValueSupportedOperators,

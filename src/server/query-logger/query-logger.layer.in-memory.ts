@@ -4,39 +4,39 @@ import type { QueryLogEntryType, QueryLogFilters } from "./query-logger.types.ts
 
 import { QueryLogger } from "./query-logger.ts";
 
+const applyFilters = (entries: QueryLogEntryType[], filters?: QueryLogFilters) => {
+  let filtered = entries;
+
+  if (filters?.type) {
+    const types = Array.isArray(filters.type) ? filters.type : [filters.type];
+    filtered = filtered.filter((e) => types.includes(e.type));
+  }
+
+  if (filters?.level) {
+    const levels = Array.isArray(filters.level) ? filters.level : [filters.level];
+    filtered = filtered.filter((e) => levels.includes(e.level));
+  }
+
+  if (filters?.status) {
+    const statuses = Array.isArray(filters.status) ? filters.status : [filters.status];
+    filtered = filtered.filter((e) => statuses.includes(e.status));
+  }
+
+  if (filters?.schema) {
+    filtered = filtered.filter((e) => e.schema === filters.schema);
+  }
+
+  if (filters?.table) {
+    filtered = filtered.filter((e) => e.table === filters.table);
+  }
+
+  return filtered;
+};
+
 export const QueryLoggerInMemoryLayer = Layer.effect(
   QueryLogger,
   Effect.gen(function* () {
     const entriesRef = yield* Ref.make<QueryLogEntryType[]>([]);
-
-    const applyFilters = (entries: QueryLogEntryType[], filters?: QueryLogFilters) => {
-      let filtered = entries;
-
-      if (filters?.type) {
-        const types = Array.isArray(filters.type) ? filters.type : [filters.type];
-        filtered = filtered.filter((e) => types.includes(e.type));
-      }
-
-      if (filters?.level) {
-        const levels = Array.isArray(filters.level) ? filters.level : [filters.level];
-        filtered = filtered.filter((e) => levels.includes(e.level));
-      }
-
-      if (filters?.status) {
-        const statuses = Array.isArray(filters.status) ? filters.status : [filters.status];
-        filtered = filtered.filter((e) => statuses.includes(e.status));
-      }
-
-      if (filters?.schema) {
-        filtered = filtered.filter((e) => e.schema === filters.schema);
-      }
-
-      if (filters?.table) {
-        filtered = filtered.filter((e) => e.table === filters.table);
-      }
-
-      return filtered;
-    };
 
     return {
       get: (filters?: QueryLogFilters) =>

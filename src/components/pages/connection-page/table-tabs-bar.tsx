@@ -11,9 +11,7 @@ import {
   Edit2,
   PanelLeft,
   Plus,
-  SquareXIcon,
   X,
-  XIcon,
 } from "lucide-react";
 
 import { Button } from "../../ui/button";

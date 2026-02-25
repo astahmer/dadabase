@@ -5,9 +5,9 @@ import {
   type ListboxRootBaseProps,
 } from "@ark-ui/react/listbox";
 import { Popover as PopoverPrimitive } from "@ark-ui/react/popover";
-import { type VariantProps } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import { CheckIcon } from "lucide-react";
-import { type JSX } from "react";
+import type { JSX } from "react";
 
 import type { ExposedComponentProps } from "./component-props.ts";
 

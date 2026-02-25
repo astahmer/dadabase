@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Layer } from "effect";
 
 import { DatabaseConnectionAdapter } from "./connection-adapter.ts";
 import {
@@ -17,24 +17,19 @@ import {
   queryTableRows,
 } from "./introspection.ts";
 
-export const PostgresConnectionAdapter = Layer.effect(
-  DatabaseConnectionAdapter,
-  Effect.gen(function* () {
-    return {
-      dialect: "sqlite",
-      getAvailableDatabases,
-      getAvailableSchemas,
-      getAvailableTables,
-      getTableColumns,
-      getTableForeignKeys,
-      getTableIndexes,
-      getAllTablesColumns,
-      getTableRelationships,
-      findColumnReferences,
-      findColumnReferencesWithCounts,
-      getRelationshipCardinality,
-      getRelationshipsCounts,
-      queryTableRows,
-    };
-  }),
-);
+export const PostgresConnectionAdapter = Layer.succeed(DatabaseConnectionAdapter, {
+  dialect: "sqlite",
+  getAvailableDatabases,
+  getAvailableSchemas,
+  getAvailableTables,
+  getTableColumns,
+  getTableForeignKeys,
+  getTableIndexes,
+  getAllTablesColumns,
+  getTableRelationships,
+  findColumnReferences,
+  findColumnReferencesWithCounts,
+  getRelationshipCardinality,
+  getRelationshipsCounts,
+  queryTableRows,
+});

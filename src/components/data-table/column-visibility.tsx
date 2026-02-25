@@ -31,7 +31,7 @@ export function ColumnVisibilityControls<TData>(props: ColumnVisibilityControlsP
   );
 
   // https://github.com/TanStack/table/discussions/5505 / https://github.com/TanStack/table/pull/5964
-  const getColumn = (columnId: string) => table._getAllFlatColumnsById()[columnId];
+  // const getColumn = (columnId: string) => table._getAllFlatColumnsById()[columnId];
 
   const visibleColumns = table.getVisibleLeafColumns().filter((col) => col.id !== "__select");
   const allVisible = visibleColumns.length === allColumns.length;
