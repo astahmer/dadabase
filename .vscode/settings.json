@@ -15,7 +15,7 @@
   "tailwindCSS.experimental.configFile": "src/styles.css",
   "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
-  "editor.formatOnSaveMode": "file",
+  "editor.formatOnSaveMode": "file", // tell oxfmt to format the whole file, not only the modified lines
   "oxc.enable": true,
   "[jsonc]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
@@ -25,5 +25,5 @@
   },
   "[typescript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
-  } // tell oxfmt to format the whole file, not only the modified lines
+  }
 }

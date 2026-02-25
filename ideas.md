@@ -67,4 +67,4 @@
 - log affected rows for mutation queries (visible in the detail dialog)
 - completion provider -> insert {here} suggest "into" / insert into {here} suggest tables and insert snippet with prefilled column names / values?
 - when updating the SQL through the UI (ex: adding a join); if currently looking at the SQL editor we should update its content
-- replace biome with oxc
+- fix filter value special truc null/today etc
