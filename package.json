@@ -42,6 +42,7 @@
     "@dnd-kit/sortable": "10.0.0",
     "@dnd-kit/utilities": "3.2.2",
     "@effect/cluster": "0.55.0",
+    "@effect/opentelemetry": "catalog:",
     "@effect/platform": "0.93.6",
     "@effect/platform-node": "0.103.0",
     "@effect/sql": "catalog:",

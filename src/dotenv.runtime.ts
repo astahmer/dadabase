@@ -1,3 +1,5 @@
+// oxlint-disable-next-line import/no-unassigned-import
+import "./server/otel-init";
 import { PlatformConfigProvider } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
 import { Layer, Logger, LogLevel, ManagedRuntime } from "effect";

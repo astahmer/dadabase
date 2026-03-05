@@ -1,57 +1,41 @@
 /**
- * Example: How to use OpenTelemetry in dadabase server
- * 
- * This shows various ways to integrate OTEL with your Effect code
+ * Examples: Using OpenTelemetry with Effect
+ *
+ * The TracerLive layer automatically instruments your app.
+ * Most HTTP and database operations are automatically traced.
  */
 
-import { Effect, Layer, Console } from 'effect';
-import { trace, context, SpanStatusCode } from '@opentelemetry/api';
-
-const tracer = trace.getTracer('dadabase', '0.0.1');
+import { Effect } from "effect";
 
 /**
- * Example 1: Simple manual span
+ * Effect.withSpan - Create a named span for a request
  */
-export function exampleSimpleSpan() {
-  const span = tracer.startSpan('process-user-data');
-  
-  try {
-    console.log('Processing user data...');
-    span.setAttributes({
-      'user.id': 123,
-      'user.email': 'user@example.com',
-    });
-    
-    // Do work...
-    
-  } catch (error) {
-    span.recordException(error as Error);
-    span.setStatus({ code: SpanStatusCode.ERROR });
-  } finally {
-    span.end();
-  }
-}
+export const processUserData = (userId: number) =>
+  Effect.gen(function* () {
+    yield* Effect.log(`Processing user ${userId}`);
+    // Your logic here...
+    return { userId, processed: true };
+  }).pipe(Effect.withSpan("process-user-data", { attributes: { userId } }));
 
 /**
- * Example 2: Effect with built-in tracing
+ * Nested spans - Automatically shown in trace hierarchy
  */
-export const example2Effect = Effect.gen(function* () {
-  yield* Console.log('Processing data with Effect');
-  
-  // Effect code here is automatically traced if SDK is initialized
-  const result = yield* Effect.succeed({ processed: true });
-  
-  return result;
-}).pipe(
-  Effect.withSpan('example-effect-span')
-);
-
-/**
- * Example 3: Nested spans for hierarchical tracing
+export const complexOperation = Effect.gen(function* () {
+  return yield* Effect.gen(function* () {
+    yield* Effect.log("Step 1");
+  }).pipe(
+    Effect.withSpan("step-1"),
+    Effect.flatMap(() =>
+      Effect.gen(function* () {
+        yield* Effect.log("Step 2");
+      }).pipe(Effect.withSpan("step-2"))
+    )
+  );
+}).pipe(Effect.withSpan("complex-operation"));
  */
 export function exampleNestedSpans() {
   const parentSpan = tracer.startSpan('parent-operation');
-  
+
   try {
     context.with(trace.setSpan(context.active(), parentSpan), () => {
       const childSpan = tracer.startSpan('child-operation');
@@ -73,7 +57,7 @@ export function exampleNestedSpans() {
 export const exampleDatabaseQuery = Effect.gen(function* () {
   // Your SQL query here - automatically traced!
   console.log('Executing database query...');
-  
+
   // This span is created automatically by the SQL instrumentation
   return { rows: [] };
 });
@@ -83,7 +67,7 @@ export const exampleDatabaseQuery = Effect.gen(function* () {
  */
 export const exampleWithAttributes = Effect.gen(function* () {
   const activeSpan = trace.getActiveSpan();
-  
+
   if (activeSpan) {
     activeSpan.setAttributes({
       'app.request.path': '/api/users',
@@ -91,7 +75,7 @@ export const exampleWithAttributes = Effect.gen(function* () {
       'app.response.status': 200,
     });
   }
-  
+
   return { success: true };
 }).pipe(
   Effect.withSpan('request-handler')
@@ -102,7 +86,7 @@ export const exampleWithAttributes = Effect.gen(function* () {
  */
 export const exampleErrorHandling = Effect.gen(function* () {
   const span = tracer.startSpan('risky-operation');
-  
+
   try {
     // Simulate an error
     throw new Error('Something went wrong!');
@@ -112,7 +96,7 @@ export const exampleErrorHandling = Effect.gen(function* () {
       code: SpanStatusCode.ERROR,
       message: (error as Error).message,
     });
-    
+
     yield* Console.error('Operation failed', error);
   } finally {
     span.end();

@@ -12,6 +12,9 @@ catalogs:
     '@effect/language-service':
       specifier: 0.59.0
       version: 0.59.0
+    '@effect/opentelemetry':
+      specifier: 0.56.6
+      version: 0.56.6
     '@effect/platform':
       specifier: 0.93.1
       version: 0.93.1
@@ -71,6 +74,9 @@ importers:
       '@effect/cluster':
         specifier: 0.55.0
         version: 0.55.0(@effect/platform@0.93.6(effect@3.19.3))(@effect/rpc@0.71.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/sql@0.48.0(@effect/experimental@0.57.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/workflow@0.11.5(@effect/platform@0.93.6(effect@3.19.3))(@effect/rpc@0.71.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(effect@3.19.3))(effect@3.19.3)
+      '@effect/opentelemetry':
+        specifier: 'catalog:'
+        version: 0.56.6(@effect/platform@0.93.6(effect@3.19.3))(@opentelemetry/api@1.9.0)(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-node@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/semantic-conventions@1.38.0)(effect@3.19.3)
       '@effect/platform':
         specifier: 0.93.6
         version: 0.93.6(effect@3.19.3)
@@ -665,6 +671,35 @@ packages:
   '@effect/language-service@0.59.0':
     resolution: {integrity: sha512-jFl5oqxPrWNoKL6u8m8i1xbJ9hT9YeuPY25tMiuB7YU1GjIHJHXwBbVspMsQ8JdDrP+vdXJj+yX/Tk6J2bbvuw==}
     hasBin: true
+
+  '@effect/opentelemetry@0.56.6':
+    resolution: {integrity: sha512-cBi9frXujTIEGXChkl4VdQfvDe7QvzC18SM8wK0CKYSgH9ZL7v/F5f5/3fTSTfEdO9ZyBk73s5Jbbogab0Q01g==}
+    peerDependencies:
+      '@effect/platform': ^0.90.8
+      '@opentelemetry/api': ^1.9
+      '@opentelemetry/resources': ^2.0.0
+      '@opentelemetry/sdk-logs': ^0.203.0
+      '@opentelemetry/sdk-metrics': ^2.0.0
+      '@opentelemetry/sdk-trace-base': ^2.0.0
+      '@opentelemetry/sdk-trace-node': ^2.0.0
+      '@opentelemetry/sdk-trace-web': ^2.0.0
+      '@opentelemetry/semantic-conventions': ^1.33.0
+      effect: ^3.17.13
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@opentelemetry/resources':
+        optional: true
+      '@opentelemetry/sdk-logs':
+        optional: true
+      '@opentelemetry/sdk-metrics':
+        optional: true
+      '@opentelemetry/sdk-trace-base':
+        optional: true
+      '@opentelemetry/sdk-trace-node':
+        optional: true
+      '@opentelemetry/sdk-trace-web':
+        optional: true
 
   '@effect/platform-node-shared@0.56.0':
     resolution: {integrity: sha512-0RawLcUCLHVGs4ch1nY26P4xM+U6R03ZR02MgNHMsL0slh8YYlal5PnwD/852rJ59O9prQX3Kq8zs+cGVoLAJw==}
@@ -6637,6 +6672,18 @@ snapshots:
       uuid: 11.1.0
 
   '@effect/language-service@0.59.0': {}
+
+  '@effect/opentelemetry@0.56.6(@effect/platform@0.93.6(effect@3.19.3))(@opentelemetry/api@1.9.0)(@opentelemetry/resources@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-node@2.5.1(@opentelemetry/api@1.9.0))(@opentelemetry/semantic-conventions@1.38.0)(effect@3.19.3)':
+    dependencies:
+      '@effect/platform': 0.93.6(effect@3.19.3)
+      '@opentelemetry/semantic-conventions': 1.38.0
+      effect: 3.19.3
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/resources': 2.5.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-metrics': 2.5.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-trace-base': 2.5.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-trace-node': 2.5.1(@opentelemetry/api@1.9.0)
 
   '@effect/platform-node-shared@0.56.0(@effect/cluster@0.55.0(@effect/platform@0.93.6(effect@3.19.3))(@effect/rpc@0.71.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/sql@0.48.0(@effect/experimental@0.57.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/workflow@0.11.5(@effect/platform@0.93.6(effect@3.19.3))(@effect/rpc@0.71.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(effect@3.19.3))(effect@3.19.3))(@effect/platform@0.93.6(effect@3.19.3))(@effect/rpc@0.71.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/sql@0.48.0(@effect/experimental@0.57.1(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(@effect/platform@0.93.6(effect@3.19.3))(effect@3.19.3))(effect@3.19.3)':
     dependencies:
