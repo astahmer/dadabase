@@ -36,7 +36,7 @@ export const EmptyTabState = (props: EmptyTabState) => {
   const selectedSchema = useActiveTabState((s) => s.schema);
 
   const tablesListQuery = useQuery({
-    ...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
+    ...listAvailableTablesQueryOptions({ url: activeConnectionUrl, schema: selectedSchema }),
     enabled: !!selectedSchema,
     retry: 3,
   });
@@ -158,7 +158,10 @@ const TableSelectionTab = (props: {
   );
 
   const tablesListQuery = useQuery({
-    ...listAvailableTablesQueryOptions({ url: props.activeConnectionUrl }),
+    ...listAvailableTablesQueryOptions({
+      url: props.activeConnectionUrl,
+      schema: props.selectedSchema,
+    }),
     enabled: !!props.selectedSchema,
     retry: 3,
   });

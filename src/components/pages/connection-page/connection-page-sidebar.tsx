@@ -62,15 +62,30 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
     retry: 3,
   });
   const schemaList = schemaListQuery.data || [];
+
+  const globalSchema = useSearch({
+    from: "/connections/$connectionName",
+    select: (s) => s.schema,
+  });
+
   const selectedSchema = useActiveTabState((s) => {
     const defaultSchema = getDialectDefaultSchema(connection.dialect);
-    return (s.schema ?? schemaList.includes(defaultSchema))
-      ? defaultSchema
-      : schemaList.at(0) || getDialectDefaultSchema(connection.dialect);
+    // Return the current schema if it exists, otherwise fall back to defaults
+    if (s.schema && schemaList.includes(s.schema)) {
+      return s.schema;
+    }
+    // Fall back to global schema state
+    if (globalSchema && schemaList.includes(globalSchema)) {
+      return globalSchema;
+    }
+    if (schemaList.includes(defaultSchema)) {
+      return defaultSchema;
+    }
+    return schemaList.at(0) || defaultSchema;
   });
 
   const tablesListQuery = useQuery({
-    ...listAvailableTablesQueryOptions({ url: activeConnectionUrl }),
+    ...listAvailableTablesQueryOptions({ url: activeConnectionUrl, schema: selectedSchema }),
     enabled: !!selectedSchema,
     retry: 3,
   });
@@ -110,27 +125,11 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
     [filteredTables],
   );
 
-  // Calculate counts for databases and schemas
-  const schemaTableCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    tableList.forEach((table) => {
-      if (table.schema) {
-        counts.set(table.schema, (counts.get(table.schema) || 0) + 1);
-      }
-    });
-    return counts;
-  }, [tableList]);
-
   const schemaCollection = ArkSelect.createListCollection({
-    items: schemaList
-      .filter((schema) => tableList.some((t) => t.schema === schema))
-      .map((s) => {
-        const tableCount = schemaTableCounts.get(s) || 0;
-        return {
-          label: `${s} (${tableCount} tables)`,
-          value: s,
-        };
-      }),
+    items: (schemaListQuery.data ?? []).map((s) => ({
+      label: s,
+      value: s,
+    })),
   });
 
   return (
@@ -170,7 +169,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
               })}
               positioning={{ sameWidth: true }}
               disabled={databaseListQuery.isLoading}
-              onValueChange={(details: { value?: string[] }) => {
+              onValueChange={(details) => {
                 const newDbName = details.value?.[0];
                 if (newDbName) {
                   navigate({
@@ -204,7 +203,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
         </Stack>
       )}
       {/* Schema Selector */}
-      {isNotSqlite && schemaCollection.size > 1 && (
+      {isNotSqlite && (schemaListQuery.data ?? [])?.length > 1 && (
         <Stack className="shrink-0 px-4 pt-4" gap="2">
           <label className="text-foreground text-xs font-medium tracking-wide uppercase">
             Schema
@@ -225,21 +224,26 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
           ) : (
             <ArkSelect.Select
               className="w-full"
-              value={selectedSchema ? [selectedSchema] : []}
+              defaultValue={selectedSchema ? [selectedSchema] : []}
               collection={schemaCollection}
               positioning={{ sameWidth: true }}
               disabled={schemaListQuery.isLoading}
-              onValueChange={(details: { value?: string[] }) => {
+              onValueChange={(details) => {
                 const newSchema = details.value?.[0];
                 if (newSchema) {
                   navigate({
-                    search: (prev) =>
-                      updateTabState(prev, {
+                    search: (prev) => {
+                      const updated = updateTabState(prev, {
                         schema: newSchema,
-                        table: undefined,
                         offset: 0,
                         filters: undefined,
-                      }),
+                      });
+                      // Also set as global schema state for when no tabs exist
+                      return {
+                        ...updated,
+                        schema: newSchema,
+                      };
+                    },
                   });
                 }
               }}

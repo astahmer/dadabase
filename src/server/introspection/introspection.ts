@@ -683,8 +683,7 @@ export const getAllTablesColumns = (input: { schema: string }) =>
           const fkMap = new Map<string, AllTablesForeignKeyInfo>();
           for (const fk of fks) {
             fkMap.set(fk.column_name, {
-              referencedSchema: (fk.referenced_table_schema ??
-                fk.referenced_table_schema),
+              referencedSchema: fk.referenced_table_schema ?? fk.referenced_table_schema,
               referencedTable: fk.referenced_table_name,
               referencedColumn: fk.referenced_column_name,
               constraintName: fk.constraint_name,
@@ -760,8 +759,7 @@ export const getTablesStructures = (input: { schema: string; tables?: string[] }
           const fkMap = new Map<string, AllTablesForeignKeyInfo>();
           for (const fk of fks) {
             fkMap.set(fk.column_name, {
-              referencedSchema: (fk.referenced_table_schema ??
-                fk.referenced_table_schema),
+              referencedSchema: fk.referenced_table_schema ?? fk.referenced_table_schema,
               referencedTable: fk.referenced_table_name,
               referencedColumn: fk.referenced_column_name,
               constraintName: fk.constraint_name,

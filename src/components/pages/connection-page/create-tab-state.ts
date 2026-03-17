@@ -133,7 +133,7 @@ export const useActiveTabState = <T>(
     from: "/connections/$connectionName",
     select: (search) => {
       const activeTab = getActiveTabState(search);
-      if (!activeTab) return select(createTabState("public", ""), search);
+      if (!activeTab) return select(createTabState(search.schema || "public", ""), search);
 
       return select(activeTab, search);
     },

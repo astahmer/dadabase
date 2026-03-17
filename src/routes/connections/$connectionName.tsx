@@ -59,6 +59,7 @@ const TabStateSchema = Schema.Struct({
 
 const searchSchema = Schema.Struct({
   dbName: Schema.String.pipe(Schema.optional),
+  schema: Schema.String.pipe(Schema.optional), // Global schema selection (fallback when no tabs)
   activeTabId: Schema.String.pipe(Schema.optional), // Explicit active tab ID
   tabs: TabStateSchema.pipe(Schema.Array, Schema.optional), // Array of tab states, zipson-compressed
   tableFilter: Schema.String.pipe(Schema.optional),
