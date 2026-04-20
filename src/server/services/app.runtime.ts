@@ -6,6 +6,8 @@ import { DotEnvProvider } from "#src/dotenv.runtime.ts";
 import { NanoId } from "#src/server/services/nano-id.ts";
 import { Layer, ManagedRuntime } from "effect";
 
+import { TracerLive } from "../instrumentation.ts";
+
 const AppLayer = Layer.mergeAll(
   DatabaseConnectionRepository.Default,
   CustomSqlExecutionRepository.Default,
@@ -14,5 +16,5 @@ const AppLayer = Layer.mergeAll(
   makePoolCacheLive,
 );
 export const AppRuntime = ManagedRuntime.make(
-  AppLayer.pipe(Layer.provideMerge(makeAppDatabaseLayerFromEnv)),
+  AppLayer.pipe(Layer.provideMerge(makeAppDatabaseLayerFromEnv), Layer.provide(TracerLive)),
 );
