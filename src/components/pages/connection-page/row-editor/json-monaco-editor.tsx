@@ -1,4 +1,7 @@
-import { useEffect, useEffectEvent, useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
+
+import { useMonacoTheme } from "#src/hooks/use-monaco-theme.ts";
+import { defineCustomMonacoThemes } from "#src/lib/monaco-editor-themes.ts";
 
 interface JsonMonacoEditorProps {
   value: string;
@@ -14,6 +17,13 @@ type MonacoEditorComponent = ComponentType<{
   value?: string;
   onChange?: (value: string | undefined) => void;
   options?: Record<string, unknown>;
+  beforeMount?: (monaco: {
+    editor: {
+      defineTheme: (name: string, data: unknown) => void;
+      setTheme: (name: string) => void;
+    };
+  }) => void;
+  onMount?: (editor: { updateOptions: (options: { theme: string }) => void }) => void;
 }>;
 
 /**
@@ -60,6 +70,12 @@ export function JsonMonacoEditor(props: JsonMonacoEditorProps) {
             language="json"
             theme={theme}
             value={value}
+            beforeMount={(monaco) => {
+              defineCustomMonacoThemes(monaco);
+            }}
+            onMount={(editor) => {
+              editor.updateOptions({ theme });
+            }}
             onChange={(next) => onChange(next ?? "")}
             options={{
               readOnly: disabled,
@@ -94,24 +110,4 @@ export function JsonMonacoEditor(props: JsonMonacoEditorProps) {
       )}
     </div>
   );
-}
-
-function useMonacoTheme() {
-  const [theme, setTheme] = useState<"vs-light" | "vs-dark">("vs-light");
-
-  const getTheme = useEffectEvent((): "vs-light" | "vs-dark" => {
-    return document.documentElement.classList.contains("dark") ? "vs-dark" : "vs-light";
-  });
-
-  useEffect(() => {
-    setTheme(getTheme());
-    const observer = new MutationObserver(() => setTheme(getTheme()));
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  return theme;
 }

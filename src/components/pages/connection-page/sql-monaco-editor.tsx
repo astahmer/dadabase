@@ -1,6 +1,6 @@
-import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
-
 import { useEffect, useState, type ComponentType } from "react";
+
+import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 
 export interface SqlMonacoEditorProps {
   /** The SQL code to display/edit */

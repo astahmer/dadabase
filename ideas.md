@@ -45,7 +45,7 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [ ] cmd+k command palette (new query, switch connection/table/db, indexes, FKs, query plan, …)
 - [x] cancellable queries with real AbortController (Cancel button today only resets mutation client-side)
 - [x] after typing `join` / `left j` / … suggest prefilled `JOIN other ON pk = fk` snippet from FK metadata
-- [ ] editor themes beyond vs-light/vs-dark (One Dark Pro etc.)
+- [x] editor themes beyond vs-light/vs-dark (One Dark Pro etc.)
 - [ ] SQL snippets library
 - [ ] drag/drop tabs to reorder
 - [ ] sidebar fixed icon rail (switch connection, theme, refresh, reset, saved queries, history, settings)

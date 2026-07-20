@@ -1,10 +1,13 @@
 // oxlint-disable no-unused-expressions
 import type * as OriginalMonacoEditor from "monaco-editor";
 
-import { formatSQL } from "#src/lib/format-sql";
 import Editor from "@monaco-editor/react";
 import * as OriginalMonaco from "monaco-editor";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
+
+import { useMonacoTheme } from "#src/hooks/use-monaco-theme.ts";
+import { formatSQL } from "#src/lib/format-sql";
+import { defineCustomMonacoThemes } from "#src/lib/monaco-editor-themes.ts";
 
 import type { SqlMonacoEditorProps } from "./sql-monaco-editor.tsx";
 
@@ -49,6 +52,14 @@ export function SqlMonacoEditorImpl({
     useState<OriginalMonacoEditor.editor.IStandaloneCodeEditor | null>(null);
 
   const monacoTheme = useMonacoTheme();
+
+  // Apply theme after custom themes are defined / when preference changes
+  useEffect(() => {
+    if (!monacoRef || !editorRef) return;
+    defineCustomMonacoThemes(monacoRef);
+    monacoRef.editor.setTheme(monacoTheme);
+    editorRef.updateOptions({ theme: monacoTheme });
+  }, [monacoRef, editorRef, monacoTheme]);
 
   useEffect(() => {
     if (!editorRef) return;
@@ -158,6 +169,7 @@ export function SqlMonacoEditorImpl({
         }
       }}
       beforeMount={(monaco: typeof OriginalMonacoEditor) => {
+        defineCustomMonacoThemes(monaco);
         setMonacoRef(monaco);
       }}
       height="100%"
@@ -189,36 +201,6 @@ export function SqlMonacoEditorImpl({
     />
   );
 }
-
-const useMonacoTheme = () => {
-  const [theme, setTheme] = useState<"vs-light" | "vs-dark">("vs-light");
-
-  const getTheme = useEffectEvent((): "vs-light" | "vs-dark" => {
-    return document.documentElement.classList.contains("dark") ? "vs-dark" : "vs-light";
-  });
-
-  // Watch for dark mode changes
-  useEffect(() => {
-    const initialTheme = getTheme();
-    setTheme(initialTheme);
-
-    const observer = new MutationObserver(() => {
-      const newTheme = getTheme();
-      setTheme(newTheme);
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  return theme;
-};
 
 const pgConfig = {
   keywords: [
