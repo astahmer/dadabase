@@ -100,6 +100,22 @@ When(
   },
 );
 
+When(
+  "I pick FK value {string} for field {string}",
+  async ({ page }, fkValue: string, fieldName: string) => {
+    const field = page.getByTestId(`column-input-${fieldName}`);
+    await expect(field).toBeVisible();
+
+    const input = field.getByTestId("fk-column-select");
+    await input.click();
+    await input.fill(fkValue);
+
+    const option = page.getByRole("option", { name: fkValue }).first();
+    await expect(option).toBeVisible({ timeout: 15_000 });
+    await option.click();
+  },
+);
+
 When("I save the row editor", async ({ page }) => {
   await page.getByTestId("row-editor-save").click();
   await expect(page.getByTestId("row-editor-sheet")).toBeHidden({ timeout: 15_000 });

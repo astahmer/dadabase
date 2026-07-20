@@ -89,3 +89,10 @@ Feature: Row create and edit UX
     When I fill the row editor field "value" with "99"
     And I save the row editor
     Then I should see cell value "99" in column "value"
+
+  Scenario: Pick foreign key value via FK picker
+    Given I open the "posts" table
+    When I open the edit sheet for the row with "Hello" in column "title"
+    And I pick FK value "2" for field "user_id"
+    And I save the row editor
+    Then I should see cell value "2" in column "user_id"
