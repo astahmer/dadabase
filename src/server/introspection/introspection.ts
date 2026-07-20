@@ -272,14 +272,32 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
             });
           });
 
-          const columnsQuery = sql<TableColumnMetadata>`
+          const columnsQuery = sql<{
+            name: string;
+            dataType: string;
+            nullable: boolean;
+            primaryKey: boolean;
+            unique: boolean;
+            defaultValue: string | null;
+            isEnum: boolean;
+            enumValues: string[] | null;
+          }>`
 			SELECT DISTINCT ON (a.attnum)
 				a.attname as name,
 				format_type(a.atttypid, a.atttypmod) as "dataType",
 				NOT a.attnotnull as nullable,
 				(t.contype = 'p') as "primaryKey",
 				(u.contype = 'u') as "unique",
-				pg_get_expr(d.adbin, d.adrelid) as "defaultValue"
+				pg_get_expr(d.adbin, d.adrelid) as "defaultValue",
+				(typ.typtype = 'e') as "isEnum",
+				CASE
+					WHEN typ.typtype = 'e' THEN (
+						SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
+						FROM pg_enum e
+						WHERE e.enumtypid = a.atttypid
+					)
+					ELSE NULL
+				END as "enumValues"
 			FROM
 				pg_attribute a
 				LEFT JOIN pg_constraint t ON a.attrelid = t.conrelid AND a.attnum = ANY(t.conkey) AND t.contype = 'p'
@@ -287,6 +305,7 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
 				LEFT JOIN pg_attrdef d ON a.attrelid = d.adrelid AND a.attnum = d.adnum
 				JOIN pg_class c ON a.attrelid = c.oid
 				JOIN pg_namespace n ON c.relnamespace = n.oid
+				JOIN pg_type typ ON a.atttypid = typ.oid
 			WHERE
 				n.nspname = ${input.schema}
 				AND c.relname = ${input.table}
@@ -311,6 +330,8 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
           // oxlint-disable-next-line oxc/no-map-spread
           return columns.map((col) => ({
             ...col,
+            isEnum: Boolean(col.isEnum),
+            enumValues: Array.isArray(col.enumValues) ? col.enumValues.map(String) : null,
             isForeignKey: fkMap.has(col.name),
             foreignKey: fkMap.get(col.name),
           }));
@@ -641,6 +662,10 @@ export interface TableColumnMetadata {
   primaryKey: boolean;
   unique: boolean;
   defaultValue: string | null;
+  /** True when the PG column type is an enum (typtype = 'e'). */
+  isEnum?: boolean;
+  /** Ordered enum labels when isEnum is true. */
+  enumValues?: string[] | null;
   isForeignKey?: boolean;
   foreignKey?: {
     referencedSchema: string;
@@ -711,6 +736,8 @@ export const getAllTablesColumns = (input: { schema: string }) =>
             primaryKey: pkSet.has(c.name) || false,
             unique: uniqueSet.has(c.name) || false,
             defaultValue: c.defaultValue ?? null,
+            isEnum: c.isEnum,
+            enumValues: c.enumValues ?? null,
             isForeignKey: fkMap.has(c.name),
             foreignKey: fkMap.has(c.name) ? fkMap.get(c.name) : undefined,
           }));
@@ -786,6 +813,8 @@ export const getTablesStructures = (input: { schema: string; tables?: string[] }
             primaryKey: pkSet.has(c.name) || false,
             unique: uniqueSet.has(c.name) || false,
             defaultValue: c.defaultValue ?? null,
+            isEnum: c.isEnum,
+            enumValues: c.enumValues ?? null,
             isForeignKey: fkMap.has(c.name),
             foreignKey: fkMap.has(c.name) ? fkMap.get(c.name) : undefined,
           }));

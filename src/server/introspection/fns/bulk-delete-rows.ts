@@ -5,18 +5,24 @@ import { RemoteConnection } from "#src/server/db-connection/remote-connection.ta
 import { QueryLogLevel, QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 import { SqlClient } from "@effect/sql";
+import { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
 
-interface BulkDeleteRowsInput {
+import {
+  assertSafeIdentifier,
+  assertSafeIdentifiers,
+  extractRowsAffected,
+} from "./row-mutation-utils.ts";
+
+export interface BulkDeleteRowsInput {
   schema: string;
   table: string;
-  primaryKeyColumn: string;
-  ids: ReadonlyArray<string | number>;
+  /** One primary-key value map per row (supports composite keys). */
+  primaryKeys: ReadonlyArray<Record<string, unknown>>;
 }
 
 /**
- * Deletes multiple rows by their primary key values
- * Uses SqlClient directly with proper query logging
+ * Deletes multiple rows by primary key (single or composite) with parameterized SQL.
  */
 export const bulkDeleteRows = (
   input: BulkDeleteRowsInput,
@@ -26,52 +32,58 @@ export const bulkDeleteRows = (
     const sql = yield* SqlClient.SqlClient;
     const connectionId = yield* RemoteConnection;
 
-    if (input.ids.length === 0) {
+    if (input.primaryKeys.length === 0) {
       return { rowsAffected: 0 };
     }
 
-    // Build DELETE query with IN clause
-    const idList = input.ids
-      .map((id) => {
-        if (typeof id === "string") {
-          // Escape single quotes in string IDs
-          return `'${id.replace(/'/g, "''")}'`;
-        }
-        return String(id);
-      })
-      .join(",");
+    assertSafeIdentifier(input.table, "table");
+    if (input.schema) {
+      assertSafeIdentifier(input.schema, "schema");
+    }
 
-    // Build query based on dialect (SQLite/LibSQL don't support schema.table with quotes)
-    const sqlQuery = yield* sql.onDialectOrElse({
+    const pkColumns = Object.keys(input.primaryKeys[0] ?? {});
+    if (pkColumns.length === 0) {
+      return yield* Effect.fail(
+        new SqlError({ cause: null, message: "Cannot bulk delete without primary key columns" }),
+      );
+    }
+    assertSafeIdentifiers(pkColumns, "primary key column");
+
+    for (const pk of input.primaryKeys) {
+      assertSafeIdentifiers(Object.keys(pk), "primary key column");
+    }
+
+    const whereClause = sql.or(
+      input.primaryKeys.map((pk) =>
+        sql.and(pkColumns.map((column) => sql`${sql(column)} = ${pk[column]}`)),
+      ),
+    );
+
+    const statement = yield* sql.onDialectOrElse({
       pg: () =>
         Effect.succeed(
-          `DELETE FROM "${input.schema}"."${input.table}" WHERE "${input.primaryKeyColumn}" IN (${idList})`,
+          input.schema
+            ? sql`DELETE FROM ${sql(input.schema)}.${sql(input.table)} WHERE ${whereClause}`
+            : sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`,
         ),
-      sqlite: () =>
-        Effect.succeed(
-          `DELETE FROM "${input.table}" WHERE "${input.primaryKeyColumn}" IN (${idList})`,
-        ),
+      sqlite: () => Effect.succeed(sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`),
       orElse: () => Effect.die(new Error("Unsupported database dialect")),
     });
 
-    // Execute using SqlClient with proper logging
-    const conn = yield* Effect.orDie(sql.reserve).pipe(Effect.scoped);
-    const result = yield* conn.executeRaw(sqlQuery, []).pipe(
+    const [compiledSql, params] = statement.compile();
+
+    const result = yield* statement.raw.pipe(
       withQueryLogging({
         type: QueryLogType.TableRows,
-        sql: sqlQuery,
-        params: [],
+        sql: compiledSql,
+        params,
         level: QueryLogLevel.Info,
         connectionId,
+        schema: input.schema || undefined,
+        table: input.table,
         meta: { bulkDelete: true },
       } as const),
     );
 
-    const rowsAffected =
-      (result as any)?.rowCount ??
-      (result as any)?.rowsAffected ??
-      (result as any)?.affectedRows ??
-      0;
-
-    return { rowsAffected };
+    return { rowsAffected: extractRowsAffected(result) };
   });

@@ -6,6 +6,7 @@ import type { Selectable } from "kysely";
 
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { makeRemoteSqlClientLayer } from "#src/db/postgres/remote-sql-client.layer.ts";
+import { getErrorMessage } from "#src/lib/get-error-message.ts";
 import {
   makeRemoteConnectionLayer,
   type RemoteConnection,
@@ -95,5 +96,11 @@ export const createRemoteIntrospectionHandler =
         ),
       );
     });
-    return await AppRuntime.runPromise(program);
+    try {
+      return await AppRuntime.runPromise(program);
+    } catch (error) {
+      // Re-throw a plain Error so clients receive the driver message
+      // (FiberFailure/SqlError wrappers serialize poorly over the wire).
+      throw new Error(getErrorMessage(error));
+    }
   };

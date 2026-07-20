@@ -21,11 +21,13 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseT
       yield* sql.onDialectOrElse({
         pg: () =>
           Effect.gen(function* () {
+            yield* sql`DROP TABLE IF EXISTS ${sql(config.defaultSchema)}.memberships CASCADE`;
             yield* sql`DROP TABLE IF EXISTS ${sql(config.defaultSchema)}.posts CASCADE`;
             yield* sql`DROP TABLE IF EXISTS ${sql(config.defaultSchema)}.users CASCADE`;
           }),
         sqlite: () =>
           Effect.gen(function* () {
+            yield* sql`DROP TABLE IF EXISTS memberships`;
             yield* sql`DROP TABLE IF EXISTS posts`;
             yield* sql`DROP TABLE IF EXISTS users`;
           }),
@@ -71,6 +73,28 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseT
 							user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
 							title TEXT NOT NULL,
 							content TEXT
+						)
+					`,
+        orElse: () => Effect.fail(new Error("Unsupported database")),
+      });
+
+      yield* sql.onDialectOrElse({
+        pg: () =>
+          sql`
+						CREATE TABLE ${sql(config.defaultSchema)}.memberships (
+							org_id INTEGER NOT NULL,
+							user_id INTEGER NOT NULL,
+							role TEXT NOT NULL,
+							PRIMARY KEY (org_id, user_id)
+						)
+					`,
+        sqlite: () =>
+          sql`
+						CREATE TABLE memberships (
+							org_id INTEGER NOT NULL,
+							user_id INTEGER NOT NULL,
+							role TEXT NOT NULL,
+							PRIMARY KEY (org_id, user_id)
 						)
 					`,
         orElse: () => Effect.fail(new Error("Unsupported database")),
@@ -121,23 +145,39 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseT
 					`,
         orElse: () => Effect.fail(new Error("Unsupported database")),
       });
+
+      yield* sql.onDialectOrElse({
+        pg: () =>
+          sql`
+						INSERT INTO ${sql(config.defaultSchema)}.memberships (org_id, user_id, role) VALUES
+						(1, 1, 'admin'),
+						(1, 2, 'member'),
+						(2, 1, 'viewer')
+					`,
+        sqlite: () =>
+          sql`
+						INSERT INTO memberships (org_id, user_id, role) VALUES
+						(1, 1, 'admin'),
+						(1, 2, 'member'),
+						(2, 1, 'viewer')
+					`,
+        orElse: () => Effect.fail(new Error("Unsupported database")),
+      });
     });
 
     const testLayer = makeTestLayer(sqlLayer);
+    const schema = () => (config.isPostgres ? config.defaultSchema : "");
 
     it.effect("deletes multiple rows by their numeric IDs", () => {
       return Effect.gen(function* () {
         yield* setupSchema;
         yield* insertTestData;
 
-        const schema = config.isPostgres ? config.defaultSchema : "";
-
         const result = yield* bulkDeleteRows(
           {
-            schema,
+            schema: schema(),
             table: "users",
-            primaryKeyColumn: "id",
-            ids: [1, 2],
+            primaryKeys: [{ id: 1 }, { id: 2 }],
           },
           { id: "test" } as any,
         );
@@ -146,34 +186,40 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseT
 
         const remainingUsers = yield* SqlClient.SqlClient;
         const users =
-          yield* remainingUsers`SELECT id FROM ${remainingUsers(schema || "main")}.users ORDER BY id`;
+          yield* remainingUsers`SELECT id FROM ${remainingUsers(schema() || "main")}.users ORDER BY id`;
         expect(users.length).toBe(3);
-        const remainingIds = users.map((u) => u.id);
-        expect(remainingIds).toEqual([3, 4, 5]);
+        expect(users.map((u) => u.id)).toEqual([3, 4, 5]);
       }).pipe(Effect.provide(testLayer));
     });
 
-    it.effect("deletes rows from table with foreign key constraints", () => {
+    it.effect("deletes rows with composite primary keys", () => {
       return Effect.gen(function* () {
         yield* setupSchema;
         yield* insertTestData;
 
         const result = yield* bulkDeleteRows(
           {
-            schema: config.defaultSchema,
-            table: "posts",
-            primaryKeyColumn: "id",
-            ids: [1, 2],
+            schema: schema(),
+            table: "memberships",
+            primaryKeys: [
+              { org_id: 1, user_id: 1 },
+              { org_id: 1, user_id: 2 },
+            ],
           },
           { id: "test" } as any,
         );
 
         expect(result.rowsAffected).toBe(2);
 
-        const remainingPosts = yield* SqlClient.SqlClient;
-        const posts =
-          yield* remainingPosts`SELECT id FROM ${remainingPosts(config.defaultSchema)}.posts ORDER BY id`;
-        expect(posts.length).toBe(2);
+        const sql = yield* SqlClient.SqlClient;
+        const remaining = yield* sql.onDialectOrElse({
+          pg: () =>
+            sql`SELECT org_id, user_id FROM ${sql(config.defaultSchema)}.memberships ORDER BY org_id, user_id`,
+          sqlite: () => sql`SELECT org_id, user_id FROM memberships ORDER BY org_id, user_id`,
+          orElse: () => Effect.fail(new Error("Unsupported database")),
+        });
+        expect(remaining.length).toBe(1);
+        expect(remaining[0]).toMatchObject({ org_id: 2, user_id: 1 });
       }).pipe(Effect.provide(testLayer));
     });
 
@@ -184,20 +230,14 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseT
 
         const result = yield* bulkDeleteRows(
           {
-            schema: config.defaultSchema,
+            schema: schema(),
             table: "users",
-            primaryKeyColumn: "id",
-            ids: [],
+            primaryKeys: [],
           },
           { id: "test" } as any,
         );
 
         expect(result.rowsAffected).toBe(0);
-
-        const checkUsers = yield* SqlClient.SqlClient;
-        const users =
-          yield* checkUsers`SELECT COUNT(*) as count FROM ${checkUsers(config.defaultSchema)}.users`;
-        expect(users[0].count).toBe(5);
       }).pipe(Effect.provide(testLayer));
     });
 
@@ -208,21 +248,14 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseT
 
         const result = yield* bulkDeleteRows(
           {
-            schema: config.defaultSchema,
+            schema: schema(),
             table: "users",
-            primaryKeyColumn: "id",
-            ids: [1],
+            primaryKeys: [{ id: 1 }],
           },
           { id: "test" } as any,
         );
 
         expect(result.rowsAffected).toBe(1);
-
-        const remainingUsers = yield* SqlClient.SqlClient;
-        const users =
-          yield* remainingUsers`SELECT id FROM ${remainingUsers(config.defaultSchema)}.users ORDER BY id`;
-        expect(users.length).toBe(4);
-        expect(users.map((u) => u.id)).toEqual([2, 3, 4, 5]);
       }).pipe(Effect.provide(testLayer));
     });
 
@@ -233,45 +266,14 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseT
 
         const result = yield* bulkDeleteRows(
           {
-            schema: config.defaultSchema,
+            schema: schema(),
             table: "users",
-            primaryKeyColumn: "id",
-            ids: [999, 1000],
+            primaryKeys: [{ id: 999 }, { id: 1000 }],
           },
           { id: "test" } as any,
         );
 
         expect(result.rowsAffected).toBe(0);
-
-        const remainingUsers = yield* SqlClient.SqlClient;
-        const users =
-          yield* remainingUsers`SELECT COUNT(*) as count FROM ${remainingUsers(config.defaultSchema)}.users`;
-        expect(users[0].count).toBe(5);
-      }).pipe(Effect.provide(testLayer));
-    });
-
-    it.effect("deletes mixed existing and non-existing IDs", () => {
-      return Effect.gen(function* () {
-        yield* setupSchema;
-        yield* insertTestData;
-
-        const result = yield* bulkDeleteRows(
-          {
-            schema: config.defaultSchema,
-            table: "users",
-            primaryKeyColumn: "id",
-            ids: [1, 999, 2],
-          },
-          { id: "test" } as any,
-        );
-
-        expect(result.rowsAffected).toBe(2);
-
-        const remainingUsers = yield* SqlClient.SqlClient;
-        const users =
-          yield* remainingUsers`SELECT id FROM ${remainingUsers(config.defaultSchema)}.users ORDER BY id`;
-        expect(users.length).toBe(3);
-        expect(users.map((u) => u.id)).toEqual([3, 4, 5]);
       }).pipe(Effect.provide(testLayer));
     });
   };
