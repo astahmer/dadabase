@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useMonacoTheme } from "#src/hooks/use-monaco-theme.ts";
 import { formatSQL } from "#src/lib/format-sql";
 import { defineCustomMonacoThemes } from "#src/lib/monaco-editor-themes.ts";
+import { analyzeSqlDiagnostics } from "#src/lib/sql-diagnostics.ts";
 
 import type { SqlMonacoEditorProps } from "./sql-monaco-editor.tsx";
 
@@ -15,22 +16,8 @@ import { sqlCompletionProvider } from "./sql-completion-provider.ts";
 
 type Monaco = typeof OriginalMonaco;
 
-// snippets
-// https://github.com/DTStack/monaco-sql-languages/blob/6c745d44019229d79a33c5471d8a90c5a4d206cd/src/languages/pgsql/pgsql.snippet.ts
-
-// diagnostics?
-// https://github.com/DTStack/monaco-sql-languages/blob/6c745d44019229d79a33c5471d8a90c5a4d206cd/src/languageFeatures.ts
-// https://github.com/chakra-ui/panda-vscode/blob/f50ecaca5255e50e0913a76eb79b4cbdb21dd7f6/packages/language-server/src/features/diagnostics.ts#L8
-
-// https://shiki.style/themes
-// tm-themes/OneDarkPro
-// https://github.com/esm-dev/modern-monaco/blob/0dad413a046c2a1b329ee1d2b6d4fe11492ba633/src/shiki-monaco.ts#L47
-
-// TODO provide suggestions for keywords, functions, etc
-// https://github.com/sql-formatter-org/sql-formatter/blob/3c96d067489f6c3b751dfecaa1bbe3281d198b73/src/languages/postgresql/postgresql.keywords.ts
-// https://github.com/microsoft/monaco-editor/blob/ec78a33c7b34dba19e9d3cbe1b3b378465bbd8b8/src/basic-languages/pgsql/pgsql.ts
-
-// lang pgsql; aliases: ['PostgreSQL', 'postgres', 'pg', 'postgre'],
+const SQL_DIAGNOSTICS_OWNER = "dadabase-sql";
+const SQL_DIAGNOSTICS_DEBOUNCE_MS = 250;
 
 /**
  * Monaco SQL Editor component using @monaco-editor/react
@@ -159,6 +146,37 @@ export function SqlMonacoEditorImpl({
       disposable.dispose();
     };
   }, [monacoRef, tables, columns, hasMultipleSchemas]);
+
+  // Debounced SQL diagnostics → monaco.editor.setModelMarkers
+  useEffect(() => {
+    const monaco = monacoRef;
+    const editor = editorRef;
+    if (!monaco || !editor) return;
+
+    const model = editor.getModel();
+    if (!model) return;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const applyMarkers = () => {
+      const markers = analyzeSqlDiagnostics(model.getValue(), { tables, columns });
+      monaco.editor.setModelMarkers(model, SQL_DIAGNOSTICS_OWNER, markers);
+    };
+
+    const schedule = () => {
+      if (timer !== undefined) clearTimeout(timer);
+      timer = setTimeout(applyMarkers, SQL_DIAGNOSTICS_DEBOUNCE_MS);
+    };
+
+    applyMarkers();
+    const disposable = model.onDidChangeContent(schedule);
+
+    return () => {
+      if (timer !== undefined) clearTimeout(timer);
+      disposable.dispose();
+      monaco.editor.setModelMarkers(model, SQL_DIAGNOSTICS_OWNER, []);
+    };
+  }, [monacoRef, editorRef, tables, columns, sql]);
 
   return (
     <Editor

@@ -6,7 +6,7 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 
 - [ ] edit in datatable with commit phase (review pending changes + translated UPDATE SQL before save) — today saves immediately on blur
 - [ ] monaco `changeViewZones` for inline actions (run/explain/format/fullscreen/copy/save) — toolbar exists; viewZones optional polish
-- [ ] diagnostics in editor (missing table/column/syntax) via `setModelMarkers`
+- [x] diagnostics in editor (missing table/column/syntax) via `setModelMarkers`
 - [x] real `BETWEEN` operator (NL, SQL parser, build-where, filter UI)
 - [ ] unlink/detach editor from current table while keeping table context (custom SQL tab is close but not the same)
 
