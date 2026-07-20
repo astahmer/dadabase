@@ -214,6 +214,56 @@ When("I delete the selected rows from the bulk action bar", async ({ page }) => 
   });
 });
 
+When("I click Edit on the bulk action bar", async ({ page }) => {
+  await page.getByTestId("bulk-edit-button").click();
+  await expect(page.getByTestId("row-editor-sheet")).toBeVisible({ timeout: 10_000 });
+});
+
+When(
+  "I open the edit sheet from the row actions menu for the row with {string} in column {string}",
+  async ({ page }, cellValue: string, columnName: string) => {
+    const cell = page.getByTestId(`data-cell-${columnName}`).filter({ hasText: cellValue }).first();
+    await expect(cell).toBeVisible();
+
+    const row = cell.locator("xpath=ancestor::tr[1]");
+    await row.getByTestId("row-actions-menu").click();
+    await page.getByRole("menuitem", { name: "Edit row" }).click();
+    await expect(page.getByTestId("row-editor-sheet")).toBeVisible();
+  },
+);
+
+When("I switch the row editor to JSON mode", async ({ page }) => {
+  const tabs = page.getByTestId("row-editor-view-mode");
+  await expect(tabs).toBeVisible();
+  await tabs.getByRole("tab", { name: "JSON" }).click();
+  await expect(page.getByTestId("json-monaco-editor")).toBeVisible({ timeout: 15_000 });
+});
+
+When("I set the row JSON editor to contain {string}", async ({ page }, fragment: string) => {
+  const editor = page.getByTestId("json-monaco-editor");
+  await expect(editor).toBeVisible();
+
+  const textarea = editor.locator("textarea").first();
+  await expect(textarea).toBeVisible({ timeout: 15_000 });
+  const current = await textarea.inputValue();
+  const nameMatch = fragment.match(/"name"\s*:\s*"[^"]*"/);
+  const patched = nameMatch
+    ? current.replace(/"name"\s*:\s*"[^"]*"/, nameMatch[0])
+    : current.includes(fragment)
+      ? current
+      : `${current.slice(0, -1)}${current.trim().endsWith("{") ? "" : ","}\n  ${fragment}\n}`;
+  await textarea.fill(patched);
+});
+
+When("I set field {string} to NULL", async ({ page }, fieldName: string) => {
+  const field = page.getByTestId(`column-input-${fieldName}`);
+  await expect(field).toBeVisible();
+  const nullBtn = field.getByRole("button", { name: "NULL" });
+  await expect(nullBtn).toBeVisible();
+  await nullBtn.click();
+  await expect(field.locator("p").filter({ hasText: /^NULL$/ })).toBeVisible();
+});
+
 Then(
   "I should see cell value {string} in column {string}",
   async ({ page }, cellValue: string, columnName: string) => {

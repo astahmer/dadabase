@@ -96,3 +96,39 @@ Feature: Row create and edit UX
     And I pick FK value "2" for field "user_id"
     And I save the row editor
     Then I should see cell value "2" in column "user_id"
+
+  Scenario: Edit row via ActionBar when one row selected
+    Given I open the "users" table
+    When I select the row with "Alice" in column "name"
+    And I click Edit on the bulk action bar
+    And I fill the row editor field "name" with "AliciaViaBar"
+    And I save the row editor
+    Then I should see cell value "AliciaViaBar" in column "name"
+
+  Scenario: Edit row via row actions menu
+    Given I open the "users" table
+    When I open the edit sheet from the row actions menu for the row with "Bob" in column "name"
+    And I fill the row editor field "name" with "BobbyViaMenu"
+    And I save the row editor
+    Then I should see cell value "BobbyViaMenu" in column "name"
+
+  Scenario: Edit row via JSON editor mode
+    Given I open the "users" table
+    When I open the edit sheet for the row with "Alice" in column "name"
+    And I switch the row editor to JSON mode
+    And I set the row JSON editor to contain "\"name\": \"AliceJson\""
+    And I save the row editor
+    Then I should see cell value "AliceJson" in column "name"
+
+  Scenario: Set nullable field to NULL in row editor
+    Given I open the "posts" table
+    When I open the edit sheet for the row with "Hello" in column "title"
+    And I set field "body" to NULL
+    And I save the row editor
+    Then I should see cell value "NULL" in column "body"
+
+  Scenario: Bulk delete no-PK row via system row id
+    Given I open the "no_pk_items" table
+    When I select the row with "beta" in column "label"
+    And I delete the selected rows from the bulk action bar
+    Then I should not see cell value "beta" in column "label"
