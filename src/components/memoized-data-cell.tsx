@@ -1,12 +1,13 @@
 import type { CellContext } from "@tanstack/react-table";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 
 import type { ForeignKeyInfo } from "./data-table/cell-context-menu.tsx";
 
 import { InlineReferencesButton } from "./app/inline-references.button.tsx";
 import { CellContextMenu } from "./data-table/cell-context-menu.tsx";
 import { formatTableValue } from "./pages/connection-page/format-table-value.ts";
+import { InlineCellEditor } from "./pages/connection-page/row-editor/inline-cell-editor.tsx";
 import { Badge } from "./ui/badge";
 import { JsonCell } from "./ui/json-cell";
 
@@ -24,6 +25,8 @@ export interface MemoizedDataCellProps {
   schema?: string;
   table?: string;
   activeConnectionUrl: string;
+  /** Primary key column names for the current table (empty = inline edit disabled). */
+  primaryKeyColumns?: string[];
   onFollowFK?: (fkInfo: ForeignKeyInfo, cellValue: unknown) => void;
   onFindReferences?: (columnName: string, cellValue: unknown) => void;
   onShowQuickReferences?: () => void;
@@ -68,6 +71,7 @@ function MemoizedDataCellInner({
   schema,
   table,
   activeConnectionUrl,
+  primaryKeyColumns = [],
   onFollowFK,
   onFindReferences,
   onShowQuickReferences,
@@ -77,6 +81,38 @@ function MemoizedDataCellInner({
   onExpandToSheet,
   onMenuOpen,
 }: MemoizedDataCellProps) {
+  const [editing, setEditing] = useState(false);
+
+  const canInlineEdit =
+    !col.primaryKey &&
+    primaryKeyColumns.length > 0 &&
+    Boolean(schema) &&
+    Boolean(table) &&
+    !col.dataType.toLowerCase().includes("json");
+
+  if (editing && canInlineEdit && schema && table) {
+    const primaryKey: Record<string, unknown> = {};
+    for (const pk of primaryKeyColumns) {
+      primaryKey[pk] = ctx.row.original[pk];
+    }
+
+    return (
+      <div className="flex items-center gap-1" data-column-content={col.name}>
+        <InlineCellEditor
+          connectionUrl={activeConnectionUrl}
+          schema={schema}
+          table={table}
+          columnName={col.name}
+          dataType={col.dataType}
+          initialValue={ctx.row.original[col.accessorKey]}
+          primaryKey={primaryKey}
+          onCancel={() => setEditing(false)}
+          onSaved={() => setEditing(false)}
+        />
+      </div>
+    );
+  }
+
   const CellValue = (
     <CellContextMenu
       cellValue={ctx.row.original[col.accessorKey]}
@@ -93,7 +129,18 @@ function MemoizedDataCellInner({
   );
 
   return (
-    <div className="group flex items-center gap-1 tabular-nums" data-column-content={col.name}>
+    <div
+      className="group flex items-center gap-1 tabular-nums"
+      data-column-content={col.name}
+      data-testid={`data-cell-${col.name}`}
+      onDoubleClick={(e) => {
+        if (!canInlineEdit) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setEditing(true);
+      }}
+      title={canInlineEdit ? "Double-click to edit" : undefined}
+    >
       {table &&
       schema &&
       ctx.row.original[col.accessorKey] &&
@@ -132,7 +179,8 @@ export const MemoizedDataCell = memo(MemoizedDataCellInner, (prevProps, nextProp
     prevProps.col.foreignKey === nextProps.col.foreignKey &&
     prevProps.schema === nextProps.schema &&
     prevProps.table === nextProps.table &&
-    prevProps.activeConnectionUrl === nextProps.activeConnectionUrl
+    prevProps.activeConnectionUrl === nextProps.activeConnectionUrl &&
+    prevProps.primaryKeyColumns === nextProps.primaryKeyColumns
   );
 });
 

@@ -76,6 +76,10 @@ export const useRowsColumns = ({
   joins,
 }: UseRowsColumnsOptions): ColumnDef<Record<string, unknown>>[] => {
   const queryClient = useQueryClient();
+  const primaryKeyColumns = useMemo(
+    () => columnMetadata.filter((col) => col.primaryKey).map((col) => col.name),
+    [columnMetadata],
+  );
 
   const allTablesColumnsQuery = useQuery(
     getAllTablesColumnsQueryOptions({
@@ -182,6 +186,7 @@ export const useRowsColumns = ({
                     schema={schema}
                     table={table}
                     activeConnectionUrl={activeConnectionUrl}
+                    primaryKeyColumns={primaryKeyColumns}
                     onFollowFK={onFollowFK}
                     onFindReferences={onFindReferences}
                     onShowQuickReferences={() => {
@@ -273,5 +278,6 @@ export const useRowsColumns = ({
     onPrefetchReferences,
     onExpandToSheet,
     onMenuOpen,
+    primaryKeyColumns,
   ]);
 };
