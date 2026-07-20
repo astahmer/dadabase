@@ -17,6 +17,7 @@ export interface MemoizedDataCellProps {
     name: string;
     accessorKey: string;
     dataType: string;
+    nullable?: boolean;
     primaryKey?: boolean;
     unique?: boolean;
     isForeignKey?: boolean;
@@ -104,6 +105,7 @@ function MemoizedDataCellInner({
           table={table}
           columnName={col.name}
           dataType={col.dataType}
+          nullable={col.nullable}
           initialValue={ctx.row.original[col.accessorKey]}
           primaryKey={primaryKey}
           onCancel={() => setEditing(false)}
@@ -175,6 +177,7 @@ export const MemoizedDataCell = memo(MemoizedDataCellInner, (prevProps, nextProp
       nextProps.ctx.row.original[nextProps.col.name] &&
     prevProps.col.name === nextProps.col.name &&
     prevProps.col.dataType === nextProps.col.dataType &&
+    prevProps.col.nullable === nextProps.col.nullable &&
     prevProps.col.primaryKey === nextProps.col.primaryKey &&
     prevProps.col.foreignKey === nextProps.col.foreignKey &&
     prevProps.schema === nextProps.schema &&

@@ -1,10 +1,13 @@
+import { Button } from "#src/components/ui/button.tsx";
 import { Input } from "#src/components/ui/input.tsx";
 import { Switch, SwitchControl, SwitchThumb } from "#src/components/ui/switch.tsx";
 import { toaster } from "#src/components/ui/toaster.tsx";
 import {
   coerceColumnValue,
   isBooleanDataType,
+  isDateTimeDataType,
   isNumericDataType,
+  nowValueForDataType,
 } from "#src/lib/data-type-utils.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
@@ -18,6 +21,7 @@ export interface InlineCellEditorProps {
   table: string;
   columnName: string;
   dataType: string;
+  nullable?: boolean;
   initialValue: unknown;
   primaryKey: Record<string, unknown>;
   onCancel: () => void;
@@ -33,6 +37,12 @@ function rowMatchesPrimaryKey(row: Record<string, unknown>, primaryKey: Record<s
   return Object.entries(primaryKey).every(([key, value]) => String(row[key]) === String(value));
 }
 
+function valuesEqual(a: unknown, b: unknown) {
+  if (Object.is(a, b)) return true;
+  if (a == null && b == null) return a === b;
+  return String(a ?? "") === String(b ?? "");
+}
+
 export function InlineCellEditor(props: InlineCellEditorProps) {
   const {
     connectionUrl,
@@ -40,6 +50,7 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
     table,
     columnName,
     dataType,
+    nullable = false,
     initialValue,
     primaryKey,
     onCancel,
@@ -115,13 +126,21 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
     },
   });
 
-  const commit = () => {
+  const normalizeForCommit = (next: unknown) => {
+    if (nullable && typeof next === "string" && next.trim() === "") {
+      return null;
+    }
+    return next;
+  };
+
+  const commit = (override?: unknown) => {
     if (saveMutation.isPending) return;
-    if (Object.is(value, initialValue) || String(value) === String(initialValue ?? "")) {
+    const next = normalizeForCommit(override !== undefined ? override : value);
+    if (valuesEqual(next, initialValue)) {
       onCancel();
       return;
     }
-    saveMutation.mutate(value);
+    saveMutation.mutate(next);
   };
 
   if (isBooleanDataType(dataType)) {
@@ -148,12 +167,24 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
             <SwitchThumb />
           </SwitchControl>
         </Switch>
+        {nullable && (
+          <Button
+            type="button"
+            size="xs"
+            variant={value === null ? "default" : "outline"}
+            disabled={saveMutation.isPending}
+            onClick={() => commit(null)}
+          >
+            NULL
+          </Button>
+        )}
       </div>
     );
   }
 
   return (
     <div
+      className="flex items-center gap-1"
       data-testid="inline-cell-editor"
       onKeyDown={(e) => {
         if (e.key === "Enter") {
@@ -175,8 +206,36 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
         disabled={saveMutation.isPending}
         className="h-7 min-w-[6rem]"
         onChange={(e) => setValue(e.target.value)}
-        onBlur={commit}
+        onBlur={() => commit()}
       />
+      {isDateTimeDataType(dataType) && (
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          disabled={saveMutation.isPending}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            const next = nowValueForDataType(dataType);
+            setValue(next);
+            commit(next);
+          }}
+        >
+          Now
+        </Button>
+      )}
+      {nullable && (
+        <Button
+          type="button"
+          size="xs"
+          variant={value === null ? "default" : "outline"}
+          disabled={saveMutation.isPending}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => commit(null)}
+        >
+          NULL
+        </Button>
+      )}
     </div>
   );
 }

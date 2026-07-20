@@ -11,6 +11,7 @@ import {
   isEnumColumn,
   isJsonDataType,
   isNumericDataType,
+  nowValueForDataType,
 } from "#src/lib/data-type-utils.ts";
 
 import { FkColumnSelect } from "./fk-column-select.tsx";
@@ -31,6 +32,14 @@ export function ColumnInput(props: ColumnInputProps) {
   const { column, value, connectionUrl, disabled, omitted, onOmittedChange, onChange } = props;
   const isNull = value === null;
   const canOmit = onOmittedChange != null;
+  const showNow = isDateTimeDataType(column.dataType) && !omitted;
+
+  const setValue = (next: unknown) => {
+    if (omitted) {
+      onOmittedChange?.(false);
+    }
+    onChange(next);
+  };
 
   return (
     <div className="flex flex-col gap-1.5" data-testid={`column-input-${column.name}`}>
@@ -71,12 +80,24 @@ export function ColumnInput(props: ColumnInputProps) {
               Default
             </Button>
           )}
+          {showNow && (
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              onClick={() => setValue(nowValueForDataType(column.dataType))}
+              disabled={disabled}
+              data-testid={`column-now-${column.name}`}
+            >
+              Now
+            </Button>
+          )}
           {column.nullable && !omitted && (
             <Button
               type="button"
               size="xs"
               variant={isNull ? "default" : "outline"}
-              onClick={() => onChange(isNull ? emptyValueForColumn(column) : null)}
+              onClick={() => setValue(isNull ? emptyValueForColumn(column) : null)}
               disabled={disabled}
             >
               NULL
@@ -97,7 +118,7 @@ export function ColumnInput(props: ColumnInputProps) {
           value={value}
           connectionUrl={connectionUrl}
           disabled={disabled}
-          onChange={onChange}
+          onChange={setValue}
         />
       )}
     </div>

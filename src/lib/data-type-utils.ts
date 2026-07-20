@@ -45,6 +45,36 @@ export function isDateTimeDataType(dataType: string): boolean {
 }
 
 /**
+ * Client-side "now" value shaped for date/time form inputs.
+ * date → YYYY-MM-DD; time → HH:mm:ss; timestamp/datetime → YYYY-MM-DDTHH:mm
+ */
+export function nowValueForDataType(dataType: string, now = new Date()): string {
+  const normalized = dataType.toLowerCase().trim();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const yyyy = now.getFullYear();
+  const mm = pad(now.getMonth() + 1);
+  const dd = pad(now.getDate());
+  const hh = pad(now.getHours());
+  const mi = pad(now.getMinutes());
+  const ss = pad(now.getSeconds());
+
+  const isDateOnly =
+    normalized === "date" ||
+    (normalized.includes("date") &&
+      !normalized.includes("time") &&
+      !normalized.includes("timestamp"));
+  if (isDateOnly) {
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  if (normalized === "time" || normalized.startsWith("time ")) {
+    return `${hh}:${mi}:${ss}`;
+  }
+
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+/**
  * Determines if a data type is boolean
  */
 export function isBooleanDataType(dataType: string): boolean {
