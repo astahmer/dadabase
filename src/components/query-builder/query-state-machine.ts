@@ -131,23 +131,21 @@ export function analyzeQueryState(input: string, availableColumns: string[]): Qu
           sortColumn: sortMatch.column,
         };
       }
-        // Partial column match: "sort by cr" (waiting for user to complete or select)
-        return {
-          state: "sort_column",
-          tokens: [{ type: "sort_keyword", value: sortMatch.keyword }],
-          currentInput: sortMatch.column,
-          sortKeyword: sortMatch.keyword,
-        };
-      
-    }
-      // Sort clause keyword only: "sort by"
+      // Partial column match: "sort by cr" (waiting for user to complete or select)
       return {
         state: "sort_column",
         tokens: [{ type: "sort_keyword", value: sortMatch.keyword }],
-        currentInput: "",
+        currentInput: sortMatch.column,
         sortKeyword: sortMatch.keyword,
       };
-    
+    }
+    // Sort clause keyword only: "sort by"
+    return {
+      state: "sort_column",
+      tokens: [{ type: "sort_keyword", value: sortMatch.keyword }],
+      currentInput: "",
+      sortKeyword: sortMatch.keyword,
+    };
   }
 
   // Match operator pattern to identify what's been typed

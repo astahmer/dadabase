@@ -1,3 +1,9 @@
+import { createListCollection, Listbox, useListbox } from "@ark-ui/react/listbox";
+import { Popover } from "@ark-ui/react/popover";
+import { Portal } from "@ark-ui/react/portal";
+import { ChevronDown, Lightbulb } from "lucide-react";
+import { useMemo, useState } from "react";
+
 import type { ParsedNLQuery } from "#src/components/query-builder/natural-language-parser.ts";
 
 import {
@@ -6,11 +12,6 @@ import {
   getInitialExamples,
 } from "#src/components/query-builder/query-state-machine.ts";
 import { useNaturalLanguageSearch } from "#src/components/query-builder/use-natural-language-search.ts";
-import { createListCollection, Listbox, useListbox } from "@ark-ui/react/listbox";
-import { Popover } from "@ark-ui/react/popover";
-import { Portal } from "@ark-ui/react/portal";
-import { ChevronDown, Lightbulb } from "lucide-react";
-import { useMemo, useState } from "react";
 
 import { cn } from "../../lib/utils.ts";
 import { Button } from "../ui/button.tsx";

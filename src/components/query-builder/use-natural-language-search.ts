@@ -1,8 +1,9 @@
+import { useCallback } from "react";
+
 import {
   type ParsedNLQuery,
   parseNaturalLanguageQuery,
 } from "#src/components/query-builder/natural-language-parser.ts";
-import { useCallback } from "react";
 
 interface UseNaturalLanguageSearchOptions {
   onFiltersApplied?: (query: ParsedNLQuery) => void;

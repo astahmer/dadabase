@@ -220,7 +220,7 @@ export const filterQueryValidConditions = (filter: QueryFilterType): QueryFilter
     if (!condition.column || condition.column.trim() === "") {
       return false;
     }
-  // Value is required for non-null operators
+    // Value is required for non-null operators
     if (
       !nullOperators.includes(condition.operator) &&
       (condition.value === undefined ||
@@ -445,4 +445,3 @@ export const whereClauseParamsToQueryFilter = (
     logicalOperator: params.logicalOperator as LogicalOperatorType,
   };
 };
-

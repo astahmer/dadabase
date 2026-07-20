@@ -1,3 +1,8 @@
+import { useListCollection } from "@ark-ui/react";
+import { useFilter } from "@ark-ui/react/locale";
+import { Plus, X } from "lucide-react";
+import { useEffect, useMemo } from "react";
+
 import type {
   FilterConditionExpression,
   FilterOperatorType,
@@ -5,8 +10,8 @@ import type {
 } from "#src/components/query-builder/query-filter.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
+import { getOperatorsForDataType } from "#src/components/query-builder/operators-for-data-type.ts";
 import {
-  allOperators,
   arrayOperators,
   getOperatorLabel,
   getOperatorSymbols,
@@ -15,10 +20,6 @@ import {
   SPECIAL_VALUES_LIST,
   specialValueSupportedOperators,
 } from "#src/components/query-builder/query-filter.ts";
-import { useListCollection } from "@ark-ui/react";
-import { useFilter } from "@ark-ui/react/locale";
-import { Plus, X } from "lucide-react";
-import { useEffect, useMemo } from "react";
 
 import { DataTypeBadge } from "../app/data-type-badge.tsx";
 import { Button } from "../ui/button.tsx";
@@ -55,13 +56,6 @@ interface QueryFilterBuilderProps {
   /** Optional column metadata to display data types in the column dropdown */
   columnMetadata?: Array<TableColumnMetadata>;
 }
-
-const operatorCollection = createListCollection({
-  items: allOperators.map((op) => ({
-    label: getOperatorLabel(op),
-    value: op,
-  })),
-});
 
 const logicalOperatorCollection = createListCollection({
   items: [
@@ -108,7 +102,6 @@ export const QueryFilterBuilder = ({
             condition={condition}
             index={index}
             columnCollection={columnCollection}
-            operatorCollection={operatorCollection}
             onUpdate={onUpdateCondition}
             onRemove={onRemoveCondition}
             onAdd={onAddCondition}
@@ -136,10 +129,6 @@ interface FilterConditionRowProps {
     label: string;
     value: string;
   }>;
-  operatorCollection: ArkSelect.ListCollection<{
-    label: string;
-    value: FilterOperatorType;
-  }>;
   onUpdate: (id: string, updates: Partial<FilterConditionExpression>) => void;
   onRemove: (id: string) => void;
   onAdd: () => void;
@@ -160,7 +149,6 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
     condition,
     index,
     columnCollection,
-    operatorCollection,
     onUpdate,
     onRemove,
     onClearAll,
@@ -175,6 +163,26 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
   const isArrayOperator = arrayOperators.includes(condition.operator);
   const isRangeOperator = rangeOperators.includes(condition.operator);
   const supportsSpecialValues = specialValueSupportedOperators.includes(condition.operator);
+
+  const columnDataType = columnMetadata?.find((col) => col.name === condition.column)?.dataType;
+  const allowedOperators = useMemo(() => getOperatorsForDataType(columnDataType), [columnDataType]);
+  const operatorCollection = useMemo(
+    () =>
+      createListCollection({
+        items: allowedOperators.map((op) => ({
+          label: getOperatorLabel(op),
+          value: op,
+        })),
+      }),
+    [allowedOperators],
+  );
+
+  // If the current operator is invalid for this column type, snap to a safe default
+  useEffect(() => {
+    if (!allowedOperators.includes(condition.operator) && allowedOperators.length > 0) {
+      onUpdate(String(index), { operator: allowedOperators[0] });
+    }
+  }, [allowedOperators, condition.operator, index, onUpdate]);
 
   const filters = useFilter({ sensitivity: "base" });
   const columnList = useListCollection({
@@ -336,7 +344,9 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
                   placeholder="From"
                   value={Array.isArray(condition.value) ? String(condition.value[0] ?? "") : ""}
                   onChange={(e) => {
-                    const high = Array.isArray(condition.value) ? String(condition.value[1] ?? "") : "";
+                    const high = Array.isArray(condition.value)
+                      ? String(condition.value[1] ?? "")
+                      : "";
                     onUpdate(String(index), { value: [e.target.value, high] });
                   }}
                 />
@@ -347,7 +357,9 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
                   placeholder="To"
                   value={Array.isArray(condition.value) ? String(condition.value[1] ?? "") : ""}
                   onChange={(e) => {
-                    const low = Array.isArray(condition.value) ? String(condition.value[0] ?? "") : "";
+                    const low = Array.isArray(condition.value)
+                      ? String(condition.value[0] ?? "")
+                      : "";
                     onUpdate(String(index), { value: [low, e.target.value] });
                   }}
                 />
