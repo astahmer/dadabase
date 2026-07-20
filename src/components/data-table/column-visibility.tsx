@@ -33,14 +33,21 @@ export function ColumnVisibilityControls<TData>(props: ColumnVisibilityControlsP
   // https://github.com/TanStack/table/discussions/5505 / https://github.com/TanStack/table/pull/5964
   // const getColumn = (columnId: string) => table._getAllFlatColumnsById()[columnId];
 
-  const visibleColumns = table.getVisibleLeafColumns().filter((col) => col.id !== "__select");
+  const visibleColumns = table
+    .getVisibleLeafColumns()
+    .filter((col) => col.id !== "__select" && col.id !== "__expand" && col.id !== "__actions");
   const allVisible = visibleColumns.length === allColumns.length;
 
   const leafColumns = table.getAllLeafColumns();
   const handleSelectAll = () => {
     if (allVisible) {
       table.setColumnVisibility((_current) =>
-        Object.fromEntries(leafColumns.map((col) => [col.id, col.id === "__select"])),
+        Object.fromEntries(
+          leafColumns.map((col) => [
+            col.id,
+            col.id === "__select" || col.id === "__expand" || col.id === "__actions",
+          ]),
+        ),
       );
     } else {
       table.setColumnVisibility((_current) =>

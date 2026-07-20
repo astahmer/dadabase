@@ -10,6 +10,7 @@ import { InlineReferencesButton } from "./app/inline-references.button.tsx";
 import { CellContextMenu } from "./data-table/cell-context-menu.tsx";
 import { formatTableValue } from "./pages/connection-page/format-table-value.ts";
 import { InlineCellEditor } from "./pages/connection-page/row-editor/inline-cell-editor.tsx";
+import { usePendingCellEdits } from "./pages/connection-page/row-editor/pending-cell-edits-context.tsx";
 import { Badge } from "./ui/badge";
 import { JsonCell } from "./ui/json-cell";
 
@@ -85,6 +86,7 @@ function MemoizedDataCellInner({
   onMenuOpen,
 }: MemoizedDataCellProps) {
   const [editing, setEditing] = useState(false);
+  const pendingEdits = usePendingCellEdits();
 
   const primaryKey: Record<string, unknown> = {};
   if (primaryKeyColumns.length > 0) {
@@ -94,6 +96,13 @@ function MemoizedDataCellInner({
   } else if (ctx.row.original[DADABASE_ROW_ID] != null) {
     primaryKey[DADABASE_ROW_ID] = ctx.row.original[DADABASE_ROW_ID];
   }
+
+  const pendingValue =
+    Object.keys(primaryKey).length > 0
+      ? pendingEdits?.getPendingValue(primaryKey, col.name)
+      : undefined;
+  const displayValue = pendingValue !== undefined ? pendingValue : ctx.getValue();
+  const hasPending = pendingValue !== undefined;
 
   const canInlineEdit =
     !col.primaryKey &&
@@ -112,7 +121,9 @@ function MemoizedDataCellInner({
           columnName={col.name}
           dataType={col.dataType}
           nullable={col.nullable}
-          initialValue={ctx.row.original[col.accessorKey]}
+          initialValue={
+            pendingValue !== undefined ? pendingValue : ctx.row.original[col.accessorKey]
+          }
           primaryKey={primaryKey}
           onCancel={() => setEditing(false)}
           onSaved={() => setEditing(false)}
@@ -132,7 +143,14 @@ function MemoizedDataCellInner({
       onShowQuickReferences={onShowQuickReferences}
       onOpen={onMenuOpen}
     >
-      <CellContent value={ctx.getValue()} />
+      <span className={hasPending ? "rounded bg-amber-500/15 px-0.5" : undefined}>
+        <CellContent value={displayValue} />
+        {hasPending ? (
+          <Badge colorPalette="warning" size="2xs" variant="subtle" className="ml-1">
+            pending
+          </Badge>
+        ) : null}
+      </span>
     </CellContextMenu>
   );
 

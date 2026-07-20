@@ -221,6 +221,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
       viewMode: tab.viewMode,
       tableSize: tab.tableSize,
       hiddenColumnList: tab.hiddenColumnList,
+      columnAliases: tab.columnAliases,
       filters: tab.filters,
       filtersOpened: tab.filtersOpened,
       columnPinning: tab.columnPinning,

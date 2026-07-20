@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { parseCondition, parseSqlQuery, parseWhereClause } from "./sql-query-parser";
+import {
+  columnAliasesToMap,
+  parseCondition,
+  parseSelectColumnAliases,
+  parseSqlQuery,
+  parseWhereClause,
+} from "./sql-query-parser";
 
 describe("SQL Query Parser", () => {
   const mockColumns = [
@@ -1666,12 +1672,16 @@ describe("SQL Query Parser", () => {
       const sql = "SELECT id, name AS user_name, email FROM users";
       const result = parseSqlQuery(sql, mockColumns);
 
+      expect(result.columnAliases).toEqual({ name: "user_name" });
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "name": "user_name",
+          },
           "hiddenColumnList": [
             {
               "column": "age",
@@ -1702,12 +1712,16 @@ describe("SQL Query Parser", () => {
       const sql = "SELECT id, name user_name, email FROM users";
       const result = parseSqlQuery(sql, mockColumns);
 
+      expect(result.columnAliases).toEqual({ name: "user_name" });
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "name": "user_name",
+          },
           "hiddenColumnList": [
             {
               "column": "age",
@@ -1738,139 +1752,15 @@ describe("SQL Query Parser", () => {
       const sql = 'SELECT id, name AS "User Name", email FROM users';
       const result = parseSqlQuery(sql, mockColumns);
 
+      expect(result.columnAliases).toEqual({ name: "User Name" });
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
         {
-          "hiddenColumnList": [
-            {
-              "column": "age",
-              "table": "",
-            },
-            {
-              "column": "created_at",
-              "table": "",
-            },
-            {
-              "column": "status",
-              "table": "",
-            },
-            {
-              "column": "description",
-              "table": "",
-            },
-            {
-              "column": "is_active",
-              "table": "",
-            },
-          ],
-        }
-      `);
-    });
-
-    it("should handle table.column with alias", () => {
-      const sql = "SELECT users.id, users.name AS user_name, users.email FROM users";
-      const result = parseSqlQuery(sql, mockColumns);
-
-      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
-      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
-      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
-      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "hiddenColumnList": [
-            {
-              "column": "age",
-              "table": "",
-            },
-            {
-              "column": "created_at",
-              "table": "",
-            },
-            {
-              "column": "status",
-              "table": "",
-            },
-            {
-              "column": "description",
-              "table": "",
-            },
-            {
-              "column": "is_active",
-              "table": "",
-            },
-          ],
-        }
-      `);
-    });
-
-    it("should handle schema.table.column with alias", () => {
-      const sql =
-        "SELECT schema.users.id AS user_id, schema.users.name AS user_name FROM schema.users";
-      const result = parseSqlQuery(sql, mockColumns);
-
-      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
-      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
-      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "hiddenColumnList": [
-            {
-              "column": "email",
-              "table": "",
-            },
-            {
-              "column": "age",
-              "table": "",
-            },
-            {
-              "column": "created_at",
-              "table": "",
-            },
-            {
-              "column": "status",
-              "table": "",
-            },
-            {
-              "column": "description",
-              "table": "",
-            },
-            {
-              "column": "is_active",
-              "table": "",
-            },
-          ],
-        }
-      `);
-    });
-
-    it("should handle multiple aliases in complex query", () => {
-      const sql =
-        "SELECT u.id AS user_id, u.name AS full_name, u.email AS contact_email FROM users u WHERE u.status = 'active'";
-      const result = parseSqlQuery(sql, mockColumns);
-
-      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
-      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "status" });
-      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
-      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
-      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
-      expect(result.filters?.conditions).toHaveLength(1);
-      expect(result.filters?.conditions[0].column).toBe("status");
-      expect(result.filters?.conditions[0].table).toBe("u");
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "filters": {
-            "conditions": [
-              {
-                "column": "status",
-                "operator": "equals",
-                "table": "u",
-                "value": "active",
-              },
-            ],
-            "logicalOperator": "and",
+          "columnAliases": {
+            "name": "User Name",
           },
           "hiddenColumnList": [
             {
@@ -1896,6 +1786,69 @@ describe("SQL Query Parser", () => {
           ],
         }
       `);
+    });
+
+    it("exposes alias map and resolves ORDER BY alias to source column", () => {
+      const sql = "SELECT id, name AS user_name FROM users ORDER BY user_name DESC";
+      const result = parseSqlQuery(sql, mockColumns);
+
+      expect(result.columnAliases).toEqual({ name: "user_name" });
+      expect(result.orderBy).toBe("name");
+      expect(result.orderDirection).toBe("desc");
+    });
+
+    it("parseSelectColumnAliases handles AS and space-separated forms", () => {
+      expect(parseSelectColumnAliases('id, name AS user_name, email "mail"')).toEqual([
+        { column: "name", alias: "user_name" },
+        { column: "email", alias: "mail" },
+      ]);
+      expect(columnAliasesToMap(parseSelectColumnAliases("name user_name"))).toEqual({
+        name: "user_name",
+      });
+      expect(parseSelectColumnAliases("*")).toEqual([]);
+      expect(parseSelectColumnAliases("COUNT(*) AS total")).toEqual([]);
+    });
+
+    it("should handle table.column with alias", () => {
+      const sql = "SELECT users.id, users.name AS user_name, users.email FROM users";
+      const result = parseSqlQuery(sql, mockColumns);
+
+      expect(result.columnAliases).toEqual({ name: "user_name" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
+    });
+
+    it("should handle schema.table.column with alias", () => {
+      const sql =
+        "SELECT schema.users.id AS user_id, schema.users.name AS user_name FROM schema.users";
+      const result = parseSqlQuery(sql, mockColumns);
+
+      expect(result.columnAliases).toEqual({ id: "user_id", name: "user_name" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+    });
+
+    it("should handle multiple aliases in complex query", () => {
+      const sql =
+        "SELECT u.id AS user_id, u.name AS full_name, u.email AS contact_email FROM users u WHERE u.status = 'active'";
+      const result = parseSqlQuery(sql, mockColumns);
+
+      expect(result.columnAliases).toEqual({
+        id: "user_id",
+        name: "full_name",
+        email: "contact_email",
+      });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "status" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
+      expect(result.filters?.conditions).toHaveLength(1);
+      expect(result.filters?.conditions[0].column).toBe("status");
+      expect(result.filters?.conditions[0].table).toBe("u");
     });
   });
 
@@ -3665,6 +3618,9 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "id": "user_identifier",
+          },
           "hiddenColumnList": [
             {
               "column": "name",
@@ -3701,6 +3657,9 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "id": "identifier",
+          },
           "hiddenColumnList": [
             {
               "column": "email",
@@ -3733,6 +3692,9 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "id": "user_id",
+          },
           "hiddenColumnList": [
             {
               "column": "email",
@@ -3765,6 +3727,9 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "id": "identifier",
+          },
           "hiddenColumnList": [
             {
               "column": "email",
@@ -3799,6 +3764,11 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "status" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "email": "contact_email",
+            "id": "user_id",
+            "name": "full_name",
+          },
           "hiddenColumnList": [
             {
               "column": "status",
@@ -3826,6 +3796,9 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "id": "user_id",
+          },
           "filters": {
             "conditions": [
               {
@@ -3872,6 +3845,10 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "id": "user_id",
+            "name": "full_name",
+          },
           "hiddenColumnList": [
             {
               "column": "email",
@@ -3902,6 +3879,9 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "id": "user_id",
+          },
           "hiddenColumnList": [
             {
               "column": "name",
@@ -3941,6 +3921,11 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "id": "uid",
+            "name": "full_name",
+            "status": "user_status",
+          },
           "hiddenColumnList": [
             {
               "column": "age",
@@ -3965,6 +3950,9 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "id": "user_identifier",
+          },
           "filters": {
             "conditions": [
               {
@@ -4018,6 +4006,10 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "created_at" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "created_at": "created",
+            "id": "uid",
+          },
           "hiddenColumnList": [
             {
               "column": "name",
@@ -4052,6 +4044,10 @@ describe("SQL Query Parser", () => {
       expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
       expect(result).toMatchInlineSnapshot(`
         {
+          "columnAliases": {
+            "id": "User ID",
+            "name": "Full Name",
+          },
           "hiddenColumnList": [
             {
               "column": "email",

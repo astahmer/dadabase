@@ -14,6 +14,7 @@ import { buildJoinOnSnippet, isAfterJoinKeyword } from "./build-join-on-snippet.
 import { COMPARISON_OPERATORS } from "./comparison-operators.ts";
 import {
   createAsteriskCompletion,
+  createColumnAliasCompletion,
   createColumnCompletion,
   createKeywordCompletion,
   createOperatorCompletion,
@@ -21,6 +22,7 @@ import {
   detectCompletionContext,
   getContextualKeywords,
 } from "./sql-completion-helper";
+import { parseSelectColumnAliases } from "./sql-query-parser.ts";
 
 // https://forcedotcom.github.io/phoenix/index.html#order
 
@@ -261,6 +263,14 @@ export function sqlCompletionProvider(
         return createColumnCompletion(colName, tableRefName, cursorContext, monaco, metadata);
       }),
     );
+
+    // Also suggest SELECT column aliases when present in the query text
+    const selectMatch = input.fullText.match(/SELECT\s+(.+?)\s+FROM/i);
+    if (selectMatch?.[1]) {
+      for (const { column, alias } of parseSelectColumnAliases(selectMatch[1])) {
+        suggestions.push(createColumnAliasCompletion(alias, column, monaco));
+      }
+    }
   }
 
   // console.log("context", { cursorContext, context, suggestions });

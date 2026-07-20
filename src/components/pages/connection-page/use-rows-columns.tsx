@@ -1,5 +1,9 @@
-import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
 import type { ColumnDef } from "@tanstack/react-table";
+
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+
+import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
 
 import { ColumnHeaderWithInfo } from "#src/components/app/column-header-with-info.tsx";
 import { ForeignKeyIcon } from "#src/components/app/foreign-key-icon.tsx";
@@ -11,8 +15,6 @@ import { getColumnTextAlignment } from "#src/lib/data-type-utils.ts";
 import { getJoinColorClassName } from "#src/lib/join-color-palette.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
 
 import type { JoinTablesConfig } from "./join-tables/join-tables.types.ts";
 
@@ -55,6 +57,8 @@ export interface UseRowsColumnsOptions {
   onMenuOpen?: (columnName: string, cellValue: unknown) => void;
   enableSorting?: boolean;
   joins?: JoinTablesConfig["joins"];
+  /** SELECT column aliases: source column name → display alias */
+  columnAliases?: Record<string, string>;
 }
 
 /**
@@ -76,6 +80,7 @@ export const useRowsColumns = ({
   onMenuOpen,
   enableSorting = true,
   joins,
+  columnAliases,
 }: UseRowsColumnsOptions): ColumnDef<Record<string, unknown>>[] => {
   const queryClient = useQueryClient();
   const primaryKeyColumns = useMemo(
@@ -160,6 +165,7 @@ export const useRowsColumns = ({
           header: () => (
             <ColumnHeaderWithInfo
               columnName={col.name}
+              displayName={columnAliases?.[col.name] ?? columnAliases?.[col.name.toLowerCase()]}
               dataType={col.dataType}
               showBadge
               isPrimaryKey={col.primaryKey}
@@ -281,5 +287,6 @@ export const useRowsColumns = ({
     onExpandToSheet,
     onMenuOpen,
     primaryKeyColumns,
+    columnAliases,
   ]);
 };

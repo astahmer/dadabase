@@ -12,6 +12,8 @@ interface ForeignKeyInfo {
 
 interface ColumnHeaderWithInfoProps {
   columnName: string;
+  /** When set, shown instead of columnName (e.g. SELECT alias). */
+  displayName?: string;
   dataType: string;
   showBadge?: boolean;
   children?: ReactNode;
@@ -25,6 +27,7 @@ interface ColumnHeaderWithInfoProps {
 
 export const ColumnHeaderWithInfo = ({
   columnName,
+  displayName,
   dataType,
   showBadge = true,
   children,
@@ -37,6 +40,9 @@ export const ColumnHeaderWithInfo = ({
 }: ColumnHeaderWithInfoProps) => {
   // Build tooltip content with data type and constraints
   const tooltipParts = [dataType];
+  if (displayName && displayName !== columnName) {
+    tooltipParts.unshift(`${displayName} (${columnName})`);
+  }
   if (isPrimaryKey) {
     tooltipParts.push("Primary Key");
   }
@@ -56,7 +62,7 @@ export const ColumnHeaderWithInfo = ({
   return (
     <Tooltip content={tooltipContent} portalled colorPalette="inverted">
       <div className={`flex min-w-0 items-center gap-2 ${className || ""}`}>
-        <span className="truncate">{columnName}</span>
+        <span className="truncate">{displayName || columnName}</span>
         {showBadge && <DataTypeBadge dataType={dataType} />}
         {children}
       </div>

@@ -4,7 +4,7 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 
 ## raw SQL viewer/editor
 
-- [ ] edit in datatable with commit phase (review pending changes + translated UPDATE SQL before save) — today saves immediately on blur
+- [x] edit in datatable with commit phase (review pending changes + translated UPDATE SQL before save) — today saves immediately on blur
 - [ ] monaco `changeViewZones` for inline actions (run/explain/format/fullscreen/copy/save) — toolbar exists; viewZones optional polish
 - [x] diagnostics in editor (missing table/column/syntax) via `setModelMarkers`
 - [x] real `BETWEEN` operator (NL, SQL parser, build-where, filter UI)
@@ -49,8 +49,8 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [x] SQL snippets library
 - [x] drag/drop tabs to reorder
 - [x] sidebar fixed icon rail (switch connection, theme, refresh, reset, saved queries, history, settings)
-- [ ] column aliases end-to-end (parsing, completion, filters, visibility, sorting)
-- [ ] expandable table row with nested entity inline (bottom relationship panel covers most cases)
+- [x] column aliases end-to-end (parsing, completion, filters, visibility, sorting)
+- [x] expandable table row with nested entity inline (bottom relationship panel covers most cases)
 
 ## issues
 

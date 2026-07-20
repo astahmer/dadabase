@@ -1,3 +1,7 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useCallback } from "react";
+
 import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
@@ -8,9 +12,6 @@ import {
   updateTabState,
 } from "#src/components/pages/connection-page/create-tab-state.ts";
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
-import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useCallback } from "react";
 
 import type { UseRowsColumnsOptions } from "./use-rows-columns.tsx";
 

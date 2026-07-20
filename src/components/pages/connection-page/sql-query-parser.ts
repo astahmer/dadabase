@@ -18,6 +18,7 @@ import { parseHiddenColumnString } from "./hidden-column-list.ts";
  * - NULLS FIRST/NULLS LAST ordering for NULL values
  * - LIMIT/OFFSET as limit and offset
  * - Selected columns as hiddenColumnList
+ * - Column aliases from SELECT (`col AS alias` / `col alias`) as columnAliases
  * - JOIN clauses (LEFT, INNER, RIGHT, FULL OUTER, CROSS)
  *
  * Returns partial tab state updates that can be merged with existing state
@@ -32,7 +33,15 @@ export interface ParsedSqlQueryState {
   limit?: number;
   offset?: number;
   hiddenColumnList?: HiddenColumnRef[];
+  /** Map of source column name (lowercase) → display alias from SELECT */
+  columnAliases?: Record<string, string>;
   joins?: JoinedTable[];
+}
+
+/** One SELECT list item that has an alias: `name AS user_name` or `name user_name`. */
+export interface SelectColumnAlias {
+  column: string;
+  alias: string;
 }
 
 // ============================================================================
@@ -186,6 +195,52 @@ const extractColumnNameWithAlias = (columnExpression: string): string => {
   return extractColumnName(columnPart);
 };
 
+const stripIdentQuotes = (value: string): string => value.replace(/^["`]|["`]$/g, "").trim();
+
+/**
+ * Parse SELECT list items for column aliases (`col AS alias` / `col alias`).
+ * Skips `*`, expressions with `(`, and bare columns without aliases.
+ */
+export const parseSelectColumnAliases = (selectPart: string): SelectColumnAlias[] => {
+  if (!selectPart.trim() || selectPart.trim() === "*") return [];
+
+  const aliases: SelectColumnAlias[] = [];
+  for (const raw of selectPart.split(",")) {
+    const item = raw.trim();
+    if (!item || item === "*" || item.includes("(")) continue;
+
+    const asMatch = item.match(/^(.+?)\s+AS\s+(.+)$/i);
+    if (asMatch) {
+      const column = extractColumnName(asMatch[1].trim());
+      const alias = stripIdentQuotes(asMatch[2].trim());
+      if (column && alias) {
+        aliases.push({ column, alias });
+      }
+      continue;
+    }
+
+    // Space-separated alias without AS: `col alias` / `table.col "Alias"`
+    const parts = item.split(/\s+/).filter(Boolean);
+    if (parts.length < 2) continue;
+
+    const column = extractColumnName(parts[0]);
+    const alias = stripIdentQuotes(parts[parts.length - 1]);
+    if (column && alias && column !== alias.toLowerCase()) {
+      aliases.push({ column, alias });
+    }
+  }
+  return aliases;
+};
+
+/** Convert alias list to column → alias map (last alias wins for duplicate columns). */
+export const columnAliasesToMap = (aliases: SelectColumnAlias[]): Record<string, string> => {
+  const map: Record<string, string> = {};
+  for (const { column, alias } of aliases) {
+    map[column] = alias;
+  }
+  return map;
+};
+
 /**
  * Simple regex-based SQL WHERE clause parser
  * Handles basic operators and conditions, not full SQL parsing
@@ -213,14 +268,52 @@ export const parseSqlQuery = (sql: string, availableColumns: string[]): ParsedSq
     }
   }
 
+  // Parse SELECT clause early so aliases can resolve ORDER BY / visibility
+  let selectColumnAliases: SelectColumnAlias[] = [];
+  const selectMatch = normalizedSqlUpper.match(SELECT_REGEX);
+  if (selectMatch && selectMatch[1]) {
+    // Use original-cased SELECT list for alias display names
+    const selectMatchUpper = selectMatch[1];
+    const selectStartIndex = normalizedSqlUpper.indexOf(selectMatchUpper);
+    const selectedPart = normalizedSql
+      .substring(selectStartIndex, selectStartIndex + selectMatchUpper.length)
+      .trim();
+
+    selectColumnAliases = parseSelectColumnAliases(selectedPart);
+    if (selectColumnAliases.length > 0) {
+      result.columnAliases = columnAliasesToMap(selectColumnAliases);
+    }
+
+    // If not SELECT *, track which columns are selected
+    if (selectedPart !== "*") {
+      const selectedColumns = new Set(
+        selectedPart.split(",").map((col) => {
+          // Handle aliases and qualified column names
+          return extractColumnNameWithAlias(col.trim());
+        }),
+      );
+
+      // Hidden columns are those NOT in the SELECT list
+      const hidden = availableColumns.filter((col) => !selectedColumns.has(col.toLowerCase()));
+      if (hidden.length > 0) {
+        result.hiddenColumnList = hidden.map((col) => parseHiddenColumnString(col));
+      }
+    }
+  }
+
+  const aliasToColumn = new Map(
+    selectColumnAliases.map(({ column, alias }) => [alias.toLowerCase(), column]),
+  );
+
   // Parse ORDER BY clause - takes the FIRST column in ORDER BY
   // Handles quoted identifiers and table-qualified columns: table.column, "table"."column", etc.
-  // Also captures NULLS FIRST/NULLS LAST
+  // Also captures NULLS FIRST/NULLS LAST. Resolves SELECT aliases to source columns.
   const orderByMatch = normalizedSqlUpper.match(ORDER_BY_REGEX);
   if (orderByMatch && orderByMatch[1]) {
     const column = orderByMatch[1].toLowerCase();
-    if (availableColumns.includes(column)) {
-      result.orderBy = column;
+    const resolvedColumn = availableColumns.includes(column) ? column : aliasToColumn.get(column);
+    if (resolvedColumn) {
+      result.orderBy = resolvedColumn;
       result.orderDirection =
         (orderByMatch[2]?.toLowerCase() as "asc" | "desc") || ("asc" as const);
 
@@ -269,27 +362,6 @@ export const parseSqlQuery = (sql: string, availableColumns: string[]): ParsedSq
     const having = parseHavingClause(havingClause);
     if (having.conditions.length > 0) {
       result.having = having;
-    }
-  }
-
-  // Parse SELECT clause to determine hidden columns
-  const selectMatch = normalizedSqlUpper.match(SELECT_REGEX);
-  if (selectMatch && selectMatch[1]) {
-    const selectedPart = selectMatch[1].trim();
-    // If not SELECT *, track which columns are selected
-    if (selectedPart !== "*") {
-      const selectedColumns = new Set(
-        selectedPart.split(",").map((col) => {
-          // Handle aliases and qualified column names
-          return extractColumnNameWithAlias(col.trim());
-        }),
-      );
-
-      // Hidden columns are those NOT in the SELECT list
-      const hidden = availableColumns.filter((col) => !selectedColumns.has(col.toLowerCase()));
-      if (hidden.length > 0) {
-        result.hiddenColumnList = hidden.map((col) => parseHiddenColumnString(col));
-      }
     }
   }
 

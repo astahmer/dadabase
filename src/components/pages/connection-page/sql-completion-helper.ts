@@ -859,6 +859,20 @@ export function createAliasCompletion(tableName: string, monaco: any) {
 }
 
 /**
+ * Suggest a SELECT column alias (e.g. `user_name` for `name AS user_name`).
+ */
+export function createColumnAliasCompletion(alias: string, sourceColumn: string, monaco: any) {
+  return {
+    label: alias,
+    kind: monaco.languages.CompletionItemKind.Field,
+    insertText: `"${alias}"`,
+    sortText: `0_${alias}`,
+    detail: `Alias for ${sourceColumn}`,
+    range: undefined,
+  } as any;
+}
+
+/**
  * Create completion items for SQL operators
  */
 export function createOperatorCompletion(operator: string, monaco: any) {

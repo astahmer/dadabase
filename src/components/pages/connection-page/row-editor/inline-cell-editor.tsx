@@ -16,6 +16,8 @@ import { formatDbError } from "#src/lib/format-db-error.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
 import { updateRowServerFn } from "#src/server/introspection/start-fns/update-row.start.ts";
 
+import { usePendingCellEdits } from "./pending-cell-edits-context.tsx";
+
 export interface InlineCellEditorProps {
   connectionUrl: string;
   schema: string;
@@ -59,6 +61,7 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
   } = props;
 
   const queryClient = useQueryClient();
+  const pendingEdits = usePendingCellEdits();
   const [value, setValue] = useState<unknown>(initialValue ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -141,6 +144,22 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
       onCancel();
       return;
     }
+
+    // Buffer into pending-edits commit phase when provider is present
+    if (pendingEdits) {
+      pendingEdits.bufferEdit({
+        schema,
+        table,
+        column: columnName,
+        dataType,
+        primaryKey,
+        previousValue: initialValue,
+        nextValue: coerceColumnValue(dataType, next),
+      });
+      onSaved();
+      return;
+    }
+
     saveMutation.mutate(next);
   };
 
@@ -161,7 +180,11 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
           disabled={saveMutation.isPending}
           onCheckedChange={(details) => {
             setValue(details.checked);
-            saveMutation.mutate(details.checked);
+            if (pendingEdits) {
+              commit(details.checked);
+            } else {
+              saveMutation.mutate(details.checked);
+            }
           }}
         >
           <SwitchControl>

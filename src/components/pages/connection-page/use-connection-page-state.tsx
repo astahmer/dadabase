@@ -7,6 +7,7 @@ import type {
 
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import type { DataTableRowSubrow } from "#src/components/data-table/data-table.row.tsx";
@@ -26,7 +27,7 @@ import {
   normalizeHiddenColumnList,
   toHiddenColumnKeys,
 } from "#src/components/pages/connection-page/hidden-column-list.ts";
-import { RelationshipSubrowTable } from "#src/components/pages/connection-page/relationships/relationship-subrow-table.tsx";
+import { RelatedRowExpandPreview } from "#src/components/pages/connection-page/relationships/related-row-expand-preview.tsx";
 import { useRowsColumns } from "#src/components/pages/connection-page/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
 import { useTableRelationships } from "#src/components/pages/connection-page/use-table-relationships.ts";
@@ -85,12 +86,15 @@ export const useConnectionPageState = ({
       table: s.table,
       filters: s.filters,
       filtersOpened: s.filtersOpened,
+      groupBy: s.groupBy,
+      having: s.having,
       limit: s.limit,
       offset: s.offset,
       orderBy: s.orderBy,
       orderDirection: s.orderDirection,
       nullsOrder: s.nullsOrder,
       hiddenColumnList: s.hiddenColumnList,
+      columnAliases: s.columnAliases,
       columnVisibilityMode: s.columnVisibilityMode,
       tableSize: s.tableSize,
       columnPinning: s.columnPinning,
@@ -124,6 +128,19 @@ export const useConnectionPageState = ({
             orderDirection: undefined,
           });
         },
+      });
+    },
+  );
+
+  const havingBuilder = useQueryBuilder(
+    search.having ?? { conditions: [], logicalOperator: "and" },
+    (updatedHaving) => {
+      navigate({
+        search: (prev) =>
+          updateTabState(prev, {
+            having: updatedHaving.conditions.length ? updatedHaving : undefined,
+            offset: 0,
+          }),
       });
     },
   );
@@ -213,6 +230,8 @@ export const useConnectionPageState = ({
             conditions: [],
             logicalOperator: "and",
           },
+          groupBy: search.groupBy ? Array.from(search.groupBy) : undefined,
+          having: havingBuilder.getWhereClause() ?? undefined,
           joins: joins,
           selectedColumns: columnVisibilityFilters.selectedColumns,
           excludedColumns: columnVisibilityFilters.excludedColumns,
@@ -259,6 +278,46 @@ export const useConnectionPageState = ({
   // Static columns
   const staticColumns: Array<ColumnDef<Record<string, unknown>>> = useMemo(
     () => [
+      {
+        id: "__expand",
+        meta: { enableColumnOrdering: false },
+        header: () => null,
+        cell: (ctx) => {
+          const isExpanded = search.relationshipRowId === ctx.row.id;
+          return (
+            <div className="flex h-full w-full items-center justify-center">
+              <Button
+                size="xs"
+                variant="ghost"
+                className="h-6 w-6 p-0"
+                aria-label={isExpanded ? "Collapse related rows" : "Expand related rows"}
+                data-testid={`row-expand-${ctx.row.id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate({
+                    search: (prev) =>
+                      updateTabState(prev, {
+                        relationshipRowId: isExpanded ? undefined : ctx.row.id,
+                      }),
+                  });
+                }}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </div>
+          );
+        },
+        size: 28,
+        minSize: 28,
+        maxSize: 28,
+        enableResizing: false,
+        enableSorting: false,
+        enablePinning: false,
+      } as ColumnDef<Record<string, unknown>>,
       {
         id: "__select",
         meta: { enableColumnOrdering: false },
@@ -456,6 +515,7 @@ export const useConnectionPageState = ({
       activeConnectionUrl,
       search.schema,
       search.table,
+      search.relationshipRowId,
       tableMetadata.columnMetadata,
       navigate,
       search.offset,
@@ -478,6 +538,7 @@ export const useConnectionPageState = ({
     joins: joins,
     activeConnectionUrl,
     enableSorting: true,
+    columnAliases: search.columnAliases,
     onFollowFK: rowActions.onFollowFK,
     onFindReferences: rowActions.onFindReferences,
     onShowQuickReferences: rowActions.onShowQuickReferences,
@@ -507,18 +568,22 @@ export const useConnectionPageState = ({
         return [];
       }
 
-      return relationships.map((rel) => ({
-        id: `rel_${rel.constraintName}`,
-        content: (
-          <RelationshipSubrowTable
-            relationship={rel}
-            parentRowValue={row.original[rel.referencedColumn] as string}
-            connection={{ url: activeConnectionUrl }}
-          />
-        ),
-      }));
+      return [
+        {
+          id: "related-preview",
+          content: (
+            <RelatedRowExpandPreview
+              relationships={relationships}
+              rowData={row.original}
+              connectionUrl={activeConnectionUrl}
+              schema={search.schema || ""}
+              table={search.table || ""}
+            />
+          ),
+        },
+      ];
     },
-    [relationships, search.relationshipRowId, activeConnectionUrl],
+    [relationships, search.relationshipRowId, search.schema, search.table, activeConnectionUrl],
   );
 
   // Combine columns
@@ -581,20 +646,13 @@ export const useConnectionPageState = ({
 
   // Column pinning state
   const columnPinningState: ColumnPinningState = useMemo(() => {
-    const state = {
-      left: Array.from(search.columnPinning?.left ?? []),
+    const left = Array.from(search.columnPinning?.left ?? []).filter(
+      (col) => col !== "__expand" && col !== "__select",
+    );
+    return {
+      left: ["__expand", "__select", ...left],
       right: Array.from(search.columnPinning?.right ?? []),
     };
-
-    // Add __select column if it doesn't exist
-    if (!state.left.some((col) => col === "__select")) {
-      state.left.unshift(
-        // ...(staticColumns.map((col) => col.id).filter(Boolean) as string[]),
-        // "__rowIndex",
-        "__select",
-      );
-    }
-    return state;
   }, [search.columnPinning]);
 
   // Column order state
@@ -718,6 +776,8 @@ export const useConnectionPageState = ({
   return {
     activeConnectionUrl,
     queryBuilder,
+    havingBuilder,
+    groupBy: search.groupBy ? Array.from(search.groupBy) : [],
     // TODO?
     // rowsQuery: {
     // 	...rowsQuery,
