@@ -36,6 +36,8 @@ export function RowContextMenu(props: RowContextMenuProps) {
               onViewJson={() => setIsJsonViewerOpen(true)}
               onExpandRelationships={props.onExpandRelationships}
               onClose={props.onClose}
+              onEdit={props.onEdit}
+              onDuplicate={props.onDuplicate}
             />
           </MenuContent>
         </Portal>

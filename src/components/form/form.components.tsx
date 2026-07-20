@@ -74,6 +74,7 @@ export function TextField({
         </Label>
       )}
       <Input
+        id={label}
         type={type}
         value={field.state.value}
         placeholder={placeholder}

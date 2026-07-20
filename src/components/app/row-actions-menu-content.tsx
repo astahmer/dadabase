@@ -1,5 +1,5 @@
 import { Clipboard, useClipboard } from "@ark-ui/react";
-import { Code, Copy, Eye, Link } from "lucide-react";
+import { Code, Copy, Eye, Link, Pencil, CopyPlus } from "lucide-react";
 
 import { MenuItem, MenuItemText } from "../ui/menu";
 
@@ -8,6 +8,8 @@ export interface RowActionsMenuContentProps {
   onViewJson?: () => void;
   onClose?: () => void;
   onExpandRelationships?: () => void;
+  onEdit?: () => void;
+  onDuplicate?: () => void;
 }
 
 export function RowActionsMenuContent({
@@ -15,6 +17,8 @@ export function RowActionsMenuContent({
   onViewJson,
   onClose,
   onExpandRelationships,
+  onEdit,
+  onDuplicate,
 }: RowActionsMenuContentProps) {
   const handleLogRow = () => {
     console.log("Row data:", row);
@@ -25,6 +29,30 @@ export function RowActionsMenuContent({
 
   return (
     <>
+      {onEdit && (
+        <MenuItem
+          value="edit"
+          onClick={() => {
+            onEdit();
+            onClose?.();
+          }}
+        >
+          <Pencil className="size-4" />
+          <MenuItemText>Edit row</MenuItemText>
+        </MenuItem>
+      )}
+      {onDuplicate && (
+        <MenuItem
+          value="duplicate"
+          onClick={() => {
+            onDuplicate();
+            onClose?.();
+          }}
+        >
+          <CopyPlus className="size-4" />
+          <MenuItemText>Duplicate row</MenuItemText>
+        </MenuItem>
+      )}
       {onViewJson && (
         <MenuItem value="view-json" onClick={onViewJson}>
           <Code className="size-4" />

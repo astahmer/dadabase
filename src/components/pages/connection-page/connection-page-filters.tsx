@@ -10,6 +10,7 @@ import {
   LucideChevronDown,
   LucideChevronUp,
   LucideListFilter,
+  Plus,
   Rows,
 } from "lucide-react";
 import { useState } from "react";
@@ -32,11 +33,21 @@ interface ConnectionPageFiltersProps {
   schema: string;
   tableName: string;
   columnMetadata?: Array<TableColumnMetadata>;
+  onAddRow?: () => void;
 }
 
 export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
-  const { columnList, isLoading, table, queryBuilder, url, schema, tableName, columnMetadata } =
-    props;
+  const {
+    columnList,
+    isLoading,
+    table,
+    queryBuilder,
+    url,
+    schema,
+    tableName,
+    columnMetadata,
+    onAddRow,
+  } = props;
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
 
@@ -107,6 +118,19 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
         {viewMode === "rows" && (
           <>
             <div id="connection-page-filters-top-row" className="contents" />
+            {onAddRow && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onAddRow}
+                disabled={isLoading}
+                data-testid="add-row-button"
+                className="gap-1.5"
+              >
+                <Plus className="h-3 w-3" />
+                Add row
+              </Button>
+            )}
             <Button
               variant={filterConditions.length > 0 && !filtersOpened ? "default" : "outline"}
               size="sm"

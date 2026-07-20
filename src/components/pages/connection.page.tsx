@@ -35,7 +35,14 @@ import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
 import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
-import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import type { DbConnection } from "./connection.types";
 
@@ -71,6 +78,11 @@ import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
 import { ExplainOutputDrawer } from "./connection-page/explain-output-drawer.tsx";
 import { useJoinedTables } from "./connection-page/join-tables/use-joined-tables.ts";
 import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
+import {
+  createClosedRowEditorState,
+  RowEditorSheet,
+  type RowEditorSheetState,
+} from "./connection-page/row-editor/row-editor-sheet.tsx";
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
 import { TabErrorState } from "./connection-page/tab-error-state.tsx";
@@ -370,7 +382,20 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
 const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: string }) => {
   const { connection } = props;
-  const pageState = useConnectionPageState({ connection });
+  const [rowEditor, setRowEditor] = useState<RowEditorSheetState>(createClosedRowEditorState);
+  const onEditRow = useCallback(
+    (row: Record<string, unknown>) => setRowEditor({ open: true, mode: "edit", row }),
+    [],
+  );
+  const onDuplicateRow = useCallback(
+    (row: Record<string, unknown>) => setRowEditor({ open: true, mode: "duplicate", row }),
+    [],
+  );
+  const pageState = useConnectionPageState({
+    connection,
+    onEditRow,
+    onDuplicateRow,
+  });
   const navigate = useNavigate({ from: "/connections/$connectionName" });
 
   const search = useActiveTabState((tab) => {
@@ -559,6 +584,11 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
             schema={search.schema}
             tableName={search.table}
             columnMetadata={pageState.columnMetadata}
+            onAddRow={
+              search.table
+                ? () => setRowEditor({ open: true, mode: "insert", row: null })
+                : undefined
+            }
           />
 
           {/* Query Filter Builder */}
@@ -750,6 +780,21 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
           </Splitter.Root>
         )}
       </div>
+
+      {search.schema && search.table && (
+        <RowEditorSheet
+          open={rowEditor.open}
+          mode={rowEditor.mode}
+          row={rowEditor.row}
+          connectionUrl={pageState.activeConnectionUrl}
+          schema={search.schema}
+          table={search.table}
+          columnMetadata={pageState.columnMetadata}
+          onOpenChange={(open) =>
+            setRowEditor((prev) => (open ? { ...prev, open } : createClosedRowEditorState()))
+          }
+        />
+      )}
     </>
   );
 };
@@ -1195,9 +1240,10 @@ const BulkActions = (
 
       return ids;
     },
-    onSuccess: (deletedIds) => {
+    onSuccess: async (deletedIds) => {
       // Clear selection
       props.rowsDataTable.resetRowSelection();
+      await queryClient.invalidateQueries({ queryKey: ["remote", "rows"] });
 
       toaster.create({
         title: "Success",

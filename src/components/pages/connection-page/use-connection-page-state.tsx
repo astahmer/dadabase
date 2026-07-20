@@ -55,7 +55,15 @@ interface QueryResponse {
   rowsAffected?: number;
 }
 
-export const useConnectionPageState = ({ connection }: { connection: DbConnection }) => {
+export const useConnectionPageState = ({
+  connection,
+  onEditRow,
+  onDuplicateRow,
+}: {
+  connection: DbConnection;
+  onEditRow?: (row: Record<string, unknown>) => void;
+  onDuplicateRow?: (row: Record<string, unknown>) => void;
+}) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
 
   const activeConnectionUrl = useActiveConnectionUrl(connection);
@@ -324,6 +332,16 @@ export const useConnectionPageState = ({ connection }: { connection: DbConnectio
                   table: search.table,
                 }}
                 connectionUrl={activeConnectionUrl}
+                onEdit={
+                  onEditRow
+                    ? () => onEditRow(ctx.row.original as Record<string, unknown>)
+                    : undefined
+                }
+                onDuplicate={
+                  onDuplicateRow
+                    ? () => onDuplicateRow(ctx.row.original as Record<string, unknown>)
+                    : undefined
+                }
                 onExpandRelationships={() => {
                   navigate({
                     search: (prev) => {
@@ -407,6 +425,8 @@ export const useConnectionPageState = ({ connection }: { connection: DbConnectio
       navigate,
       search.offset,
       search.limit,
+      onEditRow,
+      onDuplicateRow,
     ],
   );
 
