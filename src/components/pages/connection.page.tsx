@@ -45,6 +45,7 @@ import {
 import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
+import { saveQueryFavoriteServerFn } from "#src/server/query-logger/start-fns/save-query-favorite.start.ts";
 
 import type { DbConnection } from "./connection.types";
 
@@ -52,6 +53,7 @@ import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { useDataTable } from "../data-table/use-data-table.ts";
 import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
+import { deriveFavoriteLabel } from "../query-logger/derive-favorite-label.ts";
 import { QueryLoggerContent } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { Button } from "../ui/button.tsx";
@@ -351,6 +353,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                       >
                         <QueryLoggerContent
                           connectionUrl={activeConnectionUrl}
+                          connectionId={connection.id}
                           isExpanded={ctx.isPanelExpanded(panels.queryLogger)}
                           onCollapse={() => ctx.collapsePanel(panels.queryLogger)}
                           onExpand={() => ctx.expandPanel(panels.queryLogger, 48)}
@@ -845,6 +848,31 @@ const RowsTableSqlEditor = (
   // Keep draft SQL locally - don't switch to custom SQL mode until user runs
   const [draftSql, setDraftSql] = useState<string | null>(null);
 
+  const saveFavoriteMutation = useMutation({
+    mutationFn: (sql: string) =>
+      saveQueryFavoriteServerFn({
+        data: {
+          connectionId: props.connection.id,
+          label: deriveFavoriteLabel(sql),
+          sql,
+        },
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["app", "queryFavorites"],
+      });
+      toaster.create({
+        title: "Query saved to favorites",
+      });
+    },
+    onError: (error) => {
+      toaster.create({
+        title: "Failed to save favorite",
+        description: error instanceof Error ? error.message : String(error),
+      });
+    },
+  });
+
   // When the generated SQL changes (e.g., from adding a join via UI), clear the draft
   // so the editor syncs with the new generated SQL
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset draft when generated SQL changes
@@ -921,6 +949,8 @@ const RowsTableSqlEditor = (
               }),
           });
         }}
+        onSaveFavorite={(sql) => saveFavoriteMutation.mutate(sql)}
+        isSavingFavorite={saveFavoriteMutation.isPending}
         isFullscreen={isEditorFullscreen}
         className="h-full text-sm"
         warning={

@@ -9,6 +9,7 @@ import {
   Minimize2,
   Play,
   Square,
+  Star,
   Wand2,
   Zap,
 } from "lucide-react";
@@ -80,6 +81,10 @@ interface SqlQueryPreviewProps {
   tables?: Array<{ schema: string; name: string }>;
   /** Available columns grouped by table */
   columns?: TableWithColumnsMetadata[];
+  /** Callback to save the current SQL as a favorite */
+  onSaveFavorite?: (sql: string) => void;
+  /** Whether a favorite save is in progress */
+  isSavingFavorite?: boolean;
   /** Custom CSS class */
   className?: string;
   /** Warning message to display next to the tabs */
@@ -111,6 +116,8 @@ export function SqlQueryPreview({
   onFormat,
   onToggleFullscreen,
   onExpandPanel,
+  onSaveFavorite,
+  isSavingFavorite = false,
   isFullscreen = false,
   isCollapsed = true,
   onToggleCollapsed,
@@ -286,6 +293,20 @@ export function SqlQueryPreview({
                   <Wand2 className="h-4 w-4" />
                 </Button>
               </Tooltip>
+              {onSaveFavorite && (
+                <Tooltip content="Save as favorite">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={isSavingFavorite}
+                    onClick={() => onSaveFavorite(editorValueRef.current || customSql || sql)}
+                    className="h-8 px-2"
+                    data-testid="sql-save-favorite"
+                  >
+                    <Star className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+              )}
               {isFullscreen ? (
                 <Tooltip content="Exit fullscreen">
                   <Button

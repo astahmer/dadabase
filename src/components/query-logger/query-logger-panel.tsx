@@ -1,14 +1,19 @@
+import { createListCollection } from "@ark-ui/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { cx } from "class-variance-authority";
+import { ChevronDown, ChevronUp, Star, Trash2 } from "lucide-react";
+import { useState } from "react";
+
 import { useQueryLogger } from "#src/components/query-logger/use-query-logger.ts";
+import { Badge } from "#src/components/ui/badge.tsx";
 import {
   type QueryLogEntryType,
   QueryLogLevel,
   type QueryLogStatus,
   QueryLogType,
 } from "#src/server/query-logger/query-logger.types.ts";
-import { createListCollection } from "@ark-ui/react";
-import { cx } from "class-variance-authority";
-import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { deleteQueryFavoriteServerFn } from "#src/server/query-logger/start-fns/delete-query-favorite.start.ts";
+import { getQueryFavoritesQueryOptions } from "#src/server/query-logger/start-fns/get-query-favorites.start.ts";
 
 import { Button, buttonVariants } from "../ui/button.tsx";
 import { HStack } from "../ui/layout.tsx";
@@ -19,6 +24,7 @@ import { QueryLoggerDetailDialog } from "./query-logger-detail-dialog.tsx";
 
 interface QueryLoggerContentProps {
   connectionUrl: string;
+  connectionId?: string;
   isExpanded?: boolean;
   onCollapse?: () => void;
   onExpand?: () => void;
@@ -26,13 +32,28 @@ interface QueryLoggerContentProps {
 
 export const QueryLoggerContent = ({
   connectionUrl,
+  connectionId,
   isExpanded,
   onCollapse,
   onExpand,
 }: QueryLoggerContentProps) => {
+  const queryClient = useQueryClient();
   const queryLogger = useQueryLogger({ connectionUrl });
   const [selectedEntry, setSelectedEntry] = useState<QueryLogEntryType | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
+
+  const favoritesQuery = useQuery({
+    ...getQueryFavoritesQueryOptions({ connectionId: connectionId ?? "" }),
+    enabled: Boolean(connectionId) && showFavorites,
+  });
+
+  const deleteFavoriteMutation = useMutation({
+    mutationFn: (id: string) => deleteQueryFavoriteServerFn({ data: { id } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["app", "queryFavorites"] });
+    },
+  });
 
   const handleExpand = (entry: QueryLogEntryType) => {
     setSelectedEntry(entry);
@@ -69,6 +90,24 @@ export const QueryLoggerContent = ({
       <div className="bg-muted/50 hover:bg-muted group flex h-12 shrink-0 items-center border-b px-4 py-2 transition-colors">
         <div className="flex items-center gap-2 font-medium">
           <span>Query Logger</span>
+          {connectionId && (
+            <Button
+              variant={showFavorites ? "default" : "ghost"}
+              size="sm"
+              className="h-7 gap-1 px-2"
+              data-testid="query-favorites-toggle"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowFavorites((v) => !v);
+                if (!isExpanded) onExpand?.();
+              }}
+            >
+              <Star className="h-3.5 w-3.5" />
+              <Badge colorPalette="muted" size="2xs">
+                Favorites
+              </Badge>
+            </Button>
+          )}
           {isExpanded !== undefined && (onCollapse || onExpand) && (
             <button
               className="hover:bg-primary/20 ml-2 rounded p-1 opacity-60 transition-colors hover:opacity-100"
@@ -228,7 +267,43 @@ export const QueryLoggerContent = ({
       </div>
 
       <div className="flex h-full min-h-0 flex-1 flex-col">
-        {queryLogger.history.length === 0 ? (
+        {showFavorites ? (
+          <div className="flex h-full min-h-0 flex-1 flex-col divide-y overflow-auto">
+            {(favoritesQuery.data?.length ?? 0) === 0 ? (
+              <div className="text-muted-foreground flex h-52 items-center justify-center text-sm">
+                No saved favorites yet — use the star in the SQL bar
+              </div>
+            ) : (
+              favoritesQuery.data?.map((fav) => (
+                <div
+                  key={fav.id}
+                  className="hover:bg-muted/50 flex items-start gap-2 px-3 py-2"
+                  data-testid="query-favorite-row"
+                >
+                  <Star className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Badge colorPalette="warning" size="2xs">
+                        Favorite
+                      </Badge>
+                      <p className="truncate text-xs font-medium">{fav.label}</p>
+                    </div>
+                    <p className="text-muted-foreground truncate font-mono text-xs">{fav.sql}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 shrink-0 p-0"
+                    title="Delete favorite"
+                    onClick={() => deleteFavoriteMutation.mutate(fav.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        ) : queryLogger.history.length === 0 ? (
           <div className="text-muted-foreground flex h-52 items-center justify-center">
             No queries executed yet
           </div>

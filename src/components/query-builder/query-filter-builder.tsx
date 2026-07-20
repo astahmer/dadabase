@@ -273,11 +273,12 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
             value={[condition.operator]}
             onValueChange={(details) => {
               const nextOp = details.value?.[0] as FilterOperatorType;
-              const updates: Partial<FilterConditionExpression> = { operator: nextOp };
-              if (rangeOperators.includes(nextOp) && !Array.isArray(condition.value)) {
-                updates.value = ["", ""];
-              }
-              onUpdate(String(index), updates);
+              onUpdate(String(index), {
+                operator: nextOp,
+                ...(rangeOperators.includes(nextOp) && !Array.isArray(condition.value)
+                  ? { value: ["", ""] }
+                  : {}),
+              });
             }}
             onInputValueChange={(details) => operatorList.filter(details.inputValue)}
             className="w-full"

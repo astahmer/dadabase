@@ -1,11 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+
 import { getQueryHistoryQueryOptions } from "#src/server/introspection/start-fns/get-query-history.start.ts";
 import {
   type QueryLogFilters,
   QueryLogLevel,
 } from "#src/server/query-logger/query-logger.types.ts";
 import { clearQueryHistoryQueryOptions } from "#src/server/query-logger/start-fns/clear-query-history.start.ts";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 
 interface UseQueryLoggerProps {
   connectionUrl: string;

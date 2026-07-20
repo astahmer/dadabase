@@ -1,8 +1,5 @@
-import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import type { Table as TanstackTable } from "@tanstack/react-table";
 
-import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
 import { useNavigate } from "@tanstack/react-router";
 import {
   LayoutGrid,
@@ -14,6 +11,11 @@ import {
   Rows,
 } from "lucide-react";
 import { useState } from "react";
+
+import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
+
+import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
 
 import { OrderBySelect } from "../../app/order-by-select.tsx";
 import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
@@ -236,26 +238,21 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                       }),
                     );
                   } else {
-                    queryBuilder.updateManyConditions(
-                      filterConditions
-                        .map((f) => ({
-                          column: f.column,
-                          operator: f.operator,
-                          value: f.value as string,
-                        }))
-                        .concat(
-                          filters.map((f) =>
-                            Object.assign(
-                              {
-                                column: f.field,
-                                operator: operatorMap[f.operator] || `equals`,
-                                value: f.value as string | number | (string | number)[],
-                              },
-                              f.inverted && { inverted: true },
-                            ),
-                          ),
-                        ),
-                    );
+                    queryBuilder.updateManyConditions([
+                      ...filterConditions.map((f) => ({
+                        column: f.column,
+                        operator: f.operator,
+                        value: f.value as string,
+                      })),
+                      ...filters.map((f) => ({
+                        column: f.field,
+                        operator: operatorMap[f.operator] || "equals",
+                        value: (Array.isArray(f.value)
+                          ? f.value.map(String)
+                          : String(f.value ?? "")) as string | string[],
+                        ...(f.inverted ? { inverted: true as const } : {}),
+                      })),
+                    ] as Parameters<typeof queryBuilder.updateManyConditions>[0]);
                   }
                 }
 

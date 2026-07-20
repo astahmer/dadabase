@@ -35,8 +35,8 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 
 ## query history / favorites
 
-- [ ] favorites UI + Badge distinction (backend `query_favorites` exists; no client save/list yet)
-- [ ] save action in SQL query bar (wires into favorites)
+- [x] favorites UI + Badge distinction
+- [x] save action in SQL query bar (wires into favorites)
 
 ## new features
 
