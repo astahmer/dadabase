@@ -14,6 +14,7 @@ import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
 import { QueryLogLevel, QueryLogType } from "../query-logger/query-logger.types.ts";
 import { withQueryLogging } from "../query-logger/with-query-logging.ts";
 import { isSelectQuery } from "./detect-destructive-sql.ts";
+import { DADABASE_ROW_ID } from "./fns/row-identity.ts";
 import {
   buildJoinSqlClauses,
   buildPgSelectWithJoins,
@@ -1745,6 +1746,10 @@ export const queryTableRows = <TData>(input: {
       tableColumnsMap,
     });
 
+    const baseHasPrimaryKey = (columnResults[0]?.columns ?? []).some((c) => c.primaryKey);
+    // System row identity for no-PK tables (no joins — identity is base-table scoped).
+    const includeSystemRowId = !baseHasPrimaryKey && joins.length === 0;
+
     // Get count and rows
     const result = yield* sql.onDialectOrElse({
       pg: () =>
@@ -1774,7 +1779,7 @@ export const queryTableRows = <TData>(input: {
 					`;
 
           // Build the SELECT clause with proper aliases for joins
-          const selectPart =
+          let selectPart =
             joins.length > 0
               ? buildPgSelectWithJoins(
                   baseSchema,
@@ -1787,6 +1792,15 @@ export const queryTableRows = <TData>(input: {
                   columnList.length < (columnResults[0]?.columns.length ?? 999)
                 ? columnList.join(", ")
                 : "*";
+
+          let resultColumnList = columnList;
+          if (includeSystemRowId) {
+            selectPart =
+              selectPart === "*"
+                ? `ctid::text AS "${DADABASE_ROW_ID}", *`
+                : `ctid::text AS "${DADABASE_ROW_ID}", ${selectPart}`;
+            resultColumnList = [DADABASE_ROW_ID, ...columnList];
+          }
 
           const orderClause = orderBy
             ? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${
@@ -1835,7 +1849,7 @@ export const queryTableRows = <TData>(input: {
           const rowCount = Number(countResult?.[0]?.count ?? 0);
           return {
             rows: (rows ?? []) as TData[],
-            columnList,
+            columnList: resultColumnList,
             rowCount,
             hasNextPage: offset + limit < rowCount,
           };
@@ -1867,13 +1881,22 @@ export const queryTableRows = <TData>(input: {
 					`;
 
           // Build the SELECT clause with proper aliases for joins
-          const selectPart =
+          let selectPart =
             joins.length > 0
               ? buildSqliteSelectWithJoins(input.table, joinsRemapped, tableColumnsMap, joinAliases)
               : columnList.length > 0 &&
                   columnList.length < (columnResults[0]?.columns.length ?? 999)
                 ? columnList.join(", ")
                 : "*";
+
+          let resultColumnList = columnList;
+          if (includeSystemRowId) {
+            selectPart =
+              selectPart === "*"
+                ? `rowid AS "${DADABASE_ROW_ID}", *`
+                : `rowid AS "${DADABASE_ROW_ID}", ${selectPart}`;
+            resultColumnList = [DADABASE_ROW_ID, ...columnList];
+          }
 
           const orderClause = orderBy
             ? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}${
@@ -1923,7 +1946,7 @@ export const queryTableRows = <TData>(input: {
 
           return {
             rows: rows as TData[],
-            columnList,
+            columnList: resultColumnList,
             rowCount,
             hasNextPage: offset + limit < rowCount,
           };

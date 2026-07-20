@@ -25,6 +25,7 @@ import { JsonMonacoEditor } from "./json-monaco-editor.tsx";
 import { previewInsertSql, previewUpdateSql } from "./preview-sql.ts";
 import {
   buildInitialRowValues,
+  canLocateRow,
   getEditableColumns,
   hasPrimaryKey,
   prepareSubmitValues,
@@ -96,7 +97,7 @@ export function RowEditorSheet(props: RowEditorSheetProps) {
     [mode, columnMetadata],
   );
 
-  const canEdit = mode === "insert" || mode === "duplicate" || hasPrimaryKey(columnMetadata);
+  const canEdit = mode === "insert" || mode === "duplicate" || canLocateRow(columnMetadata, row);
 
   const form = useForm({
     defaultValues: initialValues,
@@ -149,7 +150,7 @@ export function RowEditorSheet(props: RowEditorSheetProps) {
       const prepared = prepareSubmitValues(mode, columnMetadata, value, row);
       if (mode === "edit") {
         if (!prepared.primaryKey || Object.keys(prepared.primaryKey).length === 0) {
-          throw new Error("Cannot update a row without a primary key");
+          throw new Error("Cannot update a row without a row identity");
         }
         return updateRowServerFn({
           data: {
@@ -215,14 +216,14 @@ export function RowEditorSheet(props: RowEditorSheetProps) {
           </SheetDescription>
         </SheetHeader>
 
-        {mode === "edit" && !hasPrimaryKey(columnMetadata) ? (
+        {mode === "edit" && !canLocateRow(columnMetadata, row) ? (
           <div
             className="border-border bg-muted/40 mx-4 rounded-md border px-3 py-3 text-sm"
             data-testid="row-editor-no-pk"
           >
-            <p className="font-medium">Editing requires a primary key</p>
+            <p className="font-medium">Cannot locate this row for editing</p>
             <p className="text-muted-foreground mt-1 text-xs">
-              This table has no primary key, so rows cannot be updated safely. Use{" "}
+              This table has no primary key and no system row identity is available. Use{" "}
               <span className="font-medium">Add row</span> to insert, or add a primary key in the
               database schema.
             </p>

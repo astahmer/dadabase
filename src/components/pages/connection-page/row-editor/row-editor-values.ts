@@ -6,6 +6,7 @@ import {
   isBooleanDataType,
   isJsonDataType,
 } from "#src/lib/data-type-utils.ts";
+import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
 
 export type RowEditorMode = "insert" | "edit" | "duplicate";
 
@@ -19,15 +20,36 @@ export function hasPrimaryKey(columnMetadata: ReadonlyArray<TableColumnMetadata>
   return getPrimaryKeyColumns(columnMetadata).length > 0;
 }
 
+export function hasSystemRowIdentity(row?: Record<string, unknown> | null): boolean {
+  return row != null && row[DADABASE_ROW_ID] != null;
+}
+
+/** True when the row can be uniquely targeted for update/delete. */
+export function canLocateRow(
+  columnMetadata: ReadonlyArray<TableColumnMetadata>,
+  row?: Record<string, unknown> | null,
+): boolean {
+  return hasPrimaryKey(columnMetadata) || hasSystemRowIdentity(row);
+}
+
 export function extractPrimaryKeyValues(
   columnMetadata: ReadonlyArray<TableColumnMetadata>,
   row: Record<string, unknown>,
 ): Record<string, unknown> {
-  const pk: Record<string, unknown> = {};
-  for (const col of getPrimaryKeyColumns(columnMetadata)) {
-    pk[col.name] = row[col.name] ?? null;
+  const pkColumns = getPrimaryKeyColumns(columnMetadata);
+  if (pkColumns.length > 0) {
+    const pk: Record<string, unknown> = {};
+    for (const col of pkColumns) {
+      pk[col.name] = row[col.name] ?? null;
+    }
+    return pk;
   }
-  return pk;
+
+  if (hasSystemRowIdentity(row)) {
+    return { [DADABASE_ROW_ID]: row[DADABASE_ROW_ID] };
+  }
+
+  return {};
 }
 
 function parseDefaultValue(column: TableColumnMetadata): unknown {

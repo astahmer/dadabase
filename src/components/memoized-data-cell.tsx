@@ -1,5 +1,6 @@
 import type { CellContext } from "@tanstack/react-table";
 
+import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
 import { memo, useState } from "react";
 
 import type { ForeignKeyInfo } from "./data-table/cell-context-menu.tsx";
@@ -84,19 +85,23 @@ function MemoizedDataCellInner({
 }: MemoizedDataCellProps) {
   const [editing, setEditing] = useState(false);
 
+  const primaryKey: Record<string, unknown> = {};
+  if (primaryKeyColumns.length > 0) {
+    for (const pk of primaryKeyColumns) {
+      primaryKey[pk] = ctx.row.original[pk];
+    }
+  } else if (ctx.row.original[DADABASE_ROW_ID] != null) {
+    primaryKey[DADABASE_ROW_ID] = ctx.row.original[DADABASE_ROW_ID];
+  }
+
   const canInlineEdit =
     !col.primaryKey &&
-    primaryKeyColumns.length > 0 &&
+    Object.keys(primaryKey).length > 0 &&
     Boolean(schema) &&
     Boolean(table) &&
     !col.dataType.toLowerCase().includes("json");
 
   if (editing && canInlineEdit && schema && table) {
-    const primaryKey: Record<string, unknown> = {};
-    for (const pk of primaryKeyColumns) {
-      primaryKey[pk] = ctx.row.original[pk];
-    }
-
     return (
       <div className="flex items-center gap-1" data-column-content={col.name}>
         <InlineCellEditor

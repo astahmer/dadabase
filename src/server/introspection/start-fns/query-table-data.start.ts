@@ -9,6 +9,7 @@ import {
   type QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
+import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -144,15 +145,21 @@ export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
     queryFn: async () => queryTableDataServerFn({ data: input }),
     meta: { loggable: true },
     placeholderData: keepPreviousData,
-    select: (data) => ({
-      ...data,
-      rows: data.rows.map((row) => {
+    select: (data) => {
+      const rows = data.rows.map((row) => {
         const record: Record<string, unknown> = {};
         data.columns.forEach((col, colIndex) => {
           record[col] = row[colIndex];
         });
         return record;
-      }),
-    }),
+      });
+
+      return {
+        ...data,
+        // Keep system row id on row records for mutations; hide from column chrome.
+        columns: data.columns.filter((col) => col !== DADABASE_ROW_ID),
+        rows,
+      };
+    },
   });
 };

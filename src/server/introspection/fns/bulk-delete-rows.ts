@@ -8,6 +8,7 @@ import { SqlClient } from "@effect/sql";
 import { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
 
+import { DADABASE_ROW_ID, isDadabaseRowIdKey } from "./row-identity.ts";
 import {
   assertSafeIdentifier,
   assertSafeIdentifiers,
@@ -17,12 +18,15 @@ import {
 export interface BulkDeleteRowsInput {
   schema: string;
   table: string;
-  /** One primary-key value map per row (supports composite keys). */
+  /**
+   * One primary-key value map per row (supports composite keys).
+   * For no-PK tables, each map is `{ [DADABASE_ROW_ID]: rowidOrCtid }`.
+   */
   primaryKeys: ReadonlyArray<Record<string, unknown>>;
 }
 
 /**
- * Deletes multiple rows by primary key (single or composite) with parameterized SQL.
+ * Deletes multiple rows by primary key or system row identity with parameterized SQL.
  */
 export const bulkDeleteRows = (
   input: BulkDeleteRowsInput,
@@ -47,17 +51,36 @@ export const bulkDeleteRows = (
         new SqlError({ cause: null, message: "Cannot bulk delete without primary key columns" }),
       );
     }
-    assertSafeIdentifiers(pkColumns, "primary key column");
 
-    for (const pk of input.primaryKeys) {
-      assertSafeIdentifiers(Object.keys(pk), "primary key column");
+    const usesSystemRowId = pkColumns.length === 1 && isDadabaseRowIdKey(pkColumns[0]!);
+    if (!usesSystemRowId) {
+      assertSafeIdentifiers(pkColumns, "primary key column");
+      for (const pk of input.primaryKeys) {
+        assertSafeIdentifiers(Object.keys(pk), "primary key column");
+      }
     }
 
-    const whereClause = sql.or(
-      input.primaryKeys.map((pk) =>
-        sql.and(pkColumns.map((column) => sql`${sql(column)} = ${pk[column]}`)),
-      ),
-    );
+    const whereClause = usesSystemRowId
+      ? yield* sql.onDialectOrElse({
+          pg: () =>
+            Effect.succeed(
+              sql.or(
+                input.primaryKeys.map(
+                  (pk) => sql`ctid = CAST(${String(pk[DADABASE_ROW_ID])} AS tid)`,
+                ),
+              ),
+            ),
+          sqlite: () =>
+            Effect.succeed(
+              sql.or(input.primaryKeys.map((pk) => sql`rowid = ${pk[DADABASE_ROW_ID]}`)),
+            ),
+          orElse: () => Effect.die(new Error("Unsupported database dialect")),
+        })
+      : sql.or(
+          input.primaryKeys.map((pk) =>
+            sql.and(pkColumns.map((column) => sql`${sql(column)} = ${pk[column]}`)),
+          ),
+        );
 
     const statement = yield* sql.onDialectOrElse({
       pg: () =>

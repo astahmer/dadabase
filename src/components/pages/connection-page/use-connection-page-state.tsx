@@ -26,6 +26,7 @@ import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
+import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
 import { getQueryAsSql } from "#src/server/introspection/start-fns/get-query-sql.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { useQuery } from "@tanstack/react-query";
@@ -35,6 +36,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { DbConnection } from "../connection.types.ts";
 
 import { useJoinedTables } from "./join-tables/use-joined-tables.ts";
+import { canLocateRow } from "./row-editor/row-editor-values.ts";
 import { useRowsColumnsAction } from "./use-rows-columns.actions.ts";
 
 export const useActiveConnectionUrl = (connection: DbConnection) => {
@@ -334,7 +336,11 @@ export const useConnectionPageState = ({
                 }}
                 connectionUrl={activeConnectionUrl}
                 onEdit={
-                  onEditRow && tableMetadata.columnMetadata.some((col) => col.primaryKey)
+                  onEditRow &&
+                  canLocateRow(
+                    tableMetadata.columnMetadata,
+                    ctx.row.original as Record<string, unknown>,
+                  )
                     ? () => onEditRow(ctx.row.original as Record<string, unknown>)
                     : undefined
                 }
@@ -391,8 +397,7 @@ export const useConnectionPageState = ({
         header: () => null,
         cell: (ctx) => {
           const row = ctx.row.original as Record<string, unknown>;
-          const canEdit =
-            Boolean(onEditRow) && tableMetadata.columnMetadata.some((col) => col.primaryKey);
+          const canEdit = Boolean(onEditRow) && canLocateRow(tableMetadata.columnMetadata, row);
 
           return (
             <div className="flex h-full w-full items-center justify-center">
@@ -412,7 +417,11 @@ export const useConnectionPageState = ({
                   const primaryKeyColumn = tableMetadata.columnMetadata.find(
                     (col) => col.primaryKey,
                   );
-                  const rowId = primaryKeyColumn ? String(row[primaryKeyColumn.name]) : undefined;
+                  const rowId = primaryKeyColumn
+                    ? String(row[primaryKeyColumn.name])
+                    : row[DADABASE_ROW_ID] != null
+                      ? String(row[DADABASE_ROW_ID])
+                      : undefined;
                   navigate({
                     search: (prev) => ({
                       ...prev,

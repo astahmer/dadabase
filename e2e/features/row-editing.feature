@@ -83,7 +83,9 @@ Feature: Row create and edit UX
     And I delete the selected rows from the bulk action bar
     Then I should not see cell value "Charlie" in column "name"
 
-  Scenario: Tables without primary key block edit
+  Scenario: Tables without primary key can still edit via system row id
     Given I open the "no_pk_items" table
-    When I try to open the edit sheet for the row with "alpha" in column "label"
-    Then the edit row action should be unavailable
+    When I open the edit sheet for the row with "alpha" in column "label"
+    When I fill the row editor field "value" with "99"
+    And I save the row editor
+    Then I should see cell value "99" in column "value"

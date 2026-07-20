@@ -8,6 +8,7 @@ import { SqlClient } from "@effect/sql";
 import { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
 
+import { DADABASE_ROW_ID, isDadabaseRowIdKey } from "./row-identity.ts";
 import {
   assertSafeIdentifier,
   assertSafeIdentifiers,
@@ -17,15 +18,17 @@ import {
 export interface UpdateRowInput {
   schema: string;
   table: string;
-  /** Primary key column → value map (supports composite keys). */
+  /**
+   * Primary key column → value map (supports composite keys).
+   * For no-PK tables, pass `{ [DADABASE_ROW_ID]: rowidOrCtid }`.
+   */
   primaryKey: Record<string, unknown>;
   /** Column name → new value map (non-PK columns to update). */
   values: Record<string, unknown>;
 }
 
 /**
- * Updates a single row by primary key using parameterized Effect SQL helpers.
- * Supports composite primary keys.
+ * Updates a single row by primary key (or system row identity) using parameterized SQL.
  */
 export const updateRow = (
   input: UpdateRowInput,
@@ -46,28 +49,41 @@ export const updateRow = (
         new SqlError({ cause: null, message: "Cannot update a row without a primary key" }),
       );
     }
-    assertSafeIdentifiers(pkColumns, "primary key column");
 
-    const valueColumns = Object.keys(input.values);
+    const usesSystemRowId = pkColumns.length === 1 && isDadabaseRowIdKey(pkColumns[0]!);
+    if (!usesSystemRowId) {
+      assertSafeIdentifiers(pkColumns, "primary key column");
+    }
+
+    const valueColumns = Object.keys(input.values).filter((col) => !isDadabaseRowIdKey(col));
     if (valueColumns.length === 0) {
       return { rowsAffected: 0 };
     }
     assertSafeIdentifiers(valueColumns, "column");
 
-    const whereClause = sql.and(
-      pkColumns.map((column) => sql`${sql(column)} = ${input.primaryKey[column]}`),
+    const valuesForUpdate = Object.fromEntries(
+      valueColumns.map((column) => [column, input.values[column]]),
     );
+
+    const whereClause = usesSystemRowId
+      ? yield* sql.onDialectOrElse({
+          pg: () =>
+            Effect.succeed(sql`ctid = CAST(${String(input.primaryKey[DADABASE_ROW_ID])} AS tid)`),
+          sqlite: () => Effect.succeed(sql`rowid = ${input.primaryKey[DADABASE_ROW_ID]}`),
+          orElse: () => Effect.die(new Error("Unsupported database dialect")),
+        })
+      : sql.and(pkColumns.map((column) => sql`${sql(column)} = ${input.primaryKey[column]}`));
 
     const statement = yield* sql.onDialectOrElse({
       pg: () =>
         Effect.succeed(
           input.schema
-            ? sql`UPDATE ${sql(input.schema)}.${sql(input.table)} SET ${sql.update(input.values)} WHERE ${whereClause}`
-            : sql`UPDATE ${sql(input.table)} SET ${sql.update(input.values)} WHERE ${whereClause}`,
+            ? sql`UPDATE ${sql(input.schema)}.${sql(input.table)} SET ${sql.update(valuesForUpdate)} WHERE ${whereClause}`
+            : sql`UPDATE ${sql(input.table)} SET ${sql.update(valuesForUpdate)} WHERE ${whereClause}`,
         ),
       sqlite: () =>
         Effect.succeed(
-          sql`UPDATE ${sql(input.table)} SET ${sql.update(input.values)} WHERE ${whereClause}`,
+          sql`UPDATE ${sql(input.table)} SET ${sql.update(valuesForUpdate)} WHERE ${whereClause}`,
         ),
       orElse: () => Effect.die(new Error("Unsupported database dialect")),
     });
@@ -87,5 +103,15 @@ export const updateRow = (
       } as const),
     );
 
-    return { rowsAffected: extractRowsAffected(result) };
+    const rowsAffected = extractRowsAffected(result);
+    if (usesSystemRowId && rowsAffected !== 1) {
+      return yield* Effect.fail(
+        new SqlError({
+          cause: null,
+          message: `Expected to update 1 row, but updated ${rowsAffected}. Row may have moved; refresh and retry.`,
+        }),
+      );
+    }
+
+    return { rowsAffected };
   });

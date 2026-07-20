@@ -88,6 +88,7 @@ import {
   extractPrimaryKeyValues,
   getPrimaryKeyColumns,
   hasPrimaryKey,
+  hasSystemRowIdentity,
 } from "./connection-page/row-editor/row-editor-values.ts";
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
@@ -1233,7 +1234,15 @@ const BulkActions = (
   const selectedRows = props.rowsDataTable.getSelectedRowModel().rows;
   const selectedRowsCount = selectedRows.length;
   const pkColumns = getPrimaryKeyColumns(props.columnMetadata);
-  const canDelete = hasPrimaryKey(props.columnMetadata);
+  const canDelete =
+    hasPrimaryKey(props.columnMetadata) ||
+    (selectedRowsCount > 0 &&
+      selectedRows.every((row) => hasSystemRowIdentity(row.original as Record<string, unknown>)));
+  const canEditSelected =
+    selectedRowsCount === 1 &&
+    Boolean(props.onEditRow) &&
+    (hasPrimaryKey(props.columnMetadata) ||
+      hasSystemRowIdentity(selectedRows[0]?.original as Record<string, unknown>));
 
   const deleteMutation = useMutation({
     meta: rowMutationMeta,
@@ -1405,7 +1414,7 @@ const BulkActions = (
   };
 
   const handleEdit = () => {
-    if (selectedRowsCount !== 1 || !props.onEditRow || !canDelete) {
+    if (!canEditSelected || !props.onEditRow) {
       return;
     }
     props.onEditRow(selectedRows[0].original as Record<string, unknown>);
@@ -1441,8 +1450,9 @@ const BulkActions = (
   const handleBulkDelete = () => {
     if (!canDelete) {
       toaster.create({
-        title: "Cannot delete without a primary key",
-        description: "This table has no primary key, so bulk delete is disabled.",
+        title: "Cannot delete without a row identity",
+        description:
+          "This table has no primary key and selected rows lack a system row id, so bulk delete is disabled.",
         type: "error",
       });
       return;
@@ -1454,7 +1464,7 @@ const BulkActions = (
     <>
       <BulkActionBar
         selectedCount={selectedRowsCount}
-        onEdit={selectedRowsCount === 1 && props.onEditRow && canDelete ? handleEdit : undefined}
+        onEdit={canEditSelected ? handleEdit : undefined}
         onDelete={canDelete ? handleBulkDelete : undefined}
         onDuplicate={props.onDuplicateRow ? handleDuplicate : undefined}
         onExportJson={handleExportJson}
