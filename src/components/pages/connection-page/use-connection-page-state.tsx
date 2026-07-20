@@ -7,6 +7,7 @@ import type {
   Row,
 } from "@tanstack/react-table";
 
+import { RowActionsMenu } from "#src/components/app/row-actions-menu.tsx";
 import { RowContextMenu } from "#src/components/app/row-context-menu.tsx";
 import { useDataTable } from "#src/components/data-table/use-data-table.ts";
 import {
@@ -321,7 +322,7 @@ export const useConnectionPageState = ({
 
           return (
             <Tooltip
-              content="Click to select row, right click to open context menu"
+              content="Click to select row, ⋯ for actions, right-click also works"
               colorPalette="inverted"
               positioning={{ placement: "right", strategy: "fixed" }}
             >
@@ -384,38 +385,53 @@ export const useConnectionPageState = ({
         enableSorting: false,
         enablePinning: false,
       } as ColumnDef<Record<string, unknown>>,
-      // {
-      // 	id: "__actions",
-      // 	meta: { enableColumnOrdering: false },
-      // 	header: () => null,
-      // 	cell: (ctx) => (
-      // 		<RowActionsMenu
-      // 			row={ctx.row.original}
-      // 			onViewJson={() => {
-      // 				const primaryKeyColumn = columnMetadata.find(
-      // 					(col) => col.primaryKey,
-      // 				);
-      // 				const rowId = primaryKeyColumn
-      // 					? String(ctx.row.original[primaryKeyColumn.name])
-      // 					: undefined;
-      // 				navigate({
-      // 					search: (prev) => ({
-      // 						...prev,
-      // 						rowJsonViewerRowId: rowId,
-      // 						rowJsonViewerOpen: !!rowId,
-      // 					}),
-      // 				});
-      // 			}}
-      // 			onExpandRelationships={() => setRelationshipRowId(ctx.row.id)}
-      // 		/>
-      // 	),
-      // 	size: 40,
-      // 	minSize: 40,
-      // 	maxSize: 40,
-      // 	enableResizing: false,
-      // 	enableSorting: false,
-      // 	enablePinning: false,
-      // } as ColumnDef<Record<string, unknown>>,
+      {
+        id: "__actions",
+        meta: { enableColumnOrdering: false },
+        header: () => null,
+        cell: (ctx) => {
+          const row = ctx.row.original as Record<string, unknown>;
+          const canEdit =
+            Boolean(onEditRow) && tableMetadata.columnMetadata.some((col) => col.primaryKey);
+
+          return (
+            <div className="flex h-full w-full items-center justify-center">
+              <RowActionsMenu
+                row={row}
+                onEdit={canEdit && onEditRow ? () => onEditRow(row) : undefined}
+                onDuplicate={onDuplicateRow ? () => onDuplicateRow(row) : undefined}
+                onExpandRelationships={() => {
+                  navigate({
+                    search: (prev) =>
+                      updateTabState(prev, {
+                        relationshipRowId: ctx.row.id,
+                      }),
+                  });
+                }}
+                onViewJson={() => {
+                  const primaryKeyColumn = tableMetadata.columnMetadata.find(
+                    (col) => col.primaryKey,
+                  );
+                  const rowId = primaryKeyColumn ? String(row[primaryKeyColumn.name]) : undefined;
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      rowJsonViewerRowId: rowId,
+                      rowJsonViewerOpen: !!rowId,
+                    }),
+                  });
+                }}
+              />
+            </div>
+          );
+        },
+        size: 36,
+        minSize: 36,
+        maxSize: 36,
+        enableResizing: false,
+        enableSorting: false,
+        enablePinning: false,
+      } as ColumnDef<Record<string, unknown>>,
     ],
     [
       activeConnectionUrl,

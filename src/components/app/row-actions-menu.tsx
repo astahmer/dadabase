@@ -10,9 +10,17 @@ export interface RowActionsMenuProps {
   row: Record<string, unknown>;
   onViewJson?: () => void;
   onExpandRelationships?: () => void;
+  onEdit?: () => void;
+  onDuplicate?: () => void;
 }
 
-export function RowActionsMenu({ row, onViewJson, onExpandRelationships }: RowActionsMenuProps) {
+export function RowActionsMenu({
+  row,
+  onViewJson,
+  onExpandRelationships,
+  onEdit,
+  onDuplicate,
+}: RowActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -34,16 +42,29 @@ export function RowActionsMenu({ row, onViewJson, onExpandRelationships }: RowAc
         }
       }}
     >
-      <Button ref={buttonRef} variant="ghost" size="xs" onClick={() => setOpen((c) => !c)}>
-        <LucideMoreHorizontal />
+      <Button
+        ref={buttonRef}
+        variant="ghost"
+        size="xs"
+        className="h-6 w-6 p-0"
+        aria-label="Row actions"
+        data-testid="row-actions-menu"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((c) => !c);
+        }}
+      >
+        <LucideMoreHorizontal className="h-3.5 w-3.5" />
       </Button>
       <Portal>
-        <MenuContent className="z-50">
+        <MenuContent className="z-100">
           <RowActionsMenuContent
             row={row}
             onClose={() => setOpen(false)}
             onViewJson={onViewJson}
             onExpandRelationships={onExpandRelationships}
+            onEdit={onEdit}
+            onDuplicate={onDuplicate}
           />
         </MenuContent>
       </Portal>

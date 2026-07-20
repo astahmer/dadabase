@@ -762,6 +762,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                   rowsQuery={pageState.rowsQuery}
                   isColumnMetadataLoading={pageState.isColumnMetadataLoading}
                   columnMetadata={pageState.columnMetadata}
+                  onEditRow={onEditRow}
                   onDuplicateRow={onDuplicateRow}
                 />
               )}
@@ -775,7 +776,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                   timeTaken={pageState.queryResponse.timeTaken}
                   ranAt={pageState.queryResponse.ranAt}
                   totalRowCount={pageState.queryResponse.rowCount}
-                  rowsColumnsCount={pageState.rowsColumns.length - 1}
+                  rowsColumnsCount={pageState.rowsColumns.length - 2}
                   isCustomSql={isCustomSqlMode}
                   schema={search.schema}
                   tableName={search.table}
@@ -952,6 +953,7 @@ const RowsTableContent = (
     | "isColumnMetadataLoading"
     | "columnMetadata"
   > & {
+    onEditRow?: (row: Record<string, unknown>) => void;
     onDuplicateRow?: (row: Record<string, unknown>) => void;
   },
 ) => {
@@ -1021,6 +1023,7 @@ const RowsTableContent = (
         activeConnectionUrl={props.activeConnectionUrl}
         rowsDataTable={props.rowsDataTable}
         columnMetadata={props.columnMetadata}
+        onEditRow={props.onEditRow}
         onDuplicateRow={props.onDuplicateRow}
       />
 
@@ -1216,6 +1219,7 @@ const RowsTableContent = (
 
 const BulkActions = (
   props: Pick<ConnectionPageState, "activeConnectionUrl" | "rowsDataTable" | "columnMetadata"> & {
+    onEditRow?: (row: Record<string, unknown>) => void;
     onDuplicateRow?: (row: Record<string, unknown>) => void;
   },
 ) => {
@@ -1400,6 +1404,13 @@ const BulkActions = (
     props.onDuplicateRow(selectedRows[0].original as Record<string, unknown>);
   };
 
+  const handleEdit = () => {
+    if (selectedRowsCount !== 1 || !props.onEditRow || !canDelete) {
+      return;
+    }
+    props.onEditRow(selectedRows[0].original as Record<string, unknown>);
+  };
+
   const handleLogRows = () => {
     const rows = selectedRows.map((row) => row.original as Record<string, unknown>);
     console.log("Rows:", rows);
@@ -1443,6 +1454,7 @@ const BulkActions = (
     <>
       <BulkActionBar
         selectedCount={selectedRowsCount}
+        onEdit={selectedRowsCount === 1 && props.onEditRow && canDelete ? handleEdit : undefined}
         onDelete={canDelete ? handleBulkDelete : undefined}
         onDuplicate={props.onDuplicateRow ? handleDuplicate : undefined}
         onExportJson={handleExportJson}
