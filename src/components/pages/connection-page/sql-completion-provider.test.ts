@@ -2932,69 +2932,84 @@ describe("sqlCompletionProvider", () => {
       expect(labels).toContain("LIKE");
       expect(labels).toContain("IS NULL");
       expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "Operator",
-                  "label": "=",
-                  "sortText": "2_=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "!=",
-                  "sortText": "2_!=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "<>",
-                  "sortText": "2_<>",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "<",
-                  "sortText": "2_<",
-                },
-                {
-                  "detail": "Operator",
-                  "label": ">",
-                  "sortText": "2_>",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "<=",
-                  "sortText": "2_<=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": ">=",
-                  "sortText": "2_>=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "BETWEEN",
-                  "sortText": "2_BETWEEN",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "IN",
-                  "sortText": "2_IN",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "LIKE",
-                  "sortText": "2_LIKE",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "IS NULL",
-                  "sortText": "2_IS NULL",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "IS NOT NULL",
-                  "sortText": "2_IS NOT NULL",
-                },
-              ]
-            `);
+        [
+          {
+            "detail": "Operator",
+            "label": "=",
+            "sortText": "2_=",
+          },
+          {
+            "detail": "Operator",
+            "label": "!=",
+            "sortText": "2_!=",
+          },
+          {
+            "detail": "Operator",
+            "label": "<>",
+            "sortText": "2_<>",
+          },
+          {
+            "detail": "Operator",
+            "label": "<",
+            "sortText": "2_<",
+          },
+          {
+            "detail": "Operator",
+            "label": ">",
+            "sortText": "2_>",
+          },
+          {
+            "detail": "Operator",
+            "label": "<=",
+            "sortText": "2_<=",
+          },
+          {
+            "detail": "Operator",
+            "label": ">=",
+            "sortText": "2_>=",
+          },
+          {
+            "detail": "Operator",
+            "label": "BETWEEN",
+            "sortText": "2_BETWEEN",
+          },
+          {
+            "detail": "Operator",
+            "label": "NOT BETWEEN",
+            "sortText": "2_NOT BETWEEN",
+          },
+          {
+            "detail": "Operator",
+            "label": "IN",
+            "sortText": "2_IN",
+          },
+          {
+            "detail": "Operator",
+            "label": "NOT IN",
+            "sortText": "2_NOT IN",
+          },
+          {
+            "detail": "Operator",
+            "label": "LIKE",
+            "sortText": "2_LIKE",
+          },
+          {
+            "detail": "Operator",
+            "label": "NOT LIKE",
+            "sortText": "2_NOT LIKE",
+          },
+          {
+            "detail": "Operator",
+            "label": "IS NULL",
+            "sortText": "2_IS NULL",
+          },
+          {
+            "detail": "Operator",
+            "label": "IS NOT NULL",
+            "sortText": "2_IS NOT NULL",
+          },
+        ]
+      `);
     });
 
     it("should suggest AS and ON after table in JOIN without alias", () => {
@@ -3691,71 +3706,86 @@ describe("sqlCompletionProvider", () => {
       expect(labels).toContain("=");
       expect(labels).toContain("!=");
       expect(labels).toContain(">=");
-      expect(suggestions.length).toBe(12);
+      expect(suggestions.length).toBe(15);
       expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "Operator",
-                  "label": "=",
-                  "sortText": "2_=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "!=",
-                  "sortText": "2_!=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "<>",
-                  "sortText": "2_<>",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "<",
-                  "sortText": "2_<",
-                },
-                {
-                  "detail": "Operator",
-                  "label": ">",
-                  "sortText": "2_>",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "<=",
-                  "sortText": "2_<=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": ">=",
-                  "sortText": "2_>=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "BETWEEN",
-                  "sortText": "2_BETWEEN",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "IN",
-                  "sortText": "2_IN",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "LIKE",
-                  "sortText": "2_LIKE",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "IS NULL",
-                  "sortText": "2_IS NULL",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "IS NOT NULL",
-                  "sortText": "2_IS NOT NULL",
-                },
-              ]
-            `);
+        [
+          {
+            "detail": "Operator",
+            "label": "=",
+            "sortText": "2_=",
+          },
+          {
+            "detail": "Operator",
+            "label": "!=",
+            "sortText": "2_!=",
+          },
+          {
+            "detail": "Operator",
+            "label": "<>",
+            "sortText": "2_<>",
+          },
+          {
+            "detail": "Operator",
+            "label": "<",
+            "sortText": "2_<",
+          },
+          {
+            "detail": "Operator",
+            "label": ">",
+            "sortText": "2_>",
+          },
+          {
+            "detail": "Operator",
+            "label": "<=",
+            "sortText": "2_<=",
+          },
+          {
+            "detail": "Operator",
+            "label": ">=",
+            "sortText": "2_>=",
+          },
+          {
+            "detail": "Operator",
+            "label": "BETWEEN",
+            "sortText": "2_BETWEEN",
+          },
+          {
+            "detail": "Operator",
+            "label": "NOT BETWEEN",
+            "sortText": "2_NOT BETWEEN",
+          },
+          {
+            "detail": "Operator",
+            "label": "IN",
+            "sortText": "2_IN",
+          },
+          {
+            "detail": "Operator",
+            "label": "NOT IN",
+            "sortText": "2_NOT IN",
+          },
+          {
+            "detail": "Operator",
+            "label": "LIKE",
+            "sortText": "2_LIKE",
+          },
+          {
+            "detail": "Operator",
+            "label": "NOT LIKE",
+            "sortText": "2_NOT LIKE",
+          },
+          {
+            "detail": "Operator",
+            "label": "IS NULL",
+            "sortText": "2_IS NULL",
+          },
+          {
+            "detail": "Operator",
+            "label": "IS NOT NULL",
+            "sortText": "2_IS NOT NULL",
+          },
+        ]
+      `);
     });
 
     it("should suggest columns after AND in JOIN condition", () => {
@@ -3948,71 +3978,86 @@ describe("sqlCompletionProvider", () => {
       expect(labels).toContain(">");
       expect(labels).toContain("IN");
       expect(labels).toContain("BETWEEN");
-      expect(suggestions.length).toBe(12); // 10 operators
+      expect(suggestions.length).toBe(15); // 10 operators
       expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "Operator",
-                  "label": "=",
-                  "sortText": "2_=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "!=",
-                  "sortText": "2_!=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "<>",
-                  "sortText": "2_<>",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "<",
-                  "sortText": "2_<",
-                },
-                {
-                  "detail": "Operator",
-                  "label": ">",
-                  "sortText": "2_>",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "<=",
-                  "sortText": "2_<=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": ">=",
-                  "sortText": "2_>=",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "BETWEEN",
-                  "sortText": "2_BETWEEN",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "IN",
-                  "sortText": "2_IN",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "LIKE",
-                  "sortText": "2_LIKE",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "IS NULL",
-                  "sortText": "2_IS NULL",
-                },
-                {
-                  "detail": "Operator",
-                  "label": "IS NOT NULL",
-                  "sortText": "2_IS NOT NULL",
-                },
-              ]
-            `);
+        [
+          {
+            "detail": "Operator",
+            "label": "=",
+            "sortText": "2_=",
+          },
+          {
+            "detail": "Operator",
+            "label": "!=",
+            "sortText": "2_!=",
+          },
+          {
+            "detail": "Operator",
+            "label": "<>",
+            "sortText": "2_<>",
+          },
+          {
+            "detail": "Operator",
+            "label": "<",
+            "sortText": "2_<",
+          },
+          {
+            "detail": "Operator",
+            "label": ">",
+            "sortText": "2_>",
+          },
+          {
+            "detail": "Operator",
+            "label": "<=",
+            "sortText": "2_<=",
+          },
+          {
+            "detail": "Operator",
+            "label": ">=",
+            "sortText": "2_>=",
+          },
+          {
+            "detail": "Operator",
+            "label": "BETWEEN",
+            "sortText": "2_BETWEEN",
+          },
+          {
+            "detail": "Operator",
+            "label": "NOT BETWEEN",
+            "sortText": "2_NOT BETWEEN",
+          },
+          {
+            "detail": "Operator",
+            "label": "IN",
+            "sortText": "2_IN",
+          },
+          {
+            "detail": "Operator",
+            "label": "NOT IN",
+            "sortText": "2_NOT IN",
+          },
+          {
+            "detail": "Operator",
+            "label": "LIKE",
+            "sortText": "2_LIKE",
+          },
+          {
+            "detail": "Operator",
+            "label": "NOT LIKE",
+            "sortText": "2_NOT LIKE",
+          },
+          {
+            "detail": "Operator",
+            "label": "IS NULL",
+            "sortText": "2_IS NULL",
+          },
+          {
+            "detail": "Operator",
+            "label": "IS NOT NULL",
+            "sortText": "2_IS NOT NULL",
+          },
+        ]
+      `);
     });
 
     it("should suggest columns after AND in WHERE clause", () => {

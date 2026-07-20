@@ -6,6 +6,7 @@ import {
   isSpecialValue,
   resolveSpecialSqlLiteral,
   SPECIAL_VALUES_LIST,
+  toggleConditionInverted,
   type QueryFilterType,
 } from "./query-filter";
 
@@ -327,5 +328,32 @@ describe("special filter values", () => {
     );
     expect(result.clause).toBe(`"name" = $3`);
     expect(result.params).toEqual({ $3: "Alice" });
+  });
+});
+
+describe("toggleConditionInverted", () => {
+  it("flips inverted from undefined/false to true", () => {
+    expect(
+      toggleConditionInverted({ column: "name", operator: "contains", value: "a" }).inverted,
+    ).toBe(true);
+    expect(
+      toggleConditionInverted({
+        column: "name",
+        operator: "contains",
+        value: "a",
+        inverted: false,
+      }).inverted,
+    ).toBe(true);
+  });
+
+  it("flips inverted from true to false", () => {
+    expect(
+      toggleConditionInverted({
+        column: "name",
+        operator: "contains",
+        value: "a",
+        inverted: true,
+      }).inverted,
+    ).toBe(false);
   });
 });

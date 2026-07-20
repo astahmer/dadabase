@@ -13,6 +13,7 @@ import {
   detectCompletionContext,
   getContextualKeywords,
 } from "./sql-completion-helper";
+import { COMPARISON_OPERATORS } from "./comparison-operators.ts";
 
 // https://forcedotcom.github.io/phoenix/index.html#order
 
@@ -54,23 +55,11 @@ export function sqlCompletionProvider(
     suggestions.push(createKeywordCompletion("FROM", monaco));
   }
 
-  // Suggest operators after column reference
+  // Suggest operators after column reference (includes inverted NOT LIKE / NOT IN / NOT BETWEEN)
   if (cursorContext.type === "column_operator") {
-    const operators = [
-      "=",
-      "!=",
-      "<>",
-      "<",
-      ">",
-      "<=",
-      ">=",
-      "BETWEEN",
-      "IN",
-      "LIKE",
-      "IS NULL",
-      "IS NOT NULL",
-    ];
-    suggestions.push(...operators.map((op) => createOperatorCompletion(op, monaco)));
+    suggestions.push(
+      ...COMPARISON_OPERATORS.map((op) => createOperatorCompletion(op, monaco)),
+    );
   }
 
   // Suggest tables when after FROM/JOIN keywords

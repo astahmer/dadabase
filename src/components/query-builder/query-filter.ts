@@ -368,6 +368,21 @@ export const getOperatorSymbols = (operator: FilterOperatorType): string[] => {
  * Convert WhereClauseParams (from URL) back to QueryFilter with generated IDs
  * Used when deserializing filters from URL
  */
+/**
+ * Toggle the inverted flag on a filter condition.
+ * Used by the filter UI NOT button and covered by unit tests.
+ */
+export const toggleConditionInverted = (
+  condition: FilterConditionExpression,
+): FilterConditionExpression => ({
+  ...condition,
+  inverted: !condition.inverted,
+});
+
+/**
+ * Convert WhereClauseParams (from URL) back to QueryFilter with generated IDs
+ * Used when deserializing filters from URL
+ */
 export const whereClauseParamsToQueryFilter = (
   params: QueryFilterType | undefined,
 ): QueryFilterType | undefined => {
@@ -390,3 +405,4 @@ export const whereClauseParamsToQueryFilter = (
     logicalOperator: params.logicalOperator as LogicalOperatorType,
   };
 };
+

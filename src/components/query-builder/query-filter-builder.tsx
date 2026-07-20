@@ -304,6 +304,23 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
           </Combobox>
         </div>
 
+        <Tooltip content={condition.inverted ? "Remove NOT (inverted)" : "Negate with NOT"}>
+          <Button
+            type="button"
+            variant={condition.inverted ? "default" : "outline"}
+            size="sm"
+            aria-pressed={Boolean(condition.inverted)}
+            aria-label="Invert filter condition"
+            data-testid="filter-invert-toggle"
+            onClick={() => {
+              onUpdate(String(index), { inverted: !condition.inverted });
+            }}
+            className="h-8 shrink-0 px-2 font-mono text-xs"
+          >
+            NOT
+          </Button>
+        </Tooltip>
+
         {!isNullOperator && (
           <div className="min-w-0 flex-1">
             {supportsSpecialValues ? (
