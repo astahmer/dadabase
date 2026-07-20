@@ -13,3 +13,9 @@ count.txt
 todos.json
 .context
 app.db
+e2e/.tmp
+e2e/.features-gen
+e2e/playwright-report
+e2e/test-results
+test-results
+.features-gen
