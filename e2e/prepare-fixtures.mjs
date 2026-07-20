@@ -22,7 +22,6 @@ async function ensureAppDb({ force = false, sampleDbPathForConnection } = {}) {
   mkdirSync(tmpDir, { recursive: true });
 
   if (existsSync(appDbPath) && !force) {
-    // Keep seeded connection in sync with current sample db path
     if (sampleDbPathForConnection) {
       await upsertE2eConnection(sampleDbPathForConnection);
     }
@@ -76,20 +75,81 @@ async function upsertE2eConnection(samplePath) {
 async function prepareSampleDb() {
   mkdirSync(tmpDir, { recursive: true });
   const sampleClient = createClient({ url: `file:${sampleDbPath}` });
+
+  await sampleClient.execute("DROP TABLE IF EXISTS posts");
+  await sampleClient.execute("DROP TABLE IF EXISTS memberships");
+  await sampleClient.execute("DROP TABLE IF EXISTS notes");
   await sampleClient.execute("DROP TABLE IF EXISTS users");
+  await sampleClient.execute("DROP TABLE IF EXISTS no_pk_items");
+
   await sampleClient.execute(`
     CREATE TABLE users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
-      age INTEGER
+      age INTEGER,
+      active INTEGER NOT NULL DEFAULT 1
     )
   `);
   await sampleClient.execute(`
-    INSERT INTO users (name, email, age) VALUES
-      ('Alice', 'alice@example.com', 30),
-      ('Bob', 'bob@example.com', 25)
+    INSERT INTO users (name, email, age, active) VALUES
+      ('Alice', 'alice@example.com', 30, 1),
+      ('Bob', 'bob@example.com', 25, 1),
+      ('Charlie', 'charlie@example.com', 35, 0)
   `);
+
+  await sampleClient.execute(`
+    CREATE TABLE posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      title TEXT NOT NULL,
+      body TEXT
+    )
+  `);
+  await sampleClient.execute(`
+    INSERT INTO posts (user_id, title, body) VALUES
+      (1, 'Hello', 'First post'),
+      (2, 'World', 'Second post')
+  `);
+
+  await sampleClient.execute(`
+    CREATE TABLE memberships (
+      org_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      PRIMARY KEY (org_id, user_id)
+    )
+  `);
+  await sampleClient.execute(`
+    INSERT INTO memberships (org_id, user_id, role) VALUES
+      (1, 1, 'admin'),
+      (1, 2, 'member')
+  `);
+
+  await sampleClient.execute(`
+    CREATE TABLE notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      payload TEXT NOT NULL
+    )
+  `);
+  await sampleClient.execute(`
+    INSERT INTO notes (title, payload) VALUES
+      ('meta', '{"color":"blue","count":1}')
+  `);
+
+  await sampleClient.execute(`
+    CREATE TABLE no_pk_items (
+      label TEXT NOT NULL,
+      value TEXT
+    )
+  `);
+  await sampleClient.execute(`
+    INSERT INTO no_pk_items (label, value) VALUES
+      ('alpha', '1'),
+      ('beta', '2')
+  `);
+
   sampleClient.close();
 }
 
