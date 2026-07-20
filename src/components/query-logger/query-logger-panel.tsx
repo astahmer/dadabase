@@ -2,7 +2,7 @@ import { createListCollection } from "@ark-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cx } from "class-variance-authority";
 import { ChevronDown, ChevronUp, Star, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useQueryLogger } from "#src/components/query-logger/use-query-logger.ts";
 import { Badge } from "#src/components/ui/badge.tsx";
@@ -28,6 +28,9 @@ interface QueryLoggerContentProps {
   isExpanded?: boolean;
   onCollapse?: () => void;
   onExpand?: () => void;
+  /** Command palette (or similar) requests opening favorites or history. */
+  paletteView?: "favorites" | "history" | null;
+  onPaletteViewConsumed?: () => void;
 }
 
 export const QueryLoggerContent = ({
@@ -36,12 +39,21 @@ export const QueryLoggerContent = ({
   isExpanded,
   onCollapse,
   onExpand,
+  paletteView,
+  onPaletteViewConsumed,
 }: QueryLoggerContentProps) => {
   const queryClient = useQueryClient();
   const queryLogger = useQueryLogger({ connectionUrl });
   const [selectedEntry, setSelectedEntry] = useState<QueryLogEntryType | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
+
+  useEffect(() => {
+    if (!paletteView) return;
+    setShowFavorites(paletteView === "favorites");
+    if (!isExpanded) onExpand?.();
+    onPaletteViewConsumed?.();
+  }, [paletteView, isExpanded, onExpand, onPaletteViewConsumed]);
 
   const favoritesQuery = useQuery({
     ...getQueryFavoritesQueryOptions({ connectionId: connectionId ?? "" }),

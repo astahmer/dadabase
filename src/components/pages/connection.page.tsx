@@ -20,6 +20,11 @@ import {
   exportRows,
   rowsToInsertStatements,
 } from "#src/components/pages/connection-page/export-rows.ts";
+import {
+  isColumnHidden,
+  normalizeHiddenColumnList,
+  toHiddenColumnKeys,
+} from "#src/components/pages/connection-page/hidden-column-list.ts";
 import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
 import {
   type ConnectionPageState,
@@ -31,9 +36,16 @@ import {
   useZenModeActions,
   useZenModeEnabled,
 } from "#src/components/pages/connection-page/use-zen-mode.ts";
-import { DatabaseDialect } from "#src/db/dialect.ts";
+import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
+import {
+  buildCommandPaletteCommands,
+  COMMAND_PALETTE_IDS,
+  parseSwitchConnectionCommandId,
+  parseSwitchSchemaCommandId,
+  parseSwitchTableCommandId,
+} from "#src/lib/command-palette-commands.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
@@ -55,6 +67,7 @@ import {
 } from "#src/server/introspection/detect-destructive-sql.ts";
 import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
+import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { saveQueryFavoriteServerFn } from "#src/server/query-logger/start-fns/save-query-favorite.start.ts";
 
@@ -82,13 +95,20 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { ConnectionAiAssistantDrawer } from "./connection-page/ai-assistant.drawer.tsx";
+import { ConnectionCommandPalette } from "./connection-page/command-palette.tsx";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
 import { ConnectionPageTabs } from "./connection-page/connection-page-tabs.tsx";
 import { ConnectionQuickReferencesDrawer } from "./connection-page/connection-quick-references.drawer.tsx";
 import { ConnectionRowJsonViewerDrawer } from "./connection-page/connection-row-json-viewer.drawer.tsx";
-import { updateTabState, useActiveTabState } from "./connection-page/create-tab-state.ts";
+import {
+  addTabStateAfterCurrent,
+  createTabState,
+  scrollToTab,
+  updateTabState,
+  useActiveTabState,
+} from "./connection-page/create-tab-state.ts";
 import { DestructiveQueryConfirmDialog } from "./connection-page/destructive-query-confirm.dialog.tsx";
 import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
 import { ExplainOutputDrawer } from "./connection-page/explain-output-drawer.tsx";
@@ -152,6 +172,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
   const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
+  const [queryLoggerPaletteView, setQueryLoggerPaletteView] = useState<
+    "favorites" | "history" | null
+  >(null);
   const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
   const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
   const sidebarMinSize = fromPixelToPercentage(224, "horizontal");
@@ -163,11 +186,150 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     table: tab.table,
   }));
 
+  const zenMode = useZenModeEnabled();
+  const { toggleZenMode } = useZenModeActions();
+  const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
+
   const schemaListQuery = useQuery({
     ...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
     enabled: !!activeConnectionUrl,
     retry: 3,
   });
+
+  const schemaForTables = search.schema || getDialectDefaultSchema(connection.dialect);
+
+  const tablesListQuery = useQuery({
+    ...listAvailableTablesQueryOptions({
+      url: activeConnectionUrl,
+      schema: schemaForTables,
+    }),
+    enabled: !!activeConnectionUrl && !!schemaForTables,
+    retry: 3,
+  });
+
+  const commandPaletteCommands = useMemo(
+    () =>
+      buildCommandPaletteCommands({
+        tables: tablesListQuery.data,
+        schemas: schemaListQuery.data,
+        connections: connectionList.data.map((c) => ({ name: c.name })),
+        currentTable: search.table,
+        currentSchema: search.schema,
+        currentConnectionName: connection.name,
+        zenMode,
+      }),
+    [
+      tablesListQuery.data,
+      schemaListQuery.data,
+      connectionList.data,
+      search.table,
+      search.schema,
+      connection.name,
+      zenMode,
+    ],
+  );
+
+  const handleCommandPaletteSelect = useCallback(
+    (commandId: string) => {
+      const switchTable = parseSwitchTableCommandId(commandId);
+      if (switchTable) {
+        const newTab = createTabState(switchTable.schema, switchTable.table);
+        void navigate({
+          search: (prev) => ({
+            ...prev,
+            ...addTabStateAfterCurrent(prev, newTab),
+          }),
+        }).then(() => scrollToTab(newTab.tabId));
+        return;
+      }
+
+      const switchSchema = parseSwitchSchemaCommandId(commandId);
+      if (switchSchema) {
+        void navigate({
+          search: (prev) => {
+            const updated = updateTabState(prev, {
+              schema: switchSchema,
+              offset: 0,
+              filters: undefined,
+            });
+            return { ...updated, schema: switchSchema };
+          },
+        });
+        return;
+      }
+
+      const switchConnection = parseSwitchConnectionCommandId(commandId);
+      if (switchConnection) {
+        void navigate({
+          to: "/connections/$connectionName",
+          params: { connectionName: switchConnection },
+        });
+        return;
+      }
+
+      switch (commandId) {
+        case COMMAND_PALETTE_IDS.openCustomSql: {
+          const schema = search.schema || getDialectDefaultSchema(connection.dialect);
+          const newTab = createTabState(schema, "", {
+            initialTabMode: "sql",
+            customSql: "",
+          });
+          void navigate({
+            search: (prev) => ({
+              ...prev,
+              ...addTabStateAfterCurrent(prev, newTab),
+            }),
+          }).then(() => scrollToTab(newTab.tabId));
+          break;
+        }
+        case COMMAND_PALETTE_IDS.toggleZen:
+          toggleZenMode();
+          break;
+        case COMMAND_PALETTE_IDS.openAi:
+          setAiAssistantOpen(true);
+          break;
+        case COMMAND_PALETTE_IDS.openFavorites:
+          setQueryLoggerPaletteView("favorites");
+          break;
+        case COMMAND_PALETTE_IDS.openHistory:
+          setQueryLoggerPaletteView("history");
+          break;
+        case COMMAND_PALETTE_IDS.explain:
+          toaster.create({
+            title: "Explain query plan",
+            description: "Use Explain in the SQL editor toolbar",
+          });
+          break;
+        case COMMAND_PALETTE_IDS.formatSql:
+          toaster.create({
+            title: "Format SQL",
+            description: "Use Format in the SQL editor toolbar",
+          });
+          break;
+        case COMMAND_PALETTE_IDS.showIndexes:
+          void navigate({
+            search: (prev) => updateTabState(prev, { viewMode: "structure" }),
+          });
+          break;
+        case COMMAND_PALETTE_IDS.showForeignKeys:
+          void navigate({
+            search: (prev) => updateTabState(prev, { viewMode: "structure" }),
+          });
+          break;
+        case COMMAND_PALETTE_IDS.openSchemaExplorer:
+          void navigate({
+            search: (prev) => ({
+              ...prev,
+              schemaExplorerOpen: true,
+            }),
+          });
+          break;
+        default:
+          break;
+      }
+    },
+    [navigate, search.schema, connection.dialect, toggleZenMode],
+  );
 
   return (
     <div className="bg-background flex h-screen flex-col">
@@ -220,6 +382,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
               activeConnectionUrl={activeConnectionUrl}
               onAddConnection={() => setShowAddConnectionDrawer(true)}
               onOpenAiAssistant={() => setAiAssistantOpen(true)}
+              onOpenHistory={() => setQueryLoggerPaletteView("history")}
+              onOpenFavorites={() => setQueryLoggerPaletteView("favorites")}
             />
           </Splitter.Panel>
 
@@ -372,6 +536,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                           isExpanded={ctx.isPanelExpanded(panels.queryLogger)}
                           onCollapse={() => ctx.collapsePanel(panels.queryLogger)}
                           onExpand={() => ctx.expandPanel(panels.queryLogger, 48)}
+                          paletteView={queryLoggerPaletteView}
+                          onPaletteViewConsumed={() => setQueryLoggerPaletteView(null)}
                         />
                       </Splitter.Panel>
                     )}
@@ -410,6 +576,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
         activeConnectionUrl={activeConnectionUrl}
         open={aiAssistantOpen}
         onOpenChange={setAiAssistantOpen}
+      />
+
+      <ConnectionCommandPalette
+        commands={commandPaletteCommands}
+        onSelect={handleCommandPaletteSelect}
       />
     </div>
   );
@@ -484,18 +655,19 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
     const { queryClient } = await import("#src/query-client.ts");
 
     const visibleColumns = pageState.rowsDataTable.getVisibleLeafColumns().map((c) => c.id);
-    const hiddenColumnList = Array.from(search.hiddenColumnList ?? []);
+    const hiddenColumnList = normalizeHiddenColumnList(search.hiddenColumnList, search.table || "");
     const columnVisibilityMode = search.columnVisibilityMode ?? "client";
 
     let selectedColumns: string[] | undefined;
     let excludedColumns: string[] | undefined;
     const columnNameList = pageState.columnNameList;
     if (columnVisibilityMode === "server" && hiddenColumnList.length) {
-      const visibleCount = columnNameList.length - hiddenColumnList.length;
-      if (visibleCount <= hiddenColumnList.length) {
-        selectedColumns = columnNameList.filter((col) => !hiddenColumnList.includes(col));
+      const hiddenKeys = toHiddenColumnKeys(hiddenColumnList);
+      const visibleCount = columnNameList.length - hiddenKeys.length;
+      if (visibleCount <= hiddenKeys.length) {
+        selectedColumns = columnNameList.filter((col) => !isColumnHidden(hiddenColumnList, col));
       } else {
-        excludedColumns = hiddenColumnList;
+        excludedColumns = hiddenKeys;
       }
     }
 

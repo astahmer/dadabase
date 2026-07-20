@@ -6,6 +6,7 @@ import {
   DatabaseIcon,
   History,
   LucidePlus,
+  Palette,
   RefreshCw,
   RotateCcw,
   Sparkles,
@@ -16,6 +17,11 @@ import { useState } from "react";
 import { DarkModeToggle } from "#src/components/ui/dark-mode-toggle.tsx";
 import { ListboxMenu } from "#src/components/ui/listbox-menu.export.ts";
 import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
+import {
+  getStoredEditorTheme,
+  listEditorThemes,
+  setStoredEditorTheme,
+} from "#src/lib/monaco-editor-themes.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { queryClient } from "#src/query-client.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
@@ -40,6 +46,9 @@ const railBtnClass =
 export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
   const { connection } = props;
   const [connectionMenuOpen, setConnectionMenuOpen] = useState(false);
+  const [editorThemeMenuOpen, setEditorThemeMenuOpen] = useState(false);
+  const editorThemes = listEditorThemes();
+  const activeEditorTheme = getStoredEditorTheme();
 
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
@@ -165,6 +174,55 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
       <Tooltip content="Toggle theme" positioning={{ placement: "right" }}>
         <DarkModeToggle variant="ghost" size="icon" className={railBtnClass} />
       </Tooltip>
+
+      <ListboxMenu.ListboxMenuRoot
+        open={editorThemeMenuOpen}
+        onOpenChange={(details) => {
+          setEditorThemeMenuOpen(details.open);
+        }}
+      >
+        <Tooltip content="Editor theme" positioning={{ placement: "right" }}>
+          <ListboxMenu.ListboxMenuTrigger variant="unstyled" size="unstyled" asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={railBtnClass}
+              aria-label="Editor theme"
+            >
+              <Palette className="h-4 w-4" />
+            </Button>
+          </ListboxMenu.ListboxMenuTrigger>
+        </Tooltip>
+        <ListboxMenu.ListboxMenuContent>
+          <ListboxMenu.ListboxRoot
+            collection={createListCollection({
+              items: editorThemes.map((theme) => ({
+                label: theme.label,
+                value: theme.id,
+              })),
+            })}
+            value={[activeEditorTheme]}
+            onValueChange={(details) => {
+              const next = details.value[0];
+              if (!next) return;
+              setStoredEditorTheme(next as typeof activeEditorTheme);
+              setEditorThemeMenuOpen(false);
+            }}
+          >
+            <ListboxMenu.ListboxMenuList>
+              {editorThemes.map((theme) => (
+                <ListboxMenu.ListboxMenuItem
+                  key={theme.id}
+                  item={{ label: theme.label, value: theme.id }}
+                  showIndicator={theme.id === activeEditorTheme}
+                >
+                  {theme.label}
+                </ListboxMenu.ListboxMenuItem>
+              ))}
+            </ListboxMenu.ListboxMenuList>
+          </ListboxMenu.ListboxRoot>
+        </ListboxMenu.ListboxMenuContent>
+      </ListboxMenu.ListboxMenuRoot>
 
       <Tooltip content="Refetch all" positioning={{ placement: "right" }}>
         <Button
