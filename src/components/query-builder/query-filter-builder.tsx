@@ -10,6 +10,7 @@ import type {
 } from "#src/components/query-builder/query-filter.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
+import { DateFilterCalendar } from "#src/components/query-builder/date-filter-calendar.tsx";
 import {
   DATE_FILTER_PRESETS,
   getDateFilterPreset,
@@ -437,32 +438,40 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
               )}
             </div>
             {isDateTimeColumn && (
-              <Menu>
-                <MenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 shrink-0 px-2 text-xs"
-                    title="Date range presets"
-                  >
-                    Preset
-                  </Button>
-                </MenuTrigger>
-                <MenuContent>
-                  {DATE_FILTER_PRESETS.map((preset) => (
-                    <MenuItem
-                      key={preset.id}
-                      value={preset.id}
-                      onClick={() => {
-                        onUpdate(String(index), getDateFilterPreset(preset.id));
-                      }}
+              <>
+                <DateFilterCalendar
+                  value={condition.value}
+                  onChange={(next) => {
+                    onUpdate(String(index), next);
+                  }}
+                />
+                <Menu>
+                  <MenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 px-2 text-xs"
+                      title="Date range presets"
                     >
-                      {preset.label}
-                    </MenuItem>
-                  ))}
-                </MenuContent>
-              </Menu>
+                      Preset
+                    </Button>
+                  </MenuTrigger>
+                  <MenuContent>
+                    {DATE_FILTER_PRESETS.map((preset) => (
+                      <MenuItem
+                        key={preset.id}
+                        value={preset.id}
+                        onClick={() => {
+                          onUpdate(String(index), getDateFilterPreset(preset.id));
+                        }}
+                      >
+                        {preset.label}
+                      </MenuItem>
+                    ))}
+                  </MenuContent>
+                </Menu>
+              </>
             )}
           </div>
         )}

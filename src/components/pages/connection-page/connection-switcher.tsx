@@ -9,6 +9,7 @@ import {
   Palette,
   RefreshCw,
   RotateCcw,
+  Settings,
   Sparkles,
   Star,
 } from "lucide-react";
@@ -38,6 +39,7 @@ interface ConnectionSwitcherProps {
   onOpenAiAssistant?: () => void;
   onOpenHistory?: () => void;
   onOpenFavorites?: () => void;
+  onOpenSettings?: () => void;
 }
 
 const railBtnClass =
@@ -183,12 +185,7 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
       >
         <Tooltip content="Editor theme" positioning={{ placement: "right" }}>
           <ListboxMenu.ListboxMenuTrigger variant="unstyled" size="unstyled" asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={railBtnClass}
-              aria-label="Editor theme"
-            >
+            <Button variant="ghost" size="icon" className={railBtnClass} aria-label="Editor theme">
               <Palette className="h-4 w-4" />
             </Button>
           </ListboxMenu.ListboxMenuTrigger>
@@ -288,6 +285,20 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
             onClick={props.onOpenAiAssistant}
           >
             <Sparkles className="h-4 w-4" />
+          </Button>
+        </Tooltip>
+      )}
+
+      {props.onOpenSettings && (
+        <Tooltip content="Settings (API key, AI)" positioning={{ placement: "right" }}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={railBtnClass}
+            aria-label="Settings"
+            onClick={props.onOpenSettings}
+          >
+            <Settings className="h-4 w-4" />
           </Button>
         </Tooltip>
       )}

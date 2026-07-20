@@ -33,6 +33,8 @@ interface ConnectionAiAssistantDrawerProps {
   activeConnectionUrl: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Put SQL in editor and execute (NL → SQL → run → results). */
+  onGenerateAndRun?: (sql: string) => void;
 }
 
 export const ConnectionAiAssistantDrawer = ({
@@ -40,6 +42,7 @@ export const ConnectionAiAssistantDrawer = ({
   activeConnectionUrl,
   open,
   onOpenChange,
+  onGenerateAndRun,
 }: ConnectionAiAssistantDrawerProps) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const tab = useActiveTabState((t) => ({
@@ -134,6 +137,11 @@ export const ConnectionAiAssistantDrawer = ({
     onOpenChange(false);
   };
 
+  const applySqlAndRun = (sql: string) => {
+    applySqlToEditor(sql);
+    onGenerateAndRun?.(sql);
+  };
+
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!tab.table) throw new Error("Select a table first.");
@@ -145,6 +153,24 @@ export const ConnectionAiAssistantDrawer = ({
     onSuccess: (result) => {
       setLastError(null);
       applySqlToEditor(result.sql);
+    },
+    onError: (err) => {
+      setLastError(getErrorMessage(err));
+    },
+  });
+
+  const generateAndRunMutation = useMutation({
+    mutationFn: async () => {
+      if (!tab.table) throw new Error("Select a table first.");
+      if (!onGenerateAndRun) throw new Error("Run handler not wired.");
+      return generateSqlFromNaturalLanguage({
+        question,
+        table: tableContext,
+      });
+    },
+    onSuccess: (result) => {
+      setLastError(null);
+      applySqlAndRun(result.sql);
     },
     onError: (err) => {
       setLastError(getErrorMessage(err));
@@ -242,13 +268,30 @@ export const ConnectionAiAssistantDrawer = ({
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
               />
-              <Button
-                size="sm"
-                disabled={!question.trim() || !tab.table || generateMutation.isPending}
-                onClick={() => generateMutation.mutate()}
-              >
-                {generateMutation.isPending ? "Generating…" : "Generate SQL → editor"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!question.trim() || !tab.table || generateMutation.isPending}
+                  onClick={() => generateMutation.mutate()}
+                >
+                  {generateMutation.isPending ? "Generating…" : "Generate SQL → editor"}
+                </Button>
+                {onGenerateAndRun && (
+                  <Button
+                    size="sm"
+                    disabled={
+                      !question.trim() ||
+                      !tab.table ||
+                      generateAndRunMutation.isPending ||
+                      generateMutation.isPending
+                    }
+                    onClick={() => generateAndRunMutation.mutate()}
+                  >
+                    {generateAndRunMutation.isPending ? "Generating…" : "Generate → run → results"}
+                  </Button>
+                )}
+              </div>
               {lastError && <p className="text-destructive text-xs">{lastError}</p>}
             </section>
           )}

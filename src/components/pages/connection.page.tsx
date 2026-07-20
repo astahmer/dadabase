@@ -57,6 +57,10 @@ import {
   parseSwitchSchemaCommandId,
   parseSwitchTableCommandId,
 } from "#src/lib/command-palette-commands.ts";
+import {
+  registerCustomSqlRunner,
+  runRegisteredCustomSql,
+} from "#src/lib/custom-sql-runner-bridge.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
@@ -393,6 +397,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
               activeConnectionUrl={activeConnectionUrl}
               onAddConnection={() => setShowAddConnectionDrawer(true)}
               onOpenAiAssistant={() => setAiAssistantOpen(true)}
+              onOpenSettings={() => setAiAssistantOpen(true)}
               onOpenHistory={() => setQueryLoggerPaletteView("history")}
               onOpenFavorites={() => setQueryLoggerPaletteView("favorites")}
             />
@@ -587,6 +592,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
         activeConnectionUrl={activeConnectionUrl}
         open={aiAssistantOpen}
         onOpenChange={setAiAssistantOpen}
+        onGenerateAndRun={(sql) => {
+          runRegisteredCustomSql(sql);
+        }}
       />
 
       <ConnectionCommandPalette
@@ -645,6 +653,11 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
   const executeCustomSql = useExecuteCustomSql({
     activeConnectionUrl: pageState.activeConnectionUrl,
   });
+  useEffect(() => {
+    return registerCustomSqlRunner((sql) => {
+      executeCustomSql.onRunQuery(sql);
+    });
+  }, [executeCustomSql]);
   const isCustomSqlMode = Boolean(
     isUsingCustomSql ||
     executeCustomSql.mutation.isPending ||
