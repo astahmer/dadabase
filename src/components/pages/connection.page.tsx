@@ -16,6 +16,7 @@ import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
+import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { queryClient } from "#src/query-client.ts";
 import {
@@ -1231,6 +1232,7 @@ const BulkActions = (
   const canDelete = hasPrimaryKey(props.columnMetadata);
 
   const deleteMutation = useMutation({
+    meta: rowMutationMeta,
     mutationFn: async () => {
       if (!canDelete || !search.schema || !search.table) {
         throw new Error("Missing required metadata for bulk delete");
@@ -1252,9 +1254,9 @@ const BulkActions = (
 
       return primaryKeys.length;
     },
-    onSuccess: async (deletedCount) => {
+    onSuccess: (deletedCount) => {
       props.rowsDataTable.resetRowSelection();
-      await queryClient.invalidateQueries({ queryKey: ["remote", "rows"] });
+      invalidateRowsQueries(queryClient);
 
       toaster.create({
         title: "Success",

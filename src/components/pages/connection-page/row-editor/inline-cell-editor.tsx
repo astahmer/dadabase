@@ -7,6 +7,7 @@ import {
   isNumericDataType,
 } from "#src/lib/data-type-utils.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
+import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
 import { updateRowServerFn } from "#src/server/introspection/start-fns/update-row.start.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -55,6 +56,7 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
   }, []);
 
   const saveMutation = useMutation({
+    meta: rowMutationMeta,
     mutationFn: async (nextValue: unknown) => {
       return updateRowServerFn({
         data: {
@@ -108,8 +110,8 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
         type: "success",
       });
     },
-    onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["remote", "rows"] });
+    onSettled: () => {
+      invalidateRowsQueries(queryClient);
     },
   });
 

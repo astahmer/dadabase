@@ -29,10 +29,12 @@ export const queryClient = new QueryClient({
     ),
   }),
   mutationCache: new MutationCache({
-    onSuccess: async (_data, _variables, _context, mutation) => {
+    onSuccess: (_data, _variables, _context, mutation) => {
       if (mutation.meta?.noInvalidate) return;
 
-      await queryClient.invalidateQueries(
+      // Fire-and-forget: awaiting every refetch blocks the mutation's onSuccess
+      // (and freezes UI) when many queries are active.
+      void queryClient.invalidateQueries(
         {
           predicate: (query) => {
             if ((query.options as QueryObserverOptions).staleTime === Number.POSITIVE_INFINITY) {
