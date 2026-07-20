@@ -1,10 +1,3 @@
-import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
-
-import { Button } from "#src/components/ui/button.tsx";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "#src/components/ui/hovercard.tsx";
-import { HStack } from "#src/components/ui/layout.tsx";
-import { Tooltip } from "#src/components/ui/tooltip.tsx";
-import { cn } from "#src/lib/utils.ts";
 import { Portal } from "@ark-ui/react";
 import { Tabs } from "@ark-ui/react/tabs";
 import {
@@ -13,6 +6,7 @@ import {
   ChevronRight,
   Copy,
   Maximize2,
+  Minimize2,
   Play,
   Square,
   Wand2,
@@ -20,7 +14,29 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffectEvent, useRef, useState } from "react";
 
+import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
+
+import { Button } from "#src/components/ui/button.tsx";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "#src/components/ui/hovercard.tsx";
+import { HStack } from "#src/components/ui/layout.tsx";
+import {
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuItemText,
+  MenuTrigger,
+} from "#src/components/ui/menu.tsx";
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
+import { cn } from "#src/lib/utils.ts";
+
+import {
+  SQL_EDITOR_MAXIMIZE_ACTIONS,
+  type SqlEditorMaximizeAction,
+} from "./sql-editor-maximize-actions.ts";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
+
+export type { SqlEditorMaximizeAction };
+export { SQL_EDITOR_MAXIMIZE_ACTIONS };
 
 interface SqlQueryPreviewProps {
   /** The raw SQL query string */
@@ -52,6 +68,8 @@ interface SqlQueryPreviewProps {
   onFormat?: () => void;
   /** Callback to toggle fullscreen editor */
   onToggleFullscreen?: () => void;
+  /** Expand the SQL panel (collapse rows) without going fullscreen */
+  onExpandPanel?: () => void;
   /** Whether editor is in fullscreen mode */
   isFullscreen?: boolean;
   /** Whether the preview is collapsed */
@@ -92,6 +110,7 @@ export function SqlQueryPreview({
   disableExplain = false,
   onFormat,
   onToggleFullscreen,
+  onExpandPanel,
   isFullscreen = false,
   isCollapsed = true,
   onToggleCollapsed,
@@ -267,11 +286,56 @@ export function SqlQueryPreview({
                   <Wand2 className="h-4 w-4" />
                 </Button>
               </Tooltip>
-              <Tooltip content="Toggle fullscreen">
-                <Button variant="ghost" size="sm" onClick={onToggleFullscreen} className="h-8 px-2">
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
-              </Tooltip>
+              {isFullscreen ? (
+                <Tooltip content="Exit fullscreen">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onToggleFullscreen}
+                    className="h-8 px-2"
+                    data-testid="sql-exit-fullscreen"
+                  >
+                    <Minimize2 className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+              ) : (
+                <Menu>
+                  <MenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2"
+                      data-testid="sql-maximize-menu"
+                      aria-label="Maximize SQL editor"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </MenuTrigger>
+                  <Portal>
+                    <MenuContent>
+                      {SQL_EDITOR_MAXIMIZE_ACTIONS.map((action) => (
+                        <MenuItem
+                          key={action.id}
+                          value={action.id}
+                          onClick={() => {
+                            if (action.id === "expand-panel") onExpandPanel?.();
+                            else onToggleFullscreen?.();
+                          }}
+                        >
+                          <MenuItemText>
+                            <span className="flex flex-col gap-0.5">
+                              <span>{action.label}</span>
+                              <span className="text-muted-foreground text-xs font-normal">
+                                {action.description}
+                              </span>
+                            </span>
+                          </MenuItemText>
+                        </MenuItem>
+                      ))}
+                    </MenuContent>
+                  </Portal>
+                </Menu>
+              )}
             </div>
           )}
         </div>

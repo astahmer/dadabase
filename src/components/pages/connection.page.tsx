@@ -1,3 +1,17 @@
+import { Splitter } from "@ark-ui/react";
+import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { createColumnHelper } from "@tanstack/react-table";
+import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { BulkActionBar } from "#src/components/app/bulk-action-bar.tsx";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import {
@@ -31,19 +45,6 @@ import {
 import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { Splitter } from "@ark-ui/react";
-import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { createColumnHelper } from "@tanstack/react-table";
-import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
-import {
-  type Dispatch,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
 
 import type { DbConnection } from "./connection.types";
 
@@ -903,6 +904,15 @@ const RowsTableSqlEditor = (
           }
         }}
         onToggleFullscreen={() => setIsEditorFullscreen(!isEditorFullscreen)}
+        onExpandPanel={() => {
+          if (props.isCollapsed) props.onExpand();
+          navigate({
+            search: (prev) =>
+              updateTabState(prev, {
+                sqlPreviewSize: 70,
+              }),
+          });
+        }}
         isFullscreen={isEditorFullscreen}
         className="h-full text-sm"
         warning={

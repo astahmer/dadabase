@@ -1,6 +1,6 @@
 # Ideas backlog
 
-Done items removed. Trash: generative UI (too vague), dockview layout (overkill), dblclick-cell-copy (conflicts with inline edit).
+Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (conflicts with inline edit).
 
 ## raw SQL viewer/editor
 
@@ -27,8 +27,11 @@ Done items removed. Trash: generative UI (too vague), dockview layout (overkill)
 
 ## ai (future)
 
+- use a BYOK approach with OpenAI first using the vercel ai sdk
 - [ ] suggest missing indexes
 - [ ] suggested queries from schema/data (e.g. distinct values for string enums)
+- ask for a query in natural language → generate SQL → run → show results
+- have generative UI for charts/stats etc with https://github.com/vercel-labs/json-render
 
 ## query history / favorites
 
@@ -52,7 +55,7 @@ Done items removed. Trash: generative UI (too vague), dockview layout (overkill)
 ## issues
 
 - [ ] `hiddenColumnList` should be `{ table, column }` not bare column name strings
-- [ ] SQL editor maximize → menu: expand panel vs fullscreen (collapse sidebar + filters + rows)
+- [x] SQL editor maximize → menu: expand panel vs fullscreen (collapse sidebar + filters + rows)
 - [x] UI to display/edit the `inverted` flag on filter conditions
 - [x] SQL completion: inverted operator suggestions
 - [ ] INSERT completion: `INTO` → tables → column/values snippet
