@@ -105,7 +105,10 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
       // Build the connection URL based on type
       let connectionUrl = ctx.value.connectionUrl;
       if (connectionType === DatabaseDialect.SQLite) {
-        connectionUrl = `sqlite://${ctx.value.filePath}`;
+        // libsql client accepts file: URLs for local SQLite databases
+        connectionUrl = ctx.value.filePath.startsWith("file:")
+          ? ctx.value.filePath
+          : `file:${ctx.value.filePath}`;
       } else if (connectionType === DatabaseDialect.LibSQL) {
         if (ctx.value.libsqlAuthToken) {
           connectionUrl = `${ctx.value.connectionUrl}?authToken=${ctx.value.libsqlAuthToken}`;
@@ -153,7 +156,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
           });
           onSuccess?.();
         }
-      } catch  {
+      } catch {
         toaster.create({
           title: (
             <HStack align="center" className="text-chart-1">
@@ -419,7 +422,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                 });
                 setTimeout(() => setTestState("idle"), 2000);
               }
-            } catch  {
+            } catch {
               setTestState("error");
               toaster.create({
                 title: (
