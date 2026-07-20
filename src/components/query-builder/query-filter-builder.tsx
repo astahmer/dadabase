@@ -10,6 +10,10 @@ import type {
 } from "#src/components/query-builder/query-filter.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
+import {
+  DATE_FILTER_PRESETS,
+  getDateFilterPreset,
+} from "#src/components/query-builder/date-filter-presets.ts";
 import { getOperatorsForDataType } from "#src/components/query-builder/operators-for-data-type.ts";
 import {
   arrayOperators,
@@ -20,6 +24,7 @@ import {
   SPECIAL_VALUES_LIST,
   specialValueSupportedOperators,
 } from "#src/components/query-builder/query-filter.ts";
+import { isDateTimeDataType } from "#src/lib/data-type-utils.ts";
 
 import { DataTypeBadge } from "../app/data-type-badge.tsx";
 import { Button } from "../ui/button.tsx";
@@ -36,6 +41,7 @@ import {
 import { Input } from "../ui/input.tsx";
 import { Kbd } from "../ui/kbd.tsx";
 import { Stack } from "../ui/layout.tsx";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/menu.tsx";
 import * as ArkSelect from "../ui/select.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 
@@ -165,6 +171,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
   const supportsSpecialValues = specialValueSupportedOperators.includes(condition.operator);
 
   const columnDataType = columnMetadata?.find((col) => col.name === condition.column)?.dataType;
+  const isDateTimeColumn = Boolean(columnDataType && isDateTimeDataType(columnDataType));
   const allowedOperators = useMemo(() => getOperatorsForDataType(columnDataType), [columnDataType]);
   const operatorCollection = useMemo(
     () =>
@@ -336,97 +343,127 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
         </Tooltip>
 
         {!isNullOperator && (
-          <div className="min-w-0 flex-1">
-            {isRangeOperator ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  className="border-input placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-md border bg-transparent text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
-                  type="text"
-                  placeholder="From"
-                  value={Array.isArray(condition.value) ? String(condition.value[0] ?? "") : ""}
-                  onChange={(e) => {
-                    const high = Array.isArray(condition.value)
-                      ? String(condition.value[1] ?? "")
-                      : "";
-                    onUpdate(String(index), { value: [e.target.value, high] });
-                  }}
-                />
-                <span className="text-muted-foreground text-xs">and</span>
-                <Input
-                  className="border-input placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-md border bg-transparent text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
-                  type="text"
-                  placeholder="To"
-                  value={Array.isArray(condition.value) ? String(condition.value[1] ?? "") : ""}
-                  onChange={(e) => {
-                    const low = Array.isArray(condition.value)
-                      ? String(condition.value[0] ?? "")
-                      : "";
-                    onUpdate(String(index), { value: [low, e.target.value] });
-                  }}
-                />
-              </div>
-            ) : supportsSpecialValues ? (
-              <Combobox
-                collection={specialValuesCollection}
-                value={
-                  isArrayOperator && Array.isArray(condition.value)
-                    ? condition.value.map(String)
-                    : condition.value
-                      ? [String(condition.value)]
-                      : []
-                }
-                onValueChange={(details) => {
-                  onUpdate(String(index), {
-                    value: details.value.length === 1 ? details.value[0] : details.value || "",
-                  });
-                }}
-                onInputValueChange={(details) => {
-                  const val = details.inputValue;
-                  if (!val || val.trim() === "") return;
-                  onUpdate(String(index), {
-                    value: isArrayOperator ? val.split(",").map((v) => v.trim()) : val,
-                  });
-                }}
-                allowCustomValue
-                openOnClick
-              >
-                <ComboboxControl size="sm">
-                  <ComboboxInput
-                    placeholder="Value or select special value..."
-                    className="w-full"
+          <div className="flex min-w-0 flex-1 items-end gap-2">
+            <div className="min-w-0 flex-1">
+              {isRangeOperator ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    className="border-input placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-md border bg-transparent text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
+                    type="text"
+                    placeholder="From"
+                    value={Array.isArray(condition.value) ? String(condition.value[0] ?? "") : ""}
+                    onChange={(e) => {
+                      const high = Array.isArray(condition.value)
+                        ? String(condition.value[1] ?? "")
+                        : "";
+                      onUpdate(String(index), { value: [e.target.value, high] });
+                    }}
                   />
-                  <ComboboxTrigger />
-                </ComboboxControl>
-                <ComboboxContent>
-                  <ComboboxList>
-                    {specialValuesCollection.items.map((item) => (
-                      <ComboboxItem key={item.value} item={item} className="text-sm">
-                        <span className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs">
-                          {item.label}
-                        </span>
-                      </ComboboxItem>
-                    ))}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-            ) : (
-              <Input
-                className="border-input placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-md border bg-transparent text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
-                type="text"
-                placeholder="Value"
-                value={
-                  isArrayOperator && Array.isArray(condition.value)
-                    ? condition.value.join(", ")
-                    : (condition.value as string) || ""
-                }
-                onChange={(e) => {
-                  const val = e.target.value;
-                  onUpdate(String(index), {
-                    value: isArrayOperator ? val.split(",").map((v) => v.trim()) : val,
-                  });
-                }}
-              />
-            )}{" "}
+                  <span className="text-muted-foreground text-xs">and</span>
+                  <Input
+                    className="border-input placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-md border bg-transparent text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
+                    type="text"
+                    placeholder="To"
+                    value={Array.isArray(condition.value) ? String(condition.value[1] ?? "") : ""}
+                    onChange={(e) => {
+                      const low = Array.isArray(condition.value)
+                        ? String(condition.value[0] ?? "")
+                        : "";
+                      onUpdate(String(index), { value: [low, e.target.value] });
+                    }}
+                  />
+                </div>
+              ) : supportsSpecialValues ? (
+                <Combobox
+                  collection={specialValuesCollection}
+                  value={
+                    isArrayOperator && Array.isArray(condition.value)
+                      ? condition.value.map(String)
+                      : condition.value
+                        ? [String(condition.value)]
+                        : []
+                  }
+                  onValueChange={(details) => {
+                    onUpdate(String(index), {
+                      value: details.value.length === 1 ? details.value[0] : details.value || "",
+                    });
+                  }}
+                  onInputValueChange={(details) => {
+                    const val = details.inputValue;
+                    if (!val || val.trim() === "") return;
+                    onUpdate(String(index), {
+                      value: isArrayOperator ? val.split(",").map((v) => v.trim()) : val,
+                    });
+                  }}
+                  allowCustomValue
+                  openOnClick
+                >
+                  <ComboboxControl size="sm">
+                    <ComboboxInput
+                      placeholder="Value or select special value..."
+                      className="w-full"
+                    />
+                    <ComboboxTrigger />
+                  </ComboboxControl>
+                  <ComboboxContent>
+                    <ComboboxList>
+                      {specialValuesCollection.items.map((item) => (
+                        <ComboboxItem key={item.value} item={item} className="text-sm">
+                          <span className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs">
+                            {item.label}
+                          </span>
+                        </ComboboxItem>
+                      ))}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+              ) : (
+                <Input
+                  className="border-input placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-md border bg-transparent text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
+                  type="text"
+                  placeholder="Value"
+                  value={
+                    isArrayOperator && Array.isArray(condition.value)
+                      ? condition.value.join(", ")
+                      : (condition.value as string) || ""
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    onUpdate(String(index), {
+                      value: isArrayOperator ? val.split(",").map((v) => v.trim()) : val,
+                    });
+                  }}
+                />
+              )}
+            </div>
+            {isDateTimeColumn && (
+              <Menu>
+                <MenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0 px-2 text-xs"
+                    title="Date range presets"
+                  >
+                    Preset
+                  </Button>
+                </MenuTrigger>
+                <MenuContent>
+                  {DATE_FILTER_PRESETS.map((preset) => (
+                    <MenuItem
+                      key={preset.id}
+                      value={preset.id}
+                      onClick={() => {
+                        onUpdate(String(index), getDateFilterPreset(preset.id));
+                      }}
+                    >
+                      {preset.label}
+                    </MenuItem>
+                  ))}
+                </MenuContent>
+              </Menu>
+            )}
           </div>
         )}
         {props.isFirst && props.hasMultipleConditions && (
