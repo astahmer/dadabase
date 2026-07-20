@@ -50,6 +50,50 @@ describe("Natural Language Query Parser", () => {
       });
     });
 
+    it("should parse NOT prefix before a comparison", () => {
+      const result = parseNaturalLanguageQuery("NOT status = active", columns);
+      expect(result.success).toBe(true);
+      expect(result.filters?.[0]).toMatchObject({
+        field: "status",
+        operator: "eq",
+        value: "active",
+        inverted: true,
+      });
+    });
+
+    it("should parse not before greater-than", () => {
+      const result = parseNaturalLanguageQuery("not age > 25", columns);
+      expect(result.success).toBe(true);
+      expect(result.filters?.[0]).toMatchObject({
+        field: "age",
+        operator: "gt",
+        value: 25,
+        inverted: true,
+      });
+    });
+
+    it("should parse NOT before IN", () => {
+      const result = parseNaturalLanguageQuery("NOT status in (active, pending)", columns);
+      expect(result.success).toBe(true);
+      expect(result.filters?.[0]).toMatchObject({
+        field: "status",
+        operator: "in",
+        inverted: true,
+      });
+      expect(result.filters?.[0].value).toEqual(["active", "pending"]);
+    });
+
+    it("should parse not before BETWEEN", () => {
+      const result = parseNaturalLanguageQuery("not age between 20 and 30", columns);
+      expect(result.success).toBe(true);
+      expect(result.filters?.[0]).toMatchObject({
+        field: "age",
+        operator: "between",
+        inverted: true,
+        value: ["20", "30"],
+      });
+    });
+
     it("should parse in filters", () => {
       const result = parseNaturalLanguageQuery("status in (active, pending, closed)", columns);
       expect(result.success).toBe(true);

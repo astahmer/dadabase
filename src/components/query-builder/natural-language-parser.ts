@@ -96,23 +96,65 @@ function extractNumericValue(str: string): number | null {
  * - "age > 25"
  * - "name is john"
  * - "status = active"
+ * - "NOT status = active" / "not age > 25" (inverted)
  * - "price between 10 and 100"
  * - "city in (new york, london, paris)"
+ * - "NOT city in (…)" / "not price between 10 and 100"
  */
 function parseFilters(input: string, availableColumns: string[]): FilterCondition[] {
   const filters: FilterCondition[] = [];
 
-  // Pattern 1: "column operator value" (e.g., "age > 25", "name is john")
-  const basicPattern =
-    /(\w+(?:\s+\w+)*)\s+(?:is|equals?|=|>=|<=|>|<|greater\s+than|less\s+than|greater\s+than\s+or\s+equal|less\s+than\s+or\s+equal|contains|like|includes|not\s+equal|!=|<>|not\s+contains?)\s+['"]?([^,;'\n]+?)['"]?(?=\s+(?:and|or|,|\w+\s+(?:is|equals?|=|>|<))|$)/gi;
+  // Pattern 0: leading NOT before a basic comparison — "NOT status = active"
+  const notBasicPattern =
+    /\bnot\s+(\w+(?:\s+\w+)*)\s+(?:is|equals?|=|>=|<=|>|<|greater\s+than|less\s+than|greater\s+than\s+or\s+equal|less\s+than\s+or\s+equal|contains|like|includes|not\s+equal|!=|<>|not\s+contains?)\s+['"]?([^,;'\n]+?)['"]?(?=\s+(?:and|or|,|\w+\s+(?:is|equals?|=|>|<)|not\s+\w)|$)/gi;
 
   let match;
+  while ((match = notBasicPattern.exec(input)) !== null) {
+    const columnName = match[1].trim();
+    const valueStr = match[2].trim();
+    const bestColumn = findBestColumnMatch(columnName, availableColumns);
+    if (!bestColumn) continue;
+
+    // Operator text excludes the leading "not " so extractOperator sees the real op
+    const opText = match[0].replace(/^\s*not\s+/i, "");
+    const operator = extractOperator(opText);
+    let value: string | number;
+    if (["gt", "lt", "gte", "lte"].includes(operator)) {
+      const numValue = extractNumericValue(valueStr);
+      value = numValue !== null ? numValue : valueStr;
+    } else {
+      value = valueStr;
+    }
+
+    filters.push({
+      field: bestColumn,
+      operator: operator === "not_eq" ? "eq" : operator === "not_contains" ? "contains" : operator,
+      value,
+      inverted: true,
+    });
+  }
+
+  // Pattern 1: "column operator value" (e.g., "age > 25", "name is john")
+  const basicPattern =
+    /(\w+(?:\s+\w+)*)\s+(?:is|equals?|=|>=|<=|>|<|greater\s+than|less\s+than|greater\s+than\s+or\s+equal|less\s+than\s+or\s+equal|contains|like|includes|not\s+equal|!=|<>|not\s+contains?)\s+['"]?([^,;'\n]+?)['"]?(?=\s+(?:and|or|,|\w+\s+(?:is|equals?|=|>|<)|not\s+\w)|$)/gi;
+
   while ((match = basicPattern.exec(input)) !== null) {
+    // Skip if this match sits inside a leading-NOT span already handled
+    const matchStart = match.index ?? 0;
+    const preceding = input.slice(Math.max(0, matchStart - 4), matchStart).toLowerCase();
+    if (/\bnot\s*$/i.test(preceding) || preceding.endsWith("not ")) continue;
+
     const columnName = match[1].trim();
     const valueStr = match[2].trim();
 
     const bestColumn = findBestColumnMatch(columnName, availableColumns);
     if (!bestColumn) continue;
+
+    // Avoid duplicating a filter already captured via NOT prefix
+    const alreadyInverted = filters.some(
+      (f) => f.field === bestColumn && f.inverted && String(f.value) === valueStr.trim(),
+    );
+    if (alreadyInverted) continue;
 
     const operator = extractOperator(match[0]);
     const isInverted =
@@ -136,27 +178,31 @@ function parseFilters(input: string, availableColumns: string[]): FilterConditio
     });
   }
 
-  // Pattern 2: "column between X and Y"
-  const betweenPattern = /(\w+(?:\s+\w+)*)\s+between\s+(\d+\.?\d*)\s+and\s+(\d+\.?\d*)/gi;
+  // Pattern 2: "column between X and Y" / "NOT column between X and Y"
+  const betweenPattern =
+    /(\bnot\s+)?(\w+(?:\s+\w+)*)\s+between\s+(\d+\.?\d*)\s+and\s+(\d+\.?\d*)/gi;
   while ((match = betweenPattern.exec(input)) !== null) {
-    const columnName = match[1].trim();
+    const inverted = Boolean(match[1]);
+    const columnName = match[2].trim();
     const bestColumn = findBestColumnMatch(columnName, availableColumns);
     if (bestColumn) {
       filters.push({
         field: bestColumn,
         operator: "between",
-        value: [String(Number(match[2])), String(Number(match[3]))],
+        value: [String(Number(match[3])), String(Number(match[4]))],
+        ...(inverted && { inverted: true }),
       });
     }
   }
 
-  // Pattern 3: "column in (value1, value2, value3)"
-  const inPattern = /(\w+(?:\s+\w+)*)\s+in\s+\(([^)]+)\)/gi;
+  // Pattern 3: "column in (…)" / "NOT column in (…)"
+  const inPattern = /(\bnot\s+)?(\w+(?:\s+\w+)*)\s+in\s+\(([^)]+)\)/gi;
   while ((match = inPattern.exec(input)) !== null) {
-    const columnName = match[1].trim();
+    const inverted = Boolean(match[1]);
+    const columnName = match[2].trim();
     const bestColumn = findBestColumnMatch(columnName, availableColumns);
     if (bestColumn) {
-      const values = match[2]
+      const values = match[3]
         .split(",")
         .map((v) => v.trim().replace(/['"`]/g, ""))
         .filter((v) => v);
@@ -165,6 +211,7 @@ function parseFilters(input: string, availableColumns: string[]): FilterConditio
         field: bestColumn,
         operator: "in",
         value: values,
+        ...(inverted && { inverted: true }),
       });
     }
   }

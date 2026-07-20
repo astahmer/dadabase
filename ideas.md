@@ -12,7 +12,7 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 
 ## filters
 
-- [ ] broader NOT in natural language (`NOT status = active` style)
+- [x] broader NOT in natural language (`NOT status = active` style)
 - [x] invert toggle in filter UI + inverted operator suggestions in SQL completion
 - [x] match operators to datatype (e.g. timestamps shouldn't offer contains/starts_with)
 - [ ] date filter with calendar + range presets (today, last 7/30 days, this/last month, this/last year)
