@@ -1,12 +1,14 @@
-import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 import type { Selectable } from "kysely";
+
+import { SqlClient } from "@effect/sql";
+import { SqlError } from "@effect/sql/SqlError";
+import { Effect } from "effect";
+
+import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 
 import { RemoteConnection } from "#src/server/db-connection/remote-connection.tag.ts";
 import { QueryLogLevel, QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
-import { SqlClient } from "@effect/sql";
-import { SqlError } from "@effect/sql/SqlError";
-import { Effect } from "effect";
 
 import { DADABASE_ROW_ID, isDadabaseRowIdKey } from "./row-identity.ts";
 import {
@@ -50,7 +52,7 @@ export const updateRow = (
       );
     }
 
-    const usesSystemRowId = pkColumns.length === 1 && isDadabaseRowIdKey(pkColumns[0]!);
+    const usesSystemRowId = pkColumns.length === 1 && isDadabaseRowIdKey(pkColumns[0] ?? "");
     if (!usesSystemRowId) {
       assertSafeIdentifiers(pkColumns, "primary key column");
     }

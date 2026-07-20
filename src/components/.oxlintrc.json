@@ -10,7 +10,7 @@
     "react/no-unescaped-entities": "error",
     // unicorn
     "unicorn/prefer-modern-math-apis": "error",
-    "unicorn/prefer-query-selector ": "error",
+    "unicorn/prefer-query-selector": "error",
     "unicorn/prefer-event-target": "error"
   }
 }

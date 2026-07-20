@@ -9,6 +9,6 @@ export default defineConfig({
   test: {
     hideSkippedTests: true,
     passWithNoTests: true,
-    exclude: [...defaultExclude, ".context"],
+    exclude: [...defaultExclude, ".context", ".references/**", "e2e/**"],
   },
 });

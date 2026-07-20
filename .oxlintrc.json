@@ -41,5 +41,5 @@
   },
   "globals": {},
   // "ignorePatterns": ["src/routes/**", "src/components/**"]
-  "ignorePatterns": ["src/sandbox", "*.config.ts"]
+  "ignorePatterns": ["src/sandbox", "*.config.ts", ".references", "e2e"]
 }

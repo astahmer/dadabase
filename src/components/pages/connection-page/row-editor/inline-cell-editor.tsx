@@ -1,3 +1,6 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+
 import { Button } from "#src/components/ui/button.tsx";
 import { Input } from "#src/components/ui/input.tsx";
 import { Switch, SwitchControl, SwitchThumb } from "#src/components/ui/switch.tsx";
@@ -12,8 +15,6 @@ import {
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
 import { updateRowServerFn } from "#src/server/introspection/start-fns/update-row.start.ts";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
 
 export interface InlineCellEditorProps {
   connectionUrl: string;
@@ -209,32 +210,34 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
         onBlur={() => commit()}
       />
       {isDateTimeDataType(dataType) && (
-        <Button
-          type="button"
-          size="xs"
-          variant="outline"
-          disabled={saveMutation.isPending}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => {
-            const next = nowValueForDataType(dataType);
-            setValue(next);
-            commit(next);
-          }}
-        >
-          Now
-        </Button>
+        <span onMouseDown={(e) => e.preventDefault()}>
+          <Button
+            type="button"
+            size="xs"
+            variant="outline"
+            disabled={saveMutation.isPending}
+            onClick={() => {
+              const next = nowValueForDataType(dataType);
+              setValue(next);
+              commit(next);
+            }}
+          >
+            Now
+          </Button>
+        </span>
       )}
       {nullable && (
-        <Button
-          type="button"
-          size="xs"
-          variant={value === null ? "default" : "outline"}
-          disabled={saveMutation.isPending}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => commit(null)}
-        >
-          NULL
-        </Button>
+        <span onMouseDown={(e) => e.preventDefault()}>
+          <Button
+            type="button"
+            size="xs"
+            variant={value === null ? "default" : "outline"}
+            disabled={saveMutation.isPending}
+            onClick={() => commit(null)}
+          >
+            NULL
+          </Button>
+        </span>
       )}
     </div>
   );

@@ -50,13 +50,12 @@ export function isDateTimeDataType(dataType: string): boolean {
  */
 export function nowValueForDataType(dataType: string, now = new Date()): string {
   const normalized = dataType.toLowerCase().trim();
-  const pad = (n: number) => String(n).padStart(2, "0");
   const yyyy = now.getFullYear();
-  const mm = pad(now.getMonth() + 1);
-  const dd = pad(now.getDate());
-  const hh = pad(now.getHours());
-  const mi = pad(now.getMinutes());
-  const ss = pad(now.getSeconds());
+  const mm = pad2(now.getMonth() + 1);
+  const dd = pad2(now.getDate());
+  const hh = pad2(now.getHours());
+  const mi = pad2(now.getMinutes());
+  const ss = pad2(now.getSeconds());
 
   const isDateOnly =
     normalized === "date" ||
@@ -72,6 +71,10 @@ export function nowValueForDataType(dataType: string, now = new Date()): string 
   }
 
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
 }
 
 /**

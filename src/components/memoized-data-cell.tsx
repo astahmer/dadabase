@@ -1,7 +1,8 @@
 import type { CellContext } from "@tanstack/react-table";
 
-import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
 import { memo, useState } from "react";
+
+import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
 
 import type { ForeignKeyInfo } from "./data-table/cell-context-menu.tsx";
 

@@ -1,3 +1,7 @@
+import { useForm } from "@tanstack/react-form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import { Button } from "#src/components/ui/button.tsx";
@@ -16,9 +20,6 @@ import { formatDbError } from "#src/lib/format-db-error.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
 import { insertRowServerFn } from "#src/server/introspection/start-fns/insert-row.start.ts";
 import { updateRowServerFn } from "#src/server/introspection/start-fns/update-row.start.ts";
-import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
 
 import { ColumnInput } from "./column-input.tsx";
 import { JsonMonacoEditor } from "./json-monaco-editor.tsx";
@@ -27,7 +28,6 @@ import {
   buildInitialRowValues,
   canLocateRow,
   getEditableColumns,
-  hasPrimaryKey,
   prepareSubmitValues,
   type RowEditorMode,
 } from "./row-editor-values.ts";
