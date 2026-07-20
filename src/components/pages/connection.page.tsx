@@ -94,6 +94,7 @@ import {
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
 import { TabErrorState } from "./connection-page/tab-error-state.tsx";
+import { TableIndexesPanel } from "./connection-page/table-indexes-panel.tsx";
 import { useExplainQuery } from "./connection-page/use-explain-query.ts";
 import { useStructureFilters } from "./connection-page/use-structure-filter-state.ts";
 import { useTablesColumnsForIntellisense } from "./connection-page/use-tables-columns-intellisense.ts";
@@ -645,6 +646,13 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
               tableSize={search.tableSize}
               filters={structureFilters}
             />
+            {search.schema && search.table ? (
+              <TableIndexesPanel
+                connectionUrl={props.activeConnectionUrl}
+                schema={search.schema}
+                table={search.table}
+              />
+            ) : null}
           </div>
         ) : (
           <Splitter.Root
