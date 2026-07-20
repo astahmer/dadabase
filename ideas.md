@@ -59,4 +59,4 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [x] UI to display/edit the `inverted` flag on filter conditions
 - [x] SQL completion: inverted operator suggestions
 - [x] INSERT completion: `INTO` → tables → column/values snippet
-- [ ] update deps (ongoing chore)
+- [x] update deps (ongoing chore)
