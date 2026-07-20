@@ -21,8 +21,8 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 
 ## rows table
 
-- [ ] filters in datatable header (`th`)
-- [ ] cmd+f in virtualized table → highlight/filter
+- [x] filters in datatable header (`th`)
+- [x] cmd+f in virtualized table → highlight/filter
 - [x] store page limit in localStorage and use as default instead of hardcoded 50
 
 ## ai (future)

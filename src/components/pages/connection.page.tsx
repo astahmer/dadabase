@@ -2,7 +2,7 @@ import { Splitter } from "@ark-ui/react";
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
-import { ArrowDown, ArrowDownUp, ArrowUp, RotateCcw } from "lucide-react";
+import { ArrowDown, ArrowDownUp, ArrowUp, Plus, RotateCcw } from "lucide-react";
 import {
   type Dispatch,
   type SetStateAction,
@@ -16,15 +16,26 @@ import {
 import { BulkActionBar } from "#src/components/app/bulk-action-bar.tsx";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
 import {
+  getColumnHeaderFilter,
+  upsertColumnHeaderFilter,
+} from "#src/components/data-table/upsert-column-header-filter.ts";
+import { shouldSyncEditorFromGeneratedSql } from "#src/components/pages/connection-page/editor-detach.ts";
+import {
   copyToClipboard,
   exportRows,
   rowsToInsertStatements,
 } from "#src/components/pages/connection-page/export-rows.ts";
+import { GroupByHavingControls } from "#src/components/pages/connection-page/group-by-having-controls.tsx";
 import {
   isColumnHidden,
   normalizeHiddenColumnList,
   toHiddenColumnKeys,
 } from "#src/components/pages/connection-page/hidden-column-list.ts";
+import { PendingCellEditsBar } from "#src/components/pages/connection-page/row-editor/pending-cell-edits-bar.tsx";
+import {
+  PendingCellEditsProvider,
+  usePendingCellEdits,
+} from "#src/components/pages/connection-page/row-editor/pending-cell-edits-context.tsx";
 import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
 import {
   type ConnectionPageState,
@@ -804,34 +815,69 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
           {search.viewMode === "rows" &&
             pageState.rowsColumns.length > 0 &&
             search.filtersOpened && (
-              <QueryFilterBuilder
-                key={search.table}
-                conditions={pageState.queryBuilder.filter.conditions}
-                onUpdateCondition={pageState.queryBuilder.updateCondition}
-                onRemoveCondition={pageState.queryBuilder.removeCondition}
-                onLogicalOperatorChange={pageState.queryBuilder.setLogicalOperator}
-                onAddCondition={pageState.queryBuilder.addCondition}
-                onClearAll={pageState.queryBuilder.clearConditions}
-                logicalOperator={pageState.queryBuilder.filter.logicalOperator}
-                availableColumns={pageState.columnNameList}
-                isLoading={pageState.rowsQuery.isLoading}
-                columnMetadata={pageState.columnMetadata
-                  .map((meta) => ({
-                    ...meta,
-                    name: `${search.table}.${meta.name}`,
-                  }))
-                  .concat(
-                    (columnQueries ?? []).flatMap((q, index) =>
-                      (q.data ?? []).map((meta) => {
-                        const table = pageState.joins[index].table;
-                        return {
-                          ...meta,
-                          name: `${table}.${meta.name}`,
-                        };
-                      }),
-                    ),
-                  )}
-              />
+              <>
+                {pageState.queryBuilder.filter.conditions.length === 0 ? (
+                  <div className="flex items-center gap-2 border-b px-4 py-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => pageState.queryBuilder.addCondition()}
+                    >
+                      <Plus className="h-3 w-3" />
+                      Add WHERE filter
+                    </Button>
+                  </div>
+                ) : (
+                  <QueryFilterBuilder
+                    key={search.table}
+                    conditions={pageState.queryBuilder.filter.conditions}
+                    onUpdateCondition={pageState.queryBuilder.updateCondition}
+                    onRemoveCondition={pageState.queryBuilder.removeCondition}
+                    onLogicalOperatorChange={pageState.queryBuilder.setLogicalOperator}
+                    onAddCondition={pageState.queryBuilder.addCondition}
+                    onClearAll={pageState.queryBuilder.clearConditions}
+                    logicalOperator={pageState.queryBuilder.filter.logicalOperator}
+                    availableColumns={pageState.columnNameList}
+                    isLoading={pageState.rowsQuery.isLoading}
+                    columnMetadata={pageState.columnMetadata
+                      .map((meta) => ({
+                        ...meta,
+                        name: `${search.table}.${meta.name}`,
+                      }))
+                      .concat(
+                        (columnQueries ?? []).flatMap((q, index) =>
+                          (q.data ?? []).map((meta) => {
+                            const table = pageState.joins[index].table;
+                            return {
+                              ...meta,
+                              name: `${table}.${meta.name}`,
+                            };
+                          }),
+                        ),
+                      )}
+                  />
+                )}
+                <GroupByHavingControls
+                  availableColumns={pageState.columnNameList}
+                  groupBy={pageState.groupBy}
+                  onGroupByChange={(groupBy) => {
+                    navigate({
+                      search: (prev) =>
+                        updateTabState(prev, {
+                          groupBy: groupBy.length ? groupBy : undefined,
+                          ...(groupBy.length ? {} : { having: undefined }),
+                          offset: 0,
+                        }),
+                    });
+                    if (!groupBy.length) {
+                      pageState.havingBuilder.clearConditions();
+                    }
+                  }}
+                  havingBuilder={pageState.havingBuilder}
+                  isLoading={pageState.rowsQuery.isLoading}
+                />
+              </>
             )}
         </>
       )}
@@ -986,7 +1032,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                   timeTaken={pageState.queryResponse.timeTaken}
                   ranAt={pageState.queryResponse.ranAt}
                   totalRowCount={pageState.queryResponse.rowCount}
-                  rowsColumnsCount={pageState.rowsColumns.length - 2}
+                  rowsColumnsCount={pageState.rowsColumns.length - 3}
                   isCustomSql={isCustomSqlMode}
                   schema={search.schema}
                   tableName={search.table}
@@ -1039,6 +1085,7 @@ const RowsTableSqlEditor = (
       sqlEditorMode: tab.sqlEditorMode,
       customSql: tab.customSql,
       customSqlId: tab.customSqlId,
+      editorDetached: tab.editorDetached,
     };
   });
 
@@ -1073,11 +1120,13 @@ const RowsTableSqlEditor = (
   });
 
   // When the generated SQL changes (e.g., from adding a join via UI), clear the draft
-  // so the editor syncs with the new generated SQL
+  // so the editor syncs with the new generated SQL — unless editor is detached
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset draft when generated SQL changes
   useEffect(() => {
-    setDraftSql(null);
-  }, [props.sqlQueryAsText]);
+    if (shouldSyncEditorFromGeneratedSql({ editorDetached: search.editorDetached })) {
+      setDraftSql(null);
+    }
+  }, [props.sqlQueryAsText, search.editorDetached]);
 
   // Fetch available tables/columns for intellisense
   const { tables, columns } = useTablesColumnsForIntellisense({
@@ -1113,6 +1162,22 @@ const RowsTableSqlEditor = (
               }),
           })
         }
+        editorDetached={search.editorDetached}
+        onEditorDetachedChange={(detached) => {
+          navigate({
+            search: (prev) =>
+              updateTabState(prev, {
+                editorDetached: detached || undefined,
+                sqlEditorMode: detached ? "editor" : search.sqlEditorMode,
+              }),
+          });
+          if (detached && !draftSql) {
+            setDraftSql(props.sqlQueryAsText);
+          }
+          if (!detached) {
+            setDraftSql(null);
+          }
+        }}
         onEditorChange={(value) => setDraftSql(value)}
         onRun={props.onRunQuery}
         onCancel={props.onCancelQuery}
@@ -1153,10 +1218,12 @@ const RowsTableSqlEditor = (
         isFullscreen={isEditorFullscreen}
         className="h-full text-sm"
         warning={
-          draftSql && (
+          (draftSql || search.editorDetached) && (
             <div className="ml-auto flex items-center justify-between gap-3 px-4">
               <p className="text-xs font-medium text-amber-900">
-                📝 Run custom query with Ctrl+Enter
+                {search.editorDetached
+                  ? "Editor detached — table context kept, SQL not auto-synced"
+                  : "Run custom query with Ctrl+Enter"}
               </p>
               <Button
                 variant="ghost"
@@ -1170,6 +1237,7 @@ const RowsTableSqlEditor = (
                         customSql: undefined,
                         customSqlId: undefined,
                         sqlEditorMode: "preview",
+                        editorDetached: undefined,
                       }),
                   });
                 }}
@@ -1219,6 +1287,7 @@ const RowsTableContent = (
       nullsOrder: tab.nullsOrder,
       clientFilter: tab.clientFilter,
       clientFilterApproved: tab.clientFilterApproved,
+      filterConditions: tab.filters?.conditions ?? [],
     };
   });
 
@@ -1266,204 +1335,239 @@ const RowsTableContent = (
   const approvedFilter = search.clientFilterApproved;
 
   return (
-    <div className="relative flex h-full flex-1 flex-col">
-      <BulkActions
-        activeConnectionUrl={props.activeConnectionUrl}
-        rowsDataTable={props.rowsDataTable}
-        columnMetadata={props.columnMetadata}
-        onEditRow={props.onEditRow}
-        onDuplicateRow={props.onDuplicateRow}
-      />
+    <PendingCellEditsProvider>
+      <div className="relative flex h-full flex-1 flex-col">
+        <BulkActions
+          activeConnectionUrl={props.activeConnectionUrl}
+          rowsDataTable={props.rowsDataTable}
+          columnMetadata={props.columnMetadata}
+          onEditRow={props.onEditRow}
+          onDuplicateRow={props.onDuplicateRow}
+        />
 
-      <div className="flex flex-col gap-1 border-b px-2 py-1">
-        <div className="flex items-center gap-2">
-          <Input
-            placeholder="r.name.includes('test')"
-            value={search.clientFilter || ""}
-            onChange={(e) => handleJsFilterChange(e.target.value)}
-            className="h-7 flex-1 font-mono text-xs"
-          />
-          {hasPendingFilter && (
-            <Button
-              onClick={handleApproveFilter}
-              size="sm"
-              variant="default"
-              className="h-7 px-2 text-xs"
-            >
-              Run
-            </Button>
-          )}
-          {approvedFilter && !hasPendingFilter && (
-            <span className="text-muted-foreground text-xs">(active)</span>
+        <div className="flex flex-col gap-1 border-b px-2 py-1">
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="r.name.includes('test')"
+              value={search.clientFilter || ""}
+              onChange={(e) => handleJsFilterChange(e.target.value)}
+              className="h-7 flex-1 font-mono text-xs"
+            />
+            {hasPendingFilter && (
+              <Button
+                onClick={handleApproveFilter}
+                size="sm"
+                variant="default"
+                className="h-7 px-2 text-xs"
+              >
+                Run
+              </Button>
+            )}
+            {approvedFilter && !hasPendingFilter && (
+              <span className="text-muted-foreground text-xs">(active)</span>
+            )}
+          </div>
+          {jsFilterResult.error && (
+            <p className="mt-1 text-xs text-red-500">{jsFilterResult.error}</p>
           )}
         </div>
-        {jsFilterResult.error && (
-          <p className="mt-1 text-xs text-red-500">{jsFilterResult.error}</p>
-        )}
-      </div>
 
-      <Splitter.Root
-        orientation="vertical"
-        className="flex h-full flex-1 flex-col overflow-hidden"
-        panels={[
-          {
-            id: panels.rowsTable,
-            collapsible: true,
-            minSize: 0,
-          },
-          {
-            id: panels.relationships,
-            collapsible: true,
-            collapsedSize: relationshipPanelSize,
-            minSize: relationshipPanelSize,
-          },
-        ]}
-      >
-        <Splitter.Panel
-          id={panels.rowsTable}
-          className="relative flex flex-1 flex-col overflow-auto"
+        <Splitter.Root
+          orientation="vertical"
+          className="flex h-full flex-1 flex-col overflow-hidden"
+          panels={[
+            {
+              id: panels.rowsTable,
+              collapsible: true,
+              minSize: 0,
+            },
+            {
+              id: panels.relationships,
+              collapsible: true,
+              collapsedSize: relationshipPanelSize,
+              minSize: relationshipPanelSize,
+            },
+          ]}
         >
-          <ColumnHeaderContextProvider
-            renderColumnHeaderMenuItems={({ column }) => (
-              <>
-                <Menu
-                  positioning={{
-                    placement: "right-start",
-                    gutter: -2,
-                  }}
-                  lazyMount
-                >
-                  <MenuTriggerItem>
-                    <ArrowDownUp className="size-4" />
-                    Sort with nulls...
-                  </MenuTriggerItem>
-                  <MenuContent className="z-50">
-                    <MenuItem
-                      value="sort-asc-nulls-first"
-                      onClick={() => {
-                        column.toggleSorting(false, false);
-                        onNullsOrderChange("first");
-                      }}
-                      disabled={column.getIsSorted() === "asc" && search.nullsOrder === "first"}
-                    >
-                      <ArrowUp className="size-4" />
-                      <MenuItemText>Sort asc, nulls first</MenuItemText>
-                    </MenuItem>
-                    <MenuItem
-                      value="sort-asc-nulls-last"
-                      onClick={() => {
-                        column.toggleSorting(false, false);
-                        onNullsOrderChange("last");
-                      }}
-                      disabled={column.getIsSorted() === "asc" && search.nullsOrder === "last"}
-                    >
-                      <ArrowUp className="size-4" />
-                      <MenuItemText>Sort asc, nulls last</MenuItemText>
-                    </MenuItem>
-                    <MenuItem
-                      value="sort-desc-nulls-first"
-                      onClick={() => {
-                        column.toggleSorting(true, false);
-                        onNullsOrderChange("first");
-                      }}
-                      disabled={column.getIsSorted() === "desc" && search.nullsOrder === "first"}
-                    >
-                      <ArrowDown className="size-4" />
-                      <MenuItemText>Sort desc, nulls first</MenuItemText>
-                    </MenuItem>
-                    <MenuItem
-                      value="sort-desc-nulls-last"
-                      onClick={() => {
-                        column.toggleSorting(true, false);
-                        onNullsOrderChange("last");
-                      }}
-                      disabled={column.getIsSorted() === "desc" && search.nullsOrder === "last"}
-                    >
-                      <ArrowDown className="size-4" />
-                      <MenuItemText>Sort desc, nulls last</MenuItemText>
-                    </MenuItem>
-                    {(column.getIsSorted() || search.nullsOrder) && (
-                      <MenuItem
-                        value="clear-sort-and-nulls"
-                        onClick={() => {
-                          column.clearSorting();
-                          onNullsOrderChange(undefined);
-                        }}
-                      >
-                        <MenuItemText>Clear sort &amp; nulls order</MenuItemText>
-                      </MenuItem>
-                    )}
-                  </MenuContent>
-                </Menu>
-              </>
-            )}
+          <Splitter.Panel
+            id={panels.rowsTable}
+            className="relative flex flex-1 flex-col overflow-auto"
           >
-            <DataTable
-              // virtualized={search.limit > 100}
-              enableRowVirtualization
-              enableColumnOrdering
-              table={props.rowsDataTable}
-              getTableContainer={setTableContainer}
-              isLoading={props.rowsQuery.isLoading || props.isColumnMetadataLoading}
-              size={search.tableSize}
-              onColumnFilterClick={(columnId) => {
-                navigate({
-                  search: (prev) =>
-                    updateTabState(prev, (tab) => ({
-                      filtersOpened: true,
-                      filters: {
-                        conditions: [
-                          ...(tab.filters?.conditions ?? []),
-                          {
-                            column: columnId,
-                            operator: "equals",
-                          },
-                        ],
-                        logicalOperator: tab.filters?.logicalOperator ?? "and",
-                      },
-                    })),
-                });
-              }}
-              onExpandRowJson={(row) => {
-                const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
-                const rowId = primaryKeyColumn ? String(row[primaryKeyColumn.name]) : undefined;
-                navigate({
-                  search: (prev) => ({
-                    ...prev,
-                    rowJsonViewerRowId: rowId,
-                    rowJsonViewerOpen: !!rowId,
-                  }),
-                });
-              }}
-            />
-            {!props.rowsQuery.isLoading && !props.isColumnMetadataLoading && (
-              <ScrollToColumnButton
+            <ColumnHeaderContextProvider
+              renderColumnHeaderMenuItems={({ column }) => (
+                <>
+                  <Menu
+                    positioning={{
+                      placement: "right-start",
+                      gutter: -2,
+                    }}
+                    lazyMount
+                  >
+                    <MenuTriggerItem>
+                      <ArrowDownUp className="size-4" />
+                      Sort with nulls...
+                    </MenuTriggerItem>
+                    <MenuContent className="z-50">
+                      <MenuItem
+                        value="sort-asc-nulls-first"
+                        onClick={() => {
+                          column.toggleSorting(false, false);
+                          onNullsOrderChange("first");
+                        }}
+                        disabled={column.getIsSorted() === "asc" && search.nullsOrder === "first"}
+                      >
+                        <ArrowUp className="size-4" />
+                        <MenuItemText>Sort asc, nulls first</MenuItemText>
+                      </MenuItem>
+                      <MenuItem
+                        value="sort-asc-nulls-last"
+                        onClick={() => {
+                          column.toggleSorting(false, false);
+                          onNullsOrderChange("last");
+                        }}
+                        disabled={column.getIsSorted() === "asc" && search.nullsOrder === "last"}
+                      >
+                        <ArrowUp className="size-4" />
+                        <MenuItemText>Sort asc, nulls last</MenuItemText>
+                      </MenuItem>
+                      <MenuItem
+                        value="sort-desc-nulls-first"
+                        onClick={() => {
+                          column.toggleSorting(true, false);
+                          onNullsOrderChange("first");
+                        }}
+                        disabled={column.getIsSorted() === "desc" && search.nullsOrder === "first"}
+                      >
+                        <ArrowDown className="size-4" />
+                        <MenuItemText>Sort desc, nulls first</MenuItemText>
+                      </MenuItem>
+                      <MenuItem
+                        value="sort-desc-nulls-last"
+                        onClick={() => {
+                          column.toggleSorting(true, false);
+                          onNullsOrderChange("last");
+                        }}
+                        disabled={column.getIsSorted() === "desc" && search.nullsOrder === "last"}
+                      >
+                        <ArrowDown className="size-4" />
+                        <MenuItemText>Sort desc, nulls last</MenuItemText>
+                      </MenuItem>
+                      {(column.getIsSorted() || search.nullsOrder) && (
+                        <MenuItem
+                          value="clear-sort-and-nulls"
+                          onClick={() => {
+                            column.clearSorting();
+                            onNullsOrderChange(undefined);
+                          }}
+                        >
+                          <MenuItemText>Clear sort &amp; nulls order</MenuItemText>
+                        </MenuItem>
+                      )}
+                    </MenuContent>
+                  </Menu>
+                </>
+              )}
+            >
+              <RowsPendingEditsBar connectionUrl={props.activeConnectionUrl} />
+              <DataTable
+                // virtualized={search.limit > 100}
+                enableRowVirtualization
+                enableColumnOrdering
+                enableFind
                 table={props.rowsDataTable}
-                containerRef={{
-                  current: tableContainer,
+                getTableContainer={setTableContainer}
+                isLoading={props.rowsQuery.isLoading || props.isColumnMetadataLoading}
+                size={search.tableSize}
+                getColumnHeaderFilter={(columnId) =>
+                  getColumnHeaderFilter(search.filterConditions, columnId)
+                }
+                onColumnHeaderFilterChange={(columnId, filter) => {
+                  navigate({
+                    search: (prev) =>
+                      updateTabState(prev, (tab) => ({
+                        filtersOpened: true,
+                        filters: {
+                          conditions: upsertColumnHeaderFilter(tab.filters?.conditions ?? [], {
+                            column: columnId,
+                            operator: filter?.operator ?? "contains",
+                            value: filter?.value ?? "",
+                          }),
+                          logicalOperator: tab.filters?.logicalOperator ?? "and",
+                        },
+                      })),
+                  });
+                }}
+                onColumnFilterClick={(columnId) => {
+                  navigate({
+                    search: (prev) =>
+                      updateTabState(prev, (tab) => ({
+                        filtersOpened: true,
+                        filters: {
+                          conditions: [
+                            ...(tab.filters?.conditions ?? []),
+                            {
+                              column: columnId,
+                              operator: "equals",
+                            },
+                          ],
+                          logicalOperator: tab.filters?.logicalOperator ?? "and",
+                        },
+                      })),
+                  });
+                }}
+                onExpandRowJson={(row) => {
+                  const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
+                  const rowId = primaryKeyColumn ? String(row[primaryKeyColumn.name]) : undefined;
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      rowJsonViewerRowId: rowId,
+                      rowJsonViewerOpen: !!rowId,
+                    }),
+                  });
                 }}
               />
-            )}
-          </ColumnHeaderContextProvider>
-        </Splitter.Panel>
+              {!props.rowsQuery.isLoading && !props.isColumnMetadataLoading && (
+                <ScrollToColumnButton
+                  table={props.rowsDataTable}
+                  containerRef={{
+                    current: tableContainer,
+                  }}
+                />
+              )}
+            </ColumnHeaderContextProvider>
+          </Splitter.Panel>
 
-        {search.relationshipRowId && search.table && (
-          <BottomRelationshipPanel
-            activeConnectionUrl={props.activeConnectionUrl}
-            relationshipRowId={search.relationshipRowId}
-            schema={search.schema}
-            table={search.table!}
-            rowData={
-              props.rowsDataTable
-                .getRowModel()
-                .rows.find((row) => row.id === search.relationshipRowId)?.original ?? {}
-            }
-          />
-        )}
-      </Splitter.Root>
-    </div>
+          {search.relationshipRowId && search.table && (
+            <BottomRelationshipPanel
+              activeConnectionUrl={props.activeConnectionUrl}
+              relationshipRowId={search.relationshipRowId}
+              schema={search.schema}
+              table={search.table!}
+              rowData={
+                props.rowsDataTable
+                  .getRowModel()
+                  .rows.find((row) => row.id === search.relationshipRowId)?.original ?? {}
+              }
+            />
+          )}
+        </Splitter.Root>
+      </div>
+    </PendingCellEditsProvider>
   );
 };
+
+function RowsPendingEditsBar({ connectionUrl }: { connectionUrl: string }) {
+  const pending = usePendingCellEdits();
+  if (!pending) return null;
+  return (
+    <PendingCellEditsBar
+      connectionUrl={connectionUrl}
+      edits={pending.edits}
+      onChange={pending.setEdits}
+    />
+  );
+}
 
 const BulkActions = (
   props: Pick<ConnectionPageState, "activeConnectionUrl" | "rowsDataTable" | "columnMetadata"> & {

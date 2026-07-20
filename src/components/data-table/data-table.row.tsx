@@ -1,16 +1,18 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
-import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
 import { horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
 import { flexRender, type Row } from "@tanstack/react-table";
 import { Fragment, memo, useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
+
+import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
 
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
 
 import { RowContextMenu } from "../app/row-context-menu.tsx";
 import { DataTableCell } from "./data-table.cell.tsx";
 import { type DataTableSize, tableCellStyles, tableRowStyles } from "./data-table.styles.ts";
+import { useIsFindMatch } from "./table-find-context.tsx";
 
 const fallbackRender = () => "An error happened";
 
@@ -64,8 +66,9 @@ export const DataTableRow = memo(function TableRow({
       const className = (cell.column.columnDef.meta as any)?.className;
 
       return (
-        <DataTableCell
+        <DataTableCellWithFind
           key={cell.id}
+          rowId={row.id}
           columnId={cell.column.id}
           columnSize={cell.column.getSize()}
           isDragDisabled={isDragDisabled}
@@ -79,7 +82,7 @@ export const DataTableRow = memo(function TableRow({
           style={isPinned ? getColumnPinningStyles(cell.column) : undefined}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
-        </DataTableCell>
+        </DataTableCellWithFind>
       );
     };
 
@@ -225,6 +228,12 @@ export const DataTableRow = memo(function TableRow({
 });
 
 type TagName = "BUTTON" | "A";
+
+function DataTableCellWithFind(props: ComponentProps<typeof DataTableCell> & { rowId: string }) {
+  const { rowId, ...cellProps } = props;
+  const isFindMatch = useIsFindMatch(rowId, cellProps.columnId);
+  return <DataTableCell {...cellProps} isFindMatch={isFindMatch} />;
+}
 
 function isDescendantOfButton(e: React.MouseEvent<HTMLElement>, tags: TagName[]) {
   let element = e.target as HTMLElement | null;

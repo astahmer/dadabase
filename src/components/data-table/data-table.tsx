@@ -25,6 +25,7 @@ import {
 import { memo, useEffect, useMemo, useRef } from "react";
 
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
+import type { ColumnHeaderFilterOperator } from "./upsert-column-header-filter.ts";
 
 import { getColumnPinningStyles } from "../../lib/get-pinning-styles.ts";
 import { runIfFn } from "../../lib/run-if-fn.ts";
@@ -33,6 +34,7 @@ import { PageLimitSelect } from "../app/page-limit.select.tsx";
 import { Button } from "../ui/button.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
+import { ColumnHeaderFilter } from "./column-header-filter.tsx";
 import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 import {
   type DataTableSize,
@@ -44,6 +46,9 @@ import {
 } from "./data-table.styles.ts";
 import { VirtualizedTableBody } from "./data-table.virtualized-table-body.tsx";
 import { DraggableColumnHeader } from "./draggable-column-header.tsx";
+import { TableFindBar } from "./table-find-bar.tsx";
+import { TableFindProvider } from "./table-find-context.tsx";
+import { useTableFind } from "./use-table-find.ts";
 
 const i18n = {
   emptyText: "No results found.",
@@ -65,6 +70,15 @@ export interface DataTableProps<TData> {
   hasError?: boolean;
   onRowClick?: (row: Row<TData>) => void;
   onColumnFilterClick?: (columnId: string, columnName: string) => void;
+  /** Active equals/contains filter for a column header (from query filter state). */
+  getColumnHeaderFilter?: (
+    columnId: string,
+  ) => { operator: ColumnHeaderFilterOperator; value: string } | undefined;
+  /** Apply/clear inline header filter for a column. */
+  onColumnHeaderFilterChange?: (
+    columnId: string,
+    filter: { operator: ColumnHeaderFilterOperator; value: string } | null,
+  ) => void;
   stickyHeader?: boolean;
   interactive?: boolean;
   striped?: boolean;
@@ -82,6 +96,8 @@ export interface DataTableProps<TData> {
   renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
   hideColumnPinIconUnlessHovered?: boolean;
   enableColumnVirtualization?: boolean;
+  /** Cmd/Ctrl+F local find over loaded rows (highlight / filter). */
+  enableFind?: boolean;
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -103,12 +119,32 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
     rowOverscan = 10,
     enableColumnOrdering = false,
     hideColumnPinIconUnlessHovered = true,
+    enableFind = false,
   } = props;
 
   const state = table.getState();
   const { pagination } = state;
   const rows = table.getRowModel().rows;
   const enableColumnVirtualization = table.getVisibleLeafColumns().length >= 8;
+
+  const findColumnIds = useMemo(
+    () => table.getVisibleLeafColumns().map((c) => c.id),
+    [table, state.columnVisibility, state.columnOrder],
+  );
+
+  const findRows = useMemo(
+    () =>
+      rows.map((row) => ({
+        id: row.id,
+        original: row.original as Record<string, unknown>,
+      })),
+    [rows],
+  );
+
+  const find = useTableFind(findRows, {
+    enabled: enableFind,
+    columnIds: findColumnIds,
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -117,34 +153,62 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
   );
 
   const TableContent = (
-    <TableContainer
-      table={table}
-      className={props.className}
-      containerRef={props.containerRef}
-      getTableContainer={props.getTableContainer}
-      emptyState={emptyState}
-      isLoading={props.isLoading}
-      hasError={props.hasError}
-      onRowClick={props.onRowClick}
-      onColumnFilterClick={props.onColumnFilterClick}
-      stickyHeader={stickyHeader}
-      withRowContextMenu={withRowContextMenu}
-      ExpandedRow={props.ExpandedRow}
-      resizable={resizable}
-      onExpandRowJson={props.onExpandRowJson}
-      enableRowVirtualization={enableRowVirtualization}
-      rowEstimateItemSize={estimateItemSize}
-      rowOverscan={rowOverscan}
-      renderSubrows={props.renderSubrows}
-      hideColumnPinIconUnlessHovered={hideColumnPinIconUnlessHovered}
-      enableColumnVirtualization={enableColumnVirtualization}
-      size={size}
-      variant={variant}
-      interactive={interactive}
-      striped={striped}
-      showColumnBorder={showColumnBorder}
-      enableColumnOrdering={enableColumnOrdering}
-    />
+    <TableFindProvider
+      value={{
+        query: find.open ? find.query : "",
+        matchKeys: find.matchKeys,
+        filterMode: find.filterMode,
+      }}
+    >
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {enableFind ? (
+          <TableFindBar
+            open={find.open}
+            query={find.query}
+            filterMode={find.filterMode}
+            matchCount={find.matchRowCount}
+            onQueryChange={find.setQuery}
+            onFilterModeChange={find.setFilterMode}
+            onClose={find.closeFind}
+          />
+        ) : null}
+        <TableContainer
+          table={table}
+          className={props.className}
+          containerRef={props.containerRef}
+          getTableContainer={props.getTableContainer}
+          emptyState={emptyState}
+          isLoading={props.isLoading}
+          hasError={props.hasError}
+          onRowClick={props.onRowClick}
+          onColumnFilterClick={props.onColumnFilterClick}
+          getColumnHeaderFilter={props.getColumnHeaderFilter}
+          onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
+          stickyHeader={stickyHeader}
+          withRowContextMenu={withRowContextMenu}
+          ExpandedRow={props.ExpandedRow}
+          resizable={resizable}
+          onExpandRowJson={props.onExpandRowJson}
+          enableRowVirtualization={enableRowVirtualization}
+          rowEstimateItemSize={estimateItemSize}
+          rowOverscan={rowOverscan}
+          renderSubrows={props.renderSubrows}
+          hideColumnPinIconUnlessHovered={hideColumnPinIconUnlessHovered}
+          enableColumnVirtualization={enableColumnVirtualization}
+          size={size}
+          variant={variant}
+          interactive={interactive}
+          striped={striped}
+          showColumnBorder={showColumnBorder}
+          enableColumnOrdering={enableColumnOrdering}
+          findFilterRows={
+            enableFind && find.open && find.filterMode
+              ? (tableRows) => find.applyFindToTableRows(tableRows)
+              : undefined
+          }
+        />
+      </div>
+    </TableFindProvider>
   );
 
   return (
@@ -193,6 +257,8 @@ const TableContainer = (
     | "hasError"
     | "onRowClick"
     | "onColumnFilterClick"
+    | "getColumnHeaderFilter"
+    | "onColumnHeaderFilterChange"
     | "stickyHeader"
     | "withRowContextMenu"
     | "ExpandedRow"
@@ -208,7 +274,11 @@ const TableContainer = (
     Pick<
       Required<DataTableProps<any>>,
       "size" | "variant" | "interactive" | "striped" | "showColumnBorder" | "enableColumnOrdering"
-    >,
+    > & {
+      findFilterRows?: <T extends { id: string; original: Record<string, unknown> }>(
+        rows: readonly T[],
+      ) => T[];
+    },
 ) => {
   const table = props.table;
   const state = props.table.getState();
@@ -351,6 +421,8 @@ const TableContainer = (
                 showColumnBorder={props.showColumnBorder}
                 hideColumnPinIconUnlessHovered={props.hideColumnPinIconUnlessHovered}
                 onColumnFilterClick={props.onColumnFilterClick}
+                getColumnHeaderFilter={props.getColumnHeaderFilter}
+                onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
                 resizable={props.resizable}
               />
             );
@@ -461,6 +533,7 @@ const TableContainer = (
             showColumnBorder={props.showColumnBorder}
             enableColumnOrdering={props.enableColumnOrdering}
             columnVirtualization={columnVirtualization}
+            findFilterRows={props.findFilterRows}
           />
         ) : (
           <TableBody
@@ -484,6 +557,7 @@ const TableContainer = (
             striped={props.striped}
             showColumnBorder={props.showColumnBorder}
             enableColumnOrdering={props.enableColumnOrdering}
+            findFilterRows={props.findFilterRows}
           />
         )}
       </table>
@@ -496,6 +570,9 @@ const TableBody = (
     table: TanstackTable<any>;
     tableContainerRef: RefObject<HTMLDivElement | null>;
     columnVirtualization: ColumnVirtualizationState;
+    findFilterRows?: <T extends { id: string; original: Record<string, unknown> }>(
+      rows: readonly T[],
+    ) => T[];
   } & Pick<
     DataTableProps<any>,
     | "isLoading"
@@ -518,7 +595,8 @@ const TableBody = (
   const { table, tableContainerRef } = props;
   const state = props.table.getState();
 
-  const rows = table.getRowModel().rows;
+  const allRows = table.getRowModel().rows;
+  const rows = props.findFilterRows ? (props.findFilterRows(allRows) as typeof allRows) : allRows;
   const columnVirtualization = props.columnVirtualization;
 
   const leafColumns = table.getVisibleLeafColumns();
@@ -735,14 +813,26 @@ const CellHeaderContent = memo(
     table: TanstackTable<any>;
     headerCell: Header<any, any>;
     onColumnFilterClick?: (columnId: string, columnName: string) => void;
+    getColumnHeaderFilter?: DataTableProps<any>["getColumnHeaderFilter"];
+    onColumnHeaderFilterChange?: DataTableProps<any>["onColumnHeaderFilterChange"];
     hideColumnPinIconUnlessHovered?: boolean;
   }) => {
-    const { table, headerCell, onColumnFilterClick, hideColumnPinIconUnlessHovered } = props;
+    const {
+      table,
+      headerCell,
+      onColumnFilterClick,
+      getColumnHeaderFilter,
+      onColumnHeaderFilterChange,
+      hideColumnPinIconUnlessHovered,
+    } = props;
     const column = headerCell.column;
     const isSorted = column.getIsSorted();
+    const isSelectColumn = column.id === "select" || column.id === "actions";
+    const showHeaderFilter = Boolean(onColumnHeaderFilterChange) && !isSelectColumn;
+    const activeHeaderFilter = getColumnHeaderFilter?.(column.id);
 
     return (
-      <div className={"flex min-w-0 items-center justify-between"}>
+      <div className={"flex min-w-0 items-center justify-between gap-0.5"}>
         <ColumnHeaderContextMenu column={column} table={table} onFilterClick={onColumnFilterClick}>
           <HStack className="min-w-0 flex-1 truncate" align="center" w="full">
             {headerCell.isPlaceholder ? null : column.getCanSort() &&
@@ -768,6 +858,13 @@ const CellHeaderContent = memo(
             )}
           </HStack>
         </ColumnHeaderContextMenu>
+        {showHeaderFilter ? (
+          <ColumnHeaderFilter
+            columnId={column.id}
+            active={activeHeaderFilter}
+            onApply={(filter) => onColumnHeaderFilterChange?.(column.id, filter)}
+          />
+        ) : null}
         {column.getCanPin() ? (
           column.getIsPinned() ? (
             <Button
@@ -816,6 +913,8 @@ const HeaderCell = memo(
     showColumnBorder?: boolean;
     hideColumnPinIconUnlessHovered?: boolean;
     onColumnFilterClick?: (columnId: string, columnName: string) => void;
+    getColumnHeaderFilter?: DataTableProps<any>["getColumnHeaderFilter"];
+    onColumnHeaderFilterChange?: DataTableProps<any>["onColumnHeaderFilterChange"];
     resizable?: boolean;
   }) => {
     const { table, headerGroup, headerCell } = props;
@@ -886,6 +985,8 @@ const HeaderCell = memo(
                     table={table}
                     headerCell={headerCell}
                     onColumnFilterClick={props.onColumnFilterClick}
+                    getColumnHeaderFilter={props.getColumnHeaderFilter}
+                    onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
                     hideColumnPinIconUnlessHovered={props.hideColumnPinIconUnlessHovered}
                   />
                 </div>
@@ -937,6 +1038,8 @@ const HeaderCell = memo(
           table={table}
           headerCell={headerCell}
           onColumnFilterClick={props.onColumnFilterClick}
+          getColumnHeaderFilter={props.getColumnHeaderFilter}
+          onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
           hideColumnPinIconUnlessHovered={props.hideColumnPinIconUnlessHovered}
         />
         {props.resizable && headerCell.column.columnDef.enableResizing !== false && (

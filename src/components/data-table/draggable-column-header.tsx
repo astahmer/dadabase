@@ -1,8 +1,8 @@
 import type { Column } from "@tanstack/react-table";
+import type { CSSProperties, JSX } from "react";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CSSProperties, JSX } from "react";
 
 interface DraggableColumnHeaderProps<TData> {
   column: Column<TData>;
