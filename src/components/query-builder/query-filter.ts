@@ -61,6 +61,23 @@ export const QueryFilter = Schema.Struct({
 
 export interface QueryFilterType extends Schema.Schema.Type<typeof QueryFilter> {}
 
+const comparisonClause = (
+  column: string,
+  sqlOp: "=" | "!=" | ">" | ">=" | "<" | "<=",
+  value: unknown,
+  paramName: string,
+): { clause: string; params: Record<string, any> } => {
+  if (isNullSpecialValue(value)) {
+    // `col = NULL` is never true in SQL — use IS NULL / IS NOT NULL instead
+    if (sqlOp === "=") return { clause: `${column} IS NULL`, params: {} };
+    if (sqlOp === "!=") return { clause: `${column} IS NOT NULL`, params: {} };
+  }
+  if (isSpecialValue(value)) {
+    return { clause: `${column} ${sqlOp} ${resolveSpecialSqlLiteral(value)}`, params: {} };
+  }
+  return { clause: `${column} ${sqlOp} ${paramName}`, params: { [paramName]: value } };
+};
+
 export const conditionToWhereClause = (
   condition: FilterConditionExpression,
   paramIndex: number,
@@ -75,23 +92,11 @@ export const conditionToWhereClause = (
 
   switch (condition.operator) {
     case "equals": {
-      if (isSpecialValue(condition.value)) {
-        baseClause = `${column} = ${condition.value}`;
-        params = {};
-      } else {
-        baseClause = `${column} = ${paramName}`;
-        params = { [paramName]: condition.value };
-      }
+      ({ clause: baseClause, params } = comparisonClause(column, "=", condition.value, paramName));
       break;
     }
     case "not_equals": {
-      if (isSpecialValue(condition.value)) {
-        baseClause = `${column} != ${condition.value}`;
-        params = {};
-      } else {
-        baseClause = `${column} != ${paramName}`;
-        params = { [paramName]: condition.value };
-      }
+      ({ clause: baseClause, params } = comparisonClause(column, "!=", condition.value, paramName));
       break;
     }
     case "contains": {
@@ -115,43 +120,19 @@ export const conditionToWhereClause = (
       break;
     }
     case "greater_than": {
-      if (isSpecialValue(condition.value)) {
-        baseClause = `${column} > ${condition.value}`;
-        params = {};
-      } else {
-        baseClause = `${column} > ${paramName}`;
-        params = { [paramName]: condition.value };
-      }
+      ({ clause: baseClause, params } = comparisonClause(column, ">", condition.value, paramName));
       break;
     }
     case "greater_than_or_equal": {
-      if (isSpecialValue(condition.value)) {
-        baseClause = `${column} >= ${condition.value}`;
-        params = {};
-      } else {
-        baseClause = `${column} >= ${paramName}`;
-        params = { [paramName]: condition.value };
-      }
+      ({ clause: baseClause, params } = comparisonClause(column, ">=", condition.value, paramName));
       break;
     }
     case "less_than": {
-      if (isSpecialValue(condition.value)) {
-        baseClause = `${column} < ${condition.value}`;
-        params = {};
-      } else {
-        baseClause = `${column} < ${paramName}`;
-        params = { [paramName]: condition.value };
-      }
+      ({ clause: baseClause, params } = comparisonClause(column, "<", condition.value, paramName));
       break;
     }
     case "less_than_or_equal": {
-      if (isSpecialValue(condition.value)) {
-        baseClause = `${column} <= ${condition.value}`;
-        params = {};
-      } else {
-        baseClause = `${column} <= ${paramName}`;
-        params = { [paramName]: condition.value };
-      }
+      ({ clause: baseClause, params } = comparisonClause(column, "<=", condition.value, paramName));
       break;
     }
     case "is_null": {
@@ -289,7 +270,8 @@ export const getOperatorLabel = (operator: FilterOperatorType): string => {
 };
 
 /**
- * Special SQL values that should not be parameterized
+ * Special SQL values that should not be parameterized / quoted.
+ * `TODAY()` is accepted as an alias for `CURRENT_DATE` (invalid in PG/SQLite as a function).
  */
 export const SPECIAL_VALUES = {
   NULL: "null",
@@ -304,23 +286,47 @@ export type SpecialValueKey = keyof typeof SPECIAL_VALUES;
 export type SpecialValue = (typeof SPECIAL_VALUES)[SpecialValueKey];
 
 /**
- * List of all special values for UI dropdowns
+ * List of special values for UI dropdowns (TODAY() omitted — use CURRENT_DATE)
  */
 export const SPECIAL_VALUES_LIST: { label: string; value: SpecialValue }[] = [
   { label: "NULL", value: SPECIAL_VALUES.NULL },
   { label: "NOW()", value: SPECIAL_VALUES.NOW },
-  { label: "TODAY()", value: SPECIAL_VALUES.TODAY },
   { label: "CURRENT_DATE", value: SPECIAL_VALUES.CURRENT_DATE },
   { label: "CURRENT_TIMESTAMP", value: SPECIAL_VALUES.CURRENT_TIMESTAMP },
   { label: "CURRENT_TIME", value: SPECIAL_VALUES.CURRENT_TIME },
 ];
 
 /**
- * Check if a value is a special SQL value
+ * Check if a value is a special SQL value (case-insensitive)
  */
 export const isSpecialValue = (value: unknown): value is SpecialValue => {
   if (typeof value !== "string") return false;
   return Object.values(SPECIAL_VALUES).some((sv) => sv.toLowerCase() === value.toLowerCase());
+};
+
+/** True when the filter value represents SQL NULL */
+export const isNullSpecialValue = (value: unknown): boolean => {
+  return typeof value === "string" && value.toLowerCase() === SPECIAL_VALUES.NULL;
+};
+
+/**
+ * Normalize a special filter value to a valid unquoted SQL literal.
+ * Maps aliases (TODAY → CURRENT_DATE) and canonicalizes casing.
+ */
+export const resolveSpecialSqlLiteral = (value: string): string => {
+  const lower = value.toLowerCase();
+  if (lower === SPECIAL_VALUES.NULL) return "NULL";
+  if (lower === "today()" || lower === SPECIAL_VALUES.CURRENT_DATE.toLowerCase()) {
+    return SPECIAL_VALUES.CURRENT_DATE;
+  }
+  if (lower === "now()") return SPECIAL_VALUES.NOW;
+  if (lower === SPECIAL_VALUES.CURRENT_TIMESTAMP.toLowerCase()) {
+    return SPECIAL_VALUES.CURRENT_TIMESTAMP;
+  }
+  if (lower === SPECIAL_VALUES.CURRENT_TIME.toLowerCase()) {
+    return SPECIAL_VALUES.CURRENT_TIME;
+  }
+  return value;
 };
 
 /**

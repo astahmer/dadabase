@@ -2,8 +2,29 @@ import type {
   LogicalOperatorType,
   QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
+import {
+  isNullSpecialValue,
+  isSpecialValue,
+  resolveSpecialSqlLiteral,
+} from "#src/components/query-builder/query-filter.ts";
 
 import { escapeIdentifier, escapeValue } from "./escape-value";
+
+type SqlComparisonOp = "=" | "!=" | ">" | ">=" | "<" | "<=";
+
+/** Format a filter value for SQL: specials unquoted, everything else escaped+quoted */
+const formatPgLiteral = (value: unknown): string => {
+  if (isSpecialValue(value)) return resolveSpecialSqlLiteral(String(value));
+  return `'${escapeValue(value)}'`;
+};
+
+const buildPgComparison = (col: string, op: SqlComparisonOp, value: unknown): string => {
+  if (isNullSpecialValue(value)) {
+    if (op === "=") return `${col} IS NULL`;
+    if (op === "!=") return `${col} IS NOT NULL`;
+  }
+  return `${col} ${op} ${formatPgLiteral(value)}`;
+};
 
 /**
  * Build a WHERE clause fragment for main table filters (PostgreSQL)
@@ -46,10 +67,10 @@ export const buildPgWhereFragment = (
 
     switch (c.operator) {
       case "equals":
-        baseClause = `${col} = '${escapeValue(c.value)}'`;
+        baseClause = buildPgComparison(col, "=", c.value);
         break;
       case "not_equals":
-        baseClause = `${col} != '${escapeValue(c.value)}'`;
+        baseClause = buildPgComparison(col, "!=", c.value);
         break;
       case "contains":
         baseClause = `${col} ILIKE '%${escapeValue(c.value)}%'`;
@@ -64,16 +85,16 @@ export const buildPgWhereFragment = (
         baseClause = `${col} ILIKE '%${escapeValue(c.value)}'`;
         break;
       case "greater_than":
-        baseClause = `${col} > '${escapeValue(c.value)}'`;
+        baseClause = buildPgComparison(col, ">", c.value);
         break;
       case "greater_than_or_equal":
-        baseClause = `${col} >= '${escapeValue(c.value)}'`;
+        baseClause = buildPgComparison(col, ">=", c.value);
         break;
       case "less_than":
-        baseClause = `${col} < '${escapeValue(c.value)}'`;
+        baseClause = buildPgComparison(col, "<", c.value);
         break;
       case "less_than_or_equal":
-        baseClause = `${col} <= '${escapeValue(c.value)}'`;
+        baseClause = buildPgComparison(col, "<=", c.value);
         break;
       case "is_null":
         baseClause = `${col} IS NULL`;
@@ -83,12 +104,12 @@ export const buildPgWhereFragment = (
         break;
       case "in": {
         const values = Array.isArray(c.value) ? c.value : [c.value];
-        baseClause = `${col} = ANY(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
+        baseClause = `${col} = ANY(ARRAY[${values.map((v) => formatPgLiteral(v)).join(",")}])`;
         break;
       }
       case "not_in": {
         const values = Array.isArray(c.value) ? c.value : [c.value];
-        baseClause = `${col} != ALL(ARRAY[${values.map((v) => `'${escapeValue(v)}'`).join(",")}])`;
+        baseClause = `${col} != ALL(ARRAY[${values.map((v) => formatPgLiteral(v)).join(",")}])`;
         break;
       }
       default:
@@ -139,10 +160,19 @@ export const buildSqliteWhereFragment = (
 
     // Convert boolean values to integers for SQLite (0/1 instead of false/true)
     const sqliteValue = typeof c.value === "boolean" ? (c.value ? 1 : 0) : c.value;
-    // Helper function to format values - numbers without quotes, strings with quotes
-    const formatValue = (val: any): string => {
+    // Helper function to format values - specials unquoted, numbers bare, strings quoted
+    const formatValue = (val: unknown): string => {
+      if (isSpecialValue(val)) return resolveSpecialSqlLiteral(String(val));
       if (typeof val === "number") return String(val);
       return `'${escapeValue(val)}'`;
+    };
+
+    const buildSqliteComparison = (op: SqlComparisonOp, value: unknown): string => {
+      if (isNullSpecialValue(value)) {
+        if (op === "=") return `${col} IS NULL`;
+        if (op === "!=") return `${col} IS NOT NULL`;
+      }
+      return `${col} ${op} ${formatValue(value)}`;
     };
 
     const inverted = c.inverted ?? false;
@@ -150,10 +180,10 @@ export const buildSqliteWhereFragment = (
 
     switch (c.operator) {
       case "equals":
-        baseClause = `${col} = ${formatValue(sqliteValue)}`;
+        baseClause = buildSqliteComparison("=", sqliteValue);
         break;
       case "not_equals":
-        baseClause = `${col} != ${formatValue(sqliteValue)}`;
+        baseClause = buildSqliteComparison("!=", sqliteValue);
         break;
       case "contains":
         // SQLite uses LIKE (case-insensitive with COLLATE NOCASE)
@@ -169,16 +199,16 @@ export const buildSqliteWhereFragment = (
         baseClause = `${col} LIKE '%${escapeValue(sqliteValue)}' COLLATE NOCASE`;
         break;
       case "greater_than":
-        baseClause = `${col} > ${formatValue(sqliteValue)}`;
+        baseClause = buildSqliteComparison(">", sqliteValue);
         break;
       case "greater_than_or_equal":
-        baseClause = `${col} >= ${formatValue(sqliteValue)}`;
+        baseClause = buildSqliteComparison(">=", sqliteValue);
         break;
       case "less_than":
-        baseClause = `${col} < ${formatValue(sqliteValue)}`;
+        baseClause = buildSqliteComparison("<", sqliteValue);
         break;
       case "less_than_or_equal":
-        baseClause = `${col} <= ${formatValue(sqliteValue)}`;
+        baseClause = buildSqliteComparison("<=", sqliteValue);
         break;
       case "is_null":
         baseClause = `${col} IS NULL`;

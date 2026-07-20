@@ -163,6 +163,37 @@ describe("buildPgWhereFragment", () => {
     const result = buildPgWhereFragment(conditions, "and", "public", "users");
     expect(result).toBe(`"public"."users"."name" = 'O''Brien'`);
   });
+
+  it("emits IS NULL for equals with null special (not quoted 'null')", () => {
+    const conditions = [{ column: "deleted_at", operator: "equals" as const, value: "null" }];
+    const result = buildPgWhereFragment(conditions, "and", "public", "users");
+    expect(result).toBe(`"public"."users"."deleted_at" IS NULL`);
+  });
+
+  it("emits IS NOT NULL for not_equals with null special", () => {
+    const conditions = [{ column: "deleted_at", operator: "not_equals" as const, value: "NULL" }];
+    const result = buildPgWhereFragment(conditions, "and", "public", "users");
+    expect(result).toBe(`"public"."users"."deleted_at" IS NOT NULL`);
+  });
+
+  it("maps TODAY() to CURRENT_DATE without quotes", () => {
+    const conditions = [
+      { column: "created_at", operator: "greater_than_or_equal" as const, value: "TODAY()" },
+    ];
+    const result = buildPgWhereFragment(conditions, "and", "public", "users");
+    expect(result).toBe(`"public"."users"."created_at" >= CURRENT_DATE`);
+  });
+
+  it("emits NOW() and CURRENT_TIMESTAMP unquoted", () => {
+    const conditions = [
+      { column: "updated_at", operator: "less_than" as const, value: "NOW()" },
+      { column: "ts", operator: "equals" as const, value: "current_timestamp" },
+    ];
+    const result = buildPgWhereFragment(conditions, "and", "public", "users");
+    expect(result).toBe(
+      `"public"."users"."updated_at" < NOW() AND "public"."users"."ts" = CURRENT_TIMESTAMP`,
+    );
+  });
 });
 
 describe("buildSqliteWhereFragment", () => {
@@ -253,5 +284,19 @@ describe("buildSqliteWhereFragment", () => {
     const conditions = [{ column: "name", operator: "equals" as const, value: "O'Brien" }];
     const result = buildSqliteWhereFragment(conditions, "and", "users");
     expect(result).toBe(`"users"."name" = 'O''Brien'`);
+  });
+
+  it("emits IS NULL for equals with null special", () => {
+    const conditions = [{ column: "deleted_at", operator: "equals" as const, value: "null" }];
+    const result = buildSqliteWhereFragment(conditions, "and", "users");
+    expect(result).toBe(`"users"."deleted_at" IS NULL`);
+  });
+
+  it("maps TODAY() to CURRENT_DATE without quotes", () => {
+    const conditions = [
+      { column: "created_at", operator: "greater_than_or_equal" as const, value: "today()" },
+    ];
+    const result = buildSqliteWhereFragment(conditions, "and", "users");
+    expect(result).toBe(`"users"."created_at" >= CURRENT_DATE`);
   });
 });
