@@ -1,9 +1,10 @@
-import { ConnectionPage } from "#src/components/pages/connection.page.tsx";
-import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
-import { JoinedTableSchema } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 import { Suspense } from "react";
+
+import { ConnectionPage } from "#src/components/pages/connection.page.tsx";
+import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
+import { JoinedTableSchema } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 
 import { FullCenter } from "../../components/ui/layout.tsx";
 import { Spinner } from "../../components/ui/spinner.tsx";
@@ -71,6 +72,7 @@ const searchSchema = Schema.Struct({
   quickReferencesCellValue: Schema.Union(Schema.String, Schema.Number).pipe(Schema.optional),
   sidebarSize: Schema.Number.pipe(Schema.optional),
   queryLoggerSize: Schema.Number.pipe(Schema.optional), // Query logger panel height as percentage
+  zenMode: Schema.Boolean.pipe(Schema.optional), // Collapse filters / header / compact status bar
   rowJsonViewerOpen: Schema.Boolean.pipe(Schema.optional),
   // Primary key value to identify which row to display
   rowJsonViewerRowId: Schema.Union(Schema.String, Schema.Number).pipe(Schema.optional),

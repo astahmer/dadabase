@@ -1,3 +1,7 @@
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
+import { Effect, Schema } from "effect";
+
 import type {
   JoinedTable,
   JoinTablesConfig,
@@ -11,9 +15,6 @@ import {
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
-import { keepPreviousData, queryOptions } from "@tanstack/react-query";
-import { createServerFn } from "@tanstack/react-start";
-import { Effect, Schema } from "effect";
 
 const StandardJoinConditionSchema = Schema.Struct({
   mode: Schema.Literal("standard"),
@@ -142,7 +143,9 @@ export const queryTableDataQueryOptions = (input: QueryTableDataInput) => {
   // console.log("[rows query]", input)
   return queryOptions({
     queryKey: ["remote", "rows", input],
-    queryFn: async () => queryTableDataServerFn({ data: input }),
+    // React Query passes AbortSignal; abort cancels the client fetch (UI unblocks).
+    // Server-side PG query is not cancelled mid-flight (no pg_cancel_backend wiring).
+    queryFn: async ({ signal }) => queryTableDataServerFn({ data: input, signal }),
     meta: { loggable: true },
     placeholderData: keepPreviousData,
     select: (data) => {

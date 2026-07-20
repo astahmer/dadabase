@@ -1,11 +1,13 @@
-import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Database, RefreshCw } from "lucide-react";
+import { Database, Minimize2, RefreshCw } from "lucide-react";
+
+import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 
 import { Button } from "../../ui/button";
 import { DarkModeToggle } from "../../ui/dark-mode-toggle";
 import { Tooltip } from "../../ui/tooltip.tsx";
+import { useZenModeActions, useZenModeEnabled } from "./use-zen-mode.ts";
 
 interface ConnectionPageHeaderProps {
   onAddConnection: () => void;
@@ -15,9 +17,18 @@ interface ConnectionPageHeaderProps {
 export const ConnectionPageHeader = (_props: ConnectionPageHeaderProps) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate({ from: "/connections/$connectionName" });
+  const zenMode = useZenModeEnabled();
+  const { toggleZenMode } = useZenModeActions();
+
+  if (zenMode) return null;
 
   return (
     <div className="bg-card flex shrink-0 items-center justify-end gap-1 border-b px-3 py-1.5 sm:px-4">
+      <Tooltip content="Zen mode (⌘.)">
+        <Button variant="ghost" size="icon" onClick={toggleZenMode} aria-label="Enter zen mode">
+          <Minimize2 className="h-3.5 w-3.5" />
+        </Button>
+      </Tooltip>
       <Tooltip content="Schema Explorer">
         <Button
           variant="ghost"

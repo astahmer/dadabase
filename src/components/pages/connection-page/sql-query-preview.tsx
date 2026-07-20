@@ -146,7 +146,9 @@ export function SqlQueryPreview({
     onEditorChange?.(value);
   });
 
-  if (isLoading) {
+  // Only block the whole preview while SQL is still being generated.
+  // When a query is running (`isLoading` + existing sql), keep the editor so Cancel stays usable.
+  if (isLoading && !sql) {
     return (
       <div className={cn("rounded border border-gray-200 bg-gray-50 p-4", className)}>
         <div className="text-sm text-gray-500">Generating SQL query...</div>
@@ -251,8 +253,8 @@ export function SqlQueryPreview({
             </Tabs.Root>
           </div>
 
-          {/* Action buttons - shown in editor mode */}
-          {(editorMode === "editor" || isLoading) && !isCollapsed && (
+          {/* Action buttons — editor mode, or while running so Cancel stays reachable */}
+          {((editorMode === "editor" && !isCollapsed) || isLoading) && (
             <div className="flex items-center gap-2">
               {isLoading ? (
                 <Tooltip content="Cancel query">
@@ -260,6 +262,7 @@ export function SqlQueryPreview({
                     variant="ghost"
                     size="sm"
                     onClick={onCancel}
+                    disabled={!onCancel}
                     className="text-destructive hover:text-destructive h-8 px-2"
                   >
                     <Square className="h-4 w-4" />

@@ -1,11 +1,12 @@
 import type { Table as TanstackTable } from "@tanstack/react-table";
 
-import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
-import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { Pagination } from "@ark-ui/react/pagination";
 import { useNavigate } from "@tanstack/react-router";
 import { DateTime } from "effect";
-import { Download, Layers, RefreshCw } from "lucide-react";
+import { Download, Layers, Maximize2, Minimize2, RefreshCw } from "lucide-react";
+
+import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
+import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 
@@ -46,10 +47,12 @@ interface ConnectionPageStatusBarProps {
     format: "json" | "csv" | "tsv" | "copy-json" | "copy-csv" | "copy-tsv" | "copy-insert",
   ) => void;
   columns?: string[];
+  zenMode?: boolean;
+  onToggleZenMode?: () => void;
 }
 
 export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => {
-  const { isLoading, refetch, isCustomSql } = props;
+  const { isLoading, refetch, isCustomSql, zenMode = false, onToggleZenMode } = props;
 
   const navigate = useNavigate({ from: "/connections/$connectionName" });
 
@@ -64,6 +67,88 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
   const tableSize = useActiveTabState((s) => s.tableSize);
   const prefixWithTable = useActiveTabState((s) => s.prefixWithTable);
   const joins = useActiveTabState((s) => s.joins);
+
+  const zenToggle = onToggleZenMode ? (
+    <Tooltip content={zenMode ? "Exit zen mode (⌘.)" : "Zen mode (⌘.)"}>
+      <Button
+        variant={zenMode ? "default" : "ghost"}
+        size="sm"
+        onClick={onToggleZenMode}
+        className="h-6 px-2"
+        aria-label={zenMode ? "Exit zen mode" : "Enter zen mode"}
+      >
+        {zenMode ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
+      </Button>
+    </Tooltip>
+  ) : null;
+
+  if (zenMode) {
+    return (
+      <div className="bg-muted/50 text-muted-foreground px-3 py-0.5 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <HStack className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap">
+            {isLoading ? (
+              <span className="text-muted-foreground/50">Loading...</span>
+            ) : (
+              <>
+                <span className="truncate">{tableDisplayName}</span>
+                {!isCustomSql && (
+                  <span className="shrink-0">
+                    {offset}-{Math.min(props.totalRowCount, offset + limit)} / {props.totalRowCount}
+                  </span>
+                )}
+                {isCustomSql && <span className="shrink-0">{props.totalRowCount} rows</span>}
+                {props.timeTaken > 0 && (
+                  <span className="text-muted-foreground/70 hidden shrink-0 sm:inline">
+                    {props.timeTaken}ms
+                  </span>
+                )}
+              </>
+            )}
+          </HStack>
+          <div className="flex shrink-0 items-center gap-1">
+            {!isCustomSql && (
+              <Pagination.Root
+                count={props.totalRowCount}
+                pageSize={limit}
+                siblingCount={0}
+                page={Math.floor(offset / limit) + 1}
+                onPageChange={(details) => {
+                  navigate({
+                    search: (prev) =>
+                      updateTabState(prev, {
+                        offset: (details.page - 1) * limit,
+                      }),
+                  });
+                }}
+              >
+                <div className="flex items-center gap-0.5">
+                  <Pagination.PrevTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-5 px-1">
+                      ‹
+                    </Button>
+                  </Pagination.PrevTrigger>
+                  <Pagination.NextTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-5 px-1">
+                      ›
+                    </Button>
+                  </Pagination.NextTrigger>
+                </div>
+              </Pagination.Root>
+            )}
+            <Tooltip
+              content={`Refresh rows (last ran at ${DateTime.formatIso(DateTime.unsafeMake(props.ranAt))})`}
+            >
+              <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-5 px-1.5">
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </Tooltip>
+            {zenToggle}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-muted/50 text-muted-foreground border-t px-4 py-2 text-xs">
@@ -274,6 +359,7 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
               </MenuContent>
             </Menu>
           )}
+          {zenToggle}
         </div>
       </div>
     </div>

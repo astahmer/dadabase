@@ -9,6 +9,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -25,12 +26,22 @@ import {
   useActiveConnectionUrl,
   useConnectionPageState,
 } from "#src/components/pages/connection-page/use-connection-page-state.tsx";
+import {
+  useZenMode,
+  useZenModeActions,
+  useZenModeEnabled,
+} from "#src/components/pages/connection-page/use-zen-mode.ts";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
+import {
+  abortQueryController,
+  createQueryAbortController,
+  isQueryAbortError,
+} from "#src/lib/query-abort-controller.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { queryClient } from "#src/query-client.ts";
 import {
@@ -136,6 +147,7 @@ const panels = {
 const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const activeConnectionUrl = useActiveConnectionUrl(connection);
+  useZenMode();
 
   const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
   const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
@@ -445,6 +457,8 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
     executeCustomSql.mutation.isPending ||
     executeCustomSql.storedQuery.isLoading,
   );
+  const zenMode = useZenModeEnabled();
+  const { toggleZenMode } = useZenModeActions();
 
   const columnQueries = useJoinedTables({
     url: pageState.activeConnectionUrl,
@@ -584,7 +598,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
   return (
     <>
       {/* Show filters and query builder only in table browse mode */}
-      {!isCustomSqlMode && (
+      {!isCustomSqlMode && !zenMode && (
         <>
           {/* Filters */}
           <ConnectionPageFilters
@@ -795,6 +809,8 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                   tableName={search.table}
                   columns={pageState.rowsDataTable.getVisibleLeafColumns().map((col) => col.id)}
                   onExportAll={handleExportAll}
+                  zenMode={zenMode}
+                  onToggleZenMode={toggleZenMode}
                 />
               </div>
             </Splitter.Panel>
@@ -1696,9 +1712,29 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
   }));
   const [showDestructiveConfirm, setShowDestructiveConfirm] = useState(false);
   const [pendingQueryExecution, setPendingQueryExecution] = useState<(() => void) | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const executeCustomSqlMutation = useMutation({
-    mutationFn: executeAndStoreCustomSqlServerFn,
+    mutationFn: async (variables: Parameters<typeof executeAndStoreCustomSqlServerFn>[0]) => {
+      const controller = createQueryAbortController(abortControllerRef.current);
+      abortControllerRef.current = controller;
+      try {
+        return await executeAndStoreCustomSqlServerFn({
+          ...variables,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        // Cancel aborts the client fetch; don't surface that as a query failure.
+        if (controller.signal.aborted || isQueryAbortError(error)) {
+          throw Object.assign(new Error("Query cancelled"), { name: "AbortError" });
+        }
+        throw error;
+      } finally {
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
+      }
+    },
     meta: { noInvalidate: true },
     onSuccess: (data) => {
       // After successful execution, update the URL to use the new customSqlId
@@ -1820,7 +1856,12 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
   return {
     onRunQuery,
     onRerunStoredQuery: handleReExecuteStored,
-    onCancel: () => executeCustomSqlMutation.reset(),
+    onCancel: () => {
+      abortQueryController(abortControllerRef.current);
+      abortControllerRef.current = null;
+      // Reset after abort so a late AbortError does not stick the mutation in error.
+      executeCustomSqlMutation.reset();
+    },
     output,
     mutation: executeCustomSqlMutation,
     storedQuery: customSqlExecutionQuery,
