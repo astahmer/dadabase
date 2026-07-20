@@ -1,3 +1,17 @@
+import { createListCollection, Portal } from "@ark-ui/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  EllipsisIcon,
+  LucidePlus,
+  RefreshCw,
+  RotateCcw,
+  Sparkles,
+} from "lucide-react";
+import { useState } from "react";
+
 import { DarkModeToggle } from "#src/components/ui/dark-mode-toggle.tsx";
 import { ListboxMenu } from "#src/components/ui/listbox-menu.export.ts";
 import {
@@ -11,18 +25,6 @@ import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { queryClient } from "#src/query-client.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
-import { createListCollection, Portal } from "@ark-ui/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  EllipsisIcon,
-  LucidePlus,
-  RefreshCw,
-  RotateCcw,
-} from "lucide-react";
-import { useState } from "react";
 
 import type { DbConnection } from "../connection.types";
 
@@ -33,6 +35,7 @@ import { Tooltip } from "../../ui/tooltip.tsx";
 interface ConnectionSwitcherProps {
   connection: DbConnection;
   onAddConnection: () => void;
+  onOpenAiAssistant?: () => void;
 }
 
 export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
@@ -128,6 +131,20 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
           </ListboxMenu.ListboxMenuRoot>
         </div>
         <DarkModeToggle variant="ghost" />
+
+        {props.onOpenAiAssistant && (
+          <Tooltip content="AI assistant (BYOK)">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="rounded-full shadow-none"
+              aria-label="Open AI assistant"
+              onClick={props.onOpenAiAssistant}
+            >
+              <Sparkles size={16} aria-hidden="true" />
+            </Button>
+          </Tooltip>
+        )}
 
         <Menu lazyMount>
           <MenuTrigger asChild>

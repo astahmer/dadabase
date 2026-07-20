@@ -27,11 +27,11 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 
 ## ai (future)
 
-- use a BYOK approach with OpenAI first using the vercel ai sdk
-- [ ] suggest missing indexes
-- [ ] suggested queries from schema/data (e.g. distinct values for string enums)
-- ask for a query in natural language → generate SQL → run → show results
-- have generative UI for charts/stats etc with https://github.com/vercel-labs/json-render
+- [x] use a BYOK approach with OpenAI first using the vercel ai sdk
+- [x] suggest missing indexes
+- [x] suggested queries from schema/data (e.g. distinct values for string enums)
+- [x] ask for a query in natural language → generate SQL → run → show results
+- [x] have generative UI for charts/stats etc with https://github.com/vercel-labs/json-render
 
 ## query history / favorites
 

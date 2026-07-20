@@ -50,6 +50,9 @@ importers:
       '@ai-sdk/anthropic':
         specifier: 2.0.53
         version: 2.0.53(zod@4.4.3)
+      '@ai-sdk/openai':
+        specifier: ^2.0.53
+        version: 2.0.53(zod@4.4.3)
       '@ai-sdk/react':
         specifier: 2.0.106
         version: 2.0.106(react@19.2.7)(zod@4.4.3)
@@ -362,6 +365,18 @@ packages:
 
   '@ai-sdk/gateway@2.0.18':
     resolution: {integrity: sha512-sDQcW+6ck2m0pTIHW6BPHD7S125WD3qNkx/B8sEzJp/hurocmJ5Cni0ybExg6sQMGo+fr/GWOwpHF1cmCdg5rQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/openai@2.0.53':
+    resolution: {integrity: sha512-GIkR3+Fyif516ftXv+YPSPstnAHhcZxNoR2s8uSHhQ1yBT7I7aQYTVwpjAuYoT3GR+TeP50q7onj2/nDRbT2FQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@3.0.12':
+    resolution: {integrity: sha512-ZtbdvYxdMoria+2SlNarEk6Hlgyf+zzcznlD55EAl+7VZvJaSg2sqPvwArY7L6TfDEDJsnCq0fdhBSkYo0Xqdg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -7557,6 +7572,19 @@ snapshots:
       '@vercel/oidc': 3.0.5
       zod: 4.4.3
 
+  '@ai-sdk/openai@2.0.53(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@ai-sdk/provider-utils': 3.0.12(zod@4.4.3)
+      zod: 4.4.3
+
+  '@ai-sdk/provider-utils@3.0.12(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 2.0.0
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.1.0
+      zod: 4.4.3
+
   '@ai-sdk/provider-utils@3.0.18(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
@@ -12317,7 +12345,7 @@ snapshots:
     optionalDependencies:
       crossws: 0.4.1(srvx@0.9.7)
 
-  h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.11.22)):
+  h3@2.0.1-rc.5(crossws@0.4.1(srvx@0.9.7)):
     dependencies:
       rou3: 0.7.10
       srvx: 0.9.7
@@ -13392,7 +13420,7 @@ snapshots:
       consola: 3.4.2
       crossws: 0.4.1(srvx@0.9.7)
       db0: 0.3.4(@electric-sql/pglite@0.3.14)(@libsql/client@0.17.4)(better-sqlite3@11.10.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.3.14)(@libsql/client@0.17.4)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(better-sqlite3@11.10.0)(kysely@0.28.8)(pg@8.22.0)(postgres@3.4.7))
-      h3: 2.0.1-rc.5(crossws@0.4.1(srvx@0.11.22))
+      h3: 2.0.1-rc.5(crossws@0.4.1(srvx@0.9.7))
       jiti: 2.6.1
       nf3: 0.1.12
       ofetch: 2.0.0-alpha.3

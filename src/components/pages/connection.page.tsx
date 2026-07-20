@@ -81,6 +81,7 @@ import { Menu, MenuContent, MenuItem, MenuItemText, MenuTriggerItem } from "../u
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
+import { ConnectionAiAssistantDrawer } from "./connection-page/ai-assistant.drawer.tsx";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
@@ -150,6 +151,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   useZenMode();
 
   const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
+  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
   const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
   const sidebarMinSize = fromPixelToPercentage(224, "horizontal");
@@ -217,6 +219,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
               connection={connection}
               activeConnectionUrl={activeConnectionUrl}
               onAddConnection={() => setShowAddConnectionDrawer(true)}
+              onOpenAiAssistant={() => setAiAssistantOpen(true)}
             />
           </Splitter.Panel>
 
@@ -400,6 +403,14 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
       {/* Schema Explorer */}
       <SchemaExplorerDrawer connection={connection} />
+
+      {/* AI assistant (BYOK) */}
+      <ConnectionAiAssistantDrawer
+        connection={connection}
+        activeConnectionUrl={activeConnectionUrl}
+        open={aiAssistantOpen}
+        onOpenChange={setAiAssistantOpen}
+      />
     </div>
   );
 };

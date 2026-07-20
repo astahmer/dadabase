@@ -1,5 +1,12 @@
 import type { Virtualizer } from "@tanstack/react-virtual";
 
+import { createListCollection, Listbox } from "@ark-ui/react/listbox";
+import { useFilter } from "@ark-ui/react/locale";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { DatabaseIcon } from "lucide-react";
+import { useEffect, useMemo } from "react";
+
 import { Button } from "#src/components/ui/button.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
@@ -9,12 +16,6 @@ import { listAvailableDatabase } from "#src/server/introspection/start-fns/get-a
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { createListCollection, Listbox } from "@ark-ui/react/listbox";
-import { useFilter } from "@ark-ui/react/locale";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { DatabaseIcon } from "lucide-react";
-import { useEffect, useMemo } from "react";
 
 import type { DbConnection } from "../connection.types";
 
@@ -37,6 +38,7 @@ interface ConnectionPageSidebarProps {
   connection: DbConnection;
   activeConnectionUrl: string;
   onAddConnection: () => void;
+  onOpenAiAssistant?: () => void;
 }
 
 export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
@@ -136,7 +138,11 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
   return (
     <>
       {/* Connection Switcher */}
-      <ConnectionSwitcher connection={connection} onAddConnection={props.onAddConnection} />
+      <ConnectionSwitcher
+        connection={connection}
+        onAddConnection={props.onAddConnection}
+        onOpenAiAssistant={props.onOpenAiAssistant}
+      />
       {/* Database Selector */}
       {isNotSqlite && (
         <Stack className="shrink-0 px-4 pt-4" gap="2">
