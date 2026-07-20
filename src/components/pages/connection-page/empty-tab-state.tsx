@@ -3,6 +3,7 @@ import type { TableWithColumnsMetadata } from "#src/server/introspection/introsp
 import { toaster } from "#src/components/ui/toaster.tsx";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
+import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { createListCollection, Listbox } from "@ark-ui/react/listbox";
@@ -196,7 +197,7 @@ const TableSelectionTab = (props: {
         url: props.activeConnectionUrl,
         schema,
         table: tableName,
-        limit: 50,
+        limit: getStoredPageLimit(),
         offset: 0,
         orderBy: undefined,
         orderDirection: undefined,

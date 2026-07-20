@@ -1,4 +1,5 @@
 import { FileRouteTypes } from "#src/routeTree.gen.ts";
+import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { useSearch } from "@tanstack/react-router";
 
 type ConnectionPage = FileRouteTypes["fileRoutesByFullPath"]["/connections/$connectionName"];
@@ -22,7 +23,7 @@ export const createTabState = (
     orderDirection: options?.orderDirection,
     nullsOrder: options?.nullsOrder,
     relationshipRowId: options?.relationshipRowId,
-    limit: options?.limit ?? 50,
+    limit: options?.limit ?? getStoredPageLimit(),
     offset: options?.offset ?? 0,
     viewMode: options?.viewMode ?? ("rows" as const),
     tableSize: options?.tableSize ?? ("cozy" as const),

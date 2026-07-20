@@ -24,6 +24,7 @@ import { Button } from "#src/components/ui/button.tsx";
 import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
+import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
@@ -110,7 +111,7 @@ export const useConnectionPageState = ({
             filters: updatedFilter,
             filtersOpened: shouldOpenFilters,
             offset: 0,
-            limit: 50,
+            limit: getStoredPageLimit(),
             orderBy: undefined,
             orderDirection: undefined,
           });

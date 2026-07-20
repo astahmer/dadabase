@@ -22,7 +22,7 @@ Done items removed. Trash: generative UI (too vague), dockview layout (overkill)
 
 - [ ] filters in datatable header (`th`)
 - [ ] cmd+f in virtualized table → highlight/filter
-- [ ] store page limit in localStorage and use as default instead of hardcoded 50
+- [x] store page limit in localStorage and use as default instead of hardcoded 50
 
 ## ai (future)
 

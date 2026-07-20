@@ -2,6 +2,7 @@ import type { FileRoutesByTo } from "#src/routeTree.gen.ts";
 
 import { toaster } from "#src/components/ui/toaster.tsx";
 import { type DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { encodeToBinary } from "#src/router.encode.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
@@ -71,7 +72,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
         url: activeConnectionUrl,
         schema,
         table,
-        limit: 50,
+        limit: getStoredPageLimit(),
         offset: 0,
         orderBy: undefined,
         orderDirection: undefined,

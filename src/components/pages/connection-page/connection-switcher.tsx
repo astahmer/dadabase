@@ -7,6 +7,7 @@ import {
   MenuItemText,
   MenuTrigger,
 } from "#src/components/ui/menu.tsx";
+import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { queryClient } from "#src/query-client.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
@@ -157,7 +158,7 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
                         filters: undefined,
                         filtersOpened: false,
                         offset: 0,
-                        limit: 50,
+                        limit: getStoredPageLimit(),
                         orderBy: undefined,
                         orderDirection: undefined,
                         relationshipRowId: undefined,

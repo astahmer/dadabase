@@ -1,3 +1,4 @@
+import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Database, RefreshCw } from "lucide-react";
@@ -51,7 +52,7 @@ export const ConnectionPageHeader = (_props: ConnectionPageHeaderProps) => {
                   filters: undefined,
                   filtersOpened: false,
                   offset: 0,
-                  limit: 50,
+                  limit: getStoredPageLimit(),
                   orderBy: undefined,
                   orderDirection: undefined,
                   relationshipRowId: undefined,

@@ -3,6 +3,7 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 import { Button } from "#src/components/ui/button.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { listAvailableDatabase } from "#src/server/introspection/start-fns/get-available-database-list.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
@@ -318,7 +319,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
                     url: activeConnectionUrl,
                     schema,
                     table: tableName,
-                    limit: 50,
+                    limit: getStoredPageLimit(),
                     offset: 0,
                     orderBy: undefined,
                     orderDirection: undefined,
