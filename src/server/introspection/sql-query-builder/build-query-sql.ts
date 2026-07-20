@@ -14,6 +14,11 @@ import {
   generateJoinAliases,
 } from "#src/server/introspection/join-builder.ts";
 
+import {
+  buildGroupByClause,
+  buildHavingClause,
+  formatGroupByExpression,
+} from "./build-group-by-clause.ts";
 import { buildLimitClause, buildOrderByClause } from "./build-pagination-clause.ts";
 
 /**
@@ -29,6 +34,8 @@ export interface BuildQuerySqlInput {
   orderDirection?: "asc" | "desc";
   nullsOrder?: "first" | "last";
   filters?: QueryFilterType;
+  groupBy?: string[];
+  having?: QueryFilterType;
   joins?: JoinTablesConfig["joins"];
   selectedColumns?: string[];
   excludedColumns?: string[];
@@ -89,6 +96,8 @@ export const buildQuerySql = (
     orderDirection = "asc",
     nullsOrder,
     filters,
+    groupBy,
+    having,
     joins = [],
     selectedColumns = [],
   } = input;
@@ -106,13 +115,18 @@ export const buildQuerySql = (
     joinAliases,
   );
 
+  const groupByClause = buildGroupByClause(groupBy);
+  const havingClause = buildHavingClause(having);
   const orderClause = buildOrderByClause(orderBy, orderDirection, nullsOrder);
   const limitClause = buildLimitClause(limit, offset);
 
-  // Build SELECT clause
+  // Build SELECT clause — with GROUP BY and no explicit columns, select the group keys
+  // (SELECT * GROUP BY is invalid in PostgreSQL)
   let selectClause = customSelectClause || "*";
   if (!customSelectClause && selectedColumns && selectedColumns.length > 0) {
     selectClause = selectedColumns.join(", ");
+  } else if (!customSelectClause && groupBy && groupBy.length > 0) {
+    selectClause = groupBy.map(formatGroupByExpression).filter(Boolean).join(", ");
   }
 
   // Build the query
@@ -126,6 +140,8 @@ export const buildQuerySql = (
     fromClause,
     ...joinClauses,
     whereClause && `WHERE ${whereClause}`,
+    groupByClause,
+    havingClause,
     orderClause,
     limitClause,
   ].filter(Boolean);

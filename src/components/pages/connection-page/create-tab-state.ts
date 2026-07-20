@@ -1,6 +1,7 @@
-import { FileRouteTypes } from "#src/routeTree.gen.ts";
-import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { useSearch } from "@tanstack/react-router";
+
+import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
+import { FileRouteTypes } from "#src/routeTree.gen.ts";
 
 type ConnectionPage = FileRouteTypes["fileRoutesByFullPath"]["/connections/$connectionName"];
 type ConnectionPageSearch = ConnectionPage["types"]["searchSchema"];
@@ -28,14 +29,18 @@ export const createTabState = (
     viewMode: options?.viewMode ?? ("rows" as const),
     tableSize: options?.tableSize ?? ("cozy" as const),
     hiddenColumnList: options?.hiddenColumnList,
+    columnAliases: options?.columnAliases,
     columnVisibilityMode: options?.columnVisibilityMode ?? ("client" as const),
     filters: options?.filters,
     filtersOpened: options?.filtersOpened ?? false,
+    groupBy: options?.groupBy,
+    having: options?.having,
     fkValue: options?.fkValue,
     joins: options?.joins,
     sqlEditorMode: options?.sqlEditorMode ?? ("preview" as const),
     customSql: options?.customSql,
     customSqlId: options?.customSqlId,
+    editorDetached: options?.editorDetached,
     initialTabMode: options?.initialTabMode,
     columnOrder: options?.columnOrder,
     columnPinning: options?.columnPinning,

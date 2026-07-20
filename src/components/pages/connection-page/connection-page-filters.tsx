@@ -56,6 +56,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
   const viewMode = useActiveTabState((s) => s.viewMode);
   const filtersOpened = useActiveTabState((s) => s.filtersOpened);
   const filterConditions = useActiveTabState((s) => s.filters?.conditions ?? []);
+  const groupByCount = useActiveTabState((s) => s.groupBy?.length ?? 0);
   const joinConfig = useActiveTabState((s) => ({
     joins: Array.from(s.joins ?? []),
   }));
@@ -134,35 +135,35 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
               </Button>
             )}
             <Button
-              variant={filterConditions.length > 0 && !filtersOpened ? "default" : "outline"}
+              variant={
+                (filterConditions.length > 0 || (groupByCount ?? 0) > 0) && !filtersOpened
+                  ? "default"
+                  : "outline"
+              }
               size="sm"
               onClick={() => {
-                if (queryBuilder.filter.conditions.length === 0) {
-                  queryBuilder.addCondition();
-                } else {
-                  navigate({
-                    search: (prev) =>
-                      updateTabState(prev, (tab) => ({
-                        filtersOpened: !tab.filtersOpened,
-                      })),
-                  });
-                }
+                navigate({
+                  search: (prev) =>
+                    updateTabState(prev, (tab) => ({
+                      filtersOpened: !tab.filtersOpened,
+                    })),
+                });
               }}
               disabled={isLoading}
-              className={filterConditions.length > 0 ? "gap-2" : ""}
+              className={filterConditions.length > 0 || (groupByCount ?? 0) > 0 ? "gap-2" : ""}
             >
               <LucideListFilter className="h-3 w-3" />
-              {filterConditions.length > 0
+              {filterConditions.length > 0 || (groupByCount ?? 0) > 0
                 ? filtersOpened
                   ? "Filters"
                   : "Open filters"
-                : "Add filter"}
-              {filterConditions.length > 0 && (
+                : "Filters"}
+              {(filterConditions.length > 0 || (groupByCount ?? 0) > 0) && (
                 <span className="bg-background/20 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold">
-                  {filterConditions.length || 0}
+                  {filterConditions.length + (groupByCount ?? 0) || 0}
                 </span>
               )}
-              {filterConditions.length > 0 ? (
+              {filterConditions.length > 0 || (groupByCount ?? 0) > 0 ? (
                 filtersOpened ? (
                   <LucideChevronUp className="h-3 w-3" />
                 ) : (

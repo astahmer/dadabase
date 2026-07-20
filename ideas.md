@@ -8,7 +8,7 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [ ] monaco `changeViewZones` for inline actions (run/explain/format/fullscreen/copy/save) — toolbar exists; viewZones optional polish
 - [x] diagnostics in editor (missing table/column/syntax) via `setModelMarkers`
 - [x] real `BETWEEN` operator (NL, SQL parser, build-where, filter UI)
-- [ ] unlink/detach editor from current table while keeping table context (custom SQL tab is close but not the same)
+- [x] unlink/detach editor from current table while keeping table context (custom SQL tab is close but not the same)
 
 ## filters
 
@@ -17,7 +17,7 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [x] match operators to datatype (e.g. timestamps shouldn't offer contains/starts_with)
 - [x] date filter with calendar + range presets (today, last 7/30 days, this/last month, this/last year)
 - [x] fix filter special values (`null`, `TODAY()` → valid SQL; build-where must not quote them)
-- [ ] GROUP BY / HAVING support in filters UI (parser already understands them)
+- [x] GROUP BY / HAVING support in filters UI (parser already understands them)
 
 ## rows table
 
