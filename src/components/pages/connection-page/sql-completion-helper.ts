@@ -88,7 +88,7 @@ export type SqlKeyword = (typeof SQL_KEYWORDS)[number];
 // Memoized regex patterns (compiled once)
 // Reusable pattern fragments
 const JOIN_KEYWORDS =
-  "FROM|JOIN|INNER\\s+JOIN|LEFT\\s+JOIN|RIGHT\\s+JOIN|FULL\\s+JOIN|CROSS\\s+JOIN";
+  "FROM|JOIN|INNER\\s+JOIN|LEFT\\s+JOIN|RIGHT\\s+JOIN|FULL\\s+JOIN|CROSS\\s+JOIN|INTO";
 
 // Keywords for table extraction that include INSERT INTO, UPDATE, DELETE FROM, etc.
 const TABLE_SOURCE_KEYWORDS =
@@ -100,7 +100,7 @@ const REGEX_COLUMN_OPERATOR =
   /\b(WHERE|ON|HAVING|AND|OR)\s+(?:"[^"]+"|[\w]+)\.(?:"[^"]+"|[\w]+)\s+$/i;
 const REGEX_TABLE_ALIAS_INCOMPLETE = /\bAS\s*$/i;
 const REGEX_TABLE_ALIAS_COMPLETE = /\bAS\s+(\w+)\s*$/i;
-const REGEX_FROM_KEYWORD = /\bfrom\s+$/i;
+const REGEX_FROM_KEYWORD = /\b(?:from|into)\s+$/i;
 const REGEX_TABLE_NAME = new RegExp(`\\b(?:${JOIN_KEYWORDS})\\s+(?:"[^"]*"|\\w*)$`, "i");
 const REGEX_SELECT_QUALIFIED = /\bSELECT\s+(?:"[^"]*"|\w+)\.(?:"[^"]*"|\w+)\s*$/i;
 // Updated to handle schema-qualified table names (e.g., "public"."users", public.users, etc.)
@@ -140,7 +140,7 @@ const REGEX_TABLE_ALIAS_PAIR = new RegExp(
   "gi",
 );
 const REGEX_KEYWORD_PATTERN =
-  /\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|CROSS|ON|ORDER|GROUP|HAVING|LIMIT|AND|OR)\b/gi;
+  /\b(SELECT|FROM|WHERE|JOIN|INNER|LEFT|RIGHT|FULL|CROSS|ON|ORDER|GROUP|HAVING|LIMIT|AND|OR|INSERT|UPDATE|INTO)\b/gi;
 const REGEX_FUNCTION_WITH_TABLE =
   /\b(COUNT|SUM|AVG|MAX|MIN|LOWER|UPPER|COALESCE|CASE|EXISTS)\s*\(\s*(?:"[^"]+"|[\w]+)\.$/i;
 // Detect completed WHERE/ON/HAVING conditions: column/qualified_column/function operator value(s)

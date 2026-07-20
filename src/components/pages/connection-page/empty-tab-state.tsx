@@ -1,3 +1,10 @@
+import { createListCollection, Listbox } from "@ark-ui/react/listbox";
+import { useFilter } from "@ark-ui/react/locale";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useMemo, useRef, useState } from "react";
+
 import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 
 import { toaster } from "#src/components/ui/toaster.tsx";
@@ -6,12 +13,6 @@ import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels
 import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { createListCollection, Listbox } from "@ark-ui/react/listbox";
-import { useFilter } from "@ark-ui/react/locale";
-import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
 
 import type { DbConnection } from "../connection.types";
 
@@ -21,6 +22,7 @@ import { createTabState, updateTabState, useActiveTabState } from "./create-tab-
 import { extractSelectedTables } from "./sql-completion-helper.ts";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
 import { parseSqlQuery } from "./sql-query-parser.ts";
+import { SqlSnippetsMenu } from "./sql-snippets-menu.tsx";
 
 interface EmptyTabState {
   activeConnectionUrl: string;
@@ -450,6 +452,16 @@ const CustomSqlTab = (props: {
 
       {/* SQL Input Area */}
       <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-end">
+          <SqlSnippetsMenu
+            onInsertSnippet={(snippetSql) => {
+              const next = customSql.trim() ? `${customSql.trimEnd()}\n${snippetSql}` : snippetSql;
+              void navigate({
+                search: (prev) => updateTabState(prev, { customSql: next }),
+              });
+            }}
+          />
+        </div>
         <SqlMonacoEditor
           sql={customSql}
           onChange={onCustomSqlChange}

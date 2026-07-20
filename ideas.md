@@ -46,7 +46,7 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [x] cancellable queries with real AbortController (Cancel button today only resets mutation client-side)
 - [x] after typing `join` / `left j` / … suggest prefilled `JOIN other ON pk = fk` snippet from FK metadata
 - [x] editor themes beyond vs-light/vs-dark (One Dark Pro etc.)
-- [ ] SQL snippets library
+- [x] SQL snippets library
 - [ ] drag/drop tabs to reorder
 - [ ] sidebar fixed icon rail (switch connection, theme, refresh, reset, saved queries, history, settings)
 - [ ] column aliases end-to-end (parsing, completion, filters, visibility, sorting)
@@ -58,5 +58,5 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [x] SQL editor maximize → menu: expand panel vs fullscreen (collapse sidebar + filters + rows)
 - [x] UI to display/edit the `inverted` flag on filter conditions
 - [x] SQL completion: inverted operator suggestions
-- [ ] INSERT completion: `INTO` → tables → column/values snippet
+- [x] INSERT completion: `INTO` → tables → column/values snippet
 - [ ] update deps (ongoing chore)

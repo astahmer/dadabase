@@ -35,6 +35,7 @@ import {
   type SqlEditorMaximizeAction,
 } from "./sql-editor-maximize-actions.ts";
 import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
+import { SqlSnippetsMenu } from "./sql-snippets-menu.tsx";
 
 export type { SqlEditorMaximizeAction };
 export { SQL_EDITOR_MAXIMIZE_ACTIONS };
@@ -85,6 +86,8 @@ interface SqlQueryPreviewProps {
   onSaveFavorite?: (sql: string) => void;
   /** Whether a favorite save is in progress */
   isSavingFavorite?: boolean;
+  /** Callback when a snippet should be inserted into the editor */
+  onInsertSnippet?: (sql: string) => void;
   /** Custom CSS class */
   className?: string;
   /** Warning message to display next to the tabs */
@@ -123,6 +126,7 @@ export function SqlQueryPreview({
   onToggleCollapsed,
   tables = [],
   columns = [],
+  onInsertSnippet,
   className,
   warning,
 }: SqlQueryPreviewProps) {
@@ -144,6 +148,16 @@ export function SqlQueryPreview({
   const handleEditorChange = useEffectEvent((value: string) => {
     editorValueRef.current = value;
     onEditorChange?.(value);
+  });
+
+  const handleInsertSnippet = useEffectEvent((snippetSql: string) => {
+    const current = (editorValueRef.current || customSql || sql || "").trimEnd();
+    const next = current ? `${current}\n${snippetSql}` : snippetSql;
+    editorValueRef.current = next;
+    onEditorChange?.(next);
+    onEditorModeChange?.("editor");
+    if (isCollapsed) onToggleCollapsed?.(false);
+    onInsertSnippet?.(snippetSql);
   });
 
   // Only block the whole preview while SQL is still being generated.
@@ -253,115 +267,118 @@ export function SqlQueryPreview({
             </Tabs.Root>
           </div>
 
-          {/* Action buttons — editor mode, or while running so Cancel stays reachable */}
-          {((editorMode === "editor" && !isCollapsed) || isLoading) && (
-            <div className="flex items-center gap-2">
-              {isLoading ? (
-                <Tooltip content="Cancel query">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onCancel}
-                    disabled={!onCancel}
-                    className="text-destructive hover:text-destructive h-8 px-2"
-                  >
-                    <Square className="h-4 w-4" />
-                  </Button>
-                </Tooltip>
-              ) : (
-                <Tooltip content="Run query (Ctrl+Enter)">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onRun?.(editorValueRef.current ?? "")}
-                    className="h-8 px-2"
-                  >
-                    <Play className="h-4 w-4" />
-                  </Button>
-                </Tooltip>
-              )}
-              <Tooltip content="Explain query">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onExplain}
-                  disabled={disableExplain}
-                  className="h-8 px-2"
-                >
-                  <Zap className="h-4 w-4" />
-                </Button>
-              </Tooltip>
-              <Tooltip content="Format SQL">
-                <Button variant="ghost" size="sm" onClick={onFormat} className="h-8 px-2">
-                  <Wand2 className="h-4 w-4" />
-                </Button>
-              </Tooltip>
-              {onSaveFavorite && (
-                <Tooltip content="Save as favorite">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={isSavingFavorite}
-                    onClick={() => onSaveFavorite(editorValueRef.current || customSql || sql)}
-                    className="h-8 px-2"
-                    data-testid="sql-save-favorite"
-                  >
-                    <Star className="h-4 w-4" />
-                  </Button>
-                </Tooltip>
-              )}
-              {isFullscreen ? (
-                <Tooltip content="Exit fullscreen">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onToggleFullscreen}
-                    className="h-8 px-2"
-                    data-testid="sql-exit-fullscreen"
-                  >
-                    <Minimize2 className="h-4 w-4" />
-                  </Button>
-                </Tooltip>
-              ) : (
-                <Menu>
-                  <MenuTrigger asChild>
+          <div className="flex items-center gap-2">
+            <SqlSnippetsMenu onInsertSnippet={handleInsertSnippet} />
+            {/* Action buttons — editor mode, or while running so Cancel stays reachable */}
+            {((editorMode === "editor" && !isCollapsed) || isLoading) && (
+              <>
+                {isLoading ? (
+                  <Tooltip content="Cancel query">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 px-2"
-                      data-testid="sql-maximize-menu"
-                      aria-label="Maximize SQL editor"
+                      onClick={onCancel}
+                      disabled={!onCancel}
+                      className="text-destructive hover:text-destructive h-8 px-2"
                     >
-                      <Maximize2 className="h-4 w-4" />
+                      <Square className="h-4 w-4" />
                     </Button>
-                  </MenuTrigger>
-                  <Portal>
-                    <MenuContent>
-                      {SQL_EDITOR_MAXIMIZE_ACTIONS.map((action) => (
-                        <MenuItem
-                          key={action.id}
-                          value={action.id}
-                          onClick={() => {
-                            if (action.id === "expand-panel") onExpandPanel?.();
-                            else onToggleFullscreen?.();
-                          }}
-                        >
-                          <MenuItemText>
-                            <span className="flex flex-col gap-0.5">
-                              <span>{action.label}</span>
-                              <span className="text-muted-foreground text-xs font-normal">
-                                {action.description}
+                  </Tooltip>
+                ) : (
+                  <Tooltip content="Run query (Ctrl+Enter)">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onRun?.(editorValueRef.current ?? "")}
+                      className="h-8 px-2"
+                    >
+                      <Play className="h-4 w-4" />
+                    </Button>
+                  </Tooltip>
+                )}
+                <Tooltip content="Explain query">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onExplain}
+                    disabled={disableExplain}
+                    className="h-8 px-2"
+                  >
+                    <Zap className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Format SQL">
+                  <Button variant="ghost" size="sm" onClick={onFormat} className="h-8 px-2">
+                    <Wand2 className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+                {onSaveFavorite && (
+                  <Tooltip content="Save as favorite">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={isSavingFavorite}
+                      onClick={() => onSaveFavorite(editorValueRef.current || customSql || sql)}
+                      className="h-8 px-2"
+                      data-testid="sql-save-favorite"
+                    >
+                      <Star className="h-4 w-4" />
+                    </Button>
+                  </Tooltip>
+                )}
+                {isFullscreen ? (
+                  <Tooltip content="Exit fullscreen">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onToggleFullscreen}
+                      className="h-8 px-2"
+                      data-testid="sql-exit-fullscreen"
+                    >
+                      <Minimize2 className="h-4 w-4" />
+                    </Button>
+                  </Tooltip>
+                ) : (
+                  <Menu>
+                    <MenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        data-testid="sql-maximize-menu"
+                        aria-label="Maximize SQL editor"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </Button>
+                    </MenuTrigger>
+                    <Portal>
+                      <MenuContent>
+                        {SQL_EDITOR_MAXIMIZE_ACTIONS.map((action) => (
+                          <MenuItem
+                            key={action.id}
+                            value={action.id}
+                            onClick={() => {
+                              if (action.id === "expand-panel") onExpandPanel?.();
+                              else onToggleFullscreen?.();
+                            }}
+                          >
+                            <MenuItemText>
+                              <span className="flex flex-col gap-0.5">
+                                <span>{action.label}</span>
+                                <span className="text-muted-foreground text-xs font-normal">
+                                  {action.description}
+                                </span>
                               </span>
-                            </span>
-                          </MenuItemText>
-                        </MenuItem>
-                      ))}
-                    </MenuContent>
-                  </Portal>
-                </Menu>
-              )}
-            </div>
-          )}
+                            </MenuItemText>
+                          </MenuItem>
+                        ))}
+                      </MenuContent>
+                    </Portal>
+                  </Menu>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
       {/* Content - collapsed by default */}

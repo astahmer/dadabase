@@ -1,9 +1,8 @@
-import type {
-  TableWithColumnsMetadata,
-} from "#src/server/introspection/introspection.ts";
 import type * as MonacoType from "monaco-editor";
 
 import { describe, expect, it } from "vitest";
+
+import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 
 import { sqlCompletionProvider } from "./sql-completion-provider";
 
@@ -23,6 +22,7 @@ describe("sqlCompletionProvider", () => {
         Struct: 6,
         Field: 5,
         Keyword: 14,
+        Snippet: 27,
       },
     },
   };
@@ -6026,6 +6026,69 @@ describe("sqlCompletionProvider", () => {
       expect(labels.length).toBe(2);
       expect(labels).toContain("AS");
       expect(labels).toContain("ON");
+    });
+  });
+
+  describe("INSERT INTO completion", () => {
+    it("should suggest tables after INSERT INTO", () => {
+      const suggestions = sqlCompletionProvider(
+        { fullText: "INSERT INTO ", cursorOffset: 12 },
+        singleSchemaContext,
+        mockMonaco,
+      );
+
+      const tableLabels = suggestions.map((s) => s.label);
+      expect(tableLabels).toContain("users");
+      expect(tableLabels).toContain("posts");
+      expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+        [
+          {
+            "detail": "Table",
+            "label": "users",
+            "sortText": "1_users",
+          },
+          {
+            "detail": "Table",
+            "label": "posts",
+            "sortText": "1_posts",
+          },
+          {
+            "detail": "Table",
+            "label": "comments",
+            "sortText": "1_comments",
+          },
+        ]
+      `);
+    });
+
+    it("should suggest tables while typing after INTO", () => {
+      const suggestions = sqlCompletionProvider(
+        { fullText: "INSERT INTO us", cursorOffset: 14 },
+        singleSchemaContext,
+        mockMonaco,
+      );
+
+      expect(suggestions.map((s) => s.label)).toContain("users");
+    });
+
+    it("should suggest columns VALUES snippet after INSERT INTO table", () => {
+      const suggestions = sqlCompletionProvider(
+        { fullText: "INSERT INTO users ", cursorOffset: 18 },
+        singleSchemaContext,
+        mockMonaco,
+      );
+
+      expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
+        [
+          {
+            "detail": "Insert 5 columns",
+            "label": "(columns) VALUES (...)",
+            "sortText": "0_(columns) VALUES (...)",
+          },
+        ]
+      `);
+      expect(suggestions[0]?.insertText).toContain("VALUES");
+      expect(suggestions[0]?.insertText).toContain('"email"');
     });
   });
 });

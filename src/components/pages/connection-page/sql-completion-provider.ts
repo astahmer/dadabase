@@ -5,6 +5,11 @@ import type {
   TableWithColumnsMetadata,
 } from "#src/server/introspection/introspection.ts";
 
+import {
+  buildInsertValuesSnippet,
+  isAfterInsertIntoTable,
+  isAfterIntoKeyword,
+} from "./build-insert-values-snippet.ts";
 import { buildJoinOnSnippet, isAfterJoinKeyword } from "./build-join-on-snippet.ts";
 import { COMPARISON_OPERATORS } from "./comparison-operators.ts";
 import {
@@ -62,9 +67,10 @@ export function sqlCompletionProvider(
     suggestions.push(...COMPARISON_OPERATORS.map((op) => createOperatorCompletion(op, monaco)));
   }
 
-  // Suggest tables when after FROM/JOIN keywords
+  // Suggest tables when after FROM/JOIN/INTO keywords
   if (cursorContext.type === "from_keyword" || cursorContext.type === "table_after_from") {
     const afterJoin = isAfterJoinKeyword(cursorContext.beforeCursor);
+    const afterInto = isAfterIntoKeyword(cursorContext.beforeCursor);
     const fromTableName = cursorContext.selectedTables[0]?.table;
     const fromColumns = fromTableName
       ? (context.columns.find((c) => c.table === fromTableName)?.columns ?? [])
@@ -73,7 +79,7 @@ export function sqlCompletionProvider(
     suggestions.push(
       ...context.tables.map((table) => {
         let joinOpts: { joinOnInsertText?: string; joinOnDetail?: string } | undefined;
-        if (afterJoin && fromTableName && table.name !== fromTableName) {
+        if (afterJoin && !afterInto && fromTableName && table.name !== fromTableName) {
           const joinColumns = context.columns.find((c) => c.table === table.name)?.columns ?? [];
           const snippet = buildJoinOnSnippet({
             fromTable: fromTableName,
@@ -98,6 +104,28 @@ export function sqlCompletionProvider(
         );
       }),
     );
+  }
+
+  // After INSERT INTO table, suggest (cols) VALUES (...) snippet
+  if (
+    (cursorContext.type === "keyword_after_table" || cursorContext.type === "table_alias") &&
+    isAfterInsertIntoTable(cursorContext.beforeCursor)
+  ) {
+    const insertTable = cursorContext.selectedTables.at(-1)?.table;
+    if (insertTable) {
+      const tableCols = context.columns.find((c) => c.table === insertTable)?.columns ?? [];
+      const snippet = buildInsertValuesSnippet(tableCols);
+      if (snippet) {
+        suggestions.push({
+          label: snippet.label,
+          kind: monaco.languages.CompletionItemKind.Snippet,
+          detail: snippet.detail,
+          insertText: `${snippet.insertText} `,
+          sortText: `0_${snippet.label}`,
+          range: undefined as any,
+        });
+      }
+    }
   }
 
   // Suggest keywords and tables+columns combo on empty line
@@ -139,8 +167,11 @@ export function sqlCompletionProvider(
     cursorContext.type === "join_table" ||
     cursorContext.type === "join_with_alias"
   ) {
-    const keywords = getContextualKeywords(cursorContext);
-    suggestions.push(...keywords.map((kw) => createKeywordCompletion(kw, monaco)));
+    // INSERT INTO table — columns VALUES snippet above; skip SELECT-style keywords
+    if (!isAfterInsertIntoTable(cursorContext.beforeCursor)) {
+      const keywords = getContextualKeywords(cursorContext);
+      suggestions.push(...keywords.map((kw) => createKeywordCompletion(kw, monaco)));
+    }
   }
 
   // Suggest JOIN keyword when typing partial JOIN keywords (LEFT, RIGHT, INNER, etc.)
