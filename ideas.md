@@ -47,14 +47,14 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [x] after typing `join` / `left j` / … suggest prefilled `JOIN other ON pk = fk` snippet from FK metadata
 - [x] editor themes beyond vs-light/vs-dark (One Dark Pro etc.)
 - [x] SQL snippets library
-- [ ] drag/drop tabs to reorder
-- [ ] sidebar fixed icon rail (switch connection, theme, refresh, reset, saved queries, history, settings)
+- [x] drag/drop tabs to reorder
+- [x] sidebar fixed icon rail (switch connection, theme, refresh, reset, saved queries, history, settings)
 - [ ] column aliases end-to-end (parsing, completion, filters, visibility, sorting)
 - [ ] expandable table row with nested entity inline (bottom relationship panel covers most cases)
 
 ## issues
 
-- [ ] `hiddenColumnList` should be `{ table, column }` not bare column name strings
+- [x] `hiddenColumnList` should be `{ table, column }` not bare column name strings
 - [x] SQL editor maximize → menu: expand panel vs fullscreen (collapse sidebar + filters + rows)
 - [x] UI to display/edit the `inverted` flag on filter conditions
 - [x] SQL completion: inverted operator suggestions

@@ -39,6 +39,8 @@ interface ConnectionPageSidebarProps {
   activeConnectionUrl: string;
   onAddConnection: () => void;
   onOpenAiAssistant?: () => void;
+  onOpenHistory?: () => void;
+  onOpenFavorites?: () => void;
 }
 
 export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
@@ -136,324 +138,336 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
   });
 
   return (
-    <>
-      {/* Connection Switcher */}
+    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
       <ConnectionSwitcher
         connection={connection}
         onAddConnection={props.onAddConnection}
         onOpenAiAssistant={props.onOpenAiAssistant}
+        onOpenHistory={props.onOpenHistory}
+        onOpenFavorites={props.onOpenFavorites}
       />
-      {/* Database Selector */}
-      {isNotSqlite && (
-        <Stack className="shrink-0 px-4 pt-4" gap="2">
-          <label className="text-foreground text-xs font-medium tracking-wide uppercase">
-            Database
-          </label>
-          {databaseListQuery.isError ? (
-            <ErrorBoundaryCard
-              error={databaseListQuery.error}
-              title="Failed to load databases"
-              onRetry={() => databaseListQuery.refetch()}
-            />
-          ) : databaseListQuery.isLoading ? (
-            <LoadingSpinner
-              label="Loading databases..."
-              failureCount={databaseListQuery.failureCount}
-              layout="horizontal"
-              className="border-input bg-card min-h-9 rounded-md border px-3 py-2"
-            />
-          ) : (
-            <ArkSelect.Select
-              className="w-full"
-              value={
-                selectedDbName ? [selectedDbName] : defaultDatabaseName ? [defaultDatabaseName] : []
-              }
-              collection={ArkSelect.createListCollection({
-                items: dbList.map((db) => ({
-                  label: db.name,
-                  value: db.name,
-                })),
-              })}
-              positioning={{ sameWidth: true }}
-              disabled={databaseListQuery.isLoading}
-              onValueChange={(details) => {
-                const newDbName = details.value?.[0];
-                if (newDbName) {
-                  navigate({
-                    search: (prev) => ({
-                      ...prev,
-                      dbName: newDbName,
-                      schema: undefined,
-                      table: undefined,
-                      offset: 0,
-                      filters: undefined,
-                    }),
-                  });
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="border-border shrink-0 border-b px-4 py-2">
+          <div className="text-foreground truncate text-sm font-medium" title={connection.name}>
+            {connection.name}
+          </div>
+        </div>
+        {/* Database Selector */}
+        {isNotSqlite && (
+          <Stack className="shrink-0 px-4 pt-4" gap="2">
+            <label className="text-foreground text-xs font-medium tracking-wide uppercase">
+              Database
+            </label>
+            {databaseListQuery.isError ? (
+              <ErrorBoundaryCard
+                error={databaseListQuery.error}
+                title="Failed to load databases"
+                onRetry={() => databaseListQuery.refetch()}
+              />
+            ) : databaseListQuery.isLoading ? (
+              <LoadingSpinner
+                label="Loading databases..."
+                failureCount={databaseListQuery.failureCount}
+                layout="horizontal"
+                className="border-input bg-card min-h-9 rounded-md border px-3 py-2"
+              />
+            ) : (
+              <ArkSelect.Select
+                className="w-full"
+                value={
+                  selectedDbName
+                    ? [selectedDbName]
+                    : defaultDatabaseName
+                      ? [defaultDatabaseName]
+                      : []
                 }
-              }}
-            >
-              <ArkSelect.SelectControl>
-                <ArkSelect.SelectTrigger>
-                  <ArkSelect.SelectValueText placeholder="Select database" />
-                  <ArkSelect.SelectIndicator />
-                </ArkSelect.SelectTrigger>
-              </ArkSelect.SelectControl>
-              <ArkSelect.SelectContent>
-                {(databaseListQuery.data || []).map((db) => (
-                  <ArkSelect.SelectItem key={db.name} item={{ label: db.name, value: db.name }}>
-                    {db.name}
-                  </ArkSelect.SelectItem>
-                ))}
-              </ArkSelect.SelectContent>
-            </ArkSelect.Select>
-          )}
-        </Stack>
-      )}
-      {/* Schema Selector */}
-      {isNotSqlite && (schemaListQuery.data ?? [])?.length > 1 && (
-        <Stack className="shrink-0 px-4 pt-4" gap="2">
-          <label className="text-foreground text-xs font-medium tracking-wide uppercase">
-            Schema
-          </label>
-          {schemaListQuery.isError ? (
-            <ErrorBoundaryCard
-              error={schemaListQuery.error}
-              title="Failed to load schemas"
-              onRetry={() => schemaListQuery.refetch()}
-            />
-          ) : schemaListQuery.isLoading ? (
-            <LoadingSpinner
-              label="Loading schemas..."
-              failureCount={schemaListQuery.failureCount}
-              layout="horizontal"
-              className="border-input bg-card min-h-9 rounded-md border px-3 py-2"
-            />
-          ) : (
-            <ArkSelect.Select
-              className="w-full"
-              defaultValue={selectedSchema ? [selectedSchema] : []}
-              collection={schemaCollection}
-              positioning={{ sameWidth: true }}
-              disabled={schemaListQuery.isLoading}
-              onValueChange={(details) => {
-                const newSchema = details.value?.[0];
-                if (newSchema) {
-                  navigate({
-                    search: (prev) => {
-                      const updated = updateTabState(prev, {
-                        schema: newSchema,
+                collection={ArkSelect.createListCollection({
+                  items: dbList.map((db) => ({
+                    label: db.name,
+                    value: db.name,
+                  })),
+                })}
+                positioning={{ sameWidth: true }}
+                disabled={databaseListQuery.isLoading}
+                onValueChange={(details) => {
+                  const newDbName = details.value?.[0];
+                  if (newDbName) {
+                    navigate({
+                      search: (prev) => ({
+                        ...prev,
+                        dbName: newDbName,
+                        schema: undefined,
+                        table: undefined,
                         offset: 0,
                         filters: undefined,
-                      });
-                      // Also set as global schema state for when no tabs exist
-                      return {
-                        ...updated,
-                        schema: newSchema,
-                      };
-                    },
-                  });
-                }
-              }}
-            >
-              <ArkSelect.SelectControl>
-                <ArkSelect.SelectTrigger>
-                  <ArkSelect.SelectValueText placeholder="Select schema" />
-                  <ArkSelect.SelectIndicator />
-                </ArkSelect.SelectTrigger>
-              </ArkSelect.SelectControl>
-              <ArkSelect.SelectContent>
-                {schemaCollection.items.map((item) => (
-                  <ArkSelect.SelectItem key={item.value} item={item}>
-                    {item.label}
-                  </ArkSelect.SelectItem>
-                ))}
-              </ArkSelect.SelectContent>
-            </ArkSelect.Select>
-          )}
-        </Stack>
-      )}
-      {/* Tables List */}
-      <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden" data-tables-list>
-        <Stack className="h-full flex-1" gap="2">
-          <div className="px-4">
-            <Tooltip content="Schema Explorer">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  navigate({
-                    search: (prev) => ({
-                      ...prev,
-                      schemaExplorerOpen: true,
+                      }),
+                    });
+                  }
+                }}
+              >
+                <ArkSelect.SelectControl>
+                  <ArkSelect.SelectTrigger>
+                    <ArkSelect.SelectValueText placeholder="Select database" />
+                    <ArkSelect.SelectIndicator />
+                  </ArkSelect.SelectTrigger>
+                </ArkSelect.SelectControl>
+                <ArkSelect.SelectContent>
+                  {(databaseListQuery.data || []).map((db) => (
+                    <ArkSelect.SelectItem key={db.name} item={{ label: db.name, value: db.name }}>
+                      {db.name}
+                    </ArkSelect.SelectItem>
+                  ))}
+                </ArkSelect.SelectContent>
+              </ArkSelect.Select>
+            )}
+          </Stack>
+        )}
+        {/* Schema Selector */}
+        {isNotSqlite && (schemaListQuery.data ?? [])?.length > 1 && (
+          <Stack className="shrink-0 px-4 pt-4" gap="2">
+            <label className="text-foreground text-xs font-medium tracking-wide uppercase">
+              Schema
+            </label>
+            {schemaListQuery.isError ? (
+              <ErrorBoundaryCard
+                error={schemaListQuery.error}
+                title="Failed to load schemas"
+                onRetry={() => schemaListQuery.refetch()}
+              />
+            ) : schemaListQuery.isLoading ? (
+              <LoadingSpinner
+                label="Loading schemas..."
+                failureCount={schemaListQuery.failureCount}
+                layout="horizontal"
+                className="border-input bg-card min-h-9 rounded-md border px-3 py-2"
+              />
+            ) : (
+              <ArkSelect.Select
+                className="w-full"
+                defaultValue={selectedSchema ? [selectedSchema] : []}
+                collection={schemaCollection}
+                positioning={{ sameWidth: true }}
+                disabled={schemaListQuery.isLoading}
+                onValueChange={(details) => {
+                  const newSchema = details.value?.[0];
+                  if (newSchema) {
+                    navigate({
+                      search: (prev) => {
+                        const updated = updateTabState(prev, {
+                          schema: newSchema,
+                          offset: 0,
+                          filters: undefined,
+                        });
+                        // Also set as global schema state for when no tabs exist
+                        return {
+                          ...updated,
+                          schema: newSchema,
+                        };
+                      },
+                    });
+                  }
+                }}
+              >
+                <ArkSelect.SelectControl>
+                  <ArkSelect.SelectTrigger>
+                    <ArkSelect.SelectValueText placeholder="Select schema" />
+                    <ArkSelect.SelectIndicator />
+                  </ArkSelect.SelectTrigger>
+                </ArkSelect.SelectControl>
+                <ArkSelect.SelectContent>
+                  {schemaCollection.items.map((item) => (
+                    <ArkSelect.SelectItem key={item.value} item={item}>
+                      {item.label}
+                    </ArkSelect.SelectItem>
+                  ))}
+                </ArkSelect.SelectContent>
+              </ArkSelect.Select>
+            )}
+          </Stack>
+        )}
+        {/* Tables List */}
+        <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden" data-tables-list>
+          <Stack className="h-full flex-1" gap="2">
+            <div className="px-4">
+              <Tooltip content="Schema Explorer">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    navigate({
+                      search: (prev) => ({
+                        ...prev,
+                        schemaExplorerOpen: true,
+                      }),
+                    });
+                  }}
+                  className="-mx-2 px-2"
+                >
+                  <label className="text-foreground text-xs font-medium tracking-wide uppercase">
+                    Tables
+                  </label>
+                  <DatabaseIcon className="size-3.5" />
+                </Button>
+              </Tooltip>
+            </div>
+            {tablesListQuery.isError ? (
+              <div className="p-4">
+                <ErrorBoundaryCard
+                  error={tablesListQuery.error}
+                  title="Failed to load tables"
+                  onRetry={() => tablesListQuery.refetch()}
+                />
+              </div>
+            ) : tablesListQuery.isLoading ? (
+              <LoadingSpinner
+                label="Loading tables..."
+                failureCount={tablesListQuery.failureCount}
+                layout="horizontal"
+                className="p-4"
+              />
+            ) : (
+              <Listbox.Root
+                collection={tableCollection}
+                className="h-full min-h-0"
+                onHighlightChange={(details) => {
+                  const tableName = details.highlightedValue;
+                  if (!tableName) return;
+                  const schema = selectedSchema;
+                  queryClient.prefetchQuery({
+                    ...queryTableDataQueryOptions({
+                      url: activeConnectionUrl,
+                      schema,
+                      table: tableName,
+                      limit: getStoredPageLimit(),
+                      offset: 0,
+                      orderBy: undefined,
+                      orderDirection: undefined,
+                      filters: {
+                        conditions: [],
+                        logicalOperator: "and",
+                      },
                     }),
                   });
                 }}
-                className="-mx-2 px-2"
+                onSelect={(details) => {
+                  const tableName = details.value;
+                  if (!tableName) return;
+
+                  const newTabState = createTabState(selectedSchema, tableName);
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      ...addTabStateAfterCurrent(prev, newTabState),
+                    }),
+                  }).then(() => scrollToTab(newTabState.tabId));
+                }}
               >
-                <label className="text-foreground text-xs font-medium tracking-wide uppercase">
-                  Tables
-                </label>
-                <DatabaseIcon className="size-3.5" />
-              </Button>
-            </Tooltip>
-          </div>
-          {tablesListQuery.isError ? (
-            <div className="p-4">
-              <ErrorBoundaryCard
-                error={tablesListQuery.error}
-                title="Failed to load tables"
-                onRetry={() => tablesListQuery.refetch()}
-              />
-            </div>
-          ) : tablesListQuery.isLoading ? (
-            <LoadingSpinner
-              label="Loading tables..."
-              failureCount={tablesListQuery.failureCount}
-              layout="horizontal"
-              className="p-4"
-            />
-          ) : (
-            <Listbox.Root
-              collection={tableCollection}
-              className="h-full min-h-0"
-              onHighlightChange={(details) => {
-                const tableName = details.highlightedValue;
-                if (!tableName) return;
-                const schema = selectedSchema;
-                queryClient.prefetchQuery({
-                  ...queryTableDataQueryOptions({
-                    url: activeConnectionUrl,
-                    schema,
-                    table: tableName,
-                    limit: getStoredPageLimit(),
-                    offset: 0,
-                    orderBy: undefined,
-                    orderDirection: undefined,
-                    filters: {
-                      conditions: [],
-                      logicalOperator: "and",
-                    },
-                  }),
-                });
-              }}
-              onSelect={(details) => {
-                const tableName = details.value;
-                if (!tableName) return;
-
-                const newTabState = createTabState(selectedSchema, tableName);
-                navigate({
-                  search: (prev) => ({
-                    ...prev,
-                    ...addTabStateAfterCurrent(prev, newTabState),
-                  }),
-                }).then(() => scrollToTab(newTabState.tabId));
-              }}
-            >
-              <div className="flex h-full flex-1 flex-col overflow-hidden">
-                <div className="px-4">
-                  <Listbox.Input
-                    placeholder="Filter tables..."
-                    autoFocus
-                    defaultValue={tableFilter}
-                    onChange={(e) =>
-                      navigate({
-                        replace: true,
-                        search: (prev) => ({
-                          ...prev,
-                          tableFilter: e.target.value,
-                        }),
-                      })
-                    }
-                    className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
-                  />
-                </div>
-                <div className="mt-2 h-full flex-1 overflow-hidden">
-                  {filteredTables.length === 0 ? (
-                    <div className="p-4 text-center">
-                      <span className="text-muted-foreground text-xs">
-                        {tableList.length === 0 ? "No tables found" : "No tables match filter"}
-                      </span>
-                    </div>
-                  ) : (
-                    <VirtualizerArea
-                      count={filteredTables.length}
-                      className="mr-4 h-full max-h-full flex-1 overflow-y-auto"
-                    >
-                      {(virtualCtx) => (
-                        <div style={{ height: `${virtualCtx.totalSize}px` }} className="relative">
-                          <ScrollToSidebarTable
-                            selectedTable={selectedTable}
-                            tableList={filteredTablesNames}
-                            virtualizer={virtualCtx.virtualizer}
-                          />
-                          {virtualCtx.paddingTop > 0 && (
-                            <div style={{ height: `${virtualCtx.paddingTop}px` }} />
-                          )}
-
-                          <Listbox.Content className="block">
-                            <Listbox.ItemGroup>
-                              {virtualCtx.virtualItems.map((virtualItem) => {
-                                const table = filteredTables[virtualItem.index];
-                                if (!table) return null;
-
-                                return (
-                                  <TableContextMenu
-                                    key={table.name}
-                                    tableName={table.name}
-                                    schema={table.schema || selectedSchema}
-                                  >
-                                    <Listbox.Item
-                                      item={{
-                                        label: table.name,
-                                        value: table.name,
-                                      }}
-                                      className={`flex cursor-pointer items-center truncate rounded-md px-3 py-2 text-sm transition-colors ${
-                                        selectedTable === table.name
-                                          ? "bg-primary/10 text-primary font-medium"
-                                          : "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
-                                      }`}
-                                      title={table.name}
-                                      onDoubleClick={() => {
-                                        const newTabState = createTabState(
-                                          selectedSchema,
-                                          table.name,
-                                        );
-                                        navigate({
-                                          search: (prev) => ({
-                                            ...prev,
-                                            ...addTabStateAfterCurrent(prev, newTabState),
-                                          }),
-                                        }).then(() => scrollToTab(newTabState.tabId));
-                                      }}
-                                    >
-                                      <Listbox.ItemText className="flex-1 truncate">
-                                        {table.name}
-                                      </Listbox.ItemText>
-                                    </Listbox.Item>
-                                  </TableContextMenu>
-                                );
-                              })}
-                            </Listbox.ItemGroup>
-                          </Listbox.Content>
-
-                          {virtualCtx.paddingBottom > 0 && (
-                            <div
-                              style={{
-                                height: `${virtualCtx.paddingBottom}px`,
-                              }}
+                <div className="flex h-full flex-1 flex-col overflow-hidden">
+                  <div className="px-4">
+                    <Listbox.Input
+                      placeholder="Filter tables..."
+                      autoFocus
+                      defaultValue={tableFilter}
+                      onChange={(e) =>
+                        navigate({
+                          replace: true,
+                          search: (prev) => ({
+                            ...prev,
+                            tableFilter: e.target.value,
+                          }),
+                        })
+                      }
+                      className="border-input placeholder:text-muted-foreground focus-visible:ring-ring flex h-8 w-full rounded-md border bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
+                    />
+                  </div>
+                  <div className="mt-2 h-full flex-1 overflow-hidden">
+                    {filteredTables.length === 0 ? (
+                      <div className="p-4 text-center">
+                        <span className="text-muted-foreground text-xs">
+                          {tableList.length === 0 ? "No tables found" : "No tables match filter"}
+                        </span>
+                      </div>
+                    ) : (
+                      <VirtualizerArea
+                        count={filteredTables.length}
+                        className="mr-4 h-full max-h-full flex-1 overflow-y-auto"
+                      >
+                        {(virtualCtx) => (
+                          <div style={{ height: `${virtualCtx.totalSize}px` }} className="relative">
+                            <ScrollToSidebarTable
+                              selectedTable={selectedTable}
+                              tableList={filteredTablesNames}
+                              virtualizer={virtualCtx.virtualizer}
                             />
-                          )}
-                        </div>
-                      )}
-                    </VirtualizerArea>
-                  )}
+                            {virtualCtx.paddingTop > 0 && (
+                              <div style={{ height: `${virtualCtx.paddingTop}px` }} />
+                            )}
+
+                            <Listbox.Content className="block">
+                              <Listbox.ItemGroup>
+                                {virtualCtx.virtualItems.map((virtualItem) => {
+                                  const table = filteredTables[virtualItem.index];
+                                  if (!table) return null;
+
+                                  return (
+                                    <TableContextMenu
+                                      key={table.name}
+                                      tableName={table.name}
+                                      schema={table.schema || selectedSchema}
+                                    >
+                                      <Listbox.Item
+                                        item={{
+                                          label: table.name,
+                                          value: table.name,
+                                        }}
+                                        className={`flex cursor-pointer items-center truncate rounded-md px-3 py-2 text-sm transition-colors ${
+                                          selectedTable === table.name
+                                            ? "bg-primary/10 text-primary font-medium"
+                                            : "text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted"
+                                        }`}
+                                        title={table.name}
+                                        onDoubleClick={() => {
+                                          const newTabState = createTabState(
+                                            selectedSchema,
+                                            table.name,
+                                          );
+                                          navigate({
+                                            search: (prev) => ({
+                                              ...prev,
+                                              ...addTabStateAfterCurrent(prev, newTabState),
+                                            }),
+                                          }).then(() => scrollToTab(newTabState.tabId));
+                                        }}
+                                      >
+                                        <Listbox.ItemText className="flex-1 truncate">
+                                          {table.name}
+                                        </Listbox.ItemText>
+                                      </Listbox.Item>
+                                    </TableContextMenu>
+                                  );
+                                })}
+                              </Listbox.ItemGroup>
+                            </Listbox.Content>
+
+                            {virtualCtx.paddingBottom > 0 && (
+                              <div
+                                style={{
+                                  height: `${virtualCtx.paddingBottom}px`,
+                                }}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </VirtualizerArea>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Listbox.Root>
-          )}
-        </Stack>
+              </Listbox.Root>
+            )}
+          </Stack>
+        </div>
       </div>
-    </>
+    </div>
   );
 };
 

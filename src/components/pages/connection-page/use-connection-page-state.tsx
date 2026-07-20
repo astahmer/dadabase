@@ -1,11 +1,16 @@
-import type { DataTableRowSubrow } from "#src/components/data-table/data-table.row.tsx";
-import type { DatabaseDialect } from "#src/db/dialect.ts";
 import type {
   AccessorKeyColumnDef,
   ColumnDef,
   ColumnPinningState,
   Row,
 } from "@tanstack/react-table";
+
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useCallback, useMemo, useState } from "react";
+
+import type { DataTableRowSubrow } from "#src/components/data-table/data-table.row.tsx";
+import type { DatabaseDialect } from "#src/db/dialect.ts";
 
 import { RowActionsMenu } from "#src/components/app/row-actions-menu.tsx";
 import { RowContextMenu } from "#src/components/app/row-context-menu.tsx";
@@ -15,6 +20,12 @@ import {
   useActiveTabState,
 } from "#src/components/pages/connection-page/create-tab-state.ts";
 import { formatTableValue } from "#src/components/pages/connection-page/format-table-value.ts";
+import {
+  hiddenColumnRefsFromKeys,
+  isColumnHidden,
+  normalizeHiddenColumnList,
+  toHiddenColumnKeys,
+} from "#src/components/pages/connection-page/hidden-column-list.ts";
 import { RelationshipSubrowTable } from "#src/components/pages/connection-page/relationships/relationship-subrow-table.tsx";
 import { useRowsColumns } from "#src/components/pages/connection-page/use-rows-columns.tsx";
 import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
@@ -30,9 +41,6 @@ import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-con
 import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
 import { getQueryAsSql } from "#src/server/introspection/start-fns/get-query-sql.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
 
 import type { DbConnection } from "../connection.types.ts";
 
@@ -152,15 +160,16 @@ export const useConnectionPageState = ({
     selectedColumns: undefined as string[] | undefined,
     excludedColumns: undefined as string[] | undefined,
   };
-  const hiddenColumnList = Array.from(search.hiddenColumnList ?? []);
+  const hiddenColumnList = normalizeHiddenColumnList(search.hiddenColumnList, search.table || "");
   if (search.columnVisibilityMode === "server" && hiddenColumnList.length) {
-    const visibleCount = columnNameList.length - hiddenColumnList.length;
-    if (visibleCount <= hiddenColumnList.length) {
+    const hiddenKeys = toHiddenColumnKeys(hiddenColumnList);
+    const visibleCount = columnNameList.length - hiddenKeys.length;
+    if (visibleCount <= hiddenKeys.length) {
       columnVisibilityFilters.selectedColumns = columnNameList.filter(
-        (col) => !hiddenColumnList.includes(col),
+        (col) => !isColumnHidden(hiddenColumnList, col),
       );
     } else {
-      columnVisibilityFilters.excludedColumns = hiddenColumnList;
+      columnVisibilityFilters.excludedColumns = hiddenKeys;
     }
   }
 
@@ -552,13 +561,20 @@ export const useConnectionPageState = ({
     });
 
     if (search.hiddenColumnList?.length) {
-      search.hiddenColumnList.forEach((col) => {
-        visibility[col.trim()] = false;
+      normalizeHiddenColumnList(search.hiddenColumnList, search.table || "").forEach((ref) => {
+        const key = ref.table ? `${ref.table}.${ref.column}` : ref.column;
+        visibility[key] = false;
+        // Also hide bare column id when the table matches the active table
+        if (ref.table && ref.table === search.table) {
+          visibility[ref.column] = false;
+        } else if (!ref.table) {
+          visibility[ref.column] = false;
+        }
       });
     }
 
     return visibility;
-  }, [search.hiddenColumnList, rowsColumns]);
+  }, [search.hiddenColumnList, search.table, rowsColumns]);
 
   // Row selection
   const [rowSelection, setRowSelection] = useState({});
@@ -663,13 +679,16 @@ export const useConnectionPageState = ({
     onColumnVisibilityChange: (updater) => {
       const newVisibility =
         typeof updater === "function" ? updater(columnVisibilityState) : updater;
-      const hiddenCols = Object.keys(newVisibility)
+      const hiddenKeys = Object.keys(newVisibility)
         .filter((key) => !newVisibility[key])
         .toSorted();
       navigate({
         search: (prev) => {
           return updateTabState(prev, {
-            hiddenColumnList: hiddenCols.length > 0 ? hiddenCols : undefined,
+            hiddenColumnList:
+              hiddenKeys.length > 0
+                ? hiddenColumnRefsFromKeys(hiddenKeys, search.table || "")
+                : undefined,
           });
         },
       });

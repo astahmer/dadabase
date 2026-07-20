@@ -1,6 +1,19 @@
+import type { CSSProperties } from "react";
+
 import { Portal } from "@ark-ui/react";
 import { Editable, useEditable } from "@ark-ui/react/editable";
 import { Tabs } from "@ark-ui/react/tabs";
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
+import { horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowLeftFromLine,
   ArrowLeftRight,
@@ -44,6 +57,7 @@ interface TableTabsBarProps {
   onRenameTab?: (tabId: string, newName: string) => void;
   onToggleSidebar?: () => void;
   isSidebarCollapsed?: boolean;
+  onTabsReorder?: (activeTabId: string, overTabId: string) => void;
 }
 
 const TabItem = ({
@@ -102,6 +116,14 @@ const TabItem = ({
       ? `${tab.schema && hasMultipleSchemas ? `${tab.schema}.` : ""}${tab.table}${tab.fkValue ? ` [${tab.fkValue}]` : ""}`
       : undefined;
 
+  const sortable = useSortable({ id: tab.tabId });
+  const dragStyle: CSSProperties = {
+    opacity: sortable.isDragging ? 0.5 : 1,
+    transform: CSS.Translate.toString(sortable.transform),
+    transition: sortable.transition,
+    zIndex: sortable.isDragging ? 1 : undefined,
+  };
+
   return (
     <Menu key={tab.tabId}>
       <MenuContextTrigger asChild>
@@ -113,7 +135,13 @@ const TabItem = ({
           data-table-tab={tab.tabId}
           data-table-tab-active={isActive ? true : undefined}
         >
-          <div title={title}>
+          <div
+            ref={sortable.setNodeRef}
+            style={dragStyle}
+            title={title}
+            {...sortable.attributes}
+            {...sortable.listeners}
+          >
             <div className="flex items-center gap-1">
               <Editable.RootProvider value={editable}>
                 <Editable.Preview className="truncate">{displayName}</Editable.Preview>
@@ -139,6 +167,7 @@ const TabItem = ({
                 e.stopPropagation();
                 onTabClose(tab.tabId);
               }}
+              onPointerDown={(e) => e.stopPropagation()}
               aria-label="Close tab"
               type="button"
             >
@@ -212,7 +241,22 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
     onRenameTab,
     onToggleSidebar,
     isSidebarCollapsed,
+    onTabsReorder,
   } = props;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onTabsReorder) return;
+    onTabsReorder(String(active.id), String(over.id));
+  };
+
+  const tabIds = tabs.map((tab) => tab.tabId);
 
   return (
     <div className="bg-muted/50 min-h-0 shrink-0 border-b">
@@ -239,27 +283,36 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
               </Button>
             </Tooltip>
           )}
-          <Tabs.List className="flex min-w-0 items-center gap-1 overflow-x-auto">
-            {tabs.map((tab, index) => (
-              <TabItem
-                key={tab.tabId}
-                tab={tab}
-                index={index}
-                isActive={activeTabId === tab.tabId}
-                hasMultipleSchemas={props.hasMultipleSchemas}
-                onTabClose={onTabClose}
-                onTabHover={onTabHover}
-                onRenameTab={onRenameTab}
-                onDuplicateTab={onDuplicateTab}
-                onCloseOtherTabs={onCloseOtherTabs}
-                onCloseTabsOnLeft={onCloseTabsOnLeft}
-                onCloseTabsOnRight={onCloseTabsOnRight}
-                onCloseAllTabs={onCloseAllTabs}
-                onCopyTabUrl={onCopyTabUrl}
-                tabs={tabs}
-              />
-            ))}
-          </Tabs.List>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToHorizontalAxis]}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={tabIds} strategy={horizontalListSortingStrategy}>
+              <Tabs.List className="flex min-w-0 items-center gap-1 overflow-x-auto">
+                {tabs.map((tab, index) => (
+                  <TabItem
+                    key={tab.tabId}
+                    tab={tab}
+                    index={index}
+                    isActive={activeTabId === tab.tabId}
+                    hasMultipleSchemas={props.hasMultipleSchemas}
+                    onTabClose={onTabClose}
+                    onTabHover={onTabHover}
+                    onRenameTab={onRenameTab}
+                    onDuplicateTab={onDuplicateTab}
+                    onCloseOtherTabs={onCloseOtherTabs}
+                    onCloseTabsOnLeft={onCloseTabsOnLeft}
+                    onCloseTabsOnRight={onCloseTabsOnRight}
+                    onCloseAllTabs={onCloseAllTabs}
+                    onCopyTabUrl={onCopyTabUrl}
+                    tabs={tabs}
+                  />
+                ))}
+              </Tabs.List>
+            </SortableContext>
+          </DndContext>
           {onAddTab && (
             <Button
               onClick={onAddTab}

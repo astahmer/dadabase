@@ -1,13 +1,3 @@
-import type { FileRoutesByTo } from "#src/routeTree.gen.ts";
-
-import { toaster } from "#src/components/ui/toaster.tsx";
-import { type DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
-import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
-import { encodeToBinary } from "#src/router.encode.ts";
-import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
-import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
-import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
-import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   stringifySearchWith,
@@ -18,12 +8,24 @@ import {
 } from "@tanstack/react-router";
 import { stringify } from "zipson";
 
+import type { FileRoutesByTo } from "#src/routeTree.gen.ts";
+
+import { toaster } from "#src/components/ui/toaster.tsx";
+import { type DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
+import { encodeToBinary } from "#src/router.encode.ts";
+import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
+import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
+import { getTableColumnsQueryOptions } from "#src/server/introspection/start-fns/get-table-columns.start.ts";
+import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
+
 import {
   addTabStateAfterCurrent,
   createTabState,
   scrollToTab,
   updateTabState,
 } from "./create-tab-state.ts";
+import { reorderTabs } from "./reorder-tabs.ts";
 import { TableTabsBar } from "./table-tabs-bar.tsx";
 
 interface ConnectionPageTabsProps {
@@ -259,6 +261,15 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
     });
   };
 
+  const handleTabsReorder = (activeId: string, overId: string) => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        tabs: reorderTabs(prev.tabs ?? [], activeId, overId),
+      }),
+    });
+  };
+
   return (
     <TableTabsBar
       tabs={tabs}
@@ -266,6 +277,7 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
       hasMultipleSchemas={schemaWithTables.length > 1}
       onToggleSidebar={props.onToggleSidebar}
       isSidebarCollapsed={props.isSidebarCollapsed}
+      onTabsReorder={handleTabsReorder}
       onTabHover={(tab) => {
         if (tab.schema && tab.table) {
           prefetchTableData(tab.schema, tab.table);

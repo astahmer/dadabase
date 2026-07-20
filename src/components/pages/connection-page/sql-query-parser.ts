@@ -5,6 +5,10 @@ import type {
   QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
 
+import type { HiddenColumnRef } from "./hidden-column-list.ts";
+
+import { parseHiddenColumnString } from "./hidden-column-list.ts";
+
 /**
  * Parses a SQL query string to extract:
  * - WHERE clause conditions as QueryFilterType
@@ -27,7 +31,7 @@ export interface ParsedSqlQueryState {
   nullsOrder?: "first" | "last";
   limit?: number;
   offset?: number;
-  hiddenColumnList?: string[];
+  hiddenColumnList?: HiddenColumnRef[];
   joins?: JoinedTable[];
 }
 
@@ -274,15 +278,17 @@ export const parseSqlQuery = (sql: string, availableColumns: string[]): ParsedSq
     const selectedPart = selectMatch[1].trim();
     // If not SELECT *, track which columns are selected
     if (selectedPart !== "*") {
-      const selectedColumns = new Set(selectedPart.split(",").map((col) => {
-        // Handle aliases and qualified column names
-        return extractColumnNameWithAlias(col.trim());
-      }));
+      const selectedColumns = new Set(
+        selectedPart.split(",").map((col) => {
+          // Handle aliases and qualified column names
+          return extractColumnNameWithAlias(col.trim());
+        }),
+      );
 
       // Hidden columns are those NOT in the SELECT list
       const hidden = availableColumns.filter((col) => !selectedColumns.has(col.toLowerCase()));
       if (hidden.length > 0) {
-        result.hiddenColumnList = hidden;
+        result.hiddenColumnList = hidden.map((col) => parseHiddenColumnString(col));
       }
     }
   }
@@ -301,17 +307,16 @@ export const parseSqlQuery = (sql: string, availableColumns: string[]): ParsedSq
  */
 export const splitLogicalParts = (clause: string): string[] => {
   const placeholders: string[] = [];
-  const protectedClause = clause.replace(
-    /\b(?:NOT\s+)?BETWEEN\s+\S+\s+AND\s+\S+/gi,
-    (match) => {
-      const idx = placeholders.length;
-      placeholders.push(match);
-      return `__BETWEEN_PLACEHOLDER_${idx}__`;
-    },
-  );
-  return protectedClause.split(LOGICAL_SPLIT_REGEX).map((part) =>
-    part.replace(/__BETWEEN_PLACEHOLDER_(\d+)__/g, (_, i) => placeholders[Number(i)] ?? ""),
-  );
+  const protectedClause = clause.replace(/\b(?:NOT\s+)?BETWEEN\s+\S+\s+AND\s+\S+/gi, (match) => {
+    const idx = placeholders.length;
+    placeholders.push(match);
+    return `__BETWEEN_PLACEHOLDER_${idx}__`;
+  });
+  return protectedClause
+    .split(LOGICAL_SPLIT_REGEX)
+    .map((part) =>
+      part.replace(/__BETWEEN_PLACEHOLDER_(\d+)__/g, (_, i) => placeholders[Number(i)] ?? ""),
+    );
 };
 
 /**

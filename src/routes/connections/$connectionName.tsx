@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Schema } from "effect";
 import { Suspense } from "react";
 
+import { parseHiddenColumnString } from "#src/components/pages/connection-page/hidden-column-list.ts";
 import { ConnectionPage } from "#src/components/pages/connection.page.tsx";
 import { QueryFilter } from "#src/components/query-builder/query-filter.ts";
 import { JoinedTableSchema } from "#src/server/introspection/start-fns/query-table-data.start.ts";
@@ -20,6 +21,23 @@ const StructureFiltersSchema = Schema.Struct({
   hasDefaults: Schema.Boolean.pipe(Schema.optional),
 });
 
+const HiddenColumnRefSchema = Schema.Struct({
+  table: Schema.String,
+  column: Schema.String,
+});
+
+/** Accepts legacy bare/`table.column` strings from old URLs and normalizes to `{ table, column }`. */
+const LegacyHiddenColumnStringSchema = Schema.transform(Schema.String, HiddenColumnRefSchema, {
+  strict: true,
+  decode: (value) => parseHiddenColumnString(value),
+  encode: (ref) => (ref.table ? `${ref.table}.${ref.column}` : ref.column),
+});
+
+const HiddenColumnListItemSchema = Schema.Union(
+  HiddenColumnRefSchema,
+  LegacyHiddenColumnStringSchema,
+);
+
 const TabStateSchema = Schema.Struct({
   tabId: Schema.String, // Explicit unique identifier for the tab
   schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
@@ -34,7 +52,7 @@ const TabStateSchema = Schema.Struct({
     Schema.optionalWith({ default: () => "rows" }),
   ),
   tableSize: tableSize.pipe(Schema.optionalWith({ default: () => "cozy" })),
-  hiddenColumnList: Schema.String.pipe(Schema.Array, Schema.optional),
+  hiddenColumnList: HiddenColumnListItemSchema.pipe(Schema.Array, Schema.optional),
   columnVisibilityMode: Schema.Literal("client", "server").pipe(
     Schema.optionalWith({ default: () => "client" }),
   ),

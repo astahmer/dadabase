@@ -587,22 +587,37 @@ describe("SQL Query Parser", () => {
     it("should parse specific columns in SELECT", () => {
       const sql = "SELECT id, name, email FROM users";
       const result = parseSqlQuery(sql, mockColumns);
-      expect(result.hiddenColumnList).toContain("age");
-      expect(result.hiddenColumnList).toContain("created_at");
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).not.toContain("email");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "created_at" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should not set hiddenColumnList for SELECT *", () => {
@@ -936,32 +951,53 @@ describe("SQL Query Parser", () => {
       expect(result.having).toBeDefined();
       expect(result.having?.conditions.length).toBeGreaterThan(0);
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "groupBy": [
-				    "status",
-				  ],
-				  "having": {
-				    "conditions": [
-				      {
-				        "column": "COUNT(*)",
-				        "operator": "greater_than",
-				        "value": 5,
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "id",
-				    "name",
-				    "email",
-				    "age",
-				    "created_at",
-				    "description",
-				    "is_active",
-				  ],
-				  "limit": 10,
-				}
-			`);
+        {
+          "groupBy": [
+            "status",
+          ],
+          "having": {
+            "conditions": [
+              {
+                "column": "COUNT(*)",
+                "operator": "greater_than",
+                "value": 5,
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "name",
+              "table": "",
+            },
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+          "limit": 10,
+        }
+      `);
     });
 
     it("should handle LIMIT 0", () => {
@@ -1007,42 +1043,57 @@ describe("SQL Query Parser", () => {
       expect(result.orderDirection).toBe("desc");
       expect(result.limit).toBe(25);
       expect(result.offset).toBe(0);
-      expect(result.hiddenColumnList).toContain("age");
-      expect(result.hiddenColumnList).toContain("status");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "status" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "filters": {
-				    "conditions": [
-				      {
-				        "column": "status",
-				        "operator": "equals",
-				        "value": "active",
-				      },
-				      {
-				        "column": "age",
-				        "operator": "greater_than_or_equal",
-				        "value": 18,
-				      },
-				      {
-				        "column": "created_at",
-				        "operator": "is_not_null",
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				  "limit": 25,
-				  "offset": 0,
-				  "orderBy": "created_at",
-				  "orderDirection": "desc",
-				}
-			`);
+        {
+          "filters": {
+            "conditions": [
+              {
+                "column": "status",
+                "operator": "equals",
+                "value": "active",
+              },
+              {
+                "column": "age",
+                "operator": "greater_than_or_equal",
+                "value": 18,
+              },
+              {
+                "column": "created_at",
+                "operator": "is_not_null",
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+          "limit": 25,
+          "offset": 0,
+          "orderBy": "created_at",
+          "orderDirection": "desc",
+        }
+      `);
     });
 
     it("should parse real-world complex query 2", () => {
@@ -1062,38 +1113,56 @@ describe("SQL Query Parser", () => {
       expect(result.orderBy).toBe("email");
       expect(result.limit).toBe(100);
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "filters": {
-				    "conditions": [
-				      {
-				        "column": "status",
-				        "operator": "in",
-				        "value": [
-				          "active",
-				          "pending",
-				        ],
-				      },
-				      {
-				        "column": "email",
-				        "operator": "contains",
-				        "value": "@example.com",
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "id",
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				  "limit": 100,
-				  "orderBy": "email",
-				  "orderDirection": "asc",
-				}
-			`);
+        {
+          "filters": {
+            "conditions": [
+              {
+                "column": "status",
+                "operator": "in",
+                "value": [
+                  "active",
+                  "pending",
+                ],
+              },
+              {
+                "column": "email",
+                "operator": "contains",
+                "value": "@example.com",
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+          "limit": 100,
+          "orderBy": "email",
+          "orderDirection": "asc",
+        }
+      `);
     });
 
     it("should handle query with only ORDER BY and LIMIT", () => {
@@ -1322,33 +1391,51 @@ describe("SQL Query Parser", () => {
         'SELECT "users"."id", "users"."name" FROM users WHERE "users"."status" = \'active\'';
       const result = parseSqlQuery(sql, mockColumns);
 
-      expect(result.hiddenColumnList).toContain("email");
-      expect(result.hiddenColumnList).toContain("status");
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "status" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "filters": {
-				    "conditions": [
-				      {
-				        "column": "status",
-				        "operator": "equals",
-				        "table": "users",
-				        "value": "active",
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "email",
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				}
-			`);
+        {
+          "filters": {
+            "conditions": [
+              {
+                "column": "status",
+                "operator": "equals",
+                "table": "users",
+                "value": "active",
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should parse multiple conditions with table-qualified columns", () => {
@@ -1538,21 +1625,39 @@ describe("SQL Query Parser", () => {
       const sql = "SELECT schema.users.id, schema.users.name FROM schema.users";
       const result = parseSqlQuery(sql, mockColumns);
 
-      expect(result.hiddenColumnList).toContain("email");
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "email",
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
   });
 
@@ -1561,84 +1666,144 @@ describe("SQL Query Parser", () => {
       const sql = "SELECT id, name AS user_name, email FROM users";
       const result = parseSqlQuery(sql, mockColumns);
 
-      expect(result.hiddenColumnList).toContain("age");
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).not.toContain("email");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle space-separated aliases (no AS)", () => {
       const sql = "SELECT id, name user_name, email FROM users";
       const result = parseSqlQuery(sql, mockColumns);
 
-      expect(result.hiddenColumnList).toContain("age");
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).not.toContain("email");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle quoted column aliases", () => {
       const sql = 'SELECT id, name AS "User Name", email FROM users';
       const result = parseSqlQuery(sql, mockColumns);
 
-      expect(result.hiddenColumnList).toContain("age");
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).not.toContain("email");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle table.column with alias", () => {
       const sql = "SELECT users.id, users.name AS user_name, users.email FROM users";
       const result = parseSqlQuery(sql, mockColumns);
 
-      expect(result.hiddenColumnList).toContain("age");
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).not.toContain("email");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle schema.table.column with alias", () => {
@@ -1646,21 +1811,39 @@ describe("SQL Query Parser", () => {
         "SELECT schema.users.id AS user_id, schema.users.name AS user_name FROM schema.users";
       const result = parseSqlQuery(sql, mockColumns);
 
-      expect(result.hiddenColumnList).toContain("email");
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "email",
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle multiple aliases in complex query", () => {
@@ -1668,36 +1851,51 @@ describe("SQL Query Parser", () => {
         "SELECT u.id AS user_id, u.name AS full_name, u.email AS contact_email FROM users u WHERE u.status = 'active'";
       const result = parseSqlQuery(sql, mockColumns);
 
-      expect(result.hiddenColumnList).toContain("age");
-      expect(result.hiddenColumnList).toContain("status");
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).not.toContain("email");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "status" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
       expect(result.filters?.conditions).toHaveLength(1);
       expect(result.filters?.conditions[0].column).toBe("status");
       expect(result.filters?.conditions[0].table).toBe("u");
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "filters": {
-				    "conditions": [
-				      {
-				        "column": "status",
-				        "operator": "equals",
-				        "table": "u",
-				        "value": "active",
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "age",
-				    "created_at",
-				    "status",
-				    "description",
-				    "is_active",
-				  ],
-				}
-			`);
+        {
+          "filters": {
+            "conditions": [
+              {
+                "column": "status",
+                "operator": "equals",
+                "table": "u",
+                "value": "active",
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "description",
+              "table": "",
+            },
+            {
+              "column": "is_active",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
   });
 
@@ -1707,21 +1905,30 @@ describe("SQL Query Parser", () => {
         'SELECT "public"."accounting_imports"."category" FROM "public"."accounting_imports" LIMIT 2';
       const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
 
-      expect(result.hiddenColumnList).toContain("id");
-      expect(result.hiddenColumnList).toContain("amount");
-      expect(result.hiddenColumnList).toContain("date");
-      expect(result.hiddenColumnList).not.toContain("category");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "amount" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "date" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "category" });
       expect(result.limit).toBe(2);
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "id",
-				    "amount",
-				    "date",
-				  ],
-				  "limit": 2,
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "amount",
+              "table": "",
+            },
+            {
+              "column": "date",
+              "table": "",
+            },
+          ],
+          "limit": 2,
+        }
+      `);
     });
 
     it('should handle mixed quoting: "public".accounting_imports."category"', () => {
@@ -1729,57 +1936,84 @@ describe("SQL Query Parser", () => {
         'SELECT "public".accounting_imports."category" FROM "public".accounting_imports LIMIT 2';
       const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
 
-      expect(result.hiddenColumnList).toContain("id");
-      expect(result.hiddenColumnList).not.toContain("category");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "category" });
       expect(result.limit).toBe(2);
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "id",
-				    "amount",
-				    "date",
-				  ],
-				  "limit": 2,
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "amount",
+              "table": "",
+            },
+            {
+              "column": "date",
+              "table": "",
+            },
+          ],
+          "limit": 2,
+        }
+      `);
     });
 
     it('should handle mixed quoting: public."accounting_imports".category', () => {
       const sql = 'SELECT public."accounting_imports".category FROM accounting_imports LIMIT 2';
       const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
 
-      expect(result.hiddenColumnList).toContain("id");
-      expect(result.hiddenColumnList).not.toContain("category");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "category" });
       expect(result.limit).toBe(2);
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "id",
-				    "amount",
-				    "date",
-				  ],
-				  "limit": 2,
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "amount",
+              "table": "",
+            },
+            {
+              "column": "date",
+              "table": "",
+            },
+          ],
+          "limit": 2,
+        }
+      `);
     });
 
     it("should handle unquoted: public.accounting_imports.category", () => {
       const sql = "SELECT public.accounting_imports.category FROM accounting_imports LIMIT 2";
       const result = parseSqlQuery(sql, ["id", "category", "amount", "date"]);
 
-      expect(result.hiddenColumnList).toContain("id");
-      expect(result.hiddenColumnList).not.toContain("category");
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "category" });
       expect(result.limit).toBe(2);
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "id",
-				    "amount",
-				    "date",
-				  ],
-				  "limit": 2,
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "amount",
+              "table": "",
+            },
+            {
+              "column": "date",
+              "table": "",
+            },
+          ],
+          "limit": 2,
+        }
+      `);
     });
 
     it("should handle WHERE with fully quoted mixed schema.table.column", () => {
@@ -2659,16 +2893,22 @@ describe("SQL Query Parser", () => {
       expect(result.groupBy).toHaveLength(1);
       expect(result.groupBy?.[0]).toBe("status");
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "groupBy": [
-				    "status",
-				  ],
-				  "hiddenColumnList": [
-				    "id",
-				    "name",
-				  ],
-				}
-			`);
+        {
+          "groupBy": [
+            "status",
+          ],
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "name",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should parse multiple column GROUP BY", () => {
@@ -2680,17 +2920,23 @@ describe("SQL Query Parser", () => {
       expect(result.groupBy).toContain("status");
       expect(result.groupBy).toContain("department");
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "groupBy": [
-				    "status",
-				    "department",
-				  ],
-				  "hiddenColumnList": [
-				    "id",
-				    "name",
-				  ],
-				}
-			`);
+        {
+          "groupBy": [
+            "status",
+            "department",
+          ],
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "name",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should parse HAVING with aggregate condition", () => {
@@ -2705,26 +2951,32 @@ describe("SQL Query Parser", () => {
       expect(result.having?.conditions[0].operator).toBe("greater_than");
       expect(result.having?.conditions[0].value).toBe(5);
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "groupBy": [
-				    "status",
-				  ],
-				  "having": {
-				    "conditions": [
-				      {
-				        "column": "COUNT(*)",
-				        "operator": "greater_than",
-				        "value": 5,
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "id",
-				    "name",
-				  ],
-				}
-			`);
+        {
+          "groupBy": [
+            "status",
+          ],
+          "having": {
+            "conditions": [
+              {
+                "column": "COUNT(*)",
+                "operator": "greater_than",
+                "value": 5,
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "name",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should parse HAVING with SUM aggregate", () => {
@@ -2738,26 +2990,32 @@ describe("SQL Query Parser", () => {
       expect(result.having?.conditions[0].column).toBe("SUM(AMOUNT)");
       expect(result.having?.conditions[0].value).toBe(1000);
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "groupBy": [
-				    "category",
-				  ],
-				  "having": {
-				    "conditions": [
-				      {
-				        "column": "SUM(AMOUNT)",
-				        "operator": "greater_than",
-				        "value": 1000,
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "id",
-				    "amount",
-				  ],
-				}
-			`);
+        {
+          "groupBy": [
+            "category",
+          ],
+          "having": {
+            "conditions": [
+              {
+                "column": "SUM(AMOUNT)",
+                "operator": "greater_than",
+                "value": 1000,
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "amount",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should parse HAVING with multiple conditions", () => {
@@ -2769,31 +3027,37 @@ describe("SQL Query Parser", () => {
       expect(result.having?.conditions).toHaveLength(2);
       expect(result.having?.logicalOperator).toBe("and");
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "groupBy": [
-				    "status",
-				  ],
-				  "having": {
-				    "conditions": [
-				      {
-				        "column": "COUNT(*)",
-				        "operator": "greater_than",
-				        "value": 5,
-				      },
-				      {
-				        "column": "COUNT(*)",
-				        "operator": "less_than",
-				        "value": 100,
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "id",
-				    "name",
-				  ],
-				}
-			`);
+        {
+          "groupBy": [
+            "status",
+          ],
+          "having": {
+            "conditions": [
+              {
+                "column": "COUNT(*)",
+                "operator": "greater_than",
+                "value": 5,
+              },
+              {
+                "column": "COUNT(*)",
+                "operator": "less_than",
+                "value": 100,
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "name",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should parse GROUP BY with WHERE clause", () => {
@@ -2806,27 +3070,36 @@ describe("SQL Query Parser", () => {
       expect(result.groupBy).toBeDefined();
       expect(result.groupBy?.[0]).toBe("status");
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "filters": {
-				    "conditions": [
-				      {
-				        "column": "created_at",
-				        "operator": "greater_than",
-				        "value": "2024-01-01",
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "groupBy": [
-				    "status",
-				  ],
-				  "hiddenColumnList": [
-				    "id",
-				    "created_at",
-				    "name",
-				  ],
-				}
-			`);
+        {
+          "filters": {
+            "conditions": [
+              {
+                "column": "created_at",
+                "operator": "greater_than",
+                "value": "2024-01-01",
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "groupBy": [
+            "status",
+          ],
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+            {
+              "column": "name",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should parse GROUP BY with WHERE and HAVING clauses", () => {
@@ -2841,37 +3114,46 @@ describe("SQL Query Parser", () => {
       expect(result.having).toBeDefined();
       expect(result.having?.conditions[0].column).toBe("COUNT(*)");
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "filters": {
-				    "conditions": [
-				      {
-				        "column": "active",
-				        "operator": "equals",
-				        "value": "true",
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "groupBy": [
-				    "status",
-				  ],
-				  "having": {
-				    "conditions": [
-				      {
-				        "column": "COUNT(*)",
-				        "operator": "greater_than",
-				        "value": 10,
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "id",
-				    "active",
-				    "name",
-				  ],
-				}
-			`);
+        {
+          "filters": {
+            "conditions": [
+              {
+                "column": "active",
+                "operator": "equals",
+                "value": "true",
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "groupBy": [
+            "status",
+          ],
+          "having": {
+            "conditions": [
+              {
+                "column": "COUNT(*)",
+                "operator": "greater_than",
+                "value": 10,
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "active",
+              "table": "",
+            },
+            {
+              "column": "name",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should parse GROUP BY with ORDER BY and LIMIT", () => {
@@ -2884,19 +3166,25 @@ describe("SQL Query Parser", () => {
       expect(result.orderDirection).toBe("asc");
       expect(result.limit).toBe(10);
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "groupBy": [
-				    "status",
-				  ],
-				  "hiddenColumnList": [
-				    "id",
-				    "name",
-				  ],
-				  "limit": 10,
-				  "orderBy": "status",
-				  "orderDirection": "asc",
-				}
-			`);
+        {
+          "groupBy": [
+            "status",
+          ],
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "name",
+              "table": "",
+            },
+          ],
+          "limit": 10,
+          "orderBy": "status",
+          "orderDirection": "asc",
+        }
+      `);
     });
 
     it("should parse HAVING with AVG aggregate", () => {
@@ -2909,26 +3197,32 @@ describe("SQL Query Parser", () => {
       expect(result.having).toBeDefined();
       expect(result.having?.conditions[0].column).toBe("AVG(SALARY)");
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "groupBy": [
-				    "department",
-				  ],
-				  "having": {
-				    "conditions": [
-				      {
-				        "column": "AVG(SALARY)",
-				        "operator": "greater_than",
-				        "value": 50000,
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "id",
-				    "salary",
-				  ],
-				}
-			`);
+        {
+          "groupBy": [
+            "department",
+          ],
+          "having": {
+            "conditions": [
+              {
+                "column": "AVG(SALARY)",
+                "operator": "greater_than",
+                "value": 50000,
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "salary",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should parse GROUP BY with schema-qualified columns", () => {
@@ -2940,26 +3234,32 @@ describe("SQL Query Parser", () => {
       expect(result.groupBy?.[0]).toBe("status");
       expect(result.having).toBeDefined();
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "groupBy": [
-				    "status",
-				  ],
-				  "having": {
-				    "conditions": [
-				      {
-				        "column": "COUNT(*)",
-				        "operator": "greater_than",
-				        "value": 5,
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "id",
-				    "name",
-				  ],
-				}
-			`);
+        {
+          "groupBy": [
+            "status",
+          ],
+          "having": {
+            "conditions": [
+              {
+                "column": "COUNT(*)",
+                "operator": "greater_than",
+                "value": 5,
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "id",
+              "table": "",
+            },
+            {
+              "column": "name",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
   });
 
@@ -3360,20 +3660,35 @@ describe("SQL Query Parser", () => {
       const result = parseSqlQuery(sql, mockColumns);
 
       expect(result.hiddenColumnList).toBeDefined();
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).toContain("name");
-      expect(result.hiddenColumnList).toContain("email");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "name",
-				    "email",
-				    "status",
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "name",
+              "table": "",
+            },
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle SELECT with unqualified column and alias", () => {
@@ -3381,19 +3696,31 @@ describe("SQL Query Parser", () => {
       const result = parseSqlQuery(sql, mockColumns);
 
       expect(result.hiddenColumnList).toBeDefined();
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).toContain("email");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "email",
-				    "status",
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle SELECT with quoted column and alias", () => {
@@ -3401,19 +3728,31 @@ describe("SQL Query Parser", () => {
       const result = parseSqlQuery(sql, mockColumns);
 
       expect(result.hiddenColumnList).toBeDefined();
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).toContain("email");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "email",
-				    "status",
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle SELECT with backtick-quoted column and alias", () => {
@@ -3421,19 +3760,31 @@ describe("SQL Query Parser", () => {
       const result = parseSqlQuery(sql, mockColumns);
 
       expect(result.hiddenColumnList).toBeDefined();
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).toContain("email");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "email",
-				    "status",
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle SELECT with multiple aliases", () => {
@@ -3442,19 +3793,28 @@ describe("SQL Query Parser", () => {
       const result = parseSqlQuery(sql, mockColumns);
 
       expect(result.hiddenColumnList).toBeDefined();
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).not.toContain("email");
-      expect(result.hiddenColumnList).toContain("status");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "status" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "status",
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle SELECT with alias using AS keyword", () => {
@@ -3463,28 +3823,43 @@ describe("SQL Query Parser", () => {
 
       expect(result.filters).toBeDefined();
       expect(result.filters?.conditions[0].column).toBe("id");
-      expect(result.hiddenColumnList).not.toContain("id");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "filters": {
-				    "conditions": [
-				      {
-				        "column": "id",
-				        "operator": "equals",
-				        "value": 1,
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "name",
-				    "email",
-				    "status",
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "filters": {
+            "conditions": [
+              {
+                "column": "id",
+                "operator": "equals",
+                "value": 1,
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "name",
+              "table": "",
+            },
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle SELECT with alias without AS keyword", () => {
@@ -3492,19 +3867,31 @@ describe("SQL Query Parser", () => {
       const result = parseSqlQuery(sql, mockColumns);
 
       expect(result.hiddenColumnList).toBeDefined();
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).toContain("email");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "email",
-				    "status",
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle SELECT with schema-qualified column and alias", () => {
@@ -3512,18 +3899,33 @@ describe("SQL Query Parser", () => {
       const result = parseSqlQuery(sql, mockColumns);
 
       expect(result.hiddenColumnList).toBeDefined();
-      expect(result.hiddenColumnList).not.toContain("id");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "name",
-				    "email",
-				    "status",
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "name",
+              "table": "",
+            },
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle SELECT with mixed qualified and unqualified columns with aliases", () => {
@@ -3532,19 +3934,25 @@ describe("SQL Query Parser", () => {
       const result = parseSqlQuery(sql, mockColumns);
 
       expect(result.hiddenColumnList).toBeDefined();
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
-      expect(result.hiddenColumnList).not.toContain("email");
-      expect(result.hiddenColumnList).not.toContain("status");
-      expect(result.hiddenColumnList).toContain("age");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "email" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "status" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "age" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle SELECT with alias and WHERE clause", () => {
@@ -3553,34 +3961,49 @@ describe("SQL Query Parser", () => {
 
       expect(result.filters).toBeDefined();
       expect(result.filters?.conditions.length).toBe(2);
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).toContain("email");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).toContainEqual({ table: "", column: "email" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "filters": {
-				    "conditions": [
-				      {
-				        "column": "id",
-				        "operator": "greater_than",
-				        "value": 10,
-				      },
-				      {
-				        "column": "name",
-				        "operator": "equals",
-				        "value": "John",
-				      },
-				    ],
-				    "logicalOperator": "and",
-				  },
-				  "hiddenColumnList": [
-				    "name",
-				    "email",
-				    "status",
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "filters": {
+            "conditions": [
+              {
+                "column": "id",
+                "operator": "greater_than",
+                "value": 10,
+              },
+              {
+                "column": "name",
+                "operator": "equals",
+                "value": "John",
+              },
+            ],
+            "logicalOperator": "and",
+          },
+          "hiddenColumnList": [
+            {
+              "column": "name",
+              "table": "",
+            },
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
 
     it("should handle SELECT with alias and ORDER BY", () => {
@@ -3591,21 +4014,33 @@ describe("SQL Query Parser", () => {
       expect(result.orderBy).toBe("created_at");
       expect(result.orderDirection).toBe("desc");
       expect(result.nullsOrder).toBe("last");
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("created_at");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "created_at" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "name",
-				    "email",
-				    "status",
-				    "age",
-				  ],
-				  "nullsOrder": "last",
-				  "orderBy": "created_at",
-				  "orderDirection": "desc",
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "name",
+              "table": "",
+            },
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+          ],
+          "nullsOrder": "last",
+          "orderBy": "created_at",
+          "orderDirection": "desc",
+        }
+      `);
     });
 
     it("should handle SELECT with quoted alias", () => {
@@ -3613,18 +4048,30 @@ describe("SQL Query Parser", () => {
       const result = parseSqlQuery(sql, mockColumns);
 
       expect(result.hiddenColumnList).toBeDefined();
-      expect(result.hiddenColumnList).not.toContain("id");
-      expect(result.hiddenColumnList).not.toContain("name");
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "id" });
+      expect(result.hiddenColumnList).not.toContainEqual({ table: "", column: "name" });
       expect(result).toMatchInlineSnapshot(`
-				{
-				  "hiddenColumnList": [
-				    "email",
-				    "status",
-				    "age",
-				    "created_at",
-				  ],
-				}
-			`);
+        {
+          "hiddenColumnList": [
+            {
+              "column": "email",
+              "table": "",
+            },
+            {
+              "column": "status",
+              "table": "",
+            },
+            {
+              "column": "age",
+              "table": "",
+            },
+            {
+              "column": "created_at",
+              "table": "",
+            },
+          ],
+        }
+      `);
     });
   });
 });
