@@ -9,7 +9,8 @@ export type FilterOperator =
   | "contains"
   | "in"
   | "not_eq"
-  | "not_contains";
+  | "not_contains"
+  | "between";
 
 export interface FilterCondition {
   field: string;
@@ -141,19 +142,11 @@ function parseFilters(input: string, availableColumns: string[]): FilterConditio
     const columnName = match[1].trim();
     const bestColumn = findBestColumnMatch(columnName, availableColumns);
     if (bestColumn) {
-      // Add two conditions: >= X and <= Y
-      filters.push(
-        {
-          field: bestColumn,
-          operator: "gte",
-          value: Number(match[2]),
-        },
-        {
-          field: bestColumn,
-          operator: "lte",
-          value: Number(match[3]),
-        },
-      );
+      filters.push({
+        field: bestColumn,
+        operator: "between",
+        value: [String(Number(match[2])), String(Number(match[3]))],
+      });
     }
   }
 

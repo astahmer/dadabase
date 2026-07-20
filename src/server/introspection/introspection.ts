@@ -1649,7 +1649,8 @@ export interface FilterCondition {
     | "is_null"
     | "is_not_null"
     | "in"
-    | "not_in";
+    | "not_in"
+    | "between";
   value?: string | number | boolean | null | string[];
   inverted?: boolean;
 }

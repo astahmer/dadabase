@@ -7,7 +7,7 @@ Done items removed. Trash: generative UI (too vague), dockview layout (overkill)
 - [ ] edit in datatable with commit phase (review pending changes + translated UPDATE SQL before save) — today saves immediately on blur
 - [ ] monaco `changeViewZones` for inline actions (run/explain/format/fullscreen/copy/save) — toolbar exists; viewZones optional polish
 - [ ] diagnostics in editor (missing table/column/syntax) via `setModelMarkers`
-- [ ] real `BETWEEN` operator (NL currently expands to gte+lte only)
+- [x] real `BETWEEN` operator (NL, SQL parser, build-where, filter UI)
 - [ ] unlink/detach editor from current table while keeping table context (custom SQL tab is close but not the same)
 
 ## filters

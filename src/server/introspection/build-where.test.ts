@@ -164,6 +164,27 @@ describe("buildPgWhereFragment", () => {
     expect(result).toBe(`"public"."users"."name" = 'O''Brien'`);
   });
 
+  it("builds between condition", () => {
+    const conditions = [
+      { column: "age", operator: "between" as const, value: ["18", "65"] },
+    ];
+    const result = buildPgWhereFragment(conditions, "and", "public", "users");
+    expect(result).toBe(`"public"."users"."age" BETWEEN '18' AND '65'`);
+  });
+
+  it("builds inverted between as NOT (BETWEEN ...)", () => {
+    const conditions = [
+      {
+        column: "age",
+        operator: "between" as const,
+        inverted: true,
+        value: ["18", "65"],
+      },
+    ];
+    const result = buildPgWhereFragment(conditions, "and", "public", "users");
+    expect(result).toBe(`NOT ("public"."users"."age" BETWEEN '18' AND '65')`);
+  });
+
   it("emits IS NULL for equals with null special (not quoted 'null')", () => {
     const conditions = [{ column: "deleted_at", operator: "equals" as const, value: "null" }];
     const result = buildPgWhereFragment(conditions, "and", "public", "users");

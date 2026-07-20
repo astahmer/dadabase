@@ -42,9 +42,12 @@ describe("Natural Language Query Parser", () => {
     it("should parse between filters", () => {
       const result = parseNaturalLanguageQuery("age between 20 and 30", columns);
       expect(result.success).toBe(true);
-      expect(result.filters).toHaveLength(2);
-      expect(result.filters?.[0].operator).toBe("gte");
-      expect(result.filters?.[1].operator).toBe("lte");
+      expect(result.filters).toHaveLength(1);
+      expect(result.filters?.[0]).toEqual({
+        field: "age",
+        operator: "between",
+        value: ["20", "30"],
+      });
     });
 
     it("should parse in filters", () => {

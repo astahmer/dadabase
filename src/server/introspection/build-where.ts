@@ -112,6 +112,11 @@ export const buildPgWhereFragment = (
         baseClause = `${col} != ALL(ARRAY[${values.map((v) => formatPgLiteral(v)).join(",")}])`;
         break;
       }
+      case "between": {
+        const values = Array.isArray(c.value) ? c.value : [c.value, c.value];
+        baseClause = `${col} BETWEEN ${formatPgLiteral(values[0])} AND ${formatPgLiteral(values[1])}`;
+        break;
+      }
       default:
         const _exhaustive: never = c.operator;
         return _exhaustive;
@@ -226,6 +231,13 @@ export const buildSqliteWhereFragment = (
         const values = Array.isArray(c.value) ? c.value : [c.value];
         const sqliteValues = values.map((v) => (typeof v === "boolean" ? (v ? 1 : 0) : v));
         baseClause = `${col} NOT IN (${sqliteValues.map((v) => formatValue(v)).join(",")})`;
+        break;
+      }
+      case "between": {
+        const values = Array.isArray(c.value) ? c.value : [c.value, c.value];
+        const low = typeof values[0] === "boolean" ? (values[0] ? 1 : 0) : values[0];
+        const high = typeof values[1] === "boolean" ? (values[1] ? 1 : 0) : values[1];
+        baseClause = `${col} BETWEEN ${formatValue(low)} AND ${formatValue(high)}`;
         break;
       }
       default:

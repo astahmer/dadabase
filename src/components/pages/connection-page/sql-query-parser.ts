@@ -90,6 +90,10 @@ const IN_REGEX = new RegExp(
   `^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+(NOT\\s+)?IN\\s*\\(\\s*(.+?)\\s*\\)$`,
   "i",
 );
+const BETWEEN_REGEX = new RegExp(
+  `^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+(NOT\\s+)?BETWEEN\\s+(.+?)\\s+AND\\s+(.+)$`,
+  "i",
+);
 const LIKE_REGEX = new RegExp(
   `^(${QUALIFIED_IDENTIFIER_PATTERN})\\s+(NOT\\s+)?LIKE\\s+['"](.+?)['"]$`,
   "i",
@@ -293,12 +297,31 @@ export const parseSqlQuery = (sql: string, availableColumns: string[]): ParsedSq
 };
 
 /**
+ * Split a WHERE/HAVING/ON clause on AND/OR without breaking `BETWEEN x AND y`.
+ */
+export const splitLogicalParts = (clause: string): string[] => {
+  const placeholders: string[] = [];
+  const protectedClause = clause.replace(
+    /\b(?:NOT\s+)?BETWEEN\s+\S+\s+AND\s+\S+/gi,
+    (match) => {
+      const idx = placeholders.length;
+      placeholders.push(match);
+      return `__BETWEEN_PLACEHOLDER_${idx}__`;
+    },
+  );
+  return protectedClause.split(LOGICAL_SPLIT_REGEX).map((part) =>
+    part.replace(/__BETWEEN_PLACEHOLDER_(\d+)__/g, (_, i) => placeholders[Number(i)] ?? ""),
+  );
+};
+
+/**
  * Parses a WHERE clause into FilterConditionExpression array
  * Handles:
  * - Simple comparisons: col = value, col > value, etc.
  * - NULL checks: col IS NULL, col IS NOT NULL
  * - String operations: col LIKE '%value%', col ILIKE '%value%'
  * - IN/NOT IN: col IN (val1, val2), col NOT IN (val1, val2)
+ * - BETWEEN / NOT BETWEEN
  * - AND/OR logical operators
  */
 export const parseWhereClause = (
@@ -313,8 +336,8 @@ export const parseWhereClause = (
   const orCount = (whereClause.match(OR_SPLIT_REGEX) || []).length;
   const logicalOperator = orCount > andCount ? ("or" as const) : ("and" as const);
 
-  // Split by logical operators while preserving the conditions
-  const parts = whereClause.split(LOGICAL_SPLIT_REGEX);
+  // Split by logical operators while preserving BETWEEN ... AND ...
+  const parts = splitLogicalParts(whereClause);
 
   for (const part of parts) {
     const condition = parseCondition(part.trim(), availableColumns);
@@ -342,8 +365,8 @@ const parseHavingClause = (havingClause: string): QueryFilterType => {
   const orCount = (havingClause.match(OR_SPLIT_REGEX) || []).length;
   const logicalOperator = orCount > andCount ? ("or" as const) : ("and" as const);
 
-  // Split by logical operators while preserving the conditions
-  const parts = havingClause.split(LOGICAL_SPLIT_REGEX);
+  // Split by logical operators while preserving BETWEEN ... AND ...
+  const parts = splitLogicalParts(havingClause);
 
   for (const part of parts) {
     const condition = parseOnCondition(part.trim());
@@ -386,7 +409,7 @@ const unwrapParenthesizedCondition = (condition: string): string => {
  */
 const negateOperator = (operator: FilterOperatorType): FilterOperatorType | undefined => {
   const operatorMap: Record<
-    Exclude<FilterOperatorType, "starts_with" | "ends_with">,
+    Exclude<FilterOperatorType, "starts_with" | "ends_with" | "between">,
     FilterOperatorType
   > = {
     equals: "not_equals",
@@ -419,8 +442,8 @@ const parseOnClause = (onClause: string): QueryFilterType => {
   const orCount = (onClause.match(OR_SPLIT_REGEX) || []).length;
   const logicalOperator = orCount > andCount ? ("or" as const) : ("and" as const);
 
-  // Split by logical operators while preserving the conditions
-  const parts = onClause.split(LOGICAL_SPLIT_REGEX);
+  // Split by logical operators while preserving BETWEEN ... AND ...
+  const parts = splitLogicalParts(onClause);
 
   for (const part of parts) {
     const condition = parseOnCondition(part.trim());
@@ -493,6 +516,25 @@ const parseOnCondition = (condition: string): FilterConditionExpression | null =
       ...(table && { table }),
       operator: isNot ? ("not_in" as const) : ("in" as const),
       value: values,
+    };
+  }
+
+  // Handle BETWEEN / NOT BETWEEN
+  const betweenMatch = condition.match(BETWEEN_REGEX);
+  if (betweenMatch) {
+    const { column, table } = extractTableAndColumn(betweenMatch[1]);
+    const isNot = Boolean(betweenMatch[2]);
+    const lowRaw = betweenMatch[3].trim().replace(/^['"]|['"]$/g, "");
+    const highRaw = betweenMatch[4].trim().replace(/^['"]|['"]$/g, "");
+    return {
+      column,
+      ...(table && { table }),
+      operator: "between" as const,
+      ...(isNot && { inverted: true }),
+      value: [
+        isNumeric(lowRaw) ? String(parseFloat(lowRaw)) : lowRaw,
+        isNumeric(highRaw) ? String(parseFloat(highRaw)) : highRaw,
+      ],
     };
   }
 
@@ -732,6 +774,27 @@ export const parseCondition = (
         ...(table && { table }),
         operator: isNot ? ("not_in" as const) : ("in" as const),
         value: values,
+      };
+    }
+  }
+
+  // Handle BETWEEN / NOT BETWEEN
+  const betweenMatch = condition.match(BETWEEN_REGEX);
+  if (betweenMatch) {
+    const { column, table } = extractTableAndColumn(betweenMatch[1]);
+    if (availableColumns.includes(column)) {
+      const isNot = Boolean(betweenMatch[2]);
+      const lowRaw = betweenMatch[3].trim().replace(/^['"]|['"]$/g, "");
+      const highRaw = betweenMatch[4].trim().replace(/^['"]|['"]$/g, "");
+      return {
+        column,
+        ...(table && { table }),
+        operator: "between" as const,
+        ...(isNot && { inverted: true }),
+        value: [
+          isNumeric(lowRaw) ? String(parseFloat(lowRaw)) : lowRaw,
+          isNumeric(highRaw) ? String(parseFloat(highRaw)) : highRaw,
+        ],
       };
     }
   }

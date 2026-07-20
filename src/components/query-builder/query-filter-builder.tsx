@@ -11,6 +11,7 @@ import {
   getOperatorLabel,
   getOperatorSymbols,
   nullOperators,
+  rangeOperators,
   SPECIAL_VALUES_LIST,
   specialValueSupportedOperators,
 } from "#src/components/query-builder/query-filter.ts";
@@ -172,6 +173,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
   } = props;
   const isNullOperator = nullOperators.includes(condition.operator);
   const isArrayOperator = arrayOperators.includes(condition.operator);
+  const isRangeOperator = rangeOperators.includes(condition.operator);
   const supportsSpecialValues = specialValueSupportedOperators.includes(condition.operator);
 
   const filters = useFilter({ sensitivity: "base" });
@@ -262,9 +264,12 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
             collection={operatorList.collection}
             value={[condition.operator]}
             onValueChange={(details) => {
-              onUpdate(String(index), {
-                operator: details.value?.[0] as FilterOperatorType,
-              });
+              const nextOp = details.value?.[0] as FilterOperatorType;
+              const updates: Partial<FilterConditionExpression> = { operator: nextOp };
+              if (rangeOperators.includes(nextOp) && !Array.isArray(condition.value)) {
+                updates.value = ["", ""];
+              }
+              onUpdate(String(index), updates);
             }}
             onInputValueChange={(details) => operatorList.filter(details.inputValue)}
             className="w-full"
@@ -323,7 +328,31 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 
         {!isNullOperator && (
           <div className="min-w-0 flex-1">
-            {supportsSpecialValues ? (
+            {isRangeOperator ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  className="border-input placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-md border bg-transparent text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
+                  type="text"
+                  placeholder="From"
+                  value={Array.isArray(condition.value) ? String(condition.value[0] ?? "") : ""}
+                  onChange={(e) => {
+                    const high = Array.isArray(condition.value) ? String(condition.value[1] ?? "") : "";
+                    onUpdate(String(index), { value: [e.target.value, high] });
+                  }}
+                />
+                <span className="text-muted-foreground text-xs">and</span>
+                <Input
+                  className="border-input placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-md border bg-transparent text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none"
+                  type="text"
+                  placeholder="To"
+                  value={Array.isArray(condition.value) ? String(condition.value[1] ?? "") : ""}
+                  onChange={(e) => {
+                    const low = Array.isArray(condition.value) ? String(condition.value[0] ?? "") : "";
+                    onUpdate(String(index), { value: [low, e.target.value] });
+                  }}
+                />
+              </div>
+            ) : supportsSpecialValues ? (
               <Combobox
                 collection={specialValuesCollection}
                 value={

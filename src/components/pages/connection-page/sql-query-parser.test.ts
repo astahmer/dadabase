@@ -3628,3 +3628,38 @@ describe("SQL Query Parser", () => {
     });
   });
 });
+
+describe("BETWEEN support", () => {
+  const cols = ["id", "age", "status"];
+
+  it("parses BETWEEN into a single between condition", () => {
+    const result = parseWhereClause("age BETWEEN 18 AND 65", cols);
+    expect(result.conditions).toHaveLength(1);
+    expect(result.conditions[0]).toEqual({
+      column: "age",
+      operator: "between",
+      value: ["18", "65"],
+    });
+  });
+
+  it("parses NOT BETWEEN with inverted flag", () => {
+    const result = parseWhereClause("age NOT BETWEEN 18 AND 65", cols);
+    expect(result.conditions[0]).toMatchObject({
+      column: "age",
+      operator: "between",
+      inverted: true,
+      value: ["18", "65"],
+    });
+  });
+
+  it("does not split BETWEEN ... AND when combining with another predicate", () => {
+    const result = parseWhereClause("age BETWEEN 18 AND 65 AND status = 'active'", cols);
+    expect(result.conditions).toHaveLength(2);
+    expect(result.conditions[0].operator).toBe("between");
+    expect(result.conditions[1]).toMatchObject({
+      column: "status",
+      operator: "equals",
+      value: "active",
+    });
+  });
+});

@@ -21,6 +21,7 @@ export const FilterOperator = Schema.Union(
   Schema.Literal("is_not_null"),
   Schema.Literal("in"),
   Schema.Literal("not_in"),
+  Schema.Literal("between"),
 );
 
 export type FilterOperatorType = Schema.Schema.Type<typeof FilterOperator>;
@@ -169,6 +170,31 @@ export const conditionToWhereClause = (
       nextIndex = paramIndex + values.length;
       break;
     }
+    case "between": {
+      const values = Array.isArray(condition.value) ? condition.value : [condition.value];
+      const low = values[0];
+      const high = values[1];
+      const lowName = `$${paramIndex}`;
+      const highName = `$${paramIndex + 1}`;
+      if (isSpecialValue(low) && isSpecialValue(high)) {
+        baseClause = `${column} BETWEEN ${resolveSpecialSqlLiteral(String(low))} AND ${resolveSpecialSqlLiteral(String(high))}`;
+        params = {};
+        nextIndex = paramIndex;
+      } else if (isSpecialValue(low)) {
+        baseClause = `${column} BETWEEN ${resolveSpecialSqlLiteral(String(low))} AND ${highName}`;
+        params = { [highName]: high };
+        nextIndex = paramIndex + 1;
+      } else if (isSpecialValue(high)) {
+        baseClause = `${column} BETWEEN ${lowName} AND ${resolveSpecialSqlLiteral(String(high))}`;
+        params = { [lowName]: low };
+        nextIndex = paramIndex + 1;
+      } else {
+        baseClause = `${column} BETWEEN ${lowName} AND ${highName}`;
+        params = { [lowName]: low, [highName]: high };
+        nextIndex = paramIndex + 2;
+      }
+      break;
+    }
     default:
       const _exhaustive: never = condition.operator;
       return _exhaustive;
@@ -194,13 +220,18 @@ export const filterQueryValidConditions = (filter: QueryFilterType): QueryFilter
     if (!condition.column || condition.column.trim() === "") {
       return false;
     }
-    // Value is required for non-null operators
+  // Value is required for non-null operators
     if (
       !nullOperators.includes(condition.operator) &&
       (condition.value === undefined ||
         condition.value === null ||
         condition.value === "" ||
-        (Array.isArray(condition.value) && condition.value.length === 0))
+        (Array.isArray(condition.value) && condition.value.length === 0) ||
+        (condition.operator === "between" &&
+          (!Array.isArray(condition.value) ||
+            condition.value.length < 2 ||
+            condition.value[0] === "" ||
+            condition.value[1] === "")))
     ) {
       return false;
     }
@@ -228,6 +259,11 @@ export const nullOperators: FilterOperatorType[] = ["is_null", "is_not_null"];
 export const arrayOperators: FilterOperatorType[] = ["in", "not_in"];
 
 /**
+ * Operators that use a low/high pair (between)
+ */
+export const rangeOperators: FilterOperatorType[] = ["between"];
+
+/**
  * All available operators
  */
 export const allOperators: FilterOperatorType[] = [
@@ -244,6 +280,7 @@ export const allOperators: FilterOperatorType[] = [
   "is_not_null",
   "in",
   "not_in",
+  "between",
 ];
 
 /**
@@ -265,6 +302,7 @@ export const getOperatorLabel = (operator: FilterOperatorType): string => {
     is_not_null: "Is Not Null",
     in: "In",
     not_in: "Not In",
+    between: "Between",
   };
   return labels[operator];
 };
@@ -339,6 +377,7 @@ export const specialValueSupportedOperators: FilterOperatorType[] = [
   "greater_than_or_equal",
   "less_than",
   "less_than_or_equal",
+  "between",
 ];
 
 /**
@@ -360,6 +399,7 @@ export const getOperatorSymbols = (operator: FilterOperatorType): string[] => {
     is_not_null: ["IS NOT NULL"],
     in: ["IN"],
     not_in: ["NOT IN"],
+    between: ["BETWEEN"],
   };
   return symbols[operator];
 };

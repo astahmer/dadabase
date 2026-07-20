@@ -220,6 +220,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                   in: "in",
                   not_eq: "not_equals",
                   not_contains: "not_contains",
+                  between: "between",
                 };
 
                 if (filters.length) {
@@ -248,7 +249,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                               {
                                 column: f.field,
                                 operator: operatorMap[f.operator] || `equals`,
-                                value: f.value as string,
+                                value: f.value as string | number | (string | number)[],
                               },
                               f.inverted && { inverted: true },
                             ),
