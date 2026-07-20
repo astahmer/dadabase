@@ -22,7 +22,7 @@ catalog:
   "@effect/workflow": 0.9.5
   "@electric-sql/pglite": 0.3.14
   "@electric-sql/pglite-tools": 0.2.19
-  drizzle-orm: 0.45.0
+  drizzle-orm: 0.45.2
   effect: 3.19.8
 
 enableGlobalVirtualStore: false
