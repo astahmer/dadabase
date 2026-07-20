@@ -572,10 +572,12 @@ export function createTableCompletion(
   context: CompletionContext,
   hasMultipleSchemas: boolean,
   monaco: any,
+  options?: { joinOnInsertText?: string; joinOnDetail?: string },
 ) {
   const quotedName = hasMultipleSchemas ? `"${table.schema}"."${table.name}"` : `"${table.name}"`;
 
   let insertText = quotedName;
+  let detail = `Table${hasMultipleSchemas ? ` in schema: ${table.schema}` : ""}`;
 
   // When starting from a FROM keyword, insert table name with trailing space
   if (context.type === "from_keyword") {
@@ -592,10 +594,16 @@ export function createTableCompletion(
     insertText = `${quotedName} `;
   }
 
+  // Prefill JOIN … ON … when FK metadata is available
+  if (options?.joinOnInsertText) {
+    insertText = `${options.joinOnInsertText} `;
+    detail = options.joinOnDetail ?? detail;
+  }
+
   return {
     label: table.name,
     kind: monaco.languages.CompletionItemKind.Struct,
-    detail: `Table${hasMultipleSchemas ? ` in schema: ${table.schema}` : ""}`,
+    detail,
     insertText,
     sortText: `1_${table.name}`,
     range: undefined,

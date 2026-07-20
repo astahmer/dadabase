@@ -376,24 +376,24 @@ describe("sqlCompletionProvider", () => {
       expect(tableLabels).toContain("posts");
       expect(tableLabels).toContain("comments");
       expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "Table",
-                  "label": "users",
-                  "sortText": "1_users",
-                },
-                {
-                  "detail": "Table",
-                  "label": "posts",
-                  "sortText": "1_posts",
-                },
-                {
-                  "detail": "Table",
-                  "label": "comments",
-                  "sortText": "1_comments",
-                },
-              ]
-            `);
+        [
+          {
+            "detail": "Table",
+            "label": "users",
+            "sortText": "1_users",
+          },
+          {
+            "detail": "FK posts.user_id → users.id",
+            "label": "posts",
+            "sortText": "1_posts",
+          },
+          {
+            "detail": "FK comments.user_id → users.id",
+            "label": "comments",
+            "sortText": "1_comments",
+          },
+        ]
+      `);
     });
 
     it("should suggest tables after LEFT JOIN keyword", () => {
@@ -406,24 +406,24 @@ describe("sqlCompletionProvider", () => {
       const tableLabels = suggestions.map((s) => s.label);
       expect(tableLabels).toContain("posts");
       expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "Table",
-                  "label": "users",
-                  "sortText": "1_users",
-                },
-                {
-                  "detail": "Table",
-                  "label": "posts",
-                  "sortText": "1_posts",
-                },
-                {
-                  "detail": "Table",
-                  "label": "comments",
-                  "sortText": "1_comments",
-                },
-              ]
-            `);
+        [
+          {
+            "detail": "Table",
+            "label": "users",
+            "sortText": "1_users",
+          },
+          {
+            "detail": "FK posts.user_id → users.id",
+            "label": "posts",
+            "sortText": "1_posts",
+          },
+          {
+            "detail": "FK comments.user_id → users.id",
+            "label": "comments",
+            "sortText": "1_comments",
+          },
+        ]
+      `);
     });
   });
 
@@ -3450,24 +3450,24 @@ describe("sqlCompletionProvider", () => {
       expect(labels).toContain("comments");
       expect(suggestions.length).toBe(3);
       expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "Table",
-                  "label": "users",
-                  "sortText": "1_users",
-                },
-                {
-                  "detail": "Table",
-                  "label": "posts",
-                  "sortText": "1_posts",
-                },
-                {
-                  "detail": "Table",
-                  "label": "comments",
-                  "sortText": "1_comments",
-                },
-              ]
-            `);
+        [
+          {
+            "detail": "Table",
+            "label": "users",
+            "sortText": "1_users",
+          },
+          {
+            "detail": "FK posts.user_id → users.id",
+            "label": "posts",
+            "sortText": "1_posts",
+          },
+          {
+            "detail": "FK comments.user_id → users.id",
+            "label": "comments",
+            "sortText": "1_comments",
+          },
+        ]
+      `);
     });
 
     it("should suggest tables after LEFT JOIN", () => {
@@ -3482,24 +3482,24 @@ describe("sqlCompletionProvider", () => {
       expect(labels).toContain("comments");
       expect(suggestions.length).toBe(3);
       expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "Table",
-                  "label": "users",
-                  "sortText": "1_users",
-                },
-                {
-                  "detail": "Table",
-                  "label": "posts",
-                  "sortText": "1_posts",
-                },
-                {
-                  "detail": "Table",
-                  "label": "comments",
-                  "sortText": "1_comments",
-                },
-              ]
-            `);
+        [
+          {
+            "detail": "Table",
+            "label": "users",
+            "sortText": "1_users",
+          },
+          {
+            "detail": "FK posts.user_id → users.id",
+            "label": "posts",
+            "sortText": "1_posts",
+          },
+          {
+            "detail": "FK comments.user_id → users.id",
+            "label": "comments",
+            "sortText": "1_comments",
+          },
+        ]
+      `);
     });
 
     it("should suggest tables after RIGHT JOIN", () => {
@@ -3514,24 +3514,24 @@ describe("sqlCompletionProvider", () => {
       expect(labels).toContain("comments");
       expect(suggestions.length).toBe(3);
       expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "Table",
-                  "label": "users",
-                  "sortText": "1_users",
-                },
-                {
-                  "detail": "Table",
-                  "label": "posts",
-                  "sortText": "1_posts",
-                },
-                {
-                  "detail": "Table",
-                  "label": "comments",
-                  "sortText": "1_comments",
-                },
-              ]
-            `);
+        [
+          {
+            "detail": "FK posts.user_id → users.id",
+            "label": "users",
+            "sortText": "1_users",
+          },
+          {
+            "detail": "Table",
+            "label": "posts",
+            "sortText": "1_posts",
+          },
+          {
+            "detail": "FK comments.post_id → posts.id",
+            "label": "comments",
+            "sortText": "1_comments",
+          },
+        ]
+      `);
     });
 
     it("should suggest tables after FULL OUTER JOIN", () => {
@@ -3549,24 +3549,24 @@ describe("sqlCompletionProvider", () => {
       expect(labels).toContain("posts");
       expect(suggestions.length).toBe(3);
       expect(printSuggestions(suggestions)).toMatchInlineSnapshot(`
-              [
-                {
-                  "detail": "Table",
-                  "label": "users",
-                  "sortText": "1_users",
-                },
-                {
-                  "detail": "Table",
-                  "label": "posts",
-                  "sortText": "1_posts",
-                },
-                {
-                  "detail": "Table",
-                  "label": "comments",
-                  "sortText": "1_comments",
-                },
-              ]
-            `);
+        [
+          {
+            "detail": "FK comments.user_id → users.id",
+            "label": "users",
+            "sortText": "1_users",
+          },
+          {
+            "detail": "FK comments.post_id → posts.id",
+            "label": "posts",
+            "sortText": "1_posts",
+          },
+          {
+            "detail": "Table",
+            "label": "comments",
+            "sortText": "1_comments",
+          },
+        ]
+      `);
     });
 
     it("should suggest JOIN keywords after table name", () => {

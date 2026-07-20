@@ -1,9 +1,12 @@
+import type * as MonacoType from "monaco-editor";
+
 import type {
   TableColumnMetadata,
   TableWithColumnsMetadata,
 } from "#src/server/introspection/introspection.ts";
-import type * as MonacoType from "monaco-editor";
 
+import { buildJoinOnSnippet, isAfterJoinKeyword } from "./build-join-on-snippet.ts";
+import { COMPARISON_OPERATORS } from "./comparison-operators.ts";
 import {
   createAsteriskCompletion,
   createColumnCompletion,
@@ -13,7 +16,6 @@ import {
   detectCompletionContext,
   getContextualKeywords,
 } from "./sql-completion-helper";
-import { COMPARISON_OPERATORS } from "./comparison-operators.ts";
 
 // https://forcedotcom.github.io/phoenix/index.html#order
 
@@ -57,17 +59,44 @@ export function sqlCompletionProvider(
 
   // Suggest operators after column reference (includes inverted NOT LIKE / NOT IN / NOT BETWEEN)
   if (cursorContext.type === "column_operator") {
-    suggestions.push(
-      ...COMPARISON_OPERATORS.map((op) => createOperatorCompletion(op, monaco)),
-    );
+    suggestions.push(...COMPARISON_OPERATORS.map((op) => createOperatorCompletion(op, monaco)));
   }
 
   // Suggest tables when after FROM/JOIN keywords
   if (cursorContext.type === "from_keyword" || cursorContext.type === "table_after_from") {
+    const afterJoin = isAfterJoinKeyword(cursorContext.beforeCursor);
+    const fromTableName = cursorContext.selectedTables[0]?.table;
+    const fromColumns = fromTableName
+      ? (context.columns.find((c) => c.table === fromTableName)?.columns ?? [])
+      : [];
+
     suggestions.push(
-      ...context.tables.map((table) =>
-        createTableCompletion(table, cursorContext, context.hasMultipleSchemas, monaco),
-      ),
+      ...context.tables.map((table) => {
+        let joinOpts: { joinOnInsertText?: string; joinOnDetail?: string } | undefined;
+        if (afterJoin && fromTableName && table.name !== fromTableName) {
+          const joinColumns = context.columns.find((c) => c.table === table.name)?.columns ?? [];
+          const snippet = buildJoinOnSnippet({
+            fromTable: fromTableName,
+            joinTable: table.name,
+            fromColumns,
+            joinColumns,
+            fromAlias: cursorContext.tableAliases[fromTableName],
+          });
+          if (snippet) {
+            joinOpts = {
+              joinOnInsertText: snippet.insertText,
+              joinOnDetail: snippet.detail,
+            };
+          }
+        }
+        return createTableCompletion(
+          table,
+          cursorContext,
+          context.hasMultipleSchemas,
+          monaco,
+          joinOpts,
+        );
+      }),
     );
   }
 
