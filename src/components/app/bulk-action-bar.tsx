@@ -1,4 +1,4 @@
-import { Copy, FileJson, MoreHorizontal, Trash2, X } from "lucide-react";
+import { Copy, CopyPlus, FileJson, MoreHorizontal, Trash2, X } from "lucide-react";
 
 import * as ActionBar from "../ui/action-bar";
 import { Button } from "../ui/button";
@@ -8,6 +8,7 @@ import { Menu, MenuContent, MenuItem, MenuItemText, MenuTrigger } from "../ui/me
 interface BulkActionBarProps {
   selectedCount: number;
   onDelete?: () => void;
+  onDuplicate?: () => void;
   onExportJson?: () => void;
   onExportCsv?: () => void;
   onCopyJson?: () => void;
@@ -22,6 +23,7 @@ interface BulkActionBarProps {
 export function BulkActionBar({
   selectedCount,
   onDelete,
+  onDuplicate,
   onExportJson,
   onExportCsv,
   onCopyJson,
@@ -137,6 +139,19 @@ export function BulkActionBar({
           <ActionBar.ActionBarSeparator />
 
           <HStack>
+            {onDuplicate && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onDuplicate}
+                disabled={isLoading}
+                className="border-background/20"
+                data-testid="bulk-duplicate-button"
+              >
+                <CopyPlus className="mr-1 h-4 w-4" />
+                Duplicate
+              </Button>
+            )}
             {onDelete && (
               <Button variant="destructive" size="sm" onClick={onDelete} disabled={isLoading}>
                 <Trash2 className="mr-1 h-4 w-4" />

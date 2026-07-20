@@ -333,7 +333,7 @@ export const useConnectionPageState = ({
                 }}
                 connectionUrl={activeConnectionUrl}
                 onEdit={
-                  onEditRow
+                  onEditRow && tableMetadata.columnMetadata.some((col) => col.primaryKey)
                     ? () => onEditRow(ctx.row.original as Record<string, unknown>)
                     : undefined
                 }

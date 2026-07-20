@@ -14,8 +14,8 @@ import {
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
+import { formatDbError } from "#src/lib/format-db-error.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
-import { getErrorMessage } from "#src/lib/get-error-message.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { queryClient } from "#src/query-client.ts";
 import {
@@ -83,6 +83,11 @@ import {
   RowEditorSheet,
   type RowEditorSheetState,
 } from "./connection-page/row-editor/row-editor-sheet.tsx";
+import {
+  extractPrimaryKeyValues,
+  getPrimaryKeyColumns,
+  hasPrimaryKey,
+} from "./connection-page/row-editor/row-editor-values.ts";
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
 import { TabErrorState } from "./connection-page/tab-error-state.tsx";
@@ -756,6 +761,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                   rowsQuery={pageState.rowsQuery}
                   isColumnMetadataLoading={pageState.isColumnMetadataLoading}
                   columnMetadata={pageState.columnMetadata}
+                  onDuplicateRow={onDuplicateRow}
                 />
               )}
               {/* Status Bar */}
@@ -944,7 +950,9 @@ const RowsTableContent = (
     | "rowsQuery"
     | "isColumnMetadataLoading"
     | "columnMetadata"
-  >,
+  > & {
+    onDuplicateRow?: (row: Record<string, unknown>) => void;
+  },
 ) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
 
@@ -1012,6 +1020,7 @@ const RowsTableContent = (
         activeConnectionUrl={props.activeConnectionUrl}
         rowsDataTable={props.rowsDataTable}
         columnMetadata={props.columnMetadata}
+        onDuplicateRow={props.onDuplicateRow}
       />
 
       <div className="flex flex-col gap-1 border-b px-2 py-1">
@@ -1205,7 +1214,9 @@ const RowsTableContent = (
 };
 
 const BulkActions = (
-  props: Pick<ConnectionPageState, "activeConnectionUrl" | "rowsDataTable" | "columnMetadata">,
+  props: Pick<ConnectionPageState, "activeConnectionUrl" | "rowsDataTable" | "columnMetadata"> & {
+    onDuplicateRow?: (row: Record<string, unknown>) => void;
+  },
 ) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const search = useActiveTabState((tab) => ({
@@ -1216,38 +1227,38 @@ const BulkActions = (
 
   const selectedRows = props.rowsDataTable.getSelectedRowModel().rows;
   const selectedRowsCount = selectedRows.length;
-  const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
+  const pkColumns = getPrimaryKeyColumns(props.columnMetadata);
+  const canDelete = hasPrimaryKey(props.columnMetadata);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (!primaryKeyColumn || !search.schema || !search.table) {
+      if (!canDelete || !search.schema || !search.table) {
         throw new Error("Missing required metadata for bulk delete");
       }
-      const ids = selectedRows.map((row) => {
-        const value = row.original[primaryKeyColumn.name];
-        return typeof value === "string" || typeof value === "number" ? value : String(value);
-      });
+      const primaryKeys = selectedRows.map((row) =>
+        extractPrimaryKeyValues(props.columnMetadata, row.original as Record<string, unknown>),
+      );
 
       await bulkDeleteRowsServerFn({
         data: {
           url: props.activeConnectionUrl,
           schema: search.schema,
           table: search.table,
-          primaryKeyColumn: primaryKeyColumn.name,
-          ids,
+          primaryKeys: primaryKeys as Array<
+            Record<string, string | number | boolean | null | undefined>
+          >,
         },
       });
 
-      return ids;
+      return primaryKeys.length;
     },
-    onSuccess: async (deletedIds) => {
-      // Clear selection
+    onSuccess: async (deletedCount) => {
       props.rowsDataTable.resetRowSelection();
       await queryClient.invalidateQueries({ queryKey: ["remote", "rows"] });
 
       toaster.create({
         title: "Success",
-        description: `Deleted ${deletedIds.length} row${deletedIds.length !== 1 ? "s" : ""}`,
+        description: `Deleted ${deletedCount} row${deletedCount !== 1 ? "s" : ""}`,
         type: "success",
       });
 
@@ -1255,8 +1266,8 @@ const BulkActions = (
     },
     onError: (error) => {
       toaster.create({
-        title: "Error",
-        description: `Failed to delete rows: ${getErrorMessage(error)}`,
+        title: "Could not delete rows",
+        description: formatDbError(error),
         type: "error",
       });
     },
@@ -1360,12 +1371,10 @@ const BulkActions = (
   const handleViewJson = () => {
     if (selectedRows.length === 0) return;
 
-    const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
-
-    // Get all selected row IDs
-    const rowIds = selectedRows.map((row) =>
-      primaryKeyColumn ? String(row.original[primaryKeyColumn.name]) : row.id,
-    );
+    const rowIds = selectedRows.map((row) => {
+      if (pkColumns.length === 0) return row.id;
+      return pkColumns.map((col) => String(row.original[col.name] ?? "")).join("-");
+    });
 
     navigate({
       search: (prev) => ({
@@ -1375,6 +1384,18 @@ const BulkActions = (
         rowJsonViewerOpen: true,
       }),
     });
+  };
+
+  const handleDuplicate = () => {
+    if (selectedRowsCount !== 1 || !props.onDuplicateRow) {
+      toaster.create({
+        title: "Duplicate one row at a time",
+        description: "Select a single row to open the duplicate editor.",
+        type: "info",
+      });
+      return;
+    }
+    props.onDuplicateRow(selectedRows[0].original as Record<string, unknown>);
   };
 
   const handleLogRows = () => {
@@ -1391,10 +1412,10 @@ const BulkActions = (
     const firstSelectedRow = selectedRows[0];
     if (!firstSelectedRow) return;
 
-    const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
-    const rowId = primaryKeyColumn
-      ? String(firstSelectedRow.original[primaryKeyColumn.name])
-      : firstSelectedRow.id;
+    const rowId =
+      pkColumns.length > 0
+        ? pkColumns.map((col) => String(firstSelectedRow.original[col.name] ?? "")).join("-")
+        : firstSelectedRow.id;
 
     navigate({
       search: (prev) =>
@@ -1405,6 +1426,14 @@ const BulkActions = (
   };
 
   const handleBulkDelete = () => {
+    if (!canDelete) {
+      toaster.create({
+        title: "Cannot delete without a primary key",
+        description: "This table has no primary key, so bulk delete is disabled.",
+        type: "error",
+      });
+      return;
+    }
     setShowDeleteConfirm(true);
   };
 
@@ -1412,7 +1441,8 @@ const BulkActions = (
     <>
       <BulkActionBar
         selectedCount={selectedRowsCount}
-        onDelete={handleBulkDelete}
+        onDelete={canDelete ? handleBulkDelete : undefined}
+        onDuplicate={props.onDuplicateRow ? handleDuplicate : undefined}
         onExportJson={handleExportJson}
         onExportCsv={handleExportCsv}
         onCopyJson={handleCopyJson}

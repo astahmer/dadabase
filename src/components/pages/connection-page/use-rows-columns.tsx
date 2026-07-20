@@ -25,6 +25,8 @@ interface ColumnMetadata {
   primaryKey: boolean;
   unique: boolean;
   defaultValue: string | null;
+  isEnum?: boolean;
+  enumValues?: string[] | null;
   isForeignKey?: boolean;
   foreignKey?: {
     referencedSchema: string;

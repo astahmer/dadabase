@@ -3,16 +3,18 @@ import type { TableColumnMetadata } from "#src/server/introspection/introspectio
 import { Badge } from "#src/components/ui/badge.tsx";
 import { Button } from "#src/components/ui/button.tsx";
 import { Input } from "#src/components/ui/input.tsx";
+import * as ArkSelect from "#src/components/ui/select.tsx";
 import { Switch, SwitchControl, SwitchLabel, SwitchThumb } from "#src/components/ui/switch.tsx";
-import { Textarea } from "#src/components/ui/textarea.tsx";
 import {
   isBooleanDataType,
   isDateTimeDataType,
+  isEnumColumn,
   isJsonDataType,
   isNumericDataType,
 } from "#src/lib/data-type-utils.ts";
 
 import { FkColumnSelect } from "./fk-column-select.tsx";
+import { JsonMonacoEditor } from "./json-monaco-editor.tsx";
 
 export interface ColumnInputProps {
   column: TableColumnMetadata;
@@ -44,6 +46,11 @@ export function ColumnInput(props: ColumnInputProps) {
           {column.isForeignKey && (
             <Badge variant="outline" className="text-[10px]">
               FK
+            </Badge>
+          )}
+          {isEnumColumn(column) && (
+            <Badge variant="outline" className="text-[10px]">
+              enum
             </Badge>
           )}
           {!column.nullable && (
@@ -127,6 +134,36 @@ function ColumnValueControl(props: {
     );
   }
 
+  if (isEnumColumn(column) && column.enumValues) {
+    const items = column.enumValues.map((label) => ({ label, value: label }));
+    const collection = ArkSelect.createListCollection({ items });
+    return (
+      <ArkSelect.Select
+        className="w-full"
+        collection={collection}
+        value={value == null ? [] : [String(value)]}
+        disabled={disabled}
+        positioning={{ sameWidth: true }}
+        onValueChange={(details) => onChange(details.value[0] ?? null)}
+        data-testid={`enum-select-${column.name}`}
+      >
+        <ArkSelect.SelectControl>
+          <ArkSelect.SelectTrigger>
+            <ArkSelect.SelectValueText placeholder="Select value…" />
+            <ArkSelect.SelectIndicator />
+          </ArkSelect.SelectTrigger>
+        </ArkSelect.SelectControl>
+        <ArkSelect.SelectContent>
+          {items.map((item) => (
+            <ArkSelect.SelectItem key={item.value} item={item}>
+              {item.label}
+            </ArkSelect.SelectItem>
+          ))}
+        </ArkSelect.SelectContent>
+      </ArkSelect.Select>
+    );
+  }
+
   if (isBooleanDataType(column.dataType)) {
     return (
       <Switch
@@ -144,14 +181,12 @@ function ColumnValueControl(props: {
 
   if (isJsonDataType(column.dataType)) {
     return (
-      <Textarea
+      <JsonMonacoEditor
         value={
           typeof value === "string" ? value : value == null ? "" : JSON.stringify(value, null, 2)
         }
         disabled={disabled}
-        rows={4}
-        className="font-mono text-xs"
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
       />
     );
   }

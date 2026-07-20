@@ -6,7 +6,7 @@ import {
   isBooleanDataType,
   isNumericDataType,
 } from "#src/lib/data-type-utils.ts";
-import { getErrorMessage } from "#src/lib/get-error-message.ts";
+import { formatDbError } from "#src/lib/format-db-error.ts";
 import { updateRowServerFn } from "#src/server/introspection/start-fns/update-row.start.ts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -21,6 +21,15 @@ export interface InlineCellEditorProps {
   primaryKey: Record<string, unknown>;
   onCancel: () => void;
   onSaved: () => void;
+}
+
+type RowsCache = {
+  rows: Array<Record<string, unknown>>;
+  [key: string]: unknown;
+};
+
+function rowMatchesPrimaryKey(row: Record<string, unknown>, primaryKey: Record<string, unknown>) {
+  return Object.entries(primaryKey).every(([key, value]) => String(row[key]) === String(value));
 }
 
 export function InlineCellEditor(props: InlineCellEditorProps) {
@@ -64,27 +73,48 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
         },
       });
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["remote", "rows"] });
+    onMutate: async (nextValue) => {
+      await queryClient.cancelQueries({ queryKey: ["remote", "rows"] });
+      const previous = queryClient.getQueriesData<RowsCache>({ queryKey: ["remote", "rows"] });
+      const coerced = coerceColumnValue(dataType, nextValue);
+
+      queryClient.setQueriesData<RowsCache>({ queryKey: ["remote", "rows"] }, (old) => {
+        if (!old?.rows) return old;
+        return {
+          ...old,
+          rows: old.rows.map((row) =>
+            rowMatchesPrimaryKey(row, primaryKey) ? { ...row, [columnName]: coerced } : row,
+          ),
+        };
+      });
+
+      onSaved();
+      return { previous };
+    },
+    onError: (error, _nextValue, context) => {
+      context?.previous.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      toaster.create({
+        title: "Could not save cell",
+        description: formatDbError(error),
+        type: "error",
+      });
+    },
+    onSuccess: () => {
       toaster.create({
         title: "Saved",
         description: `Updated ${columnName}`,
         type: "success",
       });
-      onSaved();
     },
-    onError: (error) => {
-      toaster.create({
-        title: "Error",
-        description: getErrorMessage(error),
-        type: "error",
-      });
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["remote", "rows"] });
     },
   });
 
   const commit = () => {
     if (saveMutation.isPending) return;
-    // Skip no-op saves
     if (Object.is(value, initialValue) || String(value) === String(initialValue ?? "")) {
       onCancel();
       return;
