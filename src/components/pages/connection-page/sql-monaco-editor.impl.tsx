@@ -9,6 +9,11 @@ import { useMonacoTheme } from "#src/hooks/use-monaco-theme.ts";
 import { formatSQL } from "#src/lib/format-sql";
 import { defineCustomMonacoThemes } from "#src/lib/monaco-editor-themes.ts";
 import { analyzeSqlDiagnostics } from "#src/lib/sql-diagnostics.ts";
+import {
+  buildSqlEditorViewZoneLayout,
+  createSqlEditorViewZoneDom,
+  type SqlEditorViewZoneActionId,
+} from "#src/lib/sql-editor-view-zones.ts";
 
 import type { SqlMonacoEditorProps } from "./sql-monaco-editor.tsx";
 
@@ -33,6 +38,7 @@ export function SqlMonacoEditorImpl({
   onSubmit,
   autoFocus = false,
   placeholder,
+  onViewZoneAction,
 }: SqlMonacoEditorProps) {
   const [monacoRef, setMonacoRef] = useState<Monaco | null>(null);
   const [editorRef, setEditorRef] =
@@ -177,6 +183,49 @@ export function SqlMonacoEditorImpl({
       monaco.editor.setModelMarkers(model, SQL_DIAGNOSTICS_OWNER, []);
     };
   }, [monacoRef, editorRef, tables, columns, sql]);
+
+  // Inline action strip via monaco changeViewZones (mirrors toolbar actions)
+  useEffect(() => {
+    const editor = editorRef;
+    if (!editor) return;
+
+    const layout = buildSqlEditorViewZoneLayout();
+    let zoneId: string | undefined;
+
+    const handleAction = (id: SqlEditorViewZoneActionId) => {
+      if (onViewZoneAction) {
+        onViewZoneAction(id);
+        return;
+      }
+      if (id === "run" && onSubmit) {
+        onSubmit(editor.getValue());
+        return;
+      }
+      if (id === "format") {
+        editor.setValue(formatSQL(editor.getValue()));
+        return;
+      }
+      if (id === "copy") {
+        void navigator.clipboard.writeText(editor.getValue());
+      }
+    };
+
+    editor.changeViewZones((accessor) => {
+      zoneId = accessor.addZone({
+        afterLineNumber: layout.afterLineNumber,
+        heightInPx: layout.heightInPx,
+        domNode: createSqlEditorViewZoneDom(layout.actions, handleAction),
+      });
+    });
+
+    return () => {
+      if (zoneId === undefined) return;
+      const id = zoneId;
+      editor.changeViewZones((accessor) => {
+        accessor.removeZone(id);
+      });
+    };
+  }, [editorRef, onSubmit, onViewZoneAction]);
 
   return (
     <Editor

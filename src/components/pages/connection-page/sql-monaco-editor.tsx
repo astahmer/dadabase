@@ -20,6 +20,13 @@ export interface SqlMonacoEditorProps {
   autoFocus?: boolean;
   /** Placeholder text to show when editor is empty */
   placeholder?: string;
+  /**
+   * Optional handler for Monaco `changeViewZones` action strip clicks.
+   * When omitted, Run uses onSubmit, Format runs the built-in formatter, Copy uses clipboard.
+   */
+  onViewZoneAction?: (
+    id: "run" | "explain" | "format" | "fullscreen" | "copy" | "save",
+  ) => void;
 }
 
 /**
