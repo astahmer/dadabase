@@ -1,30 +1,9 @@
-## Tanstack Table:
+- sidebar wont close completely
+- the AI assistant is nice but is too focused on the current table and not the whole database; thats wrong
+- the current SQL preview/editor is pretty much not working and also having the distinction between the two is confusing; we need to unify & make it work
+- the SQL snippets popover content gets placed in the top left of the screen
+- why is there 2 "filter columns" in the top left cell (header of the left actions table)
+- we should add a tooltip for the ">" button in the top left cell (that expands the relationships panel)
+- not sure about this one but it SEEMS that whenever the current table query is refetched (every time i alt tab back basically) the whole table goes to a "loading state" we should instead have a small loading indicator but not the whole table. actually it happened whenever i saved the issues.md it refetches everything file so maybe its nothing
 
-`table.getColumn(id)` says it can return `undefined` but logs an error if it's not found.
-
-https://github.com/TanStack/table/discussions/5505 / https://github.com/TanStack/table/pull/5964
-
----
-
-## ArkUI:
-
-1. component contexts are strict and not directly exported so if you want to detect if a component is inside a dialog or not, you need to try/catch the context hook:
-
-```ts
-const useDialogContext = () => {
-  try {
-    return useArkDialogContext();
-  } catch {
-    return;
-  }
-};
-```
-
-2. Splitter `isPanelExpanded` throws an error if the panel is not found, so you need to wrap it in a try/catch:
-
-```ts
-let isPanelExpanded = false;
-try {
-  isPanelExpanded = ctx.isPanelExpanded("relationships");
-} catch {}
-```
+cursor agent --resume=6427fff6-2294-4713-b331-596a66973c3b
