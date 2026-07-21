@@ -69,17 +69,22 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 ## Competitor gap backlog (in progress / next)
 
 - [x] Export result/table as CSV / JSON / SQL INSERT
-- [ ] Import wizard (CSV/JSON → typed columns → INSERT preview)
-- [ ] ER diagram (FK graph; click → open table)
-- [ ] SSH tunnel + SSL connection presets
-- [ ] Monaco `changeViewZones` per-statement actions + multi-result grids
-- [ ] Explain / query plan UI (enhance existing; SQLite + richer tree)
-- [ ] Index create/drop + FK editor
-- [ ] Schema compare / diff → migration SQL
+- [x] Import wizard (CSV/JSON → typed columns → INSERT preview)
+- [x] ER diagram (FK graph; click → open table)
+- [x] SSH tunnel + SSL connection presets
+- [x] Monaco `changeViewZones` per-statement actions + multi-result grids
+- [x] Explain / query plan UI (enhance existing; SQLite + richer tree)
+- [x] Index create/drop + FK editor
+- [x] Schema compare / diff → migration SQL
 - [x] SQLite ALTER COLUMN via table rebuild
-- [ ] Clipboard paste TSV/CSV as rows into grid
-- [ ] Deeper JSON / BLOB cell viewers
-- [ ] FK-aware delete with cascade preview
-- [ ] AI chat thread (multi-turn NL→SQL on whole schema)
-- [ ] MySQL / MariaDB dialect
+- [x] Clipboard paste TSV/CSV as rows into grid
+- [x] Deeper JSON / BLOB cell viewers
+- [x] FK-aware delete with cascade preview
+- [x] AI chat thread (multi-turn NL→SQL on whole schema)
+- [x] MySQL / MariaDB dialect
 - [x] Read-only connection mode + dangerous-op guards
+
+Notes:
+
+- SSH: URL encoding + `openSshLocalForward` helper shipped; pool auto-tunnel wiring still thin (config stored on connection URL).
+- MySQL: dialect/pool/form/try-connection + information_schema reuse via `pgSqliteHandlers`; deeper dialect quirks may need follow-up.
