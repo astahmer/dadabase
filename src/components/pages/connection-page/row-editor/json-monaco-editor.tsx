@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 
 import { useMonacoTheme } from "#src/hooks/use-monaco-theme.ts";
 import { defineCustomMonacoThemes } from "#src/lib/monaco-editor-themes.ts";
@@ -35,6 +35,8 @@ export function JsonMonacoEditor(props: JsonMonacoEditorProps) {
   const theme = useMonacoTheme();
   const [Editor, setEditor] = useState<MonacoEditorComponent | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +77,18 @@ export function JsonMonacoEditor(props: JsonMonacoEditorProps) {
             }}
             onMount={(editor) => {
               editor.updateOptions({ theme });
+              // E2E / debug hook — Monaco's hidden textarea is readonly, so tests set
+              // values through the real editor instance AND React onChange (controlled).
+              (
+                window as unknown as {
+                  __dadabaseJsonMonaco?: { setValue: (next: string) => void };
+                }
+              ).__dadabaseJsonMonaco = {
+                setValue: (next: string) => {
+                  editor.setValue(next);
+                  onChangeRef.current(next);
+                },
+              };
             }}
             onChange={(next) => onChange(next ?? "")}
             options={{
