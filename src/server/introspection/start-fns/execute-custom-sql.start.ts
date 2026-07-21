@@ -1,8 +1,11 @@
+import { SqlError } from "@effect/sql/SqlError";
 import { mutationOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
+import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
+import { isSelectQuery } from "#src/server/introspection/detect-destructive-sql.ts";
 import { executeCustomSql } from "#src/server/introspection/introspection.ts";
 
 export const ExecuteCustomSqlInputSchema = Schema.Struct({
@@ -15,6 +18,12 @@ export const executeCustomSqlServerFn = createServerFn({ method: "POST" })
   .handler(
     createRemoteIntrospectionHandler((input) =>
       Effect.gen(function* () {
+        if (isReadOnlyConnection(input.url) && !isSelectQuery(input.sql)) {
+          return yield* Effect.fail(
+            new SqlError({ cause: "This connection is read-only. Mutations are disabled." }),
+          );
+        }
+
         const startTime = Date.now();
 
         const result = yield* executeCustomSql({

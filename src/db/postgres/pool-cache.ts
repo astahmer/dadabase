@@ -1,5 +1,6 @@
 import type { SqlError } from "@effect/sql/SqlError";
 
+import { stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { SqlClient } from "@effect/sql";
 import { LibsqlClient } from "@effect/sql-libsql";
@@ -72,15 +73,18 @@ export const makePoolCacheLive = Layer.effect(
           }
 
           console.log(`[PoolCache] Creating new pool for ${redactConnectionUrl(url)}`);
+          // dadabase_* marker params (e.g. read-only) are app-level only — drivers must never
+          // see them (`@libsql/client` throws URL_PARAM_NOT_SUPPORTED on unknown params).
+          const driverUrl = stripDadabaseMarkerParams(url);
           let layer: Layer.Layer<SqlClient.SqlClient, SqlError>;
           if (dialect === "postgres") {
             layer = PgClient.layer({
-              url: Redacted.make(url),
+              url: Redacted.make(driverUrl),
               maxConnections: 20,
               idleTimeout: Duration.seconds(30),
             });
           } else {
-            layer = LibsqlClient.layer({ url });
+            layer = LibsqlClient.layer({ url: driverUrl });
           }
 
           const newCache = new Map(cache);

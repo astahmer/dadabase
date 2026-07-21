@@ -92,3 +92,40 @@ export function isReadOnlyConnection(url: string): boolean {
     return false;
   }
 }
+
+/**
+ * Strips dadabase-only marker query params (e.g. `dadabase_readonly`) from a connection URL
+ * before it's handed to the real DB driver. Some drivers (notably `@libsql/client`) throw
+ * `URL_PARAM_NOT_SUPPORTED` on any query param they don't recognize, so these markers must
+ * never reach `createClient`/`LibsqlClient.layer` — only our own app-level checks should see them.
+ */
+export function stripDadabaseMarkerParams(url: string): string {
+  // Fast path: avoid round-tripping through the WHATWG URL parser (which rewrites relative
+  // `file:` paths to absolute ones) for the common case of a URL with no markers at all.
+  if (!url.includes("dadabase_")) return url;
+  try {
+    const parsed = new URL(url);
+    for (const key of Array.from(parsed.searchParams.keys())) {
+      if (key.startsWith("dadabase_")) parsed.searchParams.delete(key);
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Returns an error message when a mutation must be blocked because the connection is
+ * marked read-only, or `null` when the mutation is allowed to proceed.
+ * Pass `isSelect: true` for read-only SQL (`SELECT`/`WITH`) run through a generic "custom SQL"
+ * path — those are allowed even on a read-only connection. Omit it (or pass `false`) for
+ * inherently mutating operations (insert/update/delete/schema-mutate/non-SELECT SQL).
+ */
+export function guardReadOnlyMutation(
+  url: string,
+  options: { isSelect?: boolean } = {},
+): string | null {
+  if (options.isSelect) return null;
+  if (!isReadOnlyConnection(url)) return null;
+  return "This connection is read-only. Enable write access from the connection settings to run mutations.";
+}

@@ -5,6 +5,11 @@ import {
   AccordionItemTrigger,
 } from "#src/components/ui/accordion";
 import { DatabaseDialect } from "#src/db/dialect.ts";
+import {
+  isReadOnlyConnection,
+  stripDadabaseMarkerParams,
+  withReadOnlyFlag,
+} from "#src/lib/connection-security.ts";
 import { createDbConnectionMutation } from "#src/server/db-connection/start-fns/create-db-connection.start.ts";
 import { updateDbConnectionMutation } from "#src/server/db-connection/start-fns/update-db-connection.start.ts";
 import { tryConnectionServerFn } from "#src/server/introspection/start-fns/try-connection.start.ts";
@@ -16,6 +21,7 @@ import z from "zod";
 
 import { useAppForm } from "../form/form.hook.ts";
 import { Button } from "../ui/button.tsx";
+import { Checkbox, CheckboxControl } from "../ui/checkbox.tsx";
 import { HStack, Stack } from "../ui/layout.tsx";
 import { toaster } from "../ui/toaster.tsx";
 
@@ -34,6 +40,7 @@ const connectionFormSchema = z
     databaseName: z.string(),
     user: z.string(),
     password: z.string(),
+    readOnly: z.boolean(),
   })
   .refine(
     (data) => {
@@ -73,6 +80,7 @@ const defaultValues = {
   databaseName: "dadabase",
   user: "user",
   password: "password",
+  readOnly: false,
 };
 
 export type ConnectionFormValues = z.infer<typeof connectionFormSchema>;
@@ -115,6 +123,12 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
         } else {
           connectionUrl = ctx.value.connectionUrl;
         }
+      }
+
+      // Local SQLite file: URLs don't round-trip safely through the WHATWG URL parser used by
+      // withReadOnlyFlag (relative paths get rewritten), so the marker is postgres/libSQL only.
+      if (connectionType !== DatabaseDialect.SQLite) {
+        connectionUrl = withReadOnlyFlag(connectionUrl, ctx.value.readOnly);
       }
 
       try {
@@ -177,7 +191,9 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
 
     const values = { ...defaultValues, ...initialValues };
     if (initialValues?.connectionUrl) {
-      const parsed = parseConnectionUrl(initialValues.connectionUrl);
+      values.readOnly = isReadOnlyConnection(initialValues.connectionUrl);
+      values.connectionUrl = stripDadabaseMarkerParams(initialValues.connectionUrl);
+      const parsed = parseConnectionUrl(values.connectionUrl);
       values.connectionType =
         initialValues.connectionType || (parsed.protocol as z.infer<typeof connectionType>);
       values.user = parsed.user;
@@ -246,6 +262,25 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
     }
   }
 
+  function ReadOnlyField() {
+    return (
+      <form.AppField name="readOnly">
+        {(field) => (
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={field.state.value}
+              onCheckedChange={(details) => field.handleChange(!!details.checked)}
+              data-testid="connection-readonly-checkbox"
+            >
+              <CheckboxControl />
+            </Checkbox>
+            Read-only connection (blocks inserts/updates/deletes/DDL and non-SELECT SQL)
+          </label>
+        )}
+      </form.AppField>
+    );
+  }
+
   return (
     <form
       onSubmit={(e) => {
@@ -308,6 +343,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                     <field.TextField label="Auth Token (optional)" placeholder="your-auth-token" />
                   )}
                 </form.AppField>
+                <ReadOnlyField />
               </>
             );
           }
@@ -370,6 +406,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                   </AccordionItemContent>
                 </AccordionItem>
               </Accordion>
+              <ReadOnlyField />
             </Stack>
           );
         }}

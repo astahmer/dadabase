@@ -1,7 +1,10 @@
+import { SqlError } from "@effect/sql/SqlError";
+import { createServerFn } from "@tanstack/react-start";
+import { Effect, Schema } from "effect";
+
+import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { bulkDeleteRows } from "#src/server/introspection/fns/bulk-delete-rows.ts";
-import { createServerFn } from "@tanstack/react-start";
-import { Schema } from "effect";
 
 const CellValue = Schema.Union(
   Schema.String,
@@ -22,13 +25,18 @@ export const bulkDeleteRowsServerFn = createServerFn({ method: "POST" })
   )
   .handler(
     createRemoteIntrospectionHandler((input, connection) =>
-      bulkDeleteRows(
-        {
-          schema: input.schema,
-          table: input.table,
-          primaryKeys: input.primaryKeys as ReadonlyArray<Record<string, unknown>>,
-        },
-        connection,
-      ),
+      Effect.gen(function* () {
+        const readOnlyError = guardReadOnlyMutation(input.url);
+        if (readOnlyError) return yield* Effect.fail(new SqlError({ cause: readOnlyError }));
+
+        return yield* bulkDeleteRows(
+          {
+            schema: input.schema,
+            table: input.table,
+            primaryKeys: input.primaryKeys as ReadonlyArray<Record<string, unknown>>,
+          },
+          connection,
+        );
+      }),
     ),
   );

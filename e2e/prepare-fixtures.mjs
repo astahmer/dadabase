@@ -59,16 +59,29 @@ async function ensureAppDb({ force = false, sampleDbPathForConnection } = {}) {
 async function upsertE2eConnection(samplePath) {
   const appClient = createClient({ url: `file:${appDbPath}` });
   const now = Math.floor(Date.now() / 1000);
-  const url = `file:${samplePath}`;
-  await appClient.execute({
-    sql: `DELETE FROM database_connections WHERE name = ?`,
-    args: ["e2e-sqlite"],
-  });
-  await appClient.execute({
-    sql: `INSERT INTO database_connections (id, dialect, url, name, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?)`,
-    args: ["e2e-sqlite-id", "sqlite", url, "e2e-sqlite", now, now],
-  });
+
+  const connections = [
+    { id: "e2e-sqlite-id", name: "e2e-sqlite", url: `file:${samplePath}` },
+    // Shares the same underlying file, marked read-only via the `dadabase_readonly` query
+    // param so the read-only mutation guard can be exercised end-to-end.
+    {
+      id: "e2e-sqlite-readonly-id",
+      name: "e2e-sqlite-readonly",
+      url: `file:${samplePath}?dadabase_readonly=1`,
+    },
+  ];
+
+  for (const conn of connections) {
+    await appClient.execute({
+      sql: `DELETE FROM database_connections WHERE name = ?`,
+      args: [conn.name],
+    });
+    await appClient.execute({
+      sql: `INSERT INTO database_connections (id, dialect, url, name, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [conn.id, "sqlite", conn.url, conn.name, now, now],
+    });
+  }
   appClient.close();
 }
 

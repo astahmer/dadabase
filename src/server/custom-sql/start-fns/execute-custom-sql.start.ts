@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { createCustomSqlExecution } from "#src/server/custom-sql/fns/create-custom-sql-execution.ts";
 import { getCustomSqlExecution } from "#src/server/custom-sql/fns/get-custom-sql-execution.ts";
@@ -10,6 +11,7 @@ import {
   updateCustomSqlExecutionError,
   updateCustomSqlExecutionSuccess,
 } from "#src/server/custom-sql/fns/update-custom-sql-execution.ts";
+import { isSelectQuery } from "#src/server/introspection/detect-destructive-sql.ts";
 import { executeCustomSql } from "#src/server/introspection/introspection.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
@@ -34,6 +36,11 @@ export const executeAndStoreCustomSqlServerFn = createServerFn({
 })
   .inputValidator(ExecuteAndStoreCustomSqlInputSchema.pipe(Schema.standardSchemaV1))
   .handler(async (ctx) => {
+    const readOnlyError = guardReadOnlyMutation(ctx.data.url, {
+      isSelect: isSelectQuery(ctx.data.sql),
+    });
+    if (readOnlyError) throw new Error(readOnlyError);
+
     // First, create the execution record and get the connection ID
     const { id } = await AppRuntime.runPromise(
       Effect.gen(function* () {

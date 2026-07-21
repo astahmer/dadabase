@@ -297,6 +297,7 @@ export const HomePage = () => {
                   databaseName: "",
                   user: "",
                   password: "",
+                  readOnly: false,
                 }}
                 onSuccess={() => {
                   setEditingConnection(null);
