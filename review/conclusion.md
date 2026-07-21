@@ -33,6 +33,7 @@ Open review items **001–010** are addressed in follow-up revisions (`pmltpwry`
 
 ## Residual risk (acceptable follow-ups)
 
-- MySQL fingerprint identity can collide if two rows hash identically (SHA2-256 of all columns); rare.
-- Cascade counts seed child rows for transitive hops — very wide fan-out can be expensive.
-- SSH password is stored in the connection URL blob (`dadabase_ssh`); treat connection URLs as secrets.
+- MySQL fingerprint identity: UPDATE/DELETE use `LIMIT` so a hash collision cannot rewrite/delete unbounded rows; still refresh if `rowsAffected` mismatches.
+- Cascade seed queries are capped at `MAX_CASCADE_SEED_ROWS` (1000) — deeper hops beyond the seed window may under-count.
+- SSH passwords live in `dadabase_ssh`; `redactConnectionUrl` masks them in UI/logs — treat full connection URLs as secrets.
+- SQLite rebuild: mid-script failures ROLLBACK before restoring `PRAGMA foreign_keys=ON` (open txn otherwise blocked the restore).

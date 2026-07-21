@@ -7,6 +7,9 @@ import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts
 
 import { assertSafeIdentifier, assertSafeIdentifiers } from "./row-mutation-utils.ts";
 
+/** Cap rows fetched when seeding transitive cascade counts (avoids huge fan-out). */
+export const MAX_CASCADE_SEED_ROWS = 1_000;
+
 export type CascadeCountWalkEdge = {
   /** Parent table whose rows live in parentRowsByTable. */
   viaTable: string;
@@ -117,6 +120,7 @@ export const countCascadeDependentsWalk = (input: {
 					SELECT ${selectFrag}
 					FROM ${tableRef}
 					WHERE ${where}
+					LIMIT ${MAX_CASCADE_SEED_ROWS}
 				`;
         const seedCompiled = seedQuery.compile();
         const seedRows = yield* seedQuery.pipe(

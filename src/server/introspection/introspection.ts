@@ -2691,9 +2691,16 @@ export const executeSqliteTableRebuild = (input: {
           }
         });
 
+        // Mid-script failures often leave an open transaction; ROLLBACK first so the
+        // foreign_keys restore can run on a clean connection (PRAGMA is per-connection).
         yield* body.pipe(
           Effect.ensuring(
-            conn.executeRaw("PRAGMA foreign_keys=ON", []).pipe(Effect.ignore, Effect.asVoid),
+            Effect.gen(function* () {
+              yield* conn.executeRaw("ROLLBACK", []).pipe(Effect.ignore, Effect.asVoid);
+              yield* conn
+                .executeRaw("PRAGMA foreign_keys=ON", [])
+                .pipe(Effect.ignore, Effect.asVoid);
+            }),
           ),
         );
       }),

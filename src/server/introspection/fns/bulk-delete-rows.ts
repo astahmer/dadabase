@@ -108,9 +108,14 @@ export const bulkDeleteRows = (
         ),
       mysql: () =>
         Effect.succeed(
-          input.schema
-            ? sql`DELETE FROM ${sql(input.schema)}.${sql(input.table)} WHERE ${whereClause}`
-            : sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`,
+          // Cap deletes when using fingerprint identity (collision safety).
+          usesSystemRowId
+            ? input.schema
+              ? sql`DELETE FROM ${sql(input.schema)}.${sql(input.table)} WHERE ${whereClause} LIMIT ${input.primaryKeys.length}`
+              : sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause} LIMIT ${input.primaryKeys.length}`
+            : input.schema
+              ? sql`DELETE FROM ${sql(input.schema)}.${sql(input.table)} WHERE ${whereClause}`
+              : sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`,
         ),
       sqlite: () => Effect.succeed(sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`),
       orElse: () => Effect.die(new Error("Unsupported database dialect")),

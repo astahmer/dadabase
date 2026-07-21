@@ -96,9 +96,10 @@ export const updateRow = (
         ),
       mysql: () =>
         Effect.succeed(
+          // LIMIT 1: fingerprint collisions must not update multiple rows.
           input.schema
-            ? sql`UPDATE ${sql(input.schema)}.${sql(input.table)} SET ${sql.update(valuesForUpdate)} WHERE ${whereClause}`
-            : sql`UPDATE ${sql(input.table)} SET ${sql.update(valuesForUpdate)} WHERE ${whereClause}`,
+            ? sql`UPDATE ${sql(input.schema)}.${sql(input.table)} SET ${sql.update(valuesForUpdate)} WHERE ${whereClause} LIMIT 1`
+            : sql`UPDATE ${sql(input.table)} SET ${sql.update(valuesForUpdate)} WHERE ${whereClause} LIMIT 1`,
         ),
       sqlite: () =>
         Effect.succeed(
