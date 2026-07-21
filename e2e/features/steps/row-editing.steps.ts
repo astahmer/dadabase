@@ -13,41 +13,60 @@ async function resetSampleDb() {
   const { sampleDbPath } = JSON.parse(readFileSync(pathsFile, "utf8")) as {
     sampleDbPath: string;
   };
-  const client = createClient({ url: `file:${sampleDbPath}` });
 
-  await client.execute("DELETE FROM posts");
-  await client.execute("DELETE FROM memberships");
-  await client.execute("DELETE FROM notes");
-  await client.execute("DELETE FROM users");
-  await client.execute("DELETE FROM no_pk_items");
+  const run = async () => {
+    const client = createClient({ url: `file:${sampleDbPath}` });
+    try {
+      await client.execute("DELETE FROM posts");
+      await client.execute("DELETE FROM memberships");
+      await client.execute("DELETE FROM notes");
+      await client.execute("DELETE FROM users");
+      await client.execute("DELETE FROM no_pk_items");
 
-  await client.execute(`
+      await client.execute(`
     INSERT INTO users (id, name, email, age, active) VALUES
       (1, 'Alice', 'alice@example.com', 30, 1),
       (2, 'Bob', 'bob@example.com', 25, 1),
       (3, 'Charlie', 'charlie@example.com', 35, 0)
   `);
-  await client.execute(`
+      await client.execute(`
     INSERT INTO posts (id, user_id, title, body) VALUES
       (1, 1, 'Hello', 'First post'),
       (2, 2, 'World', 'Second post')
   `);
-  await client.execute(`
+      await client.execute(`
     INSERT INTO memberships (org_id, user_id, role) VALUES
       (1, 1, 'admin'),
       (1, 2, 'member')
   `);
-  await client.execute(`
+      await client.execute(`
     INSERT INTO notes (id, title, payload) VALUES
       (1, 'meta', '{"color":"blue","count":1}')
   `);
-  await client.execute(`
+      await client.execute(`
     INSERT INTO no_pk_items (label, value) VALUES
       ('alpha', '1'),
       ('beta', '2')
   `);
+    } finally {
+      client.close();
+    }
+  };
 
-  client.close();
+  // The Vite e2e server may still hold a SQLite write lock from the previous scenario.
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    try {
+      await run();
+      return;
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/SQLITE_BUSY|database is locked/i.test(message)) throw error;
+      await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+    }
+  }
+  throw lastError;
 }
 
 Given(
