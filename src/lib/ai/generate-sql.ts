@@ -5,7 +5,7 @@ import { getStoredOpenAiApiKey } from "#src/lib/ai-byok.ts";
 
 import type { AiSchemaContext, AiTableContext } from "./ai-types.ts";
 
-import { buildNlToSqlPrompt, extractSqlFromModelText } from "./nl-to-sql-prompt.ts";
+import { buildNlToSqlChatPrompt, extractSqlFromModelText } from "./nl-to-sql-prompt.ts";
 
 /**
  * BYOK approach: call OpenAI from the browser with the user-provided key
@@ -26,6 +26,8 @@ export interface GenerateSqlFromNlInput {
   schema?: AiSchemaContext;
   /** @deprecated Prefer `schema` */
   table?: AiTableContext;
+  /** Prior chat turns for multi-turn NL→SQL. */
+  history?: ReadonlyArray<{ role: "user" | "assistant"; content: string }>;
   /** Override stored key (tests / explicit UI). */
   apiKey?: string;
   model?: string;
@@ -48,10 +50,11 @@ export const generateSqlFromNaturalLanguage = async (
     throw new Error("Add an OpenAI API key in AI settings (stored only in this browser).");
   }
 
-  const prompt = buildNlToSqlPrompt({
+  const prompt = buildNlToSqlChatPrompt({
     question: input.question,
     schema: input.schema,
     table: input.table,
+    history: input.history,
   });
 
   const openai = createByokOpenAi(apiKey);

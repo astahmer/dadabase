@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { AiSchemaContext, AiTableContext } from "./ai-types.ts";
 
-import { buildNlToSqlPrompt, extractSqlFromModelText } from "./nl-to-sql-prompt.ts";
+import {
+  buildNlToSqlChatPrompt,
+  buildNlToSqlPrompt,
+  extractSqlFromModelText,
+} from "./nl-to-sql-prompt.ts";
 
 const sampleTable: AiTableContext = {
   schema: "public",
@@ -110,5 +114,22 @@ describe("extractSqlFromModelText", () => {
 
   it("strips SQL: prefix", () => {
     expect(extractSqlFromModelText("SQL: SELECT 1")).toBe("SELECT 1");
+  });
+});
+
+describe("buildNlToSqlChatPrompt", () => {
+  it("includes prior turns", () => {
+    const prompt = buildNlToSqlChatPrompt({
+      question: "now filter by status",
+      table: sampleTable,
+      history: [
+        { role: "user", content: "list orders" },
+        { role: "assistant", content: "SELECT * FROM orders LIMIT 100" },
+      ],
+    });
+    expect(prompt).toContain("Conversation so far");
+    expect(prompt).toContain("list orders");
+    expect(prompt).toContain("SELECT * FROM orders");
+    expect(prompt).toContain("now filter by status");
   });
 });

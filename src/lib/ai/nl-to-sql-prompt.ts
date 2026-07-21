@@ -83,7 +83,31 @@ export const buildNlToSqlPrompt = (input: BuildNlToSqlPromptInput): string => {
   ].join("\n");
 };
 
-/** Strip markdown fences / leading labels from a model SQL response. */
+export interface BuildNlToSqlChatPromptInput extends BuildNlToSqlPromptInput {
+  /** Prior turns (user/assistant), oldest first. Assistant content may include SQL. */
+  history?: ReadonlyArray<{ role: "user" | "assistant"; content: string }>;
+}
+
+/**
+ * Multi-turn chat prompt: includes prior Q/A then the latest question.
+ * Same output rules as `buildNlToSqlPrompt` (SQL only).
+ */
+export const buildNlToSqlChatPrompt = (input: BuildNlToSqlChatPromptInput): string => {
+  const base = buildNlToSqlPrompt(input);
+  const history = input.history ?? [];
+  if (history.length === 0) return base;
+
+  const historyBlock = history
+    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content.trim()}`)
+    .join("\n\n");
+
+  return [
+    base,
+    "",
+    "Conversation so far (for context; still output ONLY SQL for the latest question):",
+    historyBlock,
+  ].join("\n");
+};
 export const extractSqlFromModelText = (text: string): string => {
   const trimmed = text.trim();
   const fenced = trimmed.match(/```(?:sql)?\s*([\s\S]*?)```/i);

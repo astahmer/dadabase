@@ -59,6 +59,9 @@ export const ConnectionAiAssistantDrawer = ({
   const [keyDraft, setKeyDraft] = useState("");
   const [question, setQuestion] = useState("");
   const [lastError, setLastError] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<
+    Array<{ role: "user" | "assistant"; content: string; sql?: string }>
+  >([]);
 
   useEffect(() => {
     if (!open) return;
@@ -186,14 +189,21 @@ export const ConnectionAiAssistantDrawer = ({
       if (schemaContext.tables.length === 0) {
         throw new Error("Schema metadata not loaded yet.");
       }
+      const history = chatMessages.map((m) => ({ role: m.role, content: m.content }));
       return generateSqlFromNaturalLanguage({
         question,
         schema: schemaContext,
+        history,
       });
     },
     onSuccess: (result) => {
       setLastError(null);
-      applySqlToEditor(result.sql);
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "user", content: question },
+        { role: "assistant", content: result.sql, sql: result.sql },
+      ]);
+      setQuestion("");
     },
     onError: (err) => {
       setLastError(getErrorMessage(err));
@@ -206,13 +216,21 @@ export const ConnectionAiAssistantDrawer = ({
         throw new Error("Schema metadata not loaded yet.");
       }
       if (!onGenerateAndRun) throw new Error("Run handler not wired.");
+      const history = chatMessages.map((m) => ({ role: m.role, content: m.content }));
       return generateSqlFromNaturalLanguage({
         question,
         schema: schemaContext,
+        history,
       });
     },
     onSuccess: (result) => {
       setLastError(null);
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "user", content: question },
+        { role: "assistant", content: result.sql, sql: result.sql },
+      ]);
+      setQuestion("");
       applySqlAndRun(result.sql);
     },
     onError: (err) => {
@@ -321,11 +339,48 @@ export const ConnectionAiAssistantDrawer = ({
                     ? "Loading schema metadata…"
                     : "Select a schema to include database context."}
               </p>
+              {chatMessages.length > 0 ? (
+                <div
+                  className="border-border max-h-48 space-y-2 overflow-auto rounded-md border p-2"
+                  data-testid="ai-chat-thread"
+                >
+                  {chatMessages.map((m, i) => (
+                    <div
+                      key={i}
+                      className={
+                        m.role === "user"
+                          ? "bg-muted/50 rounded-md px-2 py-1.5 text-xs"
+                          : "border-border rounded-md border px-2 py-1.5 text-xs"
+                      }
+                    >
+                      <div className="text-muted-foreground mb-1 font-medium">{m.role}</div>
+                      <pre className="font-mono whitespace-pre-wrap">{m.content}</pre>
+                      {m.sql ? (
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => applySqlToEditor(m.sql!)}
+                          >
+                            Apply
+                          </Button>
+                          {onGenerateAndRun ? (
+                            <Button size="sm" onClick={() => applySqlAndRun(m.sql!)}>
+                              Run
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <Textarea
                 rows={3}
                 placeholder="e.g. show pending orders from the last 7 days"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
+                data-testid="ai-chat-input"
               />
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -333,8 +388,9 @@ export const ConnectionAiAssistantDrawer = ({
                   variant="outline"
                   disabled={!canGenerate || generateMutation.isPending}
                   onClick={() => generateMutation.mutate()}
+                  data-testid="ai-chat-send"
                 >
-                  {generateMutation.isPending ? "Generating…" : "Generate SQL → editor"}
+                  {generateMutation.isPending ? "Generating…" : "Send"}
                 </Button>
                 {onGenerateAndRun && (
                   <Button
@@ -344,9 +400,14 @@ export const ConnectionAiAssistantDrawer = ({
                     }
                     onClick={() => generateAndRunMutation.mutate()}
                   >
-                    {generateAndRunMutation.isPending ? "Generating…" : "Generate → run → results"}
+                    {generateAndRunMutation.isPending ? "Generating…" : "Send → run"}
                   </Button>
                 )}
+                {chatMessages.length > 0 ? (
+                  <Button size="sm" variant="ghost" onClick={() => setChatMessages([])}>
+                    Clear chat
+                  </Button>
+                ) : null}
               </div>
               {lastError && <p className="text-destructive text-xs">{lastError}</p>}
             </section>
