@@ -2580,3 +2580,71 @@ export const executeCustomSql = (input: {
       ranAt: startTime,
     };
   });
+
+/**
+ * Run SQLite table-rebuild DDL steps on one reserved connection.
+ * Always restores `PRAGMA foreign_keys=ON` even if a mid-script statement fails.
+ */
+export const executeSqliteTableRebuild = (input: {
+  statements: readonly string[];
+}): Effect.Effect<
+  {
+    rows: unknown[];
+    columns: string[];
+    rowCount: number;
+    rowsAffected?: number;
+    timeTaken: number;
+    ranAt: number;
+  },
+  SqlError,
+  RemoteConnection | QueryLogger | SqlClient.SqlClient
+> =>
+  Effect.gen(function* () {
+    const connectionId = yield* RemoteConnection;
+    const sql = yield* SqlClient.SqlClient;
+    const startTime = Date.now();
+
+    if (input.statements.length === 0) {
+      return yield* Effect.fail(new SqlError({ cause: "No rebuild statements provided" }));
+    }
+
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        const conn = yield* Effect.orDie(sql.reserve);
+
+        const body = Effect.gen(function* () {
+          yield* conn.executeRaw("PRAGMA foreign_keys=OFF", []);
+          for (const statement of input.statements) {
+            const trimmed = statement.trim();
+            if (!trimmed) continue;
+            yield* conn.executeRaw(trimmed, []).pipe(
+              withQueryLogging({
+                type: QueryLogType.TableRows,
+                sql: trimmed,
+                params: [],
+                level: QueryLogLevel.Info,
+                connectionId,
+                meta: { sqliteRebuild: true },
+              }),
+            );
+          }
+        });
+
+        yield* body.pipe(
+          Effect.ensuring(
+            conn.executeRaw("PRAGMA foreign_keys=ON", []).pipe(Effect.ignore, Effect.asVoid),
+          ),
+        );
+      }),
+    );
+
+    const endTime = Date.now();
+    return {
+      rows: [] as unknown[],
+      columns: [] as string[],
+      rowCount: 0,
+      rowsAffected: 0,
+      timeTaken: endTime - startTime,
+      ranAt: startTime,
+    };
+  });

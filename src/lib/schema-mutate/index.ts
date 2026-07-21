@@ -19,6 +19,7 @@ export {
 } from "./build-index-sql.ts";
 export {
   buildSqliteRebuildAlterSql,
+  buildSqliteRebuildAlterSteps,
   type BuildSqliteRebuildAlterSqlInput,
   type SqliteColumnAlterRequest,
 } from "./build-sqlite-rebuild-alter-sql.ts";

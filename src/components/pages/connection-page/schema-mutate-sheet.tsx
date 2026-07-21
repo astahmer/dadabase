@@ -24,6 +24,7 @@ import {
   buildAlterColumnSql,
   buildCreateTableSql,
   buildSqliteRebuildAlterSql,
+  buildSqliteRebuildAlterSteps,
   defaultCreateTableColumns,
   isSqliteLikeDialect,
   SCHEMA_MUTATE_TYPE_SUGGESTIONS,
@@ -32,6 +33,7 @@ import {
   UnsupportedSchemaMutateError,
 } from "#src/lib/schema-mutate/index.ts";
 import { executeCustomSqlServerFn } from "#src/server/introspection/start-fns/execute-custom-sql.start.ts";
+import { executeSqliteTableRebuildServerFn } from "#src/server/introspection/start-fns/execute-sqlite-table-rebuild.start.ts";
 
 import { DestructiveQueryConfirmDialog } from "./destructive-query-confirm.dialog.tsx";
 import { invalidateSchemaMetadataQueries } from "./invalidate-schema-metadata.ts";
@@ -191,22 +193,27 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
   const needsConfirm = mode === "alter-column";
 
   const mutation = useMutation({
-    mutationFn: async (sql: string) => {
+    mutationFn: async (payload: { sql: string; sqliteRebuildStatements?: string[] }) => {
       const readOnlyError = guardReadOnlyMutation(connectionUrl);
       if (readOnlyError) throw new Error(readOnlyError);
+      if (payload.sqliteRebuildStatements) {
+        return executeSqliteTableRebuildServerFn({
+          data: { url: connectionUrl, statements: payload.sqliteRebuildStatements },
+        });
+      }
       return executeCustomSqlServerFn({
-        data: { url: connectionUrl, sql },
+        data: { url: connectionUrl, sql: payload.sql },
       });
     },
     meta: { noInvalidate: true },
-    onSuccess: (_data, sql) => {
+    onSuccess: (_data, payload) => {
       const resolvedTable = (tableName || tableProp || "").trim();
       invalidateSchemaMetadataQueries(queryClient, {
         url: connectionUrl,
         schema,
       });
       toaster.create({ title: `${title} succeeded` });
-      onSuccess?.({ mode, table: resolvedTable, sql });
+      onSuccess?.({ mode, table: resolvedTable, sql: payload.sql });
       onOpenChange(false);
     },
     onError: (error) => {
@@ -214,9 +221,10 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
     },
   });
 
-  const trySubmit = () => {
+  const trySubmit = (opts?: { confirmed?: boolean }) => {
     setSubmitError(null);
     let sql: string;
+    let sqliteRebuildStatements: string[] | undefined;
     try {
       if (mode === "create-table") {
         sql = buildCreateTableSql({
@@ -238,7 +246,7 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
           if (!allColumns || allColumns.length === 0) {
             throw new Error("Missing full column list; cannot build SQLite rebuild ALTER");
           }
-          sql = buildSqliteRebuildAlterSql({
+          const rebuildInput = {
             schema,
             table: tableName || tableProp || "",
             columns: allColumns,
@@ -248,7 +256,9 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
               nullable: singleColumn.nullable,
               defaultValue: singleColumn.defaultValue ?? null,
             },
-          });
+          };
+          sql = buildSqliteRebuildAlterSql(rebuildInput);
+          sqliteRebuildStatements = buildSqliteRebuildAlterSteps(rebuildInput);
         } else {
           sql = buildAlterColumnSql({
             dialect: mutateDialect,
@@ -265,11 +275,12 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
       return;
     }
 
-    if (needsConfirm) {
+    if (needsConfirm && !opts?.confirmed) {
       setConfirmOpen(true);
       return;
     }
-    mutation.mutate(sql);
+    setConfirmOpen(false);
+    mutation.mutate({ sql, sqliteRebuildStatements });
   };
 
   const updateColumnAt = (index: number, patch: Partial<SchemaColumnDraft>) => {
@@ -421,10 +432,7 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
         isLoading={mutation.isPending}
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {
-          setConfirmOpen(false);
-          if (sqlPreview && !sqlPreview.startsWith("--")) {
-            mutation.mutate(sqlPreview);
-          }
+          trySubmit({ confirmed: true });
         }}
       />
     </>

@@ -19,6 +19,8 @@ export interface BuildSqliteRebuildAlterSqlInput {
   /** Full current column list, in order, for the table being altered. */
   columns: readonly SchemaColumnDraft[];
   alter: SqliteColumnAlterRequest;
+  /** Override shadow table suffix (tests). Default: short random id. */
+  shadowSuffix?: string;
 }
 
 function columnDefinition(col: SchemaColumnDraft): string {
@@ -37,13 +39,15 @@ function columnDefinition(col: SchemaColumnDraft): string {
   return parts.join(" ");
 }
 
+function uniqueShadowSuffix(): string {
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 /**
- * SQLite cannot rename/retype/change nullability or defaults of a column in place.
- * This emits the canonical 12-step rebuild procedure recommended by the SQLite docs:
- * disable FK checks, create a shadow table with the new column definition, copy rows
- * across, drop the old table, rename the shadow table, then re-enable FK checks.
+ * Transaction body for a SQLite table rebuild (no FK pragma). Prefer executing these
+ * statements on a reserved connection with `PRAGMA foreign_keys` OFF/ON in a finally.
  */
-export function buildSqliteRebuildAlterSql(input: BuildSqliteRebuildAlterSqlInput): string {
+export function buildSqliteRebuildAlterSteps(input: BuildSqliteRebuildAlterSqlInput): string[] {
   const { schema, table, columns, alter } = input;
   if (!table.trim()) throw new Error("Table name is required");
   if (columns.length === 0) throw new Error("At least one column is required");
@@ -64,7 +68,7 @@ export function buildSqliteRebuildAlterSql(input: BuildSqliteRebuildAlterSqlInpu
       : col,
   );
 
-  const shadowTable = `${table}__dadabase_rebuild`;
+  const shadowTable = `${table}__dadabase_rebuild_${input.shadowSuffix ?? uniqueShadowSuffix()}`;
   const qualifiedOld = qualifyTable("sqlite", schema, table);
   const qualifiedShadow = qualifyTable("sqlite", schema, shadowTable);
 
@@ -73,13 +77,23 @@ export function buildSqliteRebuildAlterSql(input: BuildSqliteRebuildAlterSqlInpu
   const selectColumns = columns.map((c) => quoteIdent(c.name)).join(", ");
 
   return [
-    "PRAGMA foreign_keys=OFF;",
     "BEGIN TRANSACTION;",
     `CREATE TABLE ${qualifiedShadow} (\n  ${defs}\n);`,
     `INSERT INTO ${qualifiedShadow} (${insertColumns}) SELECT ${selectColumns} FROM ${qualifiedOld};`,
     `DROP TABLE ${qualifiedOld};`,
     `ALTER TABLE ${qualifiedShadow} RENAME TO ${quoteIdent(table)};`,
     "COMMIT;",
+  ];
+}
+
+/**
+ * Preview SQL for SQLite column ALTER via table rebuild (includes FK pragmas for display).
+ * Runtime execution should use `buildSqliteRebuildAlterSteps` + reserved-connection runner.
+ */
+export function buildSqliteRebuildAlterSql(input: BuildSqliteRebuildAlterSqlInput): string {
+  return [
+    "PRAGMA foreign_keys=OFF;",
+    ...buildSqliteRebuildAlterSteps(input),
     "PRAGMA foreign_keys=ON;",
   ].join("\n");
 }
