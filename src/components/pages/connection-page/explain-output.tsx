@@ -6,6 +6,10 @@ import {
   parsePostgresExplain,
   type PostgresExplainNode,
 } from "#src/lib/explain/parse-postgres-explain.ts";
+import {
+  flattenSqliteExplainTree,
+  parseSqliteExplain,
+} from "#src/lib/explain/parse-sqlite-explain.ts";
 import { cn } from "#src/lib/utils.ts";
 
 // Memoized number formatter to avoid recreating on each render
@@ -189,9 +193,46 @@ interface ExplainOutputProps {
   output: string;
   viewMode: "smart" | "raw";
   onViewModeChange: (mode: "smart" | "raw") => void;
+  /** When `sqlite`, render EXPLAIN QUERY PLAN tree instead of PG ANALYZE UI. */
+  dialect?: "postgres" | "sqlite";
 }
 
-export function ExplainOutput({ output, viewMode }: ExplainOutputProps) {
+function SqliteExplainTree({ output }: { output: string }) {
+  const flat = flattenSqliteExplainTree(parseSqliteExplain(output));
+  return (
+    <div className="divide-y divide-gray-200" data-testid="sqlite-explain-tree">
+      {flat.map((node) => (
+        <div
+          key={node.id}
+          className="px-6 py-2 font-mono text-sm"
+          style={{ paddingLeft: 24 + node.level * 16 }}
+        >
+          {node.detail || `(id=${node.id})`}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function ExplainOutput({ output, viewMode, dialect = "postgres" }: ExplainOutputProps) {
+  if (dialect === "sqlite") {
+    return (
+      <div className="flex h-full flex-col bg-white">
+        <div className="flex-1 overflow-y-auto">
+          {viewMode === "smart" ? (
+            <SqliteExplainTree output={output} />
+          ) : (
+            <div className="p-6">
+              <pre className="max-h-[60vh] overflow-auto rounded border border-gray-200 bg-gray-50 p-4 font-mono text-xs">
+                <code>{output}</code>
+              </pre>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const { nodes, totals } = parsePostgresExplain(output);
 
   const executionTimeMs = parseFloat(totals.executionTime) || 0;

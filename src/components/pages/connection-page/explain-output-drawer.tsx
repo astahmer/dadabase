@@ -1,3 +1,6 @@
+import { Copy } from "lucide-react";
+import { useState } from "react";
+
 import { Button } from "#src/components/ui/button.tsx";
 import {
   Sheet,
@@ -6,8 +9,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "#src/components/ui/sheet.tsx";
-import { Copy } from "lucide-react";
-import { useState } from "react";
 
 import { ExplainOutput } from "./explain-output.tsx";
 
@@ -15,12 +16,14 @@ interface ExplainOutputDrawerProps {
   showExplainPanel: boolean;
   setShowExplainPanel: (show: boolean) => void;
   output: string | null;
+  dialect?: "postgres" | "sqlite";
 }
 
 export function ExplainOutputDrawer({
   showExplainPanel,
   setShowExplainPanel,
   output,
+  dialect = "postgres",
 }: ExplainOutputDrawerProps) {
   const [viewMode, onViewModeChange] = useState<"smart" | "raw">("smart");
 
@@ -37,7 +40,9 @@ export function ExplainOutputDrawer({
             <div className="flex-1">
               <SheetTitle>Query Execution Plan</SheetTitle>
               <SheetDescription>
-                EXPLAIN ANALYZE output for performance optimization
+                {dialect === "sqlite"
+                  ? "EXPLAIN QUERY PLAN output"
+                  : "EXPLAIN ANALYZE output for performance optimization"}
               </SheetDescription>
             </div>
             <div className="mr-4 flex shrink-0 items-center gap-2">
@@ -71,6 +76,7 @@ export function ExplainOutputDrawer({
               output={output}
               viewMode={viewMode}
               onViewModeChange={onViewModeChange}
+              dialect={dialect}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-gray-500">Loading...</div>

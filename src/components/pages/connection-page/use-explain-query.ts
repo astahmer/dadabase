@@ -1,7 +1,8 @@
-import { DatabaseDialect } from "#src/db/dialect.ts";
-import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+
+import { DatabaseDialect } from "#src/db/dialect.ts";
+import { explainQueryServerFn } from "#src/server/introspection/start-fns/explain-query.start.ts";
 
 interface UseExplainQueryOptions {
   connectionUrl: string;
@@ -9,25 +10,30 @@ interface UseExplainQueryOptions {
   dialect: DatabaseDialect;
 }
 
+function isExplainSupported(dialect: DatabaseDialect): boolean {
+  return (
+    dialect === DatabaseDialect.Postgres ||
+    dialect === DatabaseDialect.SQLite ||
+    dialect === DatabaseDialect.LibSQL
+  );
+}
+
 /**
- * Hook to manage EXPLAIN query execution for PostgreSQL databases
- * Returns the query object and panel state management
+ * Hook to manage EXPLAIN query execution for PostgreSQL and SQLite/LibSQL.
  */
 export function useExplainQuery({ connectionUrl, sql, dialect }: UseExplainQueryOptions) {
   const [showExplainPanel, setShowExplainPanel] = useState(false);
 
   const explainQuery = useQuery({
     enabled: false,
-    queryKey: ["remote", "explain", sql],
+    queryKey: ["remote", "explain", dialect, sql],
     queryFn: async () => {
-      if (dialect !== DatabaseDialect.Postgres) {
-        alert("Query explain is only supported for PostgreSQL databases");
-        return;
+      if (!isExplainSupported(dialect)) {
+        return "Error: Query explain is not supported for this dialect";
       }
 
       if (!sql) {
-        alert("No SQL query to explain");
-        return;
+        return "Error: No SQL query to explain";
       }
 
       try {
@@ -53,6 +59,6 @@ export function useExplainQuery({ connectionUrl, sql, dialect }: UseExplainQuery
     explainQuery,
     showExplainPanel,
     setShowExplainPanel,
-    isExplainDisabled: dialect !== DatabaseDialect.Postgres,
+    isExplainDisabled: !isExplainSupported(dialect),
   };
 }
