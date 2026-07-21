@@ -13,7 +13,7 @@ export type OpenSshTunnelResult = {
  * Opens an SSH local forward to `destinationHost:destinationPort` via the bastion
  * described by `config`. Returns a local ephemeral port listeners can connect to.
  *
- * Requires a readable private key at `config.privateKeyPath` (password auth not supported yet).
+ * Auth: private key (`privateKeyPath`) and/or password. At least one is required.
  */
 export async function openSshLocalForward(input: {
   config: SshTunnelConfig;
@@ -21,13 +21,30 @@ export async function openSshLocalForward(input: {
   destinationPort: number;
 }): Promise<OpenSshTunnelResult> {
   const { config, destinationHost, destinationPort } = input;
-  if (!config.privateKeyPath) {
-    throw new Error("SSH tunnel requires a private key path");
+  if (!config.privateKeyPath && !config.password) {
+    throw new Error("SSH tunnel requires a private key path or password");
   }
 
   const fs = await import("node:fs/promises");
   const net = await import("node:net");
-  const privateKey = await fs.readFile(config.privateKeyPath);
+
+  const connectOpts: {
+    host: string;
+    port: number;
+    username: string;
+    privateKey?: Buffer;
+    password?: string;
+  } = {
+    host: config.host,
+    port: config.port,
+    username: config.user,
+  };
+  if (config.privateKeyPath) {
+    connectOpts.privateKey = await fs.readFile(config.privateKeyPath);
+  }
+  if (config.password) {
+    connectOpts.password = config.password;
+  }
 
   const client = new Client();
 
@@ -35,12 +52,7 @@ export async function openSshLocalForward(input: {
     client
       .on("ready", () => resolve())
       .on("error", reject)
-      .connect({
-        host: config.host,
-        port: config.port,
-        username: config.user,
-        privateKey,
-      });
+      .connect(connectOpts);
   });
 
   const server = net.createServer((socket) => {

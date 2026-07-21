@@ -73,6 +73,22 @@ describe("encodeSshTunnelConfig / decodeSshTunnelConfig", () => {
       decodeSshTunnelConfig(JSON.stringify({ host: "h", port: 22, user: "u", privateKeyPath: 1 })),
     ).toBeNull();
   });
+
+  it("round-trips a config with password auth", () => {
+    const config = {
+      host: "bastion.example.com",
+      port: 22,
+      user: "deploy",
+      password: "s3cret",
+    };
+    expect(decodeSshTunnelConfig(encodeSshTunnelConfig(config))).toEqual(config);
+  });
+
+  it("returns null when password has the wrong type", () => {
+    expect(
+      decodeSshTunnelConfig(JSON.stringify({ host: "h", port: 22, user: "u", password: 1 })),
+    ).toBeNull();
+  });
 });
 
 describe("withSshTunnelConfig / parseSshTunnelFromUrl", () => {

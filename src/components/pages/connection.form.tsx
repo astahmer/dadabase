@@ -52,6 +52,7 @@ const connectionFormSchema = z
     sshPort: z.number(),
     sshUser: z.string(),
     sshPrivateKeyPath: z.string(),
+    sshPassword: z.string(),
   })
   .refine(
     (data) => {
@@ -100,6 +101,7 @@ const defaultValues = {
   sshPort: 22,
   sshUser: "",
   sshPrivateKeyPath: "",
+  sshPassword: "",
 };
 
 export type ConnectionFormValues = z.infer<typeof connectionFormSchema>;
@@ -157,6 +159,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
             port: ctx.value.sshPort || 22,
             user: ctx.value.sshUser.trim(),
             privateKeyPath: ctx.value.sshPrivateKeyPath.trim() || undefined,
+            password: ctx.value.sshPassword || undefined,
           });
         } else {
           connectionUrl = withSshTunnelConfig(connectionUrl, null);
@@ -231,6 +234,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
         values.sshPort = ssh.port;
         values.sshUser = ssh.user;
         values.sshPrivateKeyPath = ssh.privateKeyPath ?? "";
+        values.sshPassword = ssh.password ?? "";
       }
       values.connectionUrl = stripDadabaseMarkerParams(initialValues.connectionUrl);
       // also strip sslmode for display of base URL fields
@@ -489,10 +493,16 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                       <form.AppField name="sshPrivateKeyPath">
                         {(field) => <field.TextField label="Private key path" />}
                       </form.AppField>
+                      <form.AppField name="sshPassword">
+                        {(field) => (
+                          <field.TextField type="text" label="SSH password (optional)" />
+                        )}
+                      </form.AppField>
                     </div>
                     <p className="text-muted-foreground text-xs">
-                      SSH settings are stored on the connection URL (`dadabase_ssh`). Tunneling is
-                      applied server-side when opening the pool.
+                      SSH settings are stored on the connection URL (`dadabase_ssh`). Provide a
+                      private key path and/or password. Tunneling opens server-side when the pool is
+                      created.
                     </p>
                   </AccordionItemContent>
                 </AccordionItem>

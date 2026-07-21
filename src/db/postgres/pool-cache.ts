@@ -3,7 +3,7 @@ import { LibsqlClient } from "@effect/sql-libsql";
 import { MysqlClient } from "@effect/sql-mysql2";
 import { PgClient } from "@effect/sql-pg";
 import { SqlError } from "@effect/sql/SqlError";
-import { Context, Duration, Effect, Layer, Redacted, Ref, Schedule } from "effect";
+import { Context, Deferred, Duration, Effect, Layer, Redacted, Ref, Schedule } from "effect";
 
 import { parseSshTunnelFromUrl, stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
@@ -92,9 +92,11 @@ export const makePoolCacheLive = Layer.effect(
   PoolCache,
   Effect.gen(function* () {
     const cacheRef = yield* Ref.make<Map<string, CacheEntry>>(new Map());
+    /** In-flight pool creates — concurrent callers await the same Deferred. */
+    const inflightRef = yield* Ref.make(
+      new Map<string, Deferred.Deferred<Layer.Layer<SqlClient.SqlClient, SqlError>, SqlError>>(),
+    );
 
-    // Spawn a single cleanup fiber that repeats every X seconds
-    // This fiber is part of the layer's scope, so it lives for the entire app lifetime
     const cleanupRoutine = Effect.gen(function* () {
       yield* Ref.modify(cacheRef, (cache) => {
         const now = Date.now();
@@ -115,8 +117,31 @@ export const makePoolCacheLive = Layer.effect(
       });
     }).pipe(Effect.repeat(Schedule.spaced("3 seconds")));
 
-    // Fork as daemon so it runs in background, managed by app scope
     yield* Effect.forkDaemon(cleanupRoutine);
+
+    const createPool = (url: string, dialect: DatabaseDialect) =>
+      Effect.gen(function* () {
+        console.log(`[PoolCache] Creating new pool for ${redactConnectionUrl(url)}`);
+
+        const { driverUrl, closeTunnel } = yield* Effect.tryPromise({
+          try: () => resolveDriverUrlWithOptionalSsh({ url, dialect }),
+          catch: (cause) =>
+            new SqlError({
+              cause,
+              message: cause instanceof Error ? cause.message : String(cause),
+            }),
+        });
+
+        const layer = buildDriverLayer(driverUrl, dialect);
+
+        yield* Ref.update(cacheRef, (cache) => {
+          const newCache = new Map(cache);
+          newCache.set(url, { layer, lastUsed: Date.now(), closeTunnel });
+          return newCache;
+        });
+
+        return layer;
+      });
 
     return {
       getOrCreate: (url: string, dialect: DatabaseDialect) =>
@@ -129,36 +154,58 @@ export const makePoolCacheLive = Layer.effect(
             return existing.layer;
           }
 
-          console.log(`[PoolCache] Creating new pool for ${redactConnectionUrl(url)}`);
+          // Join an in-flight create if one exists; otherwise claim leadership.
+          const joinOrClaim = yield* Ref.modify(inflightRef, (inflight) => {
+            const pending = inflight.get(url);
+            if (pending) return [{ tag: "join" as const, deferred: pending }, inflight];
+            return [{ tag: "claim" as const }, inflight];
+          });
 
-          const { driverUrl, closeTunnel } = yield* Effect.tryPromise({
-            try: () => resolveDriverUrlWithOptionalSsh({ url, dialect }),
-            catch: (cause) =>
-              new SqlError({
-                cause,
-                message: cause instanceof Error ? cause.message : String(cause),
+          if (joinOrClaim.tag === "join") {
+            return yield* Deferred.await(joinOrClaim.deferred);
+          }
+
+          const deferred = yield* Deferred.make<
+            Layer.Layer<SqlClient.SqlClient, SqlError>,
+            SqlError
+          >();
+
+          // Publish deferred only if still unclaimed (another fiber may have raced).
+          const published = yield* Ref.modify(inflightRef, (inflight) => {
+            const pending = inflight.get(url);
+            if (pending) return [{ tag: "join" as const, deferred: pending }, inflight];
+            const next = new Map(inflight);
+            next.set(url, deferred);
+            return [{ tag: "lead" as const }, next];
+          });
+
+          if (published.tag === "join") {
+            return yield* Deferred.await(published.deferred);
+          }
+
+          // Re-check cache after claiming — another fiber may have finished.
+          const raced = (yield* Ref.get(cacheRef)).get(url);
+          if (raced) {
+            yield* Deferred.succeed(deferred, raced.layer);
+            yield* Ref.update(inflightRef, (m) => {
+              const next = new Map(m);
+              next.delete(url);
+              return next;
+            });
+            return raced.layer;
+          }
+
+          return yield* createPool(url, dialect).pipe(
+            Effect.tap((layer) => Deferred.succeed(deferred, layer)),
+            Effect.tapError((err) => Deferred.fail(deferred, err)),
+            Effect.ensuring(
+              Ref.update(inflightRef, (m) => {
+                const next = new Map(m);
+                next.delete(url);
+                return next;
               }),
-          });
-
-          const layer = buildDriverLayer(driverUrl, dialect);
-
-          // Double-check after the (possibly slow) tunnel open to avoid duplicate pools.
-          const winner = yield* Ref.modify(cacheRef, (cache) => {
-            const raced = cache.get(url);
-            if (raced) {
-              try {
-                closeTunnel?.();
-              } catch {
-                // ignore
-              }
-              return [raced.layer, new Map(cache).set(url, { ...raced, lastUsed: Date.now() })];
-            }
-            const newCache = new Map(cache);
-            newCache.set(url, { layer, lastUsed: Date.now(), closeTunnel });
-            return [layer, newCache];
-          });
-
-          return winner;
+            ),
+          );
         }),
 
       getMetrics: () =>

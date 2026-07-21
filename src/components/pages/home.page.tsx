@@ -304,6 +304,7 @@ export const HomePage = () => {
                   sshPort: 22,
                   sshUser: "",
                   sshPrivateKeyPath: "",
+                  sshPassword: "",
                 }}
                 onSuccess={() => {
                   setEditingConnection(null);

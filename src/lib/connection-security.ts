@@ -35,6 +35,8 @@ export interface SshTunnelConfig {
   port: number;
   user: string;
   privateKeyPath?: string;
+  /** Password auth (used when privateKeyPath is absent). */
+  password?: string;
 }
 
 /** Serializes an SSH tunnel config to a JSON string, meant to be stored separately from the connection URL. */
@@ -50,6 +52,7 @@ function isValidSshTunnelConfig(value: unknown): value is SshTunnelConfig {
   if (typeof candidate.user !== "string" || candidate.user === "") return false;
   if (candidate.privateKeyPath !== undefined && typeof candidate.privateKeyPath !== "string")
     return false;
+  if (candidate.password !== undefined && typeof candidate.password !== "string") return false;
   return true;
 }
 
@@ -60,6 +63,7 @@ export function decodeSshTunnelConfig(encoded: string): SshTunnelConfig | null {
     if (!isValidSshTunnelConfig(parsed)) return null;
     const config: SshTunnelConfig = { host: parsed.host, port: parsed.port, user: parsed.user };
     if (parsed.privateKeyPath !== undefined) config.privateKeyPath = parsed.privateKeyPath;
+    if (parsed.password !== undefined) config.password = parsed.password;
     return config;
   } catch {
     return null;
