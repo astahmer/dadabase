@@ -827,8 +827,13 @@ const CellHeaderContent = memo(
     } = props;
     const column = headerCell.column;
     const isSorted = column.getIsSorted();
-    const isSelectColumn = column.id === "select" || column.id === "actions";
-    const showHeaderFilter = Boolean(onColumnHeaderFilterChange) && !isSelectColumn;
+    const isUtilityColumn =
+      column.id === "select" ||
+      column.id === "actions" ||
+      column.id === "__select" ||
+      column.id === "__expand" ||
+      column.id === "__actions";
+    const showHeaderFilter = Boolean(onColumnHeaderFilterChange) && !isUtilityColumn;
     const activeHeaderFilter = getColumnHeaderFilter?.(column.id);
 
     return (
