@@ -13,7 +13,7 @@
     "db": "pnpm drizzle-kit",
     "db:check": "pnpm drizzle-kit check",
     "db:reset": "rm -rf ./migrations && pnpm db generate && pnpm db push",
-    "dev": "vite dev --port 3005",
+    "dev": "vite dev --port 3005 --host 127.0.0.1",
     "docker:build": "docker build . -f ./Dockerfile --build-arg ENTRYPOINT=main -t dadabase",
     "docker:run": "docker run -p 3006:3006 --env-file .env dadabase",
     "docker:sh": "docker run -it --entrypoint sh dadabase",
