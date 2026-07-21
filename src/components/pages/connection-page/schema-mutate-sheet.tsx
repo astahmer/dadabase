@@ -246,6 +246,7 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
           if (!allColumns || allColumns.length === 0) {
             throw new Error("Missing full column list; cannot build SQLite rebuild ALTER");
           }
+          const shadowSuffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
           const rebuildInput = {
             schema,
             table: tableName || tableProp || "",
@@ -256,6 +257,7 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
               nullable: singleColumn.nullable,
               defaultValue: singleColumn.defaultValue ?? null,
             },
+            shadowSuffix,
           };
           sql = buildSqliteRebuildAlterSql(rebuildInput);
           sqliteRebuildStatements = buildSqliteRebuildAlterSteps(rebuildInput);

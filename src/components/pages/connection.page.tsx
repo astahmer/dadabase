@@ -96,7 +96,7 @@ import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start
 import { getAllTablesForeignKeysQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-foreign-keys.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
-import { insertRowServerFn } from "#src/server/introspection/start-fns/insert-row.start.ts";
+import { insertRowsServerFn } from "#src/server/introspection/start-fns/insert-rows.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { saveQueryFavoriteServerFn } from "#src/server/query-logger/start-fns/save-query-favorite.start.ts";
 
@@ -118,6 +118,7 @@ import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { ConnectionAiAssistantDrawer } from "./connection-page/ai-assistant.drawer.tsx";
 import { CascadeDeleteConfirmDialog } from "./connection-page/cascade-delete-confirm.dialog.tsx";
+import { PasteRowsConfirmDialog } from "./connection-page/paste-rows-confirm.dialog.tsx";
 import { ConnectionCommandPalette } from "./connection-page/command-palette.tsx";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
@@ -1598,6 +1599,12 @@ const RowsTableContent = (
   const navigate = useNavigate({ from: "/connections/$connectionName" });
 
   const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(null);
+  const [pasteConfirm, setPasteConfirm] = useState<{
+    rows: Array<Record<string, unknown>>;
+    table: string;
+    schema: string;
+  } | null>(null);
+  const [pastePending, setPastePending] = useState(false);
   const relationshipPanelSize = fromPixelToPercentage(50, "vertical");
 
   const search = useActiveTabState((tab, _search) => {
@@ -1723,43 +1730,11 @@ const RowsTableContent = (
               const known = props.columnMetadata.map((c) => c.name);
               const parsed = parsePasteRows(text, known);
               if (parsed.rows.length === 0) return;
-              const ok = window.confirm(`Paste ${parsed.rows.length} row(s) into ${search.table}?`);
-              if (!ok) return;
-              void (async () => {
-                const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl);
-                if (readOnlyError) {
-                  toaster.create({
-                    title: "Read-only connection",
-                    description: readOnlyError,
-                    type: "error",
-                  });
-                  return;
-                }
-                try {
-                  for (const row of parsed.rows) {
-                    await insertRowServerFn({
-                      data: {
-                        url: props.activeConnectionUrl,
-                        schema: search.schema!,
-                        table: search.table!,
-                        values: row,
-                      },
-                    });
-                  }
-                  invalidateRowsQueries(queryClient);
-                  toaster.create({
-                    title: "Pasted rows",
-                    description: `Inserted ${parsed.rows.length} row(s)`,
-                    type: "success",
-                  });
-                } catch (error) {
-                  toaster.create({
-                    title: "Paste failed",
-                    description: formatDbError(error),
-                    type: "error",
-                  });
-                }
-              })();
+              setPasteConfirm({
+                rows: parsed.rows,
+                table: search.table,
+                schema: search.schema,
+              });
             }}
           >
             <ColumnHeaderContextProvider
@@ -1925,6 +1900,55 @@ const RowsTableContent = (
           )}
         </Splitter.Root>
       </div>
+      <PasteRowsConfirmDialog
+        open={pasteConfirm != null}
+        onOpenChange={(open) => {
+          if (!open) setPasteConfirm(null);
+        }}
+        table={pasteConfirm?.table ?? ""}
+        rowCount={pasteConfirm?.rows.length ?? 0}
+        isPending={pastePending}
+        onConfirm={() => {
+          if (!pasteConfirm) return;
+          void (async () => {
+            const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl);
+            if (readOnlyError) {
+              toaster.create({
+                title: "Read-only connection",
+                description: readOnlyError,
+                type: "error",
+              });
+              return;
+            }
+            setPastePending(true);
+            try {
+              const result = await insertRowsServerFn({
+                data: {
+                  url: props.activeConnectionUrl,
+                  schema: pasteConfirm.schema,
+                  table: pasteConfirm.table,
+                  rows: pasteConfirm.rows,
+                },
+              });
+              invalidateRowsQueries(queryClient);
+              setPasteConfirm(null);
+              toaster.create({
+                title: "Pasted rows",
+                description: `Inserted ${result.inserted} row(s)`,
+                type: "success",
+              });
+            } catch (error) {
+              toaster.create({
+                title: "Paste failed",
+                description: formatDbError(error),
+                type: "error",
+              });
+            } finally {
+              setPastePending(false);
+            }
+          })();
+        }}
+      />
     </PendingCellEditsProvider>
   );
 };
