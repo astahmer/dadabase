@@ -451,6 +451,8 @@ export const useConnectionPageState = ({
                   size="xs"
                   className="w-full text-center text-xs"
                   variant="ghost"
+                  data-testid="row-select-button"
+                  aria-label={`Select row ${displayedNumber}`}
                   onClick={ctx.row.getToggleSelectedHandler()}
                 >
                   {displayedNumber}
