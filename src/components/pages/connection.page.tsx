@@ -66,6 +66,7 @@ import {
 } from "#src/lib/custom-sql-runner-bridge.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
+import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
 import {
   abortQueryController,
@@ -83,6 +84,7 @@ import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fn
 import {
   getDestructiveQuerySummary,
   isDestructiveQuery,
+  isSelectQuery,
 } from "#src/server/introspection/detect-destructive-sql.ts";
 import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
 import { executeCustomSqlServerFn } from "#src/server/introspection/start-fns/execute-custom-sql.start.ts";
@@ -674,10 +676,13 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
   pendingDdlRef.current = pendingDdl;
 
   const ddlMutation = useMutation({
-    mutationFn: async (sql: string) =>
-      executeCustomSqlServerFn({
+    mutationFn: async (sql: string) => {
+      const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl);
+      if (readOnlyError) throw new Error(readOnlyError);
+      return executeCustomSqlServerFn({
         data: { url: props.activeConnectionUrl, sql },
-      }),
+      });
+    },
     meta: { noInvalidate: true },
     onSuccess: () => {
       const pending = pendingDdlRef.current;
@@ -719,7 +724,9 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
       : connection.dialect === DatabaseDialect.LibSQL
         ? "libsql"
         : "sqlite";
-  const canAlterColumn = connection.dialect === DatabaseDialect.Postgres;
+  // SQLite/libSQL alter-column is backed by a rebuild (buildSqliteRebuildAlterSql), so it's
+  // exposed for every dialect; the sheet itself handles missing-column-list edge cases.
+  const canAlterColumn = true;
 
   const openSchemaMutate = (mode: SchemaMutateSheetState["mode"], column?: TableColumnMetadata) => {
     setSchemaMutate({
@@ -805,7 +812,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
   });
 
   const handleExportAll = async (
-    format: "json" | "csv" | "tsv" | "copy-json" | "copy-csv" | "copy-tsv" | "copy-insert",
+    format: "json" | "csv" | "tsv" | "sql" | "copy-json" | "copy-csv" | "copy-tsv" | "copy-insert",
   ) => {
     if (!search.schema || !search.table || !search.limit) return;
 
@@ -922,10 +929,12 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
         type: success ? "success" : "error",
       });
     } else {
-      const exportFormat = format as "json" | "csv" | "tsv";
+      const exportFormat = format as "json" | "csv" | "tsv" | "sql";
       exportRows(allRows, columns, {
         format: exportFormat,
         filename: `${tableName}-export.${exportFormat}`,
+        tableName,
+        schemaName,
       });
       toaster.create({
         title: "Success",
@@ -1230,6 +1239,14 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
           dialect={connection.dialect}
           schema={search.schema}
           table={search.table}
+          allColumns={pageState.columnMetadata.map((col) => ({
+            name: col.name,
+            dataType: col.dataType,
+            nullable: col.nullable,
+            primaryKey: col.primaryKey,
+            unique: col.unique,
+            defaultValue: col.defaultValue,
+          }))}
           onOpenChange={(open) => setSchemaMutate((prev) => ({ ...prev, open }))}
           onSuccess={({ mode, table }) => {
             if (mode === "create-table" && table) {
@@ -1794,6 +1811,8 @@ const BulkActions = (
   const deleteMutation = useMutation({
     meta: rowMutationMeta,
     mutationFn: async () => {
+      const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl);
+      if (readOnlyError) throw new Error(readOnlyError);
       if (!canDelete || !search.schema || !search.table) {
         throw new Error("Missing required metadata for bulk delete");
       }
@@ -1863,6 +1882,24 @@ const BulkActions = (
     toaster.create({
       title: "Success",
       description: `Exported ${rows.length} row${rows.length !== 1 ? "s" : ""}`,
+      type: "success",
+    });
+  };
+
+  const handleExportSql = () => {
+    const rows = selectedRows.map((row) => row.original as Record<string, unknown>);
+    const columns = props.rowsDataTable.getVisibleLeafColumns().map((col) => col.id);
+
+    exportRows(rows, columns, {
+      format: "sql",
+      filename: `${search.table}-export.sql`,
+      tableName: search.table,
+      schemaName: search.schema,
+    });
+
+    toaster.create({
+      title: "Success",
+      description: `Exported ${rows.length} row${rows.length !== 1 ? "s" : ""} as INSERT statements`,
       type: "success",
     });
   };
@@ -2016,6 +2053,7 @@ const BulkActions = (
         onDuplicate={props.onDuplicateRow ? handleDuplicate : undefined}
         onExportJson={handleExportJson}
         onExportCsv={handleExportCsv}
+        onExportSql={handleExportSql}
         onCopyJson={handleCopyJson}
         onCopyCsv={handleCopyCsv}
         onCopyInsert={handleCopyInsert}
@@ -2288,6 +2326,14 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
     console.log("onRunQuery", { sqlToRun });
     if (!sqlToRun) return;
 
+    const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
+      isSelect: isSelectQuery(sqlToRun),
+    });
+    if (readOnlyError) {
+      toaster.create({ title: "Read-only connection", description: readOnlyError, type: "error" });
+      return;
+    }
+
     // If editing from a stored execution, track the parent query
     const previousId = search.customSqlId;
 
@@ -2324,6 +2370,14 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
   const handleReExecuteStored = () => {
     const sql = storedData?.sql;
     if (!sql) return;
+
+    const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
+      isSelect: isSelectQuery(sql),
+    });
+    if (readOnlyError) {
+      toaster.create({ title: "Read-only connection", description: readOnlyError, type: "error" });
+      return;
+    }
 
     // Re-executing same query, no previousId needed (it's the same query)
     executeCustomSqlMutation.mutate({

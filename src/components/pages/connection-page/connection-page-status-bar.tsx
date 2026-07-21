@@ -47,7 +47,15 @@ interface ConnectionPageStatusBarProps {
   schema?: string;
   tableName?: string;
   onExportAll?: (
-    format: "json" | "csv" | "tsv" | "copy-json" | "copy-csv" | "copy-tsv" | "copy-insert",
+    format:
+      | "json"
+      | "csv"
+      | "tsv"
+      | "sql"
+      | "copy-json"
+      | "copy-csv"
+      | "copy-tsv"
+      | "copy-insert",
   ) => void;
   columns?: string[];
   zenMode?: boolean;
@@ -367,6 +375,9 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
                 </MenuItem>
                 <MenuItem value="export-tsv" onClick={() => props.onExportAll?.("tsv")}>
                   <MenuItemText>Export as TSV</MenuItemText>
+                </MenuItem>
+                <MenuItem value="export-sql" onClick={() => props.onExportAll?.("sql")}>
+                  <MenuItemText>Export as INSERT (.sql)</MenuItemText>
                 </MenuItem>
                 <MenuItem value="copy-insert" onClick={() => props.onExportAll?.("copy-insert")}>
                   <MenuItemText>Copy as INSERT</MenuItemText>

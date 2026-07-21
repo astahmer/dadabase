@@ -12,6 +12,7 @@ interface BulkActionBarProps {
   onDuplicate?: () => void;
   onExportJson?: () => void;
   onExportCsv?: () => void;
+  onExportSql?: () => void;
   onCopyJson?: () => void;
   onCopyCsv?: () => void;
   onCopyInsert?: () => void;
@@ -28,6 +29,7 @@ export function BulkActionBar({
   onDuplicate,
   onExportJson,
   onExportCsv,
+  onExportSql,
   onCopyJson,
   onCopyCsv,
   onCopyInsert,
@@ -101,6 +103,11 @@ export function BulkActionBar({
                 {onExportCsv && (
                   <MenuItem value="export-csv" onClick={onExportCsv}>
                     <MenuItemText>Export as CSV</MenuItemText>
+                  </MenuItem>
+                )}
+                {onExportSql && (
+                  <MenuItem value="export-sql" onClick={onExportSql}>
+                    <MenuItemText>Export as INSERT (.sql)</MenuItemText>
                   </MenuItem>
                 )}
               </MenuContent>
