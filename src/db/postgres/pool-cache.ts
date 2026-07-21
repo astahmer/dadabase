@@ -1,11 +1,13 @@
 import type { SqlError } from "@effect/sql/SqlError";
 
-import { stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
-import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { SqlClient } from "@effect/sql";
 import { LibsqlClient } from "@effect/sql-libsql";
+import { MysqlClient } from "@effect/sql-mysql2";
 import { PgClient } from "@effect/sql-pg";
 import { Context, Duration, Effect, Layer, Redacted, Ref, Schedule } from "effect";
+
+import { stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
+import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 
 import type { DatabaseDialect } from "../dialect.ts";
 
@@ -83,6 +85,12 @@ export const makePoolCacheLive = Layer.effect(
               maxConnections: 20,
               idleTimeout: Duration.seconds(30),
             });
+          } else if (dialect === "mysql") {
+            layer = MysqlClient.layer({
+              url: Redacted.make(driverUrl),
+              maxConnections: 20,
+              connectionTTL: Duration.seconds(30),
+            }) as Layer.Layer<SqlClient.SqlClient, SqlError>;
           } else {
             layer = LibsqlClient.layer({ url: driverUrl });
           }

@@ -2,6 +2,7 @@ export enum DatabaseDialect {
   Postgres = "postgres",
   SQLite = "sqlite",
   LibSQL = "libsql",
+  MySQL = "mysql",
 }
 
 export const getDialectDefaultSchema = (dialect: DatabaseDialect) => {
@@ -9,6 +10,8 @@ export const getDialectDefaultSchema = (dialect: DatabaseDialect) => {
     case DatabaseDialect.SQLite:
     case DatabaseDialect.LibSQL:
       return "main";
+    case DatabaseDialect.MySQL:
+      return "";
     default:
       return "public";
   }
@@ -16,16 +19,8 @@ export const getDialectDefaultSchema = (dialect: DatabaseDialect) => {
 
 export const onDialectOrElse = <T>(
   dialect: DatabaseDialect,
-  dialects: Record<DatabaseDialect, () => T> & { orElse: () => T },
+  dialects: Partial<Record<DatabaseDialect, () => T>> & { orElse: () => T },
 ): T => {
-  switch (dialect) {
-    case DatabaseDialect.Postgres:
-      return dialects.postgres();
-    case DatabaseDialect.SQLite:
-      return dialects.sqlite();
-    case DatabaseDialect.LibSQL:
-      return dialects.libsql();
-    default:
-      return dialects.orElse();
-  }
+  const handler = dialects[dialect];
+  return handler ? handler() : dialects.orElse();
 };
