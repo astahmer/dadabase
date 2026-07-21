@@ -1,7 +1,12 @@
-import { Tooltip } from "#src/components/ui/tooltip.tsx";
-import { cn } from "#src/lib/utils.ts";
 import { AlertTriangle, ChevronDown, Zap } from "lucide-react";
 import { useState } from "react";
+
+import { Tooltip } from "#src/components/ui/tooltip.tsx";
+import {
+  parsePostgresExplain,
+  type PostgresExplainNode,
+} from "#src/lib/explain/parse-postgres-explain.ts";
+import { cn } from "#src/lib/utils.ts";
 
 // Memoized number formatter to avoid recreating on each render
 const numberFormatter = new Intl.NumberFormat();
@@ -9,79 +14,7 @@ function formatNumber(num: number): string {
   return numberFormatter.format(num);
 }
 
-interface ExplainNode {
-  name: string;
-  level: number;
-  cost: string;
-  rows: string;
-  actualRows: string;
-  time: string;
-  actualTime: number;
-  details: Record<string, string>;
-}
-
-/**
- * Parse PostgreSQL EXPLAIN ANALYZE output into structured nodes
- */
-function parseExplainOutput(output: string): {
-  nodes: ExplainNode[];
-  totals: { planningTime: string; executionTime: string };
-} {
-  const lines = output.split("\n");
-  const nodes: ExplainNode[] = [];
-  let planningTime = "";
-  let executionTime = "";
-
-  for (const line of lines) {
-    // Extract timing info
-    if (line.includes("Planning Time:")) {
-      planningTime = line.split(":")[1]?.trim() || "";
-    }
-    if (line.includes("Execution Time:")) {
-      executionTime = line.split(":")[1]?.trim() || "";
-    }
-
-    // Skip timing lines and empty lines
-    if (!line.trim() || line.includes("Planning Time") || line.includes("Execution Time")) {
-      continue;
-    }
-
-    // Parse operation lines - keep exact spacing for cascading effect
-    const indentMatch = line.match(/^(\s*)/);
-    const level = indentMatch ? indentMatch[1].length : 0; // Keep exact spacing
-
-    // Extract cost information
-    const costMatch = line.match(/cost=([\d.]+)\.\.([\d.]+)\s+rows=(\d+)/);
-    const actualMatch = line.match(/actual time=([\d.]+)\.\.([\d.]+)\s+rows=(\d+)/);
-    const nodeNameMatch = line.match(/^\s*(?:->)?\s*(.+?)\s*(?:\(|$)/);
-
-    if (nodeNameMatch) {
-      const actualTimeValue = actualMatch ? actualMatch[2] : null;
-      const actualTimeMs = actualTimeValue ? parseFloat(actualTimeValue) : NaN;
-
-      nodes.push({
-        name: nodeNameMatch[1].trim(),
-        level,
-        cost: costMatch ? `${costMatch[1]} - ${costMatch[2]}` : "N/A",
-        rows: costMatch ? costMatch[3] : "N/A",
-        actualRows: actualMatch ? actualMatch[3] : "N/A",
-        time: actualMatch ? `${actualMatch[1]} - ${actualMatch[2]}` : "N/A",
-        actualTime: actualTimeMs,
-        details: {
-          rawLine: line.trim(),
-        },
-      });
-    }
-  }
-
-  return {
-    nodes,
-    totals: {
-      planningTime,
-      executionTime,
-    },
-  };
-}
+type ExplainNode = PostgresExplainNode;
 
 /**
  * Get performance tier color based on execution time
@@ -259,7 +192,7 @@ interface ExplainOutputProps {
 }
 
 export function ExplainOutput({ output, viewMode }: ExplainOutputProps) {
-  const { nodes, totals } = parseExplainOutput(output);
+  const { nodes, totals } = parsePostgresExplain(output);
 
   const executionTimeMs = parseFloat(totals.executionTime) || 0;
   const maxTime = Math.max(...nodes.map((n) => n.actualTime || 0));
