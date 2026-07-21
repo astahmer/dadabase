@@ -37,7 +37,7 @@ export const createTabState = (
     having: options?.having,
     fkValue: options?.fkValue,
     joins: options?.joins,
-    sqlEditorMode: options?.sqlEditorMode ?? ("preview" as const),
+    sqlEditorMode: options?.sqlEditorMode ?? ("editor" as const),
     customSql: options?.customSql,
     customSqlId: options?.customSqlId,
     editorDetached: options?.editorDetached,

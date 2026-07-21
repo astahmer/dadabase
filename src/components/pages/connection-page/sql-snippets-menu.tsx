@@ -10,7 +10,6 @@ import {
   MenuItemText,
   MenuTrigger,
 } from "#src/components/ui/menu.tsx";
-import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { ensureSqlSnippetsSeeded, type SqlSnippet } from "#src/lib/sql-snippets.ts";
 
 interface SqlSnippetsMenuProps {
@@ -33,21 +32,21 @@ export function SqlSnippetsMenu({ onInsertSnippet }: SqlSnippetsMenuProps) {
         if (details.open) setSnippets(ensureSqlSnippetsSeeded());
       }}
     >
-      <Tooltip content="SQL snippets">
-        <MenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2"
-            data-testid="sql-snippets-menu"
-            aria-label="SQL snippets"
-          >
-            <BookMarked className="h-4 w-4" />
-          </Button>
-        </MenuTrigger>
-      </Tooltip>
+      {/* Tooltip must not wrap MenuTrigger — nested asChild breaks menu positioning (top-left). */}
+      <MenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2"
+          data-testid="sql-snippets-menu"
+          aria-label="SQL snippets"
+          title="SQL snippets"
+        >
+          <BookMarked className="h-4 w-4" />
+        </Button>
+      </MenuTrigger>
       <Portal>
-        <MenuContent className="min-w-56">
+        <MenuContent className="min-w-56" data-testid="sql-snippets-menu-content">
           {snippets.length === 0 ? (
             <MenuItem value="empty" disabled>
               <MenuItemText>No snippets</MenuItemText>

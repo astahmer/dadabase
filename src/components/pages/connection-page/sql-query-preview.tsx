@@ -1,5 +1,4 @@
 import { Portal } from "@ark-ui/react";
-import { Tabs } from "@ark-ui/react/tabs";
 import {
   Check,
   ChevronDown,
@@ -21,7 +20,6 @@ import type { TableWithColumnsMetadata } from "#src/server/introspection/introsp
 
 import { Button } from "#src/components/ui/button.tsx";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "#src/components/ui/hovercard.tsx";
-import { HStack } from "#src/components/ui/layout.tsx";
 import {
   Menu,
   MenuContent,
@@ -51,9 +49,11 @@ interface SqlQueryPreviewProps {
   isLoading?: boolean;
   /** Any error that occurred while generating the SQL */
   error?: Error | null;
-  /** Current editor mode: "preview" or "editor" */
+  /**
+   * @deprecated Unified editor — preview/editor tabs removed. Kept for URL back-compat.
+   */
   editorMode?: "preview" | "editor";
-  /** Callback when editor mode changes */
+  /** @deprecated No-op; editor is always active when expanded. */
   onEditorModeChange?: (mode: "preview" | "editor") => void;
   /** Callback when editor content changes */
   onEditorChange?: (value: string) => void;
@@ -65,7 +65,6 @@ interface SqlQueryPreviewProps {
   onCancel?: () => void;
   /** Callback to explain the query */
   onExplain?: () => void;
-  //
   /** Whether to disable the explain button */
   disableExplain?: boolean;
   /** Callback to format the SQL */
@@ -96,25 +95,19 @@ interface SqlQueryPreviewProps {
   onEditorDetachedChange?: (detached: boolean) => void;
   /** Custom CSS class */
   className?: string;
-  /** Warning message to display next to the tabs */
+  /** Warning message to display next to the header */
   warning?: ReactNode;
 }
 
 /**
- * Component that displays a generated SQL query with both preview and editor modes
- * Preview mode: read-only formatted SQL display
- * Editor mode: Monaco SQL editor for manual editing
- *
- * - Preview is the default
- * - Editor mode is opt-in via tabs
- * - Custom mode: when user edits SQL, UI controls are disabled
- * - Both modes preserve the collapsed/expanded state
+ * Unified SQL editor for the connection page.
+ * Always editable Monaco when expanded — no separate preview/editor modes.
+ * Detach keeps the draft from syncing with generated table SQL.
  */
 export function SqlQueryPreview({
   sql,
   isLoading = false,
   error = null,
-  editorMode = "preview",
   onEditorModeChange,
   onEditorChange,
   customSql,
@@ -140,11 +133,10 @@ export function SqlQueryPreview({
 }: SqlQueryPreviewProps) {
   const [copied, setCopied] = useState(false);
   const editorValueRef = useRef<string>(sql);
-  // console.log({ sql, customSql });
 
   const handleCopy = async () => {
     try {
-      const textToCopy = editorMode === "editor" ? editorValueRef.current : sql;
+      const textToCopy = editorValueRef.current || customSql || sql;
       await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -202,10 +194,10 @@ export function SqlQueryPreview({
         isFullscreen && "bg-background fixed inset-0 z-50 rounded-none border-0",
         className,
       )}
+      data-testid="sql-query-editor"
     >
-      {/* Header with toggle, tabs, warning, and actions */}
+      {/* Header with toggle and actions */}
       <div className="border-b border-gray-200 px-4">
-        {/* Top row: toggle + tabs + actions + copy */}
         <div className="my-1 flex items-center justify-between gap-4">
           <div className="flex flex-1 items-center gap-4">
             <Portal
@@ -224,6 +216,7 @@ export function SqlQueryPreview({
                     variant={customSql ? "default" : "ghost"}
                     onClick={() => onToggleCollapsed?.(!isCollapsed)}
                     className="flex items-center gap-2 self-center text-xs"
+                    data-testid="sql-query-toggle"
                   >
                     {isCollapsed ? (
                       <ChevronRight className="h-4 w-4" />
@@ -243,36 +236,7 @@ export function SqlQueryPreview({
               </HoverCard>
             </Portal>
 
-            {/* Editor mode tabs */}
-            <Tabs.Root
-              value={editorMode || "preview"}
-              onValueChange={(details) => {
-                onEditorModeChange?.(details.value as "preview" | "editor");
-              }}
-            >
-              <Tabs.List className="flex gap-1">
-                <Tabs.Trigger
-                  value="preview"
-                  className={cn(
-                    "px-3 py-1 text-xs font-medium transition-colors hover:bg-gray-100 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:bg-white data-[state=active]:text-gray-900",
-                    editorMode !== "preview" && "text-gray-600 hover:text-gray-900",
-                  )}
-                >
-                  Preview
-                </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="editor"
-                  className={cn(
-                    "px-3 py-1 text-xs font-medium transition-colors hover:bg-gray-100 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 data-[state=active]:bg-white data-[state=active]:text-gray-900",
-                    editorMode !== "editor" && "text-gray-600 hover:text-gray-900",
-                  )}
-                >
-                  Editor
-                </Tabs.Trigger>
-
-                {warning}
-              </Tabs.List>
-            </Tabs.Root>
+            {warning}
           </div>
 
           <div className="flex items-center gap-2">
@@ -306,8 +270,8 @@ export function SqlQueryPreview({
               </Tooltip>
             )}
             <SqlSnippetsMenu onInsertSnippet={handleInsertSnippet} />
-            {/* Action buttons — editor mode, or while running so Cancel stays reachable */}
-            {((editorMode === "editor" && !isCollapsed) || isLoading) && (
+            {/* Action buttons — when expanded, or while running so Cancel stays reachable */}
+            {(!isCollapsed || isLoading) && (
               <>
                 {isLoading ? (
                   <Tooltip content="Cancel query">
@@ -328,6 +292,7 @@ export function SqlQueryPreview({
                       size="sm"
                       onClick={() => onRun?.(editorValueRef.current ?? "")}
                       className="h-8 px-2"
+                      data-testid="sql-run-button"
                     >
                       <Play className="h-4 w-4" />
                     </Button>
@@ -347,6 +312,15 @@ export function SqlQueryPreview({
                 <Tooltip content="Format SQL">
                   <Button variant="ghost" size="sm" onClick={onFormat} className="h-8 px-2">
                     <Wand2 className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Copy SQL to clipboard">
+                  <Button variant="ghost" size="sm" onClick={handleCopy} className="h-8 px-2">
+                    {copied ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
                   </Button>
                 </Tooltip>
                 {onSaveFavorite && (
@@ -418,45 +392,17 @@ export function SqlQueryPreview({
           </div>
         </div>
       </div>
-      {/* Content - collapsed by default */}
       {!isCollapsed && (
-        <>
-          {editorMode === "preview" ? (
-            <HStack className="group relative overflow-x-auto bg-gray-50 px-4 py-3">
-              <Tooltip content="Copy SQL to clipboard" portalled>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCopy}
-                  className="absolute top-2 right-4 h-8 shrink-0 px-2 opacity-0 group-hover:opacity-100"
-                >
-                  {copied ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </Tooltip>
-              <pre
-                className="font-mono text-sm wrap-break-word whitespace-pre-wrap text-gray-800"
-                onDoubleClick={() => onEditorModeChange?.("editor")}
-              >
-                {sql}
-              </pre>
-            </HStack>
-          ) : (
-            <div className="h-full border-t border-gray-200 bg-gray-50">
-              <SqlMonacoEditor
-                sql={customSql || sql}
-                onChange={handleEditorChange}
-                onSubmit={onRun}
-                className="h-full w-full"
-                tables={tables}
-                columns={columns}
-              />
-            </div>
-          )}
-        </>
+        <div className="h-full border-t border-gray-200 bg-gray-50" data-testid="sql-monaco-panel">
+          <SqlMonacoEditor
+            sql={customSql || sql}
+            onChange={handleEditorChange}
+            onSubmit={onRun}
+            className="h-full w-full"
+            tables={tables}
+            columns={columns}
+          />
+        </div>
       )}
     </div>
   );
