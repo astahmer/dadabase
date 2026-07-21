@@ -7,7 +7,6 @@ import { Context, Deferred, Duration, Effect, Layer, Redacted, Ref, Schedule } f
 
 import { parseSshTunnelFromUrl, stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
-import { openSshLocalForward } from "#src/server/ssh-tunnel.ts";
 
 import type { DatabaseDialect } from "../dialect.ts";
 
@@ -64,16 +63,29 @@ function buildDriverLayer(
  * When SSH config is present on the URL, open a local forward and rewrite the
  * driver URL to `127.0.0.1:<ephemeralPort>`. Returns the (possibly rewritten)
  * driver URL and an optional close callback.
+ *
+ * SSH tunnel is dynamically imported only when `dadabase_ssh` is present so the
+ * default pool/server-fn graph never pulls native `ssh2`/`cpu-features`.
  */
 export async function resolveDriverUrlWithOptionalSsh(input: {
   url: string;
   dialect: DatabaseDialect;
-  openTunnel?: typeof openSshLocalForward;
+  openTunnel?: (args: {
+    config: NonNullable<ReturnType<typeof parseSshTunnelFromUrl>>;
+    destinationHost: string;
+    destinationPort: number;
+  }) => Promise<{ localPort: number; close: () => void }>;
 }): Promise<{ driverUrl: string; closeTunnel?: () => void }> {
-  const openTunnel = input.openTunnel ?? openSshLocalForward;
   let driverUrl = stripDadabaseMarkerParams(input.url);
   const ssh = parseSshTunnelFromUrl(input.url);
   if (!ssh) return { driverUrl };
+
+  const openTunnel =
+    input.openTunnel ??
+    (async (args) => {
+      const { openSshLocalForward } = await import("#src/server/ssh-tunnel.ts");
+      return openSshLocalForward(args);
+    });
 
   const dest = new URL(driverUrl);
   const destinationHost = dest.hostname;

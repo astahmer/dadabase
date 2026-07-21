@@ -67,4 +67,12 @@ describe("resolveDriverUrlWithOptionalSsh", () => {
       }),
     );
   });
+
+  it("does not statically import ssh-tunnel (keeps ssh2 out of Vite graph)", async () => {
+    const source = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("./pool-cache.ts", import.meta.url), "utf8"),
+    );
+    expect(source).not.toMatch(/from ["']#src\/server\/ssh-tunnel/);
+    expect(source).toMatch(/await import\(["']#src\/server\/ssh-tunnel/);
+  });
 });

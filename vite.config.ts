@@ -24,16 +24,10 @@ const config = defineConfig((env) => ({
   resolve: {
     alias: {
       "@dadabase/effect-pglite": "/packages/effect-pglite/src/mod.ts",
-      // ssh2 optionally loads native cpu-features (.node). Bundlers resolve it
-      // statically despite try/catch — stub so dep optimize / SSR can proceed.
+      // ssh2 optionally requires native cpu-features (.node). Rolldown resolves it
+      // statically despite try/catch — stub so client dep optimize can finish.
       "cpu-features": cpuFeaturesStub,
     },
-  },
-  optimizeDeps: {
-    exclude: ["ssh2", "cpu-features"],
-  },
-  ssr: {
-    external: ["ssh2"],
   },
   plugins: [
     // devtools({
