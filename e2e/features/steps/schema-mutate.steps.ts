@@ -87,11 +87,13 @@ When(
     // settling, index list loading), which detaches an already-open menu.
     // Retry opening the menu until the edit item can be clicked reliably.
     const actionsButton = page.getByTestId(`schema-column-actions-${columnName}`);
-    const editItem = page.getByTestId(`schema-column-edit-${columnName}`);
     await expect(actionsButton).toBeVisible({ timeout: 15_000 });
     let opened = false;
     for (let attempt = 0; attempt < 10 && !opened; attempt++) {
       await actionsButton.click();
+      const editItem = page
+        .getByTestId(`schema-column-edit-${columnName}`)
+        .or(page.getByRole("menuitem", { name: "Edit column" }));
       try {
         await editItem.click({ timeout: 3_000 });
         opened = true;

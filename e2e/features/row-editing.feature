@@ -83,6 +83,14 @@ Feature: Row create and edit UX
     And I delete the selected rows from the bulk action bar
     Then I should not see cell value "Charlie" in column "name"
 
+  Scenario: Bulk delete shows cascade advisory for FK parents
+    Given I open the "users" table
+    When I select the row with "Bob" in column "name"
+    And I open the cascade delete confirm dialog
+    Then I should see a cascade delete advisory for "posts"
+    When I cancel the cascade delete confirm dialog
+    Then I should see cell value "Bob" in column "name"
+
   Scenario: Tables without primary key can still edit via system row id
     Given I open the "no_pk_items" table
     When I open the edit sheet for the row with "alpha" in column "label"

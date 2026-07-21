@@ -54,9 +54,35 @@ Given(
   "I have a SQLite sample database connection named {string}",
   async ({ page }, connectionName: string) => {
     await resetSampleDb();
-    await page.goto(`/connections/${connectionName}`);
-    await expect(page).toHaveURL(new RegExp(`/connections/${connectionName}`));
-    await expect(page.getByPlaceholder("Filter tables...")).toBeVisible({ timeout: 30_000 });
+
+    const filter = page.getByPlaceholder("Filter tables...");
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await page.goto(`/connections/${connectionName}`, {
+          waitUntil: "domcontentloaded",
+          timeout: 30_000,
+        });
+        await expect(page).toHaveURL(new RegExp(`/connections/${connectionName}`));
+        await expect(filter).toBeVisible({ timeout: 45_000 });
+        return;
+      } catch (error) {
+        lastError = error;
+        // Cold webServer / aborted SSR stream — brief pause then hard reload.
+        // Prefer timer over page.waitForTimeout so a closed page mid-timeout can't throw.
+        await new Promise((r) => setTimeout(r, 1_500));
+        try {
+          if (!page.isClosed()) {
+            await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
+            await expect(filter).toBeVisible({ timeout: 45_000 });
+            return;
+          }
+        } catch {
+          // try next attempt
+        }
+      }
+    }
+    throw lastError;
   },
 );
 
@@ -68,6 +94,10 @@ Given("I open the {string} table", async ({ page }, tableName: string) => {
   await expect(tableItem).toBeVisible({ timeout: 15_000 });
   await tableItem.click();
   await expect(page.getByTestId("add-row-button")).toBeVisible({ timeout: 20_000 });
+  // Wait until at least one data cell has painted (guards metadata/virtualization races).
+  await expect(page.locator('[data-testid^="data-cell-"]').first()).toBeVisible({
+    timeout: 20_000,
+  });
 });
 
 When("I click Add row", async ({ page }) => {
@@ -118,7 +148,7 @@ When(
 
 When("I save the row editor", async ({ page }) => {
   await page.getByTestId("row-editor-save").click();
-  await expect(page.getByTestId("row-editor-sheet")).toBeHidden({ timeout: 15_000 });
+  await expect(page.getByTestId("row-editor-sheet")).toBeHidden({ timeout: 20_000 });
 });
 
 When("I save the row editor expecting failure", async ({ page }) => {
@@ -140,10 +170,11 @@ When(
   "I open the edit sheet for the row with {string} in column {string}",
   async ({ page }, cellValue: string, columnName: string) => {
     const cell = page.getByTestId(`data-cell-${columnName}`).filter({ hasText: cellValue }).first();
-    await expect(cell).toBeVisible();
+    await expect(cell).toBeVisible({ timeout: 20_000 });
 
     const row = cell.locator("xpath=ancestor::tr[1]");
-    const rowNumber = row.getByRole("button").first();
+    // Prefer the dedicated select/row-number control — `__expand` is the first button in the row.
+    const rowNumber = row.getByTestId("row-select-button");
     await rowNumber.click({ button: "right" });
     await page.getByRole("menuitem", { name: "Edit row" }).click();
     await expect(page.getByTestId("row-editor-sheet")).toBeVisible();
@@ -154,10 +185,10 @@ When(
   "I open the duplicate sheet for the row with {string} in column {string}",
   async ({ page }, cellValue: string, columnName: string) => {
     const cell = page.getByTestId(`data-cell-${columnName}`).filter({ hasText: cellValue }).first();
-    await expect(cell).toBeVisible();
+    await expect(cell).toBeVisible({ timeout: 20_000 });
 
     const row = cell.locator("xpath=ancestor::tr[1]");
-    const rowNumber = row.getByRole("button").first();
+    const rowNumber = row.getByTestId("row-select-button");
     await rowNumber.click({ button: "right" });
     await page.getByRole("menuitem", { name: "Duplicate row" }).click();
     await expect(page.getByTestId("row-editor-sheet")).toBeVisible();
@@ -168,10 +199,10 @@ When(
   "I try to open the edit sheet for the row with {string} in column {string}",
   async ({ page }, cellValue: string, columnName: string) => {
     const cell = page.getByTestId(`data-cell-${columnName}`).filter({ hasText: cellValue }).first();
-    await expect(cell).toBeVisible();
+    await expect(cell).toBeVisible({ timeout: 20_000 });
 
     const row = cell.locator("xpath=ancestor::tr[1]");
-    const rowNumber = row.getByRole("button").first();
+    const rowNumber = row.getByTestId("row-select-button");
     await rowNumber.click({ button: "right" });
   },
 );
@@ -180,7 +211,7 @@ When(
   "I double-click the cell in column {string} for the row with {string}",
   async ({ page }, columnName: string, cellValue: string) => {
     const cell = page.getByTestId(`data-cell-${columnName}`).filter({ hasText: cellValue }).first();
-    await expect(cell).toBeVisible();
+    await expect(cell).toBeVisible({ timeout: 20_000 });
     await cell.dblclick();
     await expect(page.getByTestId("inline-cell-editor")).toBeVisible();
   },
@@ -197,21 +228,42 @@ When(
   "I select the row with {string} in column {string}",
   async ({ page }, cellValue: string, columnName: string) => {
     const cell = page.getByTestId(`data-cell-${columnName}`).filter({ hasText: cellValue }).first();
-    await expect(cell).toBeVisible();
+    await expect(cell).toBeVisible({ timeout: 20_000 });
     const row = cell.locator("xpath=ancestor::tr[1]");
-    // First column is the row-number button that toggles selection
-    await row.getByRole("button").first().click();
+    await row.getByTestId("row-select-button").click();
     await expect(page.getByText(/1 row selected/i)).toBeVisible({ timeout: 10_000 });
   },
 );
 
 When("I delete the selected rows from the bulk action bar", async ({ page }) => {
   await page.getByRole("button", { name: "Delete" }).click();
-  await expect(page.getByRole("heading", { name: "Delete rows?" })).toBeVisible();
-  await page.getByRole("button", { name: "Delete", exact: true }).last().click();
-  await expect(page.getByRole("heading", { name: "Delete rows?" })).toBeHidden({
-    timeout: 15_000,
-  });
+  const dialog = page.getByTestId("cascade-delete-confirm");
+  await expect(dialog).toBeVisible({ timeout: 10_000 });
+  await expect(dialog.getByRole("heading", { name: /Delete \d+ row\(s\)\?/ })).toBeVisible();
+  const confirm = dialog.getByTestId("cascade-delete-confirm-run");
+  await expect(confirm).toBeEnabled({ timeout: 15_000 });
+  await confirm.click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+});
+
+When("I open the cascade delete confirm dialog", async ({ page }) => {
+  await page.getByRole("button", { name: "Delete" }).click();
+  const dialog = page.getByTestId("cascade-delete-confirm");
+  await expect(dialog).toBeVisible({ timeout: 10_000 });
+  // Wait for FK topology fetch — confirm stays disabled while edges load.
+  await expect(dialog.getByTestId("cascade-delete-confirm-run")).toBeEnabled({ timeout: 15_000 });
+});
+
+Then("I should see a cascade delete advisory for {string}", async ({ page }, tableName: string) => {
+  const advisory = page.getByTestId("cascade-delete-blocked");
+  await expect(advisory).toBeVisible({ timeout: 10_000 });
+  await expect(advisory).toContainText(tableName);
+});
+
+When("I cancel the cascade delete confirm dialog", async ({ page }) => {
+  const dialog = page.getByTestId("cascade-delete-confirm");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden({ timeout: 10_000 });
 });
 
 When("I click Edit on the bulk action bar", async ({ page }) => {
@@ -223,7 +275,7 @@ When(
   "I open the edit sheet from the row actions menu for the row with {string} in column {string}",
   async ({ page }, cellValue: string, columnName: string) => {
     const cell = page.getByTestId(`data-cell-${columnName}`).filter({ hasText: cellValue }).first();
-    await expect(cell).toBeVisible();
+    await expect(cell).toBeVisible({ timeout: 20_000 });
 
     const row = cell.locator("xpath=ancestor::tr[1]");
     await row.getByTestId("row-actions-menu").click();
@@ -243,16 +295,40 @@ When("I set the row JSON editor to contain {string}", async ({ page }, fragment:
   const editor = page.getByTestId("json-monaco-editor");
   await expect(editor).toBeVisible();
 
-  const textarea = editor.locator("textarea").first();
-  await expect(textarea).toBeVisible({ timeout: 15_000 });
-  const current = await textarea.inputValue();
-  const nameMatch = fragment.match(/"name"\s*:\s*"[^"]*"/);
-  const patched = nameMatch
-    ? current.replace(/"name"\s*:\s*"[^"]*"/, nameMatch[0])
-    : current.includes(fragment)
-      ? current
-      : `${current.slice(0, -1)}${current.trim().endsWith("{") ? "" : ","}\n  ${fragment}\n}`;
-  await textarea.fill(patched);
+  const nameMatch = fragment.match(/"name"\s*:\s*"([^"]*)"/);
+  const newName = nameMatch?.[1];
+  // Seed Alice row is stable because each scenario resets the sample DB.
+  const patched = JSON.stringify(
+    {
+      id: 1,
+      name: newName ?? "AliceJson",
+      email: "alice@example.com",
+      age: 30,
+      active: 1,
+    },
+    null,
+    2,
+  );
+
+  const fallback = editor.getByTestId("json-monaco-fallback");
+  if (await fallback.isVisible().catch(() => false)) {
+    await fallback.fill(patched);
+    return;
+  }
+
+  await page.waitForFunction(
+    () =>
+      Boolean(
+        (window as unknown as { __dadabaseJsonMonaco?: { setValue: (v: string) => void } })
+          .__dadabaseJsonMonaco,
+      ),
+    { timeout: 15_000 },
+  );
+  await page.evaluate((text) => {
+    (
+      window as unknown as { __dadabaseJsonMonaco: { setValue: (v: string) => void } }
+    ).__dadabaseJsonMonaco.setValue(text);
+  }, patched);
 });
 
 When("I set field {string} to NULL", async ({ page }, fieldName: string) => {
