@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
-import { countCascadeDependents } from "#src/server/introspection/fns/count-cascade-dependents.ts";
+import { countCascadeDependentsWalk } from "#src/server/introspection/fns/count-cascade-dependents.ts";
 
 const CellValue = Schema.Union(
   Schema.String,
@@ -17,11 +17,16 @@ export const countCascadeDependentsServerFn = createServerFn({ method: "POST" })
     Schema.Struct({
       url: Schema.String,
       schema: Schema.String,
+      rootTable: Schema.String,
+      rootRows: Schema.Array(Schema.Record({ key: Schema.String, value: CellValue })),
       edges: Schema.Array(
         Schema.Struct({
+          viaTable: Schema.String,
           childTable: Schema.String,
-          childColumn: Schema.String,
-          parentValues: Schema.Array(CellValue),
+          childColumns: Schema.Array(Schema.String),
+          parentColumns: Schema.Array(Schema.String),
+          seedChildren: Schema.Boolean,
+          seedColumns: Schema.optional(Schema.Array(Schema.String)),
         }),
       ),
     }).pipe(Schema.standardSchemaV1),
@@ -29,13 +34,11 @@ export const countCascadeDependentsServerFn = createServerFn({ method: "POST" })
   .handler(
     createRemoteIntrospectionHandler((input) =>
       Effect.gen(function* () {
-        return yield* countCascadeDependents({
+        return yield* countCascadeDependentsWalk({
           schema: input.schema,
-          edges: input.edges.map((e) => ({
-            childTable: e.childTable,
-            childColumn: e.childColumn,
-            parentValues: e.parentValues as unknown[],
-          })),
+          rootTable: input.rootTable,
+          rootRows: input.rootRows as Array<Record<string, unknown>>,
+          edges: input.edges,
         });
       }),
     ),

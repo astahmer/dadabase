@@ -2030,21 +2030,30 @@ const BulkActions = (
       ),
     queryFn: async () => {
       if (!cascadePreview || !search.table || !search.schema) return {};
-      const direct = cascadePreview.affected.filter(
-        (a) =>
-          a.viaTable === search.table && a.edge.fromCols.length === 1 && a.edge.toCols.length === 1,
-      );
-      if (direct.length === 0) return {};
+      const affected = [...cascadePreview.affected].sort((a, b) => a.depth - b.depth);
+      if (affected.length === 0) return {};
+
+      // Columns needed when seeding a cascaded table for deeper hops.
+      const seedColsByTable = new Map<string, Set<string>>();
+      for (const item of affected) {
+        const set = seedColsByTable.get(item.viaTable) ?? new Set<string>();
+        for (const col of item.edge.toCols) set.add(col);
+        seedColsByTable.set(item.viaTable, set);
+      }
+
       return countCascadeDependentsServerFn({
         data: {
           url: props.activeConnectionUrl,
           schema: search.schema,
-          edges: direct.map((a) => ({
+          rootTable: search.table,
+          rootRows: selectedRows.map((r) => r.original as Record<string, unknown>),
+          edges: affected.map((a) => ({
+            viaTable: a.viaTable,
             childTable: a.table,
-            childColumn: a.edge.fromCols[0]!,
-            parentValues: selectedRows.map(
-              (r) => (r.original as Record<string, unknown>)[a.edge.toCols[0]!],
-            ),
+            childColumns: [...a.edge.fromCols],
+            parentColumns: [...a.edge.toCols],
+            seedChildren: a.action === "cascade-delete",
+            seedColumns: Array.from(seedColsByTable.get(a.table) ?? []),
           })),
         },
       });
