@@ -18,6 +18,7 @@ async function resetSampleDb() {
     const client = createClient({ url: `file:${sampleDbPath}` });
     try {
       await client.execute("DELETE FROM posts");
+      await client.execute("DELETE FROM favorites");
       await client.execute("DELETE FROM memberships");
       await client.execute("DELETE FROM notes");
       await client.execute("DELETE FROM users");
@@ -33,6 +34,10 @@ async function resetSampleDb() {
     INSERT INTO posts (id, user_id, title, body) VALUES
       (1, 1, 'Hello', 'First post'),
       (2, 2, 'World', 'Second post')
+  `);
+      await client.execute(`
+    INSERT INTO favorites (id, user_id, label) VALUES
+      (1, 3, 'star')
   `);
       await client.execute(`
     INSERT INTO memberships (org_id, user_id, role) VALUES
@@ -279,8 +284,62 @@ Then("I should see a cascade delete advisory for {string}", async ({ page }, tab
   await expect(advisory).toContainText(tableName);
 });
 
+Then(
+  "I should see a cascade delete advisory for {string} with dependent count {int}",
+  async ({ page }, tableName: string, count: number) => {
+    const advisory = page.getByTestId("cascade-delete-blocked");
+    await expect(advisory).toBeVisible({ timeout: 10_000 });
+    await expect(advisory).toContainText(`${tableName}: ${count}`);
+  },
+);
+
+Then(
+  "I should see cascade affected table {string} with {int} row(s)",
+  async ({ page }, tableName: string, count: number) => {
+    const affected = page.getByTestId("cascade-delete-affected");
+    await expect(affected).toBeVisible({ timeout: 10_000 });
+    await expect(affected).toContainText(tableName);
+    await expect(affected).toContainText(`${count} row(s)`);
+  },
+);
+
 When("I cancel the cascade delete confirm dialog", async ({ page }) => {
   const dialog = page.getByTestId("cascade-delete-confirm");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden({ timeout: 10_000 });
+});
+
+When("I paste TSV into the rows table:", async ({ page }, docString: string) => {
+  const panel = page.getByTestId("rows-table-panel");
+  await expect(panel).toBeVisible({ timeout: 15_000 });
+  await panel.click();
+  await panel.evaluate((el, text) => {
+    const dt = new DataTransfer();
+    dt.setData("text/plain", text);
+    el.dispatchEvent(
+      new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }),
+    );
+  }, docString);
+});
+
+Then(
+  "I should see the paste rows confirm dialog for {int} row(s)",
+  async ({ page }, count: number) => {
+    const dialog = page.getByTestId("paste-rows-confirm");
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+    await expect(dialog.getByRole("heading", { name: `Paste ${count} row(s)?` })).toBeVisible();
+  },
+);
+
+When("I confirm the paste rows dialog", async ({ page }) => {
+  const dialog = page.getByTestId("paste-rows-confirm");
+  await expect(dialog).toBeVisible();
+  await dialog.getByTestId("paste-rows-confirm-run").click();
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+});
+
+When("I cancel the paste rows dialog", async ({ page }) => {
+  const dialog = page.getByTestId("paste-rows-confirm");
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden({ timeout: 10_000 });
 });

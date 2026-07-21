@@ -1725,6 +1725,7 @@ const RowsTableContent = (
           <Splitter.Panel
             id={panels.rowsTable}
             className="relative flex flex-1 flex-col overflow-auto"
+            data-testid="rows-table-panel"
             onPaste={(event) => {
               const target = event.target as HTMLElement | null;
               if (target?.closest("input, textarea, [contenteditable=true]")) return;

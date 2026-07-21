@@ -90,6 +90,7 @@ async function prepareSampleDb() {
   const sampleClient = createClient({ url: `file:${sampleDbPath}` });
 
   await sampleClient.execute("DROP TABLE IF EXISTS posts");
+  await sampleClient.execute("DROP TABLE IF EXISTS favorites");
   await sampleClient.execute("DROP TABLE IF EXISTS memberships");
   await sampleClient.execute("DROP TABLE IF EXISTS notes");
   await sampleClient.execute("DROP TABLE IF EXISTS users");
@@ -123,6 +124,18 @@ async function prepareSampleDb() {
     INSERT INTO posts (user_id, title, body) VALUES
       (1, 'Hello', 'First post'),
       (2, 'World', 'Second post')
+  `);
+
+  await sampleClient.execute(`
+    CREATE TABLE favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      label TEXT NOT NULL
+    )
+  `);
+  await sampleClient.execute(`
+    INSERT INTO favorites (user_id, label) VALUES
+      (3, 'star')
   `);
 
   await sampleClient.execute(`

@@ -87,9 +87,39 @@ Feature: Row create and edit UX
     Given I open the "users" table
     When I select the row with "Bob" in column "name"
     And I open the cascade delete confirm dialog
-    Then I should see a cascade delete advisory for "posts"
+    Then I should see a cascade delete advisory for "posts" with dependent count 1
     When I cancel the cascade delete confirm dialog
     Then I should see cell value "Bob" in column "name"
+
+  Scenario: Cascade preview shows dependent row counts for CASCADE children
+    Given I open the "users" table
+    When I select the row with "Charlie" in column "name"
+    And I open the cascade delete confirm dialog
+    Then I should see cascade affected table "favorites" with 1 row(s)
+    When I cancel the cascade delete confirm dialog
+    Then I should see cell value "Charlie" in column "name"
+
+  Scenario: Paste TSV rows via confirm dialog
+    Given I open the "users" table
+    When I paste TSV into the rows table:
+      """
+      name	email	age	active
+      Dana	dana@example.com	40	1
+      """
+    Then I should see the paste rows confirm dialog for 1 row(s)
+    When I confirm the paste rows dialog
+    Then I should see cell value "Dana" in column "name"
+
+  Scenario: Cancel paste leaves table unchanged
+    Given I open the "users" table
+    When I paste TSV into the rows table:
+      """
+      name	email	age	active
+      Eve	eve@example.com	22	1
+      """
+    Then I should see the paste rows confirm dialog for 1 row(s)
+    When I cancel the paste rows dialog
+    Then I should not see cell value "Eve" in column "name"
 
   Scenario: Tables without primary key can still edit via system row id
     Given I open the "no_pk_items" table
