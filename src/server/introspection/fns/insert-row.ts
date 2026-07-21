@@ -52,6 +52,12 @@ export const insertRow = (
             ? sql`INSERT INTO ${sql(input.schema)}.${sql(input.table)} ${sql.insert(input.values)}`
             : sql`INSERT INTO ${sql(input.table)} ${sql.insert(input.values)}`,
         ),
+      mysql: () =>
+        Effect.succeed(
+          input.schema
+            ? sql`INSERT INTO ${sql(input.schema)}.${sql(input.table)} ${sql.insert(input.values)}`
+            : sql`INSERT INTO ${sql(input.table)} ${sql.insert(input.values)}`,
+        ),
       sqlite: () =>
         Effect.succeed(sql`INSERT INTO ${sql(input.table)} ${sql.insert(input.values)}`),
       orElse: () => Effect.die(new Error("Unsupported database dialect")),

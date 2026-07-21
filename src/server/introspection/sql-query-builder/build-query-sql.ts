@@ -57,14 +57,14 @@ export const buildWhereClauseWithJoins = (
 ): string => {
   const mainFilter =
     filters && filters.conditions.length > 0
-      ? dialect === DatabaseDialect.Postgres
+      ? dialect === DatabaseDialect.Postgres || dialect === DatabaseDialect.MySQL
         ? buildPgWhereFragment(filters.conditions, filters.logicalOperator)
         : buildSqliteWhereFragment(filters.conditions, filters.logicalOperator)
       : "";
 
   const joinFilter =
     joins && joins.length > 0
-      ? dialect === DatabaseDialect.Postgres
+      ? dialect === DatabaseDialect.Postgres || dialect === DatabaseDialect.MySQL
         ? buildPgJoinFilters(joins, joinAliases)
         : buildSqliteJoinFilters(joins, joinAliases)
       : "";
@@ -131,8 +131,10 @@ export const buildQuerySql = (
 
   // Build the query
   const fromClause =
-    dialect === DatabaseDialect.Postgres
-      ? `FROM ${escapeIdentifier(schema)}.${escapeIdentifier(table)}`
+    dialect === DatabaseDialect.Postgres || dialect === DatabaseDialect.MySQL
+      ? schema
+        ? `FROM ${escapeIdentifier(schema)}.${escapeIdentifier(table)}`
+        : `FROM ${escapeIdentifier(table)}`
       : `FROM ${escapeIdentifier(table)}`;
 
   const sqlParts = [

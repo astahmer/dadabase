@@ -181,6 +181,7 @@ export const buildSqliteJoinFilters = (
 const getTableRef = (schema: string, table: string, dialect: DatabaseDialect): string => {
   return onDialectOrElse(dialect, {
     postgres: () => (schema ? `${schema}."${table}"` : `"${table}"`),
+    mysql: () => (schema ? `\`${schema}\`.\`${table}\`` : `\`${table}\``),
     sqlite: () => `"${table}"`,
     libsql: () => `"${table}"`,
     orElse: () => {
@@ -224,6 +225,13 @@ const buildFilterExpression = (
   return (
     onDialectOrElse(dialect, {
       postgres: () =>
+        buildPgWhereFragment(
+          conditions,
+          logicalOperator,
+          alias ? undefined : schema,
+          alias ? undefined : table,
+        ),
+      mysql: () =>
         buildPgWhereFragment(
           conditions,
           logicalOperator,
@@ -504,6 +512,7 @@ export const buildJoinSqlPreview = (
   const aliases = generateJoinAliases(joins, table, schema);
   const tableRef = onDialectOrElse(dialect, {
     postgres: () => `${schema}."${table}"`,
+    mysql: () => (schema ? `\`${schema}\`.\`${table}\`` : `\`${table}\``),
     sqlite: () => `"${table}"`,
     libsql: () => `"${table}"`,
     orElse: () => {
@@ -521,6 +530,12 @@ export const buildJoinSqlPreview = (
       postgres: () => {
         const baseRef = `${join.schema}."${join.table}"`;
         return alias ? `${baseRef} AS "${alias}"` : baseRef;
+      },
+      mysql: () => {
+        const baseRef = join.schema
+          ? `\`${join.schema}\`.\`${join.table}\``
+          : `\`${join.table}\``;
+        return alias ? `${baseRef} AS \`${alias}\`` : baseRef;
       },
       sqlite: () => {
         const baseRef = `"${join.table}"`;

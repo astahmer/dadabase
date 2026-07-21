@@ -3,6 +3,10 @@ import type { TableRelationship } from "#src/components/pages/connection-page/re
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import {
+  ALL_TABLES_INTROSPECTION_CONCURRENCY,
+  pgSqliteHandlers,
+} from "#src/server/introspection/pg-sqlite-handlers.ts";
 import { SqlClient } from "@effect/sql";
 import { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
@@ -64,6 +68,21 @@ export const getAvailableDatabases = () =>
           }),
         );
       },
+      mysql: () => {
+        const query = sql<{ name: string }>`
+					SELECT SCHEMA_NAME as name FROM information_schema.SCHEMATA ORDER BY SCHEMA_NAME
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
       sqlite: () => {
         const query = sql<{ name: string }>`
 					PRAGMA database_list
@@ -113,6 +132,23 @@ export const getAvailableSchemas = () =>
           }),
         );
       },
+      mysql: () => {
+        const query = sql<{ schema_name: string }>`
+					SELECT SCHEMA_NAME as schema_name FROM information_schema.SCHEMATA
+					WHERE SCHEMA_NAME NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+					ORDER BY SCHEMA_NAME
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
       sqlite: () => {
         const query = sql<{ schema_name: string }>`
 					SELECT 'main' as schema_name
@@ -150,6 +186,33 @@ export const getAvailableTables = (input?: { schema?: string }) =>
         const query = sql`
 					SELECT table_name as name, table_schema as schema FROM information_schema.tables
 					WHERE table_schema = ${input?.schema || getDialectDefaultSchema(DatabaseDialect.Postgres)}
+					AND table_type = 'BASE TABLE'
+					ORDER BY table_name
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            schema: input?.schema,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      mysql: () => {
+        const schema = input?.schema;
+        const query = schema
+          ? sql`
+					SELECT table_name as name, table_schema as schema FROM information_schema.tables
+					WHERE table_schema = ${schema}
+					AND table_type = 'BASE TABLE'
+					ORDER BY table_name
+				`
+          : sql`
+					SELECT table_name as name, table_schema as schema FROM information_schema.tables
+					WHERE table_schema = DATABASE()
 					AND table_type = 'BASE TABLE'
 					ORDER BY table_name
 				`;
@@ -337,6 +400,142 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
             foreignKey: fkMap.get(col.name),
           }));
         }),
+      mysql: () =>
+        Effect.gen(function* () {
+          const schema = input.schema;
+          const fkQuery = schema
+            ? sql<{
+                columnName: string;
+                referencedSchema: string;
+                referencedTable: string;
+                referencedColumn: string;
+                constraintName: string;
+              }>`
+				SELECT
+					kcu.COLUMN_NAME AS columnName,
+					kcu.REFERENCED_TABLE_SCHEMA AS referencedSchema,
+					kcu.REFERENCED_TABLE_NAME AS referencedTable,
+					kcu.REFERENCED_COLUMN_NAME AS referencedColumn,
+					kcu.CONSTRAINT_NAME AS constraintName
+				FROM information_schema.KEY_COLUMN_USAGE kcu
+				WHERE kcu.TABLE_SCHEMA = ${schema}
+					AND kcu.TABLE_NAME = ${input.table}
+					AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+			`
+            : sql<{
+                columnName: string;
+                referencedSchema: string;
+                referencedTable: string;
+                referencedColumn: string;
+                constraintName: string;
+              }>`
+				SELECT
+					kcu.COLUMN_NAME AS columnName,
+					kcu.REFERENCED_TABLE_SCHEMA AS referencedSchema,
+					kcu.REFERENCED_TABLE_NAME AS referencedTable,
+					kcu.REFERENCED_COLUMN_NAME AS referencedColumn,
+					kcu.CONSTRAINT_NAME AS constraintName
+				FROM information_schema.KEY_COLUMN_USAGE kcu
+				WHERE kcu.TABLE_SCHEMA = DATABASE()
+					AND kcu.TABLE_NAME = ${input.table}
+					AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+			`;
+          const fkCompiled = fkQuery.compile();
+          const foreignKeys = yield* fkQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ColumnMetadata,
+              sql: fkCompiled[0],
+              params: fkCompiled[1],
+              schema: input.schema,
+              table: input.table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
+          const fkMap = new Map<
+            string,
+            {
+              referencedSchema: string;
+              referencedTable: string;
+              referencedColumn: string;
+              constraintName: string;
+            }
+          >();
+          for (const fk of foreignKeys) {
+            fkMap.set(fk.columnName, {
+              referencedSchema: fk.referencedSchema,
+              referencedTable: fk.referencedTable,
+              referencedColumn: fk.referencedColumn,
+              constraintName: fk.constraintName,
+            });
+          }
+
+          const columnsQuery = schema
+            ? sql<{
+                name: string;
+                dataType: string;
+                nullable: number | boolean;
+                primaryKey: number | boolean;
+                unique: number | boolean;
+                defaultValue: string | null;
+              }>`
+			SELECT
+				COLUMN_NAME as name,
+				COLUMN_TYPE as dataType,
+				IS_NULLABLE = 'YES' as nullable,
+				COLUMN_KEY = 'PRI' as primaryKey,
+				COLUMN_KEY = 'UNI' as unique,
+				COLUMN_DEFAULT as defaultValue
+			FROM information_schema.COLUMNS
+			WHERE TABLE_SCHEMA = ${schema}
+				AND TABLE_NAME = ${input.table}
+			ORDER BY ORDINAL_POSITION
+		`
+            : sql<{
+                name: string;
+                dataType: string;
+                nullable: number | boolean;
+                primaryKey: number | boolean;
+                unique: number | boolean;
+                defaultValue: string | null;
+              }>`
+			SELECT
+				COLUMN_NAME as name,
+				COLUMN_TYPE as dataType,
+				IS_NULLABLE = 'YES' as nullable,
+				COLUMN_KEY = 'PRI' as primaryKey,
+				COLUMN_KEY = 'UNI' as unique,
+				COLUMN_DEFAULT as defaultValue
+			FROM information_schema.COLUMNS
+			WHERE TABLE_SCHEMA = DATABASE()
+				AND TABLE_NAME = ${input.table}
+			ORDER BY ORDINAL_POSITION
+		`;
+          const columnsCompiled = columnsQuery.compile();
+          const columns = yield* columnsQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ColumnMetadata,
+              sql: columnsCompiled[0],
+              params: columnsCompiled[1],
+              schema: input.schema,
+              table: input.table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
+          return columns.map((col) => ({
+            name: col.name,
+            dataType: String(col.dataType),
+            nullable: Boolean(col.nullable),
+            primaryKey: Boolean(col.primaryKey),
+            unique: Boolean(col.unique),
+            defaultValue: col.defaultValue,
+            isEnum: false,
+            enumValues: null,
+            isForeignKey: fkMap.has(col.name),
+            foreignKey: fkMap.get(col.name),
+          }));
+        }),
       sqlite: () =>
         Effect.gen(function* () {
           // Get table schema from PRAGMA table_info
@@ -480,6 +679,63 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
           }),
         );
       },
+      mysql: () => {
+        const query = schema
+          ? sql<ForeignKeyInfo>`
+					SELECT
+						kcu.CONSTRAINT_NAME as constraint_name,
+						kcu.COLUMN_NAME as column_name,
+						kcu.REFERENCED_TABLE_SCHEMA as referenced_table_schema,
+						kcu.REFERENCED_TABLE_NAME as referenced_table_name,
+						kcu.REFERENCED_COLUMN_NAME as referenced_column_name,
+						COALESCE(rc.DELETE_RULE, 'NO ACTION') as delete_rule
+					FROM information_schema.KEY_COLUMN_USAGE kcu
+					JOIN information_schema.TABLE_CONSTRAINTS tc
+						ON kcu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+						AND kcu.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+						AND kcu.TABLE_SCHEMA = tc.TABLE_SCHEMA
+					LEFT JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+						ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+						AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
+					WHERE tc.CONSTRAINT_TYPE = 'FOREIGN KEY'
+					AND kcu.TABLE_SCHEMA = ${schema}
+					AND kcu.TABLE_NAME = ${table}
+					AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+				`
+          : sql<ForeignKeyInfo>`
+					SELECT
+						kcu.CONSTRAINT_NAME as constraint_name,
+						kcu.COLUMN_NAME as column_name,
+						kcu.REFERENCED_TABLE_SCHEMA as referenced_table_schema,
+						kcu.REFERENCED_TABLE_NAME as referenced_table_name,
+						kcu.REFERENCED_COLUMN_NAME as referenced_column_name,
+						COALESCE(rc.DELETE_RULE, 'NO ACTION') as delete_rule
+					FROM information_schema.KEY_COLUMN_USAGE kcu
+					JOIN information_schema.TABLE_CONSTRAINTS tc
+						ON kcu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+						AND kcu.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+						AND kcu.TABLE_SCHEMA = tc.TABLE_SCHEMA
+					LEFT JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+						ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+						AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
+					WHERE tc.CONSTRAINT_TYPE = 'FOREIGN KEY'
+					AND kcu.TABLE_SCHEMA = DATABASE()
+					AND kcu.TABLE_NAME = ${table}
+					AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.ForeignKeyLookup,
+            sql: compiled[0],
+            params: compiled[1],
+            schema,
+            table,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
       sqlite: () =>
         Effect.gen(function* () {
           const rowsQuery = sql<PragmaForeignKeyInfo>`
@@ -583,6 +839,43 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 					AND a.attnum = ANY(ix.indkey)
 				WHERE pi.schemaname = ${schema}
 				AND pi.tablename = ${table}
+			`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            schema,
+            table,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      mysql: () => {
+        const query = schema
+          ? sql<IndexInfo>`
+				SELECT
+					INDEX_NAME as index_name,
+					COLUMN_NAME as column_name,
+					NON_UNIQUE = 0 as is_unique,
+					INDEX_NAME = 'PRIMARY' as is_primary
+				FROM information_schema.STATISTICS
+				WHERE TABLE_SCHEMA = ${schema}
+				AND TABLE_NAME = ${table}
+				ORDER BY INDEX_NAME, SEQ_IN_INDEX
+			`
+          : sql<IndexInfo>`
+				SELECT
+					INDEX_NAME as index_name,
+					COLUMN_NAME as column_name,
+					NON_UNIQUE = 0 as is_unique,
+					INDEX_NAME = 'PRIMARY' as is_primary
+				FROM information_schema.STATISTICS
+				WHERE TABLE_SCHEMA = DATABASE()
+				AND TABLE_NAME = ${table}
+				ORDER BY INDEX_NAME, SEQ_IN_INDEX
 			`;
         const compiled = query.compile();
         return query.pipe(
@@ -709,7 +1002,7 @@ export const getAllTablesColumns = (input: { schema: string }) =>
               getTableForeignKeys({ schema, table: table.name }),
               getTableIndexes({ schema, table: table.name }),
             ],
-            { concurrency: "unbounded" },
+            { concurrency: ALL_TABLES_INTROSPECTION_CONCURRENCY },
           );
 
           // Build FK map keyed by column_name (getTableForeignKeys returns snake_case keys)
@@ -756,7 +1049,7 @@ export const getAllTablesColumns = (input: { schema: string }) =>
           } as TableWithColumnsMetadata;
         }),
       ),
-      { concurrency: "unbounded" },
+      { concurrency: ALL_TABLES_INTROSPECTION_CONCURRENCY },
     );
 
     return tablesWithColumns;
@@ -790,7 +1083,7 @@ export const getAllTablesForeignKeys = (input: { schema: string }) =>
           return { table: table.name, fks };
         }),
       ),
-      { concurrency: "unbounded" },
+      { concurrency: ALL_TABLES_INTROSPECTION_CONCURRENCY },
     );
 
     const edges: SchemaForeignKeyEdge[] = [];
@@ -844,7 +1137,7 @@ export const getTablesStructures = (input: { schema: string; tables?: string[] }
               getTableForeignKeys({ schema, table: table.name }),
               getTableIndexes({ schema, table: table.name }),
             ],
-            { concurrency: "unbounded" },
+            { concurrency: ALL_TABLES_INTROSPECTION_CONCURRENCY },
           );
 
           // Build FK map keyed by column_name
@@ -890,7 +1183,7 @@ export const getTablesStructures = (input: { schema: string; tables?: string[] }
           } as TableWithColumnsMetadata;
         }),
       ),
-      { concurrency: "unbounded" },
+      { concurrency: ALL_TABLES_INTROSPECTION_CONCURRENCY },
     );
 
     return tablesWithColumns;
@@ -975,6 +1268,97 @@ export const getTableRelationships = (input: { schema: string; table: string }) 
           }),
         );
       },
+      mysql: () =>
+        Effect.gen(function* () {
+          const outgoingQuery = schema
+            ? sql<TableRelationship>`
+					SELECT
+						'outgoing' as type,
+						${schema} as referencingSchema,
+						${table} as referencingTable,
+						kcu.COLUMN_NAME as referencingColumn,
+						kcu.REFERENCED_TABLE_SCHEMA as referencedSchema,
+						kcu.REFERENCED_TABLE_NAME as referencedTable,
+						kcu.REFERENCED_COLUMN_NAME as referencedColumn,
+						kcu.CONSTRAINT_NAME as constraintName
+					FROM information_schema.KEY_COLUMN_USAGE kcu
+					WHERE kcu.TABLE_SCHEMA = ${schema}
+						AND kcu.TABLE_NAME = ${table}
+						AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+				`
+            : sql<TableRelationship>`
+					SELECT
+						'outgoing' as type,
+						DATABASE() as referencingSchema,
+						${table} as referencingTable,
+						kcu.COLUMN_NAME as referencingColumn,
+						kcu.REFERENCED_TABLE_SCHEMA as referencedSchema,
+						kcu.REFERENCED_TABLE_NAME as referencedTable,
+						kcu.REFERENCED_COLUMN_NAME as referencedColumn,
+						kcu.CONSTRAINT_NAME as constraintName
+					FROM information_schema.KEY_COLUMN_USAGE kcu
+					WHERE kcu.TABLE_SCHEMA = DATABASE()
+						AND kcu.TABLE_NAME = ${table}
+						AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+				`;
+          const outgoingCompiled = outgoingQuery.compile();
+          const outgoing = yield* outgoingQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.RelationshipDiscovery,
+              sql: outgoingCompiled[0],
+              params: outgoingCompiled[1],
+              schema,
+              table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
+
+          const incomingQuery = schema
+            ? sql<TableRelationship>`
+					SELECT
+						'incoming' as type,
+						kcu.TABLE_SCHEMA as referencingSchema,
+						kcu.TABLE_NAME as referencingTable,
+						kcu.COLUMN_NAME as referencingColumn,
+						${schema} as referencedSchema,
+						${table} as referencedTable,
+						kcu.REFERENCED_COLUMN_NAME as referencedColumn,
+						kcu.CONSTRAINT_NAME as constraintName
+					FROM information_schema.KEY_COLUMN_USAGE kcu
+					WHERE kcu.REFERENCED_TABLE_SCHEMA = ${schema}
+						AND kcu.REFERENCED_TABLE_NAME = ${table}
+						AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+				`
+            : sql<TableRelationship>`
+					SELECT
+						'incoming' as type,
+						kcu.TABLE_SCHEMA as referencingSchema,
+						kcu.TABLE_NAME as referencingTable,
+						kcu.COLUMN_NAME as referencingColumn,
+						DATABASE() as referencedSchema,
+						${table} as referencedTable,
+						kcu.REFERENCED_COLUMN_NAME as referencedColumn,
+						kcu.CONSTRAINT_NAME as constraintName
+					FROM information_schema.KEY_COLUMN_USAGE kcu
+					WHERE kcu.REFERENCED_TABLE_SCHEMA = DATABASE()
+						AND kcu.REFERENCED_TABLE_NAME = ${table}
+						AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+				`;
+          const incomingCompiled = incomingQuery.compile();
+          const incoming = yield* incomingQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.RelationshipDiscovery,
+              sql: incomingCompiled[0],
+              params: incomingCompiled[1],
+              schema,
+              table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
+          return [...outgoing, ...incoming];
+        }),
       sqlite: () =>
         Effect.gen(function* () {
           // Get outgoing relationships via PRAGMA
@@ -1631,51 +2015,53 @@ export const getRelationshipsCounts = (input: {
           const referencingColumn = sql(rel.referencingColumn);
           const referencingTable = sql(rel.referencingTable);
 
-          const count = yield* sql.onDialectOrElse({
-            pg: () => {
-              const pgCountQuery = sql<{ count: number }>`
-							SELECT COUNT(*)::bigint as count
+          const count = yield* sql.onDialectOrElse(
+            pgSqliteHandlers({
+              pg: () => {
+                const pgCountQuery = sql<{ count: number }>`
+							SELECT COUNT(*) as count
 							FROM ${tableRef}
 							WHERE ${referencingColumn} = ${String(filterValue)}
 						`;
-              const pgCountCompiledQuery = pgCountQuery.compile();
-              return pgCountQuery.pipe(
-                withQueryLogging({
-                  type: QueryLogType.RelationshipCounting,
-                  sql: pgCountCompiledQuery[0],
-                  params: pgCountCompiledQuery[1],
-                  schema: input.schema,
-                  table: input.table,
-                  level: QueryLogLevel.Trace,
-                  connectionId,
-                }),
-                Effect.map((rows) => Number(rows[0]?.count ?? 0)),
-                Effect.catchAll(() => Effect.succeed(0)),
-              );
-            },
-            sqlite: () => {
-              const sqliteCountQuery = sql<{ count: number }>`
+                const pgCountCompiledQuery = pgCountQuery.compile();
+                return pgCountQuery.pipe(
+                  withQueryLogging({
+                    type: QueryLogType.RelationshipCounting,
+                    sql: pgCountCompiledQuery[0],
+                    params: pgCountCompiledQuery[1],
+                    schema: input.schema,
+                    table: input.table,
+                    level: QueryLogLevel.Trace,
+                    connectionId,
+                  }),
+                  Effect.map((rows) => Number(rows[0]?.count ?? 0)),
+                  Effect.catchAll(() => Effect.succeed(0)),
+                );
+              },
+              sqlite: () => {
+                const sqliteCountQuery = sql<{ count: number }>`
 							SELECT COUNT(*) as count
 							FROM ${referencingTable}
 							WHERE ${referencingColumn} = ${String(filterValue)}
 						`;
-              const sqliteCountCompiledQuery = sqliteCountQuery.compile();
-              return sqliteCountQuery.pipe(
-                withQueryLogging({
-                  type: QueryLogType.RelationshipCounting,
-                  sql: sqliteCountCompiledQuery[0],
-                  params: sqliteCountCompiledQuery[1],
-                  schema: input.schema,
-                  table: input.table,
-                  level: QueryLogLevel.Trace,
-                  connectionId,
-                }),
-                Effect.map((rows) => Number(rows[0]?.count ?? 0)),
-                Effect.catchAll(() => Effect.succeed(0)),
-              );
-            },
-            orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-          });
+                const sqliteCountCompiledQuery = sqliteCountQuery.compile();
+                return sqliteCountQuery.pipe(
+                  withQueryLogging({
+                    type: QueryLogType.RelationshipCounting,
+                    sql: sqliteCountCompiledQuery[0],
+                    params: sqliteCountCompiledQuery[1],
+                    schema: input.schema,
+                    table: input.table,
+                    level: QueryLogLevel.Trace,
+                    connectionId,
+                  }),
+                  Effect.map((rows) => Number(rows[0]?.count ?? 0)),
+                  Effect.catchAll(() => Effect.succeed(0)),
+                );
+              },
+              orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+            }),
+          );
 
           return {
             constraintName: rel.constraintName,
@@ -1763,6 +2149,7 @@ export const queryTableRows = <TData>(input: {
 
     const defaultSchema = yield* sql.onDialectOrElse({
       pg: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Postgres)),
+      mysql: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.MySQL)),
       sqlite: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.SQLite)),
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
@@ -1876,6 +2263,101 @@ export const queryTableRows = <TData>(input: {
           const rowsQuery = sql`
 					SELECT ${sql.unsafe(selectPart)}
 					FROM ${sql(input.schema)}.${sql(input.table)}
+					${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
+					${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
+					${sql.unsafe(orderClause)}
+					LIMIT ${limit} OFFSET ${offset}
+				`;
+
+          const rowsCompiledQuery = rowsQuery.compile();
+          const countCompiledQuery = countQuery.compile();
+
+          const [rows, countResult] = yield* Effect.all([
+            rowsQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableRows,
+                sql: rowsCompiledQuery[0],
+                params: rowsCompiledQuery[1],
+                schema: input.schema,
+                table: input.table,
+                level: QueryLogLevel.Info,
+                connectionId: connectionId,
+                meta: { input },
+              }),
+            ),
+            countQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableCount,
+                sql: countCompiledQuery[0],
+                params: countCompiledQuery[1],
+                schema: input.schema,
+                table: input.table,
+                level: QueryLogLevel.Trace,
+                connectionId: connectionId,
+                meta: { input },
+              }),
+            ),
+          ]);
+          const rowCount = Number(countResult?.[0]?.count ?? 0);
+          return {
+            rows: (rows ?? []) as TData[],
+            columnList: resultColumnList,
+            rowCount,
+            hasNextPage: offset + limit < rowCount,
+          };
+        }),
+      mysql: () =>
+        Effect.gen(function* () {
+          const whereClause = buildWhereClauseWithJoins(
+            DatabaseDialect.MySQL,
+            filters,
+            joins.length > 0 ? joinsRemapped : undefined,
+            joinAliases,
+          );
+
+          const joinClauses = buildJoinSqlClauses(
+            joinsRemapped,
+            input.schema,
+            input.table,
+            DatabaseDialect.MySQL,
+            joinAliases,
+          );
+
+          const fromTable = input.schema
+            ? sql`${sql(input.schema)}.${sql(input.table)}`
+            : sql`${sql(input.table)}`;
+
+          const countQuery = sql`
+						SELECT COUNT(*) as count
+						FROM ${fromTable}
+						${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
+						${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
+					`;
+
+          let selectPart =
+            joins.length > 0
+              ? buildPgSelectWithJoins(
+                  baseSchema,
+                  input.table,
+                  joinsRemapped,
+                  tableColumnsMap,
+                  joinAliases,
+                )
+              : columnList.length > 0 &&
+                  columnList.length < (columnResults[0]?.columns.length ?? 999)
+                ? columnList.join(", ")
+                : "*";
+
+          const resultColumnList = columnList;
+          // MySQL has no ctid/rowid system identity for no-PK tables.
+
+          const orderClause = orderBy
+            ? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
+            : "";
+
+          const rowsQuery = sql`
+					SELECT ${sql.unsafe(selectPart)}
+					FROM ${fromTable}
 					${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
 					${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
 					${sql.unsafe(orderClause)}
