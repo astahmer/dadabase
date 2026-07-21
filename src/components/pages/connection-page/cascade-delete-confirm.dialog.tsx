@@ -39,8 +39,9 @@ export function CascadeDeleteConfirmDialog(props: CascadeDeleteConfirmDialogProp
               className="border-destructive/40 bg-destructive/10 text-destructive rounded-md border p-3"
               data-testid="cascade-delete-blocked"
             >
-              Delete is blocked by RESTRICT / NO ACTION on:{" "}
-              {preview.blockedBy.map((b) => b.table).join(", ") || "(unknown)"}
+              RESTRICT / NO ACTION foreign keys reference this table via:{" "}
+              {preview.blockedBy.map((b) => b.table).join(", ") || "(unknown)"}. Delete may fail if
+              dependent rows still exist (this preview is structural only).
             </div>
           ) : null}
 
@@ -70,7 +71,7 @@ export function CascadeDeleteConfirmDialog(props: CascadeDeleteConfirmDialogProp
           <Button
             variant="destructive"
             data-testid="cascade-delete-confirm-run"
-            disabled={preview.blocked || isPending}
+            disabled={isPending}
             onClick={onConfirm}
           >
             {isPending ? "Deleting…" : "Delete"}

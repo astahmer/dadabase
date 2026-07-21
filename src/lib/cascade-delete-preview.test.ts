@@ -141,6 +141,28 @@ describe("buildCascadeDeletePreview", () => {
     expect(preview.selectedCount).toBe(2);
   });
 
+  it("marks RESTRICT/NO ACTION children as blocked for advisory UI only", () => {
+    // Structural RESTRICT must surface as `blocked`, but callers should treat that as a
+    // warning (dependent rows may or may not exist) — not a hard UI disable.
+    const edges: ForeignKeyEdge[] = [
+      {
+        fromTable: "posts",
+        fromCols: ["user_id"],
+        toTable: "users",
+        toCols: ["id"],
+        onDelete: "NO ACTION",
+      },
+    ];
+    const preview = buildCascadeDeletePreview({
+      edges,
+      rootTable: "users",
+      selectedRows: [{ id: 3 }],
+    });
+    expect(preview.blocked).toBe(true);
+    expect(preview.blockedBy.map((b) => b.table)).toEqual(["posts"]);
+    expect(preview.selectedCount).toBe(1);
+  });
+
   it("handles a diamond graph without duplicating cascaded tables in order", () => {
     const edges: ForeignKeyEdge[] = [
       { fromTable: "a", fromCols: ["id"], toTable: "root", toCols: ["id"], onDelete: "CASCADE" },
