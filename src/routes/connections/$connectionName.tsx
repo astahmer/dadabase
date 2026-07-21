@@ -48,7 +48,7 @@ const TabStateSchema = Schema.Struct({
   nullsOrder: Schema.Literal("first", "last").pipe(Schema.optional),
   limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
   offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
-  viewMode: Schema.Literal("rows", "structure").pipe(
+  viewMode: Schema.Literal("rows", "structure", "er").pipe(
     Schema.optionalWith({ default: () => "rows" }),
   ),
   tableSize: tableSize.pipe(Schema.optionalWith({ default: () => "cozy" })),

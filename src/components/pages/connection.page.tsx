@@ -14,6 +14,7 @@ import {
   useState,
 } from "react";
 
+import type { TableStructure } from "#src/lib/schema-diff/index.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import { BulkActionBar } from "#src/components/app/bulk-action-bar.tsx";
@@ -53,6 +54,7 @@ import {
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
+import { buildCascadeDeletePreview } from "#src/lib/cascade-delete-preview.ts";
 import {
   buildCommandPaletteCommands,
   COMMAND_PALETTE_IDS,
@@ -60,20 +62,22 @@ import {
   parseSwitchSchemaCommandId,
   parseSwitchTableCommandId,
 } from "#src/lib/command-palette-commands.ts";
+import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
 import {
   registerCustomSqlRunner,
   runRegisteredCustomSql,
 } from "#src/lib/custom-sql-runner-bridge.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
-import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
+import { parsePasteRows } from "#src/lib/paste-rows.ts";
 import {
   abortQueryController,
   createQueryAbortController,
   isQueryAbortError,
 } from "#src/lib/query-abort-controller.ts";
 import { buildDropColumnSql, buildDropTableSql } from "#src/lib/schema-mutate/index.ts";
+import { splitSqlStatements } from "#src/lib/sql-statements.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { queryClient } from "#src/query-client.ts";
 import {
@@ -88,8 +92,11 @@ import {
 } from "#src/server/introspection/detect-destructive-sql.ts";
 import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
 import { executeCustomSqlServerFn } from "#src/server/introspection/start-fns/execute-custom-sql.start.ts";
+import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
+import { getAllTablesForeignKeysQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-foreign-keys.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
+import { insertRowServerFn } from "#src/server/introspection/start-fns/insert-row.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 import { saveQueryFavoriteServerFn } from "#src/server/query-logger/start-fns/save-query-favorite.start.ts";
 
@@ -103,13 +110,6 @@ import { deriveFavoriteLabel } from "../query-logger/derive-favorite-label.ts";
 import { QueryLoggerContent } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { Button } from "../ui/button.tsx";
-import {
-  Dialog,
-  DialogCloseTrigger,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "../ui/dialog.tsx";
 import { Input } from "../ui/input.tsx";
 import { Stack } from "../ui/layout.tsx";
 import { Menu, MenuContent, MenuItem, MenuItemText, MenuTriggerItem } from "../ui/menu.tsx";
@@ -117,6 +117,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { ConnectionAiAssistantDrawer } from "./connection-page/ai-assistant.drawer.tsx";
+import { CascadeDeleteConfirmDialog } from "./connection-page/cascade-delete-confirm.dialog.tsx";
 import { ConnectionCommandPalette } from "./connection-page/command-palette.tsx";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
@@ -133,7 +134,13 @@ import {
 } from "./connection-page/create-tab-state.ts";
 import { DestructiveQueryConfirmDialog } from "./connection-page/destructive-query-confirm.dialog.tsx";
 import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
+import { ErDiagramView } from "./connection-page/er-diagram-view.tsx";
 import { ExplainOutputDrawer } from "./connection-page/explain-output-drawer.tsx";
+import { ImportDataSheet } from "./connection-page/import-data-sheet.tsx";
+import {
+  IndexFkMutateSheet,
+  type IndexFkMutateMode,
+} from "./connection-page/index-fk-mutate-sheet.tsx";
 import { invalidateSchemaMetadataQueries } from "./connection-page/invalidate-schema-metadata.ts";
 import { useJoinedTables } from "./connection-page/join-tables/use-joined-tables.ts";
 import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
@@ -148,6 +155,7 @@ import {
   hasPrimaryKey,
   hasSystemRowIdentity,
 } from "./connection-page/row-editor/row-editor-values.ts";
+import { SchemaDiffSheet } from "./connection-page/schema-diff-sheet.tsx";
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
 import {
   SchemaMutateSheet,
@@ -639,6 +647,12 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
     mode: "create-table",
     column: null,
   });
+  const [importOpen, setImportOpen] = useState(false);
+  const [schemaDiffOpen, setSchemaDiffOpen] = useState(false);
+  const [indexFk, setIndexFk] = useState<{ open: boolean; mode: IndexFkMutateMode }>({
+    open: false,
+    mode: "create-index",
+  });
   const [pendingDdl, setPendingDdl] = useState<{
     sql: string;
     summary: string;
@@ -967,6 +981,11 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
             onCreateTable={() => openSchemaMutate("create-table")}
             onAddColumn={search.table ? () => openSchemaMutate("add-column") : undefined}
             onDropTable={search.table ? onDropTable : undefined}
+            onImportData={search.table ? () => setImportOpen(true) : undefined}
+            onSchemaDiff={() => setSchemaDiffOpen(true)}
+            onCreateIndex={
+              search.table ? () => setIndexFk({ open: true, mode: "create-index" }) : undefined
+            }
           />
 
           {/* Query Filter Builder */}
@@ -1042,7 +1061,21 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
 
       {/* Content */}
       <div className="flex h-full flex-1 flex-col overflow-hidden">
-        {search.viewMode === "structure" ? (
+        {search.viewMode === "er" ? (
+          <ErDiagramView
+            connectionUrl={pageState.activeConnectionUrl}
+            schema={search.schema || getDialectDefaultSchema(connection.dialect)}
+            onOpenTable={(table) => {
+              void navigate({
+                search: (prev) =>
+                  updateTabState(prev, {
+                    table,
+                    viewMode: "rows",
+                  }),
+              });
+            }}
+          />
+        ) : search.viewMode === "structure" ? (
           <div className="flex-1 overflow-auto p-2 pt-0">
             <StructureTable
               columnMetadata={pageState.columnMetadata}
@@ -1262,6 +1295,41 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
         />
       )}
 
+      {search.schema && search.table ? (
+        <ImportDataSheet
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          connectionUrl={pageState.activeConnectionUrl}
+          dialect={connection.dialect}
+          schema={search.schema}
+          table={search.table}
+          onSuccess={() => invalidateRowsQueries(queryClient)}
+        />
+      ) : null}
+
+      {search.schema && search.table ? (
+        <IndexFkMutateSheet
+          open={indexFk.open}
+          mode={indexFk.mode}
+          onOpenChange={(open) => setIndexFk((prev) => ({ ...prev, open }))}
+          connectionUrl={pageState.activeConnectionUrl}
+          dialect={connection.dialect}
+          schema={search.schema}
+          table={search.table}
+          columnSuggestions={pageState.columnMetadata.map((c) => c.name)}
+        />
+      ) : null}
+
+      {search.schema ? (
+        <SchemaDiffSheetConnected
+          open={schemaDiffOpen}
+          onOpenChange={setSchemaDiffOpen}
+          connectionUrl={pageState.activeConnectionUrl}
+          dialect={connection.dialect}
+          schema={search.schema}
+        />
+      ) : null}
+
       <DestructiveQueryConfirmDialog
         isOpen={!!pendingDdl}
         queryType={pendingDdl?.summary ?? "Execute a destructive operation"}
@@ -1274,6 +1342,49 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
     </>
   );
 };
+
+function SchemaDiffSheetConnected(props: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  connectionUrl: string;
+  dialect: DatabaseDialect;
+  schema: string;
+}) {
+  const structuresQuery = useQuery({
+    ...getAllTablesColumnsQueryOptions({
+      url: props.connectionUrl,
+      schema: props.schema,
+    }),
+    enabled: props.open,
+  });
+
+  const currentStructures: TableStructure[] = useMemo(
+    () =>
+      (structuresQuery.data ?? []).map((t) => ({
+        schema: props.schema,
+        table: t.table,
+        columns: t.columns.map((c) => ({
+          name: c.name,
+          dataType: c.dataType,
+          nullable: c.nullable,
+          defaultValue: c.defaultValue,
+          primaryKey: c.primaryKey,
+        })),
+      })),
+    [props.schema, structuresQuery.data],
+  );
+
+  return (
+    <SchemaDiffSheet
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      connectionUrl={props.connectionUrl}
+      dialect={props.dialect}
+      schema={props.schema}
+      currentStructures={currentStructures}
+    />
+  );
+}
 
 const RowsTableSqlEditor = (
   props: Pick<ConnectionPageState, "activeConnectionUrl" | "sqlQueryAsText"> & {
@@ -1465,6 +1576,7 @@ const RowsTableSqlEditor = (
         showExplainPanel={showExplainPanel}
         setShowExplainPanel={setShowExplainPanel}
         output={explainQuery.data ?? null}
+        dialect={props.connection.dialect === DatabaseDialect.Postgres ? "postgres" : "sqlite"}
       />
     </>
   );
@@ -1602,6 +1714,53 @@ const RowsTableContent = (
           <Splitter.Panel
             id={panels.rowsTable}
             className="relative flex flex-1 flex-col overflow-auto"
+            onPaste={(event) => {
+              const target = event.target as HTMLElement | null;
+              if (target?.closest("input, textarea, [contenteditable=true]")) return;
+              const text = event.clipboardData.getData("text/plain");
+              if (!text.trim() || !search.schema || !search.table) return;
+              event.preventDefault();
+              const known = props.columnMetadata.map((c) => c.name);
+              const parsed = parsePasteRows(text, known);
+              if (parsed.rows.length === 0) return;
+              const ok = window.confirm(`Paste ${parsed.rows.length} row(s) into ${search.table}?`);
+              if (!ok) return;
+              void (async () => {
+                const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl);
+                if (readOnlyError) {
+                  toaster.create({
+                    title: "Read-only connection",
+                    description: readOnlyError,
+                    type: "error",
+                  });
+                  return;
+                }
+                try {
+                  for (const row of parsed.rows) {
+                    await insertRowServerFn({
+                      data: {
+                        url: props.activeConnectionUrl,
+                        schema: search.schema!,
+                        table: search.table!,
+                        values: row,
+                      },
+                    });
+                  }
+                  invalidateRowsQueries(queryClient);
+                  toaster.create({
+                    title: "Pasted rows",
+                    description: `Inserted ${parsed.rows.length} row(s)`,
+                    type: "success",
+                  });
+                } catch (error) {
+                  toaster.create({
+                    title: "Paste failed",
+                    description: formatDbError(error),
+                    type: "error",
+                  });
+                }
+              })();
+            }}
           >
             <ColumnHeaderContextProvider
               renderColumnHeaderMenuItems={({ column }) => (
@@ -1797,6 +1956,36 @@ const BulkActions = (
 
   const selectedRows = props.rowsDataTable.getSelectedRowModel().rows;
   const selectedRowsCount = selectedRows.length;
+
+  const fkEdgesQuery = useQuery({
+    ...getAllTablesForeignKeysQueryOptions({
+      url: props.activeConnectionUrl,
+      schema: search.schema || "",
+    }),
+    enabled: showDeleteConfirm && Boolean(search.schema),
+  });
+
+  const cascadePreview = useMemo(() => {
+    if (!search.table) return null;
+    const edges = (fkEdgesQuery.data ?? []).map((e) => ({
+      fromTable: e.fromTable,
+      fromCols: e.fromColumns,
+      toTable: e.toTable,
+      toCols: e.toColumns,
+      onDelete: (e.onDelete || "NO ACTION") as
+        | "CASCADE"
+        | "SET NULL"
+        | "SET DEFAULT"
+        | "RESTRICT"
+        | "NO ACTION",
+    }));
+    return buildCascadeDeletePreview({
+      edges,
+      rootTable: search.table,
+      selectedRows: selectedRows.map((r) => r.original as Record<string, unknown>),
+    });
+  }, [fkEdgesQuery.data, search.table, selectedRows]);
+
   const pkColumns = getPrimaryKeyColumns(props.columnMetadata);
   const canDelete =
     hasPrimaryKey(props.columnMetadata) ||
@@ -2063,39 +2252,13 @@ const BulkActions = (
         isLoading={deleteMutation.isPending}
       />
 
-      <Dialog
+      <CascadeDeleteConfirmDialog
         open={showDeleteConfirm}
-        onOpenChange={(details) => setShowDeleteConfirm(details.open)}
-      >
-        <DialogContent>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <DialogTitle className="text-lg font-semibold">Delete rows?</DialogTitle>
-              <DialogDescription className="text-sm">
-                Are you sure you want to delete {selectedRowsCount} row
-                {selectedRowsCount !== 1 ? "s" : ""}? This action cannot be undone.
-              </DialogDescription>
-            </div>
-            <div className="flex justify-end gap-3">
-              <DialogCloseTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Cancel
-                </Button>
-              </DialogCloseTrigger>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  deleteMutation.mutate();
-                }}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? "Deleting..." : "Delete"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setShowDeleteConfirm}
+        preview={cascadePreview}
+        onConfirm={() => deleteMutation.mutate()}
+        isPending={deleteMutation.isPending || fkEdgesQuery.isLoading}
+      />
     </>
   );
 };
@@ -2234,6 +2397,18 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
   const [showDestructiveConfirm, setShowDestructiveConfirm] = useState(false);
   const [pendingQueryExecution, setPendingQueryExecution] = useState<(() => void) | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [resultSets, setResultSets] = useState<
+    Array<{
+      sql: string;
+      rows: Record<string, unknown>[];
+      columns: string[];
+      rowCount: number;
+      rowsAffected: number | undefined;
+      timeTaken: number;
+      ranAt: number;
+    }>
+  >([]);
+  const [activeResultIndex, setActiveResultIndex] = useState(0);
 
   const executeCustomSqlMutation = useMutation({
     mutationFn: async (variables: Parameters<typeof executeAndStoreCustomSqlServerFn>[0]) => {
@@ -2326,45 +2501,102 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
     console.log("onRunQuery", { sqlToRun });
     if (!sqlToRun) return;
 
-    const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
-      isSelect: isSelectQuery(sqlToRun),
-    });
-    if (readOnlyError) {
-      toaster.create({ title: "Read-only connection", description: readOnlyError, type: "error" });
-      return;
-    }
-
-    // If editing from a stored execution, track the parent query
-    const previousId = search.customSqlId;
-
-    // Check for destructive queries
-    if (isDestructiveQuery(sqlToRun)) {
-      setPendingQueryExecution(() => () => {
-        executeCustomSqlMutation.mutate({
-          data: {
-            url: props.activeConnectionUrl,
-            sql: sqlToRun,
-            schemaName: search.schema,
-            tableName: search.table,
-            previousId,
-          },
-        });
-        setShowDestructiveConfirm(false);
-        setPendingQueryExecution(null);
+    const statements = splitSqlStatements(sqlToRun);
+    const runSingle = (sql: string) => {
+      const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
+        isSelect: isSelectQuery(sql),
       });
-      setShowDestructiveConfirm(true);
+      if (readOnlyError) {
+        toaster.create({
+          title: "Read-only connection",
+          description: readOnlyError,
+          type: "error",
+        });
+        return;
+      }
+
+      const previousId = search.customSqlId;
+
+      if (isDestructiveQuery(sql)) {
+        setPendingQueryExecution(() => () => {
+          executeCustomSqlMutation.mutate({
+            data: {
+              url: props.activeConnectionUrl,
+              sql,
+              schemaName: search.schema,
+              tableName: search.table,
+              previousId,
+            },
+          });
+          setShowDestructiveConfirm(false);
+          setPendingQueryExecution(null);
+        });
+        setShowDestructiveConfirm(true);
+        return;
+      }
+
+      executeCustomSqlMutation.mutate({
+        data: {
+          url: props.activeConnectionUrl,
+          sql,
+          schemaName: search.schema,
+          tableName: search.table,
+          previousId,
+        },
+      });
+    };
+
+    if (statements.length <= 1) {
+      setResultSets([]);
+      setActiveResultIndex(0);
+      runSingle(sqlToRun);
       return;
     }
 
-    executeCustomSqlMutation.mutate({
-      data: {
-        url: props.activeConnectionUrl,
-        sql: sqlToRun,
-        schemaName: search.schema,
-        tableName: search.table,
-        previousId,
-      },
-    });
+    // Multi-statement: execute each sequentially and keep all result sets.
+    void (async () => {
+      const collected: typeof resultSets = [];
+      for (const statement of statements) {
+        const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
+          isSelect: isSelectQuery(statement.sql),
+        });
+        if (readOnlyError) {
+          toaster.create({
+            title: "Read-only connection",
+            description: readOnlyError,
+            type: "error",
+          });
+          return;
+        }
+        try {
+          const result = await executeCustomSqlServerFn({
+            data: { url: props.activeConnectionUrl, sql: statement.sql },
+          });
+          collected.push({
+            sql: statement.sql,
+            rows: (result.rows ?? []) as Record<string, unknown>[],
+            columns: result.columns ?? [],
+            rowCount: result.rowCount ?? 0,
+            rowsAffected: result.rowsAffected,
+            timeTaken: result.timeTaken ?? 0,
+            ranAt: result.ranAt ?? Date.now(),
+          });
+        } catch (error) {
+          toaster.create({
+            title: "Statement failed",
+            description: formatDbError(error),
+            type: "error",
+          });
+          break;
+        }
+      }
+      setResultSets(collected);
+      setActiveResultIndex(0);
+      // Also persist the full script as a custom SQL execution for history.
+      if (collected.length > 0) {
+        runSingle(sqlToRun);
+      }
+    })();
   };
 
   const handleReExecuteStored = () => {
@@ -2400,6 +2632,9 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
       executeCustomSqlMutation.reset();
     },
     output,
+    resultSets,
+    activeResultIndex,
+    setActiveResultIndex,
     mutation: executeCustomSqlMutation,
     storedQuery: customSqlExecutionQuery,
     hasStoredExecution: !!search.customSqlId,
@@ -2428,8 +2663,10 @@ type UseExecuteCustomSqlOutput = ReturnType<typeof useExecuteCustomSql>;
 const CustomSqlTabContent = (props: { executeCustomSql: UseExecuteCustomSqlOutput }) => {
   const { executeCustomSql } = props;
 
-  const outputRows = executeCustomSql.output?.rows ?? [];
-  const outputColumns = executeCustomSql.output?.columns ?? [];
+  const multi = executeCustomSql.resultSets.length > 1;
+  const activeSet = multi ? executeCustomSql.resultSets[executeCustomSql.activeResultIndex] : null;
+  const outputRows = activeSet?.rows ?? executeCustomSql.output?.rows ?? [];
+  const outputColumns = activeSet?.columns ?? executeCustomSql.output?.columns ?? [];
 
   const [jsFilter, setJsFilter] = useState("");
 
@@ -2547,9 +2784,28 @@ const CustomSqlTabContent = (props: { executeCustomSql: UseExecuteCustomSqlOutpu
   }
 
   // Results table
-  if (outputRows.length > 0) {
+  if (outputRows.length > 0 || executeCustomSql.resultSets.length > 0) {
     return (
       <div className="relative flex flex-1 flex-col overflow-auto">
+        {executeCustomSql.resultSets.length > 1 ? (
+          <div className="flex shrink-0 gap-1 border-b px-2 py-1" data-testid="sql-result-sets">
+            {executeCustomSql.resultSets.map((set, i) => (
+              <Button
+                key={i}
+                size="sm"
+                variant={executeCustomSql.activeResultIndex === i ? "default" : "outline"}
+                className="h-7 text-xs"
+                data-testid={`sql-result-set-${i}`}
+                onClick={() => executeCustomSql.setActiveResultIndex(i)}
+              >
+                Result {i + 1}
+                {set.rowsAffected !== undefined
+                  ? ` (${set.rowsAffected} affected)`
+                  : ` (${set.rowCount})`}
+              </Button>
+            ))}
+          </div>
+        ) : null}
         <div className="flex shrink-0 flex-col gap-1 border-b px-2 py-1">
           <div className="flex items-center gap-2">
             <Input

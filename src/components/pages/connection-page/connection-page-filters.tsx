@@ -39,6 +39,9 @@ interface ConnectionPageFiltersProps {
   onCreateTable?: () => void;
   onAddColumn?: () => void;
   onDropTable?: () => void;
+  onImportData?: () => void;
+  onSchemaDiff?: () => void;
+  onCreateIndex?: () => void;
 }
 
 export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
@@ -55,6 +58,9 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
     onCreateTable,
     onAddColumn,
     onDropTable,
+    onImportData,
+    onSchemaDiff,
+    onCreateIndex,
   } = props;
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
@@ -96,6 +102,8 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     }),
                 })
               }
+              data-testid="view-mode-rows"
+              aria-label="View rows"
             >
               <Rows className="h-4 w-4" />
             </Button>
@@ -118,6 +126,24 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
               <LayoutGrid className="h-4 w-4" />
             </Button>
           </Tooltip>
+          <Tooltip content="ER diagram">
+            <Button
+              variant={viewMode === "er" ? "default" : "outline"}
+              size="sm"
+              onClick={() =>
+                navigate({
+                  search: (prev) =>
+                    updateTabState(prev, {
+                      viewMode: "er",
+                    }),
+                })
+              }
+              data-testid="view-mode-er"
+              aria-label="ER diagram"
+            >
+              <Link2 className="h-4 w-4" />
+            </Button>
+          </Tooltip>
         </div>
         {viewMode === "structure" && (
           <StructureFilterControls
@@ -127,11 +153,29 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
             onCreateTable={onCreateTable}
             onAddColumn={onAddColumn}
             onDropTable={onDropTable}
+            onImportData={onImportData}
+            onSchemaDiff={onSchemaDiff}
+            onCreateIndex={onCreateIndex}
           />
+        )}
+        {viewMode === "er" && (
+          <span className="text-muted-foreground ml-auto text-xs">Click a table to open it</span>
         )}
         {viewMode === "rows" && (
           <>
             <div id="connection-page-filters-top-row" className="contents" />
+            {onImportData && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onImportData}
+                disabled={isLoading || !tableName}
+                data-testid="import-data"
+                className="gap-1.5"
+              >
+                Import
+              </Button>
+            )}
             {onAddRow && (
               <Button
                 variant="default"

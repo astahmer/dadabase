@@ -30,6 +30,9 @@ interface StructureFilterControlsProps {
   onCreateTable?: () => void;
   onAddColumn?: () => void;
   onDropTable?: () => void;
+  onImportData?: () => void;
+  onSchemaDiff?: () => void;
+  onCreateIndex?: () => void;
 }
 
 /**
@@ -37,7 +40,17 @@ interface StructureFilterControlsProps {
  */
 export const StructureFilterControls = (props: StructureFilterControlsProps = {}) => {
   const { filters, updateFilters, clearFilters } = useStructureFilters();
-  const { columnMetadata, schema, table, onCreateTable, onAddColumn, onDropTable } = props;
+  const {
+    columnMetadata,
+    schema,
+    table,
+    onCreateTable,
+    onAddColumn,
+    onDropTable,
+    onImportData,
+    onSchemaDiff,
+    onCreateIndex,
+  } = props;
   const hasFilters = hasActiveStructureFilters(filters);
   const [open, setOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
@@ -184,6 +197,40 @@ export const StructureFilterControls = (props: StructureFilterControlsProps = {}
         >
           <Trash2 className="h-3.5 w-3.5" />
           Drop table
+        </Button>
+      )}
+      {onCreateIndex && table && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1"
+          onClick={onCreateIndex}
+          data-testid="schema-create-index"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Index
+        </Button>
+      )}
+      {onImportData && table && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1"
+          onClick={onImportData}
+          data-testid="import-data"
+        >
+          Import
+        </Button>
+      )}
+      {onSchemaDiff && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1"
+          onClick={onSchemaDiff}
+          data-testid="schema-diff"
+        >
+          Diff
         </Button>
       )}
 
