@@ -3,6 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { KeyRound, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import type { AiTableContext } from "#src/lib/ai/ai-types.ts";
+
 import {
   clearStoredOpenAiApiKey,
   getStoredOpenAiApiKey,
@@ -14,6 +16,7 @@ import { generateSqlFromNaturalLanguage } from "#src/lib/ai/generate-sql.ts";
 import { suggestMissingIndexes } from "#src/lib/ai/suggest-missing-indexes.ts";
 import { suggestQueriesFromSchema } from "#src/lib/ai/suggest-queries.ts";
 import { getErrorMessage } from "#src/lib/get-error-message.ts";
+import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 import { getTableIndexesQueryOptions } from "#src/server/introspection/start-fns/get-table-indexes.start.ts";
 
 import type { DbConnection } from "../connection.types.ts";
@@ -70,6 +73,14 @@ export const ConnectionAiAssistantDrawer = ({
     table: tab.table || "",
   });
 
+  const allTablesColumnsQuery = useQuery({
+    ...getAllTablesColumnsQueryOptions({
+      url: activeConnectionUrl,
+      schema: tab.schema || "",
+    }),
+    enabled: open && !!tab.schema && !!activeConnectionUrl,
+  });
+
   const indexesQuery = useQuery({
     ...getTableIndexesQueryOptions({
       url: activeConnectionUrl,
@@ -88,6 +99,31 @@ export const ConnectionAiAssistantDrawer = ({
     }),
     [tab.schema, tab.table, connection.dialect, columnMetadata],
   );
+
+  const schemaContext = useMemo(() => {
+    const schema = tab.schema || "public";
+    const tablesFromAll: AiTableContext[] = (allTablesColumnsQuery.data ?? []).map((t) => ({
+      schema,
+      table: t.table,
+      dialect: connection.dialect,
+      columns: t.columns,
+    }));
+
+    // Fallback to active table only while full schema loads
+    const tables =
+      tablesFromAll.length > 0
+        ? tablesFromAll
+        : tableContext.table && tableContext.columns.length > 0
+          ? [tableContext]
+          : [];
+
+    return {
+      schema,
+      dialect: connection.dialect,
+      tables,
+      activeTable: tab.table || undefined,
+    };
+  }, [allTablesColumnsQuery.data, connection.dialect, tab.schema, tab.table, tableContext]);
 
   const suggestedQueries = useMemo(() => {
     if (!tab.table || columnMetadata.length === 0) return [];
@@ -142,12 +178,17 @@ export const ConnectionAiAssistantDrawer = ({
     onGenerateAndRun?.(sql);
   };
 
+  const canGenerate =
+    Boolean(question.trim()) && schemaContext.tables.length > 0 && !allTablesColumnsQuery.isLoading;
+
   const generateMutation = useMutation({
     mutationFn: async () => {
-      if (!tab.table) throw new Error("Select a table first.");
+      if (schemaContext.tables.length === 0) {
+        throw new Error("Schema metadata not loaded yet.");
+      }
       return generateSqlFromNaturalLanguage({
         question,
-        table: tableContext,
+        schema: schemaContext,
       });
     },
     onSuccess: (result) => {
@@ -161,11 +202,13 @@ export const ConnectionAiAssistantDrawer = ({
 
   const generateAndRunMutation = useMutation({
     mutationFn: async () => {
-      if (!tab.table) throw new Error("Select a table first.");
+      if (schemaContext.tables.length === 0) {
+        throw new Error("Schema metadata not loaded yet.");
+      }
       if (!onGenerateAndRun) throw new Error("Run handler not wired.");
       return generateSqlFromNaturalLanguage({
         question,
-        table: tableContext,
+        schema: schemaContext,
       });
     },
     onSuccess: (result) => {
@@ -193,7 +236,7 @@ export const ConnectionAiAssistantDrawer = ({
     <Sheet open={open} onOpenChange={(details) => onOpenChange(details.open)}>
       <SheetContent className="z-50 flex w-full flex-col gap-0 p-0 sm:max-w-md">
         <SheetHeader className="border-b">
-          <SheetTitle className="flex items-center gap-2">
+          <SheetTitle className="flex items-center gap-2" data-testid="ai-assistant-drawer">
             <Sparkles className="size-4" />
             AI assistant
           </SheetTitle>
@@ -253,14 +296,30 @@ export const ConnectionAiAssistantDrawer = ({
                 Save a key above to unlock natural-language SQL. Suggestions below work without a
                 key.
               </p>
+              <p
+                className="text-muted-foreground mt-2 text-xs"
+                data-testid="ai-schema-context-hint"
+              >
+                {schemaContext.tables.length > 0
+                  ? `Using whole database schema (${schemaContext.tables.length} tables in ${schemaContext.schema}${
+                      tab.table ? `; open: ${tab.table}` : ""
+                    }).`
+                  : tab.schema
+                    ? "Loading schema metadata…"
+                    : "Select a schema to include database context."}
+              </p>
             </div>
           ) : (
             <section className="space-y-2">
               <h3 className="text-sm font-medium">Ask for a query</h3>
-              <p className="text-muted-foreground text-xs">
-                {tab.schema && tab.table
-                  ? `Using ${tab.schema}.${tab.table} column metadata.`
-                  : "Select a table to include schema context."}
+              <p className="text-muted-foreground text-xs" data-testid="ai-schema-context-hint">
+                {schemaContext.tables.length > 0
+                  ? `Using whole database schema (${schemaContext.tables.length} tables in ${schemaContext.schema}${
+                      tab.table ? `; open: ${tab.table}` : ""
+                    }).`
+                  : tab.schema
+                    ? "Loading schema metadata…"
+                    : "Select a schema to include database context."}
               </p>
               <Textarea
                 rows={3}
@@ -272,7 +331,7 @@ export const ConnectionAiAssistantDrawer = ({
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={!question.trim() || !tab.table || generateMutation.isPending}
+                  disabled={!canGenerate || generateMutation.isPending}
                   onClick={() => generateMutation.mutate()}
                 >
                   {generateMutation.isPending ? "Generating…" : "Generate SQL → editor"}
@@ -281,10 +340,7 @@ export const ConnectionAiAssistantDrawer = ({
                   <Button
                     size="sm"
                     disabled={
-                      !question.trim() ||
-                      !tab.table ||
-                      generateAndRunMutation.isPending ||
-                      generateMutation.isPending
+                      !canGenerate || generateAndRunMutation.isPending || generateMutation.isPending
                     }
                     onClick={() => generateAndRunMutation.mutate()}
                   >

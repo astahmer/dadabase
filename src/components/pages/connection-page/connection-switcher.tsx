@@ -282,6 +282,7 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
             variant="ghost"
             className={railBtnClass}
             aria-label="Open AI assistant"
+            data-testid="open-ai-assistant"
             onClick={props.onOpenAiAssistant}
           >
             <Sparkles className="h-4 w-4" />

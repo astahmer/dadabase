@@ -33,3 +33,12 @@ export interface AiTableContext {
   columns: readonly AiColumnMeta[];
   dialect?: "postgres" | "sqlite" | string;
 }
+
+/** Full-schema context for NL → SQL (prefer over single-table). */
+export interface AiSchemaContext {
+  dialect?: "postgres" | "sqlite" | string;
+  schema: string;
+  tables: readonly AiTableContext[];
+  /** Optional hint: user currently has this table open in the UI */
+  activeTable?: string;
+}
