@@ -23,9 +23,11 @@ export interface SqlMonacoEditorProps {
   /**
    * Optional handler for Monaco `changeViewZones` action strip clicks.
    * When omitted, Run uses onSubmit, Format runs the built-in formatter, Copy uses clipboard.
+   * `statementSql` is set for per-statement zones (multi-statement scripts).
    */
   onViewZoneAction?: (
     id: "run" | "explain" | "format" | "fullscreen" | "copy" | "save",
+    statementSql?: string,
   ) => void;
 }
 

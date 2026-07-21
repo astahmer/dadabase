@@ -10,10 +10,12 @@ import { formatSQL } from "#src/lib/format-sql";
 import { defineCustomMonacoThemes } from "#src/lib/monaco-editor-themes.ts";
 import { analyzeSqlDiagnostics } from "#src/lib/sql-diagnostics.ts";
 import {
+  buildPerStatementViewZoneLayouts,
   buildSqlEditorViewZoneLayout,
   createSqlEditorViewZoneDom,
   type SqlEditorViewZoneActionId,
 } from "#src/lib/sql-editor-view-zones.ts";
+import { splitSqlStatements } from "#src/lib/sql-statements.ts";
 
 import type { SqlMonacoEditorProps } from "./sql-monaco-editor.tsx";
 
@@ -184,15 +186,19 @@ export function SqlMonacoEditorImpl({
     };
   }, [monacoRef, editorRef, tables, columns, sql]);
 
-  // Inline action strip via monaco changeViewZones (mirrors toolbar actions)
+  // Inline action strips via monaco changeViewZones.
+  // Multi-statement scripts get a Run/Explain zone above each statement;
+  // single-statement (or empty) keeps the global action strip.
   useEffect(() => {
     const editor = editorRef;
     if (!editor) return;
 
-    const layout = buildSqlEditorViewZoneLayout();
-    let zoneId: string | undefined;
+    const model = editor.getModel();
+    const source = model?.getValue() ?? sql ?? "";
+    const statements = splitSqlStatements(source);
+    const zoneIds: string[] = [];
 
-    const handleAction = (id: SqlEditorViewZoneActionId) => {
+    const handleGlobalAction = (id: SqlEditorViewZoneActionId) => {
       if (onViewZoneAction) {
         onViewZoneAction(id);
         return;
@@ -211,21 +217,40 @@ export function SqlMonacoEditorImpl({
     };
 
     editor.changeViewZones((accessor) => {
-      zoneId = accessor.addZone({
-        afterLineNumber: layout.afterLineNumber,
-        heightInPx: layout.heightInPx,
-        domNode: createSqlEditorViewZoneDom(layout.actions, handleAction),
-      });
+      if (statements.length > 1) {
+        for (const layout of buildPerStatementViewZoneLayouts(statements)) {
+          const id = accessor.addZone({
+            afterLineNumber: layout.afterLineNumber,
+            heightInPx: layout.heightInPx,
+            domNode: createSqlEditorViewZoneDom(layout.actions, (actionId) => {
+              if (onViewZoneAction) {
+                onViewZoneAction(actionId, layout.sql);
+                return;
+              }
+              if (actionId === "run" && onSubmit) {
+                onSubmit(layout.sql);
+              }
+            }),
+          });
+          zoneIds.push(id);
+        }
+      } else {
+        const layout = buildSqlEditorViewZoneLayout();
+        const id = accessor.addZone({
+          afterLineNumber: layout.afterLineNumber,
+          heightInPx: layout.heightInPx,
+          domNode: createSqlEditorViewZoneDom(layout.actions, handleGlobalAction),
+        });
+        zoneIds.push(id);
+      }
     });
 
     return () => {
-      if (zoneId === undefined) return;
-      const id = zoneId;
       editor.changeViewZones((accessor) => {
-        accessor.removeZone(id);
+        for (const id of zoneIds) accessor.removeZone(id);
       });
     };
-  }, [editorRef, onSubmit, onViewZoneAction]);
+  }, [editorRef, onSubmit, onViewZoneAction, sql]);
 
   return (
     <Editor
