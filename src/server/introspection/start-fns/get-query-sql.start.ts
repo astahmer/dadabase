@@ -19,6 +19,8 @@ export type QuerySqlInput = {
   orderDirection?: "asc" | "desc";
   nullsOrder?: "first" | "last";
   filters?: QueryFilterType;
+  groupBy?: string[];
+  having?: QueryFilterType;
   joins?: JoinTablesConfig["joins"];
   selectedColumns?: string[];
   excludedColumns?: string[];
@@ -31,10 +33,11 @@ export type QuerySqlInput = {
  */
 export const getQueryAsSql = (input: QuerySqlInput) => {
   const validatedFilters = input.filters ? filterQueryValidConditions(input.filters) : null;
+  const validatedHaving = input.having ? filterQueryValidConditions(input.having) : null;
 
   const dialect = input.dialect;
 
-  // Generate the SQL query (this is a pure function, no database access)
+  // Generate the SQL string (this is a pure function, no database access)
   const { sql } = buildQuerySql(
     {
       schema: input.schema,
@@ -48,6 +51,8 @@ export const getQueryAsSql = (input: QuerySqlInput) => {
         conditions: [],
         logicalOperator: "and",
       },
+      groupBy: input.groupBy,
+      having: validatedHaving ?? undefined,
       joins: Array.from(input.joins ?? []),
       selectedColumns: input.selectedColumns ? Array.from(input.selectedColumns) : undefined,
       excludedColumns: input.excludedColumns ? Array.from(input.excludedColumns) : undefined,

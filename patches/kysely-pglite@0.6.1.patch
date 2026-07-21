@@ -1,0 +1,31 @@
+diff --git a/dist/constants.d.ts b/dist/constants.d.ts
+index 246547b8c6d57ae711fdebc4b094f5cab56945fd..ebafebec584484831664f571098d29a63811d98d 100644
+--- a/dist/constants.d.ts
++++ b/dist/constants.d.ts
+@@ -1,4 +1,4 @@
+-import { Migration } from 'kysely';
++import { type Migration } from 'kysely/migration';
+ export type MigrationMethod = keyof Migration;
+ export declare const DEFAULT_OUT_FILE: string;
+ export declare const pgDataFiles: string[];
+diff --git a/dist/utils/create-migrator.d.ts b/dist/utils/create-migrator.d.ts
+index 26fe4379187405baf9a79808c013d9cc17d850c6..c60eff93be29bf97006f9a2a28972c42632a6c35 100644
+--- a/dist/utils/create-migrator.d.ts
++++ b/dist/utils/create-migrator.d.ts
+@@ -1,2 +1,3 @@
+-import { Kysely, Migrator } from 'kysely';
++import { type Kysely } from 'kysely';
++import { type Migrator } from 'kysely/migration';
+ export declare function createMigrator(db: Kysely<any>, migrationsPath: string): Migrator;
+diff --git a/dist/utils/create-migrator.js b/dist/utils/create-migrator.js
+index a46d1070e2f8aa3fca3040dd67220f5b398038c9..2db19aab8914e6eaedfe8545ddeeb137fe96387c 100644
+--- a/dist/utils/create-migrator.js
++++ b/dist/utils/create-migrator.js
+@@ -1,6 +1,6 @@
+ import { globby } from 'globby';
+ import { createJiti } from 'jiti';
+-import { Migrator } from 'kysely';
++import { Migrator } from 'kysely/migration';
+ import { all, objectify } from 'radash';
+ const jiti = createJiti(import.meta.filename, {
+     // prevent files from getting cached so the `watch` feature works.

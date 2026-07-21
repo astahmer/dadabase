@@ -14,7 +14,7 @@
     "@effect/sql": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@electric-sql/pglite-tools": "catalog:",
-    "@opentelemetry/semantic-conventions": "1.38.0",
+    "@opentelemetry/semantic-conventions": "1.43.0",
     "effect": "catalog:"
   }
 }
