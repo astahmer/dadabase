@@ -60,3 +60,9 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [x] SQL completion: inverted operator suggestions
 - [x] INSERT completion: `INTO` → tables → column/values snippet
 - [x] update deps (ongoing chore)
+
+## Later
+
+- [ ] ER diagram (FK graph for current schema; click → open table)
+- [ ] AI chat thread (multi-turn NL→SQL on whole schema)
+- [ ] Import wizard (CSV/JSON → typed columns → INSERT preview)
