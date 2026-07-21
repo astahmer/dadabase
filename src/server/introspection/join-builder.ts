@@ -1,3 +1,5 @@
+import { SqlError } from "@effect/sql";
+
 // oxlint-disable typescript/no-non-null-assertion
 import type {
   CustomJoinCondition,
@@ -8,7 +10,6 @@ import type {
 import type { LogicalOperatorType } from "#src/components/query-builder/query-filter.ts";
 
 import { type DatabaseDialect, onDialectOrElse } from "#src/db/dialect.ts";
-import { SqlError } from "@effect/sql";
 
 import { buildPgWhereFragment, buildSqliteWhereFragment } from "./build-where.ts";
 
@@ -370,7 +371,7 @@ const buildFilterJoinCondition = ({
   return filterExpression;
 };
 
-  const joinKey = (s: string, t: string) => `${s}.${t}`;
+const joinKey = (s: string, t: string) => `${s}.${t}`;
 
 /**
  * Build SQL JOIN clauses from join configuration for a specific dialect
@@ -532,9 +533,7 @@ export const buildJoinSqlPreview = (
         return alias ? `${baseRef} AS "${alias}"` : baseRef;
       },
       mysql: () => {
-        const baseRef = join.schema
-          ? `\`${join.schema}\`.\`${join.table}\``
-          : `\`${join.table}\``;
+        const baseRef = join.schema ? `\`${join.schema}\`.\`${join.table}\`` : `\`${join.table}\``;
         return alias ? `${baseRef} AS \`${alias}\`` : baseRef;
       },
       sqlite: () => {

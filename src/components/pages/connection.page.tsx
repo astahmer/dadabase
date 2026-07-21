@@ -54,7 +54,10 @@ import {
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
-import { buildCascadeDeletePreview, withDependentRowCounts } from "#src/lib/cascade-delete-preview.ts";
+import {
+  buildCascadeDeletePreview,
+  withDependentRowCounts,
+} from "#src/lib/cascade-delete-preview.ts";
 import {
   buildCommandPaletteCommands,
   COMMAND_PALETTE_IDS,
@@ -119,7 +122,6 @@ import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
 import { ConnectionAiAssistantDrawer } from "./connection-page/ai-assistant.drawer.tsx";
 import { CascadeDeleteConfirmDialog } from "./connection-page/cascade-delete-confirm.dialog.tsx";
-import { PasteRowsConfirmDialog } from "./connection-page/paste-rows-confirm.dialog.tsx";
 import { ConnectionCommandPalette } from "./connection-page/command-palette.tsx";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
@@ -145,6 +147,7 @@ import {
 } from "./connection-page/index-fk-mutate-sheet.tsx";
 import { invalidateSchemaMetadataQueries } from "./connection-page/invalidate-schema-metadata.ts";
 import { useJoinedTables } from "./connection-page/join-tables/use-joined-tables.ts";
+import { PasteRowsConfirmDialog } from "./connection-page/paste-rows-confirm.dialog.tsx";
 import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
 import {
   createClosedRowEditorState,
@@ -2022,11 +2025,14 @@ const BulkActions = (
     ],
     enabled:
       showDeleteConfirm &&
-      Boolean(search.schema && search.table && cascadePreview && cascadePreview.affected.length > 0),
+      Boolean(
+        search.schema && search.table && cascadePreview && cascadePreview.affected.length > 0,
+      ),
     queryFn: async () => {
       if (!cascadePreview || !search.table || !search.schema) return {};
       const direct = cascadePreview.affected.filter(
-        (a) => a.viaTable === search.table && a.edge.fromCols.length === 1 && a.edge.toCols.length === 1,
+        (a) =>
+          a.viaTable === search.table && a.edge.fromCols.length === 1 && a.edge.toCols.length === 1,
       );
       if (direct.length === 0) return {};
       return countCascadeDependentsServerFn({

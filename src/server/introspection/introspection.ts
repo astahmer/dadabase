@@ -1,3 +1,7 @@
+import { SqlClient } from "@effect/sql";
+import { SqlError } from "@effect/sql/SqlError";
+import { Effect } from "effect";
+
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
@@ -7,9 +11,6 @@ import {
   ALL_TABLES_INTROSPECTION_CONCURRENCY,
   pgSqliteHandlers,
 } from "#src/server/introspection/pg-sqlite-handlers.ts";
-import { SqlClient } from "@effect/sql";
-import { SqlError } from "@effect/sql/SqlError";
-import { Effect } from "effect";
 
 import type { QueryLogger } from "../query-logger/query-logger.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";

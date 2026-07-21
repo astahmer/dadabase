@@ -15,8 +15,8 @@ import {
   SheetTitle,
 } from "#src/components/ui/sheet.tsx";
 import { toaster } from "#src/components/ui/toaster.tsx";
-import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
 import { DatabaseDialect } from "#src/db/dialect.ts";
+import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { getErrorMessage } from "#src/lib/get-error-message.ts";
 import {

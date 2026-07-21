@@ -137,7 +137,9 @@ export function withDependentRowCounts(
   const attach = (entry: CascadeAffectedTable): CascadeAffectedTable => ({
     ...entry,
     dependentRowCount:
-      entry.table in countsByTable ? (countsByTable[entry.table] ?? null) : (entry.dependentRowCount ?? null),
+      entry.table in countsByTable
+        ? (countsByTable[entry.table] ?? null)
+        : (entry.dependentRowCount ?? null),
   });
   return {
     ...preview,

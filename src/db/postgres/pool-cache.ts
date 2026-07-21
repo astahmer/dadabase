@@ -1,15 +1,11 @@
-import { SqlError } from "@effect/sql/SqlError";
-
 import { SqlClient } from "@effect/sql";
 import { LibsqlClient } from "@effect/sql-libsql";
 import { MysqlClient } from "@effect/sql-mysql2";
 import { PgClient } from "@effect/sql-pg";
+import { SqlError } from "@effect/sql/SqlError";
 import { Context, Duration, Effect, Layer, Redacted, Ref, Schedule } from "effect";
 
-import {
-  parseSshTunnelFromUrl,
-  stripDadabaseMarkerParams,
-} from "#src/lib/connection-security.ts";
+import { parseSshTunnelFromUrl, stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { openSshLocalForward } from "#src/server/ssh-tunnel.ts";
 
@@ -155,10 +151,7 @@ export const makePoolCacheLive = Layer.effect(
               } catch {
                 // ignore
               }
-              return [
-                raced.layer,
-                new Map(cache).set(url, { ...raced, lastUsed: Date.now() }),
-              ];
+              return [raced.layer, new Map(cache).set(url, { ...raced, lastUsed: Date.now() })];
             }
             const newCache = new Map(cache);
             newCache.set(url, { layer, lastUsed: Date.now(), closeTunnel });

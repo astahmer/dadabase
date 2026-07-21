@@ -1,9 +1,10 @@
-import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 import type { Selectable } from "kysely";
 
 import { SqlClient } from "@effect/sql";
 import { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
+
+import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 
 import { insertRow } from "./insert-row.ts";
 
