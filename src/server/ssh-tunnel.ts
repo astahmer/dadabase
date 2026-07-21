@@ -1,5 +1,3 @@
-import { Client } from "ssh2";
-
 import type { SshTunnelConfig } from "#src/lib/connection-security.ts";
 
 export type OpenSshTunnelResult = {
@@ -25,6 +23,8 @@ export async function openSshLocalForward(input: {
     throw new Error("SSH tunnel requires a private key path or password");
   }
 
+  // Dynamic import keeps native ssh2/cpu-features out of Vite's static client graph.
+  const { Client } = await import("ssh2");
   const fs = await import("node:fs/promises");
   const net = await import("node:net");
 

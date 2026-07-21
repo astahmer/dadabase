@@ -2,9 +2,12 @@ import tailwindcss from "@tailwindcss/vite";
 // import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
 import jsxSource from "unplugin-jsx-source/vite";
 import { defineConfig } from "vite";
 import viteTsConfigPaths from "vite-tsconfig-paths";
+
+const cpuFeaturesStub = fileURLToPath(new URL("./vite-stubs/cpu-features.cjs", import.meta.url));
 
 const defaultTransformFileName = (
   id: string,
@@ -21,7 +24,16 @@ const config = defineConfig((env) => ({
   resolve: {
     alias: {
       "@dadabase/effect-pglite": "/packages/effect-pglite/src/mod.ts",
+      // ssh2 optionally loads native cpu-features (.node). Bundlers resolve it
+      // statically despite try/catch — stub so dep optimize / SSR can proceed.
+      "cpu-features": cpuFeaturesStub,
     },
+  },
+  optimizeDeps: {
+    exclude: ["ssh2", "cpu-features"],
+  },
+  ssr: {
+    external: ["ssh2"],
   },
   plugins: [
     // devtools({
