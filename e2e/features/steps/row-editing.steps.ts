@@ -294,7 +294,7 @@ Then(
 );
 
 Then(
-  "I should see cascade affected table {string} with {int} row(s)",
+  "I should see cascade affected table {string} with {int} row\\(s\\)",
   async ({ page }, tableName: string, count: number) => {
     const affected = page.getByTestId("cascade-delete-affected");
     await expect(affected).toBeVisible({ timeout: 10_000 });
@@ -323,7 +323,7 @@ When("I paste TSV into the rows table:", async ({ page }, docString: string) => 
 });
 
 Then(
-  "I should see the paste rows confirm dialog for {int} row(s)",
+  "I should see the paste rows confirm dialog for {int} row\\(s\\)",
   async ({ page }, count: number) => {
     const dialog = page.getByTestId("paste-rows-confirm");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
