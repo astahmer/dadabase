@@ -42,11 +42,13 @@ function buildDriverLayer(
   driverUrl: string,
   dialect: DatabaseDialect,
 ): Layer.Layer<SqlClient.SqlClient, SqlError> {
+  const connectTimeout = Duration.seconds(5);
   if (dialect === "postgres") {
     return PgClient.layer({
       url: Redacted.make(driverUrl),
       maxConnections: 20,
       idleTimeout: Duration.seconds(30),
+      connectTimeout,
     });
   }
   if (dialect === "mysql") {
