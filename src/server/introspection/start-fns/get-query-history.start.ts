@@ -1,12 +1,13 @@
+import { queryOptions } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
+import { Effect, Schema } from "effect";
+
 import type { QueryLogFilters } from "#src/server/query-logger/query-logger.types.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
 import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
-import { queryOptions } from "@tanstack/react-query";
-import { createServerFn } from "@tanstack/react-start";
-import { Effect, Schema } from "effect";
 
 // TODO lint to sync with QueryLogFilters
 const QueryLogFiltersSchema = Schema.Struct({
@@ -23,7 +24,7 @@ const getQueryHistoryInputSchema = Schema.Struct({
 });
 
 const getQueryHistoryServerFn = createServerFn({ method: "POST" })
-  .inputValidator(getQueryHistoryInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(getQueryHistoryInputSchema.pipe(Schema.standardSchemaV1))
   .handler(async (ctx) => {
     const program = Effect.gen(function* () {
       const queryLogger = yield* QueryLogger;

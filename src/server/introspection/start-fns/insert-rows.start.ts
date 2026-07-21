@@ -15,7 +15,7 @@ const CellValue = Schema.Union(
 );
 
 export const insertRowsServerFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     Schema.Struct({
       url: Schema.String,
       schema: Schema.String,

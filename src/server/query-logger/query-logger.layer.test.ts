@@ -1,7 +1,8 @@
-import { AppDatabase } from "#src/db/app.db.ts";
-import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 import { describe, expect, it } from "@effect/vitest";
 import { DateTime, Effect, Layer, Logger, LogLevel } from "effect";
+
+import { AppDatabase } from "#src/db/app.db.ts";
+import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
 
 import { RemoteConnection, RemoteConnectionId } from "../db-connection/remote-connection.tag.ts";
 import { NanoId } from "../services/nano-id.ts";

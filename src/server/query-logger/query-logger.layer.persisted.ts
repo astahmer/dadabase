@@ -1,5 +1,6 @@
-import { AppDatabase } from "#src/db/app.db.ts";
 import { Effect, Layer } from "effect";
+
+import { AppDatabase } from "#src/db/app.db.ts";
 
 import type { QueryLogEntryType, QueryLogFilters } from "./query-logger.types.ts";
 
@@ -45,10 +46,7 @@ export const QueryLoggerPersistentLayer = Layer.effect(
           return entryId;
         }).pipe(Effect.provideService(AppDatabase, db));
       },
-      update: function (
-        entryId: string,
-        updates: Partial<QueryLogEntryType>,
-      ): Effect.Effect<void> {
+      update: function (entryId: string, updates: Partial<QueryLogEntryType>): Effect.Effect<void> {
         return updatePersistedQueryLog(entryId, updates)
           .pipe(
             Effect.tapError((err) =>

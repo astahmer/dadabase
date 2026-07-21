@@ -1,11 +1,12 @@
+import { SqlClient } from "@effect/sql";
+import { describe, expect, it } from "@effect/vitest";
+import { Effect, Layer } from "effect";
+
 import {
   getAvailableDatabases,
   getAvailableSchemas,
   getAvailableTables,
 } from "#src/server/introspection/introspection.ts";
-import { SqlClient } from "@effect/sql";
-import { describe, expect, it } from "@effect/vitest";
-import { Effect, Layer } from "effect";
 
 import {
   type DatabaseTestConfig,
@@ -182,7 +183,9 @@ const testSuite =
           });
 
           expect(tables1.length).toBe(tables2.length);
-          expect(tables1.map((t) => t.name).toSorted()).toEqual(tables2.map((t) => t.name).toSorted());
+          expect(tables1.map((t) => t.name).toSorted()).toEqual(
+            tables2.map((t) => t.name).toSorted(),
+          );
         }).pipe(Effect.provide(testLayer)),
       );
     });

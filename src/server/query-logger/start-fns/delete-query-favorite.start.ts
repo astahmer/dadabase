@@ -5,7 +5,7 @@ import { deleteFavorite } from "#src/server/query-logger/query-logger.kysely.ts"
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
 export const deleteQueryFavoriteServerFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     Schema.Struct({
       id: Schema.String,
     }).pipe(Schema.standardSchemaV1),

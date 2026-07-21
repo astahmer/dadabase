@@ -8,7 +8,7 @@ import { createRemoteIntrospectionHandler } from "#src/server/create-remote-serv
 import { getTableIndexes } from "#src/server/introspection/introspection.ts";
 
 const getTableIndexesServerFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     Schema.Struct({
       url: Schema.String,
       schema: Schema.String,

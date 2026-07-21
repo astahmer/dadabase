@@ -1,10 +1,11 @@
-import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
-import { lookupFkValues } from "#src/server/introspection/fns/lookup-fk-values.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
+import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
+import { lookupFkValues } from "#src/server/introspection/fns/lookup-fk-values.ts";
+
 export const lookupFkValuesServerFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     Schema.Struct({
       url: Schema.String,
       schema: Schema.String,

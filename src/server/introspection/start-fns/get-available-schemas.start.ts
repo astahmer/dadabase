@@ -1,13 +1,14 @@
-import type { InferServerFnSchema } from "#src/types.ts";
-
-import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
-import { getAvailableSchemas } from "#src/server/introspection/introspection.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
+import type { InferServerFnSchema } from "#src/types.ts";
+
+import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
+import { getAvailableSchemas } from "#src/server/introspection/introspection.ts";
+
 const getAvailableSchemasServerFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     Schema.Struct({
       url: Schema.String,
     }).pipe(Schema.standardSchemaV1),

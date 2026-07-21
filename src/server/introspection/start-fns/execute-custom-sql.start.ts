@@ -14,7 +14,7 @@ export const ExecuteCustomSqlInputSchema = Schema.Struct({
 });
 
 export const executeCustomSqlServerFn = createServerFn({ method: "POST" })
-  .inputValidator(ExecuteCustomSqlInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(ExecuteCustomSqlInputSchema.pipe(Schema.standardSchemaV1))
   .handler(
     createRemoteIntrospectionHandler((input) =>
       Effect.gen(function* () {

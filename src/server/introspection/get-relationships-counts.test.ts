@@ -1,7 +1,8 @@
-import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
 import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+
+import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
 
 import {
   type DatabaseTestConfig,

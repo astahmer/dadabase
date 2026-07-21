@@ -1,6 +1,6 @@
-import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
-
 import { describe, expect, it } from "vitest";
+
+import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 
 import {
   buildColumnList,

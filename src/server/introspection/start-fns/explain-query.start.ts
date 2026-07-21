@@ -1,9 +1,10 @@
-import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { SqlClient } from "@effect/sql";
 import { SqlError } from "@effect/sql/SqlError";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
+
+import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 
 const ExplainInputSchema = Schema.Struct({
   url: Schema.String,
@@ -17,7 +18,7 @@ type ExplainInput = typeof ExplainInputSchema.Type;
  * Uses EXPLAIN for PostgreSQL and EXPLAIN QUERY PLAN for SQLite
  */
 export const explainQueryServerFn = createServerFn({ method: "POST" })
-  .inputValidator(ExplainInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(ExplainInputSchema.pipe(Schema.standardSchemaV1))
   .handler(
     createRemoteIntrospectionHandler((input) =>
       Effect.gen(function* () {

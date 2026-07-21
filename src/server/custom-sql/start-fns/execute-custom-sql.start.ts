@@ -34,7 +34,7 @@ export type ExecuteAndStoreCustomSqlInput = Schema.Schema.Type<
 export const executeAndStoreCustomSqlServerFn = createServerFn({
   method: "POST",
 })
-  .inputValidator(ExecuteAndStoreCustomSqlInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(ExecuteAndStoreCustomSqlInputSchema.pipe(Schema.standardSchemaV1))
   .handler(async (ctx) => {
     const readOnlyError = guardReadOnlyMutation(ctx.data.url, {
       isSelect: isSelectQuery(ctx.data.sql),
@@ -115,7 +115,7 @@ export const executeAndStoreCustomSqlServerFn = createServerFn({
   });
 
 const getCustomSqlExecutionServerFn = createServerFn({ method: "GET" })
-  .inputValidator(Schema.Struct({ id: Schema.String }).pipe(Schema.standardSchemaV1))
+  .validator(Schema.Struct({ id: Schema.String }).pipe(Schema.standardSchemaV1))
   .handler((ctx) => AppRuntime.runPromise(getCustomSqlExecution(ctx.data.id)));
 
 export const customSqlExecutionQueryOptions = (id: string | undefined) =>

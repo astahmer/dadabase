@@ -7,7 +7,7 @@ import { createRemoteIntrospectionHandler } from "#src/server/create-remote-serv
 import { executeSqliteTableRebuild } from "#src/server/introspection/introspection.ts";
 
 export const executeSqliteTableRebuildServerFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     Schema.Struct({
       url: Schema.String,
       statements: Schema.Array(Schema.String),

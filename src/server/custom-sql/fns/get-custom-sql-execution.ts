@@ -1,5 +1,6 @@
-import { CustomSqlExecutionRepository } from "#src/db/custom-sql-execution.repository.ts";
 import { Effect } from "effect";
+
+import { CustomSqlExecutionRepository } from "#src/db/custom-sql-execution.repository.ts";
 
 /**
  * Gets a custom SQL execution record by ID

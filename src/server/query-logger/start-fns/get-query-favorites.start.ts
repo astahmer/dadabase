@@ -8,7 +8,7 @@ import { getFavorites } from "#src/server/query-logger/query-logger.kysely.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
 const getQueryFavoritesServerFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     Schema.Struct({
       connectionId: Schema.String,
     }).pipe(Schema.standardSchemaV1),

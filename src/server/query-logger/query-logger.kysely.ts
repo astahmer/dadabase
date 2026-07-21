@@ -1,5 +1,6 @@
-import { AppDatabase } from "#src/db/app.db.ts";
 import { Effect } from "effect";
+
+import { AppDatabase } from "#src/db/app.db.ts";
 
 import type { QueryLogEntryType, QueryLogFilters } from "./query-logger.types.ts";
 

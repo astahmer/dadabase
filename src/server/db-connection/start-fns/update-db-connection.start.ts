@@ -1,12 +1,13 @@
-import { updateDbConnection } from "#src/server/db-connection/fns/update-db-connection.ts";
 import { mutationOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
+import { updateDbConnection } from "#src/server/db-connection/fns/update-db-connection.ts";
+
 import { AppRuntime } from "../../services/app.runtime.ts";
 
 const updateDbConnectionServerFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     Schema.Struct({
       id: Schema.String,
       name: Schema.String,

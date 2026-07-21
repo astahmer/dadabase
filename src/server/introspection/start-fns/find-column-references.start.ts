@@ -1,3 +1,7 @@
+import { queryOptions } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
+import { Schema } from "effect";
+
 import type { InferServerFnSchema } from "#src/types.ts";
 
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
@@ -5,16 +9,13 @@ import {
   findColumnReferences,
   findColumnReferencesWithCounts,
 } from "#src/server/introspection/introspection.ts";
-import { queryOptions } from "@tanstack/react-query";
-import { createServerFn } from "@tanstack/react-start";
-import { Schema } from "effect";
 
 /**
  * Find all tables and columns that reference a specific column (reverse FK lookup)
  * This is lazy-loaded to avoid N+1 queries
  */
 const findColumnReferencesServerFn = createServerFn({ method: "POST" })
-  .inputValidator(
+  .validator(
     Schema.Struct({
       url: Schema.String,
       referencedSchema: Schema.String,
@@ -39,7 +40,7 @@ const findColumnReferencesServerFn = createServerFn({ method: "POST" })
 const findColumnReferencesWithCountsServerFn = createServerFn({
   method: "POST",
 })
-  .inputValidator(
+  .validator(
     Schema.Struct({
       url: Schema.String,
       referencedSchema: Schema.String,

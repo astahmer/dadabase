@@ -1,12 +1,13 @@
-import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
+import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+
 import { AppRuntime } from "../../services/app.runtime.ts";
 
 const findByNameDbConnectionServerFn = createServerFn({ method: "POST" })
-  .inputValidator(Schema.Struct({ name: Schema.String }).pipe(Schema.standardSchemaV1))
+  .validator(Schema.Struct({ name: Schema.String }).pipe(Schema.standardSchemaV1))
   .handler(async (ctx) => {
     const getSavedConnections = Effect.gen(function* () {
       const repository = yield* DatabaseConnectionRepository;

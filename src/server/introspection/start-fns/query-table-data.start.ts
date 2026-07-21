@@ -80,7 +80,7 @@ export const QueryTableRowsInputSchema = Schema.Struct({
   excludedColumns: Schema.Array(Schema.String).pipe(Schema.mutable, Schema.optional),
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
-  .inputValidator(QueryTableRowsInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(QueryTableRowsInputSchema.pipe(Schema.standardSchemaV1))
   .handler(
     createRemoteIntrospectionHandler((input) =>
       Effect.gen(function* () {

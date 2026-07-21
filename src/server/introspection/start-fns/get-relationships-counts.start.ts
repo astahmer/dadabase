@@ -1,11 +1,12 @@
+import { queryOptions } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
+import { Schema } from "effect";
+
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
-import { queryOptions } from "@tanstack/react-query";
-import { createServerFn } from "@tanstack/react-start";
-import { Schema } from "effect";
 
 const TableRelationshipSchema = Schema.Struct({
   constraintName: Schema.String,
@@ -28,7 +29,7 @@ const InputSchema = Schema.Struct({
 });
 
 const getRelationshipsCountsServerFn = createServerFn({ method: "POST" })
-  .inputValidator(InputSchema.pipe(Schema.standardSchemaV1))
+  .validator(InputSchema.pipe(Schema.standardSchemaV1))
   .handler(
     createRemoteIntrospectionHandler((input) =>
       getRelationshipsCounts({

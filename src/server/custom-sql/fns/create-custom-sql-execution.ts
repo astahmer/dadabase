@@ -1,6 +1,7 @@
+import { Effect } from "effect";
+
 import { CustomSqlExecutionRepository } from "#src/db/custom-sql-execution.repository.ts";
 import { NanoId } from "#src/server/services/nano-id.ts";
-import { Effect } from "effect";
 
 export interface CreateCustomSqlExecutionInput {
   connectionId: string;

@@ -9,12 +9,10 @@ export interface QueryLogCounts {
 }
 
 export interface QueryLoggerInterface {
-  get: (filters?: QueryLogFilters) => Effect.Effect<
-    {
-      rows: QueryLogEntryType[];
-      counts: QueryLogCounts;
-    }
-  >;
+  get: (filters?: QueryLogFilters) => Effect.Effect<{
+    rows: QueryLogEntryType[];
+    counts: QueryLogCounts;
+  }>;
   push: (entry: Omit<QueryLogEntryType, "id">) => Effect.Effect<string>;
   update: (id: string, updates: Partial<QueryLogEntryType>) => Effect.Effect<void>;
   clearAll: () => Effect.Effect<void>;
