@@ -61,13 +61,22 @@ async function upsertE2eConnection(samplePath) {
   const now = Math.floor(Date.now() / 1000);
 
   const connections = [
-    { id: "e2e-sqlite-id", name: "e2e-sqlite", url: `file:${samplePath}` },
+    { id: "e2e-sqlite-id", name: "e2e-sqlite", url: `file:${samplePath}`, dialect: "sqlite" },
     // Shares the same underlying file, marked read-only via the `dadabase_readonly` query
     // param so the read-only mutation guard can be exercised end-to-end.
     {
       id: "e2e-sqlite-readonly-id",
       name: "e2e-sqlite-readonly",
       url: `file:${samplePath}?dadabase_readonly=1`,
+      dialect: "sqlite",
+    },
+    // Closed port — asserts unreachable DBs fail fast with a useful message (not a hang /
+    // generic FiberFailure).
+    {
+      id: "e2e-unreachable-pg-id",
+      name: "e2e-unreachable-pg",
+      url: "postgres://dadabase:dadabase@127.0.0.1:1/dadabase",
+      dialect: "postgres",
     },
   ];
 
@@ -79,7 +88,7 @@ async function upsertE2eConnection(samplePath) {
     await appClient.execute({
       sql: `INSERT INTO database_connections (id, dialect, url, name, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [conn.id, "sqlite", conn.url, conn.name, now, now],
+      args: [conn.id, conn.dialect, conn.url, conn.name, now, now],
     });
   }
   appClient.close();
