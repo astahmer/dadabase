@@ -29,5 +29,8 @@ When("I import CSV rows into the current table:", async ({ page }, docString: st
 
 Then("I should see {string} in the rows table", async ({ page }, text: string) => {
   await page.getByTestId("view-mode-rows").click();
-  await expect(page.getByText(text, { exact: false })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("import-data-sheet")).toBeHidden({ timeout: 5_000 }).catch(() => undefined);
+  await expect(page.locator('[data-in="CellValue"]').filter({ hasText: text })).toBeVisible({
+    timeout: 20_000,
+  });
 });
