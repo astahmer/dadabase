@@ -73,7 +73,7 @@ export const buildNlToSqlPrompt = (input: BuildNlToSqlPromptInput): string => {
       ? `- The user currently has table ${quoteIdent(activeTable, dialect)} open — prefer it when the question is ambiguous, but still use other tables when needed.`
       : "- No active table hint; pick the best tables from the schema.",
     "- Qualify columns with the table name when ambiguous.",
-    "- Use LIMIT 100 unless the user asks for aggregates or a different limit.",
+    "- Always include a safe LIMIT (≤ 100) unless the user explicitly asks for more rows, ALL rows, or a different limit.",
     "- Never invent columns or tables that are not listed.",
     "",
     "Database schema:",

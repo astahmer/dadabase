@@ -259,8 +259,9 @@ export const ConnectionAiAssistantDrawer = ({
             AI assistant
           </SheetTitle>
           <SheetDescription className="text-xs">
-            BYOK OpenAI — key stays in this browser (`dadabase.openai-api-key`), never stored on our
-            server.
+            BYOK OpenAI — key stays in this browser (`dadabase.openai-api-key`). Requests go through
+            a thin server proxy (key is not stored server-side); direct browser calls are blocked by
+            CORS.
           </SheetDescription>
         </SheetHeader>
 

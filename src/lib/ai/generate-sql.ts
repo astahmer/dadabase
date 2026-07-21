@@ -1,24 +1,11 @@
-import { createOpenAI } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import { generateSqlTextServerFn } from "#src/server/ai/generate-sql-text.start.ts";
 
 import { getStoredOpenAiApiKey } from "#src/lib/ai-byok.ts";
 
 import type { AiSchemaContext, AiTableContext } from "./ai-types.ts";
 
+import { ensureSafeSelectLimit } from "./ensure-safe-select-limit.ts";
 import { buildNlToSqlChatPrompt, extractSqlFromModelText } from "./nl-to-sql-prompt.ts";
-
-/**
- * BYOK approach: call OpenAI from the browser with the user-provided key
- * (createOpenAI({ apiKey })). The key is read from localStorage and sent only
- * to OpenAI — never persisted on our server. Prefer this over a server fn that
- * accepts apiKey in the body (also valid, but less "pure" BYOK).
- */
-export const createByokOpenAi = (apiKey: string) =>
-  createOpenAI({
-    apiKey,
-    // Browser: key goes only to OpenAI. If CORS blocks, add a thin proxy later —
-    // still never persist the key on our server.
-  });
 
 export interface GenerateSqlFromNlInput {
   question: string;
@@ -40,7 +27,9 @@ export interface GenerateSqlFromNlResult {
 }
 
 /**
- * NL → SQL via OpenAI (client-side BYOK). Throws if no API key.
+ * NL → SQL via OpenAI through a server proxy (BYOK).
+ * The key is read from localStorage and sent only for this request — never stored server-side.
+ * Direct browser → OpenAI is blocked by CORS, so the proxy is required.
  */
 export const generateSqlFromNaturalLanguage = async (
   input: GenerateSqlFromNlInput,
@@ -57,14 +46,17 @@ export const generateSqlFromNaturalLanguage = async (
     history: input.history,
   });
 
-  const openai = createByokOpenAi(apiKey);
-  const { text } = await generateText({
-    model: openai(input.model ?? "gpt-4o-mini"),
-    prompt,
+  const { text } = await generateSqlTextServerFn({
+    data: {
+      apiKey,
+      prompt,
+      model: input.model,
+    },
   });
 
+  const extracted = extractSqlFromModelText(text);
   return {
-    sql: extractSqlFromModelText(text),
+    sql: ensureSafeSelectLimit(extracted),
     rawText: text,
     prompt,
   };
