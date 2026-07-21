@@ -1,10 +1,24 @@
 import { PgClient } from "@effect/sql-pg";
 import { PostgreSqlContainer } from "@testcontainers/postgresql";
 import { Data, Effect, Layer, Redacted, String } from "effect";
+import { execFileSync } from "node:child_process";
 
 export class ContainerError extends Data.TaggedError("ContainerError")<{
   cause: unknown;
 }> {}
+
+/** True when a Docker-compatible runtime answers `docker info` (needed by testcontainers). */
+export function isContainerRuntimeAvailable(): boolean {
+  try {
+    execFileSync("docker", ["info"], {
+      stdio: "ignore",
+      timeout: 5_000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export class PgContainer extends Effect.Service<PgContainer>()("test/PgContainer", {
   scoped: Effect.acquireRelease(

@@ -7,7 +7,7 @@ import type { QueryFilterType } from "#src/components/query-builder/query-filter
 
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
 
-import { PgContainer } from "./pg-test.layer.ts";
+import { PgContainer, isContainerRuntimeAvailable } from "./pg-test.layer.ts";
 import { type DatabaseTestConfig, makeTestLayer, postgresConfig } from "./test.layer.ts";
 
 interface User {
@@ -3429,7 +3429,7 @@ const testSuite =
 
 // describe("queryTableData (pglite)", testSuite(pgliteLayer, postgresConfig));
 // describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));
-describe(
+describe.skipIf(!isContainerRuntimeAvailable())(
   "queryTableData (pg with testcontainers)",
   testSuite(PgContainer.ClientLive.pipe(Layer.catchAll(Layer.die)), postgresConfig),
   1000 * 60 * 10,
