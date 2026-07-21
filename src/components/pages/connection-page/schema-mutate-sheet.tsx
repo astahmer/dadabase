@@ -15,6 +15,7 @@ import {
   SheetTitle,
 } from "#src/components/ui/sheet.tsx";
 import { toaster } from "#src/components/ui/toaster.tsx";
+import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { getErrorMessage } from "#src/lib/get-error-message.ts";
@@ -22,6 +23,7 @@ import {
   buildAddColumnSql,
   buildAlterColumnSql,
   buildCreateTableSql,
+  buildSqliteRebuildAlterSql,
   defaultCreateTableColumns,
   isSqliteLikeDialect,
   SCHEMA_MUTATE_TYPE_SUGGESTIONS,
@@ -51,6 +53,8 @@ export interface SchemaMutateSheetProps {
   dialect: DatabaseDialect;
   schema: string;
   table?: string;
+  /** Full current column list for the table being altered — required for SQLite rebuild-based ALTER. */
+  allColumns?: readonly SchemaColumnDraft[];
   onOpenChange: (open: boolean) => void;
   onSuccess?: (details: { mode: SchemaMutateMode; table: string; sql: string }) => void;
 }
@@ -78,6 +82,7 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
     dialect,
     schema,
     table: tableProp,
+    allColumns,
     onOpenChange,
     onSuccess,
   } = props;
@@ -134,6 +139,22 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
         });
       }
       if (mode === "alter-column" && previousColumn) {
+        if (isSqliteLikeDialect(mutateDialect)) {
+          if (!allColumns || allColumns.length === 0) {
+            return "-- Missing full column list; cannot build SQLite rebuild ALTER";
+          }
+          return buildSqliteRebuildAlterSql({
+            schema,
+            table: tableName || tableProp || "",
+            columns: allColumns,
+            alter: {
+              columnName: previousColumn.name,
+              dataType: singleColumn.dataType,
+              nullable: singleColumn.nullable,
+              defaultValue: singleColumn.defaultValue ?? null,
+            },
+          });
+        }
         return buildAlterColumnSql({
           dialect: mutateDialect,
           schema,
@@ -146,9 +167,19 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
       return "";
     } catch (err) {
       if (err instanceof UnsupportedSchemaMutateError) return `-- ${err.message}`;
-      return "";
+      return `-- ${getErrorMessage(err)}`;
     }
-  }, [mode, mutateDialect, schema, tableName, tableProp, columns, singleColumn, previousColumn]);
+  }, [
+    mode,
+    mutateDialect,
+    schema,
+    tableName,
+    tableProp,
+    columns,
+    singleColumn,
+    previousColumn,
+    allColumns,
+  ]);
 
   const title =
     mode === "create-table"
@@ -161,6 +192,8 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
 
   const mutation = useMutation({
     mutationFn: async (sql: string) => {
+      const readOnlyError = guardReadOnlyMutation(connectionUrl);
+      if (readOnlyError) throw new Error(readOnlyError);
       return executeCustomSqlServerFn({
         data: { url: connectionUrl, sql },
       });
@@ -201,14 +234,31 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
         });
       } else {
         if (!previousColumn) throw new Error("No column selected");
-        sql = buildAlterColumnSql({
-          dialect: mutateDialect,
-          schema,
-          table: tableName || tableProp || "",
-          columnName: previousColumn.name,
-          column: singleColumn,
-          previous: previousColumn,
-        });
+        if (isSqliteLikeDialect(mutateDialect)) {
+          if (!allColumns || allColumns.length === 0) {
+            throw new Error("Missing full column list; cannot build SQLite rebuild ALTER");
+          }
+          sql = buildSqliteRebuildAlterSql({
+            schema,
+            table: tableName || tableProp || "",
+            columns: allColumns,
+            alter: {
+              columnName: previousColumn.name,
+              dataType: singleColumn.dataType,
+              nullable: singleColumn.nullable,
+              defaultValue: singleColumn.defaultValue ?? null,
+            },
+          });
+        } else {
+          sql = buildAlterColumnSql({
+            dialect: mutateDialect,
+            schema,
+            table: tableName || tableProp || "",
+            columnName: previousColumn.name,
+            column: singleColumn,
+            previous: previousColumn,
+          });
+        }
       }
     } catch (err) {
       setSubmitError(getErrorMessage(err));
@@ -226,7 +276,10 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
     setColumns((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
   };
 
-  const alterDisabled = mode === "alter-column" && isSqliteLikeDialect(mutateDialect);
+  const alterDisabled =
+    mode === "alter-column" &&
+    isSqliteLikeDialect(mutateDialect) &&
+    (!allColumns || allColumns.length === 0);
 
   return (
     <>
@@ -294,13 +347,14 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
               </div>
             ) : (
               <div className="space-y-3">
-                {alterDisabled && (
+                {mode === "alter-column" && isSqliteLikeDialect(mutateDialect) && (
                   <p
                     className="text-muted-foreground text-xs"
                     data-testid="schema-mutate-sqlite-alter-hint"
                   >
-                    SQLite cannot change column type/null/default without rebuilding the table. Use
-                    Add/Drop column instead.
+                    {alterDisabled
+                      ? "SQLite cannot change column type/null/default without rebuilding the table, and the current column list is unavailable to build the rebuild."
+                      : "SQLite requires a full table rebuild to alter a column (copies rows into a shadow table)."}
                   </p>
                 )}
                 <ColumnDraftFields

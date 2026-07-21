@@ -68,7 +68,7 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 
 ## Competitor gap backlog (in progress / next)
 
-- [ ] Export result/table as CSV / JSON / SQL INSERT
+- [x] Export result/table as CSV / JSON / SQL INSERT
 - [ ] Import wizard (CSV/JSON → typed columns → INSERT preview)
 - [ ] ER diagram (FK graph; click → open table)
 - [ ] SSH tunnel + SSL connection presets
@@ -76,10 +76,10 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [ ] Explain / query plan UI (enhance existing; SQLite + richer tree)
 - [ ] Index create/drop + FK editor
 - [ ] Schema compare / diff → migration SQL
-- [ ] SQLite ALTER COLUMN via table rebuild
+- [x] SQLite ALTER COLUMN via table rebuild
 - [ ] Clipboard paste TSV/CSV as rows into grid
 - [ ] Deeper JSON / BLOB cell viewers
 - [ ] FK-aware delete with cascade preview
 - [ ] AI chat thread (multi-turn NL→SQL on whole schema)
 - [ ] MySQL / MariaDB dialect
-- [ ] Read-only connection mode + dangerous-op guards
+- [x] Read-only connection mode + dangerous-op guards

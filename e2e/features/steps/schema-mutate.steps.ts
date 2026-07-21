@@ -79,3 +79,33 @@ When("I drop the current table", async ({ page }) => {
   await page.getByTestId("schema-drop-table").click();
   await page.getByRole("button", { name: "Execute" }).click();
 });
+
+When(
+  "I alter column {string} to type {string}",
+  async ({ page }, columnName: string, dataType: string) => {
+    // The structure table can re-render shortly after the view mounts (layout
+    // settling, index list loading), which detaches an already-open menu.
+    // Retry opening the menu until the edit item can be clicked reliably.
+    const actionsButton = page.getByTestId(`schema-column-actions-${columnName}`);
+    const editItem = page.getByTestId(`schema-column-edit-${columnName}`);
+    await expect(actionsButton).toBeVisible({ timeout: 15_000 });
+    let opened = false;
+    for (let attempt = 0; attempt < 10 && !opened; attempt++) {
+      await actionsButton.click();
+      try {
+        await editItem.click({ timeout: 3_000 });
+        opened = true;
+      } catch {
+        await page.keyboard.press("Escape");
+      }
+    }
+    if (!opened) {
+      throw new Error(`Could not open edit sheet for column "${columnName}"`);
+    }
+    await expect(page.getByTestId("schema-mutate-sheet")).toBeVisible();
+    await page.getByTestId("schema-mutate-col-type").fill(dataType);
+    await page.getByTestId("schema-mutate-run").click();
+    await page.getByRole("button", { name: "Execute" }).click();
+    await expect(page.getByTestId("schema-mutate-sheet")).toBeHidden({ timeout: 15_000 });
+  },
+);

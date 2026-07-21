@@ -14,3 +14,9 @@ Feature: Schema mutate UI
     Then I should not see column "color" in the structure table
     When I drop the current table
     Then I should not see table "widgets" in the sidebar
+
+  Scenario: Alter a SQLite column via table rebuild
+    Given I open the "users" table
+    When I switch to structure view
+    And I alter column "age" to type "TEXT"
+    Then I should see column "age" in the structure table
