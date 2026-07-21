@@ -3,6 +3,25 @@ export { buildAlterColumnSql, UnsupportedSchemaMutateError } from "./build-alter
 export { buildCreateTableSql } from "./build-create-table-sql.ts";
 export { buildDropColumnSql } from "./build-drop-column-sql.ts";
 export { buildDropTableSql } from "./build-drop-table-sql.ts";
+export {
+  buildAddForeignKeySql,
+  type BuildAddForeignKeySqlInput,
+  buildDropForeignKeySql,
+  type BuildDropForeignKeySqlInput,
+  type ForeignKeyAction,
+} from "./build-foreign-key-sql.ts";
+export {
+  buildCreateIndexSql,
+  type BuildCreateIndexSqlInput,
+  buildDropIndexSql,
+  type BuildDropIndexSqlInput,
+  type IndexColumnDraft,
+} from "./build-index-sql.ts";
+export {
+  buildSqliteRebuildAlterSql,
+  type BuildSqliteRebuildAlterSqlInput,
+  type SqliteColumnAlterRequest,
+} from "./build-sqlite-rebuild-alter-sql.ts";
 export { qualifyTable, quoteIdent } from "./quote-ident.ts";
 export {
   defaultCreateTableColumns,
