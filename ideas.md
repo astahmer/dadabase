@@ -61,8 +61,25 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 - [x] INSERT completion: `INTO` → tables → column/values snippet
 - [x] update deps (ongoing chore)
 
-## Later
+## Later / parked
 
-- [ ] ER diagram (FK graph for current schema; click → open table)
-- [ ] AI chat thread (multi-turn NL→SQL on whole schema)
+- [ ] Views / triggers / functions browser (read + open definition) — deferred for now
+- [ ] Shared saved-query sync — not needed; full URL state is already bookmarkable
+
+## Competitor gap backlog (in progress / next)
+
+- [ ] Export result/table as CSV / JSON / SQL INSERT
 - [ ] Import wizard (CSV/JSON → typed columns → INSERT preview)
+- [ ] ER diagram (FK graph; click → open table)
+- [ ] SSH tunnel + SSL connection presets
+- [ ] Monaco `changeViewZones` per-statement actions + multi-result grids
+- [ ] Explain / query plan UI (enhance existing; SQLite + richer tree)
+- [ ] Index create/drop + FK editor
+- [ ] Schema compare / diff → migration SQL
+- [ ] SQLite ALTER COLUMN via table rebuild
+- [ ] Clipboard paste TSV/CSV as rows into grid
+- [ ] Deeper JSON / BLOB cell viewers
+- [ ] FK-aware delete with cascade preview
+- [ ] AI chat thread (multi-turn NL→SQL on whole schema)
+- [ ] MySQL / MariaDB dialect
+- [ ] Read-only connection mode + dangerous-op guards
