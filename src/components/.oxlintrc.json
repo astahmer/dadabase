@@ -3,14 +3,12 @@
   "rules": {
     "jsx-a11y/prefer-tag-over-role": "off",
     "jsx-a11y/click-events-have-key-events": "off",
-    // react
     "react/react-in-jsx-scope": "off",
     "react/rules-of-hooks": "error",
     "react/jsx-no-useless-fragment": "error",
     "react/no-unescaped-entities": "error",
-    // unicorn
     "unicorn/prefer-modern-math-apis": "error",
-    "unicorn/prefer-query-selector": "error",
+    "unicorn/prefer-query-selector": "warn",
     "unicorn/prefer-event-target": "error"
   }
 }

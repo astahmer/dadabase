@@ -8,7 +8,7 @@ import { Context, Deferred, Duration, Effect, Layer, Redacted, Ref, Schedule } f
 import { parseSshTunnelFromUrl, stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 
-import type { DatabaseDialect } from "../dialect.ts";
+import { DatabaseDialect } from "../dialect.ts";
 
 export class PoolCache extends Context.Tag("@dadabase/PoolCache")<
   PoolCache,
@@ -34,7 +34,7 @@ type CacheEntry = {
 const POOL_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 function defaultDbPort(dialect: DatabaseDialect): number {
-  if (dialect === "mysql") return 3306;
+  if (dialect === DatabaseDialect.MySQL) return 3306;
   return 5432;
 }
 
@@ -43,7 +43,7 @@ function buildDriverLayer(
   dialect: DatabaseDialect,
 ): Layer.Layer<SqlClient.SqlClient, SqlError> {
   const connectTimeout = Duration.seconds(5);
-  if (dialect === "postgres") {
+  if (dialect === DatabaseDialect.Postgres) {
     return PgClient.layer({
       url: Redacted.make(driverUrl),
       maxConnections: 20,
@@ -51,7 +51,7 @@ function buildDriverLayer(
       connectTimeout,
     });
   }
-  if (dialect === "mysql") {
+  if (dialect === DatabaseDialect.MySQL) {
     return MysqlClient.layer({
       url: Redacted.make(driverUrl),
       maxConnections: 20,

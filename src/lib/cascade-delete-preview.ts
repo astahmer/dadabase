@@ -109,7 +109,7 @@ export function buildCascadeDeletePreview(input: CascadeDeletePreviewInput): Cas
 
   const cascadedTables: string[] = [];
   const seen = new Set<string>();
-  for (const entry of [...affected].sort((a, b) => b.depth - a.depth)) {
+  for (const entry of [...affected].toSorted((a, b) => b.depth - a.depth)) {
     if (entry.action !== "cascade-delete" || entry.table === rootTable || seen.has(entry.table))
       continue;
     seen.add(entry.table);

@@ -107,7 +107,7 @@ export function buildErDiagramLayout(input: ErDiagramLayoutInput): ErDiagramLayo
   }
 
   const nodes: ErNodeLayout[] = [];
-  const sortedLayerIndices = [...tablesByLayer.keys()].sort((a, b) => a - b);
+  const sortedLayerIndices = [...tablesByLayer.keys()].toSorted((a, b) => a - b);
   for (const layerIndex of sortedLayerIndices) {
     const layerTables = tablesByLayer.get(layerIndex)!;
     const x = MARGIN + layerIndex * (NODE_WIDTH + LAYER_GAP_X);

@@ -7,7 +7,7 @@ function tableKey(schema: string, table: string): string {
 function columnSignature(columns: readonly SchemaDiffColumn[]): string {
   return columns
     .map((c) => `${c.name}|${c.dataType}|${c.nullable}`)
-    .sort()
+    .toSorted()
     .join(",");
 }
 

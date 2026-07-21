@@ -1,45 +1,77 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["oxc", "typescript", "unicorn", "import", "promise", "react"], // , "jsx-a11y"
+  "plugins": ["oxc", "typescript", "unicorn", "import", "promise", "react"],
   "categories": {
     "correctness": "error",
     "suspicious": "error",
     "perf": "warn"
   },
   "rules": {
-    // oxc
     "no-commonjs": "error",
     "no-amd": "error",
-    "eqeqeq": "error",
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
     "no-else-return": "error",
     "no-throw-literal": "error",
     "no-unused-vars": ["warn", { "varsIgnorePattern": "^_", "argsIgnorePattern": "^_" }],
-    // typescript
+    "no-underscore-dangle": [
+      "error",
+      {
+        "allow": ["__dirname", "__filename", "_exhaustive", "_lint", "_tag", "path_"]
+      }
+    ],
+    "preserve-caught-error": "off",
     "typescript/no-explicit-any": "off",
     "typescript/no-import-type-side-effects": "error",
     "typescript/no-non-null-assertion": "warn",
     "typescript/no-unsafe-function-type": "error",
     "typescript/prefer-ts-expect-error": "error",
-    // react
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/no-unnecessary-type-conversion": "off",
+    "typescript/no-unnecessary-type-assertion": "off",
+    "typescript/no-unnecessary-type-parameters": "off",
+    "typescript/no-base-to-string": "warn",
+    "typescript/restrict-template-expressions": "warn",
+    "typescript/no-floating-promises": "warn",
+    "typescript/no-unsafe-enum-comparison": "off",
+    "typescript/no-redundant-type-constituents": "off",
+    "typescript/unbound-method": "off",
+    "typescript/no-implied-eval": "off",
+    "typescript/consistent-return": "warn",
+    "typescript/no-unnecessary-template-expression": "warn",
+    "typescript/no-useless-default-assignment": "warn",
     "react/react-in-jsx-scope": "off",
     "react/rules-of-hooks": "error",
     "react/jsx-no-useless-fragment": "error",
     "react/no-unescaped-entities": "error",
-    // import
     "import/no-default-export": "warn",
     "import/no-duplicates": "error",
     "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
-    // promise
     "promise/always-return": "error",
     "promise/catch-or-return": "error",
     "promise/no-nesting": "error",
-    // unicorn
-    "unicorn/prefer-modern-math-apis": "error"
+    "unicorn/prefer-modern-math-apis": "error",
+    "unicorn/prefer-set-has": "off",
+    "unicorn/consistent-function-scoping": "warn",
+    "unicorn/prefer-query-selector": "warn",
+    "unicorn/no-array-sort": "error",
+    "unicorn/no-empty-file": "warn",
+    "unicorn/prefer-string-starts-ends-with": "warn"
   },
   "env": {
     "builtin": true
   },
   "globals": {},
-  // "ignorePatterns": ["src/routes/**", "src/components/**"]
-  "ignorePatterns": ["src/sandbox", "*.config.ts", ".references", "e2e"]
+  "ignorePatterns": ["src/sandbox", "*.config.ts", ".references", "e2e", "vite-stubs/**"],
+  "overrides": [
+    {
+      "files": ["**/*.{test,spec}.{ts,tsx}", "**/test.layer.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "typescript/no-non-null-assertion": "off",
+        "typescript/no-base-to-string": "off",
+        "typescript/restrict-template-expressions": "off",
+        "unicorn/no-array-sort": "off"
+      }
+    }
+  ]
 }

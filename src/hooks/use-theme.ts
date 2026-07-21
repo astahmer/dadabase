@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
@@ -6,7 +6,7 @@ export const useTheme = () => {
   const [theme, setTheme] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
-  const applyTheme = useEffectEvent((newTheme: Theme) => {
+  const applyTheme = (newTheme: Theme) => {
     const html = document.documentElement;
     if (newTheme === "dark") {
       html.classList.add("dark");
@@ -14,7 +14,7 @@ export const useTheme = () => {
       html.classList.remove("dark");
     }
     localStorage.setItem("theme", newTheme);
-  });
+  };
 
   // Load theme from localStorage on mount
   useEffect(() => {

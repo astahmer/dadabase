@@ -51,7 +51,8 @@ export const useJsEvalFilter = (
       // Construct the parameter list
       const params = Array.isArray(options.paramName) ? options.paramName : [options.paramName];
 
-      // Compile the function
+      // Compile the function (intentional for client-side row filter expressions).
+      // oxlint-disable-next-line typescript/no-implied-eval -- sandboxed filter DSL for current page rows
       const fn = new Function(...params, `return ${filterExpression}`) as (
         data: unknown,
       ) => unknown;
