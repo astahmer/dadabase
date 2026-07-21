@@ -1,5 +1,6 @@
 import type { SchemaColumnDraft } from "./types.ts";
 
+import { assertSafeSqlDataType, assertSafeSqlDefault } from "./assert-safe-sql-fragments.ts";
 import { qualifyTable, quoteIdent } from "./quote-ident.ts";
 
 export interface SqliteColumnAlterRequest {
@@ -21,16 +22,17 @@ export interface BuildSqliteRebuildAlterSqlInput {
 }
 
 function columnDefinition(col: SchemaColumnDraft): string {
-  const parts = [quoteIdent(col.name), col.dataType.trim() || "TEXT"];
+  const dataType = assertSafeSqlDataType(col.dataType.trim() || "TEXT");
+  const parts = [quoteIdent(col.name), dataType];
 
   if (col.primaryKey) {
     parts.push("PRIMARY KEY");
-    if (col.dataType.toUpperCase() === "INTEGER") return parts.join(" ");
+    if (dataType.toUpperCase() === "INTEGER") return parts.join(" ");
   }
   if (!col.nullable) parts.push("NOT NULL");
   if (col.unique && !col.primaryKey) parts.push("UNIQUE");
   if (col.defaultValue != null && col.defaultValue !== "") {
-    parts.push(`DEFAULT ${col.defaultValue}`);
+    parts.push(`DEFAULT ${assertSafeSqlDefault(col.defaultValue)}`);
   }
   return parts.join(" ");
 }

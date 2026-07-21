@@ -22,6 +22,7 @@ export {
   type BuildSqliteRebuildAlterSqlInput,
   type SqliteColumnAlterRequest,
 } from "./build-sqlite-rebuild-alter-sql.ts";
+export { assertSafeSqlDataType, assertSafeSqlDefault } from "./assert-safe-sql-fragments.ts";
 export { qualifyTable, quoteIdent } from "./quote-ident.ts";
 export {
   defaultCreateTableColumns,

@@ -1,5 +1,6 @@
 import type { SchemaColumnDraft, SchemaMutateDialect } from "./types.ts";
 
+import { assertSafeSqlDataType, assertSafeSqlDefault } from "./assert-safe-sql-fragments.ts";
 import { qualifyTable, quoteIdent } from "./quote-ident.ts";
 import { isSqliteLikeDialect } from "./types.ts";
 
@@ -40,8 +41,9 @@ export function buildAlterColumnSql(input: {
   const col = quoteIdent(columnName.trim());
   const stmts: string[] = [];
 
-  const nextType = column.dataType.trim();
-  if (nextType && nextType !== previous.dataType.trim()) {
+  const nextTypeRaw = column.dataType.trim();
+  if (nextTypeRaw && nextTypeRaw !== previous.dataType.trim()) {
+    const nextType = assertSafeSqlDataType(nextTypeRaw);
     stmts.push(`ALTER TABLE ${qualified} ALTER COLUMN ${col} TYPE ${nextType}`);
   }
 
@@ -59,7 +61,9 @@ export function buildAlterColumnSql(input: {
     if (nextDefault == null || nextDefault === "") {
       stmts.push(`ALTER TABLE ${qualified} ALTER COLUMN ${col} DROP DEFAULT`);
     } else {
-      stmts.push(`ALTER TABLE ${qualified} ALTER COLUMN ${col} SET DEFAULT ${nextDefault}`);
+      stmts.push(
+        `ALTER TABLE ${qualified} ALTER COLUMN ${col} SET DEFAULT ${assertSafeSqlDefault(nextDefault)}`,
+      );
     }
   }
 

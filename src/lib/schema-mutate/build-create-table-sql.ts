@@ -1,15 +1,17 @@
 import type { SchemaColumnDraft, SchemaMutateDialect } from "./types.ts";
 
+import { assertSafeSqlDataType, assertSafeSqlDefault } from "./assert-safe-sql-fragments.ts";
 import { qualifyTable, quoteIdent } from "./quote-ident.ts";
 import { isSqliteLikeDialect } from "./types.ts";
 
 function columnDefinition(dialect: SchemaMutateDialect, col: SchemaColumnDraft): string {
-  const parts = [quoteIdent(col.name), col.dataType.trim() || "text"];
+  const dataType = assertSafeSqlDataType(col.dataType.trim() || "text");
+  const parts = [quoteIdent(col.name), dataType];
 
   if (col.primaryKey) {
     parts.push("PRIMARY KEY");
     // SQLite INTEGER PRIMARY KEY is rowid alias; skip NOT NULL (implied)
-    if (isSqliteLikeDialect(dialect) && col.dataType.toUpperCase() === "INTEGER") {
+    if (isSqliteLikeDialect(dialect) && dataType.toUpperCase() === "INTEGER") {
       return parts.join(" ");
     }
   }
@@ -25,7 +27,7 @@ function columnDefinition(dialect: SchemaMutateDialect, col: SchemaColumnDraft):
   }
 
   if (col.defaultValue != null && col.defaultValue !== "") {
-    parts.push(`DEFAULT ${col.defaultValue}`);
+    parts.push(`DEFAULT ${assertSafeSqlDefault(col.defaultValue)}`);
   }
 
   return parts.join(" ");
