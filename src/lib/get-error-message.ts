@@ -4,8 +4,12 @@ function isGenericSqlWrapper(message: string): boolean {
   return (
     message === "Failed to execute statement" ||
     message === "An error has occurred" ||
+    message === "PgClient: Failed to connect" ||
+    message === "MysqlClient: Failed to connect" ||
     message.startsWith("(FiberFailure)") ||
-    /^SqlError:\s*Failed to execute statement/i.test(message)
+    /^SqlError:\s*Failed to execute statement/i.test(message) ||
+    /^SqlError:\s*PgClient: Failed to connect/i.test(message) ||
+    /^SqlError:\s*MysqlClient: Failed to connect/i.test(message)
   );
 }
 

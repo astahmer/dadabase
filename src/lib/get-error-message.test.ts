@@ -47,6 +47,28 @@ describe("getErrorMessage", () => {
     }
   });
 
+  it("unwraps PgClient Failed to connect wrappers to the driver cause", async () => {
+    const driverError = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), {
+      code: "ECONNREFUSED",
+    });
+
+    try {
+      await Effect.runPromise(
+        Effect.fail(
+          new SqlError({
+            cause: driverError,
+            message: "PgClient: Failed to connect",
+          }),
+        ),
+      );
+      expect.unreachable();
+    } catch (error) {
+      const message = getErrorMessage(error);
+      expect(message).not.toBe("PgClient: Failed to connect");
+      expect(message).toMatch(/ECONNREFUSED|127\.0\.0\.1:5432/);
+    }
+  });
+
   it("unwraps AggregateError nested connection failures", async () => {
     const nested = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), {
       code: "ECONNREFUSED",
