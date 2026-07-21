@@ -36,6 +36,9 @@ interface ConnectionPageFiltersProps {
   tableName: string;
   columnMetadata?: Array<TableColumnMetadata>;
   onAddRow?: () => void;
+  onCreateTable?: () => void;
+  onAddColumn?: () => void;
+  onDropTable?: () => void;
 }
 
 export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
@@ -49,6 +52,9 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
     tableName,
     columnMetadata,
     onAddRow,
+    onCreateTable,
+    onAddColumn,
+    onDropTable,
   } = props;
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
@@ -106,6 +112,8 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     }),
                 })
               }
+              data-testid="view-mode-structure"
+              aria-label="View table structure"
             >
               <LayoutGrid className="h-4 w-4" />
             </Button>
@@ -116,6 +124,9 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
             columnMetadata={columnMetadata}
             schema={schema}
             table={tableName}
+            onCreateTable={onCreateTable}
+            onAddColumn={onAddColumn}
+            onDropTable={onDropTable}
           />
         )}
         {viewMode === "rows" && (

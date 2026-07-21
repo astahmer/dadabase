@@ -1,7 +1,9 @@
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { MoreHorizontal } from "lucide-react";
 import { useMemo } from "react";
+
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 import type { StructureFilters } from "./use-structure-filter-state.ts";
@@ -11,13 +13,19 @@ import { PrimaryKeyIcon } from "../../app/primary-key-icon.tsx";
 import { UniqueConstraintIcon } from "../../app/unique-constraint-icon.tsx";
 import { DataTable } from "../../data-table/data-table.tsx";
 import { useDataTable } from "../../data-table/use-data-table.ts";
+import { Button } from "../../ui/button.tsx";
 import { HStack } from "../../ui/layout.tsx";
+import { Menu, MenuContent, MenuItem, MenuItemText, MenuTrigger } from "../../ui/menu.tsx";
 
 interface StructureTableProps {
   columnMetadata: Array<TableColumnMetadata>;
   isLoading: boolean;
   tableSize: DataTableSize;
   filters?: StructureFilters;
+  onEditColumn?: (column: TableColumnMetadata) => void;
+  onDropColumn?: (column: TableColumnMetadata) => void;
+  /** When false, hide Edit column (e.g. SQLite) */
+  canAlterColumn?: boolean;
 }
 
 const filterColumnMetadata = (
@@ -27,7 +35,6 @@ const filterColumnMetadata = (
   if (!filters) return columns;
 
   return columns.filter((col) => {
-    // Search filter (case-insensitive)
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       const matchesSearch =
@@ -41,19 +48,10 @@ const filterColumnMetadata = (
       if (!matchesSearch) return false;
     }
 
-    // Nullable filter
     if (filters.nullable && !col.nullable) return false;
-
-    // Primary Key filter
     if (filters.primaryKey && !col.primaryKey) return false;
-
-    // Unique filter
     if (filters.unique && !col.unique) return false;
-
-    // Foreign Key filter
     if (filters.foreignKey && !col.isForeignKey) return false;
-
-    // Has Defaults filter
     if (filters.hasDefaults && !col.defaultValue) return false;
 
     return true;
@@ -61,18 +59,72 @@ const filterColumnMetadata = (
 };
 
 export const StructureTable = (props: StructureTableProps) => {
-  const { columnMetadata, filters } = props;
+  const { columnMetadata, filters, onEditColumn, onDropColumn, canAlterColumn = true } = props;
 
   const filteredMetadata = useMemo(
     () => filterColumnMetadata(columnMetadata, filters),
     [columnMetadata, filters],
   );
 
+  const columns = useMemo(() => {
+    const base = [...structureColumns];
+    if (onEditColumn || onDropColumn) {
+      base.push({
+        id: "__schema_actions",
+        header: "",
+        size: 44,
+        minSize: 44,
+        maxSize: 44,
+        enableResizing: false,
+        enableSorting: false,
+        cell: (info) => {
+          const row = info.row.original as TableColumnMetadata;
+          return (
+            <Menu>
+              <MenuTrigger asChild>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="h-6 w-6 p-0"
+                  aria-label={`Column actions for ${row.name}`}
+                  data-testid={`schema-column-actions-${row.name}`}
+                >
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </MenuTrigger>
+              <MenuContent>
+                {canAlterColumn && onEditColumn && (
+                  <MenuItem
+                    value="edit"
+                    onClick={() => onEditColumn(row)}
+                    data-testid={`schema-column-edit-${row.name}`}
+                  >
+                    <MenuItemText>Edit column</MenuItemText>
+                  </MenuItem>
+                )}
+                {onDropColumn && (
+                  <MenuItem
+                    value="drop"
+                    onClick={() => onDropColumn(row)}
+                    data-testid={`schema-column-drop-${row.name}`}
+                  >
+                    <MenuItemText>Drop column</MenuItemText>
+                  </MenuItem>
+                )}
+              </MenuContent>
+            </Menu>
+          );
+        },
+      } as ColumnDef<TableColumnMetadata>);
+    }
+    return base;
+  }, [onEditColumn, onDropColumn, canAlterColumn]);
+
   const structureTable = useDataTable({
     data: filteredMetadata,
-    columns: structureColumns,
+    columns,
     getRowId: (row) => row.name,
-    manualPagination: true, // Disable pagination to show all results
+    manualPagination: true,
   });
 
   return (
@@ -87,7 +139,7 @@ export const StructureTable = (props: StructureTableProps) => {
   );
 };
 
-const structureColumns: Array<ColumnDef<any>> = [
+const structureColumns: Array<ColumnDef<TableColumnMetadata>> = [
   {
     accessorKey: "name",
     header: "Name",

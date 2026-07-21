@@ -1,5 +1,6 @@
 import { Splitter } from "@ark-ui/react";
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
 import { ArrowDown, ArrowDownUp, ArrowUp, Plus, RotateCcw } from "lucide-react";
@@ -12,6 +13,8 @@ import {
   useRef,
   useState,
 } from "react";
+
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import { BulkActionBar } from "#src/components/app/bulk-action-bar.tsx";
 import { ColumnHeaderContextProvider } from "#src/components/data-table/column-header-context.tsx";
@@ -69,6 +72,7 @@ import {
   createQueryAbortController,
   isQueryAbortError,
 } from "#src/lib/query-abort-controller.ts";
+import { buildDropColumnSql, buildDropTableSql } from "#src/lib/schema-mutate/index.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { queryClient } from "#src/query-client.ts";
 import {
@@ -81,6 +85,7 @@ import {
   isDestructiveQuery,
 } from "#src/server/introspection/detect-destructive-sql.ts";
 import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
+import { executeCustomSqlServerFn } from "#src/server/introspection/start-fns/execute-custom-sql.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
@@ -127,6 +132,7 @@ import {
 import { DestructiveQueryConfirmDialog } from "./connection-page/destructive-query-confirm.dialog.tsx";
 import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
 import { ExplainOutputDrawer } from "./connection-page/explain-output-drawer.tsx";
+import { invalidateSchemaMetadataQueries } from "./connection-page/invalidate-schema-metadata.ts";
 import { useJoinedTables } from "./connection-page/join-tables/use-joined-tables.ts";
 import { RelationshipsPanel } from "./connection-page/relationships/relationships-panel.tsx";
 import {
@@ -141,6 +147,10 @@ import {
   hasSystemRowIdentity,
 } from "./connection-page/row-editor/row-editor-values.ts";
 import { SchemaExplorerDrawer } from "./connection-page/schema-explorer-drawer.tsx";
+import {
+  SchemaMutateSheet,
+  type SchemaMutateSheetState,
+} from "./connection-page/schema-mutate-sheet.tsx";
 import { StructureTable } from "./connection-page/structure-table.tsx";
 import { TabErrorState } from "./connection-page/tab-error-state.tsx";
 import { TableIndexesPanel } from "./connection-page/table-indexes-panel.tsx";
@@ -622,19 +632,17 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: string }) => {
   const { connection } = props;
   const [rowEditor, setRowEditor] = useState<RowEditorSheetState>(createClosedRowEditorState);
-  const onEditRow = useCallback(
-    (row: Record<string, unknown>) => setRowEditor({ open: true, mode: "edit", row }),
-    [],
-  );
-  const onDuplicateRow = useCallback(
-    (row: Record<string, unknown>) => setRowEditor({ open: true, mode: "duplicate", row }),
-    [],
-  );
-  const pageState = useConnectionPageState({
-    connection,
-    onEditRow,
-    onDuplicateRow,
+  const [schemaMutate, setSchemaMutate] = useState<SchemaMutateSheetState>({
+    open: false,
+    mode: "create-table",
+    column: null,
   });
+  const [pendingDdl, setPendingDdl] = useState<{
+    sql: string;
+    summary: string;
+    afterSuccess?: () => void;
+  } | null>(null);
+  const queryClient = useQueryClient();
   const navigate = useNavigate({ from: "/connections/$connectionName" });
 
   const search = useActiveTabState((tab) => {
@@ -661,6 +669,117 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
     };
   });
   const { filters: structureFilters } = useStructureFilters();
+
+  const pendingDdlRef = useRef(pendingDdl);
+  pendingDdlRef.current = pendingDdl;
+
+  const ddlMutation = useMutation({
+    mutationFn: async (sql: string) =>
+      executeCustomSqlServerFn({
+        data: { url: props.activeConnectionUrl, sql },
+      }),
+    meta: { noInvalidate: true },
+    onSuccess: () => {
+      const pending = pendingDdlRef.current;
+      invalidateSchemaMetadataQueries(queryClient, {
+        url: props.activeConnectionUrl,
+        schema: search.schema || getDialectDefaultSchema(connection.dialect),
+      });
+      toaster.create({ title: "Schema change applied" });
+      pending?.afterSuccess?.();
+      setPendingDdl(null);
+    },
+    onError: (error) => {
+      toaster.create({
+        title: "Schema change failed",
+        description: formatDbError(error),
+        type: "error",
+      });
+      setPendingDdl(null);
+    },
+  });
+
+  const onEditRow = useCallback(
+    (row: Record<string, unknown>) => setRowEditor({ open: true, mode: "edit", row }),
+    [],
+  );
+  const onDuplicateRow = useCallback(
+    (row: Record<string, unknown>) => setRowEditor({ open: true, mode: "duplicate", row }),
+    [],
+  );
+  const pageState = useConnectionPageState({
+    connection,
+    onEditRow,
+    onDuplicateRow,
+  });
+
+  const schemaMutateDialect =
+    connection.dialect === DatabaseDialect.Postgres
+      ? "postgres"
+      : connection.dialect === DatabaseDialect.LibSQL
+        ? "libsql"
+        : "sqlite";
+  const canAlterColumn = connection.dialect === DatabaseDialect.Postgres;
+
+  const openSchemaMutate = (mode: SchemaMutateSheetState["mode"], column?: TableColumnMetadata) => {
+    setSchemaMutate({
+      open: true,
+      mode,
+      column: column
+        ? {
+            name: column.name,
+            dataType: column.dataType,
+            nullable: column.nullable,
+            primaryKey: column.primaryKey,
+            unique: column.unique,
+            defaultValue: column.defaultValue,
+          }
+        : null,
+    });
+  };
+
+  const runDestructiveDdl = (sql: string, afterSuccess?: () => void) => {
+    setPendingDdl({
+      sql,
+      summary: getDestructiveQuerySummary(sql),
+      afterSuccess,
+    });
+  };
+
+  const onDropTable = () => {
+    if (!search.schema || !search.table) return;
+    const droppedTable = search.table;
+    const sql = buildDropTableSql({
+      dialect: schemaMutateDialect,
+      schema: search.schema,
+      table: droppedTable,
+    });
+    runDestructiveDdl(sql, () => {
+      // Tab search requires a table; fall back to another known table name from the list query
+      // or keep structure view on a placeholder the sidebar will replace when user clicks.
+      void navigate({
+        search: (prev) => {
+          const tabs = prev.tabs ?? [];
+          const fallback = tabs.map((t) => t.table).find((t) => t && t !== droppedTable) ?? "users";
+          return updateTabState(prev, {
+            table: fallback,
+            viewMode: "structure",
+          });
+        },
+      });
+    });
+  };
+
+  const onDropColumn = (column: TableColumnMetadata) => {
+    if (!search.schema || !search.table) return;
+    const sql = buildDropColumnSql({
+      dialect: schemaMutateDialect,
+      schema: search.schema,
+      table: search.table,
+      column: column.name,
+    });
+    runDestructiveDdl(sql);
+  };
 
   const isUsingCustomSql = Boolean(search.customSql?.trim()) || Boolean(search.customSqlId);
 
@@ -836,6 +955,9 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                 ? () => setRowEditor({ open: true, mode: "insert", row: null })
                 : undefined
             }
+            onCreateTable={() => openSchemaMutate("create-table")}
+            onAddColumn={search.table ? () => openSchemaMutate("add-column") : undefined}
+            onDropTable={search.table ? onDropTable : undefined}
           />
 
           {/* Query Filter Builder */}
@@ -918,6 +1040,11 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
               isLoading={pageState.isColumnMetadataLoading}
               tableSize={search.tableSize}
               filters={structureFilters}
+              canAlterColumn={canAlterColumn}
+              onEditColumn={
+                search.table ? (col) => openSchemaMutate("alter-column", col) : undefined
+              }
+              onDropColumn={search.table ? onDropColumn : undefined}
             />
             {search.schema && search.table ? (
               <TableIndexesPanel
@@ -1093,6 +1220,40 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
           }
         />
       )}
+
+      {search.schema && (
+        <SchemaMutateSheet
+          open={schemaMutate.open}
+          mode={schemaMutate.mode}
+          column={schemaMutate.column}
+          connectionUrl={pageState.activeConnectionUrl}
+          dialect={connection.dialect}
+          schema={search.schema}
+          table={search.table}
+          onOpenChange={(open) => setSchemaMutate((prev) => ({ ...prev, open }))}
+          onSuccess={({ mode, table }) => {
+            if (mode === "create-table" && table) {
+              void navigate({
+                search: (prev) =>
+                  updateTabState(prev, {
+                    table,
+                    viewMode: "structure",
+                  }),
+              });
+            }
+          }}
+        />
+      )}
+
+      <DestructiveQueryConfirmDialog
+        isOpen={!!pendingDdl}
+        queryType={pendingDdl?.summary ?? "Execute a destructive operation"}
+        isLoading={ddlMutation.isPending}
+        onCancel={() => setPendingDdl(null)}
+        onConfirm={() => {
+          if (pendingDdl?.sql) ddlMutation.mutate(pendingDdl.sql);
+        }}
+      />
     </>
   );
 };

@@ -1,8 +1,8 @@
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
-
 import { Popover } from "@ark-ui/react/popover";
-import { ChevronsUpDown, Copy, Download, X } from "lucide-react";
+import { ChevronsUpDown, Copy, Download, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import type { StructureFilters } from "./use-structure-filter-state.ts";
 
@@ -27,6 +27,9 @@ interface StructureFilterControlsProps {
   columnMetadata?: Array<TableColumnMetadata>;
   schema?: string;
   table?: string;
+  onCreateTable?: () => void;
+  onAddColumn?: () => void;
+  onDropTable?: () => void;
 }
 
 /**
@@ -34,7 +37,7 @@ interface StructureFilterControlsProps {
  */
 export const StructureFilterControls = (props: StructureFilterControlsProps = {}) => {
   const { filters, updateFilters, clearFilters } = useStructureFilters();
-  const { columnMetadata, schema, table } = props;
+  const { columnMetadata, schema, table, onCreateTable, onAddColumn, onDropTable } = props;
   const hasFilters = hasActiveStructureFilters(filters);
   const [open, setOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
@@ -147,6 +150,43 @@ export const StructureFilterControls = (props: StructureFilterControlsProps = {}
 
   return (
     <HStack className="ml-auto gap-2">
+      {onCreateTable && (
+        <Button
+          variant="default"
+          size="sm"
+          className="h-8 gap-1"
+          onClick={onCreateTable}
+          data-testid="schema-create-table"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Table
+        </Button>
+      )}
+      {onAddColumn && table && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1"
+          onClick={onAddColumn}
+          data-testid="schema-add-column"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Column
+        </Button>
+      )}
+      {onDropTable && table && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive hover:text-destructive h-8 gap-1"
+          onClick={onDropTable}
+          data-testid="schema-drop-table"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Drop table
+        </Button>
+      )}
+
       {/* Search Input */}
       <Input
         placeholder="Search columns, types..."
