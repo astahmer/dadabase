@@ -63,6 +63,15 @@ export function JsonMonacoEditor(props: JsonMonacoEditorProps) {
     }
   }, [value]);
 
+  useEffect(() => {
+    return () => {
+      const win = window as unknown as {
+        __dadabaseJsonMonaco?: { setValue: (next: string) => void };
+      };
+      delete win.__dadabaseJsonMonaco;
+    };
+  }, []);
+
   return (
     <div className="flex flex-col gap-1" data-testid="json-monaco-editor">
       <div className="overflow-hidden rounded-md border">
@@ -79,11 +88,10 @@ export function JsonMonacoEditor(props: JsonMonacoEditorProps) {
               editor.updateOptions({ theme });
               // E2E / debug hook — Monaco's hidden textarea is readonly, so tests set
               // values through the real editor instance AND React onChange (controlled).
-              (
-                window as unknown as {
-                  __dadabaseJsonMonaco?: { setValue: (next: string) => void };
-                }
-              ).__dadabaseJsonMonaco = {
+              const win = window as unknown as {
+                __dadabaseJsonMonaco?: { setValue: (next: string) => void };
+              };
+              win.__dadabaseJsonMonaco = {
                 setValue: (next: string) => {
                   editor.setValue(next);
                   onChangeRef.current(next);

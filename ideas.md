@@ -86,5 +86,5 @@ Done items removed. Trash: dockview layout (overkill), dblclick-cell-copy (confl
 
 Notes:
 
-- SSH: URL encoding + `openSshLocalForward` helper shipped; pool auto-tunnel wiring still thin (config stored on connection URL).
-- MySQL: dialect/pool/form/try-connection + information_schema reuse via `pgSqliteHandlers`; deeper dialect quirks may need follow-up.
+- SSH: URL encoding + `openSshLocalForward`; `PoolCache` opens the tunnel and rewrites the driver URL to `127.0.0.1` (closes on pool eviction). Private-key auth only.
+- MySQL: dialect/pool/form/try-connection + dedicated `information_schema` / SHOW introspection branches (and `pgSqliteHandlers` where SQL is shared-safe). Joins/no-PK identity and some PG-only paths may still need follow-up.

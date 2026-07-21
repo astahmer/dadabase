@@ -25,6 +25,11 @@ export interface CascadeAffectedTable {
   /** The table this edge points to (the parent, one hop closer to the root). */
   viaTable: string;
   edge: ForeignKeyEdge;
+  /**
+   * When available, how many child rows match the selected parent keys for this edge.
+   * `null` means count was not computed (e.g. transitive hop); `undefined` means not requested.
+   */
+  dependentRowCount?: number | null;
 }
 
 export interface CascadeDeletePreviewInput {
@@ -118,5 +123,25 @@ export function buildCascadeDeletePreview(input: CascadeDeletePreviewInput): Cas
     order: [...cascadedTables, rootTable],
     blocked: blockedBy.length > 0,
     blockedBy,
+  };
+}
+
+/**
+ * Merges optional per-table dependent row counts into a structural cascade preview.
+ * Counts keyed by child table name; missing keys leave `dependentRowCount` as `null`.
+ */
+export function withDependentRowCounts(
+  preview: CascadeDeletePreview,
+  countsByTable: Readonly<Record<string, number | null | undefined>>,
+): CascadeDeletePreview {
+  const attach = (entry: CascadeAffectedTable): CascadeAffectedTable => ({
+    ...entry,
+    dependentRowCount:
+      entry.table in countsByTable ? (countsByTable[entry.table] ?? null) : (entry.dependentRowCount ?? null),
+  });
+  return {
+    ...preview,
+    affected: preview.affected.map(attach),
+    blockedBy: preview.blockedBy.map(attach),
   };
 }

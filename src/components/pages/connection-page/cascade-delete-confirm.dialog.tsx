@@ -41,7 +41,14 @@ export function CascadeDeleteConfirmDialog(props: CascadeDeleteConfirmDialogProp
             >
               RESTRICT / NO ACTION foreign keys reference this table via:{" "}
               {preview.blockedBy.map((b) => b.table).join(", ") || "(unknown)"}. Delete may fail if
-              dependent rows still exist (this preview is structural only).
+              dependent rows still exist
+              {preview.blockedBy.some((b) => typeof b.dependentRowCount === "number")
+                ? ` (${preview.blockedBy
+                    .filter((b) => typeof b.dependentRowCount === "number")
+                    .map((b) => `${b.table}: ${b.dependentRowCount}`)
+                    .join(", ")})`
+                : ""}
+              .
             </div>
           ) : null}
 
@@ -52,6 +59,11 @@ export function CascadeDeleteConfirmDialog(props: CascadeDeleteConfirmDialogProp
               {preview.affected.map((item) => (
                 <li key={`${item.table}-${item.depth}-${item.action}`}>
                   depth {item.depth}: {item.table} — {item.action} (via {item.viaTable})
+                  {typeof item.dependentRowCount === "number"
+                    ? ` — ${item.dependentRowCount} row(s)`
+                    : item.dependentRowCount === null
+                      ? " — count n/a"
+                      : ""}
                 </li>
               ))}
             </ul>

@@ -54,7 +54,7 @@ import {
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
-import { buildCascadeDeletePreview } from "#src/lib/cascade-delete-preview.ts";
+import { buildCascadeDeletePreview, withDependentRowCounts } from "#src/lib/cascade-delete-preview.ts";
 import {
   buildCommandPaletteCommands,
   COMMAND_PALETTE_IDS,
@@ -91,6 +91,7 @@ import {
   isSelectQuery,
 } from "#src/server/introspection/detect-destructive-sql.ts";
 import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
+import { countCascadeDependentsServerFn } from "#src/server/introspection/start-fns/count-cascade-dependents.start.ts";
 import { executeCustomSqlServerFn } from "#src/server/introspection/start-fns/execute-custom-sql.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 import { getAllTablesForeignKeysQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-foreign-keys.start.ts";
@@ -2010,6 +2011,46 @@ const BulkActions = (
     });
   }, [fkEdgesQuery.data, search.table, selectedRows]);
 
+  const cascadeCountsQuery = useQuery({
+    queryKey: [
+      "cascade-dependent-counts",
+      props.activeConnectionUrl,
+      search.schema,
+      search.table,
+      cascadePreview?.affected.map((a) => a.table).join(","),
+      selectedRows.map((r) => r.id).join(","),
+    ],
+    enabled:
+      showDeleteConfirm &&
+      Boolean(search.schema && search.table && cascadePreview && cascadePreview.affected.length > 0),
+    queryFn: async () => {
+      if (!cascadePreview || !search.table || !search.schema) return {};
+      const direct = cascadePreview.affected.filter(
+        (a) => a.viaTable === search.table && a.edge.fromCols.length === 1 && a.edge.toCols.length === 1,
+      );
+      if (direct.length === 0) return {};
+      return countCascadeDependentsServerFn({
+        data: {
+          url: props.activeConnectionUrl,
+          schema: search.schema,
+          edges: direct.map((a) => ({
+            childTable: a.table,
+            childColumn: a.edge.fromCols[0]!,
+            parentValues: selectedRows.map(
+              (r) => (r.original as Record<string, unknown>)[a.edge.toCols[0]!],
+            ),
+          })),
+        },
+      });
+    },
+  });
+
+  const cascadePreviewWithCounts = useMemo(() => {
+    if (!cascadePreview) return null;
+    if (!cascadeCountsQuery.data) return cascadePreview;
+    return withDependentRowCounts(cascadePreview, cascadeCountsQuery.data);
+  }, [cascadePreview, cascadeCountsQuery.data]);
+
   const pkColumns = getPrimaryKeyColumns(props.columnMetadata);
   const canDelete =
     hasPrimaryKey(props.columnMetadata) ||
@@ -2279,9 +2320,11 @@ const BulkActions = (
       <CascadeDeleteConfirmDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
-        preview={cascadePreview}
+        preview={cascadePreviewWithCounts}
         onConfirm={() => deleteMutation.mutate()}
-        isPending={deleteMutation.isPending || fkEdgesQuery.isLoading}
+        isPending={
+          deleteMutation.isPending || fkEdgesQuery.isLoading || cascadeCountsQuery.isFetching
+        }
       />
     </>
   );

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCascadeDeletePreview, type ForeignKeyEdge } from "./cascade-delete-preview.ts";
+import {
+  buildCascadeDeletePreview,
+  withDependentRowCounts,
+  type ForeignKeyEdge,
+} from "./cascade-delete-preview.ts";
 
 describe("buildCascadeDeletePreview", () => {
   it("returns just the root table when there are no referencing edges", () => {
@@ -174,5 +178,21 @@ describe("buildCascadeDeletePreview", () => {
     const leafCount = preview.order.filter((t) => t === "leaf").length;
     expect(leafCount).toBe(1);
     expect(preview.order.at(-1)).toBe("root");
+  });
+
+  it("attaches dependent row counts when provided", () => {
+    const edges: ForeignKeyEdge[] = [
+      {
+        fromTable: "orders",
+        fromCols: ["user_id"],
+        toTable: "users",
+        toCols: ["id"],
+        onDelete: "RESTRICT",
+      },
+    ];
+    const preview = buildCascadeDeletePreview({ edges, rootTable: "users" });
+    const withCounts = withDependentRowCounts(preview, { orders: 3 });
+    expect(withCounts.affected[0]?.dependentRowCount).toBe(3);
+    expect(withCounts.blockedBy[0]?.dependentRowCount).toBe(3);
   });
 });
