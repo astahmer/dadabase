@@ -33,6 +33,6 @@ Open review items **001–010** are addressed in follow-up revisions (`pmltpwry`
 
 ## Residual risk (acceptable follow-ups)
 
-- MySQL: no-PK system row identity, some PG-catalog-only helpers, and join quoting edge cases.
-- Cascade counts: direct single-column FKs only; transitive hops stay structural.
-- SSH: private-key auth only; concurrent `getOrCreate` races discard the losing tunnel.
+- MySQL fingerprint identity can collide if two rows hash identically (SHA2-256 of all columns); rare.
+- Cascade counts seed child rows for transitive hops — very wide fan-out can be expensive.
+- SSH password is stored in the connection URL blob (`dadabase_ssh`); treat connection URLs as secrets.
