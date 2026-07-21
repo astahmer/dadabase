@@ -7,6 +7,7 @@ import { Download, Layers, Maximize2, Minimize2, RefreshCw } from "lucide-react"
 
 import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
+import { cn } from "#src/lib/utils.ts";
 
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 
@@ -35,6 +36,8 @@ interface ConnectionPageStatusBarProps {
   table: TanstackTable<any>;
   hasUuid: boolean;
   isLoading: boolean;
+  /** Background refetch — keep table visible, show small indicator */
+  isFetching?: boolean;
   refetch: () => void;
   timeTaken: number;
   ranAt: number;
@@ -52,7 +55,14 @@ interface ConnectionPageStatusBarProps {
 }
 
 export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => {
-  const { isLoading, refetch, isCustomSql, zenMode = false, onToggleZenMode } = props;
+  const {
+    isLoading,
+    isFetching = false,
+    refetch,
+    isCustomSql,
+    zenMode = false,
+    onToggleZenMode,
+  } = props;
 
   const navigate = useNavigate({ from: "/connections/$connectionName" });
 
@@ -140,7 +150,7 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
               content={`Refresh rows (last ran at ${DateTime.formatIso(DateTime.unsafeMake(props.ranAt))})`}
             >
               <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-5 px-1.5">
-                <RefreshCw className="h-3 w-3" />
+                <RefreshCw className={cn("h-3 w-3", isFetching && "animate-spin")} />
               </Button>
             </Tooltip>
             {zenToggle}
@@ -173,6 +183,14 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
                 <span className="hidden md:inline">out of </span>
                 <span className="hidden md:inline">{props.totalRowCount}</span>
               </span>
+              {isFetching && !isLoading ? (
+                <span
+                  className="text-muted-foreground/70 shrink-0"
+                  data-testid="table-refetch-indicator"
+                >
+                  Refreshing…
+                </span>
+              ) : null}
             </>
           )}
         </HStack>
@@ -321,8 +339,14 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
           <Tooltip
             content={`Refresh rows (last ran at ${DateTime.formatIso(DateTime.unsafeMake(props.ranAt))})`}
           >
-            <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-6 px-2">
-              <RefreshCw className="h-3 w-3" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => refetch()}
+              className="h-6 px-2"
+              data-testid="table-refresh-button"
+            >
+              <RefreshCw className={cn("h-3 w-3", isFetching && "animate-spin")} />
             </Button>
           </Tooltip>
           {props.totalRowCount > 0 && !isCustomSql && (

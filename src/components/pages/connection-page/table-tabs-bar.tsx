@@ -277,6 +277,7 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
                 size="xs"
                 className="relative top-[3px] shrink-0"
                 aria-label={isSidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+                data-testid="toggle-sidebar"
                 type="button"
               >
                 <PanelLeft className="h-4 w-4" />
