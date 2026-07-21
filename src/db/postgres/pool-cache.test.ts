@@ -44,4 +44,27 @@ describe("resolveDriverUrlWithOptionalSsh", () => {
     expect(new URL(driverUrl).port).toBe("39999");
     expect(closeTunnel).toBe(close);
   });
+
+  it("forwards password auth config to the tunnel opener", async () => {
+    const openTunnel = vi.fn(async () => ({ localPort: 40000, close: vi.fn() }));
+    const url = withSshTunnelConfig("mysql://db.internal:3306/app", {
+      host: "bastion.example",
+      port: 22,
+      user: "jump",
+      password: "s3cret",
+    });
+
+    await resolveDriverUrlWithOptionalSsh({
+      url,
+      dialect: "mysql",
+      openTunnel,
+    });
+
+    expect(openTunnel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ password: "s3cret" }),
+        destinationPort: 3306,
+      }),
+    );
+  });
 });

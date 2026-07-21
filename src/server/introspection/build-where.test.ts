@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPgWhereFragment, buildSqliteWhereFragment } from "./build-where.ts";
+import {
+  buildMysqlWhereFragment,
+  buildPgWhereFragment,
+  buildSqliteWhereFragment,
+} from "./build-where.ts";
 
 describe("buildPgWhereFragment", () => {
   it("builds equals condition", () => {
@@ -165,9 +169,7 @@ describe("buildPgWhereFragment", () => {
   });
 
   it("builds between condition", () => {
-    const conditions = [
-      { column: "age", operator: "between" as const, value: ["18", "65"] },
-    ];
+    const conditions = [{ column: "age", operator: "between" as const, value: ["18", "65"] }];
     const result = buildPgWhereFragment(conditions, "and", "public", "users");
     expect(result).toBe(`"public"."users"."age" BETWEEN '18' AND '65'`);
   });
@@ -319,5 +321,27 @@ describe("buildSqliteWhereFragment", () => {
     ];
     const result = buildSqliteWhereFragment(conditions, "and", "users");
     expect(result).toBe(`"users"."created_at" >= CURRENT_DATE`);
+  });
+});
+
+describe("buildMysqlWhereFragment", () => {
+  it("uses backticks and LIKE instead of ILIKE", () => {
+    const conditions = [{ column: "name", operator: "contains" as const, value: "alice" }];
+    const result = buildMysqlWhereFragment(conditions, "and", "app", "users");
+    expect(result).toBe("`app`.`users`.`name` LIKE '%alice%'");
+    expect(result).not.toContain("ILIKE");
+  });
+
+  it("builds IN lists without PG ARRAY syntax", () => {
+    const conditions = [{ column: "id", operator: "in" as const, value: ["1", "2"] }];
+    const result = buildMysqlWhereFragment(conditions, "and", "app", "users");
+    expect(result).toBe("`app`.`users`.`id` IN ('1','2')");
+    expect(result).not.toContain("ANY");
+  });
+
+  it("supports empty schema (current database)", () => {
+    const conditions = [{ column: "age", operator: "equals" as const, value: "30" }];
+    const result = buildMysqlWhereFragment(conditions, "and", "", "users");
+    expect(result).toBe("`users`.`age` = '30'");
   });
 });

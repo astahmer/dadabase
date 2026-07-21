@@ -1,14 +1,16 @@
+import { describe, expect, it } from "vitest";
+
 import type {
   JoinedTable,
   JoinTablesConfig,
 } from "#src/components/pages/connection-page/join-tables/join-tables.types";
 
 import { DatabaseDialect } from "#src/db/dialect.ts";
-import { describe, expect, it } from "vitest";
 
 import {
   buildJoinSqlClauses,
   buildJoinSqlPreview,
+  buildMysqlSelectWithJoins,
   buildPgJoinFilters,
   buildPgSelectWithJoins,
   buildSqliteJoinFilters,
@@ -18,6 +20,30 @@ import {
 
 describe("sql-join-builder", () => {
   describe("buildJoinSqlClauses", () => {
+    it("builds standard FK-based join for MySQL with backticks", () => {
+      const joins: JoinedTable[] = [
+        {
+          table: "posts",
+          schema: "blog",
+          type: "left",
+          columns: "all",
+          joinCondition: {
+            mode: "standard",
+            referencingColumn: "id",
+            referencedColumn: "user_id",
+          },
+        },
+      ];
+
+      const clauses = buildJoinSqlClauses(joins, "blog", "users", DatabaseDialect.MySQL);
+      expect(clauses).toHaveLength(1);
+      expect(clauses[0]).toContain("LEFT JOIN");
+      expect(clauses[0]).toContain("`blog`.`posts`");
+      expect(clauses[0]).toContain("`user_id`");
+      expect(clauses[0]).toContain("`users`");
+      expect(clauses[0]).not.toContain('"posts"');
+    });
+
     it("builds standard FK-based join for PostgreSQL", () => {
       const joins: JoinedTable[] = [
         {
@@ -1660,5 +1686,31 @@ describe("buildSqliteSelectWithJoins", () => {
     expect(result).toContain('"posts_2"."id" as "posts_2.id"');
     expect(result).toContain('"posts_2"."title" as "posts_2.title"');
     expect(result).toContain('"posts_2"."editor_id" as "posts_2.editor_id"');
+  });
+});
+
+describe("buildMysqlSelectWithJoins", () => {
+  it("quotes columns and aliases with backticks", () => {
+    const tableColumnsMap = new Map([
+      ["blog.users", [{ name: "id" }, { name: "name" }]],
+      ["blog.posts", [{ name: "id" }, { name: "title" }]],
+    ]);
+    const joins: JoinedTable[] = [
+      {
+        table: "posts",
+        schema: "blog",
+        type: "left",
+        columns: "all",
+        joinCondition: {
+          mode: "standard",
+          referencingColumn: "id",
+          referencedColumn: "user_id",
+        },
+      },
+    ];
+    const result = buildMysqlSelectWithJoins("blog", "users", joins, tableColumnsMap);
+    expect(result).toContain("`blog`.`users`.`id` as `users.id`");
+    expect(result).toContain("`blog`.`posts`.`title` as `posts.title`");
+    expect(result).not.toContain('"users"');
   });
 });
