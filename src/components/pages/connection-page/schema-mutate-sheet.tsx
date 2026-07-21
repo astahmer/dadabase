@@ -418,7 +418,7 @@ export function SchemaMutateSheet(props: SchemaMutateSheetProps) {
               Cancel
             </Button>
             <Button
-              onClick={trySubmit}
+              onClick={() => trySubmit()}
               disabled={mutation.isPending || alterDisabled}
               data-testid="schema-mutate-run"
             >

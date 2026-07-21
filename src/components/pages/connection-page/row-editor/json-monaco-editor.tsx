@@ -23,7 +23,10 @@ type MonacoEditorComponent = ComponentType<{
       setTheme: (name: string) => void;
     };
   }) => void;
-  onMount?: (editor: { updateOptions: (options: { theme: string }) => void }) => void;
+  onMount?: (editor: {
+    updateOptions: (options: { theme: string }) => void;
+    setValue: (value: string) => void;
+  }) => void;
 }>;
 
 /**

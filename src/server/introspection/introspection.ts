@@ -2105,7 +2105,7 @@ export const getRelationshipsCounts = (input: {
                   Effect.catchAll(() => Effect.succeed(0)),
                 );
               },
-              orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+              orElse: () => Effect.succeed(0),
             }),
           );
 
@@ -2646,17 +2646,19 @@ export const executeCustomSql = (input: {
  * Run SQLite table-rebuild DDL steps on one reserved connection.
  * Always restores `PRAGMA foreign_keys=ON` even if a mid-script statement fails.
  */
+export type SqliteTableRebuildResult = {
+  rows: Array<Record<string, string | number | boolean | null>>;
+  columns: string[];
+  rowCount: number;
+  rowsAffected?: number;
+  timeTaken: number;
+  ranAt: number;
+};
+
 export const executeSqliteTableRebuild = (input: {
   statements: readonly string[];
 }): Effect.Effect<
-  {
-    rows: unknown[];
-    columns: string[];
-    rowCount: number;
-    rowsAffected?: number;
-    timeTaken: number;
-    ranAt: number;
-  },
+  SqliteTableRebuildResult,
   SqlError,
   RemoteConnection | QueryLogger | SqlClient.SqlClient
 > =>
@@ -2708,8 +2710,8 @@ export const executeSqliteTableRebuild = (input: {
 
     const endTime = Date.now();
     return {
-      rows: [] as unknown[],
-      columns: [] as string[],
+      rows: [],
+      columns: [],
       rowCount: 0,
       rowsAffected: 0,
       timeTaken: endTime - startTime,

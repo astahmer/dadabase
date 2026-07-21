@@ -168,33 +168,24 @@ export const makePoolCacheLive = Layer.effect(
             return existing.layer;
           }
 
-          // Join an in-flight create if one exists; otherwise claim leadership.
-          const joinOrClaim = yield* Ref.modify(inflightRef, (inflight) => {
-            const pending = inflight.get(url);
-            if (pending) return [{ tag: "join" as const, deferred: pending }, inflight];
-            return [{ tag: "claim" as const }, inflight];
-          });
+          type PoolLayer = Layer.Layer<SqlClient.SqlClient, SqlError>;
+          type PoolDeferred = Deferred.Deferred<PoolLayer, SqlError>;
 
-          if (joinOrClaim.tag === "join") {
-            return yield* Deferred.await(joinOrClaim.deferred);
-          }
+          // Claim or join a single in-flight Deferred for this URL.
+          const deferred = yield* Deferred.make<PoolLayer, SqlError>();
+          const inflightDeferred = yield* Ref.modify(
+            inflightRef,
+            (inflight): [PoolDeferred, Map<string, PoolDeferred>] => {
+              const pending = inflight.get(url);
+              if (pending) return [pending, inflight];
+              const next = new Map(inflight);
+              next.set(url, deferred);
+              return [deferred, next];
+            },
+          );
 
-          const deferred = yield* Deferred.make<
-            Layer.Layer<SqlClient.SqlClient, SqlError>,
-            SqlError
-          >();
-
-          // Publish deferred only if still unclaimed (another fiber may have raced).
-          const published = yield* Ref.modify(inflightRef, (inflight) => {
-            const pending = inflight.get(url);
-            if (pending) return [{ tag: "join" as const, deferred: pending }, inflight];
-            const next = new Map(inflight);
-            next.set(url, deferred);
-            return [{ tag: "lead" as const }, next];
-          });
-
-          if (published.tag === "join") {
-            return yield* Deferred.await(published.deferred);
+          if (inflightDeferred !== deferred) {
+            return yield* Deferred.await(inflightDeferred);
           }
 
           // Re-check cache after claiming — another fiber may have finished.

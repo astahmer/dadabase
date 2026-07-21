@@ -2,13 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import { withSshTunnelConfig } from "#src/lib/connection-security.ts";
 
+import { DatabaseDialect } from "../dialect.ts";
 import { resolveDriverUrlWithOptionalSsh } from "./pool-cache.ts";
 
 describe("resolveDriverUrlWithOptionalSsh", () => {
   it("strips dadabase markers and leaves host unchanged when no SSH config", async () => {
     const { driverUrl, closeTunnel } = await resolveDriverUrlWithOptionalSsh({
       url: "postgres://db.example:5432/app?dadabase_readonly=1",
-      dialect: "postgres",
+      dialect: DatabaseDialect.Postgres,
     });
     expect(driverUrl).toBe("postgres://db.example:5432/app");
     expect(closeTunnel).toBeUndefined();
@@ -26,7 +27,7 @@ describe("resolveDriverUrlWithOptionalSsh", () => {
 
     const { driverUrl, closeTunnel } = await resolveDriverUrlWithOptionalSsh({
       url,
-      dialect: "postgres",
+      dialect: DatabaseDialect.Postgres,
       openTunnel,
     });
 
@@ -56,7 +57,7 @@ describe("resolveDriverUrlWithOptionalSsh", () => {
 
     await resolveDriverUrlWithOptionalSsh({
       url,
-      dialect: "mysql",
+      dialect: DatabaseDialect.MySQL,
       openTunnel,
     });
 

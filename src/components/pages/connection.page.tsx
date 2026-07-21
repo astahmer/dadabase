@@ -1604,7 +1604,7 @@ const RowsTableContent = (
 
   const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(null);
   const [pasteConfirm, setPasteConfirm] = useState<{
-    rows: Array<Record<string, unknown>>;
+    rows: Array<Record<string, string | number | boolean | null | undefined>>;
     table: string;
     schema: string;
   } | null>(null);
@@ -2047,7 +2047,24 @@ const BulkActions = (
           url: props.activeConnectionUrl,
           schema: search.schema,
           rootTable: search.table,
-          rootRows: selectedRows.map((r) => r.original as Record<string, unknown>),
+          rootRows: selectedRows.map((r) => {
+            const original = r.original as Record<string, unknown>;
+            const row: Record<string, string | number | boolean | null | undefined> = {};
+            for (const [key, value] of Object.entries(original)) {
+              if (
+                value === null ||
+                value === undefined ||
+                typeof value === "string" ||
+                typeof value === "number" ||
+                typeof value === "boolean"
+              ) {
+                row[key] = value;
+              } else {
+                row[key] = String(value);
+              }
+            }
+            return row;
+          }),
           edges: affected.map((a) => ({
             viaTable: a.viaTable,
             childTable: a.table,
