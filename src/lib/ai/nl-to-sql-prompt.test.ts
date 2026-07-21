@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AiTableContext } from "./ai-types.ts";
+import type { AiSchemaContext, AiTableContext } from "./ai-types.ts";
 
 import { buildNlToSqlPrompt, extractSqlFromModelText } from "./nl-to-sql-prompt.ts";
 
@@ -44,8 +44,25 @@ const sampleTable: AiTableContext = {
   ],
 };
 
+const usersTable: AiTableContext = {
+  schema: "public",
+  table: "users",
+  dialect: "postgres",
+  columns: [
+    { name: "id", dataType: "uuid", nullable: false, primaryKey: true },
+    { name: "email", dataType: "text", nullable: false, primaryKey: false },
+  ],
+};
+
+const sampleSchema: AiSchemaContext = {
+  schema: "public",
+  dialect: "postgres",
+  tables: [sampleTable, usersTable],
+  activeTable: "orders",
+};
+
 describe("buildNlToSqlPrompt", () => {
-  it("includes table, columns, dialect, and question", () => {
+  it("includes table, columns, dialect, and question (legacy single table)", () => {
     const prompt = buildNlToSqlPrompt({
       question: "show pending orders",
       table: sampleTable,
@@ -58,6 +75,19 @@ describe("buildNlToSqlPrompt", () => {
     expect(prompt).toContain("FK→public.users.id");
     expect(prompt).toContain("User question: show pending orders");
     expect(prompt).toContain("Output ONLY the SQL statement");
+  });
+
+  it("includes the whole database schema when provided", () => {
+    const prompt = buildNlToSqlPrompt({
+      question: "list order emails",
+      schema: sampleSchema,
+    });
+
+    expect(prompt).toContain("FULL database schema");
+    expect(prompt).toContain('"public"."orders"');
+    expect(prompt).toContain('"public"."users"');
+    expect(prompt).toContain("- email text");
+    expect(prompt).toContain('currently has table "orders" open');
   });
 
   it("trims the question", () => {

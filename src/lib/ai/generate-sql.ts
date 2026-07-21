@@ -3,7 +3,7 @@ import { generateText } from "ai";
 
 import { getStoredOpenAiApiKey } from "#src/lib/ai-byok.ts";
 
-import type { AiTableContext } from "./ai-types.ts";
+import type { AiSchemaContext, AiTableContext } from "./ai-types.ts";
 
 import { buildNlToSqlPrompt, extractSqlFromModelText } from "./nl-to-sql-prompt.ts";
 
@@ -22,7 +22,10 @@ export const createByokOpenAi = (apiKey: string) =>
 
 export interface GenerateSqlFromNlInput {
   question: string;
-  table: AiTableContext;
+  /** Full schema (preferred) */
+  schema?: AiSchemaContext;
+  /** @deprecated Prefer `schema` */
+  table?: AiTableContext;
   /** Override stored key (tests / explicit UI). */
   apiKey?: string;
   model?: string;
@@ -47,6 +50,7 @@ export const generateSqlFromNaturalLanguage = async (
 
   const prompt = buildNlToSqlPrompt({
     question: input.question,
+    schema: input.schema,
     table: input.table,
   });
 

@@ -5,7 +5,7 @@ import type {
   Row,
 } from "@tanstack/react-table";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
@@ -212,6 +212,7 @@ export const useConnectionPageState = ({
       excludedColumns: columnVisibilityFilters.excludedColumns,
     }),
     enabled: !isCustomSql && Boolean(search.schema && search.table),
+    placeholderData: keepPreviousData,
   });
 
   const sqlQueryAsText =
@@ -286,28 +287,33 @@ export const useConnectionPageState = ({
           const isExpanded = search.relationshipRowId === ctx.row.id;
           return (
             <div className="flex h-full w-full items-center justify-center">
-              <Button
-                size="xs"
-                variant="ghost"
-                className="h-6 w-6 p-0"
-                aria-label={isExpanded ? "Collapse related rows" : "Expand related rows"}
-                data-testid={`row-expand-${ctx.row.id}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate({
-                    search: (prev) =>
-                      updateTabState(prev, {
-                        relationshipRowId: isExpanded ? undefined : ctx.row.id,
-                      }),
-                  });
-                }}
+              <Tooltip
+                content={isExpanded ? "Collapse relationships panel" : "Expand relationships panel"}
+                positioning={{ placement: "right", strategy: "fixed" }}
               >
-                {isExpanded ? (
-                  <ChevronDown className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5" />
-                )}
-              </Button>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="h-6 w-6 p-0"
+                  aria-label={isExpanded ? "Collapse related rows" : "Expand related rows"}
+                  data-testid={`row-expand-${ctx.row.id}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate({
+                      search: (prev) =>
+                        updateTabState(prev, {
+                          relationshipRowId: isExpanded ? undefined : ctx.row.id,
+                        }),
+                    });
+                  }}
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </Tooltip>
             </div>
           );
         },

@@ -1,4 +1,4 @@
-import type { AiColumnMeta, AiTableContext } from "./ai-types.ts";
+import type { AiColumnMeta, AiSchemaContext, AiTableContext } from "./ai-types.ts";
 
 const quoteIdent = (name: string, dialect?: string): string => {
   if (dialect === "sqlite") return `"${name.replaceAll('"', '""')}"`;
@@ -22,34 +22,62 @@ const formatColumnLine = (col: AiColumnMeta): string => {
   return `- ${col.name} ${col.dataType} [${flags.join(", ")}]`;
 };
 
+const formatTableBlock = (table: AiTableContext): string => {
+  const qualified = `${quoteIdent(table.schema, table.dialect)}.${quoteIdent(table.table, table.dialect)}`;
+  const columnBlock = table.columns.map(formatColumnLine).join("\n");
+  return [`Table: ${qualified}`, "Columns:", columnBlock || "(no columns)"].join("\n");
+};
+
 export interface BuildNlToSqlPromptInput {
   question: string;
-  table: AiTableContext;
+  /**
+   * Prefer full schema. Single-table `table` kept for back-compat / focused hints.
+   */
+  schema?: AiSchemaContext;
+  /** @deprecated Prefer `schema` with all tables */
+  table?: AiTableContext;
 }
 
 /**
  * Pure prompt builder for NL → SQL. No network.
  * Model should return a single SELECT (or WITH … SELECT) statement.
+ * Uses the whole database schema when provided — not only the active table.
  */
 export const buildNlToSqlPrompt = (input: BuildNlToSqlPromptInput): string => {
-  const { question, table } = input;
-  const qualified = `${quoteIdent(table.schema, table.dialect)}.${quoteIdent(table.table, table.dialect)}`;
-  const columnBlock = table.columns.map(formatColumnLine).join("\n");
+  const { question } = input;
+  const dialect =
+    input.schema?.dialect ?? input.table?.dialect ?? input.schema?.tables[0]?.dialect ?? "postgres";
+  const schemaName = input.schema?.schema ?? input.table?.schema ?? "public";
+  const tables: AiTableContext[] = input.schema?.tables?.length
+    ? [...input.schema.tables]
+    : input.table
+      ? [input.table]
+      : [];
+
+  const activeTable = input.schema?.activeTable ?? input.table?.table;
+  const schemaBlocks =
+    tables.length > 0
+      ? tables.map(formatTableBlock).join("\n\n")
+      : `(no tables in schema ${quoteIdent(schemaName, dialect)})`;
 
   return [
     "You are a SQL expert helping explore a database in dadabase.",
-    `Dialect: ${table.dialect ?? "postgres"}.`,
+    `Dialect: ${dialect}.`,
+    `Schema: ${quoteIdent(schemaName, dialect)}.`,
     "Generate ONE read-only SQL query (SELECT or WITH … SELECT) that answers the user question.",
     "Rules:",
     "- Output ONLY the SQL statement — no markdown fences, no commentary.",
-    "- Prefer the given table; join other tables only when FK metadata makes it clear.",
+    "- You have the FULL database schema below. Join across tables when the question needs it.",
+    "- Use FK metadata to pick join keys; do not invent relationships.",
+    activeTable
+      ? `- The user currently has table ${quoteIdent(activeTable, dialect)} open — prefer it when the question is ambiguous, but still use other tables when needed.`
+      : "- No active table hint; pick the best tables from the schema.",
     "- Qualify columns with the table name when ambiguous.",
     "- Use LIMIT 100 unless the user asks for aggregates or a different limit.",
-    "- Never invent columns that are not listed.",
+    "- Never invent columns or tables that are not listed.",
     "",
-    `Table: ${qualified}`,
-    "Columns:",
-    columnBlock || "(no columns)",
+    "Database schema:",
+    schemaBlocks,
     "",
     `User question: ${question.trim()}`,
   ].join("\n");

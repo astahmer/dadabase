@@ -357,6 +357,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             {
               id: panels.sidebar,
               collapsible: true,
+              collapsedSize: 0,
               minSize: sidebarMinSize,
               maxSize: fromPixelToPercentage(400, "horizontal"),
             },
@@ -380,28 +381,41 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
           onCollapse={(details) => {
             if (details.panelId === panels.sidebar) {
               void navigate({
-                search: (prev) => ({ ...prev, sidebarSize: details.size }),
+                search: (prev) => ({ ...prev, sidebarSize: 0 }),
               });
             }
           }}
           className="flex h-full min-h-0 flex-1"
         >
           {/* Sidebar Panel */}
-          <Splitter.Panel
-            id={panels.sidebar}
-            className="bg-muted/30 flex h-full shrink-0 flex-col overflow-hidden border-r"
-          >
-            {/* Sidebar */}
-            <ConnectionPageSidebar
-              connection={connection}
-              activeConnectionUrl={activeConnectionUrl}
-              onAddConnection={() => setShowAddConnectionDrawer(true)}
-              onOpenAiAssistant={() => setAiAssistantOpen(true)}
-              onOpenSettings={() => setAiAssistantOpen(true)}
-              onOpenHistory={() => setQueryLoggerPaletteView("history")}
-              onOpenFavorites={() => setQueryLoggerPaletteView("favorites")}
-            />
-          </Splitter.Panel>
+          <Splitter.Context>
+            {(sidebarCtx) => (
+              <Splitter.Panel
+                id={panels.sidebar}
+                data-testid="connection-sidebar"
+                data-collapsed={
+                  tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar)) ? "true" : "false"
+                }
+                style={
+                  tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar))
+                    ? { minWidth: 0 }
+                    : undefined
+                }
+                className="bg-muted/30 flex h-full shrink-0 flex-col overflow-hidden border-r"
+              >
+                {/* Sidebar */}
+                <ConnectionPageSidebar
+                  connection={connection}
+                  activeConnectionUrl={activeConnectionUrl}
+                  onAddConnection={() => setShowAddConnectionDrawer(true)}
+                  onOpenAiAssistant={() => setAiAssistantOpen(true)}
+                  onOpenSettings={() => setAiAssistantOpen(true)}
+                  onOpenHistory={() => setQueryLoggerPaletteView("history")}
+                  onOpenFavorites={() => setQueryLoggerPaletteView("favorites")}
+                />
+              </Splitter.Panel>
+            )}
+          </Splitter.Context>
 
           {/* Resize Handle with Toggle */}
           <Splitter.Context>
@@ -928,6 +942,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
               {
                 id: panels.sqlPreview,
                 collapsible: true,
+                collapsedSize: 0,
                 minSize: fromPixelToPercentage(220, "vertical"),
               },
               { id: panels.rowsContent, collapsible: false },
@@ -1000,7 +1015,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
             <Splitter.Panel id={panels.rowsContent} className="flex flex-col overflow-hidden">
               {isCustomSqlMode ? (
                 <CustomSqlTabContent executeCustomSql={executeCustomSql} />
-              ) : pageState.rowsQuery.isLoading ? (
+              ) : pageState.rowsQuery.isPending && !pageState.rowsQuery.data ? (
                 <Stack className="flex flex-1 items-center justify-center">
                   <Spinner />
                   <span className="text-muted-foreground">
@@ -1014,7 +1029,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                     )}
                   </span>
                 </Stack>
-              ) : pageState.rowsQuery.isError ? (
+              ) : pageState.rowsQuery.isError && !pageState.rowsQuery.data ? (
                 <div className="flex flex-1 items-center justify-center p-4">
                   <Stack className="w-full max-w-2xl">
                     <ErrorBoundaryCard
@@ -1040,7 +1055,11 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                 <ConnectionPageStatusBar
                   table={pageState.rowsDataTable}
                   hasUuid={pageState.hasUuid}
-                  isLoading={pageState.rowsQuery.isLoading}
+                  isLoading={
+                    pageState.rowsQuery.isFetching &&
+                    (pageState.rowsQuery.isPending || !pageState.rowsQuery.data)
+                  }
+                  isFetching={pageState.rowsQuery.isFetching}
                   refetch={pageState.rowsQuery.refetch}
                   timeTaken={pageState.queryResponse.timeTaken}
                   ranAt={pageState.queryResponse.ranAt}
@@ -1489,7 +1508,10 @@ const RowsTableContent = (
                 enableFind
                 table={props.rowsDataTable}
                 getTableContainer={setTableContainer}
-                isLoading={props.rowsQuery.isLoading || props.isColumnMetadataLoading}
+                isLoading={
+                  (props.rowsQuery.isPending && !props.rowsQuery.data) ||
+                  (props.isColumnMetadataLoading && !props.rowsQuery.data)
+                }
                 size={search.tableSize}
                 getColumnHeaderFilter={(columnId) =>
                   getColumnHeaderFilter(search.filterConditions, columnId)
