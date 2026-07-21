@@ -1,20 +1,66 @@
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+
 import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
 import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
 import { HStack, Stack } from "#src/components/ui/layout.tsx";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
 
 import type { DbConnection } from "../connection.types.ts";
 
+import { Button } from "../../ui/button.tsx";
 import { Input } from "../../ui/input.tsx";
 import { JsonViewer } from "../../ui/json-viewer.tsx";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../../ui/sheet.tsx";
 import { useActiveTabState } from "./create-tab-state.ts";
 import { formatTableValue } from "./format-table-value.ts";
+
+function BlobPreview({ value }: { value: string }) {
+  const [mode, setMode] = useState<"base64" | "hex" | "text">("base64");
+  const bytes = useMemo(() => {
+    try {
+      const bin = atob(value.replace(/\s/g, ""));
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    } catch {
+      return new TextEncoder().encode(value);
+    }
+  }, [value]);
+
+  const hex = useMemo(
+    () =>
+      Array.from(bytes)
+        .slice(0, 256)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join(" "),
+    [bytes],
+  );
+
+  return (
+    <div className="w-full space-y-2" data-testid="blob-preview">
+      <div className="flex gap-2">
+        {(["base64", "hex", "text"] as const).map((m) => (
+          <Button
+            key={m}
+            size="sm"
+            variant={mode === m ? "default" : "outline"}
+            onClick={() => setMode(m)}
+          >
+            {m}
+          </Button>
+        ))}
+        <span className="text-muted-foreground self-center text-xs">{bytes.length} bytes</span>
+      </div>
+      <pre className="bg-muted max-h-40 overflow-auto rounded-md p-2 font-mono text-xs">
+        {mode === "base64" ? value : mode === "hex" ? hex : new TextDecoder().decode(bytes)}
+      </pre>
+    </div>
+  );
+}
 
 export const ConnectionRowJsonViewerDrawer = ({ connection }: { connection: DbConnection }) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -151,71 +197,89 @@ export const ConnectionRowJsonViewerDrawer = ({ connection }: { connection: DbCo
         </SheetHeader>
         <div className="flex-1 overflow-auto p-4">
           {rowJsonData ? (
-            useRelationshipExplorer ? (
-              Array.isArray(filteredData) ? (
-                <div className="flex h-full flex-col gap-4 overflow-auto">
-                  {filteredData.map((row, idx) => (
-                    <div key={idx} className="rounded-md border p-2">
-                      <div className="mb-2 text-sm font-medium">#{idx + 1}</div>
-                      {row && typeof row === "object" ? (
-                        <RelationshipExplorer
-                          row={row as Record<string, unknown>}
-                          schema={search.schema!}
-                          table={search.table!}
-                          connectionUrl={activeConnectionUrl}
-                          className="h-full"
-                          maxDepth={5}
-                          showRelationships={true}
-                        />
-                      ) : (
-                        <JsonViewer data={row} defaultExpanded={false} maxDepth={3} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : filteredData && typeof filteredData === "object" ? (
-                <RelationshipExplorer
-                  row={filteredData as Record<string, unknown>}
-                  schema={search.schema!}
-                  table={search.table!}
-                  connectionUrl={activeConnectionUrl}
-                  className="h-full"
-                  maxDepth={5}
-                  showRelationships={true}
-                />
-              ) : (
-                <JsonViewer data={filteredData} defaultExpanded={false} maxDepth={3} />
-              )
-            ) : isMultiSelect ? (
-              <Stack>
-                {Array.isArray(filteredData) ? (
-                  filteredData.map((row, filteredIndex) => {
-                    const rowIndex =
-                      row &&
-                      typeof row === "object" &&
-                      primaryKeyColumn?.name &&
-                      rowIds.indexOf(String(row[primaryKeyColumn.name]));
-                    return (
-                      <HStack key={filteredIndex}>
-                        <span className="mb-2 text-sm font-medium">
-                          #{rowIndex === -1 ? filteredIndex + 1 : rowIndex + 1}
-                        </span>
-                        <JsonViewer data={row} defaultExpanded={false} maxDepth={3} />
-                      </HStack>
-                    );
-                  })
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  data-testid="json-copy-root"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(JSON.stringify(filteredData, null, 2));
+                  }}
+                >
+                  Copy JSON
+                </Button>
+                {typeof filteredData === "string" &&
+                /^[A-Za-z0-9+/=\s]{40,}$/.test(filteredData.trim()) ? (
+                  <BlobPreview value={filteredData.trim()} />
+                ) : null}
+              </div>
+              {useRelationshipExplorer ? (
+                Array.isArray(filteredData) ? (
+                  <div className="flex h-full flex-col gap-4 overflow-auto">
+                    {filteredData.map((row, idx) => (
+                      <div key={idx} className="rounded-md border p-2">
+                        <div className="mb-2 text-sm font-medium">#{idx + 1}</div>
+                        {row && typeof row === "object" ? (
+                          <RelationshipExplorer
+                            row={row as Record<string, unknown>}
+                            schema={search.schema!}
+                            table={search.table!}
+                            connectionUrl={activeConnectionUrl}
+                            className="h-full"
+                            maxDepth={5}
+                            showRelationships={true}
+                          />
+                        ) : (
+                          <JsonViewer data={row} defaultExpanded={false} maxDepth={3} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredData && typeof filteredData === "object" ? (
+                  <RelationshipExplorer
+                    row={filteredData as Record<string, unknown>}
+                    schema={search.schema!}
+                    table={search.table!}
+                    connectionUrl={activeConnectionUrl}
+                    className="h-full"
+                    maxDepth={5}
+                    showRelationships={true}
+                  />
                 ) : (
                   <JsonViewer data={filteredData} defaultExpanded={false} maxDepth={3} />
-                )}
-              </Stack>
-            ) : (
-              <JsonViewer
-                data={filteredData}
-                defaultExpanded={true}
-                maxDepth={5}
-                className="h-full"
-              />
-            )
+                )
+              ) : isMultiSelect ? (
+                <Stack>
+                  {Array.isArray(filteredData) ? (
+                    filteredData.map((row, filteredIndex) => {
+                      const rowIndex =
+                        row &&
+                        typeof row === "object" &&
+                        primaryKeyColumn?.name &&
+                        rowIds.indexOf(String(row[primaryKeyColumn.name]));
+                      return (
+                        <HStack key={filteredIndex}>
+                          <span className="mb-2 text-sm font-medium">
+                            #{rowIndex === -1 ? filteredIndex + 1 : rowIndex + 1}
+                          </span>
+                          <JsonViewer data={row} defaultExpanded={false} maxDepth={3} />
+                        </HStack>
+                      );
+                    })
+                  ) : (
+                    <JsonViewer data={filteredData} defaultExpanded={false} maxDepth={3} />
+                  )}
+                </Stack>
+              ) : (
+                <JsonViewer
+                  data={filteredData}
+                  defaultExpanded={true}
+                  maxDepth={5}
+                  className="h-full"
+                />
+              )}
+            </div>
           ) : !rowIds.length ? (
             <div className="text-muted-foreground text-sm">No data</div>
           ) : (
