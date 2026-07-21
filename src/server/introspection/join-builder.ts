@@ -9,9 +9,17 @@ import type {
 } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { LogicalOperatorType } from "#src/components/query-builder/query-filter.ts";
 
-import { type DatabaseDialect, onDialectOrElse } from "#src/db/dialect.ts";
+import { DatabaseDialect, onDialectOrElse } from "#src/db/dialect.ts";
 
-import { buildPgWhereFragment, buildSqliteWhereFragment } from "./build-where.ts";
+import {
+  buildMysqlWhereFragment,
+  buildPgWhereFragment,
+  buildSqliteWhereFragment,
+} from "./build-where.ts";
+
+/** Quote a join alias for the active dialect. */
+const quoteJoinAlias = (alias: string, dialect: DatabaseDialect): string =>
+  dialect === DatabaseDialect.MySQL ? `\`${alias.replaceAll("`", "``")}\`` : `"${alias}"`;
 
 /**
  * Generate aliases for joins to handle multiple joins on the same table,
@@ -199,8 +207,13 @@ const buildFkCondition = (
   referencedColumn: string,
   originalTableRef: string,
   referencingColumn: string,
+  dialect: DatabaseDialect = DatabaseDialect.Postgres,
 ): string => {
-  return `${joinTableRef}."${referencedColumn}" = ${originalTableRef}."${referencingColumn}"`;
+  const q =
+    dialect === DatabaseDialect.MySQL
+      ? (name: string) => `\`${name.replaceAll("`", "``")}\``
+      : (name: string) => `"${name.replaceAll('"', '""')}"`;
+  return `${joinTableRef}.${q(referencedColumn)} = ${originalTableRef}.${q(referencingColumn)}`;
 };
 
 /**
@@ -233,7 +246,7 @@ const buildFilterExpression = (
           alias ? undefined : table,
         ),
       mysql: () =>
-        buildPgWhereFragment(
+        buildMysqlWhereFragment(
           conditions,
           logicalOperator,
           alias ? undefined : schema,
@@ -255,6 +268,7 @@ const buildStandardJoinCondition = (
   join: JoinedTable,
   joinTableRef: string,
   originalTableRef: string,
+  dialect: DatabaseDialect,
 ): string => {
   if (!join.joinCondition.referencingColumn || !join.joinCondition.referencedColumn) {
     throw new SqlError.SqlError({
@@ -267,6 +281,7 @@ const buildStandardJoinCondition = (
     join.joinCondition.referencedColumn,
     originalTableRef,
     join.joinCondition.referencingColumn,
+    dialect,
   );
 };
 
@@ -277,6 +292,7 @@ const buildCustomJoinCondition = (
   join: JoinedTable,
   joinTableRef: string,
   originalTableRef: string,
+  dialect: DatabaseDialect,
 ): string => {
   const conditions = ((join.joinCondition as CustomJoinCondition).conditions || [])
     .filter((cond) => cond && cond.trim().length > 0)
@@ -294,6 +310,7 @@ const buildCustomJoinCondition = (
       join.joinCondition.referencedColumn,
       originalTableRef,
       join.joinCondition.referencingColumn,
+      dialect,
     );
   }
 
@@ -337,6 +354,7 @@ const buildFilterJoinCondition = ({
       joinCondition.referencedColumn!,
       originalTableRef,
       joinCondition.referencingColumn!,
+      dialect,
     );
   }
 
@@ -357,6 +375,7 @@ const buildFilterJoinCondition = ({
       joinCondition.referencedColumn!,
       originalTableRef,
       joinCondition.referencingColumn!,
+      dialect,
     );
     return filterExpression ? `${fkCondition} AND ${filterExpression}` : fkCondition;
   }
@@ -416,7 +435,7 @@ export const buildJoinSqlClauses = (
 
     const fromAlias = aliases.get(fromIndex);
     return fromAlias
-      ? `"${fromAlias}"`
+      ? quoteJoinAlias(fromAlias, dialect)
       : getTableRef(join.joinFrom.schema, join.joinFrom.table, dialect);
   };
 
@@ -462,29 +481,24 @@ export const buildJoinSqlClauses = (
     const alias = aliases.get(index);
     const baseTableRef = getTableRef(join.schema, join.table, dialect);
     // Use alias in the JOIN clause if available
-    const joinTableRef = alias ? `${baseTableRef} AS "${alias}"` : baseTableRef;
+    const joinTableRef = alias
+      ? `${baseTableRef} AS ${quoteJoinAlias(alias, dialect)}`
+      : baseTableRef;
     const originalTableRef = resolveFromRef(join);
+    const aliasedJoinRef = alias ? quoteJoinAlias(alias, dialect) : baseTableRef;
 
     let joinCondition: string;
     switch (join.joinCondition.mode) {
       case "standard":
-        joinCondition = buildStandardJoinCondition(
-          join,
-          alias ? `"${alias}"` : baseTableRef,
-          originalTableRef,
-        );
+        joinCondition = buildStandardJoinCondition(join, aliasedJoinRef, originalTableRef, dialect);
         break;
       case "custom":
-        joinCondition = buildCustomJoinCondition(
-          join,
-          alias ? `"${alias}"` : baseTableRef,
-          originalTableRef,
-        );
+        joinCondition = buildCustomJoinCondition(join, aliasedJoinRef, originalTableRef, dialect);
         break;
       case "filters":
         joinCondition = buildFilterJoinCondition({
           join,
-          joinTableRef: alias ? `"${alias}"` : baseTableRef,
+          joinTableRef: aliasedJoinRef,
           originalTableRef,
           dialect,
           alias,
@@ -580,6 +594,7 @@ const buildSelectWithJoinsGeneric = (
     baseTableKey: (schema: string, table: string) => string;
     joinTableRef: (schema: string, table: string, alias?: string) => string;
     joinTableKey: (schema: string, table: string, alias?: string) => string;
+    quoteIdent: (name: string) => string;
   },
   joinAliases?: Map<number, string>,
 ): string => {
@@ -587,12 +602,13 @@ const buildSelectWithJoinsGeneric = (
   const columns: string[] = [];
   const baseTableRef = formatters.baseTableRef(schema, table);
   const baseTableKey = formatters.baseTableKey(schema, table);
+  const q = formatters.quoteIdent;
 
   // Add original table columns with dot-delimited aliases
   const baseTableColumns = tableColumnsMap.get(baseTableKey) || [];
   if (baseTableColumns.length > 0) {
     const baseCols = baseTableColumns
-      .map((col) => `${baseTableRef}."${col.name}" as "${table}.${col.name}"`)
+      .map((col) => `${baseTableRef}.${q(col.name)} as ${q(`${table}.${col.name}`)}`)
       .join(", ");
     columns.push(baseCols);
   } else {
@@ -614,7 +630,7 @@ const buildSelectWithJoinsGeneric = (
     if (join.columns === "all") {
       if (joinedTableColumns.length > 0) {
         const joinedCols = joinedTableColumns
-          .map((col) => `${joinTableRef}."${col.name}" as "${columnAlias}.${col.name}"`)
+          .map((col) => `${joinTableRef}.${q(col.name)} as ${q(`${columnAlias}.${col.name}`)}`)
           .join(", ");
         columns.push(joinedCols);
       } else {
@@ -623,7 +639,7 @@ const buildSelectWithJoinsGeneric = (
       }
     } else {
       const selectedCols = join.columns
-        .map((col) => `${joinTableRef}."${col}" as "${columnAlias}.${col}"`)
+        .map((col) => `${joinTableRef}.${q(col)} as ${q(`${columnAlias}.${col}`)}`)
         .join(", ");
       columns.push(selectedCols);
     }
@@ -660,6 +676,39 @@ export const buildPgSelectWithJoins = (
         if (alias) return alias;
         return s ? `${s}.${t}` : t;
       },
+      quoteIdent: (name) => `"${name.replaceAll('"', '""')}"`,
+    },
+    joinAliases,
+  );
+};
+
+/**
+ * Build SELECT clause with joined table columns for MySQL (backtick quoting).
+ */
+export const buildMysqlSelectWithJoins = (
+  schema: string,
+  table: string,
+  joins: JoinTablesConfig["joins"],
+  tableColumnsMap: Map<string, { name: string }[]>,
+  joinAliases?: Map<number, string>,
+): string => {
+  return buildSelectWithJoinsGeneric(
+    schema,
+    table,
+    joins,
+    tableColumnsMap,
+    {
+      baseTableRef: (s, t) => (s ? `\`${s}\`.\`${t}\`` : `\`${t}\``),
+      baseTableKey: (s, t) => (s ? `${s}.${t}` : t),
+      joinTableRef: (s, t, alias) => {
+        if (alias) return `\`${alias}\``;
+        return s ? `\`${s}\`.\`${t}\`` : `\`${t}\``;
+      },
+      joinTableKey: (s, t, alias) => {
+        if (alias) return alias;
+        return s ? `${s}.${t}` : t;
+      },
+      quoteIdent: (name) => `\`${name.replaceAll("`", "``")}\``,
     },
     joinAliases,
   );
@@ -686,6 +735,7 @@ export const buildSqliteSelectWithJoins = (
       baseTableKey: (_s, t) => t,
       joinTableRef: (_s, t, alias) => (alias ? `"${alias}"` : `"${t}"`),
       joinTableKey: (_s, t, alias) => (alias ? alias : t),
+      quoteIdent: (name) => `"${name.replaceAll('"', '""')}"`,
     },
     joinAliases,
   );

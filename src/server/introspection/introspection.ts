@@ -19,9 +19,11 @@ import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
 import { QueryLogLevel, QueryLogType } from "../query-logger/query-logger.types.ts";
 import { withQueryLogging } from "../query-logger/with-query-logging.ts";
 import { isSelectQuery } from "./detect-destructive-sql.ts";
+import { buildMysqlSystemRowIdSelect } from "./fns/mysql-row-fingerprint.ts";
 import { DADABASE_ROW_ID } from "./fns/row-identity.ts";
 import {
   buildJoinSqlClauses,
+  buildMysqlSelectWithJoins,
   buildPgSelectWithJoins,
   buildSqliteSelectWithJoins,
   generateJoinAliases,
@@ -1492,6 +1494,49 @@ export const findColumnReferences = (input: {
           }),
         );
       },
+      mysql: () => {
+        const mysqlRefQuery = referencedSchema
+          ? sql`
+					SELECT
+						kcu.TABLE_SCHEMA AS schema,
+						kcu.TABLE_NAME AS table,
+						kcu.COLUMN_NAME AS column,
+						kcu.REFERENCED_COLUMN_NAME AS referencedColumn,
+						kcu.CONSTRAINT_NAME AS constraintName
+					FROM information_schema.KEY_COLUMN_USAGE kcu
+					WHERE kcu.REFERENCED_TABLE_SCHEMA = ${referencedSchema}
+						AND kcu.REFERENCED_TABLE_NAME = ${referencedTable}
+						AND kcu.REFERENCED_COLUMN_NAME = ${referencedColumn}
+						AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+					ORDER BY kcu.TABLE_NAME, kcu.COLUMN_NAME
+				`
+          : sql`
+					SELECT
+						kcu.TABLE_SCHEMA AS schema,
+						kcu.TABLE_NAME AS table,
+						kcu.COLUMN_NAME AS column,
+						kcu.REFERENCED_COLUMN_NAME AS referencedColumn,
+						kcu.CONSTRAINT_NAME AS constraintName
+					FROM information_schema.KEY_COLUMN_USAGE kcu
+					WHERE kcu.REFERENCED_TABLE_SCHEMA = DATABASE()
+						AND kcu.REFERENCED_TABLE_NAME = ${referencedTable}
+						AND kcu.REFERENCED_COLUMN_NAME = ${referencedColumn}
+						AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+					ORDER BY kcu.TABLE_NAME, kcu.COLUMN_NAME
+				`;
+        const mysqlRefCompiled = mysqlRefQuery.compile();
+        return mysqlRefQuery.pipe(
+          withQueryLogging({
+            type: QueryLogType.RelationshipDiscovery,
+            sql: mysqlRefCompiled[0],
+            params: mysqlRefCompiled[1],
+            schema: referencedSchema,
+            table: referencedTable,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
       sqlite: () =>
         Effect.gen(function* () {
           // SQLite: manually scan all tables for foreign keys that reference the target
@@ -2337,7 +2382,7 @@ export const queryTableRows = <TData>(input: {
 
           let selectPart =
             joins.length > 0
-              ? buildPgSelectWithJoins(
+              ? buildMysqlSelectWithJoins(
                   baseSchema,
                   input.table,
                   joinsRemapped,
@@ -2349,8 +2394,23 @@ export const queryTableRows = <TData>(input: {
                 ? columnList.join(", ")
                 : "*";
 
-          const resultColumnList = columnList;
-          // MySQL has no ctid/rowid system identity for no-PK tables.
+          let resultColumnList = columnList;
+          if (includeSystemRowId) {
+            const fingerprintCols =
+              columnList.length > 0
+                ? columnList
+                : (columnResults[0]?.columns.map((c) => c.name) ?? []);
+            if (fingerprintCols.length === 0) {
+              return yield* Effect.fail(
+                new SqlError({
+                  cause: "Cannot locate MySQL rows without a primary key or column list",
+                }),
+              );
+            }
+            const idSelect = buildMysqlSystemRowIdSelect(fingerprintCols);
+            selectPart = selectPart === "*" ? `${idSelect}, *` : `${idSelect}, ${selectPart}`;
+            resultColumnList = [DADABASE_ROW_ID, ...columnList];
+          }
 
           const orderClause = orderBy
             ? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`

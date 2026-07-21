@@ -2,13 +2,14 @@ import type {
   LogicalOperatorType,
   QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
+
 import {
   isNullSpecialValue,
   isSpecialValue,
   resolveSpecialSqlLiteral,
 } from "#src/components/query-builder/query-filter.ts";
 
-import { escapeIdentifier, escapeValue } from "./escape-value";
+import { escapeIdentifier, escapeMysqlIdentifier, escapeValue } from "./escape-value";
 
 type SqlComparisonOp = "=" | "!=" | ">" | ">=" | "<" | "<=";
 
@@ -123,6 +124,104 @@ export const buildPgWhereFragment = (
     }
 
     // Apply inversion with NOT if needed (for operators like NOT LIKE, NOT (...))
+    return inverted ? `NOT (${baseClause})` : baseClause;
+  });
+
+  const joiner = logicalOp === "and" ? " AND " : " OR ";
+  return expressions.filter(Boolean).join(joiner);
+};
+
+/**
+ * Build a WHERE clause fragment for MySQL (backticks, LIKE instead of ILIKE, IN lists).
+ */
+export const buildMysqlWhereFragment = (
+  conditions: QueryFilterType["conditions"],
+  logicalOp: LogicalOperatorType,
+  schema?: string,
+  table?: string,
+): string | undefined => {
+  if (conditions.length === 0) return;
+
+  const validConditions = conditions.filter((c) => {
+    if (c.operator === "is_null" || c.operator === "is_not_null") return true;
+    return c.value !== undefined && c.value !== null;
+  });
+
+  if (validConditions.length === 0) return;
+
+  const expressions = validConditions.map((c) => {
+    let col: string;
+    if (c.table) {
+      col = `${escapeMysqlIdentifier(c.table)}.${escapeMysqlIdentifier(c.column)}`;
+    } else if (schema !== undefined && table) {
+      col = schema
+        ? `${escapeMysqlIdentifier(schema)}.${escapeMysqlIdentifier(table)}.${escapeMysqlIdentifier(c.column)}`
+        : `${escapeMysqlIdentifier(table)}.${escapeMysqlIdentifier(c.column)}`;
+    } else {
+      col = `${escapeMysqlIdentifier(c.column)}`;
+    }
+
+    const inverted = c.inverted ?? false;
+    let baseClause: string;
+
+    switch (c.operator) {
+      case "equals":
+        baseClause = buildPgComparison(col, "=", c.value);
+        break;
+      case "not_equals":
+        baseClause = buildPgComparison(col, "!=", c.value);
+        break;
+      case "contains":
+        baseClause = `${col} LIKE '%${escapeValue(c.value)}%'`;
+        break;
+      case "not_contains":
+        baseClause = `${col} NOT LIKE '%${escapeValue(c.value)}%'`;
+        break;
+      case "starts_with":
+        baseClause = `${col} LIKE '${escapeValue(c.value)}%'`;
+        break;
+      case "ends_with":
+        baseClause = `${col} LIKE '%${escapeValue(c.value)}'`;
+        break;
+      case "greater_than":
+        baseClause = buildPgComparison(col, ">", c.value);
+        break;
+      case "greater_than_or_equal":
+        baseClause = buildPgComparison(col, ">=", c.value);
+        break;
+      case "less_than":
+        baseClause = buildPgComparison(col, "<", c.value);
+        break;
+      case "less_than_or_equal":
+        baseClause = buildPgComparison(col, "<=", c.value);
+        break;
+      case "is_null":
+        baseClause = `${col} IS NULL`;
+        break;
+      case "is_not_null":
+        baseClause = `${col} IS NOT NULL`;
+        break;
+      case "in": {
+        const values = Array.isArray(c.value) ? c.value : [c.value];
+        baseClause = `${col} IN (${values.map((v) => formatPgLiteral(v)).join(",")})`;
+        break;
+      }
+      case "not_in": {
+        const values = Array.isArray(c.value) ? c.value : [c.value];
+        baseClause = `${col} NOT IN (${values.map((v) => formatPgLiteral(v)).join(",")})`;
+        break;
+      }
+      case "between": {
+        const values = Array.isArray(c.value) ? c.value : [c.value, c.value];
+        baseClause = `${col} BETWEEN ${formatPgLiteral(values[0])} AND ${formatPgLiteral(values[1])}`;
+        break;
+      }
+      default: {
+        const _exhaustive: never = c.operator;
+        return _exhaustive;
+      }
+    }
+
     return inverted ? `NOT (${baseClause})` : baseClause;
   });
 

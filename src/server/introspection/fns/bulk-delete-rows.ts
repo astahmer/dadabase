@@ -10,6 +10,8 @@ import { RemoteConnection } from "#src/server/db-connection/remote-connection.ta
 import { QueryLogLevel, QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 
+import { listMysqlTableColumnNames } from "./list-mysql-table-column-names.ts";
+import { buildMysqlRowFingerprintExpr } from "./mysql-row-fingerprint.ts";
 import { DADABASE_ROW_ID, isDadabaseRowIdKey } from "./row-identity.ts";
 import {
   assertSafeIdentifier,
@@ -76,6 +78,19 @@ export const bulkDeleteRows = (
             Effect.succeed(
               sql.or(input.primaryKeys.map((pk) => sql`rowid = ${pk[DADABASE_ROW_ID]}`)),
             ),
+          mysql: () =>
+            Effect.gen(function* () {
+              const columnNames = yield* listMysqlTableColumnNames({
+                schema: input.schema,
+                table: input.table,
+              });
+              const expr = buildMysqlRowFingerprintExpr(columnNames);
+              return sql.or(
+                input.primaryKeys.map(
+                  (pk) => sql`${sql.unsafe(expr)} = ${String(pk[DADABASE_ROW_ID])}`,
+                ),
+              );
+            }),
           orElse: () => Effect.die(new Error("Unsupported database dialect")),
         })
       : sql.or(
@@ -86,6 +101,12 @@ export const bulkDeleteRows = (
 
     const statement = yield* sql.onDialectOrElse({
       pg: () =>
+        Effect.succeed(
+          input.schema
+            ? sql`DELETE FROM ${sql(input.schema)}.${sql(input.table)} WHERE ${whereClause}`
+            : sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`,
+        ),
+      mysql: () =>
         Effect.succeed(
           input.schema
             ? sql`DELETE FROM ${sql(input.schema)}.${sql(input.table)} WHERE ${whereClause}`

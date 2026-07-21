@@ -9,9 +9,8 @@ export const escapeValue = (value: any): string => {
   return String(value).replace(/'/g, "''");
 };
 
-// const escapeIdentifier = Statement.defaultEscape('"');
 /**
- * Escape SQL identifiers (table/column names)
+ * Escape SQL identifiers (table/column names). Default: PostgreSQL/SQLite double quotes.
  */
 export const escapeIdentifier = (identifier: string): string => {
   if (!identifier) return '""';
@@ -20,4 +19,14 @@ export const escapeIdentifier = (identifier: string): string => {
     return parts.map((p) => `"${p.replace(/"/g, '""')}"`).join(".");
   }
   return `"${identifier.replace(/"/g, '""')}"`;
+};
+
+/** Escape SQL identifiers with MySQL backticks. */
+export const escapeMysqlIdentifier = (identifier: string): string => {
+  if (!identifier) return "``";
+  if (identifier.includes(".")) {
+    const parts = identifier.split(".");
+    return parts.map((p) => `\`${p.replace(/`/g, "``")}\``).join(".");
+  }
+  return `\`${identifier.replace(/`/g, "``")}\``;
 };

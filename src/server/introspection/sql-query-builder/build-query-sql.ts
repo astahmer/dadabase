@@ -3,10 +3,11 @@ import type { QueryFilterType } from "#src/components/query-builder/query-filter
 
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import {
+  buildMysqlWhereFragment,
   buildPgWhereFragment,
   buildSqliteWhereFragment,
 } from "#src/server/introspection/build-where.ts";
-import { escapeIdentifier } from "#src/server/introspection/escape-value.ts";
+import { escapeIdentifier, escapeMysqlIdentifier } from "#src/server/introspection/escape-value.ts";
 import {
   buildJoinSqlClauses,
   buildPgJoinFilters,
@@ -57,9 +58,11 @@ export const buildWhereClauseWithJoins = (
 ): string => {
   const mainFilter =
     filters && filters.conditions.length > 0
-      ? dialect === DatabaseDialect.Postgres || dialect === DatabaseDialect.MySQL
+      ? dialect === DatabaseDialect.Postgres
         ? buildPgWhereFragment(filters.conditions, filters.logicalOperator)
-        : buildSqliteWhereFragment(filters.conditions, filters.logicalOperator)
+        : dialect === DatabaseDialect.MySQL
+          ? buildMysqlWhereFragment(filters.conditions, filters.logicalOperator)
+          : buildSqliteWhereFragment(filters.conditions, filters.logicalOperator)
       : "";
 
   const joinFilter =
@@ -131,11 +134,15 @@ export const buildQuerySql = (
 
   // Build the query
   const fromClause =
-    dialect === DatabaseDialect.Postgres || dialect === DatabaseDialect.MySQL
+    dialect === DatabaseDialect.Postgres
       ? schema
         ? `FROM ${escapeIdentifier(schema)}.${escapeIdentifier(table)}`
         : `FROM ${escapeIdentifier(table)}`
-      : `FROM ${escapeIdentifier(table)}`;
+      : dialect === DatabaseDialect.MySQL
+        ? schema
+          ? `FROM ${escapeMysqlIdentifier(schema)}.${escapeMysqlIdentifier(table)}`
+          : `FROM ${escapeMysqlIdentifier(table)}`
+        : `FROM ${escapeIdentifier(table)}`;
 
   const sqlParts = [
     `SELECT ${selectClause}`,
