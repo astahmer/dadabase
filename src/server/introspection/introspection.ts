@@ -419,6 +419,8 @@ export interface ForeignKeyInfo {
   referenced_table_schema: string;
   referenced_table_name: string;
   referenced_column_name: string;
+  /** `CASCADE` | `SET NULL` | `SET DEFAULT` | `RESTRICT` | `NO ACTION`. */
+  delete_rule: string;
 }
 
 interface PragmaForeignKeyInfo {
@@ -451,12 +453,16 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
 						kcu.column_name,
 						ccu.table_schema as referenced_table_schema,
 						ccu.table_name as referenced_table_name,
-						ccu.column_name as referenced_column_name
+						ccu.column_name as referenced_column_name,
+						COALESCE(rc.delete_rule, 'NO ACTION') as delete_rule
 					FROM information_schema.table_constraints tc
 					JOIN information_schema.key_column_usage kcu
 						ON tc.constraint_name = kcu.constraint_name
 					JOIN information_schema.constraint_column_usage ccu
 						ON tc.constraint_name = ccu.constraint_name
+					LEFT JOIN information_schema.referential_constraints rc
+						ON tc.constraint_name = rc.constraint_name
+						AND tc.constraint_schema = rc.constraint_schema
 					WHERE tc.constraint_type = 'FOREIGN KEY'
 					AND tc.table_schema = ${schema}
 					AND tc.table_name = ${table}
@@ -521,6 +527,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
               referenced_table_schema: input.schema,
               referenced_table_name: row.table,
               referenced_column_name: row.to,
+              delete_rule: (row.on_delete || "NO ACTION").toUpperCase(),
             }))
             .toSorted((a, b) => {
               const posA = columnPositions.get(a.column_name) ?? 999;
@@ -753,6 +760,63 @@ export const getAllTablesColumns = (input: { schema: string }) =>
     );
 
     return tablesWithColumns;
+  });
+
+export interface SchemaForeignKeyEdge {
+  fromTable: string;
+  fromColumns: string[];
+  toSchema: string;
+  toTable: string;
+  toColumns: string[];
+  constraintName: string;
+  /** `CASCADE` | `SET NULL` | `SET DEFAULT` | `RESTRICT` | `NO ACTION`. */
+  onDelete: string;
+}
+
+/**
+ * Get every foreign key edge across all tables in a schema, grouped by constraint so
+ * multi-column FKs collapse into a single edge. Used by the ER diagram and the
+ * cascade-delete preview, both of which need whole-schema FK topology (not just one table).
+ */
+export const getAllTablesForeignKeys = (input: { schema: string }) =>
+  Effect.gen(function* () {
+    const { schema } = input;
+    const tables = yield* getAvailableTables({ schema });
+
+    const perTableFks = yield* Effect.all(
+      tables.map((table) =>
+        Effect.gen(function* () {
+          const fks = yield* getTableForeignKeys({ schema, table: table.name });
+          return { table: table.name, fks };
+        }),
+      ),
+      { concurrency: "unbounded" },
+    );
+
+    const edges: SchemaForeignKeyEdge[] = [];
+    for (const { table, fks } of perTableFks) {
+      const byConstraint = new Map<string, ForeignKeyInfo[]>();
+      for (const fk of fks) {
+        const list = byConstraint.get(fk.constraint_name) ?? [];
+        list.push(fk);
+        byConstraint.set(fk.constraint_name, list);
+      }
+      for (const [constraintName, cols] of byConstraint) {
+        const first = cols[0];
+        if (!first) continue;
+        edges.push({
+          fromTable: table,
+          fromColumns: cols.map((c) => c.column_name),
+          toSchema: first.referenced_table_schema,
+          toTable: first.referenced_table_name,
+          toColumns: cols.map((c) => c.referenced_column_name),
+          constraintName,
+          onDelete: first.delete_rule || "NO ACTION",
+        });
+      }
+    }
+
+    return edges;
   });
 
 /**
