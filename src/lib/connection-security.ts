@@ -67,6 +67,43 @@ export function decodeSshTunnelConfig(encoded: string): SshTunnelConfig | null {
 }
 
 const READ_ONLY_QUERY_PARAM = "dadabase_readonly";
+const SSH_TUNNEL_QUERY_PARAM = "dadabase_ssh";
+
+/** Embeds SSH tunnel config as a base64url JSON blob on `dadabase_ssh` query param. */
+export function withSshTunnelConfig(url: string, config: SshTunnelConfig | null): string {
+  try {
+    const parsed = new URL(url);
+    if (!config) {
+      parsed.searchParams.delete(SSH_TUNNEL_QUERY_PARAM);
+      return parsed.toString();
+    }
+    const json = encodeSshTunnelConfig(config);
+    const encoded =
+      typeof Buffer !== "undefined"
+        ? Buffer.from(json, "utf8").toString("base64url")
+        : btoa(json).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+    parsed.searchParams.set(SSH_TUNNEL_QUERY_PARAM, encoded);
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+/** Reads SSH tunnel config from `dadabase_ssh` query param, if present. */
+export function parseSshTunnelFromUrl(url: string): SshTunnelConfig | null {
+  try {
+    const parsed = new URL(url);
+    const encoded = parsed.searchParams.get(SSH_TUNNEL_QUERY_PARAM);
+    if (!encoded) return null;
+    const json =
+      typeof Buffer !== "undefined"
+        ? Buffer.from(encoded, "base64url").toString("utf8")
+        : atob(encoded.replaceAll("-", "+").replaceAll("_", "/"));
+    return decodeSshTunnelConfig(json);
+  } catch {
+    return null;
+  }
+}
 
 /** Sets or clears the `dadabase_readonly` marker query param on a connection URL. */
 export function withReadOnlyFlag(url: string, readOnly: boolean): string {

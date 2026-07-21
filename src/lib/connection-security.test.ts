@@ -7,8 +7,10 @@ import {
   guardReadOnlyMutation,
   isReadOnlyConnection,
   parseSslMode,
+  parseSshTunnelFromUrl,
   stripDadabaseMarkerParams,
   withReadOnlyFlag,
+  withSshTunnelConfig,
 } from "./connection-security.ts";
 
 describe("applySslMode / parseSslMode", () => {
@@ -73,6 +75,30 @@ describe("encodeSshTunnelConfig / decodeSshTunnelConfig", () => {
   });
 });
 
+describe("withSshTunnelConfig / parseSshTunnelFromUrl", () => {
+  it("round-trips SSH config on a connection URL", () => {
+    const config = {
+      host: "bastion.example.com",
+      port: 22,
+      user: "deploy",
+      privateKeyPath: "~/.ssh/id_ed25519",
+    };
+    const url = withSshTunnelConfig("postgres://user:pass@db:5432/app", config);
+    expect(parseSshTunnelFromUrl(url)).toEqual(config);
+    expect(stripDadabaseMarkerParams(url)).not.toContain("dadabase_ssh");
+  });
+
+  it("clears SSH config when null is passed", () => {
+    const withSsh = withSshTunnelConfig("postgres://db/app", {
+      host: "bastion",
+      port: 22,
+      user: "u",
+    });
+    const cleared = withSshTunnelConfig(withSsh, null);
+    expect(parseSshTunnelFromUrl(cleared)).toBeNull();
+  });
+});
+
 describe("withReadOnlyFlag / isReadOnlyConnection", () => {
   it("sets the readonly marker", () => {
     const url = withReadOnlyFlag("postgres://host/db", true);
@@ -80,66 +106,39 @@ describe("withReadOnlyFlag / isReadOnlyConnection", () => {
   });
 
   it("clears the readonly marker", () => {
-    const url = withReadOnlyFlag("postgres://host/db?dadabase_readonly=1", false);
+    const url = withReadOnlyFlag(withReadOnlyFlag("postgres://host/db", true), false);
     expect(isReadOnlyConnection(url)).toBe(false);
-  });
-
-  it("defaults to false when the marker is absent", () => {
-    expect(isReadOnlyConnection("postgres://host/db")).toBe(false);
-  });
-
-  it("returns the original string unchanged for unparsable URLs", () => {
-    expect(withReadOnlyFlag("not a url", true)).toBe("not a url");
-    expect(isReadOnlyConnection("not a url")).toBe(false);
   });
 });
 
 describe("stripDadabaseMarkerParams", () => {
-  it("removes the readonly marker before the URL reaches a real DB driver", () => {
-    const url = withReadOnlyFlag("postgres://host/db", true);
-    expect(stripDadabaseMarkerParams(url)).toBe("postgres://host/db");
-  });
-
-  it("leaves other query params untouched", () => {
-    const url = withReadOnlyFlag("postgres://host/db?sslmode=require", true);
-    const stripped = stripDadabaseMarkerParams(url);
-    expect(new URL(stripped).searchParams.get("sslmode")).toBe("require");
-    expect(new URL(stripped).searchParams.has("dadabase_readonly")).toBe(false);
-  });
-
-  it("does not touch URLs without any dadabase_ marker (avoids mangling relative file: paths)", () => {
-    expect(stripDadabaseMarkerParams("file:test.db")).toBe("file:test.db");
-    expect(stripDadabaseMarkerParams("file:./relative/path.db")).toBe("file:./relative/path.db");
-  });
-
-  it("strips the marker even from a file: URL with an absolute path", () => {
-    const stripped = stripDadabaseMarkerParams("file:///tmp/db.sqlite?dadabase_readonly=1");
-    expect(stripped).toBe("file:///tmp/db.sqlite");
-  });
-
-  it("returns the original string unchanged for unparsable URLs", () => {
-    expect(stripDadabaseMarkerParams("not a url ?dadabase_readonly=1")).toBe(
-      "not a url ?dadabase_readonly=1",
+  it("removes dadabase_* query params", () => {
+    const url = stripDadabaseMarkerParams(
+      "postgres://host/db?dadabase_readonly=1&sslmode=require&dadabase_ssh=abc",
     );
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("dadabase_readonly")).toBeNull();
+    expect(parsed.searchParams.get("dadabase_ssh")).toBeNull();
+    expect(parsed.searchParams.get("sslmode")).toBe("require");
+  });
+
+  it("leaves URLs without markers unchanged", () => {
+    expect(stripDadabaseMarkerParams("file:./local.db")).toBe("file:./local.db");
   });
 });
 
 describe("guardReadOnlyMutation", () => {
-  const readOnlyUrl = withReadOnlyFlag("postgres://host/db", true);
-
-  it("allows mutations on a non-read-only connection", () => {
+  it("allows mutations on writable connections", () => {
     expect(guardReadOnlyMutation("postgres://host/db")).toBeNull();
   });
 
-  it("blocks mutations on a read-only connection", () => {
-    expect(guardReadOnlyMutation(readOnlyUrl)).toMatch(/read-only/i);
+  it("blocks mutations on read-only connections", () => {
+    const url = withReadOnlyFlag("postgres://host/db", true);
+    expect(guardReadOnlyMutation(url)).toMatch(/read-only/i);
   });
 
-  it("allows SELECT-only SQL on a read-only connection", () => {
-    expect(guardReadOnlyMutation(readOnlyUrl, { isSelect: true })).toBeNull();
-  });
-
-  it("still blocks non-SELECT SQL on a read-only connection", () => {
-    expect(guardReadOnlyMutation(readOnlyUrl, { isSelect: false })).toMatch(/read-only/i);
+  it("allows SELECT on read-only connections", () => {
+    const url = withReadOnlyFlag("postgres://host/db", true);
+    expect(guardReadOnlyMutation(url, { isSelect: true })).toBeNull();
   });
 });

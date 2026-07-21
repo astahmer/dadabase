@@ -1,3 +1,9 @@
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { LucideCheck, LucideCross } from "lucide-react";
+import { useState } from "react";
+import z from "zod";
+
 import {
   Accordion,
   AccordionItem,
@@ -6,18 +12,18 @@ import {
 } from "#src/components/ui/accordion";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import {
+  applySslMode,
   isReadOnlyConnection,
+  parseSslMode,
+  parseSshTunnelFromUrl,
   stripDadabaseMarkerParams,
   withReadOnlyFlag,
+  withSshTunnelConfig,
+  type SslMode,
 } from "#src/lib/connection-security.ts";
 import { createDbConnectionMutation } from "#src/server/db-connection/start-fns/create-db-connection.start.ts";
 import { updateDbConnectionMutation } from "#src/server/db-connection/start-fns/update-db-connection.start.ts";
 import { tryConnectionServerFn } from "#src/server/introspection/start-fns/try-connection.start.ts";
-import { useMutation } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { LucideCheck, LucideCross } from "lucide-react";
-import { useState } from "react";
-import z from "zod";
 
 import { useAppForm } from "../form/form.hook.ts";
 import { Button } from "../ui/button.tsx";
@@ -41,6 +47,11 @@ const connectionFormSchema = z
     user: z.string(),
     password: z.string(),
     readOnly: z.boolean(),
+    sslMode: z.enum(["disable", "require", "verify-full"]).nullable(),
+    sshHost: z.string(),
+    sshPort: z.number(),
+    sshUser: z.string(),
+    sshPrivateKeyPath: z.string(),
   })
   .refine(
     (data) => {
@@ -52,8 +63,11 @@ const connectionFormSchema = z
       if (data.connectionType === DatabaseDialect.LibSQL) {
         return data.connectionUrl.length > 0;
       }
-      // Postgres requires connectionUrl to be valid
-      if (data.connectionType === DatabaseDialect.Postgres) {
+      // Postgres / MySQL require connectionUrl to be valid
+      if (
+        data.connectionType === DatabaseDialect.Postgres ||
+        data.connectionType === DatabaseDialect.MySQL
+      ) {
         try {
           new URL(data.connectionUrl);
           return true;
@@ -81,6 +95,11 @@ const defaultValues = {
   user: "user",
   password: "password",
   readOnly: false,
+  sslMode: null as SslMode | null,
+  sshHost: "",
+  sshPort: 22,
+  sshUser: "",
+  sshPrivateKeyPath: "",
 };
 
 export type ConnectionFormValues = z.infer<typeof connectionFormSchema>;
@@ -129,6 +148,19 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
       // withReadOnlyFlag (relative paths get rewritten), so the marker is postgres/libSQL only.
       if (connectionType !== DatabaseDialect.SQLite) {
         connectionUrl = withReadOnlyFlag(connectionUrl, ctx.value.readOnly);
+        if (ctx.value.sslMode) {
+          connectionUrl = applySslMode(connectionUrl, ctx.value.sslMode);
+        }
+        if (ctx.value.sshHost.trim() && ctx.value.sshUser.trim()) {
+          connectionUrl = withSshTunnelConfig(connectionUrl, {
+            host: ctx.value.sshHost.trim(),
+            port: ctx.value.sshPort || 22,
+            user: ctx.value.sshUser.trim(),
+            privateKeyPath: ctx.value.sshPrivateKeyPath.trim() || undefined,
+          });
+        } else {
+          connectionUrl = withSshTunnelConfig(connectionUrl, null);
+        }
       }
 
       try {
@@ -192,7 +224,23 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
     const values = { ...defaultValues, ...initialValues };
     if (initialValues?.connectionUrl) {
       values.readOnly = isReadOnlyConnection(initialValues.connectionUrl);
+      values.sslMode = parseSslMode(initialValues.connectionUrl);
+      const ssh = parseSshTunnelFromUrl(initialValues.connectionUrl);
+      if (ssh) {
+        values.sshHost = ssh.host;
+        values.sshPort = ssh.port;
+        values.sshUser = ssh.user;
+        values.sshPrivateKeyPath = ssh.privateKeyPath ?? "";
+      }
       values.connectionUrl = stripDadabaseMarkerParams(initialValues.connectionUrl);
+      // also strip sslmode for display of base URL fields
+      try {
+        const u = new URL(values.connectionUrl);
+        u.searchParams.delete("sslmode");
+        values.connectionUrl = u.toString();
+      } catch {
+        /* keep */
+      }
       const parsed = parseConnectionUrl(values.connectionUrl);
       values.connectionType =
         initialValues.connectionType || (parsed.protocol as z.infer<typeof connectionType>);
@@ -297,9 +345,9 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
             defaultValue={[field.state.value]}
             options={[
               { label: "Postgres", value: "postgres" },
+              { label: "MySQL / MariaDB", value: "mysql" },
               { label: "SQLite", value: "sqlite" },
               { label: "libSQL / Turso", value: "libsql" },
-              // { label: "MySQL", value: "mysql" },
             ]}
           />
         )}
@@ -359,8 +407,13 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                   name="connectionUrl"
                   listeners={{
                     onChange: (props) => {
-                      if (!props.value.startsWith("postgres://")) {
-                        form.setFieldValue("connectionUrl", `postgres://${props.value}`);
+                      const type = form.getFieldValue("connectionType");
+                      const prefix = type === DatabaseDialect.MySQL ? "mysql://" : "postgres://";
+                      if (
+                        !props.value.startsWith("postgres://") &&
+                        !props.value.startsWith("mysql://")
+                      ) {
+                        form.setFieldValue("connectionUrl", `${prefix}${props.value}`);
                       }
                     },
                     onBlur: (props) => {
@@ -403,6 +456,44 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                         {(field) => <field.TextField type="text" label="Password" />}
                       </form.AppField>
                     </div>
+                  </AccordionItemContent>
+                </AccordionItem>
+                <AccordionItem value="security" className="w-full border-t">
+                  <AccordionItemTrigger className="hover:bg-muted/50 px-3 py-2 text-sm transition-colors">
+                    <span className="font-medium">Security (SSL / SSH)</span>
+                  </AccordionItemTrigger>
+                  <AccordionItemContent className="bg-muted/30 space-y-3 border-t px-3 py-3">
+                    <form.AppField name="sslMode">
+                      {(field) => (
+                        <field.Select
+                          label="SSL mode"
+                          defaultValue={field.state.value ? [field.state.value] : []}
+                          options={[
+                            { label: "disable", value: "disable" },
+                            { label: "require", value: "require" },
+                            { label: "verify-full", value: "verify-full" },
+                          ]}
+                        />
+                      )}
+                    </form.AppField>
+                    <div className="grid w-full grid-cols-2 gap-2">
+                      <form.AppField name="sshHost">
+                        {(field) => <field.TextField label="SSH host" />}
+                      </form.AppField>
+                      <form.AppField name="sshPort">
+                        {(field) => <field.TextField type="number" label="SSH port" />}
+                      </form.AppField>
+                      <form.AppField name="sshUser">
+                        {(field) => <field.TextField label="SSH user" />}
+                      </form.AppField>
+                      <form.AppField name="sshPrivateKeyPath">
+                        {(field) => <field.TextField label="Private key path" />}
+                      </form.AppField>
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      SSH settings are stored on the connection URL (`dadabase_ssh`). Tunneling is
+                      applied server-side when opening the pool.
+                    </p>
                   </AccordionItemContent>
                 </AccordionItem>
               </Accordion>
