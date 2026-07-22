@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Keep automatic source detection away from local reference clones / e2e noise.
+   Without this, Tailwind can scan `.references` (~hundreds of MB) and stall
+   `/@tanstack-start/styles.css` for tens of seconds on every rebuild. */
+@source not "../.references";
+@source not "../e2e";
+@source not "../.git";
+@source not "../.cursor";
+@source not "../.context";
+
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));

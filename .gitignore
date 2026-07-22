@@ -12,6 +12,9 @@ count.txt
 .vinxi
 todos.json
 .context
+# Local reference clones (pattern mining). Must stay ignored so Vite/Tailwind
+# do not scan/watch hundreds of MB and stall styles.css / HMR.
+.references
 app.db
 e2e/.tmp
 e2e/.features-gen

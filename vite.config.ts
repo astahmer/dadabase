@@ -7,6 +7,8 @@ import jsxSource from "unplugin-jsx-source/vite";
 import { defineConfig } from "vite";
 import viteTsConfigPaths from "vite-tsconfig-paths";
 
+import { VITE_SERVER_WATCH_IGNORED } from "./src/lib/vite-dev-watch.ts";
+
 const cpuFeaturesStub = fileURLToPath(new URL("./vite-stubs/cpu-features.cjs", import.meta.url));
 
 const defaultTransformFileName = (
@@ -27,6 +29,17 @@ const config = defineConfig((env) => ({
       // ssh2 optionally requires native cpu-features (.node). Rolldown resolves it
       // statically despite try/catch — stub so client dep optimize can finish.
       "cpu-features": cpuFeaturesStub,
+    },
+  },
+  server: {
+    // Project-local `.references/` clones + docs must not enter the watch graph.
+    // Without this, editing `prompts.local.md` (or anything under `.references`)
+    // hard-reloads the app and Tailwind CSS rebuilds can take tens of seconds.
+    watch: {
+      ignored: [...VITE_SERVER_WATCH_IGNORED],
+    },
+    fs: {
+      deny: [".references"],
     },
   },
   plugins: [
