@@ -23,24 +23,26 @@ AI assistant (BYOK OpenAI — key stays in the browser; requests are proxied onc
 
 ## Scripts
 
-| Command | Purpose |
-|---|---|
-| `pnpm dev` | Vite + TanStack Start on `127.0.0.1:3005` |
-| `pnpm build` / `pnpm start` | Production build + serve |
-| `pnpm typecheck` | `tsgo --noEmit` |
-| `pnpm check` | oxlint (type-aware); does **not** auto-fix |
-| `pnpm test:run` | Vitest unit/integration |
-| `pnpm test:e2e` | Playwright BDD features |
+| Command                     | Purpose                                    |
+| --------------------------- | ------------------------------------------ |
+| `pnpm dev`                  | Vite + TanStack Start on `127.0.0.1:3005`  |
+| `pnpm build` / `pnpm start` | Production build + serve                   |
+| `pnpm typecheck`            | `tsgo --noEmit`                            |
+| `pnpm check`                | oxlint (type-aware); does **not** auto-fix |
+| `pnpm test:run`             | Vitest unit/integration                    |
+| `pnpm test:e2e`             | Playwright BDD features                    |
 
 ## Features
 
 ### Connections
+
 - Postgres / MySQL / SQLite / LibSQL URLs
 - Optional SSL mode + SSH tunnel markers on the URL
 - Read-only mode (`dadabase_readonly`) blocks mutations
 - Sidebar: databases → schemas → tables with filter
 
 ### Data browsing & editing
+
 - Paginated rows, column sort / nulls order, client-side JS filter
 - Inline cell edit + pending edits bar
 - Row editor sheet (incl. JSON/JSONB Monaco)
@@ -51,12 +53,14 @@ AI assistant (BYOK OpenAI — key stays in the browser; requests are proxied onc
 - Join-tables dialog (multi-table query building)
 
 ### SQL editor
+
 - Monaco SQL editor with completions + diagnostics
 - Multi-statement scripts; per-statement Run/Explain zones
 - Explain plan drawer, format, snippets, fullscreen
 - Destructive-query confirm before write SQL
 
 ### Schema tools
+
 - Create / alter / drop via schema mutate sheet
 - SQLite table rebuild for unsupported ALTER paths
 - Index / FK mutate sheet
@@ -64,12 +68,14 @@ AI assistant (BYOK OpenAI — key stays in the browser; requests are proxied onc
 - Import data sheet
 
 ### AI assistant (BYOK)
+
 - Natural-language → SQL using the **whole schema**
 - Safe `LIMIT 100` unless the user asks otherwise (prompt + post-process)
 - Apply / run generated SQL into the editor
 - Index / query suggestions without a key
 
 ### Other
+
 - Query history logger
 - Command palette
 - Zen mode, theme, export CSV/TSV/INSERT
@@ -94,10 +100,10 @@ pnpm test:e2e
 
 ## Docs map
 
-| Area | Where to look |
-|---|---|
-| Connection security / SSH | `src/lib/connection-security.ts` |
-| Introspection + mutations | `src/server/introspection/` |
-| AI prompts / LIMIT | `src/lib/ai/` |
-| SQL editor zones | `src/lib/sql-editor-view-zones.ts` |
-| E2E fixtures | `e2e/prepare-fixtures.mjs` |
+| Area                      | Where to look                      |
+| ------------------------- | ---------------------------------- |
+| Connection security / SSH | `src/lib/connection-security.ts`   |
+| Introspection + mutations | `src/server/introspection/`        |
+| AI prompts / LIMIT        | `src/lib/ai/`                      |
+| SQL editor zones          | `src/lib/sql-editor-view-zones.ts` |
+| E2E fixtures              | `e2e/prepare-fixtures.mjs`         |

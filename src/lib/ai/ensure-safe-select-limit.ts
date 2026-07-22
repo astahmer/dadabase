@@ -16,10 +16,7 @@ const looksLikeSelect = (sql: string): boolean => {
  * unless the SQL already opts out (`LIMIT ALL` or a `no-limit` marker comment).
  * Prevents accidental full-table scans from freezing the UI.
  */
-export const ensureSafeSelectLimit = (
-  sql: string,
-  limit: number = DEFAULT_SAFE_LIMIT,
-): string => {
+export const ensureSafeSelectLimit = (sql: string, limit: number = DEFAULT_SAFE_LIMIT): string => {
   const trimmed = sql.trim().replace(/;+\s*$/, "");
   if (!trimmed) return sql;
   if (!looksLikeSelect(trimmed)) return sql;

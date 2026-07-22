@@ -4,9 +4,7 @@ import { ensureSafeSelectLimit } from "./ensure-safe-select-limit.ts";
 
 describe("ensureSafeSelectLimit", () => {
   it("appends LIMIT 100 when missing", () => {
-    expect(ensureSafeSelectLimit("SELECT * FROM orders")).toBe(
-      "SELECT * FROM orders\nLIMIT 100",
-    );
+    expect(ensureSafeSelectLimit("SELECT * FROM orders")).toBe("SELECT * FROM orders\nLIMIT 100");
   });
 
   it("keeps an existing LIMIT", () => {

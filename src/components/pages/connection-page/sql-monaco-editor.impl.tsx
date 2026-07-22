@@ -186,7 +186,9 @@ export function SqlMonacoEditorImpl({
 
   useEffect(() => {
     return () => {
-      const win = window as unknown as { __dadabaseSqlMonaco?: { setValue: (next: string) => void } };
+      const win = window as unknown as {
+        __dadabaseSqlMonaco?: { setValue: (next: string) => void };
+      };
       delete win.__dadabaseSqlMonaco;
     };
   }, []);

@@ -1,6 +1,5 @@
-import { generateSqlTextServerFn } from "#src/server/ai/generate-sql-text.start.ts";
-
 import { getStoredOpenAiApiKey } from "#src/lib/ai-byok.ts";
+import { generateSqlTextServerFn } from "#src/server/ai/generate-sql-text.start.ts";
 
 import type { AiSchemaContext, AiTableContext } from "./ai-types.ts";
 
