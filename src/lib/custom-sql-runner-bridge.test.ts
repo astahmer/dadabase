@@ -7,8 +7,15 @@ describe("custom-sql-runner-bridge", () => {
     const runner = vi.fn();
     const unregister = registerCustomSqlRunner(runner);
     expect(runRegisteredCustomSql("SELECT 1")).toBe(true);
-    expect(runner).toHaveBeenCalledWith("SELECT 1");
+    expect(runner).toHaveBeenCalledWith("SELECT 1", undefined);
     unregister();
     expect(runRegisteredCustomSql("SELECT 2")).toBe(false);
+  });
+
+  it("forwards revealEditor options", () => {
+    const runner = vi.fn();
+    registerCustomSqlRunner(runner);
+    expect(runRegisteredCustomSql("SELECT 1", { revealEditor: true })).toBe(true);
+    expect(runner).toHaveBeenCalledWith("SELECT 1", { revealEditor: true });
   });
 });

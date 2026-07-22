@@ -80,6 +80,7 @@ describe("buildNlToSqlPrompt", () => {
     expect(prompt).toContain("User question: show pending orders");
     expect(prompt).toContain("Output ONLY the SQL statement");
     expect(prompt).toContain("Always include a safe LIMIT");
+    expect(prompt).toContain("GROUP BY");
   });
 
   it("includes the whole database schema when provided", () => {

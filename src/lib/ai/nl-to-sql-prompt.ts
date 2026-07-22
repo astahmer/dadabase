@@ -75,6 +75,8 @@ export const buildNlToSqlPrompt = (input: BuildNlToSqlPromptInput): string => {
     "- Qualify columns with the table name when ambiguous.",
     "- Always include a safe LIMIT (≤ 100) unless the user explicitly asks for more rows, ALL rows, or a different limit.",
     "- Never invent columns or tables that are not listed.",
+    "- PostgreSQL / MySQL GROUP BY: every non-aggregated SELECT expression must appear in GROUP BY (or wrap it in an aggregate). Prefer aggregating measures (SUM/MAX) over adding every column to GROUP BY.",
+    "- Prefer simple joins; avoid selecting bare columns from both sides of a join under GROUP BY unless they are grouping keys.",
     "",
     "Database schema:",
     schemaBlocks,

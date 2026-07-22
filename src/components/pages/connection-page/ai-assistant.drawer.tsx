@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { KeyRound, Sparkles, Trash2 } from "lucide-react";
+import { KeyRound, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { AiTableContext } from "#src/lib/ai/ai-types.ts";
@@ -11,11 +11,13 @@ import {
   hasStoredOpenAiApiKey,
   setStoredOpenAiApiKey,
 } from "#src/lib/ai-byok.ts";
+import { getAiGeneratingStatus } from "#src/lib/ai/ai-generating-status.ts";
 import { aiStatsFromRows } from "#src/lib/ai/ai-stats.ts";
 import { generateSqlFromNaturalLanguage } from "#src/lib/ai/generate-sql.ts";
 import { suggestMissingIndexes } from "#src/lib/ai/suggest-missing-indexes.ts";
 import { suggestQueriesFromSchema } from "#src/lib/ai/suggest-queries.ts";
 import { getErrorMessage } from "#src/lib/get-error-message.ts";
+import { SQL_PREVIEW_REVEAL_SIZE } from "#src/lib/sql-preview-panel.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 import { getTableIndexesQueryOptions } from "#src/server/introspection/start-fns/get-table-indexes.start.ts";
 
@@ -171,14 +173,17 @@ export const ConnectionAiAssistantDrawer = ({
           customSql: sql,
           customSqlId: undefined,
           sqlEditorMode: "editor",
+          editorDetached: true,
+          sqlPreviewSize: SQL_PREVIEW_REVEAL_SIZE,
         }),
     });
     onOpenChange(false);
   };
 
   const applySqlAndRun = (sql: string) => {
-    applySqlToEditor(sql);
+    // Runner expands the SQL panel and seeds the editor (revealEditor).
     onGenerateAndRun?.(sql);
+    onOpenChange(false);
   };
 
   const canGenerate =
@@ -237,6 +242,11 @@ export const ConnectionAiAssistantDrawer = ({
       setLastError(getErrorMessage(err));
     },
   });
+
+  const isGenerating = generateMutation.isPending || generateAndRunMutation.isPending;
+  const generatingStatus = isGenerating
+    ? getAiGeneratingStatus(generateAndRunMutation.isPending ? "generate-and-run" : "generate")
+    : null;
 
   const saveKey = () => {
     setStoredOpenAiApiKey(keyDraft);
@@ -382,35 +392,72 @@ export const ConnectionAiAssistantDrawer = ({
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 data-testid="ai-chat-input"
+                disabled={isGenerating}
               />
+              {generatingStatus && (
+                <div
+                  className="border-border bg-muted/40 flex items-start gap-2 rounded-md border px-3 py-2 text-xs"
+                  data-testid="ai-generating-status"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin" />
+                  <div className="space-y-0.5">
+                    <p className="font-medium">{generatingStatus.title}</p>
+                    <p className="text-muted-foreground">{generatingStatus.detail}</p>
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={!canGenerate || generateMutation.isPending}
+                  disabled={!canGenerate || isGenerating}
                   onClick={() => generateMutation.mutate()}
                   data-testid="ai-chat-send"
                 >
-                  {generateMutation.isPending ? "Generating…" : "Send"}
+                  {generateMutation.isPending ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Generating…
+                    </>
+                  ) : (
+                    "Send"
+                  )}
                 </Button>
                 {onGenerateAndRun && (
                   <Button
                     size="sm"
-                    disabled={
-                      !canGenerate || generateAndRunMutation.isPending || generateMutation.isPending
-                    }
+                    disabled={!canGenerate || isGenerating}
                     onClick={() => generateAndRunMutation.mutate()}
+                    data-testid="ai-chat-send-run"
                   >
-                    {generateAndRunMutation.isPending ? "Generating…" : "Send → run"}
+                    {generateAndRunMutation.isPending ? (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Generating…
+                      </>
+                    ) : (
+                      "Send → run"
+                    )}
                   </Button>
                 )}
                 {chatMessages.length > 0 ? (
-                  <Button size="sm" variant="ghost" onClick={() => setChatMessages([])}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setChatMessages([])}
+                    disabled={isGenerating}
+                  >
                     Clear chat
                   </Button>
                 ) : null}
               </div>
-              {lastError && <p className="text-destructive text-xs">{lastError}</p>}
+              {lastError && (
+                <p className="text-destructive text-xs" data-testid="ai-chat-error">
+                  {lastError}
+                </p>
+              )}
             </section>
           )}
 
