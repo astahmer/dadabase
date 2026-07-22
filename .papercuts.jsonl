@@ -1,0 +1,1 @@
+{"kind":"cut","id":"pc_e5q1m5obp566","ts":"2026-07-29T12:47:49.952Z","agent":"unknown","text":"Copilot instructions recommend pnpm fmt, but direct Biome binary is not installed; use the configured pnpm fmt script instead.","tags":["tooling"],"severity":"minor"}

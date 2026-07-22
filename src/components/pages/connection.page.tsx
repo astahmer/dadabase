@@ -1034,15 +1034,23 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
             search.filtersOpened && (
               <>
                 {pageState.queryBuilder.filter.conditions.length === 0 ? (
-                  <div className="flex items-center gap-2 border-b px-4 py-2">
+                  <div className="bg-background flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+                    <div>
+                      <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                        Where
+                      </div>
+                      <p className="text-muted-foreground mt-1 text-sm">
+                        Narrow rows by column values.
+                      </p>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gap-1"
+                      className="gap-1.5"
                       onClick={() => pageState.queryBuilder.addCondition()}
                     >
-                      <Plus className="h-3 w-3" />
-                      Add WHERE filter
+                      <Plus className="h-3.5 w-3.5" />
+                      Add condition
                     </Button>
                   </div>
                 ) : (
@@ -1057,6 +1065,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                     logicalOperator={pageState.queryBuilder.filter.logicalOperator}
                     availableColumns={pageState.columnNameList}
                     isLoading={pageState.rowsQuery.isLoading}
+                    label="WHERE"
                     columnMetadata={pageState.columnMetadata
                       .map((meta) => ({
                         ...meta,
