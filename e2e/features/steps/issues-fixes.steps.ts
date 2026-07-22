@@ -172,15 +172,9 @@ When("I enable zen mode", async ({ page }) => {
 });
 
 Then("the query logger panel should be collapsed", async ({ page }) => {
-  // Zen collapses the splitter panel to ~0; the header chrome may unmount or shrink.
-  await expect
-    .poll(async () => {
-      const logger = page.getByTestId("query-logger-panel");
-      if ((await logger.count()) === 0) return 0;
-      const box = await logger.boundingBox();
-      return box?.height ?? 0;
-    })
-    .toBeLessThan(16);
+  const panel = page.getByTestId("query-logger-splitter-panel");
+  await expect(panel).toHaveAttribute("data-zen-collapsed", "true");
+  await expect(panel).toBeHidden();
 });
 
 Then("the connection page header should be hidden", async ({ page }) => {

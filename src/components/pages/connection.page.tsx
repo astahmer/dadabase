@@ -600,6 +600,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         className={cn(
                           tryFn(() => ctx.isPanelCollapsed(panels.queryLogger)) ? "h-3" : "h-1.5",
                           "bg-border hover:bg-primary/50 w-full cursor-row-resize transition-colors",
+                          layoutZenMode && "hidden",
                         )}
                         title="Drag to resize, double-click to toggle"
                         onDoubleClick={() => {
@@ -617,7 +618,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                     {(ctx) => (
                       <Splitter.Panel
                         id={panels.queryLogger}
-                        className="bg-background flex h-full min-h-0 flex-col overflow-hidden border-t"
+                        data-testid="query-logger-splitter-panel"
+                        data-zen-collapsed={layoutZenMode ? "true" : "false"}
+                        className={cn(
+                          "bg-background flex h-full min-h-0 flex-col overflow-hidden border-t",
+                          layoutZenMode && "hidden",
+                        )}
                       >
                         <QueryLoggerContent
                           connectionUrl={activeConnectionUrl}
