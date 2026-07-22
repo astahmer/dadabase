@@ -99,7 +99,10 @@ export const QueryLoggerContent = ({
 
   return (
     <>
-      <div className="bg-muted/50 hover:bg-muted group flex h-12 shrink-0 items-center border-b px-4 py-2 transition-colors">
+      <div
+        className="bg-muted/50 hover:bg-muted group flex h-12 shrink-0 items-center border-b px-4 py-2 transition-colors"
+        data-testid="query-logger-panel"
+      >
         <div className="flex items-center gap-2 font-medium">
           <span>Query Logger</span>
           {connectionId && (
@@ -124,6 +127,8 @@ export const QueryLoggerContent = ({
             <button
               className="hover:bg-primary/20 ml-2 rounded p-1 opacity-60 transition-colors hover:opacity-100"
               title={isExpanded ? "Collapse" : "Expand"}
+              aria-label={isExpanded ? "Collapse query logger" : "Expand query logger"}
+              data-testid="toggle-query-logger"
               onClick={(e) => {
                 e.stopPropagation();
                 if (isExpanded) {

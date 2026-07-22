@@ -23,7 +23,11 @@ import {
   getColumnHeaderFilter,
   upsertColumnHeaderFilter,
 } from "#src/components/data-table/upsert-column-header-filter.ts";
-import { shouldSyncEditorFromGeneratedSql } from "#src/components/pages/connection-page/editor-detach.ts";
+import {
+  getQueryLoggerSplitterDefaultSize,
+  getSidebarSplitterDefaultSize,
+  getZenLayoutRemountKey,
+} from "#src/components/pages/connection-page/connection-layout-sizes.ts";
 import {
   copyToClipboard,
   exportRows,
@@ -233,6 +237,17 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
   const zenMode = useZenModeEnabled();
   const { toggleZenMode } = useZenModeActions();
+  const sidebarSplitterDefaultSize = getSidebarSplitterDefaultSize({
+    zenMode,
+    sidebarSize,
+    sidebarMinSize,
+  });
+  const queryLoggerSplitterDefaultSize = getQueryLoggerSplitterDefaultSize({
+    zenMode,
+    queryLoggerSize: defaultQueryLoggerSize,
+  });
+  const sidebarPanelMinSize = zenMode ? 0 : sidebarMinSize;
+  const queryLoggerPanelMinSize = zenMode ? 0 : queryLoggerMinSize;
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 
   const schemaListQuery = useQuery({
@@ -381,14 +396,15 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       {/* Main Layout */}
       <div className="flex h-full min-h-0 flex-1 flex-col">
         <Splitter.Root
+          key={getZenLayoutRemountKey(zenMode, "sidebar")}
           orientation="horizontal"
-          defaultSize={[sidebarSize ?? sidebarMinSize, 100 - sidebarMinSize]}
+          defaultSize={[...sidebarSplitterDefaultSize]}
           panels={[
             {
               id: panels.sidebar,
               collapsible: true,
               collapsedSize: 0,
-              minSize: sidebarMinSize,
+              minSize: sidebarPanelMinSize,
               maxSize: fromPixelToPercentage(400, "horizontal"),
             },
             {
@@ -475,8 +491,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             <Splitter.Context>
               {(sidebarSplitterCtx) => (
                 <Splitter.Root
+                  key={getZenLayoutRemountKey(zenMode, "query-logger")}
                   orientation="vertical"
-                  defaultSize={[100 - defaultQueryLoggerSize, defaultQueryLoggerSize]}
+                  defaultSize={[...queryLoggerSplitterDefaultSize]}
                   panels={[
                     {
                       id: panels.rowsContent,
@@ -485,8 +502,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                     {
                       id: panels.queryLogger,
                       collapsible: true,
-                      collapsedSize: queryLoggerMinSize,
-                      minSize: queryLoggerMinSize,
+                      collapsedSize: queryLoggerPanelMinSize,
+                      minSize: queryLoggerPanelMinSize,
                       maxSize: 50,
                     },
                   ]}
@@ -1408,7 +1425,6 @@ const RowsTableSqlEditor = (
       sqlEditorMode: tab.sqlEditorMode,
       customSql: tab.customSql,
       customSqlId: tab.customSqlId,
-      editorDetached: tab.editorDetached,
     };
   });
 
@@ -1426,7 +1442,6 @@ const RowsTableSqlEditor = (
           customSql: sql,
           customSqlId: undefined,
           sqlEditorMode: "editor",
-          editorDetached: true,
           sqlPreviewSize: SQL_PREVIEW_REVEAL_SIZE,
         }),
     });
@@ -1467,14 +1482,12 @@ const RowsTableSqlEditor = (
     },
   });
 
-  // When the generated SQL changes (e.g., from adding a join via UI), clear the draft
-  // so the editor syncs with the new generated SQL — unless editor is detached
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset draft when generated SQL changes
+  // Seed draft when AI / URL provides customSql while still on the table editor.
   useEffect(() => {
-    if (shouldSyncEditorFromGeneratedSql({ editorDetached: search.editorDetached })) {
-      setDraftSql(null);
+    if (search.customSql && draftSql == null) {
+      setDraftSql(search.customSql);
     }
-  }, [props.sqlQueryAsText, search.editorDetached]);
+  }, [search.customSql, draftSql]);
 
   // Fetch available tables/columns for intellisense
   const { tables, columns } = useTablesColumnsForIntellisense({
@@ -1528,22 +1541,6 @@ const RowsTableSqlEditor = (
               }),
           })
         }
-        editorDetached={search.editorDetached}
-        onEditorDetachedChange={(detached) => {
-          navigate({
-            search: (prev) =>
-              updateTabState(prev, {
-                editorDetached: detached || undefined,
-                sqlEditorMode: detached ? "editor" : search.sqlEditorMode,
-              }),
-          });
-          if (detached && !draftSql) {
-            setDraftSql(props.sqlQueryAsText);
-          }
-          if (!detached) {
-            setDraftSql(null);
-          }
-        }}
         onEditorChange={(value) => setDraftSql(value)}
         onRun={props.onRunQuery}
         onCancel={props.onCancelQuery}
@@ -1584,13 +1581,9 @@ const RowsTableSqlEditor = (
         isFullscreen={isEditorFullscreen}
         className="h-full text-sm"
         warning={
-          (draftSql || search.editorDetached) && (
+          draftSql && (
             <div className="ml-auto flex items-center justify-between gap-3 px-4">
-              <p className="text-xs font-medium text-amber-900">
-                {search.editorDetached
-                  ? "Editor detached — table context kept, SQL not auto-synced"
-                  : "Run custom query with Ctrl+Enter"}
-              </p>
+              <p className="text-xs font-medium text-amber-900">Run custom query with Ctrl+Enter</p>
               <Button
                 variant="ghost"
                 size="xs"
@@ -1603,7 +1596,6 @@ const RowsTableSqlEditor = (
                         customSql: undefined,
                         customSqlId: undefined,
                         sqlEditorMode: "preview",
-                        editorDetached: undefined,
                       }),
                   });
                 }}

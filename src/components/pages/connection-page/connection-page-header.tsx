@@ -23,7 +23,10 @@ export const ConnectionPageHeader = (_props: ConnectionPageHeaderProps) => {
   if (zenMode) return null;
 
   return (
-    <div className="bg-card flex shrink-0 items-center justify-end gap-1 border-b px-3 py-1.5 sm:px-4">
+    <div
+      className="bg-card flex shrink-0 items-center justify-end gap-1 border-b px-3 py-1.5 sm:px-4"
+      data-testid="connection-page-header"
+    >
       <Tooltip content="Zen mode (⌘.)">
         <Button variant="ghost" size="icon" onClick={toggleZenMode} aria-label="Enter zen mode">
           <Minimize2 className="h-3.5 w-3.5" />
