@@ -95,6 +95,7 @@ describe("createSqlEditorViewZoneDom", () => {
             (event: { preventDefault: () => void; stopPropagation: () => void }) => void
           >,
           children: [] as unknown[],
+          setAttribute: (_name: string, _value: string) => undefined,
           addEventListener: (
             _event: string,
             handler: (event: { preventDefault: () => void; stopPropagation: () => void }) => void,

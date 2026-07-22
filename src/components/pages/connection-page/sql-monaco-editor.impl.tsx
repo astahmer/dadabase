@@ -11,9 +11,7 @@ import { defineCustomMonacoThemes } from "#src/lib/monaco-editor-themes.ts";
 import { analyzeSqlDiagnostics } from "#src/lib/sql-diagnostics.ts";
 import {
   buildPerStatementViewZoneLayouts,
-  buildSqlEditorViewZoneLayout,
   createSqlEditorViewZoneDom,
-  type SqlEditorViewZoneActionId,
 } from "#src/lib/sql-editor-view-zones.ts";
 import { splitSqlStatements } from "#src/lib/sql-statements.ts";
 
@@ -186,42 +184,42 @@ export function SqlMonacoEditorImpl({
     };
   }, [monacoRef, editorRef, tables, columns, sql]);
 
+  useEffect(() => {
+    return () => {
+      const win = window as unknown as { __dadabaseSqlMonaco?: { setValue: (next: string) => void } };
+      delete win.__dadabaseSqlMonaco;
+    };
+  }, []);
+
   // Inline action strips via monaco changeViewZones.
-  // Multi-statement scripts get a Run/Explain zone above each statement;
-  // single-statement (or empty) keeps the global action strip.
+  // Multi-statement scripts get a compact Run/Explain zone above each statement.
+  // Single-statement keeps the editor toolbar only — a global zone duplicated the
+  // toolbar and overlapped neighboring splitter/chrome.
   useEffect(() => {
     const editor = editorRef;
     if (!editor) return;
 
     const model = editor.getModel();
-    const source = model?.getValue() ?? sql ?? "";
-    const statements = splitSqlStatements(source);
+    if (!model) return;
+
     const zoneIds: string[] = [];
+    let rebuildTimer: ReturnType<typeof setTimeout> | undefined;
 
-    const handleGlobalAction = (id: SqlEditorViewZoneActionId) => {
-      if (onViewZoneAction) {
-        onViewZoneAction(id);
-        return;
-      }
-      if (id === "run" && onSubmit) {
-        onSubmit(editor.getValue());
-        return;
-      }
-      if (id === "format") {
-        editor.setValue(formatSQL(editor.getValue()));
-        return;
-      }
-      if (id === "copy") {
-        void navigator.clipboard.writeText(editor.getValue());
-      }
-    };
+    const rebuildZones = () => {
+      editor.changeViewZones((accessor) => {
+        for (const id of zoneIds.splice(0)) accessor.removeZone(id);
+      });
 
-    editor.changeViewZones((accessor) => {
-      if (statements.length > 1) {
+      const source = model.getValue();
+      const statements = splitSqlStatements(source);
+      if (statements.length <= 1) return;
+
+      editor.changeViewZones((accessor) => {
         for (const layout of buildPerStatementViewZoneLayouts(statements)) {
           const id = accessor.addZone({
             afterLineNumber: layout.afterLineNumber,
             heightInPx: layout.heightInPx,
+            suppressMouseDown: false,
             domNode: createSqlEditorViewZoneDom(layout.actions, (actionId) => {
               if (onViewZoneAction) {
                 onViewZoneAction(actionId, layout.sql);
@@ -234,23 +232,39 @@ export function SqlMonacoEditorImpl({
           });
           zoneIds.push(id);
         }
-      } else {
-        const layout = buildSqlEditorViewZoneLayout();
-        const id = accessor.addZone({
-          afterLineNumber: layout.afterLineNumber,
-          heightInPx: layout.heightInPx,
-          domNode: createSqlEditorViewZoneDom(layout.actions, handleGlobalAction),
-        });
-        zoneIds.push(id);
-      }
-    });
+      });
+    };
+
+    const scheduleRebuild = () => {
+      if (rebuildTimer !== undefined) clearTimeout(rebuildTimer);
+      // Defer past Monaco/React controlled-value sync so zones match the final text.
+      rebuildTimer = setTimeout(rebuildZones, 0);
+    };
+
+    scheduleRebuild();
+    const disposable = model.onDidChangeContent(scheduleRebuild);
+
+    const win = window as unknown as {
+      __dadabaseSqlMonaco?: {
+        setValue: (next: string) => void;
+        rebuildViewZones?: () => void;
+      };
+    };
+    if (win.__dadabaseSqlMonaco) {
+      win.__dadabaseSqlMonaco.rebuildViewZones = rebuildZones;
+    }
 
     return () => {
+      if (rebuildTimer !== undefined) clearTimeout(rebuildTimer);
+      disposable.dispose();
+      if (win.__dadabaseSqlMonaco) {
+        delete win.__dadabaseSqlMonaco.rebuildViewZones;
+      }
       editor.changeViewZones((accessor) => {
         for (const id of zoneIds) accessor.removeZone(id);
       });
     };
-  }, [editorRef, onSubmit, onViewZoneAction, sql]);
+  }, [editorRef, onSubmit, onViewZoneAction]);
 
   return (
     <Editor
@@ -259,6 +273,20 @@ export function SqlMonacoEditorImpl({
         if (autoFocus) {
           editor.focus();
         }
+        const win = window as unknown as {
+          __dadabaseSqlMonaco?: { setValue: (next: string) => void };
+        };
+        win.__dadabaseSqlMonaco = {
+          setValue: (next: string) => {
+            const model = editor.getModel();
+            if (model) {
+              model.setValue(next);
+            } else {
+              editor.setValue(next);
+            }
+            onChange?.(next);
+          },
+        };
       }}
       beforeMount={(monaco: typeof OriginalMonacoEditor) => {
         defineCustomMonacoThemes(monaco);

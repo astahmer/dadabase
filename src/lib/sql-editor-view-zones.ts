@@ -82,6 +82,7 @@ export const createSqlEditorViewZoneDom = (
 ): HTMLElement => {
   const root = doc.createElement("div");
   root.className = "dadabase-sql-view-zone";
+  root.setAttribute("data-testid", "sql-view-zone");
   root.style.display = "flex";
   root.style.alignItems = "center";
   root.style.gap = "4px";
@@ -89,6 +90,12 @@ export const createSqlEditorViewZoneDom = (
   root.style.height = "100%";
   root.style.fontSize = "12px";
   root.style.userSelect = "none";
+  root.style.boxSizing = "border-box";
+  root.style.overflow = "hidden";
+  root.style.pointerEvents = "auto";
+  root.style.background = "var(--color-muted, rgba(127,127,127,0.12))";
+  root.style.borderBottom = "1px solid var(--color-border, rgba(127,127,127,0.25))";
+  root.style.isolation = "isolate";
 
   for (const action of actions) {
     const button = doc.createElement("button");
