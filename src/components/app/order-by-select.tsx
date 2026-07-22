@@ -95,7 +95,12 @@ export function OrderBySelect(props: OrderBySelectProps) {
     <div className={containerClassName}>
       <Popover.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
         <Popover.Trigger asChild>
-          <Button variant="outline" size="sm" className={buttonClassName}>
+          <Button
+            variant="outline"
+            size="sm"
+            className={buttonClassName}
+            data-testid="order-by-button"
+          >
             <span className="text-foreground flex items-center gap-1 text-xs font-medium tracking-wide uppercase">
               {orderBy ? null : <ArrowDownUp />}
               Sort

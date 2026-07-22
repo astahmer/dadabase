@@ -88,8 +88,11 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
           }}
         />
       )}
-      <HStack className="w-full min-w-0 items-center justify-between px-4 py-2">
-        <div className="flex gap-2">
+      <HStack
+        className="w-full min-w-0 items-center gap-2 overflow-x-auto px-4 py-2"
+        data-testid="connection-page-filters-toolbar"
+      >
+        <div className="flex shrink-0 gap-2">
           <Tooltip content="View rows">
             <Button
               variant={viewMode === "rows" ? "default" : "outline"}
@@ -262,7 +265,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
               }}
             />
             <NaturalLanguageSearch
-              className="w-full"
+              className="max-w-sm min-w-[10rem] shrink"
               availableColumns={columnList}
               onApplyFilters={(parsed) => {
                 // oxlint-disable-next-line no-shadow
@@ -332,49 +335,54 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 }
               }}
             />
-            <ColumnVisibilityControls
-              table={table}
-              columnList={columnList}
-              minimal={true}
-              visibilityMode={columnVisibilityMode}
-              onVisibilityModeChange={(mode) => {
-                navigate({
-                  search: (prev) =>
-                    updateTabState(prev, {
-                      columnVisibilityMode: mode,
-                    }),
-                });
-              }}
-            />
-            <OrderBySelect
-              columnList={columnList}
-              orderBy={orderBy}
-              orderDirection={orderDirection}
-              nullsOrder={nullsOrder}
-              // oxlint-disable-next-line no-shadow
-              onOrderChange={(orderBy, direction) => {
-                navigate({
-                  search: (prev) =>
-                    updateTabState(prev, {
-                      orderBy,
-                      orderDirection: direction || "asc",
-                      nullsOrder: undefined,
-                      offset: 0,
-                    }),
-                });
-              }}
-              // oxlint-disable-next-line no-shadow
-              onNullsOrderChange={(nullsOrder) => {
-                navigate({
-                  search: (prev) =>
-                    updateTabState(prev, {
-                      nullsOrder,
-                    }),
-                });
-              }}
-              getColumnLabel={(col) => col}
-              minimal
-            />
+            <div
+              className="flex shrink-0 items-center gap-2"
+              data-testid="filters-trailing-controls"
+            >
+              <ColumnVisibilityControls
+                table={table}
+                columnList={columnList}
+                minimal={true}
+                visibilityMode={columnVisibilityMode}
+                onVisibilityModeChange={(mode) => {
+                  navigate({
+                    search: (prev) =>
+                      updateTabState(prev, {
+                        columnVisibilityMode: mode,
+                      }),
+                  });
+                }}
+              />
+              <OrderBySelect
+                columnList={columnList}
+                orderBy={orderBy}
+                orderDirection={orderDirection}
+                nullsOrder={nullsOrder}
+                // oxlint-disable-next-line no-shadow
+                onOrderChange={(orderBy, direction) => {
+                  navigate({
+                    search: (prev) =>
+                      updateTabState(prev, {
+                        orderBy,
+                        orderDirection: direction || "asc",
+                        nullsOrder: undefined,
+                        offset: 0,
+                      }),
+                  });
+                }}
+                // oxlint-disable-next-line no-shadow
+                onNullsOrderChange={(nullsOrder) => {
+                  navigate({
+                    search: (prev) =>
+                      updateTabState(prev, {
+                        nullsOrder,
+                      }),
+                  });
+                }}
+                getColumnLabel={(col) => col}
+                minimal
+              />
+            </div>
           </>
         )}
       </HStack>

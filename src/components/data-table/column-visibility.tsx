@@ -65,10 +65,12 @@ export function ColumnVisibilityControls<TData>(props: ColumnVisibilityControlsP
     list.set(allColumns);
   }, [allColumns, list.set]);
 
-  const buttonClassName = minimal ? "h-8 px-2 gap-1 justify-between" : "w-48 h-9 justify-between";
+  const buttonClassName = minimal
+    ? "h-8 shrink-0 gap-1 px-2 justify-between"
+    : "w-48 h-9 justify-between";
 
   const containerClassName = minimal
-    ? "flex items-center gap-2"
+    ? "flex shrink-0 items-center gap-2"
     : "px-4 py-2 border-b bg-muted/30 flex items-center gap-2";
 
   return (
@@ -79,9 +81,14 @@ export function ColumnVisibilityControls<TData>(props: ColumnVisibilityControlsP
         initialFocusEl={() => document.getElementById("column-visibility-filter")}
       >
         <Popover.Trigger asChild>
-          <Button variant="outline" size="sm" className={buttonClassName}>
+          <Button
+            variant="outline"
+            size="sm"
+            className={buttonClassName}
+            data-testid="column-visibility-button"
+          >
             <span className="text-foreground text-xs font-medium tracking-wide uppercase">
-              📋 Visible Columns{" "}
+              {minimal ? "Columns" : "📋 Visible Columns"}{" "}
               {allVisible ? "" : `(${visibleColumns.length}/${allColumns.length})`}
             </span>
             <ChevronsUpDown className="h-4 w-4 opacity-50" />
