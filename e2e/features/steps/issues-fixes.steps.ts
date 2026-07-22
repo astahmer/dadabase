@@ -40,6 +40,19 @@ Then("the AI assistant should mention the whole database schema", async ({ page 
   await expect(hint).toContainText(/tables/i);
 });
 
+Given("I store a fake OpenAI API key in localStorage", async ({ page }) => {
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      "dadabase.openai-api-key",
+      JSON.stringify("sk-e2e-fake-key-not-real-0000"),
+    );
+  });
+});
+
+Then("I should see text {string}", async ({ page }, text: string) => {
+  await expect(page.getByText(text, { exact: false }).first()).toBeVisible({ timeout: 15_000 });
+});
+
 When("I expand the SQL query panel", async ({ page }) => {
   const toggle = page.getByTestId("sql-query-toggle");
   await expect(toggle).toBeVisible({ timeout: 15_000 });
