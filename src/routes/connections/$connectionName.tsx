@@ -74,7 +74,8 @@ const TabStateSchema = Schema.Struct({
   sqlEditorMode: Schema.Literal("preview", "editor").pipe(Schema.optional), // SQL editor tab mode
   customSql: Schema.String.pipe(Schema.optional), // Custom SQL query being edited (before execution)
   customSqlId: Schema.String.pipe(Schema.optional), // ID of executed custom SQL (replaces customSql after execution)
-  editorDetached: Schema.Boolean.pipe(Schema.optional), // Keep editor draft when generated SQL changes
+  // Legacy: ignored. Draft sticky is local editor state now.
+  editorDetached: Schema.Boolean.pipe(Schema.optional),
   initialTabMode: Schema.Literal("table", "sql").pipe(Schema.optional), // Initial mode for empty tabs
   clientFilter: Schema.String.pipe(Schema.optional), // Client-side JS filter expression (draft input)
   clientFilterApproved: Schema.String.pipe(Schema.optional), // Approved client-side JS filter expression (active)
