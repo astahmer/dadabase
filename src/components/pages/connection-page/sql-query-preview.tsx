@@ -4,8 +4,6 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
-  Link2,
-  Link2Off,
   Maximize2,
   Minimize2,
   Play,
@@ -89,10 +87,6 @@ interface SqlQueryPreviewProps {
   isSavingFavorite?: boolean;
   /** Callback when a snippet should be inserted into the editor */
   onInsertSnippet?: (sql: string) => void;
-  /** When true, editor draft is not overwritten by generated table SQL */
-  editorDetached?: boolean;
-  /** Toggle detach/unlink editor from generated SQL */
-  onEditorDetachedChange?: (detached: boolean) => void;
   /** Custom CSS class */
   className?: string;
   /** Warning message to display next to the header */
@@ -102,7 +96,7 @@ interface SqlQueryPreviewProps {
 /**
  * Unified SQL editor for the connection page.
  * Always editable Monaco when expanded — no separate preview/editor modes.
- * Detach keeps the draft from syncing with generated table SQL.
+ * Local drafts stick until Reset; generated SQL updates only apply with no draft.
  */
 export function SqlQueryPreview({
   sql,
@@ -126,8 +120,6 @@ export function SqlQueryPreview({
   tables = [],
   columns = [],
   onInsertSnippet,
-  editorDetached = false,
-  onEditorDetachedChange,
   className,
   warning,
 }: SqlQueryPreviewProps) {
@@ -277,35 +269,6 @@ export function SqlQueryPreview({
           </div>
 
           <div className="flex items-center gap-2">
-            {onEditorDetachedChange && (
-              <Tooltip
-                content={
-                  editorDetached
-                    ? "Re-attach editor to table SQL (sync on filter/table changes)"
-                    : "Detach editor from table SQL (edit freely, keep table context)"
-                }
-              >
-                <Button
-                  variant={editorDetached ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => {
-                    const next = !editorDetached;
-                    onEditorDetachedChange(next);
-                    if (next) {
-                      onEditorModeChange?.("editor");
-                    }
-                  }}
-                  className="h-8 gap-1 px-2 text-xs"
-                >
-                  {editorDetached ? (
-                    <Link2Off className="h-4 w-4" />
-                  ) : (
-                    <Link2 className="h-4 w-4" />
-                  )}
-                  {editorDetached ? "Detached" : "Detach"}
-                </Button>
-              </Tooltip>
-            )}
             <SqlSnippetsMenu onInsertSnippet={handleInsertSnippet} />
             {/* Action buttons — when expanded, or while running so Cancel stays reachable */}
             {(!isCollapsed || isLoading) && (

@@ -173,7 +173,6 @@ export const ConnectionAiAssistantDrawer = ({
           customSql: sql,
           customSqlId: undefined,
           sqlEditorMode: "editor",
-          editorDetached: true,
           sqlPreviewSize: SQL_PREVIEW_REVEAL_SIZE,
         }),
     });
