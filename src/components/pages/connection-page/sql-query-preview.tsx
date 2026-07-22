@@ -187,10 +187,47 @@ export function SqlQueryPreview({
     );
   }
 
+  // When collapsed, only render the toolbar toggle (portaled). Painting an empty
+  // h-full shell here left a blank band above the table while the splitter still
+  // reserved height (minSize vs collapsedSize mismatch).
+  if (isCollapsed && !isFullscreen) {
+    return (
+      <Portal
+        container={
+          typeof window === "undefined"
+            ? undefined
+            : {
+                current: document.querySelector("#connection-page-filters-top-row"),
+              }
+        }
+      >
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <Button
+              size="sm"
+              variant={customSql ? "default" : "ghost"}
+              onClick={() => onToggleCollapsed?.(false)}
+              className="flex items-center gap-2 self-center text-xs"
+              data-testid="sql-query-toggle"
+            >
+              <ChevronRight className="h-4 w-4" />
+              SQL Query
+            </Button>
+          </HoverCardTrigger>
+          <HoverCardContent className="max-w-md">
+            <pre className="text-foreground max-h-64 overflow-x-auto font-mono text-xs whitespace-pre-wrap">
+              {customSql || sql}
+            </pre>
+          </HoverCardContent>
+        </HoverCard>
+      </Portal>
+    );
+  }
+
   return (
     <div
       className={cn(
-        "flex h-full flex-col rounded border border-gray-200",
+        "flex h-full min-h-0 flex-col rounded border border-gray-200",
         isFullscreen && "bg-background fixed inset-0 z-50 rounded-none border-0",
         className,
       )}
@@ -393,7 +430,10 @@ export function SqlQueryPreview({
         </div>
       </div>
       {!isCollapsed && (
-        <div className="h-full border-t border-gray-200 bg-gray-50" data-testid="sql-monaco-panel">
+        <div
+          className="min-h-0 flex-1 border-t border-gray-200 bg-gray-50"
+          data-testid="sql-monaco-panel"
+        >
           <SqlMonacoEditor
             sql={customSql || sql}
             onChange={handleEditorChange}

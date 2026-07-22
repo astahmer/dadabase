@@ -80,6 +80,11 @@ import {
   isQueryAbortError,
 } from "#src/lib/query-abort-controller.ts";
 import { buildDropColumnSql, buildDropTableSql } from "#src/lib/schema-mutate/index.ts";
+import {
+  getSqlPreviewSplitterDefaultSize,
+  isSqlPreviewOpen,
+  SQL_PREVIEW_REVEAL_SIZE,
+} from "#src/lib/sql-preview-panel.ts";
 import { splitSqlStatements } from "#src/lib/sql-statements.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { queryClient } from "#src/query-client.ts";
@@ -632,7 +637,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
         open={aiAssistantOpen}
         onOpenChange={setAiAssistantOpen}
         onGenerateAndRun={(sql) => {
-          runRegisteredCustomSql(sql);
+          runRegisteredCustomSql(sql, { revealEditor: true });
         }}
       />
 
@@ -812,11 +817,6 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
   const executeCustomSql = useExecuteCustomSql({
     activeConnectionUrl: pageState.activeConnectionUrl,
   });
-  useEffect(() => {
-    return registerCustomSqlRunner((sql) => {
-      executeCustomSql.onRunQuery(sql);
-    });
-  }, [executeCustomSql]);
   const isCustomSqlMode = Boolean(
     isUsingCustomSql ||
     executeCustomSql.mutation.isPending ||
@@ -1103,21 +1103,18 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
           </div>
         ) : (
           <Splitter.Root
-            key={search.tabId}
+            key={`${search.tabId}-${isSqlPreviewOpen(search.sqlPreviewSize) ? "sql-open" : "sql-closed"}`}
             orientation="vertical"
             className="flex h-full flex-1 flex-col overflow-hidden"
-            defaultSize={[
-              search.sqlPreviewSize ?? fromPixelToPercentage(200, "vertical"),
-              search.sqlPreviewSize
-                ? 100 - search.sqlPreviewSize
-                : fromPixelToPercentage(656, "vertical"),
-            ]}
+            defaultSize={getSqlPreviewSplitterDefaultSize(search.sqlPreviewSize)}
             panels={[
               {
                 id: panels.sqlPreview,
                 collapsible: true,
                 collapsedSize: 0,
-                minSize: fromPixelToPercentage(220, "vertical"),
+                // 0 so the panel can fully collapse; empty ~200px gaps were from minSize
+                // fighting collapsedSize while Monaco was hidden.
+                minSize: 0,
               },
               { id: panels.rowsContent, collapsible: false },
             ]}
@@ -1397,7 +1394,7 @@ const RowsTableSqlEditor = (
     isCollapsed?: boolean;
     onExpand: () => void;
     onCollapse: () => void;
-    onRunQuery: () => void;
+    onRunQuery: (editorValue?: string) => void;
     onCancelQuery: () => void;
     isLoading?: boolean;
   },
@@ -1419,6 +1416,31 @@ const RowsTableSqlEditor = (
 
   // Keep draft SQL locally - don't switch to custom SQL mode until user runs
   const [draftSql, setDraftSql] = useState<string | null>(null);
+
+  const revealSqlInEditor = (sql: string) => {
+    setDraftSql(sql);
+    props.onExpand();
+    void navigate({
+      search: (prev) =>
+        updateTabState(prev, {
+          customSql: sql,
+          customSqlId: undefined,
+          sqlEditorMode: "editor",
+          editorDetached: true,
+          sqlPreviewSize: SQL_PREVIEW_REVEAL_SIZE,
+        }),
+    });
+  };
+
+  useEffect(() => {
+    return registerCustomSqlRunner((sql, options) => {
+      if (options?.revealEditor) {
+        revealSqlInEditor(sql);
+      }
+      props.onRunQuery(sql);
+    });
+    // Intentionally re-bind when run handler / expand identity changes.
+  }, [props.onRunQuery, props.onExpand]);
 
   const saveFavoriteMutation = useMutation({
     mutationFn: (sql: string) =>
@@ -1478,7 +1500,25 @@ const RowsTableSqlEditor = (
         customSql={draftSql ?? undefined}
         isCollapsed={props.isCollapsed}
         isLoading={props.isLoading}
-        onToggleCollapsed={() => (props.isCollapsed ? props.onExpand() : props.onCollapse())}
+        onToggleCollapsed={() => {
+          if (props.isCollapsed) {
+            props.onExpand();
+            void navigate({
+              search: (prev) =>
+                updateTabState(prev, {
+                  sqlPreviewSize: SQL_PREVIEW_REVEAL_SIZE,
+                }),
+            });
+          } else {
+            props.onCollapse();
+            void navigate({
+              search: (prev) =>
+                updateTabState(prev, {
+                  sqlPreviewSize: 0,
+                }),
+            });
+          }
+        }}
         editorMode={search.sqlEditorMode ?? "preview"}
         onEditorModeChange={(mode) =>
           navigate({
