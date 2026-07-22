@@ -1,7 +1,7 @@
 import { Splitter } from "@ark-ui/react";
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
 import { ArrowDown, ArrowDownUp, ArrowUp, Plus, RotateCcw } from "lucide-react";
 import {
@@ -237,17 +237,23 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
   const zenMode = useZenModeEnabled();
   const { toggleZenMode } = useZenModeActions();
+  // Layout sizes must follow the URL only (not localStorage) so SSR + hydration agree.
+  // useZenMode() syncs storage → URL after mount; remount key then collapses panels.
+  const layoutZenMode = useSearch({
+    from: "/connections/$connectionName",
+    select: (s) => s.zenMode === true,
+  });
   const sidebarSplitterDefaultSize = getSidebarSplitterDefaultSize({
-    zenMode,
+    zenMode: layoutZenMode,
     sidebarSize,
     sidebarMinSize,
   });
   const queryLoggerSplitterDefaultSize = getQueryLoggerSplitterDefaultSize({
-    zenMode,
+    zenMode: layoutZenMode,
     queryLoggerSize: defaultQueryLoggerSize,
   });
-  const sidebarPanelMinSize = zenMode ? 0 : sidebarMinSize;
-  const queryLoggerPanelMinSize = zenMode ? 0 : queryLoggerMinSize;
+  const sidebarPanelMinSize = layoutZenMode ? 0 : sidebarMinSize;
+  const queryLoggerPanelMinSize = layoutZenMode ? 0 : queryLoggerMinSize;
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 
   const schemaListQuery = useQuery({
@@ -396,7 +402,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       {/* Main Layout */}
       <div className="flex h-full min-h-0 flex-1 flex-col">
         <Splitter.Root
-          key={getZenLayoutRemountKey(zenMode, "sidebar")}
+          key={getZenLayoutRemountKey(layoutZenMode, "sidebar")}
           orientation="horizontal"
           defaultSize={[...sidebarSplitterDefaultSize]}
           panels={[
@@ -413,11 +419,13 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             },
           ]}
           onResizeEnd={(details) => {
+            if (layoutZenMode) return;
             void navigate({
               search: (prev) => ({ ...prev, sidebarSize: details.size[0] }),
             });
           }}
           onExpand={(details) => {
+            if (layoutZenMode) return;
             if (details.panelId === panels.sidebar) {
               void navigate({
                 search: (prev) => ({ ...prev, sidebarSize: details.size }),
@@ -425,6 +433,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             }
           }}
           onCollapse={(details) => {
+            if (layoutZenMode) return;
             if (details.panelId === panels.sidebar) {
               void navigate({
                 search: (prev) => ({ ...prev, sidebarSize: 0 }),
@@ -491,7 +500,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             <Splitter.Context>
               {(sidebarSplitterCtx) => (
                 <Splitter.Root
-                  key={getZenLayoutRemountKey(zenMode, "query-logger")}
+                  key={getZenLayoutRemountKey(layoutZenMode, "query-logger")}
                   orientation="vertical"
                   defaultSize={[...queryLoggerSplitterDefaultSize]}
                   panels={[
@@ -508,6 +517,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                     },
                   ]}
                   onResizeEnd={(details) => {
+                    if (layoutZenMode) return;
                     void navigate({
                       search: (prev) => ({
                         ...prev,
@@ -516,6 +526,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                     });
                   }}
                   onExpand={(details) => {
+                    if (layoutZenMode) return;
                     if (details.panelId === panels.queryLogger) {
                       void navigate({
                         search: (prev) => ({
@@ -526,6 +537,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                     }
                   }}
                   onCollapse={(details) => {
+                    if (layoutZenMode) return;
                     if (details.panelId === panels.queryLogger) {
                       void navigate({
                         search: (prev) => ({
