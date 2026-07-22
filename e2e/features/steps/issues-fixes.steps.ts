@@ -140,3 +140,64 @@ Then(
 Then("the table body should not show loading skeletons", async ({ page }) => {
   await expect(page.locator("tr[data-skeleton]")).toHaveCount(0);
 });
+
+Then("the refresh button tooltip should not mention 1970", async ({ page }) => {
+  const refresh = page.getByTestId("table-refresh-button");
+  await expect(refresh).toBeVisible({ timeout: 15_000 });
+  await refresh.hover();
+  const tip = page.getByText(/Refresh rows/i).first();
+  await expect(tip).toBeVisible({ timeout: 5_000 });
+  await expect(tip).not.toContainText("1970");
+});
+
+Then("I should not see a Detach button", async ({ page }) => {
+  await expect(page.getByRole("button", { name: /^Detach$/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Detached$/i })).toHaveCount(0);
+});
+
+Given("the query logger panel is expanded", async ({ page }) => {
+  const toggle = page.getByTestId("toggle-query-logger");
+  await expect(toggle).toBeVisible({ timeout: 15_000 });
+  if ((await toggle.getAttribute("aria-label")) === "Expand query logger") {
+    await toggle.click();
+  }
+  await expect(toggle).toHaveAttribute("aria-label", "Collapse query logger");
+});
+
+When("I enable zen mode", async ({ page }) => {
+  await page
+    .getByRole("button", { name: /Enter zen mode/i })
+    .first()
+    .click();
+});
+
+Then("the query logger panel should be collapsed", async ({ page }) => {
+  // Zen collapses the splitter panel to ~0; the header chrome may unmount or shrink.
+  await expect
+    .poll(async () => {
+      const logger = page.getByTestId("query-logger-panel");
+      if ((await logger.count()) === 0) return 0;
+      const box = await logger.boundingBox();
+      return box?.height ?? 0;
+    })
+    .toBeLessThan(16);
+});
+
+Then("the connection page header should be hidden", async ({ page }) => {
+  await expect(page.getByTestId("connection-page-header")).toHaveCount(0);
+});
+
+When("I resize the viewport to {int} by {int}", async ({ page }, width: number, height: number) => {
+  await page.setViewportSize({ width, height });
+});
+
+Then("I can reach the order-by button in the filters toolbar", async ({ page }) => {
+  const toolbar = page.getByTestId("connection-page-filters-toolbar");
+  const orderBy = page.getByTestId("order-by-button");
+  await expect(toolbar).toBeVisible();
+  await orderBy.scrollIntoViewIfNeeded();
+  await expect(orderBy).toBeVisible();
+  const box = await orderBy.boundingBox();
+  expect(box).toBeTruthy();
+  expect(box!.width).toBeGreaterThan(8);
+});

@@ -50,3 +50,25 @@ Feature: Connection page UX issues from issues.md
     When I refresh the table rows
     Then I should still see cell value "Alice" in column "name" while refreshing
     And the table body should not show loading skeletons
+
+  Scenario: Refresh tooltip does not show 1970 epoch before first load settles
+    Given I open the "users" table
+    Then the refresh button tooltip should not mention 1970
+
+  Scenario: Detach button is gone from the SQL editor
+    Given I open the "users" table
+    When I expand the SQL query panel
+    Then I should not see a Detach button
+
+  Scenario: Zen mode collapses sidebar and query logger
+    Given I open the "users" table
+    And the query logger panel is expanded
+    When I enable zen mode
+    Then the sidebar should be fully collapsed
+    And the query logger panel should be collapsed
+    And the connection page header should be hidden
+
+  Scenario: Narrow viewport keeps Sort reachable via horizontal scroll
+    Given I open the "users" table
+    When I resize the viewport to 1280 by 720
+    Then I can reach the order-by button in the filters toolbar
