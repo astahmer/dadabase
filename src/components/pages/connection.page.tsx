@@ -233,7 +233,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const schemaListQuery = useQuery({
     ...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
     enabled: !!activeConnectionUrl,
-    retry: 3,
+    retry: 1,
   });
 
   const schemaForTables = search.schema || getDialectDefaultSchema(connection.dialect);
@@ -244,7 +244,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       schema: schemaForTables,
     }),
     enabled: !!activeConnectionUrl && !!schemaForTables,
-    retry: 3,
+    retry: 1,
   });
 
   const commandPaletteCommands = useMemo(

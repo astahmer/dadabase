@@ -16,7 +16,7 @@ export const TabErrorState = (props: RowsTableErrorStateProps) => {
   const schemaListQuery = useQuery({
     ...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
     enabled: !!activeConnectionUrl,
-    retry: 3,
+    retry: 1,
   });
 
   return (

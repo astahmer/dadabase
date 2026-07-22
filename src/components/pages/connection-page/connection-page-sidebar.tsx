@@ -55,7 +55,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
   const databaseListQuery = useQuery({
     ...listAvailableDatabase({ url: connectionUrl }),
-    retry: 3,
+    retry: 1,
   });
   const dbList = databaseListQuery.data || [];
   const selectedDbName = useSearch({
@@ -65,7 +65,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
   const schemaListQuery = useQuery({
     ...listAvailableSchemasQueryOptions({ url: activeConnectionUrl }),
-    retry: 3,
+    retry: 1,
   });
   const schemaList = schemaListQuery.data || [];
 
@@ -93,7 +93,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
   const tablesListQuery = useQuery({
     ...listAvailableTablesQueryOptions({ url: activeConnectionUrl, schema: selectedSchema }),
     enabled: !!selectedSchema,
-    retry: 3,
+    retry: 1,
   });
   const tableList = tablesListQuery.data || [];
 
