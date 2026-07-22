@@ -2,10 +2,13 @@ import type { Table as TanstackTable } from "@tanstack/react-table";
 
 import { Pagination } from "@ark-ui/react/pagination";
 import { useNavigate } from "@tanstack/react-router";
-import { DateTime } from "effect";
 import { Download, Layers, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 
-import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
+import {
+  formatLoadedRelativeLabel,
+  formatRanAtIso,
+  formatRefreshTooltip,
+} from "#src/lib/format-last-ran.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { cn } from "#src/lib/utils.ts";
 
@@ -47,15 +50,7 @@ interface ConnectionPageStatusBarProps {
   schema?: string;
   tableName?: string;
   onExportAll?: (
-    format:
-      | "json"
-      | "csv"
-      | "tsv"
-      | "sql"
-      | "copy-json"
-      | "copy-csv"
-      | "copy-tsv"
-      | "copy-insert",
+    format: "json" | "csv" | "tsv" | "sql" | "copy-json" | "copy-csv" | "copy-tsv" | "copy-insert",
   ) => void;
   columns?: string[];
   zenMode?: boolean;
@@ -154,9 +149,7 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
                 </div>
               </Pagination.Root>
             )}
-            <Tooltip
-              content={`Refresh rows (last ran at ${DateTime.formatIso(DateTime.unsafeMake(props.ranAt))})`}
-            >
+            <Tooltip content={formatRefreshTooltip(props.ranAt)}>
               <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-5 px-1.5">
                 <RefreshCw className={cn("h-3 w-3", isFetching && "animate-spin")} />
               </Button>
@@ -207,10 +200,14 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
           {props.timeTaken > 0 && (
             <HStack gap="1" align="center">
               {`${props.timeTaken}ms`}
-              <span>•</span>
-              <Tooltip content={DateTime.formatIso(DateTime.unsafeMake(props.ranAt))}>
-                <span>Loaded {formatRelativeTime(props.ranAt)}</span>
-              </Tooltip>
+              {formatLoadedRelativeLabel(props.ranAt) ? (
+                <>
+                  <span>•</span>
+                  <Tooltip content={formatRanAtIso(props.ranAt) ?? undefined}>
+                    <span>{formatLoadedRelativeLabel(props.ranAt)}</span>
+                  </Tooltip>
+                </>
+              ) : null}
             </HStack>
           )}
         </span>
@@ -344,9 +341,7 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
             </>
           )}
 
-          <Tooltip
-            content={`Refresh rows (last ran at ${DateTime.formatIso(DateTime.unsafeMake(props.ranAt))})`}
-          >
+          <Tooltip content={formatRefreshTooltip(props.ranAt)}>
             <Button
               variant="ghost"
               size="sm"
