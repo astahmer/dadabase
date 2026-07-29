@@ -88,3 +88,22 @@ Notes:
 
 - SSH: URL encoding + `openSshLocalForward`; `PoolCache` opens the tunnel (private key and/or password), rewrites driver URL to `127.0.0.1`, serializes concurrent `getOrCreate`, closes on eviction.
 - MySQL: dialect/pool/form/try-connection + `information_schema` introspection; no-PK rows use SHA2 fingerprint as `__dadabase_rowid`; joins/filters use backtick quoting + LIKE.
+
+## UI/UX future bets
+
+These are product-level improvements, not small visual tweaks. They should be explored as design work before implementation.
+
+- [ ] **Composable workspace layout** — Let people pin, reorder, resize, collapse, and save their preferred table, SQL, query log, relationship, and inspector panels. Include sensible presets such as Browse, Query, Debug, and Compact.
+- [ ] **A real visual query builder** — Replace rows of selects with typed predicate chips, nested AND/OR groups, drag-to-reorder rules, type-aware value editors, and a live SQL diff. It should make complex queries easier than writing SQL while preserving a clear escape hatch to SQL.
+- [ ] **Saved views as first-class objects** — A saved view should capture filters, sort, selected columns, grouping, joins, layout, and optional SQL. Make views shareable, duplicable, searchable, and easy to compare against the current draft.
+- [ ] **Query states with deliberate recovery paths** — Design loading, empty, partial, error, timeout, and cancelled states as a consistent system. Every state should explain what happened, preserve user work, and offer the next useful action.
+- [ ] **Column explorer / data dictionary** — Give every column a compact profile: type, null rate, distinct count, top values, distribution, relationships, indexes, sample values, and usage in saved views or queries.
+- [ ] **Relationship-first browsing** — Make foreign keys navigable as a graph and as breadcrumbs. Opening a related record should preserve context, allow backtracking, and make one-to-many cardinality obvious before a costly query runs.
+- [ ] **Keyboard-first data workbench** — Define a coherent shortcut layer for opening filters, adding a rule, moving between rule tokens, switching panels, running SQL, opening command palette, and selecting table cells. Show shortcuts in relevant controls rather than hiding them in documentation.
+- [ ] **Responsive mobile/tablet mode** — Treat narrow screens as a distinct workspace: a single primary canvas, bottom sheets for table controls, persistent filter/sort summary, touch-friendly row inspection, and a quick switcher for SQL, data, and schema.
+- [ ] **Progressive disclosure for power controls** — Keep browse mode calm, then reveal joins, grouping, HAVING, client filters, null ordering, query plan, and SQL only when the user asks for them. Preserve active advanced settings as compact, editable summary chips.
+- [ ] **Query history as a timeline** — Capture each run with SQL, parameters, result count, duration, error, source action, and schema version. Support compare, rerun, branch, pin, annotate, and restore from history.
+- [ ] **Explain plans that teach** — Pair the raw plan with a readable execution narrative, warnings about scans or missing indexes, cost hotspots, and direct links to create or inspect a suggested index. Keep database-specific details available without making the default view intimidating.
+- [ ] **Safe edit workflow** — Turn edits into a reviewable changeset with validation, row-level diff, bulk-edit preview, transaction controls, undo window, and a clear distinction between draft, applied, and failed changes.
+- [ ] **Contextual onboarding, not tours** — Detect first-use moments such as no connection, empty table, first filter, failed query, or a wide table. Offer one focused next step tied to the current context, then get out of the way.
+- [ ] **Accessibility and density system** — Audit keyboard navigation, focus order, screen-reader labels, contrast, target sizes, and reduced-motion behavior. Let users choose density and font scale without breaking data-table alignment or toolbar reachability.
