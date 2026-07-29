@@ -381,6 +381,13 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
                       ? [String(condition.value)]
                       : []
                 }
+                inputValue={
+                  isArrayOperator && Array.isArray(condition.value)
+                    ? condition.value.join(", ")
+                    : condition.value == null
+                      ? ""
+                      : String(condition.value)
+                }
                 onValueChange={(details) => {
                   onUpdate(String(index), {
                     value: details.value.length === 1 ? details.value[0] : details.value || "",
@@ -388,7 +395,10 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
                 }}
                 onInputValueChange={(details) => {
                   const val = details.inputValue;
-                  if (!val || val.trim() === "") return;
+                  if (!val || val.trim() === "") {
+                    onUpdate(String(index), { value: isArrayOperator ? [] : "" });
+                    return;
+                  }
                   onUpdate(String(index), {
                     value: isArrayOperator ? val.split(",").map((v) => v.trim()) : val,
                   });
