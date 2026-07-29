@@ -3,7 +3,15 @@ import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
-import { ArrowDown, ArrowDownUp, ArrowUp, Plus, RotateCcw } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowDownUp,
+  ArrowUp,
+  GripHorizontal,
+  Plus,
+  RotateCcw,
+  SearchX,
+} from "lucide-react";
 import {
   type Dispatch,
   type SetStateAction,
@@ -1207,16 +1215,18 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                 <Splitter.ResizeTrigger
                   id={`${panels.sqlPreview}:${panels.rowsContent}`}
                   className={cn(
-                    tryFn(() => ctx.isPanelCollapsed(panels.sqlPreview)) ? "h-2" : "h-1.5",
-                    "bg-border hover:bg-primary/50 cursor-row-resize transition-colors",
+                    tryFn(() => ctx.isPanelCollapsed(panels.sqlPreview)) ? "h-2" : "h-3",
+                    "bg-border hover:bg-primary/50 flex cursor-row-resize items-center justify-center transition-colors",
                   )}
-                  title="Drag to resize"
+                  title="Drag to resize. Double-click to collapse or expand."
                   onDoubleClick={() =>
                     ctx.isPanelExpanded(panels.sqlPreview)
                       ? ctx.collapsePanel(panels.sqlPreview)
                       : ctx.expandPanel(panels.sqlPreview)
                   }
-                />
+                >
+                  <GripHorizontal className="text-muted-foreground h-3.5 w-3.5" />
+                </Splitter.ResizeTrigger>
               )}
             </Splitter.Context>
 
@@ -1930,6 +1940,41 @@ const RowsTableContent = (
                     }),
                   });
                 }}
+                emptyState={
+                  <div className="flex min-h-40 flex-col items-center justify-center gap-2 py-8 text-center">
+                    <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full">
+                      <SearchX className="text-muted-foreground h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">No matching rows</p>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        {search.filterConditions.length > 0 || search.clientFilterApproved
+                          ? "Try changing or clearing your filters."
+                          : "This table has no rows yet."}
+                      </p>
+                    </div>
+                    {(search.filterConditions.length > 0 || search.clientFilterApproved) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          navigate({
+                            search: (prev) =>
+                              updateTabState(prev, {
+                                filters: { conditions: [], logicalOperator: "and" },
+                                clientFilter: undefined,
+                                clientFilterApproved: undefined,
+                              }),
+                          });
+                        }}
+                        className="mt-1 h-8 gap-1.5 text-xs"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
+                }
               />
               {!props.rowsQuery.isLoading && !props.isColumnMetadataLoading && (
                 <ScrollToColumnButton

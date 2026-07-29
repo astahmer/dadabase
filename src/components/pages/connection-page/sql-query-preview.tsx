@@ -229,6 +229,18 @@ export function SqlQueryPreview({
       <div className="border-b border-gray-200 px-4">
         <div className="my-1 flex items-center justify-between gap-4">
           <div className="flex flex-1 items-center gap-4">
+            <Tooltip content="Collapse SQL editor">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onToggleCollapsed?.(true)}
+                className="h-8 gap-1.5 px-2 text-xs"
+                data-testid="sql-query-collapse"
+              >
+                <ChevronDown className="h-4 w-4" />
+                SQL
+              </Button>
+            </Tooltip>
             <Portal
               container={
                 typeof window === "undefined"
