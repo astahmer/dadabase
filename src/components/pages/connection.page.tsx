@@ -1034,24 +1034,17 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
             search.filtersOpened && (
               <>
                 {pageState.queryBuilder.filter.conditions.length === 0 ? (
-                  <div className="bg-background flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-                    <div>
-                      <div className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                        Where
-                      </div>
-                      <p className="text-muted-foreground mt-1 text-sm">
-                        Narrow rows by column values.
-                      </p>
-                    </div>
+                  <div className="bg-background flex items-center gap-2 border-b px-5 py-2.5">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
-                      className="gap-1.5"
+                      className="text-muted-foreground h-7 gap-1 px-1.5 text-xs"
                       onClick={() => pageState.queryBuilder.addCondition()}
                     >
                       <Plus className="h-3.5 w-3.5" />
-                      Add condition
+                      Add filter
                     </Button>
+                    <span className="text-muted-foreground text-xs">Filter rows by property</span>
                   </div>
                 ) : (
                   <QueryFilterBuilder
