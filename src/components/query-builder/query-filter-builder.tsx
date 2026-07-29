@@ -259,9 +259,12 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
           onInputValueChange={(details) => columnList.filter(details.inputValue)}
           className="w-full"
         >
-          <ComboboxControl size="sm" className="bg-muted/70 border-transparent shadow-none">
-            <ComboboxInput placeholder="Column" />
-            <ComboboxTrigger />
+          <ComboboxControl
+            size="sm"
+            className="bg-muted/70 overflow-hidden border-transparent shadow-none"
+          >
+            <ComboboxInput placeholder="Column" className="min-w-0" />
+            <ComboboxTrigger className="flex h-5 w-5 shrink-0 items-center justify-center" />
           </ComboboxControl>
           <ComboboxContent>
             <ComboboxList>
@@ -303,9 +306,12 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
           onInputValueChange={(details) => operatorList.filter(details.inputValue)}
           className="w-full"
         >
-          <ComboboxControl size="sm" className="bg-muted/70 border-transparent shadow-none">
-            <ComboboxInput placeholder="Operator" />
-            <ComboboxTrigger />
+          <ComboboxControl
+            size="sm"
+            className="bg-muted/70 overflow-hidden border-transparent shadow-none"
+          >
+            <ComboboxInput placeholder="Operator" className="min-w-0" />
+            <ComboboxTrigger className="flex h-5 w-5 shrink-0 items-center justify-center" />
           </ComboboxControl>
           <ComboboxContent>
             <ComboboxList>
@@ -406,8 +412,11 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
                 allowCustomValue
                 openOnClick
               >
-                <ComboboxControl size="sm" className="bg-muted/70 border-transparent shadow-none">
-                  <ComboboxInput placeholder="Value" className="w-full" />
+                <ComboboxControl
+                  size="sm"
+                  className="bg-muted/70 overflow-hidden border-transparent shadow-none"
+                >
+                  <ComboboxInput placeholder="Value" className="w-full min-w-0" />
                 </ComboboxControl>
                 <ComboboxContent>
                   <ComboboxList>
