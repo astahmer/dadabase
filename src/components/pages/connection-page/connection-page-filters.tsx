@@ -16,6 +16,10 @@ import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
+import {
+  getOperatorLabel,
+  type FilterConditionExpression,
+} from "#src/components/query-builder/query-filter.ts";
 
 import { OrderBySelect } from "../../app/order-by-select.tsx";
 import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
@@ -44,6 +48,12 @@ interface ConnectionPageFiltersProps {
   onCreateIndex?: () => void;
 }
 
+const getFilterValueLabel = (value: FilterConditionExpression["value"]) => {
+  if (Array.isArray(value)) return value.join(", ") || "…";
+  if (value === null || value === undefined || value === "") return "…";
+  return String(value);
+};
+
 export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
   const {
     columnList,
@@ -68,7 +78,8 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
   const viewMode = useActiveTabState((s) => s.viewMode);
   const filtersOpened = useActiveTabState((s) => s.filtersOpened);
   const filterConditions = useActiveTabState((s) => s.filters?.conditions ?? []);
-  const groupByCount = useActiveTabState((s) => s.groupBy?.length ?? 0);
+  const groupBy = useActiveTabState((s) => s.groupBy ?? []);
+  const groupByCount = groupBy.length;
   const joinConfig = useActiveTabState((s) => ({
     joins: Array.from(s.joins ?? []),
   }));
@@ -229,6 +240,61 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 )
               ) : null}
             </Button>
+            {(filterConditions.length > 0 || groupByCount > 0) && !filtersOpened && (
+              <div className="hidden min-w-0 items-center gap-1 lg:flex">
+                {filterConditions.slice(0, 2).map((condition, index) => (
+                  <Button
+                    key={`${condition.column}-${condition.operator}-${index}`}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigate({
+                        search: (prev) =>
+                          updateTabState(prev, {
+                            filtersOpened: true,
+                          }),
+                      });
+                    }}
+                    className="h-7 max-w-52 gap-1 px-2 text-xs"
+                    title={`${condition.column} ${getOperatorLabel(condition.operator)} ${getFilterValueLabel(condition.value)}`}
+                  >
+                    <span className="truncate font-medium">
+                      {condition.column || "Select column"}
+                    </span>
+                    <span className="text-muted-foreground shrink-0">
+                      {getOperatorLabel(condition.operator)}
+                    </span>
+                    <span className="text-muted-foreground truncate">
+                      {getFilterValueLabel(condition.value)}
+                    </span>
+                  </Button>
+                ))}
+                {filterConditions.length > 2 && (
+                  <span className="text-muted-foreground px-1 text-xs">
+                    +{filterConditions.length - 2}
+                  </span>
+                )}
+                {groupBy.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigate({
+                        search: (prev) =>
+                          updateTabState(prev, {
+                            filtersOpened: true,
+                          }),
+                      });
+                    }}
+                    className="text-muted-foreground h-7 max-w-40 px-2 text-xs"
+                    title={`Grouped by ${groupBy.join(", ")}`}
+                  >
+                    Group: {groupBy[0]}
+                    {groupBy.length > 1 ? ` +${groupBy.length - 1}` : ""}
+                  </Button>
+                )}
+              </div>
+            )}
             <Tooltip content="Join tables">
               <Button
                 variant={joinConfig?.joins?.length ? "default" : "outline"}
