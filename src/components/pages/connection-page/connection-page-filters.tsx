@@ -89,7 +89,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
         />
       )}
       <HStack
-        className="w-full min-w-0 items-center gap-2 overflow-x-auto px-4 py-2"
+        className="w-full min-w-0 flex-wrap items-center gap-2 px-4 py-2 sm:flex-nowrap sm:overflow-x-auto"
         data-testid="connection-page-filters-toolbar"
       >
         <div className="flex shrink-0 gap-2">
@@ -265,7 +265,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
               }}
             />
             <NaturalLanguageSearch
-              className="max-w-sm min-w-[10rem] shrink"
+              className="order-last w-full sm:order-none sm:max-w-sm sm:min-w-[10rem] sm:shrink"
               availableColumns={columnList}
               onApplyFilters={(parsed) => {
                 // oxlint-disable-next-line no-shadow
