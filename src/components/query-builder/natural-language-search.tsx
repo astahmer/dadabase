@@ -56,12 +56,6 @@ export function NaturalLanguageSearch({
     return generateSuggestions(context, availableColumns);
   }, [inputValue, availableColumns]);
 
-  // Track query state for determining when query is complete
-  const queryState = useMemo(() => {
-    if (!inputValue) return null;
-    return analyzeQueryState(inputValue, availableColumns);
-  }, [inputValue, availableColumns]);
-
   // Build listbox collection
   const collection = useMemo(
     () =>
@@ -103,15 +97,18 @@ export function NaturalLanguageSearch({
   };
 
   const handleListboxKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Only handle Enter key to fill input with highlighted item
     if (e.key === "Enter") {
+      if (result?.success) {
+        e.preventDefault();
+        onApplyFilters(result);
+        clearState();
+        return;
+      }
+
       const highlightedItem = listbox.highlightedItem;
       if (highlightedItem) {
         e.preventDefault();
         onValueChange(highlightedItem.value);
-      } else if (result?.success) {
-        onApplyFilters(result);
-        clearState();
       }
     }
   };
@@ -198,14 +195,13 @@ export function NaturalLanguageSearch({
                         </Listbox.Item>
                       );
                     })
-                  ) : inputValue && (result?.success || queryState?.state === "complete") ? (
-                    // Show success message if query is complete and valid
+                  ) : result?.success ? (
                     <Button
                       type="button"
                       variant="link"
                       size="sm"
                       onClick={() => {
-                        onApplyFilters(result || {});
+                        onApplyFilters(result);
                         clearState();
                       }}
                       className="w-full rounded-none"
@@ -217,8 +213,10 @@ export function NaturalLanguageSearch({
                       or click to add filter
                     </Button>
                   ) : (
-                    <div className="text-muted-foreground px-3 py-2 text-center text-xs">
-                      No suggestions available
+                    <div className="text-muted-foreground px-3 py-3 text-sm">
+                      {result?.message === "Could not parse query"
+                        ? "No matching column in this table. Pick a column above or correct the name."
+                        : "Keep typing to build a filter."}
                     </div>
                   )}
                 </Listbox.Content>

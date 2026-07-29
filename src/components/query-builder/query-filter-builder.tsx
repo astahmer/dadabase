@@ -398,7 +398,6 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
               >
                 <ComboboxControl size="sm" className="bg-muted/70 border-transparent shadow-none">
                   <ComboboxInput placeholder="Value" className="w-full" />
-                  <ComboboxTrigger />
                 </ComboboxControl>
                 <ComboboxContent>
                   <ComboboxList>
