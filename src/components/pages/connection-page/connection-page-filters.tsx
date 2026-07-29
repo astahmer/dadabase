@@ -7,6 +7,7 @@ import {
   LucideChevronDown,
   LucideChevronUp,
   LucideListFilter,
+  MoreHorizontal,
   Plus,
   Rows,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx
 import { NaturalLanguageSearch } from "../../query-builder/natural-language-search.tsx";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../ui/sheet.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 import { StructureFilterControls } from "./structure-table-filters.tsx";
@@ -74,6 +76,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
   } = props;
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
+  const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(false);
 
   const viewMode = useActiveTabState((s) => s.viewMode);
   const filtersOpened = useActiveTabState((s) => s.filtersOpened);
@@ -401,8 +404,89 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 }
               }}
             />
+            <Sheet
+              open={isMobileControlsOpen}
+              onOpenChange={(details) => setIsMobileControlsOpen(details.open)}
+            >
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="sm:hidden"
+                  aria-label="Open table controls"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="bottom"
+                size="full"
+                className="h-auto max-h-[80dvh] w-full max-w-none rounded-t-xl p-4"
+              >
+                <SheetHeader className="px-0 pt-0">
+                  <SheetTitle>Table controls</SheetTitle>
+                </SheetHeader>
+                <div className="space-y-4 overflow-y-auto pb-2">
+                  <section className="space-y-2">
+                    <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                      Columns
+                    </p>
+                    <div className="[&_>div]:w-full [&_button]:w-full">
+                      <ColumnVisibilityControls
+                        table={table}
+                        columnList={columnList}
+                        minimal={true}
+                        visibilityMode={columnVisibilityMode}
+                        onVisibilityModeChange={(mode) => {
+                          navigate({
+                            search: (prev) =>
+                              updateTabState(prev, {
+                                columnVisibilityMode: mode,
+                              }),
+                          });
+                        }}
+                      />
+                    </div>
+                  </section>
+                  <section className="space-y-2">
+                    <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                      Sort rows
+                    </p>
+                    <div className="[&_>div]:w-full [&_button]:w-full">
+                      <OrderBySelect
+                        columnList={columnList}
+                        orderBy={orderBy}
+                        orderDirection={orderDirection}
+                        nullsOrder={nullsOrder}
+                        onOrderChange={(nextOrderBy, direction) => {
+                          navigate({
+                            search: (prev) =>
+                              updateTabState(prev, {
+                                orderBy: nextOrderBy,
+                                orderDirection: direction || "asc",
+                                nullsOrder: undefined,
+                                offset: 0,
+                              }),
+                          });
+                        }}
+                        onNullsOrderChange={(nextNullsOrder) => {
+                          navigate({
+                            search: (prev) =>
+                              updateTabState(prev, {
+                                nullsOrder: nextNullsOrder,
+                              }),
+                          });
+                        }}
+                        getColumnLabel={(col) => col}
+                        minimal
+                      />
+                    </div>
+                  </section>
+                </div>
+              </SheetContent>
+            </Sheet>
             <div
-              className="flex shrink-0 items-center gap-2"
+              className="hidden shrink-0 items-center gap-2 sm:flex"
               data-testid="filters-trailing-controls"
             >
               <ColumnVisibilityControls
