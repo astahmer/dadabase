@@ -1058,7 +1058,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                     logicalOperator={pageState.queryBuilder.filter.logicalOperator}
                     availableColumns={pageState.columnNameList}
                     isLoading={pageState.rowsQuery.isLoading}
-                    label="WHERE"
+                    label="Where"
                     columnMetadata={pageState.columnMetadata
                       .map((meta) => ({
                         ...meta,

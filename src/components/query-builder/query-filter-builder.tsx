@@ -84,7 +84,7 @@ export const QueryFilterBuilder = ({
   tableReference,
   disabled = false,
   columnMetadata,
-  label = "WHERE",
+  label = "Where",
 }: QueryFilterBuilderProps) => {
   const columnCollection = useMemo(
     () =>
@@ -105,8 +105,34 @@ export const QueryFilterBuilder = ({
     <div
       className={`bg-background space-y-1.5 border-b px-5 py-2.5 ${disabled ? "pointer-events-none opacity-50" : ""}`}
     >
-      <div className="flex min-h-7 items-center justify-between gap-2">
-        {conditions.length > 1 ? (
+      <div className="space-y-1">
+        {conditions.map((condition, index) => (
+          <FilterConditionRow
+            key={index}
+            condition={condition}
+            index={index}
+            columnCollection={columnCollection}
+            onUpdate={onUpdateCondition}
+            onRemove={onRemoveCondition}
+            isLoading={isLoading}
+            connector={index === 0 ? label : logicalOperator}
+            tableReference={tableReference}
+            columnMetadata={columnMetadata}
+          />
+        ))}
+      </div>
+      <div className="ml-12 flex flex-wrap items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onAddCondition}
+          disabled={isLoading}
+          className="text-muted-foreground h-7 gap-1 px-1.5 text-xs"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Add filter
+        </Button>
+        {conditions.length > 1 && (
           <ArkSelect.Select
             value={[logicalOperator]}
             collection={logicalOperatorCollection}
@@ -129,8 +155,6 @@ export const QueryFilterBuilder = ({
               ))}
             </ArkSelect.SelectContent>
           </ArkSelect.Select>
-        ) : (
-          <span />
         )}
         <Button
           variant="ghost"
@@ -143,32 +167,6 @@ export const QueryFilterBuilder = ({
           Clear all
         </Button>
       </div>
-      <div className="space-y-1">
-        {conditions.map((condition, index) => (
-          <FilterConditionRow
-            key={index}
-            condition={condition}
-            index={index}
-            columnCollection={columnCollection}
-            onUpdate={onUpdateCondition}
-            onRemove={onRemoveCondition}
-            isLoading={isLoading}
-            connector={index === 0 ? label : logicalOperator}
-            tableReference={tableReference}
-            columnMetadata={columnMetadata}
-          />
-        ))}
-      </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onAddCondition}
-        disabled={isLoading}
-        className="text-muted-foreground ml-11 h-7 gap-1 px-1.5 text-xs"
-      >
-        <Plus className="h-3.5 w-3.5" />
-        Add condition
-      </Button>
     </div>
   );
 };
@@ -249,10 +247,8 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 py-0.5">
-      <span className="text-muted-foreground w-10 text-right text-xs font-medium capitalize">
-        {connector}
-      </span>
-      <div className="w-52 max-w-full">
+      <span className="text-muted-foreground w-12 text-right text-xs font-medium">{connector}</span>
+      <div className="w-48 max-w-full">
         <Combobox
           openOnClick
           collection={columnList.collection}
@@ -290,7 +286,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
         </Combobox>
       </div>
 
-      <div className="w-40 max-w-full">
+      <div className="w-36 max-w-full">
         <Combobox
           openOnClick
           collection={operatorList.collection}
@@ -343,7 +339,9 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
       </div>
 
       {!isNullOperator && (
-        <div className="flex min-w-[12rem] flex-1 items-center gap-1.5">
+        <div
+          className={`flex max-w-full items-center gap-1.5 ${isRangeOperator ? "min-w-[22rem]" : "w-64"}`}
+        >
           <div className="min-w-0 flex-1">
             {isRangeOperator ? (
               <div className="flex items-center gap-2">
@@ -399,10 +397,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
                 openOnClick
               >
                 <ComboboxControl size="sm" className="bg-muted/70 border-transparent shadow-none">
-                  <ComboboxInput
-                    placeholder="Value or select special value..."
-                    className="w-full"
-                  />
+                  <ComboboxInput placeholder="Value" className="w-full" />
                   <ComboboxTrigger />
                 </ComboboxControl>
                 <ComboboxContent>

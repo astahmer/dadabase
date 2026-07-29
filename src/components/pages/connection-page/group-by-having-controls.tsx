@@ -149,7 +149,7 @@ export const GroupByHavingControls = (props: GroupByHavingControlsProps) => {
           availableColumns={havingColumns}
           isLoading={isLoading}
           disabled={groupBy.length === 0}
-          label="HAVING"
+          label="Having"
         />
       )}
     </div>
