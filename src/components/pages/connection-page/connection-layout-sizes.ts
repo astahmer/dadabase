@@ -26,9 +26,8 @@ export const getQueryLoggerSplitterDefaultSize = (input: {
   return [Math.max(0, 100 - logger), logger];
 };
 
-/** Remount key so Splitter.Root re-applies persisted defaults after mount and when zen toggles. */
+/** Remount key so Splitter.Root re-applies URL-backed defaults when zen toggles. */
 export const getZenLayoutRemountKey = (
   zenMode: boolean,
   panel: "sidebar" | "query-logger",
-  size?: number,
-): string => `${panel}:${zenMode ? "zen" : "normal"}:${size ?? "default"}`;
+): string => `${panel}:${zenMode ? "zen" : "normal"}`;

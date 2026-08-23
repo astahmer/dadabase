@@ -493,16 +493,10 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
               const connectionType = form.getFieldValue("connectionType");
               const filePath = form.getFieldValue("filePath");
               const connectionUrl = buildConnectionUrl({
-                connectionName: form.getFieldValue("connectionName"),
                 connectionType,
                 filePath,
                 libsqlAuthToken: form.getFieldValue("libsqlAuthToken"),
                 connectionUrl: form.getFieldValue("connectionUrl"),
-                host: form.getFieldValue("host"),
-                port: form.getFieldValue("port"),
-                databaseName: form.getFieldValue("databaseName"),
-                user: form.getFieldValue("user"),
-                password: form.getFieldValue("password"),
                 readOnly: form.getFieldValue("readOnly"),
                 sslMode: form.getFieldValue("sslMode"),
                 sshHost: form.getFieldValue("sshHost"),

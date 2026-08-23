@@ -331,7 +331,7 @@ export const HomePage = () => {
                   <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
                   <Input
                     value={connectionSearch}
-                    onInput={(event) => setConnectionSearch(event.currentTarget.value)}
+                    onChange={(event) => setConnectionSearch(event.currentTarget.value)}
                     aria-label="Search saved connections"
                     placeholder="Search connections"
                     className="pl-9"
