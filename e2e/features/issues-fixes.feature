@@ -65,6 +65,12 @@ Feature: Connection page UX issues from issues.md
     Then I should see 1 filtered data row
     And the active filter summary should show 2 conditions
 
+  Scenario: Multiple filters can match any condition
+    Given I open the "users" table
+    When I apply filters that match any of age greater than "30" or active equal to "1"
+    Then I should see 3 filtered data row
+    And the active filter summary should show 2 conditions
+
   Scenario: Grouping remains usable with filters
     Given I open the "users" table
     When I add a grouping for "active"

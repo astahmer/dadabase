@@ -182,6 +182,34 @@ When(
   },
 );
 
+When(
+  "I apply filters that match any of age greater than {string} or active equal to {string}",
+  async ({ page }, age: string, active: string) => {
+    await page.getByRole("button", { name: "Filter", exact: true }).click();
+
+    const selectColumn = async (index: number, value: string) => {
+      const column = page.getByRole("combobox", { name: "Column", exact: true }).nth(index);
+      await column.fill(value);
+      await page.getByRole("option", { name: new RegExp(`^${value} `) }).click();
+    };
+
+    await selectColumn(0, "age");
+    const operator = page.getByRole("combobox", { name: "Operator", exact: true }).first();
+    await operator.fill("greater than");
+    await page
+      .getByRole("option", { name: /greater than/i })
+      .first()
+      .click();
+    await page.getByRole("textbox", { name: "Value", exact: true }).first().fill(age);
+
+    await page.getByRole("button", { name: "Add filter", exact: true }).click();
+    await selectColumn(1, "active");
+    await page.getByRole("textbox", { name: "Value", exact: true }).nth(1).fill(active);
+    await page.getByRole("button", { name: "Any", exact: true }).click();
+    await page.getByTestId("apply-filters").click();
+  },
+);
+
 Then("I should see {int} filtered data row", async ({ page }, count: number) => {
   await expect(page.locator("tbody tr")).toHaveCount(count);
 });
