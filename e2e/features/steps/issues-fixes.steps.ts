@@ -173,6 +173,21 @@ Then("I should see the inline join workspace", async ({ page }) => {
   await expect(page.getByRole("table")).toBeVisible();
 });
 
+When("I add the favorites relationship", async ({ page }) => {
+  await page.getByRole("option", { name: "favorites.user_id › users.id", exact: true }).click();
+  await page
+    .getByRole("button", { name: /public\.favorites ON public\.favorites\.user_id/ })
+    .first()
+    .click();
+});
+
+Then("I should see the join result explanation", async ({ page }) => {
+  await expect(page.getByText("Result shape:", { exact: false })).toBeVisible();
+  await expect(page.getByText("Match fields:", { exact: true })).toBeVisible();
+  await expect(page.getByText("Generated SQL:", { exact: true })).toBeVisible();
+  await expect(page.getByText("Result columns:", { exact: true })).toBeVisible();
+});
+
 When("I hover the relationships expand button for the first row", async ({ page }) => {
   const expand = page.locator('[data-testid^="row-expand-"]').first();
   await expect(expand).toBeVisible({ timeout: 15_000 });

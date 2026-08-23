@@ -71,6 +71,12 @@ Feature: Connection page UX issues from issues.md
     When I open the join builder
     Then I should see the inline join workspace
 
+  Scenario: Join plan explains its result shape
+    Given I open the "users" table
+    When I open the join builder
+    And I add the favorites relationship
+    Then I should see the join result explanation
+
   Scenario: Relationships expand button has a tooltip
     Given I open the "users" table
     When I hover the relationships expand button for the first row

@@ -1,3 +1,6 @@
+import { Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
+
 import type {
   FilterConditionExpression,
   LogicalOperatorType,
@@ -15,8 +18,6 @@ import {
 import { Button, buttonVariants } from "#src/components/ui/button.tsx";
 import { Checkbox, CheckboxControl, CheckboxLabel } from "#src/components/ui/checkbox.tsx";
 import { Input } from "#src/components/ui/input.tsx";
-import { Plus, Trash2, X } from "lucide-react";
-import { useState } from "react";
 
 import type { JoinConditionMode, JoinedTable } from "./join-tables.types";
 
@@ -401,6 +402,15 @@ export const JoinedTableRow = ({
               </div>
             </div>
 
+            <div className="text-muted-foreground bg-muted/50 rounded-md px-3 py-2 text-xs leading-relaxed">
+              <span className="text-foreground font-medium">Result shape: </span>
+              {joined.type === "left"
+                ? `keep every ${parentTable} row; ${joined.table} fields are empty when nothing matches.`
+                : `keep only ${parentTable} rows that have a matching ${joined.table} row.`}{" "}
+              A non-unique match can produce more than one result row for the same {parentTable}{" "}
+              row.
+            </div>
+
             <div className="flex items-end gap-2">
               <div className="flex-1">
                 <label className="text-muted-foreground mb-1 block text-xs font-medium">
@@ -416,7 +426,7 @@ export const JoinedTableRow = ({
             </div>
 
             <div className="flex items-center gap-2 pt-2">
-              <div className="text-muted-foreground text-xs font-medium">Join condition:</div>
+              <div className="text-muted-foreground text-xs font-medium">Match fields:</div>
               <div className="flex gap-1">
                 <Button
                   variant={joinConditionMode === "standard" ? "default" : "outline"}
@@ -444,6 +454,14 @@ export const JoinedTableRow = ({
                 </Button>
               </div>
             </div>
+
+            {joinConditionMode === "standard" && (
+              <div className="text-muted-foreground text-xs">
+                Match {joined.joinFrom?.table ?? parentTable}.
+                {joined.joinCondition.referencingColumn} to {joined.table}.
+                {joined.joinCondition.referencedColumn} using the selected foreign-key relationship.
+              </div>
+            )}
 
             <Accordion collapsible multiple={false}>
               {joinConditionMode === "custom" && (
