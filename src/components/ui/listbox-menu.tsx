@@ -1,13 +1,16 @@
-import { cn } from "#src/lib/utils.ts";
+import type { VariantProps } from "class-variance-authority";
+import type { JSX } from "react";
+
 import {
   type CollectionItem,
   Listbox as ListboxPrimitive,
   type ListboxRootBaseProps,
 } from "@ark-ui/react/listbox";
 import { Popover as PopoverPrimitive } from "@ark-ui/react/popover";
-import type { VariantProps } from "class-variance-authority";
+import { Portal } from "@ark-ui/react/portal";
 import { CheckIcon } from "lucide-react";
-import type { JSX } from "react";
+
+import { cn } from "#src/lib/utils.ts";
 
 import type { ExposedComponentProps } from "./component-props.ts";
 
@@ -39,12 +42,17 @@ ListboxMenuTrigger.displayName = "ListboxMenuTrigger";
 
 const ListboxMenuContent = ({ className, ...props }: PopoverPrimitive.ContentProps) => {
   return (
-    <PopoverPrimitive.Positioner>
-      <PopoverPrimitive.Content
-        className={cn("bg-card border-border z-50 rounded-md border shadow-lg", className)}
-        {...props}
-      />
-    </PopoverPrimitive.Positioner>
+    <Portal>
+      <PopoverPrimitive.Positioner>
+        <PopoverPrimitive.Content
+          className={cn(
+            "bg-card border-border z-200 min-w-64 rounded-md border shadow-lg",
+            className,
+          )}
+          {...props}
+        />
+      </PopoverPrimitive.Positioner>
+    </Portal>
   );
 };
 ListboxMenuContent.displayName = "ListboxMenuContent";

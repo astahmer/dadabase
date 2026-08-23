@@ -300,11 +300,6 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
     operatorList.set(operatorCollection.items);
   }, [operatorCollection.items, operatorList.set]);
 
-  const specialValuesCollection = useMemo(
-    () => createListCollection({ items: SPECIAL_VALUES_LIST }),
-    [],
-  );
-
   return (
     <div className="flex flex-wrap items-center gap-1.5 py-0.5">
       <span className="text-muted-foreground w-12 text-right text-xs font-medium">{connector}</span>
@@ -326,7 +321,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
             <ComboboxInput placeholder="Column" className="min-w-0" />
             <ComboboxTrigger className="flex h-5 w-5 shrink-0 items-center justify-center" />
           </ComboboxControl>
-          <ComboboxContent>
+          <ComboboxContent className="min-w-[22rem]">
             <ComboboxList>
               {columnList.collection.items.map((item) => (
                 <ComboboxItem key={item.value} item={item}>
@@ -373,7 +368,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
             <ComboboxInput placeholder="Operator" className="min-w-0" />
             <ComboboxTrigger className="flex h-5 w-5 shrink-0 items-center justify-center" />
           </ComboboxControl>
-          <ComboboxContent>
+          <ComboboxContent className="min-w-[18rem]">
             <ComboboxList>
               {operatorList.collection.items.map((item) => {
                 const symbols = getOperatorSymbols(item.value as FilterOperatorType);
@@ -438,58 +433,52 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
                 />
               </div>
             ) : supportsSpecialValues ? (
-              <Combobox
-                collection={specialValuesCollection}
-                value={
-                  isArrayOperator && Array.isArray(condition.value)
-                    ? condition.value.map(String)
-                    : condition.value
-                      ? [String(condition.value)]
-                      : []
-                }
-                inputValue={
-                  isArrayOperator && Array.isArray(condition.value)
-                    ? condition.value.join(", ")
-                    : condition.value == null
-                      ? ""
-                      : String(condition.value)
-                }
-                onValueChange={(details) => {
-                  onUpdate(String(index), {
-                    value: details.value.length === 1 ? details.value[0] : details.value || "",
-                  });
-                }}
-                onInputValueChange={(details) => {
-                  const val = details.inputValue;
-                  if (!val || val.trim() === "") {
-                    onUpdate(String(index), { value: isArrayOperator ? [] : "" });
-                    return;
+              <div className="flex items-center gap-1.5">
+                <Input
+                  className="bg-muted/70 placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-md border-transparent text-sm shadow-none focus-visible:ring-1 focus-visible:outline-none"
+                  type="text"
+                  placeholder="Value"
+                  value={
+                    isArrayOperator && Array.isArray(condition.value)
+                      ? condition.value.join(", ")
+                      : (condition.value as string) || ""
                   }
-                  onUpdate(String(index), {
-                    value: isArrayOperator ? val.split(",").map((v) => v.trim()) : val,
-                  });
-                }}
-                allowCustomValue
-                openOnClick
-              >
-                <ComboboxControl
-                  size="sm"
-                  className="bg-muted/70 overflow-hidden border-transparent shadow-none"
-                >
-                  <ComboboxInput placeholder="Value" className="w-full min-w-0" />
-                </ComboboxControl>
-                <ComboboxContent>
-                  <ComboboxList>
-                    {specialValuesCollection.items.map((item) => (
-                      <ComboboxItem key={item.value} item={item} className="text-sm">
-                        <span className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs">
-                          {item.label}
-                        </span>
-                      </ComboboxItem>
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    onUpdate(String(index), {
+                      value: isArrayOperator ? value.split(",").map((item) => item.trim()) : value,
+                    });
+                  }}
+                />
+                <Menu>
+                  <MenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 shrink-0 px-2 text-xs"
+                      aria-label="Insert SQL value"
+                    >
+                      SQL
+                    </Button>
+                  </MenuTrigger>
+                  <MenuContent>
+                    {SPECIAL_VALUES_LIST.map((item) => (
+                      <MenuItem
+                        key={item.value}
+                        value={item.value}
+                        onClick={() =>
+                          onUpdate(String(index), {
+                            value: isArrayOperator ? [item.value] : item.value,
+                          })
+                        }
+                      >
+                        <span className="font-mono text-xs">{item.label}</span>
+                      </MenuItem>
                     ))}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
+                  </MenuContent>
+                </Menu>
+              </div>
             ) : (
               <Input
                 className="bg-muted/70 placeholder:text-muted-foreground focus-visible:ring-ring h-8 w-full rounded-md border-transparent text-sm shadow-none focus-visible:ring-1 focus-visible:outline-none"

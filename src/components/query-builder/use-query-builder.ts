@@ -37,6 +37,10 @@ export const useQueryBuilder = (
     });
   };
 
+  const updateFilter = (nextFilter: QueryFilterType) => {
+    setFilter(nextFilter);
+  };
+
   const removeCondition = (id: string) => {
     setFilter({
       ...filter,
@@ -69,6 +73,7 @@ export const useQueryBuilder = (
     addCondition,
     updateCondition,
     updateManyConditions,
+    updateFilter,
     removeCondition,
     setLogicalOperator,
     clearConditions,

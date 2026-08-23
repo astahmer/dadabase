@@ -145,7 +145,7 @@ export function NaturalLanguageSearch({
 
         <Portal>
           <Popover.Positioner>
-            <Popover.Content className="bg-card border-border z-50 w-full rounded-md border p-0 shadow-lg">
+            <Popover.Content className="bg-card border-border z-200 w-full rounded-md border p-0 shadow-lg">
               <Listbox.RootProvider value={listbox}>
                 <Listbox.Input
                   asChild

@@ -167,8 +167,12 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
       return;
     }
 
-    queryBuilder.updateManyConditions(validFilter?.conditions ?? []);
-    queryBuilder.setLogicalOperator(draftFilter.logicalOperator);
+    queryBuilder.updateFilter(
+      validFilter ?? {
+        conditions: [],
+        logicalOperator: draftFilter.logicalOperator,
+      },
+    );
     setFilterDraft(null);
     void navigate({
       search: (prev) =>
@@ -208,7 +212,6 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
           );
         });
         setFilterDraft({ ...draftFilter, conditions });
-        queryBuilder.updateManyConditions(conditions);
       } else {
         const conditions = [
           ...currentConditions.map((filter) => ({
@@ -226,7 +229,6 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
           })),
         ] as Parameters<typeof queryBuilder.updateManyConditions>[0];
         setFilterDraft({ ...draftFilter, conditions });
-        queryBuilder.updateManyConditions(conditions);
       }
     }
 
@@ -444,7 +446,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="max-h-[min(42rem,calc(100vh-7rem))] w-[min(46rem,calc(100vw-2rem))] overflow-y-auto p-0">
+              <PopoverContent className="z-100 max-h-[min(42rem,calc(100vh-7rem))] w-[min(46rem,calc(100vw-2rem))] overflow-y-auto p-0">
                 <div className="flex items-center justify-between border-b px-4 py-3">
                   <div>
                     <h2 className="text-sm font-semibold">Filter rows</h2>

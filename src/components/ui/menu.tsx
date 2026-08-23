@@ -1,9 +1,11 @@
 "use client";
 
-import { cn } from "#src/lib/utils";
 import { Menu as MenuPrimitive, menuAnatomy } from "@ark-ui/react/menu";
+import { Portal } from "@ark-ui/react/portal";
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react";
 import * as React from "react";
+
+import { cn } from "#src/lib/utils";
 
 const parts = menuAnatomy.extendWith("shortcut").build();
 
@@ -44,15 +46,17 @@ const MenuContent = ({
   className,
   ...props
 }: MenuPrimitive.ContentProps & { ref?: React.Ref<HTMLDivElement> }) => (
-  <MenuPrimitive.Positioner>
-    <MenuPrimitive.Content
-      className={cn(
-        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2 bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in max-h-(--available-height) max-w-(--available-width) min-w-[8rem] origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-md border p-1 shadow-md outline-none",
-        className,
-      )}
-      {...props}
-    />
-  </MenuPrimitive.Positioner>
+  <Portal>
+    <MenuPrimitive.Positioner>
+      <MenuPrimitive.Content
+        className={cn(
+          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2 bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in z-200 max-h-(--available-height) max-w-(--available-width) min-w-[8rem] origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-md border p-1 shadow-md outline-none",
+          className,
+        )}
+        {...props}
+      />
+    </MenuPrimitive.Positioner>
+  </Portal>
 );
 MenuContent.displayName = "MenuContent";
 

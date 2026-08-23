@@ -95,7 +95,10 @@ export const GroupByHavingControls = (props: GroupByHavingControlsProps) => {
                 disabled={isLoading}
                 positioning={{ sameWidth: true }}
               >
-                <SelectTrigger className="bg-muted hover:bg-muted/70 h-7 min-w-36 rounded-md px-2 text-xs">
+                <SelectTrigger
+                  className="bg-muted hover:bg-muted/70 h-7 min-w-36 rounded-md px-2 text-xs"
+                  aria-label="Add grouping column"
+                >
                   <SelectValueText placeholder="Add property…" />
                 </SelectTrigger>
                 <SelectContent>

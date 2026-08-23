@@ -155,6 +155,54 @@ Then("I should be told to finish the filter before it is shared", async ({ page 
   expect(new URL(page.url()).searchParams.has("filters")).toBe(false);
 });
 
+When(
+  "I apply filters for age greater than {string} and active equal to {string}",
+  async ({ page }, age: string, active: string) => {
+    await page.getByRole("button", { name: "Filter", exact: true }).click();
+
+    const selectColumn = async (index: number, value: string) => {
+      const column = page.getByRole("combobox", { name: "Column", exact: true }).nth(index);
+      await column.fill(value);
+      await page.getByRole("option", { name: new RegExp(`^${value} `) }).click();
+    };
+
+    await selectColumn(0, "age");
+    const operator = page.getByRole("combobox", { name: "Operator", exact: true }).first();
+    await operator.fill("greater than");
+    await page
+      .getByRole("option", { name: /greater than/i })
+      .first()
+      .click();
+    await page.getByRole("textbox", { name: "Value", exact: true }).first().fill(age);
+
+    await page.getByRole("button", { name: "Add filter", exact: true }).click();
+    await selectColumn(1, "active");
+    await page.getByRole("textbox", { name: "Value", exact: true }).nth(1).fill(active);
+    await page.getByTestId("apply-filters").click();
+  },
+);
+
+Then("I should see {int} filtered data row", async ({ page }, count: number) => {
+  await expect(page.locator("tbody tr")).toHaveCount(count);
+});
+
+Then("the active filter summary should show {int} conditions", async ({ page }, count: number) => {
+  await expect(page.getByRole("button", { name: new RegExp(`Filter\\s*${count}`) })).toBeVisible();
+});
+
+When("I add a grouping for {string}", async ({ page }, column: string) => {
+  await page.getByRole("button", { name: "Filter", exact: true }).click();
+  await page.getByRole("button", { name: "Add grouping", exact: true }).click();
+  await page.getByRole("combobox", { name: "Add grouping column", exact: true }).click();
+  await page.getByRole("option", { name: column, exact: true }).click();
+});
+
+Then("I should see {string} in the grouping controls", async ({ page }, column: string) => {
+  await expect(
+    page.getByRole("dialog").getByRole("button", { name: column, exact: true }),
+  ).toBeVisible();
+});
+
 Then("the query logger should be hidden by default", async ({ page }) => {
   await expect(page.getByTestId("query-logger-splitter-panel")).toBeHidden();
   await expect(page.getByRole("button", { name: "Query history" })).toBeVisible();

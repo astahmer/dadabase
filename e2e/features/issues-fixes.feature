@@ -59,6 +59,17 @@ Feature: Connection page UX issues from issues.md
     And I apply the incomplete filter draft
     Then I should be told to finish the filter before it is shared
 
+  Scenario: Multiple filter conditions apply together
+    Given I open the "users" table
+    When I apply filters for age greater than "25" and active equal to "1"
+    Then I should see 1 filtered data row
+    And the active filter summary should show 2 conditions
+
+  Scenario: Grouping remains usable with filters
+    Given I open the "users" table
+    When I add a grouping for "active"
+    Then I should see "active" in the grouping controls
+
   Scenario: Query logger is hidden until requested
     Given I open the "users" table
     Then the query logger should be hidden by default
