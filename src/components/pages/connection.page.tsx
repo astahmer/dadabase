@@ -250,6 +250,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const search = useActiveTabState((tab) => ({
     schema: tab.schema,
     table: tab.table,
+    initialTabMode: tab.initialTabMode,
   }));
 
   const zenMode = useZenModeEnabled();
@@ -596,6 +597,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                     />
                     {schemaListQuery.isError ? (
                       <TabErrorState activeConnectionUrl={activeConnectionUrl} />
+                    ) : search.initialTabMode === "sql" ? (
+                      <CustomSqlWorkspace
+                        activeConnectionUrl={activeConnectionUrl}
+                        connection={connection}
+                      />
                     ) : search.table && search.schema ? (
                       <RowsTabContent
                         connection={connection}
@@ -1397,6 +1403,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
           if (pendingDdl?.sql) ddlMutation.mutate(pendingDdl.sql);
         }}
       />
+      {executeCustomSql.DestructiveDialog}
     </>
   );
 };
@@ -1453,6 +1460,7 @@ const RowsTableSqlEditor = (
     onRunQuery: (editorValue?: string) => void;
     onCancelQuery: () => void;
     isLoading?: boolean;
+    allowEmptySql?: boolean;
   },
 ) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -1550,6 +1558,7 @@ const RowsTableSqlEditor = (
         columns={columns}
         sql={props.sqlQueryAsText}
         customSql={draftSql ?? undefined}
+        allowEmptySql={props.allowEmptySql}
         isCollapsed={props.isCollapsed}
         isLoading={props.isLoading}
         onToggleCollapsed={() => {
@@ -2491,6 +2500,50 @@ const EmptyTabContent = (props: { activeConnectionUrl: string; connection: DbCon
   );
 };
 
+const CustomSqlWorkspace = (props: { activeConnectionUrl: string; connection: DbConnection }) => {
+  const executeCustomSql = useExecuteCustomSql({ activeConnectionUrl: props.activeConnectionUrl });
+
+  return (
+    <div
+      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+      data-testid="custom-sql-workspace"
+    >
+      <div className="bg-card flex shrink-0 items-start justify-between gap-4 border-b px-4 py-3">
+        <div>
+          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+            Connection workspace
+          </p>
+          <h2 className="text-foreground mt-1 text-base font-semibold">Custom SQL</h2>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Run a query or script against this connection. No table is selected.
+          </p>
+        </div>
+        <kbd className="text-muted-foreground bg-muted shrink-0 rounded border px-2 py-1 font-mono text-xs">
+          Ctrl+Enter
+        </kbd>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="min-h-64 shrink-0 border-b">
+          <RowsTableSqlEditor
+            connection={props.connection}
+            isCollapsed={false}
+            onExpand={() => undefined}
+            onCollapse={() => undefined}
+            activeConnectionUrl={props.activeConnectionUrl}
+            sqlQueryAsText=""
+            onRunQuery={executeCustomSql.onRunQuery}
+            onCancelQuery={executeCustomSql.onCancel}
+            isLoading={executeCustomSql.mutation.isPending}
+            allowEmptySql
+          />
+        </div>
+        <CustomSqlTabContent executeCustomSql={executeCustomSql} />
+      </div>
+      {executeCustomSql.DestructiveDialog}
+    </div>
+  );
+};
+
 const BottomRelationshipPanel = (props: {
   activeConnectionUrl: string;
   relationshipRowId: string;
@@ -2729,8 +2782,8 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
             data: {
               url: props.activeConnectionUrl,
               sql,
-              schemaName: search.schema,
-              tableName: search.table,
+              schemaName: search.schema || undefined,
+              tableName: search.table || undefined,
               previousId,
             },
           });
@@ -2745,8 +2798,8 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
         data: {
           url: props.activeConnectionUrl,
           sql,
-          schemaName: search.schema,
-          tableName: search.table,
+          schemaName: search.schema || undefined,
+          tableName: search.table || undefined,
           previousId,
         },
       });
@@ -2822,8 +2875,8 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
       data: {
         url: props.activeConnectionUrl,
         sql,
-        schemaName: search.schema,
-        tableName: search.table,
+        schemaName: search.schema || undefined,
+        tableName: search.table || undefined,
       },
     });
   };

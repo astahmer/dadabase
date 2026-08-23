@@ -117,77 +117,67 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
   const updateMutation = useMutation(updateDbConnectionMutation);
   const testConnectionFn = useServerFn(tryConnectionServerFn);
   const [testState, setTestState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useAppForm({
     defaultValues: getInitialValues(),
     validators: {
       onChange: connectionFormSchema,
+      onSubmit: connectionFormSchema,
     },
     onSubmitInvalid(props) {
+      setSubmitError("Enter a name and a valid connection URL or database file path.");
       toaster.create({
         title: "Check connection details",
         description: "Enter a name and a valid connection URL or database file path.",
         type: "error",
       });
     },
-    onSubmit: async (ctx) => {
-      const isCreate = mode === "create";
-      const connectionType = ctx.value.connectionType;
-
-      const connectionUrl = buildConnectionUrl(ctx.value);
-
-      try {
-        if (isCreate) {
-          await createMutation.mutateAsync({
-            data: {
-              name: ctx.value.connectionName,
-              url: connectionUrl,
-              dialect: connectionType,
-            },
-          });
-
-          toaster.create({
-            title: (
-              <HStack align="center" className="text-chart-2">
-                <LucideCheck className="h-3 w-3" />
-                Success
-              </HStack>
-            ),
-            description: "Connection created successfully",
-          });
-          onSuccess?.(ctx.value.connectionName);
-        } else {
-          await updateMutation.mutateAsync({
-            data: {
-              id: initialValues?.id || "",
-              name: ctx.value.connectionName,
-              url: connectionUrl,
-            },
-          });
-          toaster.create({
-            title: (
-              <HStack align="center" className="text-chart-2">
-                <LucideCheck className="h-3 w-3" />
-                Success
-              </HStack>
-            ),
-            description: "Connection updated successfully",
-          });
-          onSuccess?.();
-        }
-      } catch {
-        toaster.create({
-          title: (
-            <HStack align="center" className="text-chart-1">
-              <LucideCross className="h-3 w-3" />
-              Error
-            </HStack>
-          ),
-          description: "Failed to save connection",
-        });
-      }
-    },
+    onSubmit: async (ctx) => saveConnection(ctx.value),
   });
+
+  async function saveConnection(values: ConnectionFormValues) {
+    const validation = connectionFormSchema.safeParse(values);
+    if (!validation.success) {
+      const message = "Enter a name and a valid connection URL or database file path.";
+      setSubmitError(message);
+      toaster.create({ title: "Check connection details", description: message, type: "error" });
+      return;
+    }
+
+    setSubmitError(null);
+    const connectionUrl = buildConnectionUrl(validation.data);
+
+    try {
+      if (mode === "create") {
+        await createMutation.mutateAsync({
+          data: {
+            name: validation.data.connectionName,
+            url: connectionUrl,
+            dialect: validation.data.connectionType,
+          },
+        });
+        toaster.create({
+          title: "Connection saved",
+          description: "You can open it from the list.",
+        });
+        onSuccess?.(validation.data.connectionName);
+        return;
+      }
+
+      await updateMutation.mutateAsync({
+        data: {
+          id: initialValues?.id || "",
+          name: validation.data.connectionName,
+          url: connectionUrl,
+        },
+      });
+      toaster.create({ title: "Connection updated" });
+      onSuccess?.();
+    } catch {
+      toaster.create({ title: "Could not save connection", type: "error" });
+    }
+  }
 
   function getInitialValues() {
     if (mode === "create") {
@@ -308,6 +298,17 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
     );
   }
 
+  function submitForm() {
+    const validation = connectionFormSchema.safeParse(form.state.values);
+    if (!validation.success) {
+      const message = "Enter a name and a valid connection URL or database file path.";
+      setSubmitError(message);
+      toaster.create({ title: "Check connection details", description: message, type: "error" });
+      return;
+    }
+    void saveConnection(validation.data);
+  }
+
   return (
     <form
       onSubmit={(e) => {
@@ -317,6 +318,15 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
       }}
       className={`space-y-4`}
     >
+      {submitError ? (
+        <div
+          role="alert"
+          className="border-destructive/30 bg-destructive/10 text-foreground rounded-md border p-3 text-sm"
+        >
+          <p className="font-medium">Check connection details</p>
+          <p className="text-muted-foreground mt-1">{submitError}</p>
+        </div>
+      ) : null}
       <form.AppField name="connectionType">
         {(field) => (
           <field.Select
@@ -577,9 +587,18 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
         >
           Test Connection
         </Button>
-        <form.AppForm>
-          <form.SubscribeButton label={mode === "create" ? "Save connection" : "Save changes"} />
-        </form.AppForm>
+        <form.Subscribe selector={(state) => state.isSubmitting}>
+          {(isSubmitting) => (
+            <Button
+              type="button"
+              data-testid="connection-save"
+              disabled={isSubmitting}
+              onClick={submitForm}
+            >
+              {mode === "create" ? "Save connection" : "Save changes"}
+            </Button>
+          )}
+        </form.Subscribe>
       </div>
     </form>
   );

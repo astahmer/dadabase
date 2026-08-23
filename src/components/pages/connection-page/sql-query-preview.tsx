@@ -57,6 +57,7 @@ interface SqlQueryPreviewProps {
   onEditorChange?: (value: string) => void;
   /** Custom SQL that user has edited (if different from generated SQL) */
   customSql?: string;
+  allowEmptySql?: boolean;
   /** Callback to run the query */
   onRun?: (editorValue: string) => void;
   /** Callback to cancel the running query */
@@ -105,6 +106,7 @@ export function SqlQueryPreview({
   onEditorModeChange,
   onEditorChange,
   customSql,
+  allowEmptySql = false,
   onRun,
   onCancel,
   onExplain,
@@ -171,7 +173,7 @@ export function SqlQueryPreview({
     );
   }
 
-  if (!sql) {
+  if (!sql && !customSql && !allowEmptySql) {
     return (
       <div className={cn("rounded border border-gray-200 bg-gray-50 p-4", className)}>
         <div className="text-sm text-gray-500">No SQL query generated</div>

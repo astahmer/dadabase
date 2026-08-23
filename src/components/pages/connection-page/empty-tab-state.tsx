@@ -1,15 +1,12 @@
 import { createListCollection, Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
-import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 
 import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 
-import { toaster } from "#src/components/ui/toaster.tsx";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
-import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
@@ -19,10 +16,6 @@ import type { DbConnection } from "../connection.types";
 import { Button } from "../../ui/button";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import { createTabState, updateTabState, useActiveTabState } from "./create-tab-state.ts";
-import { extractSelectedTables } from "./sql-completion-helper.ts";
-import { SqlMonacoEditor } from "./sql-monaco-editor.tsx";
-import { parseSqlQuery } from "./sql-query-parser.ts";
-import { SqlSnippetsMenu } from "./sql-snippets-menu.tsx";
 
 interface EmptyTabState {
   activeConnectionUrl: string;
@@ -123,16 +116,6 @@ export const EmptyTabState = (props: EmptyTabState) => {
           activeConnectionUrl={activeConnectionUrl}
           connection={connection}
           selectedSchema={selectedSchema}
-          tables={props.tables}
-          columns={props.columns}
-        />
-      )}
-
-      {/* Custom SQL Mode */}
-      {mode === "sql" && (
-        <CustomSqlTab
-          selectedSchema={selectedSchema}
-          connection={connection}
           tables={props.tables}
           columns={props.columns}
         />
@@ -352,166 +335,6 @@ const TableSelectionTab = (props: {
           </div>
         )}
       </Listbox.Root>
-    </div>
-  );
-};
-
-const CustomSqlTab = (props: {
-  selectedSchema: string;
-  connection: DbConnection;
-  tables: Array<{ schema: string; name: string }>;
-  columns: Array<TableWithColumnsMetadata>;
-}) => {
-  const navigate = useNavigate({ from: "/connections/$connectionName" });
-
-  const customSql = useActiveTabState((s) => s.customSql ?? "");
-  const onCustomSqlChange = useDebouncedCallback(
-    (value: string) => {
-      // Get available column names from all columns
-      const allAvailableColumns = props.columns.flatMap((tc) => tc.columns.map((c) => c.name));
-
-      // Parse the SQL query to extract filters, sorting, pagination
-      const parsedState = parseSqlQuery(value, allAvailableColumns);
-      const extractedTables = extractSelectedTables(value);
-      console.log(parsedState, extractedTables);
-
-      return navigate({
-        search: (prev) =>
-          updateTabState(prev, {
-            customSql: value,
-            // Apply parsed state updates
-            ...parsedState,
-          }),
-      });
-    },
-    { wait: 500 },
-  );
-
-  const handleCustomSqlSubmit = () => {
-    if (!customSql.trim()) return;
-
-    const schema = props.selectedSchema || getDialectDefaultSchema(props.connection.dialect);
-    const extractedTables = extractSelectedTables(customSql);
-    const firstTable = extractedTables.at(0);
-
-    if (!firstTable?.table) {
-      toaster.create({
-        title: "Failed to detect table",
-        description: "Could not detect table from your SQL query",
-      });
-      return;
-    }
-
-    // Use the extracted schema if available, otherwise use selected schema
-    const effectiveSchema = firstTable.schema || schema;
-    const table = firstTable.table;
-
-    navigate({
-      search: (prev) => {
-        const currentTab = (prev.tabs ?? []).find((t) => t.tabId === prev.activeTabId);
-        const isCurrentTabEmpty = !currentTab?.table;
-
-        const newTab = createTabState(effectiveSchema, table, {
-          tabName: `${table} (custom)`,
-        });
-
-        // Replace the empty tab
-        if (isCurrentTabEmpty && currentTab) {
-          return {
-            ...prev,
-            ...newTab,
-            ...updateTabState(prev, {
-              table,
-              customSql,
-              sqlEditorMode: "editor",
-              sqlPreviewSize: 100 - fromPixelToPercentage(250, "vertical"),
-              initialTabMode: undefined,
-              tabName: `${table} (custom)`,
-            }),
-          };
-        }
-
-        // Add a new tab otherwise
-        return {
-          ...prev,
-          ...newTab,
-          tabs: [...(prev.tabs ?? []), newTab],
-          activeTabId: newTab.tabId,
-        };
-      },
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-4">
-      {/* Header */}
-      <div>
-        <h2 className="text-foreground mb-1 text-xl font-semibold">Enter custom SQL</h2>
-        <p className="text-muted-foreground text-sm">Write your own SQL query and execute it</p>
-      </div>
-
-      {/* SQL Input Area */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-end">
-          <SqlSnippetsMenu
-            onInsertSnippet={(snippetSql) => {
-              const next = customSql.trim() ? `${customSql.trimEnd()}\n${snippetSql}` : snippetSql;
-              void navigate({
-                search: (prev) => updateTabState(prev, { customSql: next }),
-              });
-            }}
-          />
-        </div>
-        <SqlMonacoEditor
-          sql={customSql}
-          onChange={onCustomSqlChange}
-          className="h-48"
-          tables={props.tables}
-          columns={props.columns}
-          onSubmit={handleCustomSqlSubmit}
-          autoFocus
-          placeholder="SELECT * FROM table_name;&#10;&#10;Ctrl+Enter to execute"
-        />
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex gap-2">
-        <Button
-          onClick={handleCustomSqlSubmit}
-          disabled={!customSql.trim()}
-          className="flex items-center gap-2"
-          size="sm"
-          variant="default"
-        >
-          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-          Execute
-        </Button>
-        <Button
-          onClick={() => {
-            navigate({
-              search: (prev) => updateTabState(prev, { customSql: "" }),
-            });
-          }}
-          disabled={!customSql.trim()}
-          variant="outline"
-          size="sm"
-        >
-          Clear
-        </Button>
-      </div>
-
-      {/* Help Text */}
-      <div className="text-muted-foreground border-t pt-3 text-xs">
-        <p>
-          💡 Tip: Press{" "}
-          <kbd className="bg-muted border-border rounded border px-1.5 py-0.5 font-mono text-xs">
-            Ctrl+Enter
-          </kbd>{" "}
-          to execute the query
-        </p>
-      </div>
     </div>
   );
 };
