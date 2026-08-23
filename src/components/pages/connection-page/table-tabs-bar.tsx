@@ -315,16 +315,18 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
             </SortableContext>
           </DndContext>
           {onAddTab && (
-            <Button
-              onClick={onAddTab}
-              variant="ghost"
-              size="xs"
-              className="relative top-[3px] shrink-0"
-              aria-label="Add new tab"
-              type="button"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+            <Tooltip content="New workspace tab">
+              <Button
+                onClick={onAddTab}
+                variant="ghost"
+                size="xs"
+                className="relative top-[3px] shrink-0"
+                aria-label="New workspace tab"
+                type="button"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </Tooltip>
           )}
         </div>
       </Tabs.Root>

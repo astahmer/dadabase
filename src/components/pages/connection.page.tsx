@@ -1309,7 +1309,6 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                   schema={search.schema}
                   tableName={search.table}
                   columns={pageState.rowsDataTable.getVisibleLeafColumns().map((col) => col.id)}
-                  onExportAll={handleExportAll}
                   zenMode={zenMode}
                   onToggleZenMode={toggleZenMode}
                 />

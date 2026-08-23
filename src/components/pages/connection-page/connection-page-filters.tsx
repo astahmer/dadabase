@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Plus,
   Rows,
+  Table2,
   X,
 } from "lucide-react";
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useState } from "react";
@@ -277,6 +278,16 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
         className="w-full min-w-0 flex-wrap items-center gap-2 px-4 py-2 sm:flex-nowrap sm:overflow-x-auto"
         data-testid="connection-page-filters-toolbar"
       >
+        <div className="hidden min-w-0 items-center gap-1.5 border-r pr-3 text-xs lg:flex">
+          <Table2 className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
+          <span
+            className="text-foreground max-w-44 truncate font-medium"
+            title={`${schema}.${tableName}`}
+          >
+            {schema}.{tableName}
+          </span>
+          <span className="text-muted-foreground">Rows</span>
+        </div>
         <div className="flex shrink-0 gap-2">
           <Tooltip content="View rows">
             <Button
@@ -386,21 +397,21 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     className="gap-1.5"
                   >
                     <Download className="h-3.5 w-3.5" />
-                    Export
+                    Export all
                   </Button>
                 </MenuTrigger>
                 <MenuContent>
                   <MenuItem value="export-csv" onClick={() => onExportTable("csv")}>
-                    <MenuItemText>Download CSV</MenuItemText>
+                    <MenuItemText>All rows as CSV</MenuItemText>
                   </MenuItem>
                   <MenuItem value="export-json" onClick={() => onExportTable("json")}>
-                    <MenuItemText>Download JSON</MenuItemText>
+                    <MenuItemText>All rows as JSON</MenuItemText>
                   </MenuItem>
                   <MenuItem value="export-tsv" onClick={() => onExportTable("tsv")}>
-                    <MenuItemText>Download TSV</MenuItemText>
+                    <MenuItemText>All rows as TSV</MenuItemText>
                   </MenuItem>
                   <MenuItem value="export-sql" onClick={() => onExportTable("sql")}>
-                    <MenuItemText>Download INSERT statements</MenuItemText>
+                    <MenuItemText>All rows as INSERT statements</MenuItemText>
                   </MenuItem>
                 </MenuContent>
               </Menu>
@@ -414,9 +425,10 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                   disabled={isLoading || isReadOnly}
                   data-testid="add-row-button"
                   aria-label="Add row"
-                  className="w-8 p-0"
+                  className="gap-1.5"
                 >
                   <Plus className="h-3.5 w-3.5" />
+                  <span className="hidden lg:inline">Add row</span>
                 </Button>
               </Tooltip>
             )}

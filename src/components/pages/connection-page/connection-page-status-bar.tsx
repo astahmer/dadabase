@@ -2,7 +2,7 @@ import type { Table as TanstackTable } from "@tanstack/react-table";
 
 import { Pagination } from "@ark-ui/react/pagination";
 import { useNavigate } from "@tanstack/react-router";
-import { Download, Layers, Maximize2, Minimize2, RefreshCw } from "lucide-react";
+import { Layers, Maximize2, Minimize2, RefreshCw } from "lucide-react";
 
 import {
   formatLoadedRelativeLabel,
@@ -16,7 +16,6 @@ import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
-import { Menu, MenuContent, MenuItem, MenuItemText, MenuTrigger } from "../../ui/menu";
 import * as ArkSelect from "../../ui/select";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
@@ -49,9 +48,6 @@ interface ConnectionPageStatusBarProps {
   isCustomSql: boolean;
   schema?: string;
   tableName?: string;
-  onExportAll?: (
-    format: "json" | "csv" | "tsv" | "sql" | "copy-json" | "copy-csv" | "copy-tsv" | "copy-insert",
-  ) => void;
   columns?: string[];
   zenMode?: boolean;
   onToggleZenMode?: () => void;
@@ -352,43 +348,6 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
               <RefreshCw className={cn("h-3 w-3", isFetching && "animate-spin")} />
             </Button>
           </Tooltip>
-          {props.totalRowCount > 0 && !isCustomSql && (
-            <Menu>
-              <MenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 px-2">
-                  <Download className="mr-1 h-3 w-3" />
-                  <span className="hidden sm:inline">Export table</span>
-                  <span className="sm:hidden">Export</span>
-                </Button>
-              </MenuTrigger>
-              <MenuContent>
-                <MenuItem value="export-json" onClick={() => props.onExportAll?.("json")}>
-                  <MenuItemText>Export as JSON</MenuItemText>
-                </MenuItem>
-                <MenuItem value="export-csv" onClick={() => props.onExportAll?.("csv")}>
-                  <MenuItemText>Export as CSV</MenuItemText>
-                </MenuItem>
-                <MenuItem value="export-tsv" onClick={() => props.onExportAll?.("tsv")}>
-                  <MenuItemText>Export as TSV</MenuItemText>
-                </MenuItem>
-                <MenuItem value="export-sql" onClick={() => props.onExportAll?.("sql")}>
-                  <MenuItemText>Export as INSERT (.sql)</MenuItemText>
-                </MenuItem>
-                <MenuItem value="copy-insert" onClick={() => props.onExportAll?.("copy-insert")}>
-                  <MenuItemText>Copy as INSERT</MenuItemText>
-                </MenuItem>
-                <MenuItem value="copy-json" onClick={() => props.onExportAll?.("copy-json")}>
-                  <MenuItemText>Copy as JSON</MenuItemText>
-                </MenuItem>
-                <MenuItem value="copy-csv" onClick={() => props.onExportAll?.("copy-csv")}>
-                  <MenuItemText>Copy as CSV</MenuItemText>
-                </MenuItem>
-                <MenuItem value="copy-tsv" onClick={() => props.onExportAll?.("copy-tsv")}>
-                  <MenuItemText>Copy as TSV</MenuItemText>
-                </MenuItem>
-              </MenuContent>
-            </Menu>
-          )}
           {zenToggle}
         </div>
       </div>
