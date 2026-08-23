@@ -7,6 +7,7 @@ Feature: Import data and ER diagram
     Given I open the "users" table
     When I switch to ER diagram view
     Then I should see ER table node "users"
+    And I should see ER column "id" on table "users"
 
   Scenario: Import CSV rows into users
     Given I open the "users" table

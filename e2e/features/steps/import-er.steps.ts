@@ -11,6 +11,15 @@ Then("I should see ER table node {string}", async ({ page }, tableName: string) 
   await expect(page.getByTestId(`er-table-${tableName}`)).toBeVisible({ timeout: 15_000 });
 });
 
+Then(
+  "I should see ER column {string} on table {string}",
+  async ({ page }, columnName: string, tableName: string) => {
+    await expect(page.getByTestId(`er-column-${tableName}-${columnName}`)).toBeVisible({
+      timeout: 15_000,
+    });
+  },
+);
+
 When("I import CSV rows into the current table:", async ({ page }, docString: string) => {
   await page.getByTestId("import-data").click();
   await expect(page.getByTestId("import-data-sheet")).toBeVisible();
@@ -29,7 +38,9 @@ When("I import CSV rows into the current table:", async ({ page }, docString: st
 
 Then("I should see {string} in the rows table", async ({ page }, text: string) => {
   await page.getByTestId("view-mode-rows").click();
-  await expect(page.getByTestId("import-data-sheet")).toBeHidden({ timeout: 5_000 }).catch(() => undefined);
+  await expect(page.getByTestId("import-data-sheet"))
+    .toBeHidden({ timeout: 5_000 })
+    .catch(() => undefined);
   await expect(page.locator('[data-in="CellValue"]').filter({ hasText: text })).toBeVisible({
     timeout: 20_000,
   });

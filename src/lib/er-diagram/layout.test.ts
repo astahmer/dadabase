@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { buildErDiagramLayout } from "./layout.ts";
+import {
+  buildErDiagramLayout,
+  ER_NODE_HEADER_HEIGHT,
+  ER_NODE_ROW_HEIGHT,
+  ER_NODE_WIDTH,
+} from "./layout.ts";
 
 describe("buildErDiagramLayout", () => {
   it("places an isolated table at the origin margin", () => {
     const layout = buildErDiagramLayout({ tables: [{ id: "users", columnCount: 3 }], edges: [] });
-    expect(layout.nodes).toEqual([{ id: "users", x: 40, y: 40, w: 220, h: 32 + 3 * 24 }]);
+    expect(layout.nodes).toEqual([
+      {
+        id: "users",
+        x: 40,
+        y: 40,
+        w: ER_NODE_WIDTH,
+        h: ER_NODE_HEADER_HEIGHT + 3 * ER_NODE_ROW_HEIGHT,
+      },
+    ]);
     expect(layout.edges).toEqual([]);
   });
 

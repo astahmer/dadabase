@@ -35,16 +35,16 @@ export interface ErDiagramLayout {
   edges: ErEdgeLayout[];
 }
 
-const NODE_WIDTH = 220;
-const HEADER_HEIGHT = 32;
-const ROW_HEIGHT = 24;
+export const ER_NODE_WIDTH = 260;
+export const ER_NODE_HEADER_HEIGHT = 34;
+export const ER_NODE_ROW_HEIGHT = 24;
 const MIN_ROWS_SHOWN = 1;
 const LAYER_GAP_X = 80;
 const NODE_GAP_Y = 40;
 const MARGIN = 40;
 
 function nodeHeight(columnCount: number): number {
-  return HEADER_HEIGHT + Math.max(columnCount, MIN_ROWS_SHOWN) * ROW_HEIGHT;
+  return ER_NODE_HEADER_HEIGHT + Math.max(columnCount, MIN_ROWS_SHOWN) * ER_NODE_ROW_HEIGHT;
 }
 
 /**
@@ -110,11 +110,11 @@ export function buildErDiagramLayout(input: ErDiagramLayoutInput): ErDiagramLayo
   const sortedLayerIndices = [...tablesByLayer.keys()].toSorted((a, b) => a - b);
   for (const layerIndex of sortedLayerIndices) {
     const layerTables = tablesByLayer.get(layerIndex)!;
-    const x = MARGIN + layerIndex * (NODE_WIDTH + LAYER_GAP_X);
+    const x = MARGIN + layerIndex * (ER_NODE_WIDTH + LAYER_GAP_X);
     let y = MARGIN;
     for (const table of layerTables) {
       const h = nodeHeight(table.columnCount);
-      nodes.push({ id: table.id, x, y, w: NODE_WIDTH, h });
+      nodes.push({ id: table.id, x, y, w: ER_NODE_WIDTH, h });
       y += h + NODE_GAP_Y;
     }
   }
