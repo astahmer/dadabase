@@ -2,7 +2,7 @@ import { createListCollection } from "@ark-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cx } from "class-variance-authority";
 import { ChevronDown, ChevronUp, Star, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useQueryLogger } from "#src/components/query-logger/use-query-logger.ts";
 import { Badge } from "#src/components/ui/badge.tsx";
@@ -17,6 +17,7 @@ import { getQueryFavoritesQueryOptions } from "#src/server/query-logger/start-fn
 
 import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button, buttonVariants } from "../ui/button.tsx";
+import { Input } from "../ui/input.tsx";
 import { HStack } from "../ui/layout.tsx";
 import * as Select from "../ui/select.tsx";
 import { VirtualizerArea } from "../ui/virtualizer-area.tsx";
@@ -51,6 +52,18 @@ export const QueryLoggerContent = ({
   const [selectedEntry, setSelectedEntry] = useState<QueryLogEntryType | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
+
+  const visibleHistory = useMemo(() => {
+    const search = historySearch.trim().toLocaleLowerCase();
+    if (!search) return queryLogger.history;
+
+    return queryLogger.history.filter((entry) =>
+      [entry.sql, entry.schema, entry.table, entry.error?.message]
+        .filter(Boolean)
+        .some((value) => value!.toLocaleLowerCase().includes(search)),
+    );
+  }, [historySearch, queryLogger.history]);
 
   useEffect(() => {
     if (!paletteView) return;
@@ -110,9 +123,7 @@ export const QueryLoggerContent = ({
         <div className="flex items-center gap-2 font-medium">
           <span>Query Logger</span>
           {isExpanded ? (
-            <span className="text-muted-foreground hidden text-xs font-normal 2xl:inline">
-              History may contain sensitive SQL
-            </span>
+            <span className="text-muted-foreground text-xs font-normal">Reviewable history</span>
           ) : null}
           {connectionId && (
             <Button
@@ -361,36 +372,56 @@ export const QueryLoggerContent = ({
               ))
             )}
           </div>
-        ) : queryLogger.history.length === 0 ? (
-          <div className="text-muted-foreground flex h-52 items-center justify-center">
-            No queries executed yet
-          </div>
         ) : (
-          <div className="flex h-full min-h-0 flex-1 flex-col divide-y">
-            <VirtualizerArea
-              count={queryLogger.history.length}
-              virtualizerOptions={{ estimateSize: () => 50 }}
-            >
-              {({ virtualItems, totalSize, paddingTop, paddingBottom }) => (
-                <>
-                  <div style={{ height: `${totalSize}px` }} className="relative">
-                    {/* Padding for virtualizer */}
-                    {paddingTop > 0 && <div style={{ height: `${paddingTop}px` }} />}
+          <>
+            <div className="border-b px-3 py-2">
+              <Input
+                value={historySearch}
+                onChange={(event) => setHistorySearch(event.target.value)}
+                placeholder="Search recorded SQL, table, or error..."
+                aria-label="Search query history"
+                className="h-8 text-xs"
+              />
+              <p className="text-muted-foreground mt-1.5 text-xs">
+                History can contain sensitive SQL. Clear it when you are done; saved queries stay.
+              </p>
+            </div>
+            {visibleHistory.length === 0 ? (
+              <div className="text-muted-foreground flex h-52 items-center justify-center">
+                {queryLogger.history.length === 0
+                  ? "No queries executed yet"
+                  : "No matching queries"}
+              </div>
+            ) : (
+              <div className="flex h-full min-h-0 flex-1 flex-col divide-y">
+                <VirtualizerArea
+                  count={visibleHistory.length}
+                  virtualizerOptions={{ estimateSize: () => 50 }}
+                >
+                  {({ virtualItems, totalSize, paddingTop, paddingBottom }) => (
+                    <>
+                      <div style={{ height: `${totalSize}px` }} className="relative">
+                        {/* Padding for virtualizer */}
+                        {paddingTop > 0 && <div style={{ height: `${paddingTop}px` }} />}
 
-                    {virtualItems.toReversed().map((virtualItem) => {
-                      const entry = queryLogger.history[virtualItem.index];
-                      if (!entry) return null;
+                        {virtualItems.toReversed().map((virtualItem) => {
+                          const entry = visibleHistory[virtualItem.index];
+                          if (!entry) return null;
 
-                      return <QueryLogEntry key={entry.id} entry={entry} onExpand={handleExpand} />;
-                    })}
+                          return (
+                            <QueryLogEntry key={entry.id} entry={entry} onExpand={handleExpand} />
+                          );
+                        })}
 
-                    {/* Padding for virtualizer */}
-                    {paddingBottom > 0 && <div style={{ height: `${paddingBottom}px` }} />}
-                  </div>
-                </>
-              )}
-            </VirtualizerArea>
-          </div>
+                        {/* Padding for virtualizer */}
+                        {paddingBottom > 0 && <div style={{ height: `${paddingBottom}px` }} />}
+                      </div>
+                    </>
+                  )}
+                </VirtualizerArea>
+              </div>
+            )}
+          </>
         )}
       </div>
 

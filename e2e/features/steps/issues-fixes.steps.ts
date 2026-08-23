@@ -149,6 +149,22 @@ Then("the query logger should be hidden by default", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Query history" })).toBeVisible();
 });
 
+When("I open query history", async ({ page }) => {
+  await page.getByRole("button", { name: "Query history", exact: true }).click();
+});
+
+Then("I should see query-history privacy controls", async ({ page }) => {
+  await expect(
+    page.getByRole("textbox", { name: "Search query history", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("History can contain sensitive SQL.", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Clear query history", exact: true }),
+  ).toBeVisible();
+});
+
 When("I open the dedicated schema explorer", async ({ page }) => {
   await page.goto("/schema/e2e-sqlite?schema=main");
 });

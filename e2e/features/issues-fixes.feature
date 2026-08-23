@@ -62,6 +62,11 @@ Feature: Connection page UX issues from issues.md
     Given I open the "users" table
     Then the query logger should be hidden by default
 
+  Scenario: Query history makes sensitive records searchable and clearable
+    Given I open the "users" table
+    When I open query history
+    Then I should see query-history privacy controls
+
   Scenario: Schema explorer has a dedicated page
     When I open the dedicated schema explorer
     Then I should see the dedicated schema explorer
