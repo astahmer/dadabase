@@ -1,8 +1,9 @@
-import { cn } from "#src/lib/utils";
 import { dialogAnatomy, Dialog as SheetPrimitive } from "@ark-ui/react/dialog";
 import { Portal } from "@ark-ui/react/portal";
 import { XIcon } from "lucide-react";
 import * as React from "react";
+
+import { cn } from "#src/lib/utils";
 
 import type { ExposedComponentProps } from "./component-props.ts";
 
@@ -70,7 +71,7 @@ const SheetContent = ({
         <SheetPrimitive.Content
           {...parts.content.attrs}
           className={cn(
-            "bg-background data-[state=closed]:animate-out data-[state=open]:animate-in fixed z-(--z-index) z-100 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+            "bg-background data-[state=closed]:animate-out data-[state=open]:animate-in fixed z-(--z-index) z-100 flex flex-col gap-4 shadow-lg transition ease-out data-[state=closed]:duration-150 data-[state=open]:duration-200",
             sideClasses[side],
             sizeClasses[size],
             className,

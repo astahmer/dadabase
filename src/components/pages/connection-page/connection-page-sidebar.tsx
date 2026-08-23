@@ -145,6 +145,13 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
         onOpenAiAssistant={props.onOpenAiAssistant}
         onOpenHistory={props.onOpenHistory}
         onOpenFavorites={props.onOpenFavorites}
+        onOpenSchemaExplorer={() => {
+          navigate({
+            to: "/schema/$connectionName",
+            params: { connectionName: connection.name },
+            search: selectedSchema ? { schema: selectedSchema } : {},
+          });
+        }}
       />
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="border-border shrink-0 border-b px-4 py-2">

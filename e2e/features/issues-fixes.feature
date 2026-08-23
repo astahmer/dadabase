@@ -83,6 +83,11 @@ Feature: Connection page UX issues from issues.md
     When I open the dedicated schema explorer
     Then I should see the dedicated schema explorer
 
+  Scenario: Schema explorer is reachable from the sidebar rail
+    Given I open the "users" table
+    When I open the schema explorer page from the sidebar rail
+    Then I should see the dedicated schema explorer
+
   Scenario: Schema map has navigation and export controls
     Given I open the "users" table
     When I open the schema map

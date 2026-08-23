@@ -2,6 +2,7 @@ import { createListCollection } from "@ark-ui/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  BookOpen,
   ChevronLeftIcon,
   DatabaseIcon,
   History,
@@ -38,6 +39,7 @@ interface ConnectionSwitcherProps {
   onOpenAiAssistant?: () => void;
   onOpenHistory?: () => void;
   onOpenFavorites?: () => void;
+  onOpenSchemaExplorer?: () => void;
 }
 
 const railBtnClass =
@@ -106,7 +108,7 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
             </Button>
           </ListboxMenu.ListboxMenuTrigger>
         </Tooltip>
-        <ListboxMenu.ListboxMenuContent>
+        <ListboxMenu.ListboxMenuContent className="w-72 overflow-hidden">
           <ListboxMenu.ListboxRoot
             collection={createListCollection({
               items: connectionList.data.map((conn) => ({
@@ -150,7 +152,7 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
                       : ""
                   }
                 >
-                  {conn.name}
+                  <span className="block truncate">{conn.name}</span>
                 </ListboxMenu.ListboxMenuItem>
               ))}
               <div className="border-t" />
@@ -188,7 +190,7 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
             </Button>
           </ListboxMenu.ListboxMenuTrigger>
         </Tooltip>
-        <ListboxMenu.ListboxMenuContent>
+        <ListboxMenu.ListboxMenuContent className="w-56 overflow-hidden">
           <ListboxMenu.ListboxRoot
             collection={createListCollection({
               items: editorThemes.map((theme) => ({
@@ -218,6 +220,21 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
           </ListboxMenu.ListboxRoot>
         </ListboxMenu.ListboxMenuContent>
       </ListboxMenu.ListboxMenuRoot>
+
+      {props.onOpenSchemaExplorer && (
+        <Tooltip content="Open Schema Explorer page" positioning={{ placement: "right" }}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={railBtnClass}
+            aria-label="Open Schema Explorer page"
+            data-testid="open-schema-explorer-page"
+            onClick={props.onOpenSchemaExplorer}
+          >
+            <BookOpen className="h-4 w-4" />
+          </Button>
+        </Tooltip>
+      )}
 
       <Tooltip content="Refetch all" positioning={{ placement: "right" }}>
         <Button
