@@ -143,7 +143,8 @@ export const QueryLoggerContent = ({
           )}
         </div>
         <HStack className="mr-auto ml-2 gap-1">
-          <div
+          <button
+            type="button"
             onClick={() => {
               toggleStatusFilter("success");
               if (!isExpanded) {
@@ -151,18 +152,22 @@ export const QueryLoggerContent = ({
               }
             }}
             title="Filter by success"
+            aria-label={`Filter successful queries (${queryLogger.counts.success})`}
+            aria-pressed={Boolean(isSuccessFiltered)}
             className={cx(
               buttonVariants({ size: "sm", variant: "ghost" }),
-              "transition-all rounded-md px-2 py-1.5 flex items-center gap-1.5",
+              "flex items-center gap-1.5 rounded-md px-2 py-1.5 transition-all",
               isSuccessFiltered
                 ? "bg-green-500/20 text-green-700 hover:bg-green-500/30"
                 : "text-muted-foreground hover:text-foreground hover:bg-green-200/50",
             )}
           >
             <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
+            <span className="hidden text-xs font-medium xl:inline">Success</span>
             <span className="text-xs font-medium">{queryLogger.counts.success}</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             onClick={() => {
               toggleStatusFilter("pending");
               if (!isExpanded) {
@@ -170,18 +175,22 @@ export const QueryLoggerContent = ({
               }
             }}
             title="Filter by pending"
+            aria-label={`Filter pending queries (${queryLogger.counts.pending})`}
+            aria-pressed={Boolean(isPendingFiltered)}
             className={cx(
               buttonVariants({ size: "sm", variant: "ghost" }),
-              "transition-all rounded-md px-2 py-1.5 flex items-center gap-1.5",
+              "flex items-center gap-1.5 rounded-md px-2 py-1.5 transition-all",
               isPendingFiltered
                 ? "bg-amber-500/20 text-amber-700 hover:bg-amber-500/30"
                 : "text-muted-foreground hover:text-foreground hover:bg-amber-200/50",
             )}
           >
             <div className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+            <span className="hidden text-xs font-medium xl:inline">Pending</span>
             <span className="text-xs font-medium">{queryLogger.counts.pending}</span>
-          </div>
-          <div
+          </button>
+          <button
+            type="button"
             onClick={() => {
               toggleStatusFilter("error");
               if (!isExpanded) {
@@ -189,17 +198,20 @@ export const QueryLoggerContent = ({
               }
             }}
             title="Filter by error"
+            aria-label={`Filter failed queries (${queryLogger.counts.error})`}
+            aria-pressed={Boolean(isErrorFiltered)}
             className={cx(
               buttonVariants({ size: "sm", variant: "ghost" }),
-              "transition-all rounded-md px-2 py-1.5 flex items-center gap-1.5",
+              "flex items-center gap-1.5 rounded-md px-2 py-1.5 transition-all",
               isErrorFiltered
                 ? "bg-red-500/20 text-red-700 hover:bg-red-500/30"
                 : "text-muted-foreground hover:text-foreground hover:bg-red-200/50",
             )}
           >
             <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+            <span className="hidden text-xs font-medium xl:inline">Failed</span>
             <span className="text-xs font-medium">{queryLogger.counts.error}</span>
-          </div>
+          </button>
         </HStack>
         <HStack align="center">
           <Select.SelectRoot
@@ -276,6 +288,7 @@ export const QueryLoggerContent = ({
             }}
             disabled={queryLogger.isClearing}
             title="Clear history"
+            aria-label="Clear query history"
             className="text-muted-foreground hover:text-foreground"
           >
             <Trash2 className="h-4 w-4" />

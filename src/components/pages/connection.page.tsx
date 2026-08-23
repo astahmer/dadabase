@@ -482,7 +482,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                   activeConnectionUrl={activeConnectionUrl}
                   onAddConnection={() => setShowAddConnectionDrawer(true)}
                   onOpenAiAssistant={() => setAiAssistantOpen(true)}
-                  onOpenSettings={() => setAiAssistantOpen(true)}
                   onOpenHistory={() => setQueryLoggerPaletteView("history")}
                   onOpenFavorites={() => setQueryLoggerPaletteView("favorites")}
                 />

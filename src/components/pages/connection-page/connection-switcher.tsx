@@ -9,7 +9,6 @@ import {
   Palette,
   RefreshCw,
   RotateCcw,
-  Settings,
   Sparkles,
   Star,
 } from "lucide-react";
@@ -39,7 +38,6 @@ interface ConnectionSwitcherProps {
   onOpenAiAssistant?: () => void;
   onOpenHistory?: () => void;
   onOpenFavorites?: () => void;
-  onOpenSettings?: () => void;
 }
 
 const railBtnClass =
@@ -276,30 +274,16 @@ export const ConnectionSwitcher = (props: ConnectionSwitcherProps) => {
       )}
 
       {props.onOpenAiAssistant && (
-        <Tooltip content="AI assistant (BYOK)" positioning={{ placement: "right" }}>
+        <Tooltip content="AI assistant and setup (BYOK)" positioning={{ placement: "right" }}>
           <Button
             size="icon"
             variant="ghost"
             className={railBtnClass}
-            aria-label="Open AI assistant"
+            aria-label="Open AI assistant and setup"
             data-testid="open-ai-assistant"
             onClick={props.onOpenAiAssistant}
           >
             <Sparkles className="h-4 w-4" />
-          </Button>
-        </Tooltip>
-      )}
-
-      {props.onOpenSettings && (
-        <Tooltip content="Settings (API key, AI)" positioning={{ placement: "right" }}>
-          <Button
-            size="icon"
-            variant="ghost"
-            className={railBtnClass}
-            aria-label="Settings"
-            onClick={props.onOpenSettings}
-          >
-            <Settings className="h-4 w-4" />
           </Button>
         </Tooltip>
       )}

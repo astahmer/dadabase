@@ -25,6 +25,12 @@ Then("the new connection should default to read-only", async ({ page }) => {
   await expect(readOnly).toBeChecked();
 });
 
+Then("SQLite connections should default to read-only", async ({ page }) => {
+  await page.getByRole("combobox", { name: "Type" }).click();
+  await page.getByRole("option", { name: "SQLite", exact: true }).click();
+  await expect(page.getByTestId("connection-readonly-checkbox")).toBeChecked();
+});
+
 When("I save the blank connection form", async ({ page }) => {
   await page.getByTestId("connection-save").click();
 });
@@ -34,8 +40,15 @@ When("I save a SQLite connection named {string}", async ({ page }, connectionNam
     sampleDbPath: string;
   };
 
-  await page.getByRole("combobox", { name: "Type" }).click();
-  await page.getByRole("option", { name: "SQLite", exact: true }).click();
+  if (
+    !(await page
+      .getByLabel("File Path")
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await page.getByRole("combobox", { name: "Type" }).click();
+    await page.getByRole("option", { name: "SQLite", exact: true }).click();
+  }
   await page.getByLabel("Name").fill(connectionName);
   await page.getByLabel("File Path").fill(sampleDbPath);
   await page.getByTestId("connection-save").click();

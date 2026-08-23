@@ -8,5 +8,6 @@ Feature: Connection setup
 
   Scenario: A SQLite connection can be saved from individual fields
     Given I open the connections home page
+    Then SQLite connections should default to read-only
     When I save a SQLite connection named "e2e-new-sqlite"
     Then I should see the saved connection named "e2e-new-sqlite"

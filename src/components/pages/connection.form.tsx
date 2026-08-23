@@ -360,6 +360,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                     <field.TextField label="File Path" placeholder="/path/to/database.db" />
                   )}
                 </form.AppField>
+                <ReadOnlyField />
               </>
             );
           }
@@ -377,7 +378,11 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                 </form.AppField>
                 <form.AppField name="libsqlAuthToken">
                   {(field) => (
-                    <field.TextField label="Auth Token (optional)" placeholder="your-auth-token" />
+                    <field.TextField
+                      type="password"
+                      label="Auth Token (optional)"
+                      placeholder="your-auth-token"
+                    />
                   )}
                 </form.AppField>
                 <ReadOnlyField />
