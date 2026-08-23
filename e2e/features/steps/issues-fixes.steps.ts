@@ -254,3 +254,18 @@ Then("I can reach the order-by button in the filters toolbar", async ({ page }) 
   expect(box).toBeTruthy();
   expect(box!.width).toBeGreaterThan(8);
 });
+
+Then("the mobile sidebar should start collapsed", async ({ page }) => {
+  await expect(page.getByRole("button", { name: "Show sidebar", exact: true })).toBeVisible();
+  await expect(page.getByTestId("connection-sidebar")).toHaveAttribute("data-collapsed", "true");
+});
+
+When("I open the mobile sidebar", async ({ page }) => {
+  await page.getByRole("button", { name: "Show sidebar", exact: true }).click();
+});
+
+Then("I should be able to browse tables in the mobile sidebar", async ({ page }) => {
+  const sidebar = page.getByTestId("connection-sidebar");
+  await expect(page.getByRole("button", { name: "Hide sidebar", exact: true })).toBeVisible();
+  await expect(sidebar.getByRole("option", { name: "users", exact: true })).toBeVisible();
+});

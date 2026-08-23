@@ -104,3 +104,10 @@ Feature: Connection page UX issues from issues.md
     Given I open the "users" table
     When I resize the viewport to 1280 by 720
     Then I can reach the order-by button in the filters toolbar
+
+  Scenario: Mobile starts with a full-width table workspace
+    Given I open the "users" table
+    When I resize the viewport to 390 by 844
+    Then the mobile sidebar should start collapsed
+    When I open the mobile sidebar
+    Then I should be able to browse tables in the mobile sidebar

@@ -240,6 +240,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const [queryLoggerPaletteView, setQueryLoggerPaletteView] = useState<
     "favorites" | "history" | null
   >(null);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
   const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
   // Splitter percentages must be deterministic during SSR. Calculating from the
@@ -261,8 +262,16 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     from: "/connections/$connectionName",
     select: (s) => s.zenMode === true,
   });
+  useEffect(() => {
+    const compactViewport = window.matchMedia("(max-width: 639px)");
+    const updateCompactViewport = () => setIsCompactViewport(compactViewport.matches);
+
+    updateCompactViewport();
+    compactViewport.addEventListener("change", updateCompactViewport);
+    return () => compactViewport.removeEventListener("change", updateCompactViewport);
+  }, []);
   const sidebarSplitterDefaultSize = getSidebarSplitterDefaultSize({
-    zenMode: layoutZenMode,
+    zenMode: layoutZenMode || isCompactViewport,
     sidebarSize,
     sidebarMinSize,
   });
@@ -276,7 +285,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       search: (prev) => ({ ...prev, queryLoggerSize: 48 }),
     });
   };
-  const sidebarPanelMinSize = layoutZenMode ? 0 : sidebarMinSize;
+  const sidebarPanelMinSize = layoutZenMode || isCompactViewport ? 0 : sidebarMinSize;
+  const sidebarPanelMaxSize = isCompactViewport ? 80 : sidebarMaxSize;
   const queryLoggerPanelMinSize = 0;
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 
@@ -447,7 +457,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       {/* Main Layout */}
       <div className="flex h-full min-h-0 flex-1 flex-col">
         <Splitter.Root
-          key={getZenLayoutRemountKey(layoutZenMode, "sidebar")}
+          key={`${getZenLayoutRemountKey(layoutZenMode, "sidebar")}:${isCompactViewport ? "compact" : "wide"}`}
           orientation="horizontal"
           defaultSize={[...sidebarSplitterDefaultSize]}
           panels={[
@@ -456,7 +466,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
               collapsible: true,
               collapsedSize: 0,
               minSize: sidebarPanelMinSize,
-              maxSize: sidebarMaxSize,
+              maxSize: sidebarPanelMaxSize,
             },
             {
               id: panels.mainContent,
@@ -464,14 +474,14 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             },
           ]}
           onResizeEnd={(details) => {
-            if (layoutZenMode) return;
+            if (layoutZenMode || isCompactViewport) return;
             const size = details.size[0];
             void navigate({
               search: (prev) => ({ ...prev, sidebarSize: size }),
             });
           }}
           onExpand={(details) => {
-            if (layoutZenMode) return;
+            if (layoutZenMode || isCompactViewport) return;
             if (details.panelId === panels.sidebar) {
               void navigate({
                 search: (prev) => ({ ...prev, sidebarSize: details.size }),
@@ -479,7 +489,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             }
           }}
           onCollapse={(details) => {
-            if (layoutZenMode) return;
+            if (layoutZenMode || isCompactViewport) return;
             if (details.panelId === panels.sidebar) {
               void navigate({
                 search: (prev) => ({ ...prev, sidebarSize: 0 }),
@@ -598,13 +608,19 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                       onToggleSidebar={() => {
                         if (sidebarSplitterCtx.isPanelExpanded(panels.sidebar)) {
                           sidebarSplitterCtx.collapsePanel(panels.sidebar);
-                          void navigate({
-                            search: (prev) => ({ ...prev, sidebarSize: 0 }),
-                          });
+                          if (!isCompactViewport) {
+                            void navigate({
+                              search: (prev) => ({ ...prev, sidebarSize: 0 }),
+                            });
+                          }
                           return;
                         }
 
-                        sidebarSplitterCtx.expandPanel(panels.sidebar);
+                        sidebarSplitterCtx.expandPanel(
+                          panels.sidebar,
+                          isCompactViewport ? 60 : undefined,
+                        );
+                        if (isCompactViewport) return;
                         const size = sidebarSplitterCtx.getPanelSize(panels.sidebar);
                         void navigate({
                           search: (prev) => ({ ...prev, sidebarSize: size }),
