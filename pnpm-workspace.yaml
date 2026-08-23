@@ -23,25 +23,25 @@ patchedDependencies:
   kysely-pglite@0.6.1: patches/kysely-pglite@0.6.1.patch
 
 catalog:
-  "@effect/experimental": 0.61.0
-  "@effect/language-service": 0.87.0
+  "@effect/experimental": 0.61.1
+  "@effect/language-service": 0.87.2
   "@effect/opentelemetry": 0.64.0
-  "@effect/platform": 0.97.0
+  "@effect/platform": 0.97.1
   "@effect/platform-browser": 0.77.0
-  "@effect/platform-node": 0.108.0
-  "@effect/rpc": 0.76.0
-  "@effect/sql": 0.52.0
+  "@effect/platform-node": 0.108.1
+  "@effect/rpc": 0.76.2
+  "@effect/sql": 0.52.1
   "@effect/sql-kysely": 0.48.0
   "@effect/sql-libsql": 0.42.0
   "@effect/sql-mysql2": 0.53.0
   "@effect/sql-pg": 0.53.0
   "@effect/sql-sqlite-node": 0.53.0
   "@effect/vitest": 0.30.0
-  "@effect/workflow": 0.19.0
-  "@electric-sql/pglite": 0.5.4
-  "@electric-sql/pglite-tools": 0.4.4
+  "@effect/workflow": 0.19.1
+  "@electric-sql/pglite": 0.5.6
+  "@electric-sql/pglite-tools": 0.4.6
   drizzle-orm: 0.45.2
-  effect: 3.22.0
+  effect: 3.22.1
 
 enableGlobalVirtualStore: false
 
@@ -58,3 +58,15 @@ preferWorkspacePackages: true
 resolvePeersFromWorkspaceRoot: true
 
 strictPeerDependencies: false
+
+saveExact: true
+
+allowBuilds:
+  '@parcel/watcher': true
+  better-sqlite3: true
+  cpu-features: true
+  esbuild: true
+  lefthook: true
+  msgpackr-extract: true
+  protobufjs: true
+  ssh2: true
