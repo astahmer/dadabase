@@ -1,6 +1,7 @@
 /**
  * Redacts secrets from a connection URL for display/logging.
  * - URL userinfo password → `*****`
+ * - Known credential query parameters → `*****`
  * - Embedded `dadabase_ssh` JSON blob: password field → `*****` (keeps host/user for debug)
  */
 export function redactConnectionUrl(url: string): string {
@@ -8,6 +9,12 @@ export function redactConnectionUrl(url: string): string {
     const urlObj = new URL(url);
     if (urlObj.password) {
       urlObj.password = "*****";
+    }
+
+    for (const key of ["authToken", "token", "password", "secret"]) {
+      if (urlObj.searchParams.has(key)) {
+        urlObj.searchParams.set(key, "*****");
+      }
     }
 
     const sshParam = urlObj.searchParams.get("dadabase_ssh");

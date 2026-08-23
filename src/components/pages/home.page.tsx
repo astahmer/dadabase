@@ -9,11 +9,14 @@ import {
   LucideAlertCircle,
   LucideCheck,
   LucideWifi,
+  Search,
+  ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
 
 import type { DatabaseDialect } from "#src/db/dialect.ts";
 
+import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { deleteDbConnectionMutation } from "#src/server/db-connection/start-fns/delete-db-connection.start.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
@@ -22,8 +25,10 @@ import { tryConnectionServerFn } from "#src/server/introspection/start-fns/try-c
 import { DataTable } from "../data-table/data-table.tsx";
 import { useDataTable } from "../data-table/use-data-table.ts";
 import { AlertDialog } from "../ui/alert-dialog.tsx";
+import { Badge } from "../ui/badge.tsx";
 import { Button } from "../ui/button.tsx";
 import { DarkModeToggle } from "../ui/dark-mode-toggle.tsx";
+import { Input } from "../ui/input.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/menu.tsx";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet.tsx";
@@ -40,13 +45,144 @@ interface EditableConnection {
   updated_at: number;
 }
 
+function getEndpointLabel(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "file:") {
+      const filename = parsed.pathname.split("/").filter(Boolean).at(-1) || "SQLite file";
+      return `Local file · ${filename}`;
+    }
+  } catch {
+    // Fall back to the safe display value below.
+  }
+
+  return redactConnectionUrl(url);
+}
+
+function ConnectionActions({ connection }: { connection: EditableConnection }) {
+  const testConnection = useServerFn(tryConnectionServerFn);
+  const [state, setState] = useState<"idle" | "success" | "failure">("idle");
+
+  const testConnectionUrl = async () => {
+    const result = await testConnection({
+      data: { url: connection.url, dialect: connection.dialect },
+    });
+
+    if (result.success) {
+      setState("success");
+      toaster.create({
+        title: (
+          <HStack align="center" className="text-chart-2">
+            <LucideCheck className="h-3 w-3" />
+            Connection successful
+          </HStack>
+        ),
+        description: "You can open this connection now.",
+      });
+      return;
+    }
+
+    setState("failure");
+    toaster.create({
+      title: (
+        <HStack align="center" className="text-chart-1">
+          <LucideAlertCircle className="h-3 w-3" />
+          Connection failed
+        </HStack>
+      ),
+      description: result.message,
+    });
+  };
+
+  return (
+    <HStack className="justify-end gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        aria-label={`Test ${connection.name}`}
+        onClick={() => void testConnectionUrl()}
+      >
+        {state === "idle" ? (
+          <>
+            <LucideWifi className="h-4 w-4" />
+            Test
+          </>
+        ) : state === "success" ? (
+          <>
+            <LucideCheck className="text-chart-2 h-4 w-4" />
+            Working
+          </>
+        ) : (
+          <>
+            <LucideAlertCircle className="text-chart-1 h-4 w-4" />
+            Failed
+          </>
+        )}
+      </Button>
+      <Link to="/connections/$connectionName" params={{ connectionName: connection.name }}>
+        <Button size="sm">Open</Button>
+      </Link>
+    </HStack>
+  );
+}
+
+function ConnectionRowMenu({
+  connection,
+  onEdit,
+}: {
+  connection: EditableConnection;
+  onEdit: (connection: EditableConnection) => void;
+}) {
+  const deleteMutation = useMutation(deleteDbConnectionMutation);
+
+  return (
+    <Menu>
+      <MenuTrigger asChild>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="rounded-full shadow-none"
+          aria-label={`Open actions for ${connection.name}`}
+        >
+          <EllipsisIcon size={16} aria-hidden="true" />
+        </Button>
+      </MenuTrigger>
+      <Portal>
+        <MenuContent>
+          <MenuItem value="edit" onClick={() => onEdit(connection)}>
+            Edit connection
+          </MenuItem>
+          <AlertDialog
+            trigger={<MenuItem value="delete">Delete connection</MenuItem>}
+            title={`Delete ${connection.name}?`}
+            description="This removes the saved connection from Dadabase. It does not affect the database."
+            onConfirm={() => {
+              void deleteMutation.mutateAsync({ data: { id: connection.id } });
+            }}
+          />
+        </MenuContent>
+      </Portal>
+    </Menu>
+  );
+}
+
 export const HomePage = () => {
   const [editingConnection, setEditingConnection] = useState<EditableConnection | null>(null);
+  const [connectionSearch, setConnectionSearch] = useState("");
 
   const savedDatabaseList = useSuspenseQuery(listDbConnectionQueryOptions);
+  const normalizedSearch = connectionSearch.trim().toLocaleLowerCase();
+  const visibleConnections = savedDatabaseList.data.filter((connection) => {
+    if (!normalizedSearch) return true;
+    return [connection.name, connection.dialect, getEndpointLabel(connection.url)]
+      .join(" ")
+      .toLocaleLowerCase()
+      .includes(normalizedSearch);
+  });
+
   const table = useDataTable({
     enableColumnPinning: false,
-    data: savedDatabaseList.data,
+    data: visibleConnections,
     columns: [
       {
         accessorKey: "name",
@@ -63,81 +199,23 @@ export const HomePage = () => {
             >
               {ctx.row.original.name}
             </Link>
+            {isReadOnlyConnection(ctx.row.original.url) ? (
+              <Badge colorPalette="success" variant="outline" size="2xs" className="mt-1">
+                <ShieldCheck className="mr-1 size-3" />
+                Read-only
+              </Badge>
+            ) : (
+              <Badge colorPalette="warning" variant="outline" size="2xs" className="mt-1">
+                Writes enabled
+              </Badge>
+            )}
           </Tooltip>
         ),
       },
       {
         id: "_connect",
-        size: 220,
-        cell: (ctx) => {
-          // biome-ignore lint/correctness/useHookAtTopLevel: ok
-          const testPgConnectionUrl = useServerFn(tryConnectionServerFn);
-          // biome-ignore lint/correctness/useHookAtTopLevel: ok
-          const [state, setState] = useState("idle");
-          return (
-            <HStack>
-              <Button
-                className="ml-auto"
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  const canConnect = await testPgConnectionUrl({
-                    data: {
-                      url: ctx.row.original.url,
-                      dialect: ctx.row.original.dialect,
-                    },
-                  });
-                  if (canConnect.success) {
-                    setState("success");
-                    toaster.create({
-                      title: (
-                        <HStack align="center" className="text-chart-2">
-                          <LucideCheck className="h-3 w-3" />
-                          Connection successful
-                        </HStack>
-                      ),
-                      description: "You can now connect to this database",
-                    });
-                  } else {
-                    setState("failure");
-                    toaster.create({
-                      title: (
-                        <HStack align="center" className="text-chart-1">
-                          <LucideAlertCircle className="h-3 w-3" />
-                          Connection failed
-                        </HStack>
-                      ),
-                      description: canConnect.message,
-                    });
-                  }
-                }}
-              >
-                {state === "idle" ? (
-                  <>
-                    <LucideWifi className="h-4 w-4" />
-                    Test
-                  </>
-                ) : state === "success" ? (
-                  <>
-                    <LucideCheck className="text-chart-2 h-4 w-4" />
-                    Success
-                  </>
-                ) : (
-                  <>
-                    <LucideAlertCircle className="text-chart-1 h-4 w-4" />
-                    Error
-                  </>
-                )}
-              </Button>
-              <Link
-                to="/connections/$connectionName"
-                params={{ connectionName: ctx.row.original.name }}
-              >
-                <Button size="sm">⚡ Connect</Button>
-              </Link>
-            </HStack>
-          );
-        },
+        size: 180,
+        cell: (ctx) => <ConnectionActions connection={ctx.row.original} />,
       },
       { accessorKey: "dialect", header: "Dialect" },
       // {
@@ -167,10 +245,10 @@ export const HomePage = () => {
         cell: (ctx) => (
           <div className="flex min-w-0 items-center gap-1">
             <span className="text-muted-foreground truncate text-xs">
-              {redactConnectionUrl(ctx.row.original.url)}
+              {getEndpointLabel(ctx.row.original.url)}
             </span>
             <Clipboard.Root value={ctx.row.original.url}>
-              <Tooltip content="Copy connection URL">
+              <Tooltip content="Copy connection URL (includes credentials)">
                 <Clipboard.Trigger asChild>
                   <Button variant="ghost" size="icon">
                     <Clipboard.Indicator copied={<CheckIcon />}>
@@ -187,82 +265,78 @@ export const HomePage = () => {
         accessorKey: "actions",
         header: "Actions",
         size: 80,
-        cell: (ctx) => {
-          // biome-ignore lint/correctness/useHookAtTopLevel: ok
-          const deleteMutation = useMutation(deleteDbConnectionMutation);
-          return (
-            <Menu>
-              <MenuTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="rounded-full shadow-none"
-                  aria-label="Open menu"
-                >
-                  <EllipsisIcon size={16} aria-hidden="true" />
-                </Button>
-              </MenuTrigger>
-              <Portal>
-                <MenuContent>
-                  <MenuItem value="edit" onClick={() => setEditingConnection(ctx.row.original)}>
-                    Edit
-                  </MenuItem>
-                  <AlertDialog
-                    trigger={<MenuItem value="delete">Delete</MenuItem>}
-                    title="Delete connection?"
-                    description="Are you sure you want to delete this connection?"
-                    onConfirm={() => {
-                      deleteMutation.mutateAsync({
-                        data: { id: ctx.row.original.id },
-                      });
-                    }}
-                  />
-                </MenuContent>
-              </Portal>
-            </Menu>
-          );
-        },
+        cell: (ctx) => (
+          <ConnectionRowMenu connection={ctx.row.original} onEdit={setEditingConnection} />
+        ),
       },
     ],
   });
 
   return (
-    <div className="bg-background min-h-screen px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
+    <div className="bg-background min-h-screen px-6 py-10 lg:px-10">
+      <div className="mx-auto max-w-7xl">
         {/* Header Section */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-10 flex items-end justify-between gap-6">
           <div className="space-y-2">
-            <h1 className="text-foreground text-4xl font-bold tracking-tight">
+            <p className="text-primary text-xs font-semibold tracking-[0.18em] uppercase">
+              Dadabase workspace
+            </p>
+            <h1 className="text-foreground text-4xl font-semibold tracking-tight">
               Database Connections
             </h1>
             <p className="text-muted-foreground text-lg">
-              Manage and test your database connections in one place
+              Open a saved database or set up a new, safe connection.
             </p>
           </div>
-          <DarkModeToggle />
+          <DarkModeToggle aria-label="Toggle application theme" />
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Saved Connections - Takes 2/3 on larger screens */}
-          <div className="space-y-4 lg:col-span-2">
-            <div className="flex items-center justify-between">
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_24rem]">
+          <div className="space-y-4">
+            <div className="flex items-end justify-between gap-6">
               <div>
-                <h2 className="text-foreground text-2xl font-semibold">Saved Connections</h2>
+                <h2 className="text-foreground text-2xl font-semibold">Saved connections</h2>
                 <p className="text-muted-foreground mt-1 text-sm">
                   {savedDatabaseList.data.length} connection
                   {savedDatabaseList.data.length !== 1 ? "s" : ""} found
                 </p>
               </div>
+              {savedDatabaseList.data.length > 0 ? (
+                <div className="relative w-72 shrink-0">
+                  <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                  <Input
+                    value={connectionSearch}
+                    onChange={(event) => setConnectionSearch(event.target.value)}
+                    aria-label="Search saved connections"
+                    placeholder="Search connections"
+                    className="pl-9"
+                  />
+                </div>
+              ) : null}
             </div>
-            {savedDatabaseList.data.length ? (
-              <div className="bg-card w-full overflow-x-auto rounded-lg border shadow-sm">
-                <div className="min-w-[760px]">
+            {visibleConnections.length ? (
+              <div className="bg-card w-full overflow-hidden rounded-xl border shadow-sm">
+                <div className="min-w-[700px]">
                   <DataTable table={table} size="comfortable" resizable={false} />
                 </div>
               </div>
+            ) : savedDatabaseList.data.length ? (
+              <div className="bg-card rounded-xl border border-dashed px-6 py-12 text-center">
+                <p className="text-foreground font-medium">No matching connections</p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Search by connection name, database type, or endpoint.
+                </p>
+                <Button
+                  variant="link"
+                  className="mt-2 h-auto p-0"
+                  onClick={() => setConnectionSearch("")}
+                >
+                  Clear search
+                </Button>
+              </div>
             ) : (
-              <div className="bg-card rounded-lg border border-dashed p-6">
+              <div className="bg-card rounded-xl border border-dashed px-6 py-12">
                 <p className="text-foreground font-medium">No connections yet</p>
                 <p className="text-muted-foreground mt-1 text-sm">
                   Start with a local SQLite file or a read-only database connection.
@@ -271,22 +345,24 @@ export const HomePage = () => {
             )}
           </div>
 
-          {/* Add New Connection - Takes 1/3 on larger screens */}
-          <div className="lg:col-span-1">
+          <aside>
             <div className="sticky top-8">
-              <div className="bg-card overflow-hidden rounded-lg border shadow-md">
-                {/* Header */}
-                <div className="from-primary/5 to-accent/5 border-b bg-linear-to-r px-4 py-4">
-                  <h2 className="text-foreground text-sm font-semibold">Add Connection</h2>
-                  <p className="text-muted-foreground mt-1 text-xs">Create a new connection</p>
+              <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
+                <div className="border-b px-5 py-5">
+                  <p className="text-primary text-xs font-semibold tracking-[0.16em] uppercase">
+                    New connection
+                  </p>
+                  <h2 className="text-foreground mt-1 text-lg font-semibold">Connect safely</h2>
+                  <p className="text-muted-foreground mt-1 text-sm leading-5">
+                    Read-only is on by default. Turn it off only when you intend to make changes.
+                  </p>
                 </div>
-                {/* Form Content */}
-                <div className="p-4">
+                <div className="p-5">
                   <ConnectionForm mode="create" />
                 </div>
               </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
 

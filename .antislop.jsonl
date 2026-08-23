@@ -1,0 +1,1 @@
+{"kind":"rule","id":"as_66d9y5wvjmgd","ts":"2026-08-23T13:41:21.422Z","agent":"unknown","text":"Do not call React hooks from a data-table cell callback; render a dedicated cell component so connection-test and delete state follows React's rules of hooks.","tags":["frontend"],"severity":"major"}

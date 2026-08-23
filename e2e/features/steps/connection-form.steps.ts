@@ -60,3 +60,18 @@ Then(
     await expect(page.getByRole("link", { name: connectionName })).toBeVisible({ timeout: 15_000 });
   },
 );
+
+Then("I should see a read-only saved connection", async ({ page }) => {
+  await expect(page.getByText("Read-only", { exact: true }).first()).toBeVisible();
+});
+
+When("I search saved connections for {string}", async ({ page }, query: string) => {
+  await page.getByRole("textbox", { name: "Search saved connections" }).fill(query);
+});
+
+Then(
+  "I should not see the saved connection named {string}",
+  async ({ page }, connectionName: string) => {
+    await expect(page.getByRole("link", { name: connectionName })).toHaveCount(0);
+  },
+);

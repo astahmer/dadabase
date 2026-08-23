@@ -10,6 +10,17 @@ describe("redactConnectionUrl", () => {
     );
   });
 
+  it("masks credential query parameters", () => {
+    const redacted = redactConnectionUrl(
+      "libsql://example.turso.io?authToken=private-token&secret=another-secret",
+    );
+    const parsed = new URL(redacted);
+    expect(parsed.searchParams.get("authToken")).toBe("*****");
+    expect(parsed.searchParams.get("secret")).toBe("*****");
+    expect(redacted).not.toContain("private-token");
+    expect(redacted).not.toContain("another-secret");
+  });
+
   it("masks password inside dadabase_ssh blob", () => {
     const url = withSshTunnelConfig("postgres://db.example:5432/app", {
       host: "bastion",
