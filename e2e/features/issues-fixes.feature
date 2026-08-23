@@ -21,6 +21,7 @@ Feature: Connection page UX issues from issues.md
     Then I should see text "Ask for a query"
     And I should see text "saved"
     And the AI assistant should mention the whole database schema
+    And the AI assistant should require schema-sharing approval
 
   Scenario: SQL editor is unified without preview/editor tabs
     Given I open the "users" table

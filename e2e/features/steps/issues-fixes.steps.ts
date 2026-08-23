@@ -40,6 +40,17 @@ Then("the AI assistant should mention the whole database schema", async ({ page 
   await expect(hint).toContainText(/tables/i);
 });
 
+Then("the AI assistant should require schema-sharing approval", async ({ page }) => {
+  const consent = page.getByTestId("ai-schema-sharing-consent");
+  await expect(consent).toBeVisible();
+  await expect(consent).not.toBeChecked();
+  await expect(
+    page.getByText("Dadabase sends this prompt plus schema, table, and column names", {
+      exact: false,
+    }),
+  ).toBeVisible();
+});
+
 Given("I store a fake OpenAI API key in localStorage", async ({ page }) => {
   await page.evaluate(() => {
     window.localStorage.setItem(

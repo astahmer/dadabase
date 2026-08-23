@@ -25,6 +25,7 @@ import type { DbConnection } from "../connection.types.ts";
 
 import { Badge } from "../../ui/badge.tsx";
 import { Button } from "../../ui/button.tsx";
+import { Checkbox, CheckboxControl } from "../../ui/checkbox.tsx";
 import { Input } from "../../ui/input.tsx";
 import { Label } from "../../ui/label.tsx";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../../ui/sheet.tsx";
@@ -60,6 +61,7 @@ export const ConnectionAiAssistantDrawer = ({
   const [hasKey, setHasKey] = useState(false);
   const [keyDraft, setKeyDraft] = useState("");
   const [question, setQuestion] = useState("");
+  const [hasApprovedSchemaSharing, setHasApprovedSchemaSharing] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<
     Array<{ role: "user" | "assistant"; content: string; sql?: string }>
@@ -70,6 +72,7 @@ export const ConnectionAiAssistantDrawer = ({
     setHasKey(hasStoredOpenAiApiKey());
     setKeyDraft(getStoredOpenAiApiKey() ?? "");
     setLastError(null);
+    setHasApprovedSchemaSharing(false);
   }, [open]);
 
   const { columnMetadata } = useTableColumnMetadata({
@@ -186,7 +189,10 @@ export const ConnectionAiAssistantDrawer = ({
   };
 
   const canGenerate =
-    Boolean(question.trim()) && schemaContext.tables.length > 0 && !allTablesColumnsQuery.isLoading;
+    Boolean(question.trim()) &&
+    hasApprovedSchemaSharing &&
+    schemaContext.tables.length > 0 &&
+    !allTablesColumnsQuery.isLoading;
 
   const generateMutation = useMutation({
     mutationFn: async () => {
@@ -268,9 +274,8 @@ export const ConnectionAiAssistantDrawer = ({
             AI assistant
           </SheetTitle>
           <SheetDescription className="text-xs">
-            BYOK OpenAI — key stays in this browser (`dadabase.openai-api-key`). Requests go through
-            a thin server proxy (key is not stored server-side); direct browser calls are blocked by
-            CORS.
+            BYOK OpenAI — key stays in this browser (`dadabase.openai-api-key`). Requests use a thin
+            server proxy; the key is not stored server-side.
           </SheetDescription>
         </SheetHeader>
 
@@ -349,6 +354,25 @@ export const ConnectionAiAssistantDrawer = ({
                     ? "Loading schema metadata…"
                     : "Select a schema to include database context."}
               </p>
+              <label className="border-border bg-muted/30 flex items-start gap-2 rounded-md border p-3 text-xs leading-5">
+                <Checkbox
+                  checked={hasApprovedSchemaSharing}
+                  onCheckedChange={(details) =>
+                    setHasApprovedSchemaSharing(details.checked === true)
+                  }
+                  data-testid="ai-schema-sharing-consent"
+                >
+                  <CheckboxControl />
+                </Checkbox>
+                <span>
+                  <span className="font-medium">Share schema context with OpenAI</span>
+                  <span className="text-muted-foreground block">
+                    Dadabase sends this prompt plus schema, table, and column names to draft SQL. It
+                    does not send table rows or query results. You review generated SQL before it
+                    runs.
+                  </span>
+                </span>
+              </label>
               {chatMessages.length > 0 ? (
                 <div
                   className="border-border max-h-48 space-y-2 overflow-auto rounded-md border p-2"
