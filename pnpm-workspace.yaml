@@ -5,6 +5,23 @@ packages:
 
 autoInstallPeers: true
 
+# Keep dependency metadata with the workspace configuration. pnpm 10+ no longer
+# reads these settings from package.json.
+packageExtensions:
+  "@effect/vitest":
+    peerDependencies:
+      vitest: "*"
+  vite-tsconfig-paths:
+    peerDependencies:
+      typescript: "*"
+  kysely-codegen:
+    peerDependencies:
+      kysely: "*"
+      "@libsql/kysely-libsql": "*"
+
+patchedDependencies:
+  kysely-pglite@0.6.1: patches/kysely-pglite@0.6.1.patch
+
 catalog:
   "@effect/experimental": 0.61.0
   "@effect/language-service": 0.87.0

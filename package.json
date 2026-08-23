@@ -78,7 +78,7 @@
     "@tanstack/react-virtual": "3.14.7",
     "@tanstack/router-plugin": "1.168.23",
     "@tanstack/store": "0.11.0",
-    "@types/ssh2": "^1.15.5",
+    "@types/ssh2": "1.15.5",
     "ag-grid-community": "36.0.1",
     "ag-grid-react": "36.0.1",
     "ai": "7.0.32",
@@ -91,7 +91,7 @@
     "kysely": "0.29.4",
     "lucide-react": "1.25.0",
     "monaco-editor": "0.56.0",
-    "mysql2": "^3.23.1",
+    "mysql2": "3.23.1",
     "nanoid": "6.0.0",
     "pg": "8.22.0",
     "pg-connection-string": "2.14.0",
@@ -105,7 +105,7 @@
     "remark-gfm": "4.0.1",
     "sql-formatter": "15.8.2",
     "srvx": "0.11.22",
-    "ssh2": "^1.17.0",
+    "ssh2": "1.17.0",
     "tailwind-merge": "3.6.0",
     "tailwindcss": "4.3.3",
     "tm-themes": "1.12.2",
@@ -144,28 +144,5 @@
     "vite": "8.1.5",
     "vitest": "4.1.10"
   },
-  "packageManager": "pnpm@10.21.0+sha512.da3337267e400fdd3d479a6c68079ac6db01d8ca4f67572083e722775a796788a7a9956613749e000fac20d424b594f7a791a5f4e2e13581c5ef947f26968a40",
-  "pnpm": {
-    "packageExtensions": {
-      "@effect/vitest": {
-        "peerDependencies": {
-          "vitest": "*"
-        }
-      },
-      "vite-tsconfig-paths": {
-        "peerDependencies": {
-          "typescript": "*"
-        }
-      },
-      "kysely-codegen": {
-        "peerDependencies": {
-          "kysely": "*",
-          "@libsql/kysely-libsql": "*"
-        }
-      }
-    },
-    "patchedDependencies": {
-      "kysely-pglite@0.6.1": "patches/kysely-pglite@0.6.1.patch"
-    }
-  }
+  "packageManager": "pnpm@11.23.0"
 }
