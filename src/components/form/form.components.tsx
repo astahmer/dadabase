@@ -60,7 +60,7 @@ export function TextField({
 }: {
   label: string;
   placeholder?: string;
-  type?: "number" | "text";
+  type?: "number" | "password" | "text";
   labelSize?: VariantProps<typeof labelVariants>["size"];
 }) {
   const field = useFieldContext<string | number>();

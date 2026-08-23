@@ -85,17 +85,17 @@ const connectionFormSchema = z
   );
 
 const defaultValues = {
-  connectionName: "New connection",
+  connectionName: "",
   connectionType: DatabaseDialect.Postgres as z.infer<typeof connectionType>,
   filePath: "",
   libsqlAuthToken: "",
-  connectionUrl: "postgres://localhost:5432/dadabase",
-  host: "localhost",
+  connectionUrl: "",
+  host: "",
   port: 5432,
-  databaseName: "dadabase",
-  user: "user",
-  password: "password",
-  readOnly: false,
+  databaseName: "",
+  user: "",
+  password: "",
+  readOnly: true,
   sslMode: null as SslMode | null,
   sshHost: "",
   sshPort: 22,
@@ -124,47 +124,17 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
       onChange: connectionFormSchema,
     },
     onSubmitInvalid(props) {
-      console.log(props.formApi.getAllErrors(), props.value);
-      toaster.create({ title: "Invalid form" });
+      toaster.create({
+        title: "Check connection details",
+        description: "Enter a name and a valid connection URL or database file path.",
+        type: "error",
+      });
     },
     onSubmit: async (ctx) => {
       const isCreate = mode === "create";
       const connectionType = ctx.value.connectionType;
 
-      // Build the connection URL based on type
-      let connectionUrl = ctx.value.connectionUrl;
-      if (connectionType === DatabaseDialect.SQLite) {
-        // libsql client accepts file: URLs for local SQLite databases
-        connectionUrl = ctx.value.filePath.startsWith("file:")
-          ? ctx.value.filePath
-          : `file:${ctx.value.filePath}`;
-      } else if (connectionType === DatabaseDialect.LibSQL) {
-        if (ctx.value.libsqlAuthToken) {
-          connectionUrl = `${ctx.value.connectionUrl}?authToken=${ctx.value.libsqlAuthToken}`;
-        } else {
-          connectionUrl = ctx.value.connectionUrl;
-        }
-      }
-
-      // Local SQLite file: URLs don't round-trip safely through the WHATWG URL parser used by
-      // withReadOnlyFlag (relative paths get rewritten), so the marker is postgres/libSQL only.
-      if (connectionType !== DatabaseDialect.SQLite) {
-        connectionUrl = withReadOnlyFlag(connectionUrl, ctx.value.readOnly);
-        if (ctx.value.sslMode) {
-          connectionUrl = applySslMode(connectionUrl, ctx.value.sslMode);
-        }
-        if (ctx.value.sshHost.trim() && ctx.value.sshUser.trim()) {
-          connectionUrl = withSshTunnelConfig(connectionUrl, {
-            host: ctx.value.sshHost.trim(),
-            port: ctx.value.sshPort || 22,
-            user: ctx.value.sshUser.trim(),
-            privateKeyPath: ctx.value.sshPrivateKeyPath.trim() || undefined,
-            password: ctx.value.sshPassword || undefined,
-          });
-        } else {
-          connectionUrl = withSshTunnelConfig(connectionUrl, null);
-        }
-      }
+      const connectionUrl = buildConnectionUrl(ctx.value);
 
       try {
         if (isCreate) {
@@ -318,7 +288,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
     return (
       <form.AppField name="readOnly">
         {(field) => (
-          <label className="flex items-center gap-2 text-sm">
+          <label className="border-primary/20 bg-primary/5 flex items-start gap-3 rounded-md border p-3 text-sm">
             <Checkbox
               checked={field.state.value}
               onCheckedChange={(details) => field.handleChange(!!details.checked)}
@@ -326,7 +296,12 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
             >
               <CheckboxControl />
             </Checkbox>
-            Read-only connection (blocks inserts/updates/deletes/DDL and non-SELECT SQL)
+            <span>
+              <span className="text-foreground block font-medium">Read-only connection</span>
+              <span className="text-muted-foreground block leading-5">
+                Blocks writes and schema changes. Turn this off only when you intend to edit data.
+              </span>
+            </span>
           </label>
         )}
       </form.AppField>
@@ -429,7 +404,9 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                     <field.TextField label="URL" placeholder="postgres://user:pass@host:5432/db" />
                   )}
                 </form.AppField>
-                <span className="text-muted-foreground text-xs">Or fill in the fields below</span>
+                <span className="text-muted-foreground text-xs">
+                  Paste a connection URL, or build one from individual fields.
+                </span>
               </Stack>
 
               <Accordion collapsible className="overflow-hidden rounded-md border">
@@ -457,7 +434,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                         {(field) => <field.TextField label="User" />}
                       </form.AppField>
                       <form.AppField name="password" listeners={{ onChange: updateConnectionUrl }}>
-                        {(field) => <field.TextField type="text" label="Password" />}
+                        {(field) => <field.TextField type="password" label="Password" />}
                       </form.AppField>
                     </div>
                   </AccordionItemContent>
@@ -495,7 +472,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                       </form.AppField>
                       <form.AppField name="sshPassword">
                         {(field) => (
-                          <field.TextField type="text" label="SSH password (optional)" />
+                          <field.TextField type="password" label="SSH password (optional)" />
                         )}
                       </form.AppField>
                     </div>
@@ -519,15 +496,38 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
           variant="outline"
           disabled={testState === "loading"}
           onClick={async () => {
-            const connectionUrl = form.getFieldValue("connectionUrl");
-            const connectionType = form.getFieldValue("connectionType");
-
-            if (!connectionUrl) {
-              toaster.create({ title: "Connection URL is required" });
-              return;
-            }
-
             try {
+              const connectionType = form.getFieldValue("connectionType");
+              const filePath = form.getFieldValue("filePath");
+              const connectionUrl = buildConnectionUrl({
+                connectionName: form.getFieldValue("connectionName"),
+                connectionType,
+                filePath,
+                libsqlAuthToken: form.getFieldValue("libsqlAuthToken"),
+                connectionUrl: form.getFieldValue("connectionUrl"),
+                host: form.getFieldValue("host"),
+                port: form.getFieldValue("port"),
+                databaseName: form.getFieldValue("databaseName"),
+                user: form.getFieldValue("user"),
+                password: form.getFieldValue("password"),
+                readOnly: form.getFieldValue("readOnly"),
+                sslMode: form.getFieldValue("sslMode"),
+                sshHost: form.getFieldValue("sshHost"),
+                sshPort: form.getFieldValue("sshPort"),
+                sshUser: form.getFieldValue("sshUser"),
+                sshPrivateKeyPath: form.getFieldValue("sshPrivateKeyPath"),
+                sshPassword: form.getFieldValue("sshPassword"),
+              });
+
+              if (!connectionUrl || (connectionType === DatabaseDialect.SQLite && !filePath)) {
+                toaster.create({
+                  title: "Connection details are required",
+                  description: "Enter a valid connection URL or database file path before testing.",
+                  type: "error",
+                });
+                return;
+              }
+
               setTestState("loading");
               const result = await testConnectionFn({
                 data: {
@@ -578,7 +578,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
           Test Connection
         </Button>
         <form.AppForm>
-          <form.SubscribeButton label={mode === "create" ? "Add" : "Update"} />
+          <form.SubscribeButton label={mode === "create" ? "Save connection" : "Save changes"} />
         </form.AppForm>
       </div>
     </form>
@@ -595,5 +595,36 @@ function getConnectionUrl(props: {
 }) {
   const { connectionType, host, port, databaseName, user, password } = props;
 
+  if (!host || !databaseName) return "";
+
   return `${connectionType}://${user}:${password}@${host}:${port}/${databaseName}`;
+}
+
+function buildConnectionUrl(values: ConnectionFormValues) {
+  if (values.connectionType === DatabaseDialect.SQLite) {
+    return values.filePath.startsWith("file:") ? values.filePath : `file:${values.filePath}`;
+  }
+
+  let connectionUrl = values.connectionUrl.trim();
+  if (values.connectionType === DatabaseDialect.LibSQL && values.libsqlAuthToken.trim()) {
+    const url = new URL(connectionUrl);
+    url.searchParams.set("authToken", values.libsqlAuthToken.trim());
+    connectionUrl = url.toString();
+  }
+
+  connectionUrl = withReadOnlyFlag(connectionUrl, values.readOnly);
+  if (values.sslMode) connectionUrl = applySslMode(connectionUrl, values.sslMode);
+
+  return withSshTunnelConfig(
+    connectionUrl,
+    values.sshHost.trim() && values.sshUser.trim()
+      ? {
+          host: values.sshHost.trim(),
+          port: values.sshPort || 22,
+          user: values.sshUser.trim(),
+          privateKeyPath: values.sshPrivateKeyPath.trim() || undefined,
+          password: values.sshPassword || undefined,
+        }
+      : null,
+  );
 }

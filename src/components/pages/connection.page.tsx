@@ -1,7 +1,7 @@
 import { Splitter } from "@ark-ui/react";
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
 import {
   ArrowDown,
@@ -201,9 +201,18 @@ export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
 
   if (!connection) {
     return (
-      <div className="bg-background h-screen px-4 py-8">
-        <div className="mx-auto max-w-6xl">
-          <h1 className="text-foreground text-2xl font-bold">Connection not found</h1>
+      <div className="bg-background flex min-h-screen items-center px-4 py-8">
+        <div className="bg-card mx-auto w-full max-w-lg rounded-xl border p-6 shadow-sm">
+          <p className="text-muted-foreground text-sm font-medium">Connection unavailable</p>
+          <h1 className="text-foreground mt-2 text-2xl font-semibold tracking-tight">
+            This connection no longer exists
+          </h1>
+          <p className="text-muted-foreground mt-3 text-sm leading-6">
+            It may have been renamed or deleted. Choose another saved connection or add a new one.
+          </p>
+          <Link to="/" className="mt-6 inline-flex">
+            <Button>Back to connections</Button>
+          </Link>
         </div>
       </div>
     );

@@ -52,10 +52,14 @@ export const HomePage = () => {
         accessorKey: "name",
         header: "Name",
         cell: (ctx) => (
-          <Tooltip content={redactConnectionUrl(ctx.row.original.url)} portalled>
+          <Tooltip
+            content={`${ctx.row.original.name} · ${redactConnectionUrl(ctx.row.original.url)}`}
+            portalled
+          >
             <Link
               to="/connections/$connectionName"
               params={{ connectionName: ctx.row.original.name }}
+              className="block truncate font-medium"
             >
               {ctx.row.original.name}
             </Link>
@@ -64,7 +68,7 @@ export const HomePage = () => {
       },
       {
         id: "_connect",
-        size: 280,
+        size: 220,
         cell: (ctx) => {
           // biome-ignore lint/correctness/useHookAtTopLevel: ok
           const testPgConnectionUrl = useServerFn(tryConnectionServerFn);
@@ -158,20 +162,25 @@ export const HomePage = () => {
       // },
       {
         accessorKey: "url",
-        header: "URL",
-        size: 80,
+        header: "Endpoint",
+        size: 220,
         cell: (ctx) => (
-          <Clipboard.Root value={ctx.row.original.url}>
-            <Tooltip content={ctx.row.original.url}>
-              <Clipboard.Trigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Clipboard.Indicator copied={<CheckIcon />}>
-                    <ClipboardIcon />
-                  </Clipboard.Indicator>
-                </Button>
-              </Clipboard.Trigger>
-            </Tooltip>
-          </Clipboard.Root>
+          <div className="flex min-w-0 items-center gap-1">
+            <span className="text-muted-foreground truncate text-xs">
+              {redactConnectionUrl(ctx.row.original.url)}
+            </span>
+            <Clipboard.Root value={ctx.row.original.url}>
+              <Tooltip content="Copy connection URL">
+                <Clipboard.Trigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Clipboard.Indicator copied={<CheckIcon />}>
+                      <ClipboardIcon />
+                    </Clipboard.Indicator>
+                  </Button>
+                </Clipboard.Trigger>
+              </Tooltip>
+            </Clipboard.Root>
+          </div>
         ),
       },
       {
@@ -246,9 +255,20 @@ export const HomePage = () => {
                 </p>
               </div>
             </div>
-            <div className="bg-card w-full overflow-hidden rounded-lg border shadow-sm">
-              <DataTable table={table} size="comfortable" resizable={false} />
-            </div>
+            {savedDatabaseList.data.length ? (
+              <div className="bg-card w-full overflow-x-auto rounded-lg border shadow-sm">
+                <div className="min-w-[760px]">
+                  <DataTable table={table} size="comfortable" resizable={false} />
+                </div>
+              </div>
+            ) : (
+              <div className="bg-card rounded-lg border border-dashed p-6">
+                <p className="text-foreground font-medium">No connections yet</p>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Start with a local SQLite file or a read-only database connection.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Add New Connection - Takes 1/3 on larger screens */}
