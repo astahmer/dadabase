@@ -12,7 +12,7 @@ import {
   Rows,
   X,
 } from "lucide-react";
-import { type ComponentProps, type ReactNode, useCallback, useState } from "react";
+import { type ComponentProps, type ReactNode, useCallback, useEffect, useState } from "react";
 
 import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
@@ -20,7 +20,9 @@ import type { TableColumnMetadata } from "#src/server/introspection/introspectio
 import { JoinTablesPanel } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
 import {
   getOperatorLabel,
+  filterQueryValidConditions,
   type FilterConditionExpression,
+  type QueryFilterType,
   nullOperators,
 } from "#src/components/query-builder/query-filter.ts";
 
@@ -33,6 +35,7 @@ import { HStack } from "../../ui/layout.tsx";
 import { Menu, MenuContent, MenuItem, MenuItemText, MenuTrigger } from "../../ui/menu.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover.tsx";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../ui/sheet.tsx";
+import { toaster } from "../../ui/toaster.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
 import { StructureFilterControls } from "./structure-table-filters.tsx";
@@ -98,6 +101,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const [isJoinPanelOpen, setIsJoinPanelOpen] = useState(false);
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(false);
+  const [filterDraft, setFilterDraft] = useState<QueryFilterType | null>(null);
 
   const viewMode = useActiveTabState((s) => s.viewMode);
   const filtersOpened = useActiveTabState((s) => s.filtersOpened);
@@ -117,10 +121,15 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
   const appliedFilterCount = appliedFilterConditions.length + groupByCount;
   const hasAppliedFilters = appliedFilterCount > 0;
 
-  const openFilters = () => {
-    if (filterConditions.length === 0) {
-      queryBuilder.addCondition();
-    }
+  const openFilters = (addCondition = false) => {
+    setFilterDraft((current) => {
+      const draft = current ?? queryBuilder.filter;
+      const conditions =
+        draft.conditions.length === 0 || addCondition
+          ? [...draft.conditions, { column: "", operator: "equals" as const }]
+          : draft.conditions;
+      return { ...draft, conditions };
+    });
     void navigate({
       search: (prev) =>
         updateTabState(prev, {
@@ -129,10 +138,52 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
     });
   };
 
+  useEffect(() => {
+    if (!filtersOpened || filterDraft) return;
+    setFilterDraft(
+      queryBuilder.filter.conditions.length
+        ? queryBuilder.filter
+        : { conditions: [{ column: "", operator: "equals" }], logicalOperator: "and" },
+    );
+  }, [filterDraft, filtersOpened, queryBuilder.filter]);
+
+  const draftFilter = filterDraft ?? queryBuilder.filter;
+
+  const closeFilters = () => {
+    setFilterDraft(null);
+    void navigate({
+      search: (prev) => updateTabState(prev, { filtersOpened: false }),
+    });
+  };
+
+  const applyFilterDraft = () => {
+    const validFilter = filterQueryValidConditions(draftFilter);
+    if (draftFilter.conditions.length > 0 && !validFilter) {
+      toaster.create({
+        title: "Finish the filter first",
+        description: "Choose a column and enter a value before applying it.",
+        type: "warning",
+      });
+      return;
+    }
+
+    queryBuilder.updateManyConditions(validFilter?.conditions ?? []);
+    queryBuilder.setLogicalOperator(draftFilter.logicalOperator);
+    setFilterDraft(null);
+    void navigate({
+      search: (prev) =>
+        updateTabState(prev, {
+          offset: 0,
+          filtersOpened: false,
+        }),
+    });
+  };
+
   const handleNaturalLanguageApply: ComponentProps<
     typeof NaturalLanguageSearch
   >["onApplyFilters"] = (parsed) => {
     const { filters = [], orderBy, limit } = parsed;
+    const currentConditions = draftFilter.conditions;
     const operatorMap: Record<string, any> = {
       eq: "equals",
       gt: "greater_than",
@@ -148,19 +199,19 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
 
     if (filters.length) {
       if (parsed.clear) {
-        queryBuilder.updateManyConditions(
-          filterConditions.filter((current) => {
-            return filters.some(
-              (removed) =>
-                current.column === removed.field &&
-                current.operator === removed.operator &&
-                current.value === removed.value,
-            );
-          }),
-        );
+        const conditions = currentConditions.filter((current) => {
+          return !filters.some(
+            (removed) =>
+              current.column === removed.field &&
+              current.operator === removed.operator &&
+              current.value === removed.value,
+          );
+        });
+        setFilterDraft({ ...draftFilter, conditions });
+        queryBuilder.updateManyConditions(conditions);
       } else {
-        queryBuilder.updateManyConditions([
-          ...filterConditions.map((filter) => ({
+        const conditions = [
+          ...currentConditions.map((filter) => ({
             column: filter.column,
             operator: filter.operator,
             value: filter.value as string,
@@ -173,7 +224,9 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
               : String(filter.value ?? "")) as string | string[],
             ...(filter.inverted ? { inverted: true as const } : {}),
           })),
-        ] as Parameters<typeof queryBuilder.updateManyConditions>[0]);
+        ] as Parameters<typeof queryBuilder.updateManyConditions>[0];
+        setFilterDraft({ ...draftFilter, conditions });
+        queryBuilder.updateManyConditions(conditions);
       }
     }
 
@@ -372,9 +425,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                   openFilters();
                   return;
                 }
-                void navigate({
-                  search: (prev) => updateTabState(prev, { filtersOpened: false }),
-                });
+                closeFilters();
               }}
             >
               <PopoverTrigger asChild>
@@ -404,19 +455,14 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        queryBuilder.clearConditions();
-                        void navigate({
-                          search: (prev) =>
-                            updateTabState(prev, {
-                              groupBy: undefined,
-                              having: undefined,
-                              offset: 0,
-                            }),
+                        setFilterDraft({
+                          conditions: [],
+                          logicalOperator: draftFilter.logicalOperator,
                         });
                       }}
                       className="text-muted-foreground h-7 px-1.5 text-xs"
                     >
-                      Clear all
+                      Clear filters
                     </Button>
                   )}
                 </div>
@@ -431,13 +477,43 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 </div>
                 <div className="space-y-4 p-4">
                   <QueryFilterBuilder
-                    conditions={queryBuilder.filter.conditions}
-                    onUpdateCondition={queryBuilder.updateCondition}
-                    onRemoveCondition={queryBuilder.removeCondition}
-                    onLogicalOperatorChange={queryBuilder.setLogicalOperator}
-                    onAddCondition={queryBuilder.addCondition}
-                    onClearAll={queryBuilder.clearConditions}
-                    logicalOperator={queryBuilder.filter.logicalOperator}
+                    conditions={draftFilter.conditions}
+                    onUpdateCondition={(id, updates) => {
+                      setFilterDraft((current) => {
+                        const draft = current ?? queryBuilder.filter;
+                        return {
+                          ...draft,
+                          conditions: draft.conditions.map((condition, index) =>
+                            String(index) === id ? { ...condition, ...updates } : condition,
+                          ),
+                        };
+                      });
+                    }}
+                    onRemoveCondition={(id) => {
+                      setFilterDraft((current) => {
+                        const draft = current ?? queryBuilder.filter;
+                        return {
+                          ...draft,
+                          conditions: draft.conditions.filter(
+                            (_condition, index) => String(index) !== id,
+                          ),
+                        };
+                      });
+                    }}
+                    onLogicalOperatorChange={(logicalOperator) => {
+                      setFilterDraft((current) => ({
+                        ...(current ?? queryBuilder.filter),
+                        logicalOperator,
+                      }));
+                    }}
+                    onAddCondition={() => openFilters(true)}
+                    onClearAll={() => {
+                      setFilterDraft({
+                        conditions: [],
+                        logicalOperator: draftFilter.logicalOperator,
+                      });
+                    }}
+                    logicalOperator={draftFilter.logicalOperator}
                     availableColumns={columnList}
                     isLoading={isLoading}
                     label="Where"
@@ -445,6 +521,14 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     presentation="popover"
                   />
                   {filterControls && <div className="border-t pt-4">{filterControls}</div>}
+                  <div className="flex justify-end gap-2 border-t pt-3">
+                    <Button variant="ghost" size="sm" onClick={closeFilters}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={applyFilterDraft} data-testid="apply-filters">
+                      Apply filters
+                    </Button>
+                  </div>
                 </div>
               </PopoverContent>
             </Popover>
@@ -505,8 +589,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      queryBuilder.addCondition();
-                      openFilters();
+                      openFilters(true);
                     }}
                     className="h-8 w-8 rounded-full p-0"
                     aria-label="Add filter"

@@ -52,6 +52,12 @@ Feature: Connection page UX issues from issues.md
     When I open the table filter builder
     Then I should see the compact filter workbench
 
+  Scenario: Incomplete filters stay local until applied
+    Given I open the "users" table
+    When I open the table filter builder
+    And I apply the incomplete filter draft
+    Then I should be told to finish the filter before it is shared
+
   Scenario: Query logger is hidden until requested
     Given I open the "users" table
     Then the query logger should be hidden by default

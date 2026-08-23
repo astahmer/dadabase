@@ -134,6 +134,16 @@ Then("I should see the compact filter workbench", async ({ page }) => {
   await expect(page.getByRole("table")).toBeVisible();
 });
 
+When("I apply the incomplete filter draft", async ({ page }) => {
+  await page.getByTestId("apply-filters").click();
+});
+
+Then("I should be told to finish the filter before it is shared", async ({ page }) => {
+  await expect(page.getByText("Finish the filter first", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("apply-filters")).toBeVisible();
+  expect(new URL(page.url()).searchParams.has("filters")).toBe(false);
+});
+
 Then("the query logger should be hidden by default", async ({ page }) => {
   await expect(page.getByTestId("query-logger-splitter-panel")).toBeHidden();
   await expect(page.getByRole("button", { name: "Query history" })).toBeVisible();
