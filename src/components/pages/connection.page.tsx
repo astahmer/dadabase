@@ -270,7 +270,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   });
   const queryLoggerSplitterDefaultSize = getQueryLoggerSplitterDefaultSize({
     zenMode: layoutZenMode,
-    queryLoggerSize,
+    queryLoggerSize: queryLoggerSize ?? 0,
   });
   const sidebarPanelMinSize = layoutZenMode ? 0 : sidebarMinSize;
   const queryLoggerPanelMinSize = layoutZenMode ? 0 : queryLoggerMinSize;
@@ -463,14 +463,14 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             if (layoutZenMode) return;
             const size = details.size[0];
             void navigate({
-              search: (prev) => updateTabState(prev, { sidebarSize: size }),
+              search: (prev) => ({ ...prev, sidebarSize: size }),
             });
           }}
           onExpand={(details) => {
             if (layoutZenMode) return;
             if (details.panelId === panels.sidebar) {
               void navigate({
-                search: (prev) => updateTabState(prev, { sidebarSize: details.size }),
+                search: (prev) => ({ ...prev, sidebarSize: details.size }),
               });
             }
           }}
@@ -478,7 +478,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             if (layoutZenMode) return;
             if (details.panelId === panels.sidebar) {
               void navigate({
-                search: (prev) => updateTabState(prev, { sidebarSize: 0 }),
+                search: (prev) => ({ ...prev, sidebarSize: 0 }),
               });
             }
           }}
@@ -561,14 +561,14 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                     if (layoutZenMode) return;
                     const size = details.size[1];
                     void navigate({
-                      search: (prev) => updateTabState(prev, { queryLoggerSize: size }),
+                      search: (prev) => ({ ...prev, queryLoggerSize: size }),
                     });
                   }}
                   onExpand={(details) => {
                     if (layoutZenMode) return;
                     if (details.panelId === panels.queryLogger) {
                       void navigate({
-                        search: (prev) => updateTabState(prev, { queryLoggerSize: details.size }),
+                        search: (prev) => ({ ...prev, queryLoggerSize: details.size }),
                       });
                     }
                   }}
@@ -576,7 +576,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                     if (layoutZenMode) return;
                     if (details.panelId === panels.queryLogger) {
                       void navigate({
-                        search: (prev) => updateTabState(prev, { queryLoggerSize: details.size }),
+                        search: (prev) => ({ ...prev, queryLoggerSize: details.size }),
                       });
                     }
                   }}
@@ -595,7 +595,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         if (sidebarSplitterCtx.isPanelExpanded(panels.sidebar)) {
                           sidebarSplitterCtx.collapsePanel(panels.sidebar);
                           void navigate({
-                            search: (prev) => updateTabState(prev, { sidebarSize: 0 }),
+                            search: (prev) => ({ ...prev, sidebarSize: 0 }),
                           });
                           return;
                         }
@@ -603,7 +603,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         sidebarSplitterCtx.expandPanel(panels.sidebar);
                         const size = sidebarSplitterCtx.getPanelSize(panels.sidebar);
                         void navigate({
-                          search: (prev) => updateTabState(prev, { sidebarSize: size }),
+                          search: (prev) => ({ ...prev, sidebarSize: size }),
                         });
                       }}
                       isSidebarCollapsed={sidebarSplitterCtx.isPanelCollapsed(panels.sidebar)}
