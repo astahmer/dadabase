@@ -7,10 +7,13 @@ import {
   ArrowDown,
   ArrowDownUp,
   ArrowUp,
+  CircleCheck,
   Code2,
   GripHorizontal,
+  Loader2,
   RotateCcw,
   SearchX,
+  TriangleAlert,
 } from "lucide-react";
 import {
   type Dispatch,
@@ -156,7 +159,7 @@ import { DestructiveQueryConfirmDialog } from "./connection-page/destructive-que
 import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
 import { ErDiagramView } from "./connection-page/er-diagram-view.tsx";
 import { ExplainOutputDrawer } from "./connection-page/explain-output-drawer.tsx";
-import { ImportDataSheet } from "./connection-page/import-data-sheet.tsx";
+import { ImportDataSheet, type ImportTask } from "./connection-page/import-data-sheet.tsx";
 import {
   IndexFkMutateSheet,
   type IndexFkMutateMode,
@@ -750,6 +753,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
     column: null,
   });
   const [importOpen, setImportOpen] = useState(false);
+  const [importTask, setImportTask] = useState<ImportTask | null>(null);
   const [schemaDiffOpen, setSchemaDiffOpen] = useState(false);
   const [indexFk, setIndexFk] = useState<{ open: boolean; mode: IndexFkMutateMode }>({
     open: false,
@@ -1371,7 +1375,48 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
           schema={search.schema}
           table={search.table}
           onSuccess={() => invalidateRowsQueries(queryClient)}
+          onTaskChange={setImportTask}
         />
+      ) : null}
+
+      {importTask ? (
+        <div
+          className="bg-popover text-popover-foreground fixed right-4 bottom-4 z-200 flex w-[min(24rem,calc(100vw-2rem))] items-start gap-3 rounded-lg border p-3 shadow-lg"
+          data-testid="import-task-tray"
+          role="status"
+        >
+          {importTask.status === "running" ? (
+            <Loader2 className="text-primary mt-0.5 size-4 shrink-0 animate-spin" />
+          ) : importTask.status === "success" ? (
+            <CircleCheck className="text-success mt-0.5 size-4 shrink-0" />
+          ) : (
+            <TriangleAlert className="text-destructive mt-0.5 size-4 shrink-0" />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">
+              {importTask.status === "running"
+                ? "Import running"
+                : importTask.status === "success"
+                  ? "Import complete"
+                  : "Import failed"}
+            </p>
+            <p className="text-muted-foreground mt-0.5 truncate text-xs">
+              {importTask.status === "error"
+                ? importTask.error
+                : importTask.rows === null
+                  ? `${importTask.fileName} · ${importTask.table}`
+                  : `${importTask.fileName} · ${importTask.rows} rows into ${importTask.table}`}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 shrink-0 px-2 text-xs"
+            onClick={() => setImportTask(null)}
+          >
+            Dismiss
+          </Button>
+        </div>
       ) : null}
 
       {search.schema && search.table ? (

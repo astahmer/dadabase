@@ -2,16 +2,16 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { Button } from "#src/components/ui/button.tsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "#src/components/ui/dialog.tsx";
 import { Input } from "#src/components/ui/input.tsx";
 import { Label } from "#src/components/ui/label.tsx";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "#src/components/ui/sheet.tsx";
 import { toaster } from "#src/components/ui/toaster.tsx";
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
@@ -36,16 +36,26 @@ export interface ImportDataSheetProps {
   schema: string;
   table: string;
   onSuccess?: () => void;
+  onTaskChange?: (task: ImportTask | null) => void;
 }
 
-type ImportFormat = "csv" | "json";
+export interface ImportTask {
+  status: "running" | "success" | "error";
+  fileName: string;
+  rows: number | null;
+  table: string;
+  error?: string;
+}
+
+type ImportFormat = "csv" | "json" | "sql";
 
 function dialectForPreview(dialect: DatabaseDialect): "postgres" | "sqlite" {
   return dialect === DatabaseDialect.Postgres ? "postgres" : "sqlite";
 }
 
 export function ImportDataSheet(props: ImportDataSheetProps) {
-  const { open, onOpenChange, connectionUrl, dialect, schema, table, onSuccess } = props;
+  const { open, onOpenChange, connectionUrl, dialect, schema, table, onSuccess, onTaskChange } =
+    props;
   const queryClient = useQueryClient();
   const [format, setFormat] = useState<ImportFormat>("csv");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -54,8 +64,10 @@ export function ImportDataSheet(props: ImportDataSheetProps) {
   const [columnTypes, setColumnTypes] = useState<Record<string, InferredColumnType>>({});
   const [error, setError] = useState<string | null>(null);
   const [targetTable, setTargetTable] = useState(table);
+  const [sqlFile, setSqlFile] = useState("");
 
   const previewSql = useMemo(() => {
+    if (format === "sql") return sqlFile;
     if (!targetTable.trim() || columns.length === 0 || rows.length === 0) return "";
     try {
       return buildInsertPreviewSql({
@@ -70,26 +82,38 @@ export function ImportDataSheet(props: ImportDataSheetProps) {
     } catch (e) {
       return `-- ${getErrorMessage(e)}`;
     }
-  }, [columnTypes, columns, dialect, rows, schema, targetTable]);
+  }, [columnTypes, columns, dialect, format, rows, schema, sqlFile, targetTable]);
 
   const mutation = useMutation({
-    mutationFn: async (sql: string) => {
+    mutationFn: async (input: { sql: string; task: ImportTask }) => {
       const blocked = guardReadOnlyMutation(connectionUrl);
       if (blocked) throw new Error(blocked);
-      return executeCustomSqlServerFn({ data: { url: connectionUrl, sql } });
+      return executeCustomSqlServerFn({ data: { url: connectionUrl, sql: input.sql } });
     },
-    onSuccess: async () => {
-      toaster.create({ title: `Imported ${rows.length} row(s)` });
+    onSuccess: async (_data, input) => {
+      toaster.create({
+        title:
+          input.task.rows === null ? "SQL file imported" : `Imported ${input.task.rows} row(s)`,
+      });
       await invalidateSchemaMetadataQueries(queryClient, {
         url: connectionUrl,
         schema,
       });
       void queryClient.invalidateQueries({ queryKey: ["remote"] });
       onSuccess?.();
-      onOpenChange(false);
+      onTaskChange?.({
+        ...input.task,
+        status: "success",
+      });
     },
-    onError: (e) => {
-      toaster.create({ title: formatDbError(getErrorMessage(e)), type: "error" });
+    onError: (e, input) => {
+      const message = formatDbError(getErrorMessage(e));
+      toaster.create({ title: message, type: "error" });
+      onTaskChange?.({
+        ...input.task,
+        status: "error",
+        error: message,
+      });
     },
   });
 
@@ -98,6 +122,7 @@ export function ImportDataSheet(props: ImportDataSheetProps) {
     setColumns([]);
     setRows([]);
     setColumnTypes({});
+    setSqlFile("");
     setError(null);
   };
 
@@ -107,7 +132,10 @@ export function ImportDataSheet(props: ImportDataSheetProps) {
     setFileName(file.name);
     const text = await file.text();
     try {
-      if (format === "csv" || file.name.toLowerCase().endsWith(".csv")) {
+      if (file.name.toLowerCase().endsWith(".sql")) {
+        setFormat("sql");
+        setSqlFile(text);
+      } else if (format === "csv" || file.name.toLowerCase().endsWith(".csv")) {
         const parsed = parseCsv(text, { hasHeader: true });
         const cols = parsed.header ?? [];
         setColumns(cols);
@@ -129,21 +157,24 @@ export function ImportDataSheet(props: ImportDataSheetProps) {
   };
 
   return (
-    <Sheet
+    <Dialog
       open={open}
       onOpenChange={(details) => {
         if (!details.open) reset();
         onOpenChange(details.open);
       }}
     >
-      <SheetContent className="sm:max-w-xl" data-testid="import-data-sheet">
-        <SheetHeader>
-          <SheetTitle>Import data</SheetTitle>
-          <SheetDescription>CSV or JSON → typed INSERT preview → run.</SheetDescription>
-        </SheetHeader>
+      <DialogContent
+        className="flex max-h-[min(42rem,calc(100vh-2rem))] max-w-2xl flex-col gap-0 p-0"
+        data-testid="import-data-dialog"
+      >
+        <DialogHeader className="border-b px-5 py-4 pr-12">
+          <DialogTitle>Import data</DialogTitle>
+          <DialogDescription>Review a CSV, JSON, or SQL file before it runs.</DialogDescription>
+        </DialogHeader>
 
-        <div className="flex flex-col gap-4 overflow-auto px-1 py-4">
-          <div className="flex gap-2">
+        <div className="flex min-h-0 flex-col gap-4 overflow-auto px-5 py-4">
+          <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
               variant={format === "csv" ? "default" : "outline"}
@@ -160,17 +191,27 @@ export function ImportDataSheet(props: ImportDataSheetProps) {
             >
               JSON
             </Button>
+            <Button
+              size="sm"
+              variant={format === "sql" ? "default" : "outline"}
+              onClick={() => setFormat("sql")}
+              data-testid="import-format-sql"
+            >
+              SQL file
+            </Button>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="import-table">Target table</Label>
-            <Input
-              id="import-table"
-              data-testid="import-target-table"
-              value={targetTable}
-              onChange={(e) => setTargetTable(e.target.value)}
-            />
-          </div>
+          {format !== "sql" && (
+            <div className="space-y-2">
+              <Label htmlFor="import-table">Target table</Label>
+              <Input
+                id="import-table"
+                data-testid="import-target-table"
+                value={targetTable}
+                onChange={(e) => setTargetTable(e.target.value)}
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="import-file">File</Label>
@@ -178,19 +219,28 @@ export function ImportDataSheet(props: ImportDataSheetProps) {
               id="import-file"
               data-testid="import-file-input"
               type="file"
-              accept={format === "csv" ? ".csv,text/csv" : ".json,application/json"}
+              accept={
+                format === "csv"
+                  ? ".csv,text/csv"
+                  : format === "json"
+                    ? ".json,application/json"
+                    : ".sql,text/sql,application/sql"
+              }
               className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
               onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
             />
             {fileName ? (
               <p className="text-muted-foreground text-xs">
-                {fileName} — {rows.length} row(s), {columns.length} column(s)
+                {fileName} —{" "}
+                {format === "sql"
+                  ? "SQL script ready"
+                  : `${rows.length} row(s), ${columns.length} column(s)`}
               </p>
             ) : null}
             {error ? <p className="text-destructive text-sm">{error}</p> : null}
           </div>
 
-          {columns.length > 0 ? (
+          {format !== "sql" && columns.length > 0 ? (
             <div className="space-y-2">
               <Label>Inferred types</Label>
               <ul className="text-muted-foreground max-h-28 overflow-auto font-mono text-xs">
@@ -216,30 +266,41 @@ export function ImportDataSheet(props: ImportDataSheetProps) {
           ) : null}
         </div>
 
-        <SheetFooter>
+        <DialogFooter className="border-t px-5 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             data-testid="import-run"
-            disabled={!previewSql || rows.length === 0 || mutation.isPending}
+            disabled={!previewSql || (format !== "sql" && rows.length === 0) || mutation.isPending}
             onClick={() => {
-              const sql = buildInsertPreviewSql({
-                dialect: dialectForPreview(dialect),
-                schema,
-                table: targetTable.trim(),
-                columns,
-                rows,
-                columnTypes,
-                maxRows: rows.length,
-              });
-              mutation.mutate(sql);
+              const sql =
+                format === "sql"
+                  ? sqlFile
+                  : buildInsertPreviewSql({
+                      dialect: dialectForPreview(dialect),
+                      schema,
+                      table: targetTable.trim(),
+                      columns,
+                      rows,
+                      columnTypes,
+                      maxRows: rows.length,
+                    });
+              const task: ImportTask = {
+                status: "running",
+                fileName: fileName ?? "Import",
+                rows: format === "sql" ? null : rows.length,
+                table: targetTable,
+              };
+              onTaskChange?.(task);
+              mutation.mutate({ sql, task });
+              onOpenChange(false);
             }}
           >
-            {mutation.isPending ? "Importing…" : "Run import"}
+            Start import
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
