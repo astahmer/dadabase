@@ -321,6 +321,41 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
       </form.AppField>
 
       <form.Subscribe
+        selector={(state) => ({
+          connectionType: state.values.connectionType,
+          connectionUrl: state.values.connectionUrl,
+          filePath: state.values.filePath,
+        })}
+      >
+        {({ connectionType, connectionUrl, filePath }) => {
+          const label =
+            connectionType === DatabaseDialect.SQLite
+              ? filePath
+                ? "Local SQLite file selected"
+                : "Choose a local SQLite file"
+              : (() => {
+                  try {
+                    const parsed = new URL(connectionUrl);
+                    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+                  } catch {
+                    return "Paste a URL or fill in the connection fields";
+                  }
+                })();
+
+          return (
+            <div
+              className="border-border/70 bg-muted/30 rounded-md border px-3 py-2 text-xs"
+              data-testid="connection-target-preview"
+            >
+              <span className="text-muted-foreground">Connection target: </span>
+              <span className="text-foreground font-mono">{label}</span>
+              <span className="text-muted-foreground ml-2">Credentials are never shown here.</span>
+            </div>
+          );
+        }}
+      </form.Subscribe>
+
+      <form.Subscribe
         selector={(state) => state.values.connectionType}
         children={(connectionType) => {
           if (!connectionType) {
@@ -437,6 +472,12 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                     <span className="font-medium">Security (SSL / SSH)</span>
                   </AccordionItemTrigger>
                   <AccordionItemContent className="bg-muted/30 space-y-3 border-t px-3 py-3">
+                    <p className="text-muted-foreground text-xs leading-5">
+                      Use <span className="text-foreground font-medium">Require</span> for most
+                      hosted databases. Choose{" "}
+                      <span className="text-foreground font-medium">Verify full</span> only when the
+                      server certificate hostname is configured.
+                    </p>
                     <form.AppField name="sslMode">
                       {(field) => (
                         <field.Select
@@ -450,6 +491,10 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                         />
                       )}
                     </form.AppField>
+                    <p className="text-muted-foreground text-xs leading-5">
+                      Need a bastion? Enter its SSH details below. Prefer a private key; use a
+                      password only when your server requires it.
+                    </p>
                     <div className="grid w-full grid-cols-2 gap-2">
                       <form.AppField name="sshHost">
                         {(field) => <field.TextField label="SSH host" />}
