@@ -192,23 +192,37 @@ export const HomePage = () => {
             content={`${ctx.row.original.name} · ${redactConnectionUrl(ctx.row.original.url)}`}
             portalled
           >
-            <Link
-              to="/connections/$connectionName"
-              params={{ connectionName: ctx.row.original.name }}
-              className="block truncate font-medium"
-            >
-              {ctx.row.original.name}
-            </Link>
-            {isReadOnlyConnection(ctx.row.original.url) ? (
-              <Badge colorPalette="success" variant="outline" size="2xs" className="mt-1">
-                <ShieldCheck className="mr-1 size-3" />
-                Read-only
-              </Badge>
-            ) : (
-              <Badge colorPalette="warning" variant="outline" size="2xs" className="mt-1">
-                Writes enabled
-              </Badge>
-            )}
+            <span className="inline-flex flex-col items-start">
+              <Link
+                to="/connections/$connectionName"
+                params={{ connectionName: ctx.row.original.name }}
+                className="block truncate font-medium"
+              >
+                {ctx.row.original.name}
+              </Link>
+              {isReadOnlyConnection(ctx.row.original.url) ? (
+                <Badge
+                  colorPalette="success"
+                  variant="outline"
+                  size="2xs"
+                  className="mt-1"
+                  data-testid={`connection-safety-${ctx.row.original.name}`}
+                >
+                  <ShieldCheck className="mr-1 size-3" />
+                  Read-only
+                </Badge>
+              ) : (
+                <Badge
+                  colorPalette="warning"
+                  variant="outline"
+                  size="2xs"
+                  className="mt-1"
+                  data-testid={`connection-safety-${ctx.row.original.name}`}
+                >
+                  Writes enabled
+                </Badge>
+              )}
+            </span>
           </Tooltip>
         ),
       },
@@ -307,7 +321,7 @@ export const HomePage = () => {
                   <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
                   <Input
                     value={connectionSearch}
-                    onChange={(event) => setConnectionSearch(event.target.value)}
+                    onInput={(event) => setConnectionSearch(event.currentTarget.value)}
                     aria-label="Search saved connections"
                     placeholder="Search connections"
                     className="pl-9"
@@ -318,7 +332,12 @@ export const HomePage = () => {
             {visibleConnections.length ? (
               <div className="bg-card w-full overflow-hidden rounded-xl border shadow-sm">
                 <div className="min-w-[700px]">
-                  <DataTable table={table} size="comfortable" resizable={false} />
+                  <DataTable
+                    key={normalizedSearch}
+                    table={table}
+                    size="comfortable"
+                    resizable={false}
+                  />
                 </div>
               </div>
             ) : savedDatabaseList.data.length ? (

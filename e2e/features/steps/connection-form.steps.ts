@@ -9,8 +9,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pathsFile = path.join(__dirname, "../../.tmp/paths.json");
 
 Given("I open the connections home page", async ({ page }) => {
-  await page.goto("/", { waitUntil: "networkidle" });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Database Connections" })).toBeVisible();
+  // TanStack Start hydrates the SSR shell after the page is visible. Wait for the
+  // client bundle before operating the form; network-idle never settles because
+  // the app maintains background queries.
+  await page.waitForTimeout(3_000);
 });
 
 Then("the new connection should default to read-only", async ({ page }) => {
@@ -57,7 +61,16 @@ When("I save a SQLite connection named {string}", async ({ page }, connectionNam
 Then(
   "I should see the saved connection named {string}",
   async ({ page }, connectionName: string) => {
-    await expect(page.getByRole("link", { name: connectionName })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("row", { name: new RegExp(connectionName) })).toBeVisible({
+      timeout: 15_000,
+    });
+  },
+);
+
+Then(
+  "the saved connection {string} should be read-only",
+  async ({ page }, connectionName: string) => {
+    await expect(page.getByTestId(`connection-safety-${connectionName}`)).toHaveText("Read-only");
   },
 );
 
@@ -72,6 +85,6 @@ When("I search saved connections for {string}", async ({ page }, query: string) 
 Then(
   "I should not see the saved connection named {string}",
   async ({ page }, connectionName: string) => {
-    await expect(page.getByRole("link", { name: connectionName })).toHaveCount(0);
+    await expect(page.getByRole("row", { name: new RegExp(connectionName) })).toHaveCount(0);
   },
 );

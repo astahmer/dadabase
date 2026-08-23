@@ -11,14 +11,12 @@ import {
   AccordionItemTrigger,
 } from "#src/components/ui/accordion";
 import { DatabaseDialect } from "#src/db/dialect.ts";
+import { buildConnectionUrl, isValidConnectionTarget } from "#src/lib/connection-form-url.ts";
 import {
-  applySslMode,
   isReadOnlyConnection,
   parseSslMode,
   parseSshTunnelFromUrl,
   stripDadabaseMarkerParams,
-  withReadOnlyFlag,
-  withSshTunnelConfig,
   type SslMode,
 } from "#src/lib/connection-security.ts";
 import { createDbConnectionMutation } from "#src/server/db-connection/start-fns/create-db-connection.start.ts";
@@ -56,27 +54,7 @@ const connectionFormSchema = z
   })
   .refine(
     (data) => {
-      // SQLite requires filePath
-      if (data.connectionType === DatabaseDialect.SQLite) {
-        return data.filePath.length > 0;
-      }
-      // LibSQL requires connectionUrl
-      if (data.connectionType === DatabaseDialect.LibSQL) {
-        return data.connectionUrl.length > 0;
-      }
-      // Postgres / MySQL require connectionUrl to be valid
-      if (
-        data.connectionType === DatabaseDialect.Postgres ||
-        data.connectionType === DatabaseDialect.MySQL
-      ) {
-        try {
-          new URL(data.connectionUrl);
-          return true;
-        } catch {
-          return false;
-        }
-      }
-      return true;
+      return isValidConnectionTarget(data);
     },
     {
       message: "Invalid connection configuration for selected type",
@@ -622,33 +600,4 @@ function getConnectionUrl(props: {
   if (!host || !databaseName) return "";
 
   return `${connectionType}://${user}:${password}@${host}:${port}/${databaseName}`;
-}
-
-function buildConnectionUrl(values: ConnectionFormValues) {
-  if (values.connectionType === DatabaseDialect.SQLite) {
-    return values.filePath.startsWith("file:") ? values.filePath : `file:${values.filePath}`;
-  }
-
-  let connectionUrl = values.connectionUrl.trim();
-  if (values.connectionType === DatabaseDialect.LibSQL && values.libsqlAuthToken.trim()) {
-    const url = new URL(connectionUrl);
-    url.searchParams.set("authToken", values.libsqlAuthToken.trim());
-    connectionUrl = url.toString();
-  }
-
-  connectionUrl = withReadOnlyFlag(connectionUrl, values.readOnly);
-  if (values.sslMode) connectionUrl = applySslMode(connectionUrl, values.sslMode);
-
-  return withSshTunnelConfig(
-    connectionUrl,
-    values.sshHost.trim() && values.sshUser.trim()
-      ? {
-          host: values.sshHost.trim(),
-          port: values.sshPort || 22,
-          user: values.sshUser.trim(),
-          privateKeyPath: values.sshPrivateKeyPath.trim() || undefined,
-          password: values.sshPassword || undefined,
-        }
-      : null,
-  );
 }
