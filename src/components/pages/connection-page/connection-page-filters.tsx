@@ -48,6 +48,7 @@ interface ConnectionPageFiltersProps {
   onImportData?: () => void;
   onSchemaDiff?: () => void;
   onCreateIndex?: () => void;
+  isReadOnly?: boolean;
 }
 
 const getFilterValueLabel = (value: FilterConditionExpression["value"]) => {
@@ -73,6 +74,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
     onImportData,
     onSchemaDiff,
     onCreateIndex,
+    isReadOnly = false,
   } = props;
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
@@ -162,6 +164,15 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
             </Button>
           </Tooltip>
         </div>
+        <span
+          className={
+            isReadOnly
+              ? "border-success/40 bg-success/10 text-success rounded border px-2 py-1 text-xs font-medium"
+              : "border-warning/40 bg-warning/10 text-warning rounded border px-2 py-1 text-xs font-medium"
+          }
+        >
+          {isReadOnly ? "Read-only: writes blocked" : "Writes enabled"}
+        </span>
         {viewMode === "structure" && (
           <StructureFilterControls
             columnMetadata={columnMetadata}
@@ -186,7 +197,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 variant="outline"
                 size="sm"
                 onClick={onImportData}
-                disabled={isLoading || !tableName}
+                disabled={isLoading || !tableName || isReadOnly}
                 data-testid="import-data"
                 className="gap-1.5"
               >
@@ -198,7 +209,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 variant="default"
                 size="sm"
                 onClick={onAddRow}
-                disabled={isLoading}
+                disabled={isLoading || isReadOnly}
                 data-testid="add-row-button"
                 className="gap-1.5"
               >

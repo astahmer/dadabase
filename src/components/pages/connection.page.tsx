@@ -1073,6 +1073,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
             onCreateIndex={
               search.table ? () => setIndexFk({ open: true, mode: "create-index" }) : undefined
             }
+            isReadOnly={isReadOnlyConnection(props.activeConnectionUrl)}
           />
 
           {/* Query Filter Builder */}

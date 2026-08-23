@@ -1,15 +1,20 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
 import { Then, When } from "./fixtures";
 
+const openSchemaChangeMenu = async (page: Page) => {
+  await page.getByRole("button", { name: "Change" }).click();
+};
+
 When("I switch to structure view", async ({ page }) => {
   await page.getByTestId("view-mode-structure").click();
-  await expect(page.getByTestId("schema-create-table")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: "Change" })).toBeVisible({ timeout: 10_000 });
 });
 
 When(
   "I create a table named {string} with an id primary key",
   async ({ page }, tableName: string) => {
+    await openSchemaChangeMenu(page);
     await page.getByTestId("schema-create-table").click();
     await expect(page.getByTestId("schema-mutate-sheet")).toBeVisible();
     await page.getByTestId("schema-mutate-table-name").fill(tableName);
@@ -37,6 +42,7 @@ When(
   "I add a column named {string} with type {string}",
   async ({ page }, columnName: string, dataType: string) => {
     // Ensure we're on the new table's structure view
+    await openSchemaChangeMenu(page);
     await expect(page.getByTestId("schema-add-column")).toBeVisible({ timeout: 15_000 });
     await page.getByTestId("schema-add-column").click();
     await expect(page.getByTestId("schema-mutate-sheet")).toBeVisible();
@@ -76,6 +82,7 @@ When("I drop column {string}", async ({ page }, columnName: string) => {
 });
 
 When("I drop the current table", async ({ page }) => {
+  await openSchemaChangeMenu(page);
   await page.getByTestId("schema-drop-table").click();
   await page.getByRole("button", { name: "Execute" }).click();
 });

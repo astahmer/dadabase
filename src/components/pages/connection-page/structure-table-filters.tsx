@@ -1,5 +1,5 @@
 import { Popover } from "@ark-ui/react/popover";
-import { ChevronsUpDown, Copy, Download, Plus, Trash2, X } from "lucide-react";
+import { ChevronsUpDown, Copy, Download, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
@@ -33,6 +33,7 @@ interface StructureFilterControlsProps {
   onImportData?: () => void;
   onSchemaDiff?: () => void;
   onCreateIndex?: () => void;
+  isReadOnly?: boolean;
 }
 
 /**
@@ -50,6 +51,7 @@ export const StructureFilterControls = (props: StructureFilterControlsProps = {}
     onImportData,
     onSchemaDiff,
     onCreateIndex,
+    isReadOnly = false,
   } = props;
   const hasFilters = hasActiveStructureFilters(filters);
   const [open, setOpen] = useState(false);
@@ -163,64 +165,72 @@ export const StructureFilterControls = (props: StructureFilterControlsProps = {}
 
   return (
     <HStack className="ml-auto gap-2">
-      {onCreateTable && (
-        <Button
-          variant="default"
-          size="sm"
-          className="h-8 gap-1"
-          onClick={onCreateTable}
-          data-testid="schema-create-table"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Table
-        </Button>
-      )}
-      {onAddColumn && table && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1"
-          onClick={onAddColumn}
-          data-testid="schema-add-column"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Column
-        </Button>
-      )}
-      {onDropTable && table && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive hover:text-destructive h-8 gap-1"
-          onClick={onDropTable}
-          data-testid="schema-drop-table"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Drop table
-        </Button>
-      )}
-      {onCreateIndex && table && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1"
-          onClick={onCreateIndex}
-          data-testid="schema-create-index"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Index
-        </Button>
-      )}
-      {onImportData && table && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1"
-          onClick={onImportData}
-          data-testid="import-data"
-        >
-          Import
-        </Button>
+      {(onCreateTable || onAddColumn || onCreateIndex || onDropTable || onImportData) && (
+        <Menu>
+          <MenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1"
+              disabled={isReadOnly}
+              title={isReadOnly ? "This connection is read-only" : "Change table data or schema"}
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" />
+              Change
+            </Button>
+          </MenuTrigger>
+          <MenuContent className="z-100 min-w-48">
+            {onCreateTable && (
+              <MenuItem
+                value="schema-create-table"
+                onClick={onCreateTable}
+                data-testid="schema-create-table"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Create table
+              </MenuItem>
+            )}
+            {onAddColumn && table && (
+              <MenuItem
+                value="schema-add-column"
+                onClick={onAddColumn}
+                data-testid="schema-add-column"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add column
+              </MenuItem>
+            )}
+            {onCreateIndex && table && (
+              <MenuItem
+                value="schema-create-index"
+                onClick={onCreateIndex}
+                data-testid="schema-create-index"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Create index
+              </MenuItem>
+            )}
+            {onImportData && table && (
+              <MenuItem value="import-data" onClick={onImportData} data-testid="import-data">
+                Import rows
+              </MenuItem>
+            )}
+            {onDropTable && table && (
+              <>
+                <MenuSeparator />
+                <MenuItem
+                  value="schema-drop-table"
+                  onClick={onDropTable}
+                  data-testid="schema-drop-table"
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Drop table…
+                </MenuItem>
+              </>
+            )}
+          </MenuContent>
+        </Menu>
       )}
       {onSchemaDiff && (
         <Button
