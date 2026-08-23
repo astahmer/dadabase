@@ -176,6 +176,24 @@ Then("I should see the dedicated schema explorer", async ({ page }) => {
   await expect(page.getByText("favorites", { exact: true })).toBeVisible();
 });
 
+When("I open the schema map", async ({ page }) => {
+  await page.getByRole("button", { name: "Schema map", exact: true }).click();
+});
+
+Then("I should see schema-map navigation controls", async ({ page }) => {
+  await expect(page.getByTestId("er-diagram-view")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Zoom in schema diagram", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Zoom out schema diagram", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Fit schema diagram", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Export schema diagram as SVG", exact: true }),
+  ).toBeVisible();
+});
+
 When("I open the join builder", async ({ page }) => {
   await page.getByRole("button", { name: "Join tables", exact: true }).click();
 });

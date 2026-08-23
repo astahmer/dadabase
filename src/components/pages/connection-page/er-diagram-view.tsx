@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { RotateCcw, Search } from "lucide-react";
+import { Download, RotateCcw, Search, ZoomIn, ZoomOut } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
 import { Button } from "#src/components/ui/button.tsx";
@@ -24,7 +24,9 @@ export interface ErDiagramViewProps {
 export function ErDiagramView(props: ErDiagramViewProps) {
   const { connectionUrl, schema, onOpenTable } = props;
   const [tableSearch, setTableSearch] = useState("");
+  const [zoom, setZoom] = useState(1);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const diagramRef = useRef<SVGSVGElement | null>(null);
 
   const tablesQuery = useQuery({
     ...getAllTablesColumnsQueryOptions({ url: connectionUrl, schema }),
@@ -77,9 +79,42 @@ export function ErDiagramView(props: ErDiagramViewProps) {
   const height = Math.max(400, ...layout.nodes.map((node) => node.y + node.h + 40));
   const nodeById = new Map(layout.nodes.map((node) => [node.id, node]));
 
+  const resetView = () => {
+    setZoom(1);
+    canvasRef.current?.scrollTo({ left: 0, top: 0, behavior: "smooth" });
+  };
+
+  const fitView = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    setZoom(
+      Math.min(
+        1,
+        Math.max(0.35, canvas.clientWidth / (width + 32), canvas.clientHeight / (height + 32)),
+      ),
+    );
+    canvas.scrollTo({ left: 0, top: 0, behavior: "smooth" });
+  };
+
+  const exportDiagram = () => {
+    const svg = diagramRef.current;
+    if (!svg) return;
+
+    const blob = new Blob([new XMLSerializer().serializeToString(svg)], {
+      type: "image/svg+xml;charset=utf-8",
+    });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `${schema}-schema-map.svg`;
+    link.click();
+    URL.revokeObjectURL(href);
+  };
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col" data-testid="er-diagram-view">
-      <div className="bg-card flex shrink-0 items-center justify-between gap-4 border-b px-4 py-3">
+      <div className="bg-card flex shrink-0 flex-wrap items-center justify-between gap-4 border-b px-4 py-3">
         <div>
           <p className="text-foreground text-sm font-semibold">Schema map</p>
           <p className="text-muted-foreground text-xs">
@@ -87,8 +122,8 @@ export function ErDiagramView(props: ErDiagramViewProps) {
             it
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative w-56">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-56 max-w-full">
             <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
             <Input
               value={tableSearch}
@@ -103,9 +138,47 @@ export function ErDiagramView(props: ErDiagramViewProps) {
             variant="ghost"
             aria-label="Reset schema diagram view"
             title="Reset diagram view"
-            onClick={() => canvasRef.current?.scrollTo({ left: 0, top: 0, behavior: "smooth" })}
+            onClick={resetView}
           >
             <RotateCcw className="size-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Zoom out schema diagram"
+            title="Zoom out"
+            disabled={zoom <= 0.35}
+            onClick={() => setZoom((current) => Math.max(0.35, current - 0.15))}
+          >
+            <ZoomOut className="size-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Zoom in schema diagram"
+            title="Zoom in"
+            disabled={zoom >= 1.5}
+            onClick={() => setZoom((current) => Math.min(1.5, current + 0.15))}
+          >
+            <ZoomIn className="size-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Fit schema diagram"
+            title="Fit diagram"
+            onClick={fitView}
+          >
+            Fit
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label="Export schema diagram as SVG"
+            title="Export SVG"
+            onClick={exportDiagram}
+          >
+            <Download className="size-3.5" />
           </Button>
         </div>
       </div>
@@ -117,8 +190,10 @@ export function ErDiagramView(props: ErDiagramViewProps) {
       ) : (
         <div ref={canvasRef} className="min-h-0 flex-1 overflow-auto p-4">
           <svg
-            width={width}
-            height={height}
+            ref={diagramRef}
+            width={width * zoom}
+            height={height * zoom}
+            viewBox={`0 0 ${width} ${height}`}
             className="bg-muted/20 min-w-full rounded-lg"
             role="img"
             aria-label={`Schema diagram with ${layout.nodes.length} tables and ${edges.length} relationships`}

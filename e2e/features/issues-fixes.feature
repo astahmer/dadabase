@@ -71,6 +71,11 @@ Feature: Connection page UX issues from issues.md
     When I open the dedicated schema explorer
     Then I should see the dedicated schema explorer
 
+  Scenario: Schema map has navigation and export controls
+    Given I open the "users" table
+    When I open the schema map
+    Then I should see schema-map navigation controls
+
   Scenario: Joins open in an inline workspace
     Given I open the "users" table
     When I open the join builder
