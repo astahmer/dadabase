@@ -76,6 +76,10 @@ import {
   parseSwitchSchemaCommandId,
   parseSwitchTableCommandId,
 } from "#src/lib/command-palette-commands.ts";
+import {
+  getStoredConnectionLayoutSize,
+  setStoredConnectionLayoutSize,
+} from "#src/lib/connection-layout-preferences.ts";
 import { guardReadOnlyMutation, isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import {
   registerCustomSqlRunner,
@@ -241,14 +245,15 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const [queryLoggerPaletteView, setQueryLoggerPaletteView] = useState<
     "favorites" | "history" | null
   >(null);
-  const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
-  const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
+  const legacySidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
+  const legacyQueryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
   // Splitter percentages must be deterministic during SSR. Calculating from the
   // browser viewport caused server/client min-size mismatches and hydration warnings.
   const sidebarMinSize = 15;
   const sidebarMaxSize = 32;
   const queryLoggerMinSize = 7;
-  const defaultQueryLoggerSize = queryLoggerSize ?? 0;
+  const [sidebarSize, setSidebarSize] = useState(legacySidebarSize ?? sidebarMinSize);
+  const [queryLoggerSize, setQueryLoggerSize] = useState(legacyQueryLoggerSize ?? 0);
 
   const search = useActiveTabState((tab) => ({
     schema: tab.schema,
@@ -258,12 +263,30 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
   const zenMode = useZenModeEnabled();
   const { toggleZenMode } = useZenModeActions();
-  // Layout sizes must follow the URL only (not localStorage) so SSR + hydration agree.
-  // useZenMode() syncs storage → URL after mount; remount key then collapses panels.
+  // Zen mode stays in navigation state while pane geometry is local-only. A shared link
+  // should restore the work, not someone else's splitters or a huge URL payload.
   const layoutZenMode = useSearch({
     from: "/connections/$connectionName",
     select: (s) => s.zenMode === true,
   });
+  useEffect(() => {
+    const nextSidebarSize =
+      legacySidebarSize ?? getStoredConnectionLayoutSize(connection.id, "sidebar", sidebarMinSize);
+    const nextQueryLoggerSize =
+      legacyQueryLoggerSize ?? getStoredConnectionLayoutSize(connection.id, "query-logger", 0);
+
+    setSidebarSize(nextSidebarSize);
+    setQueryLoggerSize(nextQueryLoggerSize);
+    setStoredConnectionLayoutSize(connection.id, "sidebar", nextSidebarSize);
+    setStoredConnectionLayoutSize(connection.id, "query-logger", nextQueryLoggerSize);
+
+    if (legacySidebarSize !== undefined || legacyQueryLoggerSize !== undefined) {
+      void navigate({
+        replace: true,
+        search: (prev) => ({ ...prev, sidebarSize: undefined, queryLoggerSize: undefined }),
+      });
+    }
+  }, [connection.id, legacyQueryLoggerSize, legacySidebarSize, navigate]);
   const sidebarSplitterDefaultSize = getSidebarSplitterDefaultSize({
     zenMode: layoutZenMode,
     sidebarSize,
@@ -271,7 +294,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   });
   const queryLoggerSplitterDefaultSize = getQueryLoggerSplitterDefaultSize({
     zenMode: layoutZenMode,
-    queryLoggerSize: defaultQueryLoggerSize,
+    queryLoggerSize,
   });
   const sidebarPanelMinSize = layoutZenMode ? 0 : sidebarMinSize;
   const queryLoggerPanelMinSize = layoutZenMode ? 0 : queryLoggerMinSize;
@@ -444,7 +467,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       {/* Main Layout */}
       <div className="flex h-full min-h-0 flex-1 flex-col">
         <Splitter.Root
-          key={getZenLayoutRemountKey(layoutZenMode, "sidebar")}
+          key={getZenLayoutRemountKey(layoutZenMode, "sidebar", sidebarSize)}
           orientation="horizontal"
           defaultSize={[...sidebarSplitterDefaultSize]}
           panels={[
@@ -462,24 +485,22 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
           ]}
           onResizeEnd={(details) => {
             if (layoutZenMode) return;
-            void navigate({
-              search: (prev) => ({ ...prev, sidebarSize: details.size[0] }),
-            });
+            const size = details.size[0];
+            setSidebarSize(size);
+            setStoredConnectionLayoutSize(connection.id, "sidebar", size);
           }}
           onExpand={(details) => {
             if (layoutZenMode) return;
             if (details.panelId === panels.sidebar) {
-              void navigate({
-                search: (prev) => ({ ...prev, sidebarSize: details.size }),
-              });
+              setSidebarSize(details.size);
+              setStoredConnectionLayoutSize(connection.id, "sidebar", details.size);
             }
           }}
           onCollapse={(details) => {
             if (layoutZenMode) return;
             if (details.panelId === panels.sidebar) {
-              void navigate({
-                search: (prev) => ({ ...prev, sidebarSize: 0 }),
-              });
+              setSidebarSize(0);
+              setStoredConnectionLayoutSize(connection.id, "sidebar", 0);
             }
           }}
           className="flex h-full min-h-0 flex-1"
@@ -541,7 +562,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             <Splitter.Context>
               {(sidebarSplitterCtx) => (
                 <Splitter.Root
-                  key={getZenLayoutRemountKey(layoutZenMode, "query-logger")}
+                  key={getZenLayoutRemountKey(layoutZenMode, "query-logger", queryLoggerSize)}
                   orientation="vertical"
                   defaultSize={[...queryLoggerSplitterDefaultSize]}
                   panels={[
@@ -559,33 +580,22 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                   ]}
                   onResizeEnd={(details) => {
                     if (layoutZenMode) return;
-                    void navigate({
-                      search: (prev) => ({
-                        ...prev,
-                        queryLoggerSize: details.size[1],
-                      }),
-                    });
+                    const size = details.size[1];
+                    setQueryLoggerSize(size);
+                    setStoredConnectionLayoutSize(connection.id, "query-logger", size);
                   }}
                   onExpand={(details) => {
                     if (layoutZenMode) return;
                     if (details.panelId === panels.queryLogger) {
-                      void navigate({
-                        search: (prev) => ({
-                          ...prev,
-                          queryLoggerSize: details.size,
-                        }),
-                      });
+                      setQueryLoggerSize(details.size);
+                      setStoredConnectionLayoutSize(connection.id, "query-logger", details.size);
                     }
                   }}
                   onCollapse={(details) => {
                     if (layoutZenMode) return;
                     if (details.panelId === panels.queryLogger) {
-                      void navigate({
-                        search: (prev) => ({
-                          ...prev,
-                          queryLoggerSize: details.size,
-                        }),
-                      });
+                      setQueryLoggerSize(details.size);
+                      setStoredConnectionLayoutSize(connection.id, "query-logger", details.size);
                     }
                   }}
                   className="flex h-full min-h-0 flex-1 flex-col"
@@ -602,19 +612,15 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                       onToggleSidebar={() => {
                         if (sidebarSplitterCtx.isPanelExpanded(panels.sidebar)) {
                           sidebarSplitterCtx.collapsePanel(panels.sidebar);
-                          void navigate({
-                            search: (prev) => ({ ...prev, sidebarSize: 0 }),
-                          });
+                          setSidebarSize(0);
+                          setStoredConnectionLayoutSize(connection.id, "sidebar", 0);
                           return;
                         }
 
                         sidebarSplitterCtx.expandPanel(panels.sidebar);
-                        void navigate({
-                          search: (prev) => ({
-                            ...prev,
-                            sidebarSize: sidebarSplitterCtx.getPanelSize(panels.sidebar),
-                          }),
-                        });
+                        const size = sidebarSplitterCtx.getPanelSize(panels.sidebar);
+                        setSidebarSize(size);
+                        setStoredConnectionLayoutSize(connection.id, "sidebar", size);
                       }}
                       isSidebarCollapsed={sidebarSplitterCtx.isPanelCollapsed(panels.sidebar)}
                     />
