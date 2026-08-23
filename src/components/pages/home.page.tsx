@@ -12,7 +12,7 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { DatabaseDialect } from "#src/db/dialect.ts";
 
@@ -172,13 +172,17 @@ export const HomePage = () => {
 
   const savedDatabaseList = useSuspenseQuery(listDbConnectionQueryOptions);
   const normalizedSearch = connectionSearch.trim().toLocaleLowerCase();
-  const visibleConnections = savedDatabaseList.data.filter((connection) => {
-    if (!normalizedSearch) return true;
-    return [connection.name, connection.dialect, getEndpointLabel(connection.url)]
-      .join(" ")
-      .toLocaleLowerCase()
-      .includes(normalizedSearch);
-  });
+  const visibleConnections = useMemo(
+    () =>
+      savedDatabaseList.data.filter((connection) => {
+        if (!normalizedSearch) return true;
+        return [connection.name, connection.dialect, getEndpointLabel(connection.url)]
+          .join(" ")
+          .toLocaleLowerCase()
+          .includes(normalizedSearch);
+      }),
+    [normalizedSearch, savedDatabaseList.data],
+  );
 
   const table = useDataTable({
     enableColumnPinning: false,
@@ -285,6 +289,12 @@ export const HomePage = () => {
       },
     ],
   });
+
+  // TanStack Table keeps its own option snapshot. Sync the derived search result so
+  // the connection finder updates immediately instead of only updating the textbox.
+  useEffect(() => {
+    table.setOptions((previous) => ({ ...previous, data: visibleConnections }));
+  }, [table, visibleConnections]);
 
   return (
     <div className="bg-background min-h-screen px-6 py-10 lg:px-10">

@@ -129,6 +129,11 @@ When("I click Add row", async ({ page }) => {
   await expect(page.getByTestId("row-editor-sheet")).toBeVisible();
 });
 
+Then("I should not be able to add rows", async ({ page }) => {
+  await expect(page.getByTestId("add-row-button")).toBeDisabled();
+  await expect(page.getByText("Read-only: writes blocked", { exact: true })).toBeVisible();
+});
+
 When(
   "I fill the row editor field {string} with {string}",
   async ({ page }, fieldName: string, value: string) => {
