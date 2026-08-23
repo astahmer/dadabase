@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 import { defineBddConfig } from "playwright-bdd";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3005";
+const e2ePort = process.env.E2E_PORT ?? "3005";
+const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${e2ePort}`;
 
 const testDir = defineBddConfig({
   features: "features/**/*.feature",
@@ -38,7 +39,7 @@ export default defineConfig({
   webServer: {
     // Use vite binary directly — pnpm/rtk shims can hang under Playwright's webServer runner
     command: `node e2e/start-web-server.mjs`,
-    url: "http://127.0.0.1:3005",
+    url: baseURL,
     // Always start a fresh e2e server with the fixture app DB
     reuseExistingServer: false,
     timeout: 180_000,

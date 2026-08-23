@@ -1,23 +1,13 @@
 import type { Table as TanstackTable } from "@tanstack/react-table";
 
 import { useNavigate } from "@tanstack/react-router";
-import {
-  LayoutGrid,
-  Link2,
-  LucideChevronDown,
-  LucideChevronUp,
-  LucideListFilter,
-  MoreHorizontal,
-  Plus,
-  Rows,
-  X,
-} from "lucide-react";
-import { useState } from "react";
+import { LayoutGrid, Link2, LucideListFilter, MoreHorizontal, Plus, Rows, X } from "lucide-react";
+import { type ReactNode, useCallback, useState } from "react";
 
 import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
-import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
+import { JoinTablesPanel } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
 import {
   getOperatorLabel,
   type FilterConditionExpression,
@@ -27,8 +17,10 @@ import {
 import { OrderBySelect } from "../../app/order-by-select.tsx";
 import { ColumnVisibilityControls } from "../../data-table/column-visibility.tsx";
 import { NaturalLanguageSearch } from "../../query-builder/natural-language-search.tsx";
+import { QueryFilterBuilder } from "../../query-builder/query-filter-builder.tsx";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover.tsx";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../ui/sheet.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
@@ -43,6 +35,8 @@ interface ConnectionPageFiltersProps {
   schema: string;
   tableName: string;
   columnMetadata?: Array<TableColumnMetadata>;
+  filterColumnMetadata?: Array<TableColumnMetadata>;
+  filterControls?: ReactNode;
   onAddRow?: () => void;
   onCreateTable?: () => void;
   onAddColumn?: () => void;
@@ -77,6 +71,8 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
     schema,
     tableName,
     columnMetadata,
+    filterColumnMetadata,
+    filterControls,
     onAddRow,
     onCreateTable,
     onAddColumn,
@@ -87,7 +83,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
     isReadOnly = false,
   } = props;
   const navigate = useNavigate({ from: "/connections/$connectionName" });
-  const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
+  const [isJoinPanelOpen, setIsJoinPanelOpen] = useState(false);
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(false);
 
   const viewMode = useActiveTabState((s) => s.viewMode);
@@ -116,6 +112,19 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
         }),
     });
   };
+
+  const handleJoinConfigChange = useCallback(
+    (config: typeof joinConfig) => {
+      void navigate({
+        search: (prev) =>
+          updateTabState(prev, {
+            joins: config.joins,
+            offset: 0,
+          }),
+      });
+    },
+    [navigate],
+  );
 
   return (
     <div className="bg-muted/50 relative w-full min-w-0 border-b">
@@ -241,54 +250,102 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 Add row
               </Button>
             )}
-            <Button
-              variant={hasAppliedFilters && !filtersOpened ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                navigate({
+            <Popover
+              open={filtersOpened}
+              onOpenChange={(details) => {
+                void navigate({
                   search: (prev) =>
-                    updateTabState(prev, (tab) => ({
-                      filtersOpened: !tab.filtersOpened,
-                    })),
+                    updateTabState(prev, {
+                      filtersOpened: details.open,
+                    }),
                 });
               }}
-              disabled={isLoading}
-              className={hasAppliedFilters ? "gap-2" : ""}
             >
-              <LucideListFilter className="h-3 w-3" />
-              Filter
-              {hasAppliedFilters && (
-                <span className="bg-background/20 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold">
-                  {appliedFilterCount}
-                </span>
-              )}
-              {hasAppliedFilters ? (
-                filtersOpened ? (
-                  <LucideChevronUp className="h-3 w-3" />
-                ) : (
-                  <LucideChevronDown className="h-3 w-3" />
-                )
-              ) : null}
-            </Button>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={hasAppliedFilters ? "secondary" : "outline"}
+                  size="sm"
+                  disabled={isLoading}
+                  className={hasAppliedFilters ? "gap-2" : "gap-1.5"}
+                >
+                  <LucideListFilter className="h-3.5 w-3.5" />
+                  Filter
+                  {hasAppliedFilters && (
+                    <span className="bg-background/70 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold">
+                      {appliedFilterCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="max-h-[min(42rem,calc(100vh-7rem))] w-[min(46rem,calc(100vw-2rem))] overflow-y-auto p-0">
+                <div className="flex items-center justify-between border-b px-4 py-3">
+                  <div>
+                    <h2 className="text-sm font-semibold">Filter rows</h2>
+                    <p className="text-muted-foreground text-xs">
+                      Changes are saved in this view's URL.
+                    </p>
+                  </div>
+                  {hasAppliedFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        queryBuilder.clearConditions();
+                        void navigate({
+                          search: (prev) =>
+                            updateTabState(prev, {
+                              groupBy: undefined,
+                              having: undefined,
+                              offset: 0,
+                            }),
+                        });
+                      }}
+                      className="text-muted-foreground h-7 px-1.5 text-xs"
+                    >
+                      Clear all
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-4 p-4">
+                  <QueryFilterBuilder
+                    conditions={queryBuilder.filter.conditions}
+                    onUpdateCondition={queryBuilder.updateCondition}
+                    onRemoveCondition={queryBuilder.removeCondition}
+                    onLogicalOperatorChange={queryBuilder.setLogicalOperator}
+                    onAddCondition={queryBuilder.addCondition}
+                    onClearAll={queryBuilder.clearConditions}
+                    logicalOperator={queryBuilder.filter.logicalOperator}
+                    availableColumns={columnList}
+                    isLoading={isLoading}
+                    label="Where"
+                    columnMetadata={filterColumnMetadata ?? columnMetadata}
+                    presentation="popover"
+                  />
+                  {filterControls && <div className="border-t pt-4">{filterControls}</div>}
+                </div>
+              </PopoverContent>
+            </Popover>
             {hasAppliedFilters && (
               <div className="hidden min-w-0 items-center gap-1 lg:flex">
                 {appliedFilterConditions.slice(0, 2).map(({ condition, index }) => (
                   <div
                     key={`${condition.column}-${condition.operator}-${index}`}
-                    className="border-border bg-background flex h-7 max-w-56 items-center rounded-md border text-xs shadow-xs"
+                    className="border-border/80 bg-background flex h-8 max-w-72 items-center overflow-hidden rounded-lg border text-xs shadow-xs"
                     title={`${condition.column} ${getOperatorLabel(condition.operator)} ${getFilterValueLabel(condition.value)}`}
                   >
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={openFilters}
-                      className="h-full max-w-48 min-w-0 gap-1 rounded-r-none px-2 text-xs"
+                      className="h-full max-w-64 min-w-0 gap-0 rounded-none p-0 text-xs"
                     >
-                      <span className="truncate font-medium">{condition.column}</span>
-                      <span className="text-muted-foreground shrink-0">
+                      <span className="max-w-28 truncate px-2.5 font-medium">
+                        {condition.column}
+                      </span>
+                      <span className="text-muted-foreground shrink-0 border-x px-2 py-1">
                         {getOperatorLabel(condition.operator)}
                       </span>
-                      <span className="text-muted-foreground truncate">
+                      <span className="text-muted-foreground max-w-28 truncate px-2.5">
                         {getFilterValueLabel(condition.value)}
                       </span>
                     </Button>
@@ -297,7 +354,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                       size="sm"
                       aria-label={`Remove ${condition.column} filter`}
                       onClick={() => queryBuilder.removeCondition(String(index))}
-                      className="text-muted-foreground hover:text-foreground h-full w-7 shrink-0 rounded-l-none p-0"
+                      className="text-muted-foreground hover:text-foreground h-full w-7 shrink-0 rounded-none border-l p-0"
                     >
                       <X className="h-3.5 w-3.5" />
                     </Button>
@@ -320,31 +377,13 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     {groupBy.length > 1 ? ` +${groupBy.length - 1}` : ""}
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    queryBuilder.clearConditions();
-                    void navigate({
-                      search: (prev) =>
-                        updateTabState(prev, {
-                          groupBy: undefined,
-                          having: undefined,
-                          offset: 0,
-                        }),
-                    });
-                  }}
-                  className="text-muted-foreground h-7 px-1.5 text-xs"
-                >
-                  Clear all
-                </Button>
               </div>
             )}
             <Tooltip content="Join tables">
               <Button
                 variant={joinConfig?.joins?.length ? "default" : "outline"}
                 size="sm"
-                onClick={() => setIsJoinDialogOpen(true)}
+                onClick={() => setIsJoinPanelOpen((open) => !open)}
                 disabled={isLoading}
                 className={joinConfig?.joins?.length ? "gap-2" : ""}
               >
@@ -357,24 +396,6 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 ) : null}
               </Button>
             </Tooltip>
-            <JoinTablesDialog
-              key={`${url}-${schema}-${tableName}`}
-              isOpen={isJoinDialogOpen}
-              onOpenChange={setIsJoinDialogOpen}
-              url={url}
-              schema={schema}
-              table={tableName}
-              initialConfig={joinConfig}
-              onApply={(config) => {
-                navigate({
-                  search: (prev) =>
-                    updateTabState(prev, {
-                      joins: config.joins,
-                      offset: 0,
-                    }),
-                });
-              }}
-            />
             <NaturalLanguageSearch
               className="order-last w-full sm:order-none sm:max-w-sm sm:min-w-[10rem] sm:shrink"
               availableColumns={columnList}
@@ -577,6 +598,17 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
           </>
         )}
       </HStack>
+      {viewMode === "rows" && isJoinPanelOpen && (
+        <JoinTablesPanel
+          key={`${url}-${schema}-${tableName}`}
+          url={url}
+          schema={schema}
+          table={tableName}
+          initialConfig={joinConfig}
+          onChange={handleJoinConfigChange}
+          onClose={() => setIsJoinPanelOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -126,19 +126,25 @@ When("I open the table filter builder", async ({ page }) => {
   await page.getByRole("button", { name: "Filter", exact: true }).click();
 });
 
-Then("I should see the guided empty filter builder", async ({ page }) => {
-  await expect(page.getByText("No filter conditions yet", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Add filter", exact: true })).toBeVisible();
+Then("I should see the compact filter workbench", async ({ page }) => {
+  const workbench = page.getByRole("dialog").filter({ hasText: "Filter rows" });
+  await expect(workbench.getByRole("heading", { name: "Filter rows" })).toBeVisible();
+  await expect(workbench.getByText("No filter conditions yet", { exact: true })).toBeVisible();
+  await expect(workbench.getByRole("button", { name: "Add filter", exact: true })).toBeVisible();
+  await expect(page.getByRole("table")).toBeVisible();
 });
 
 When("I open the join builder", async ({ page }) => {
   await page.getByRole("button", { name: "Join tables", exact: true }).click();
 });
 
-Then("I should see the join builder draft actions", async ({ page }) => {
-  await expect(page.getByRole("heading", { name: "Join builder" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Discard changes" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Apply changes" })).toBeVisible();
+Then("I should see the inline join workspace", async ({ page }) => {
+  const workspace = page.getByLabel("Join workspace");
+  await expect(workspace.getByRole("heading", { name: "Join tables" })).toBeVisible();
+  await expect(workspace.getByText("Related tables", { exact: true })).toBeVisible();
+  await expect(workspace.getByRole("button", { name: "Close", exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("table")).toBeVisible();
 });
 
 When("I hover the relationships expand button for the first row", async ({ page }) => {

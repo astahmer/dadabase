@@ -47,15 +47,15 @@ Feature: Connection page UX issues from issues.md
     Then I should not see column header filters for expand or select columns
     And I should see a column header filter for column "name"
 
-  Scenario: Filter builder starts with a guided empty state
+  Scenario: Filters open in a compact advanced workbench
     Given I open the "users" table
     When I open the table filter builder
-    Then I should see the guided empty filter builder
+    Then I should see the compact filter workbench
 
-  Scenario: Join builder keeps edits as a draft
+  Scenario: Joins open in an inline workspace
     Given I open the "users" table
     When I open the join builder
-    Then I should see the join builder draft actions
+    Then I should see the inline join workspace
 
   Scenario: Relationships expand button has a tooltip
     Given I open the "users" table

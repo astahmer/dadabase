@@ -117,7 +117,6 @@ import type { DbConnection } from "./connection.types";
 import { DataTable } from "../data-table/data-table.tsx";
 import { ScrollToColumnButton } from "../data-table/scroll-to-column.button.tsx";
 import { useDataTable } from "../data-table/use-data-table.ts";
-import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
 import { deriveFavoriteLabel } from "../query-logger/derive-favorite-label.ts";
 import { QueryLoggerContent } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
@@ -1042,6 +1041,44 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
             schema={search.schema}
             tableName={search.table}
             columnMetadata={pageState.columnMetadata}
+            filterColumnMetadata={pageState.columnMetadata
+              .map((meta) => ({
+                ...meta,
+                name: `${search.table}.${meta.name}`,
+              }))
+              .concat(
+                (columnQueries ?? []).flatMap((q, index) =>
+                  (q.data ?? []).map((meta) => {
+                    const table = pageState.joins[index].table;
+                    return {
+                      ...meta,
+                      name: `${table}.${meta.name}`,
+                    };
+                  }),
+                ),
+              )}
+            filterControls={
+              <GroupByHavingControls
+                availableColumns={pageState.columnNameList}
+                groupBy={pageState.groupBy}
+                onGroupByChange={(groupBy) => {
+                  navigate({
+                    search: (prev) =>
+                      updateTabState(prev, {
+                        groupBy: groupBy.length ? groupBy : undefined,
+                        ...(groupBy.length ? {} : { having: undefined }),
+                        offset: 0,
+                      }),
+                  });
+                  if (!groupBy.length) {
+                    pageState.havingBuilder.clearConditions();
+                  }
+                }}
+                havingBuilder={pageState.havingBuilder}
+                isLoading={pageState.rowsQuery.isLoading}
+                presentation="popover"
+              />
+            }
             onAddRow={
               search.table
                 ? () => setRowEditor({ open: true, mode: "insert", row: null })
@@ -1057,62 +1094,6 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
             }
             isReadOnly={isReadOnlyConnection(props.activeConnectionUrl)}
           />
-
-          {/* Query Filter Builder */}
-          {search.viewMode === "rows" &&
-            pageState.rowsColumns.length > 0 &&
-            search.filtersOpened && (
-              <>
-                <QueryFilterBuilder
-                  key={search.table}
-                  conditions={pageState.queryBuilder.filter.conditions}
-                  onUpdateCondition={pageState.queryBuilder.updateCondition}
-                  onRemoveCondition={pageState.queryBuilder.removeCondition}
-                  onLogicalOperatorChange={pageState.queryBuilder.setLogicalOperator}
-                  onAddCondition={pageState.queryBuilder.addCondition}
-                  onClearAll={pageState.queryBuilder.clearConditions}
-                  logicalOperator={pageState.queryBuilder.filter.logicalOperator}
-                  availableColumns={pageState.columnNameList}
-                  isLoading={pageState.rowsQuery.isLoading}
-                  label="Where"
-                  columnMetadata={pageState.columnMetadata
-                    .map((meta) => ({
-                      ...meta,
-                      name: `${search.table}.${meta.name}`,
-                    }))
-                    .concat(
-                      (columnQueries ?? []).flatMap((q, index) =>
-                        (q.data ?? []).map((meta) => {
-                          const table = pageState.joins[index].table;
-                          return {
-                            ...meta,
-                            name: `${table}.${meta.name}`,
-                          };
-                        }),
-                      ),
-                    )}
-                />
-                <GroupByHavingControls
-                  availableColumns={pageState.columnNameList}
-                  groupBy={pageState.groupBy}
-                  onGroupByChange={(groupBy) => {
-                    navigate({
-                      search: (prev) =>
-                        updateTabState(prev, {
-                          groupBy: groupBy.length ? groupBy : undefined,
-                          ...(groupBy.length ? {} : { having: undefined }),
-                          offset: 0,
-                        }),
-                    });
-                    if (!groupBy.length) {
-                      pageState.havingBuilder.clearConditions();
-                    }
-                  }}
-                  havingBuilder={pageState.havingBuilder}
-                  isLoading={pageState.rowsQuery.isLoading}
-                />
-              </>
-            )}
         </>
       )}
 

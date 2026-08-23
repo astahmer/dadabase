@@ -26,10 +26,18 @@ interface GroupByHavingControlsProps {
   onGroupByChange: (groupBy: string[]) => void;
   havingBuilder: QueryFilterBuilderReturn;
   isLoading?: boolean;
+  presentation?: "panel" | "popover";
 }
 
 export const GroupByHavingControls = (props: GroupByHavingControlsProps) => {
-  const { availableColumns, groupBy, onGroupByChange, havingBuilder, isLoading } = props;
+  const {
+    availableColumns,
+    groupBy,
+    onGroupByChange,
+    havingBuilder,
+    isLoading,
+    presentation = "panel",
+  } = props;
   const [pendingColumn, setPendingColumn] = useState<string>("");
   const [isGroupBuilderOpen, setIsGroupBuilderOpen] = useState(groupBy.length > 0);
 
@@ -54,7 +62,7 @@ export const GroupByHavingControls = (props: GroupByHavingControlsProps) => {
   }, [availableColumns, groupBy]);
 
   return (
-    <div className="bg-background border-b px-5 py-2">
+    <div className={presentation === "panel" ? "bg-background border-b px-5 py-2" : "px-0 py-0"}>
       <div className="flex flex-wrap items-center gap-1.5">
         {isGroupBuilderOpen ? (
           <>
@@ -150,6 +158,7 @@ export const GroupByHavingControls = (props: GroupByHavingControlsProps) => {
           isLoading={isLoading}
           disabled={groupBy.length === 0}
           label="Having"
+          presentation={presentation}
         />
       )}
     </div>

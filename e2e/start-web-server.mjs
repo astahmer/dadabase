@@ -7,12 +7,13 @@ import { prepareE2eFixtures } from "./prepare-fixtures.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, "..");
 const appDbPath = path.join(__dirname, ".tmp", "app.db");
+const port = process.env.E2E_PORT ?? "3005";
 
 await prepareE2eFixtures({ forceAppDb: true });
 
 const child = spawn(
   path.join(rootDir, "node_modules/.bin/vite"),
-  ["dev", "--host", "127.0.0.1", "--port", "3005"],
+  ["dev", "--host", "127.0.0.1", "--port", port],
   {
     cwd: rootDir,
     stdio: "inherit",

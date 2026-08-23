@@ -62,6 +62,7 @@ interface QueryFilterBuilderProps {
   /** Optional column metadata to display data types in the column dropdown */
   columnMetadata?: Array<TableColumnMetadata>;
   label?: string;
+  presentation?: "panel" | "popover";
 }
 
 const logicalOperatorCollection = createListCollection({
@@ -85,6 +86,7 @@ export const QueryFilterBuilder = ({
   disabled = false,
   columnMetadata,
   label = "Where",
+  presentation = "panel",
 }: QueryFilterBuilderProps) => {
   const columnCollection = useMemo(
     () =>
@@ -99,42 +101,72 @@ export const QueryFilterBuilder = ({
 
   return (
     <div
-      className={`bg-background space-y-3 border-b px-5 py-3 ${disabled ? "pointer-events-none opacity-50" : ""}`}
+      className={
+        presentation === "panel"
+          ? `bg-background space-y-3 border-b px-5 py-3 ${disabled ? "pointer-events-none opacity-50" : ""}`
+          : `space-y-3 ${disabled ? "pointer-events-none opacity-50" : ""}`
+      }
     >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium">{label} filters</p>
-          <p className="text-muted-foreground text-xs">
-            {conditions.length
-              ? `${conditions.length} condition${conditions.length === 1 ? "" : "s"} applied to this view`
-              : "Add conditions to narrow this table view"}
-          </p>
+      {presentation === "panel" && (
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">{label} filters</p>
+            <p className="text-muted-foreground text-xs">
+              {conditions.length
+                ? `${conditions.length} condition${conditions.length === 1 ? "" : "s"} applied to this view`
+                : "Add conditions to narrow this table view"}
+            </p>
+          </div>
+          {conditions.length > 1 && (
+            <ArkSelect.Select
+              value={[logicalOperator]}
+              collection={logicalOperatorCollection}
+              positioning={{ sameWidth: true }}
+              onValueChange={(details: { value?: string[] }) => {
+                onLogicalOperatorChange((details.value?.[0] as LogicalOperatorType) || "and");
+              }}
+            >
+              <ArkSelect.SelectControl size="sm" className="bg-muted/70 h-8 shadow-none">
+                <ArkSelect.SelectTrigger className="px-2 text-xs">
+                  <ArkSelect.SelectValueText placeholder="Match all" />
+                  <ArkSelect.SelectIndicator />
+                </ArkSelect.SelectTrigger>
+              </ArkSelect.SelectControl>
+              <ArkSelect.SelectContent>
+                {logicalOperatorCollection.items.map((item) => (
+                  <ArkSelect.SelectItem key={item.value} item={item}>
+                    {item.label}
+                  </ArkSelect.SelectItem>
+                ))}
+              </ArkSelect.SelectContent>
+            </ArkSelect.Select>
+          )}
         </div>
-        {conditions.length > 1 && (
-          <ArkSelect.Select
-            value={[logicalOperator]}
-            collection={logicalOperatorCollection}
-            positioning={{ sameWidth: true }}
-            onValueChange={(details: { value?: string[] }) => {
-              onLogicalOperatorChange((details.value?.[0] as LogicalOperatorType) || "and");
-            }}
-          >
-            <ArkSelect.SelectControl size="sm" className="bg-muted/70 h-8 shadow-none">
-              <ArkSelect.SelectTrigger className="px-2 text-xs">
-                <ArkSelect.SelectValueText placeholder="Match all" />
-                <ArkSelect.SelectIndicator />
-              </ArkSelect.SelectTrigger>
-            </ArkSelect.SelectControl>
-            <ArkSelect.SelectContent>
-              {logicalOperatorCollection.items.map((item) => (
-                <ArkSelect.SelectItem key={item.value} item={item}>
-                  {item.label}
-                </ArkSelect.SelectItem>
-              ))}
-            </ArkSelect.SelectContent>
-          </ArkSelect.Select>
-        )}
-      </div>
+      )}
+      {conditions.length > 1 && presentation === "popover" && (
+        <ArkSelect.Select
+          value={[logicalOperator]}
+          collection={logicalOperatorCollection}
+          positioning={{ sameWidth: true }}
+          onValueChange={(details: { value?: string[] }) => {
+            onLogicalOperatorChange((details.value?.[0] as LogicalOperatorType) || "and");
+          }}
+        >
+          <ArkSelect.SelectControl size="sm" className="bg-muted/70 h-8 shadow-none">
+            <ArkSelect.SelectTrigger className="px-2 text-xs">
+              <ArkSelect.SelectValueText placeholder="Match all" />
+              <ArkSelect.SelectIndicator />
+            </ArkSelect.SelectTrigger>
+          </ArkSelect.SelectControl>
+          <ArkSelect.SelectContent>
+            {logicalOperatorCollection.items.map((item) => (
+              <ArkSelect.SelectItem key={item.value} item={item}>
+                {item.label}
+              </ArkSelect.SelectItem>
+            ))}
+          </ArkSelect.SelectContent>
+        </ArkSelect.Select>
+      )}
       {conditions.length ? (
         <div className="space-y-1.5">
           {conditions.map((condition, index) => (
@@ -146,9 +178,10 @@ export const QueryFilterBuilder = ({
               onUpdate={onUpdateCondition}
               onRemove={onRemoveCondition}
               isLoading={isLoading}
-              connector={index === 0 ? label : logicalOperator}
+              connector={index === 0 ? label : logicalOperator === "and" ? "And" : "Or"}
               tableReference={tableReference}
               columnMetadata={columnMetadata}
+              compact={presentation === "popover"}
             />
           ))}
         </div>
@@ -168,7 +201,13 @@ export const QueryFilterBuilder = ({
         </div>
       )}
       {conditions.length > 0 && (
-        <div className="ml-12 flex flex-wrap items-center gap-1">
+        <div
+          className={
+            presentation === "panel"
+              ? "ml-12 flex flex-wrap items-center gap-1"
+              : "flex flex-wrap items-center gap-1"
+          }
+        >
           <Button
             variant="ghost"
             size="sm"
@@ -208,6 +247,7 @@ interface FilterConditionRowProps {
   connector: string;
   tableReference?: string;
   columnMetadata?: Array<TableColumnMetadata>;
+  compact?: boolean;
 }
 
 const FilterConditionRow = (props: FilterConditionRowProps) => {
@@ -220,6 +260,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
     isLoading = false,
     connector,
     columnMetadata,
+    compact = false,
   } = props;
   const isNullOperator = nullOperators.includes(condition.operator);
   const isArrayOperator = arrayOperators.includes(condition.operator);
@@ -272,7 +313,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
   return (
     <div className="flex flex-wrap items-center gap-1.5 py-0.5">
       <span className="text-muted-foreground w-12 text-right text-xs font-medium">{connector}</span>
-      <div className="w-48 max-w-full">
+      <div className={compact ? "w-44 max-w-full" : "w-48 max-w-full"}>
         <Combobox
           openOnClick
           collection={columnList.collection}
@@ -313,7 +354,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
         </Combobox>
       </div>
 
-      <div className="w-36 max-w-full">
+      <div className={compact ? "w-32 max-w-full" : "w-36 max-w-full"}>
         <Combobox
           openOnClick
           collection={operatorList.collection}
@@ -370,7 +411,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
 
       {!isNullOperator && (
         <div
-          className={`flex max-w-full items-center gap-1.5 ${isRangeOperator ? "min-w-[22rem]" : "w-64"}`}
+          className={`flex max-w-full items-center gap-1.5 ${isRangeOperator ? "min-w-[20rem]" : compact ? "w-52" : "w-64"}`}
         >
           <div className="min-w-0 flex-1">
             {isRangeOperator ? (
