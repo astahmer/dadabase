@@ -1,3 +1,21 @@
+import { createListCollection, useFilter } from "@ark-ui/react";
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+
 import { Button } from "#src/components/ui/button.tsx";
 import {
   Dialog,
@@ -21,23 +39,6 @@ import { buildJoinSqlPreview } from "#src/server/introspection/join-builder.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
-import { createListCollection, useFilter } from "@ark-ui/react";
-import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { useQueries, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
 
 import type { TableRelationship } from "../relationships/relationships.ts";
 import type { JoinTablesConfig } from "./join-tables.types";
@@ -190,10 +191,8 @@ const JoinTablesDialogContent = (props: Omit<JoinTablesDialogProps, "isOpen">) =
     }
   };
 
-  const handleCancel = () => {
+  const handleClearDraft = () => {
     joinState.clear();
-    onApply({ joins: [] });
-    onOpenChange(false);
   };
 
   const isLoadingRelationships = relationshipsQuery.isLoading && !relationshipsQuery.data;
@@ -220,12 +219,13 @@ const JoinTablesDialogContent = (props: Omit<JoinTablesDialogProps, "isOpen">) =
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Join Tables</DialogTitle>
+        <DialogTitle>Join builder</DialogTitle>
         <DialogDescription>
-          Configure joins for{" "}
+          Add related tables to{" "}
           <span className="font-mono font-medium">
             <TableName schema={schema} table={table} hasMultipleSchemas={hasMultipleSchemas} />
-          </span>
+          </span>{" "}
+          and apply the draft when it is ready.
         </DialogDescription>
       </DialogHeader>
 
@@ -241,7 +241,12 @@ const JoinTablesDialogContent = (props: Omit<JoinTablesDialogProps, "isOpen">) =
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="text-sm font-medium">Add Table to Join</div>
+            <div>
+              <div className="text-sm font-medium">Add related table</div>
+              <p className="text-muted-foreground text-xs">
+                Choose a foreign-key relationship. The existing result is unchanged until you apply.
+              </p>
+            </div>
             <ListboxRoot collection={tableCollection} selectionMode="none">
               <ListboxMenuFilterInput
                 key={inputKey}
@@ -346,9 +351,7 @@ const JoinTablesDialogContent = (props: Omit<JoinTablesDialogProps, "isOpen">) =
             onDragEnd={handleDragEnd}
           >
             <Stack gap="3">
-              <div className="text-sm font-medium">
-                Selected Joins ({joinState.config.joins.length})
-              </div>
+              <div className="text-sm font-medium">Join plan ({joinState.config.joins.length})</div>
               <SortableContext
                 items={joinState.config.joins.map((j) => `${j.schema}.${j.table}`)}
                 strategy={verticalListSortingStrategy}
@@ -452,14 +455,17 @@ const JoinTablesDialogContent = (props: Omit<JoinTablesDialogProps, "isOpen">) =
         )}
       </Stack>
 
-      <DialogFooter className="shrink-0">
+      <DialogFooter className="shrink-0 border-t pt-4">
         <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={handleCancel}>
-            Clear joins
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Discard changes
           </Button>
-          <Button onClick={handleApply} disabled={!joinState.config.joins.length}>
-            Apply joins
-          </Button>
+          {joinState.config.joins.length > 0 && (
+            <Button variant="outline" onClick={handleClearDraft}>
+              Clear draft
+            </Button>
+          )}
+          <Button onClick={handleApply}>Apply changes</Button>
         </div>
       </DialogFooter>
     </>

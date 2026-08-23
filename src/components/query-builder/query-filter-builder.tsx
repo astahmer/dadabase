@@ -97,41 +97,19 @@ export const QueryFilterBuilder = ({
     [availableColumns, tableReference],
   );
 
-  if (conditions.length === 0) {
-    return null;
-  }
-
   return (
     <div
-      className={`bg-background space-y-1.5 border-b px-5 py-2.5 ${disabled ? "pointer-events-none opacity-50" : ""}`}
+      className={`bg-background space-y-3 border-b px-5 py-3 ${disabled ? "pointer-events-none opacity-50" : ""}`}
     >
-      <div className="space-y-1">
-        {conditions.map((condition, index) => (
-          <FilterConditionRow
-            key={index}
-            condition={condition}
-            index={index}
-            columnCollection={columnCollection}
-            onUpdate={onUpdateCondition}
-            onRemove={onRemoveCondition}
-            isLoading={isLoading}
-            connector={index === 0 ? label : logicalOperator}
-            tableReference={tableReference}
-            columnMetadata={columnMetadata}
-          />
-        ))}
-      </div>
-      <div className="ml-12 flex flex-wrap items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onAddCondition}
-          disabled={isLoading}
-          className="text-muted-foreground h-7 gap-1 px-1.5 text-xs"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add filter
-        </Button>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">{label} filters</p>
+          <p className="text-muted-foreground text-xs">
+            {conditions.length
+              ? `${conditions.length} condition${conditions.length === 1 ? "" : "s"} applied to this view`
+              : "Add conditions to narrow this table view"}
+          </p>
+        </div>
         {conditions.length > 1 && (
           <ArkSelect.Select
             value={[logicalOperator]}
@@ -141,7 +119,7 @@ export const QueryFilterBuilder = ({
               onLogicalOperatorChange((details.value?.[0] as LogicalOperatorType) || "and");
             }}
           >
-            <ArkSelect.SelectControl size="sm" className="bg-muted/70 h-7 shadow-none">
+            <ArkSelect.SelectControl size="sm" className="bg-muted/70 h-8 shadow-none">
               <ArkSelect.SelectTrigger className="px-2 text-xs">
                 <ArkSelect.SelectValueText placeholder="Match all" />
                 <ArkSelect.SelectIndicator />
@@ -156,17 +134,63 @@ export const QueryFilterBuilder = ({
             </ArkSelect.SelectContent>
           </ArkSelect.Select>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClearAll}
-          disabled={isLoading}
-          className="text-muted-foreground h-7 gap-1 px-1.5 text-xs"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Clear all
-        </Button>
       </div>
+      {conditions.length ? (
+        <div className="space-y-1.5">
+          {conditions.map((condition, index) => (
+            <FilterConditionRow
+              key={index}
+              condition={condition}
+              index={index}
+              columnCollection={columnCollection}
+              onUpdate={onUpdateCondition}
+              onRemove={onRemoveCondition}
+              isLoading={isLoading}
+              connector={index === 0 ? label : logicalOperator}
+              tableReference={tableReference}
+              columnMetadata={columnMetadata}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="border-border/70 bg-muted/30 flex items-center justify-between gap-3 rounded-md border border-dashed px-3 py-2">
+          <span className="text-muted-foreground text-sm">No filter conditions yet</span>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onAddCondition}
+            disabled={isLoading}
+            className="h-8 gap-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add filter
+          </Button>
+        </div>
+      )}
+      {conditions.length > 0 && (
+        <div className="ml-12 flex flex-wrap items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onAddCondition}
+            disabled={isLoading}
+            className="text-muted-foreground h-7 gap-1 px-1.5 text-xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add filter
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClearAll}
+            disabled={isLoading}
+            className="text-muted-foreground h-7 gap-1 px-1.5 text-xs"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear all
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

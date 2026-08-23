@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Plus,
   Rows,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -20,6 +21,7 @@ import { JoinTablesDialog } from "#src/components/pages/connection-page/join-tab
 import {
   getOperatorLabel,
   type FilterConditionExpression,
+  nullOperators,
 } from "#src/components/query-builder/query-filter.ts";
 
 import { OrderBySelect } from "../../app/order-by-select.tsx";
@@ -53,8 +55,16 @@ interface ConnectionPageFiltersProps {
 
 const getFilterValueLabel = (value: FilterConditionExpression["value"]) => {
   if (Array.isArray(value)) return value.join(", ") || "…";
-  if (value === null || value === undefined || value === "") return "…";
+  if (value === null) return "NULL";
+  if (value === undefined || value === "") return "…";
   return String(value);
+};
+
+const isAppliedFilter = (condition: FilterConditionExpression): boolean => {
+  if (!condition.column) return false;
+  if (nullOperators.includes(condition.operator)) return true;
+  if (Array.isArray(condition.value)) return condition.value.length > 0;
+  return condition.value !== undefined && condition.value !== "";
 };
 
 export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
@@ -83,6 +93,9 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
   const viewMode = useActiveTabState((s) => s.viewMode);
   const filtersOpened = useActiveTabState((s) => s.filtersOpened);
   const filterConditions = useActiveTabState((s) => s.filters?.conditions ?? []);
+  const appliedFilterConditions = filterConditions.flatMap((condition, index) =>
+    isAppliedFilter(condition) ? [{ condition, index }] : [],
+  );
   const groupBy = useActiveTabState((s) => s.groupBy ?? []);
   const groupByCount = groupBy.length;
   const joinConfig = useActiveTabState((s) => ({
@@ -92,6 +105,17 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
   const orderDirection = useActiveTabState((s) => s.orderDirection);
   const nullsOrder = useActiveTabState((s) => s.nullsOrder);
   const columnVisibilityMode = useActiveTabState((s) => s.columnVisibilityMode);
+  const appliedFilterCount = appliedFilterConditions.length + groupByCount;
+  const hasAppliedFilters = appliedFilterCount > 0;
+
+  const openFilters = () => {
+    void navigate({
+      search: (prev) =>
+        updateTabState(prev, {
+          filtersOpened: true,
+        }),
+    });
+  };
 
   return (
     <div className="bg-muted/50 relative w-full min-w-0 border-b">
@@ -218,11 +242,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
               </Button>
             )}
             <Button
-              variant={
-                (filterConditions.length > 0 || (groupByCount ?? 0) > 0) && !filtersOpened
-                  ? "default"
-                  : "outline"
-              }
+              variant={hasAppliedFilters && !filtersOpened ? "default" : "outline"}
               size="sm"
               onClick={() => {
                 navigate({
@@ -233,20 +253,16 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 });
               }}
               disabled={isLoading}
-              className={filterConditions.length > 0 || (groupByCount ?? 0) > 0 ? "gap-2" : ""}
+              className={hasAppliedFilters ? "gap-2" : ""}
             >
               <LucideListFilter className="h-3 w-3" />
-              {filterConditions.length > 0 || (groupByCount ?? 0) > 0
-                ? filtersOpened
-                  ? "Filters"
-                  : "Open filters"
-                : "Filters"}
-              {(filterConditions.length > 0 || (groupByCount ?? 0) > 0) && (
+              Filter
+              {hasAppliedFilters && (
                 <span className="bg-background/20 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-semibold">
-                  {filterConditions.length + (groupByCount ?? 0) || 0}
+                  {appliedFilterCount}
                 </span>
               )}
-              {filterConditions.length > 0 || (groupByCount ?? 0) > 0 ? (
+              {hasAppliedFilters ? (
                 filtersOpened ? (
                   <LucideChevronUp className="h-3 w-3" />
                 ) : (
@@ -254,52 +270,49 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 )
               ) : null}
             </Button>
-            {(filterConditions.length > 0 || groupByCount > 0) && !filtersOpened && (
+            {hasAppliedFilters && (
               <div className="hidden min-w-0 items-center gap-1 lg:flex">
-                {filterConditions.slice(0, 2).map((condition, index) => (
-                  <Button
+                {appliedFilterConditions.slice(0, 2).map(({ condition, index }) => (
+                  <div
                     key={`${condition.column}-${condition.operator}-${index}`}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      navigate({
-                        search: (prev) =>
-                          updateTabState(prev, {
-                            filtersOpened: true,
-                          }),
-                      });
-                    }}
-                    className="h-7 max-w-52 gap-1 px-2 text-xs"
+                    className="border-border bg-background flex h-7 max-w-56 items-center rounded-md border text-xs shadow-xs"
                     title={`${condition.column} ${getOperatorLabel(condition.operator)} ${getFilterValueLabel(condition.value)}`}
                   >
-                    <span className="truncate font-medium">
-                      {condition.column || "Select column"}
-                    </span>
-                    <span className="text-muted-foreground shrink-0">
-                      {getOperatorLabel(condition.operator)}
-                    </span>
-                    <span className="text-muted-foreground truncate">
-                      {getFilterValueLabel(condition.value)}
-                    </span>
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={openFilters}
+                      className="h-full max-w-48 min-w-0 gap-1 rounded-r-none px-2 text-xs"
+                    >
+                      <span className="truncate font-medium">{condition.column}</span>
+                      <span className="text-muted-foreground shrink-0">
+                        {getOperatorLabel(condition.operator)}
+                      </span>
+                      <span className="text-muted-foreground truncate">
+                        {getFilterValueLabel(condition.value)}
+                      </span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Remove ${condition.column} filter`}
+                      onClick={() => queryBuilder.removeCondition(String(index))}
+                      className="text-muted-foreground hover:text-foreground h-full w-7 shrink-0 rounded-l-none p-0"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 ))}
-                {filterConditions.length > 2 && (
+                {appliedFilterConditions.length > 2 && (
                   <span className="text-muted-foreground px-1 text-xs">
-                    +{filterConditions.length - 2}
+                    +{appliedFilterConditions.length - 2}
                   </span>
                 )}
                 {groupBy.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      navigate({
-                        search: (prev) =>
-                          updateTabState(prev, {
-                            filtersOpened: true,
-                          }),
-                      });
-                    }}
+                    onClick={openFilters}
                     className="text-muted-foreground h-7 max-w-40 px-2 text-xs"
                     title={`Grouped by ${groupBy.join(", ")}`}
                   >
@@ -307,6 +320,24 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     {groupBy.length > 1 ? ` +${groupBy.length - 1}` : ""}
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    queryBuilder.clearConditions();
+                    void navigate({
+                      search: (prev) =>
+                        updateTabState(prev, {
+                          groupBy: undefined,
+                          having: undefined,
+                          offset: 0,
+                        }),
+                    });
+                  }}
+                  className="text-muted-foreground h-7 px-1.5 text-xs"
+                >
+                  Clear all
+                </Button>
               </div>
             )}
             <Tooltip content="Join tables">
@@ -350,7 +381,6 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
               onApplyFilters={(parsed) => {
                 // oxlint-disable-next-line no-shadow
                 const { filters = [], orderBy, limit } = parsed;
-                console.log("onApplyFilters", filters);
                 const operatorMap: Record<string, any> = {
                   eq: "equals",
                   gt: "greater_than",

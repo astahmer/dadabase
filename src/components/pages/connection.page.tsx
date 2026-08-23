@@ -3,15 +3,7 @@ import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
-import {
-  ArrowDown,
-  ArrowDownUp,
-  ArrowUp,
-  GripHorizontal,
-  Plus,
-  RotateCcw,
-  SearchX,
-} from "lucide-react";
+import { ArrowDown, ArrowDownUp, ArrowUp, GripHorizontal, RotateCcw, SearchX } from "lucide-react";
 import {
   type Dispatch,
   type SetStateAction,
@@ -1071,50 +1063,35 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
             pageState.rowsColumns.length > 0 &&
             search.filtersOpened && (
               <>
-                {pageState.queryBuilder.filter.conditions.length === 0 ? (
-                  <div className="bg-background flex items-center gap-2 border-b px-5 py-2.5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-7 gap-1 px-1.5 text-xs"
-                      onClick={() => pageState.queryBuilder.addCondition()}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add filter
-                    </Button>
-                    <span className="text-muted-foreground text-xs">Filter rows by property</span>
-                  </div>
-                ) : (
-                  <QueryFilterBuilder
-                    key={search.table}
-                    conditions={pageState.queryBuilder.filter.conditions}
-                    onUpdateCondition={pageState.queryBuilder.updateCondition}
-                    onRemoveCondition={pageState.queryBuilder.removeCondition}
-                    onLogicalOperatorChange={pageState.queryBuilder.setLogicalOperator}
-                    onAddCondition={pageState.queryBuilder.addCondition}
-                    onClearAll={pageState.queryBuilder.clearConditions}
-                    logicalOperator={pageState.queryBuilder.filter.logicalOperator}
-                    availableColumns={pageState.columnNameList}
-                    isLoading={pageState.rowsQuery.isLoading}
-                    label="Where"
-                    columnMetadata={pageState.columnMetadata
-                      .map((meta) => ({
-                        ...meta,
-                        name: `${search.table}.${meta.name}`,
-                      }))
-                      .concat(
-                        (columnQueries ?? []).flatMap((q, index) =>
-                          (q.data ?? []).map((meta) => {
-                            const table = pageState.joins[index].table;
-                            return {
-                              ...meta,
-                              name: `${table}.${meta.name}`,
-                            };
-                          }),
-                        ),
-                      )}
-                  />
-                )}
+                <QueryFilterBuilder
+                  key={search.table}
+                  conditions={pageState.queryBuilder.filter.conditions}
+                  onUpdateCondition={pageState.queryBuilder.updateCondition}
+                  onRemoveCondition={pageState.queryBuilder.removeCondition}
+                  onLogicalOperatorChange={pageState.queryBuilder.setLogicalOperator}
+                  onAddCondition={pageState.queryBuilder.addCondition}
+                  onClearAll={pageState.queryBuilder.clearConditions}
+                  logicalOperator={pageState.queryBuilder.filter.logicalOperator}
+                  availableColumns={pageState.columnNameList}
+                  isLoading={pageState.rowsQuery.isLoading}
+                  label="Where"
+                  columnMetadata={pageState.columnMetadata
+                    .map((meta) => ({
+                      ...meta,
+                      name: `${search.table}.${meta.name}`,
+                    }))
+                    .concat(
+                      (columnQueries ?? []).flatMap((q, index) =>
+                        (q.data ?? []).map((meta) => {
+                          const table = pageState.joins[index].table;
+                          return {
+                            ...meta,
+                            name: `${table}.${meta.name}`,
+                          };
+                        }),
+                      ),
+                    )}
+                />
                 <GroupByHavingControls
                   availableColumns={pageState.columnNameList}
                   groupBy={pageState.groupBy}

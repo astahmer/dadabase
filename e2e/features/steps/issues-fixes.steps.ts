@@ -122,6 +122,25 @@ Then(
   },
 );
 
+When("I open the table filter builder", async ({ page }) => {
+  await page.getByRole("button", { name: "Filter", exact: true }).click();
+});
+
+Then("I should see the guided empty filter builder", async ({ page }) => {
+  await expect(page.getByText("No filter conditions yet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add filter", exact: true })).toBeVisible();
+});
+
+When("I open the join builder", async ({ page }) => {
+  await page.getByRole("button", { name: "Join tables", exact: true }).click();
+});
+
+Then("I should see the join builder draft actions", async ({ page }) => {
+  await expect(page.getByRole("heading", { name: "Join builder" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Discard changes" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Apply changes" })).toBeVisible();
+});
+
 When("I hover the relationships expand button for the first row", async ({ page }) => {
   const expand = page.locator('[data-testid^="row-expand-"]').first();
   await expect(expand).toBeVisible({ timeout: 15_000 });
