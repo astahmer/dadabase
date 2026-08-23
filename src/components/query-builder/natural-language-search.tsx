@@ -25,6 +25,7 @@ interface NaturalLanguageSearchProps {
     },
   ) => void;
   placeholder?: string;
+  label?: string;
   className?: string;
 }
 
@@ -36,9 +37,9 @@ export function NaturalLanguageSearch({
   availableColumns,
   onApplyFilters,
   placeholder = 'Try: "age > 25", "sort by name desc", "limit 10"',
+  label = "Quick query",
   className,
 }: NaturalLanguageSearchProps) {
-  const [preview, setPreview] = useState("");
   const [inputValue, setInputValue] = useState("");
 
   const [result, setResult] = useState<ParsedNLQuery | null>(null);
@@ -114,12 +115,9 @@ export function NaturalLanguageSearch({
   };
 
   const clearState = () => {
-    setPreview("");
     setInputValue("");
     setResult(null);
   };
-
-  const displayText = preview || placeholder;
 
   return (
     <div className={cn("flex items-start gap-2", className)}>
@@ -139,7 +137,8 @@ export function NaturalLanguageSearch({
             size="sm"
             className="w-full justify-between text-left font-normal"
           >
-            <span className="truncate">{displayText}</span>
+            <span className="shrink-0 font-medium">{label}</span>
+            <span className="text-muted-foreground min-w-0 flex-1 truncate">{placeholder}</span>
             <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </Popover.Trigger>
@@ -234,22 +233,6 @@ export function NaturalLanguageSearch({
           </Popover.Positioner>
         </Portal>
       </Popover.Root>
-
-      {preview && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            onApplyFilters({ ...result, clear: true });
-            clearState();
-          }}
-          className="shrink-0"
-          aria-label="Clear search"
-        >
-          ✕
-        </Button>
-      )}
     </div>
   );
 }

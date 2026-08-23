@@ -330,79 +330,32 @@ export const useConnectionPageState = ({
         header: (ctx) => {
           const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
           const isAllSelected = ctx.table.getIsAllRowsSelected();
-          const hasAnySelection = isSomeRowsSelected || isAllSelected;
 
           return (
             <div className="flex h-full w-full items-center justify-center text-center">
-              {hasAnySelection ? (
+              <Tooltip content="Select all rows" colorPalette="inverted">
                 <Checkbox
                   className="flex items-center gap-2"
                   checked={isAllSelected ? true : isSomeRowsSelected ? "indeterminate" : false}
                   onChange={ctx.table.getToggleAllRowsSelectedHandler()}
                   aria-label="Select all rows"
-                  title="Select all rows"
                 >
                   <CheckboxControl />
                 </Checkbox>
-              ) : (
-                <Tooltip
-                  content="Click to select all rows"
-                  colorPalette="inverted"
-                  positioning={{ placement: "right", strategy: "fixed" }}
-                >
-                  <Button
-                    size="xs"
-                    className="w-full text-center text-xs"
-                    variant="ghost"
-                    onClick={() => ctx.table.toggleAllRowsSelected(true)}
-                  >
-                    #
-                  </Button>
-                </Tooltip>
-              )}
+              </Tooltip>
             </div>
           );
         },
         cell: (ctx) => {
           const isSelected = ctx.row.getIsSelected();
-          const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
-          const isAllSelected = ctx.table.getIsAllRowsSelected();
-          const hasAnySelection = isSomeRowsSelected || isAllSelected;
 
           const rowIndex = ctx.row.index;
           const pageIndex = Math.floor(search.offset / search.limit);
           const pageSize = search.limit;
           const displayedNumber = pageIndex * pageSize + rowIndex + 1;
 
-          if (hasAnySelection) {
-            return (
-              <Tooltip
-                content={`#${displayedNumber}`}
-                colorPalette="inverted"
-                portalled={false}
-                positioning={{ placement: "right", strategy: "fixed" }}
-              >
-                <div>
-                  <Checkbox
-                    className="flex items-center gap-2 justify-self-center"
-                    checked={isSelected}
-                    disabled={!ctx.row.getCanSelect()}
-                    onChange={ctx.row.getToggleSelectedHandler()}
-                    aria-label={`Select row ${displayedNumber}`}
-                  >
-                    <CheckboxControl />
-                  </Checkbox>
-                </div>
-              </Tooltip>
-            );
-          }
-
           return (
-            <Tooltip
-              content="Click to select row, ⋯ for actions, right-click also works"
-              colorPalette="inverted"
-              positioning={{ placement: "right", strategy: "fixed" }}
-            >
+            <Tooltip content={`Select row ${displayedNumber}`} colorPalette="inverted">
               <RowContextMenu
                 row={ctx.row.original as Record<string, unknown>}
                 tableMetadata={{
@@ -447,16 +400,16 @@ export const useConnectionPageState = ({
                   });
                 }}
               >
-                <Button
-                  size="xs"
-                  className="w-full text-center text-xs"
-                  variant="ghost"
+                <Checkbox
+                  className="flex w-full items-center justify-center"
                   data-testid="row-select-button"
+                  checked={isSelected}
+                  disabled={!ctx.row.getCanSelect()}
                   aria-label={`Select row ${displayedNumber}`}
-                  onClick={ctx.row.getToggleSelectedHandler()}
+                  onChange={ctx.row.getToggleSelectedHandler()}
                 >
-                  {displayedNumber}
-                </Button>
+                  <CheckboxControl />
+                </Checkbox>
               </RowContextMenu>
             </Tooltip>
           );

@@ -1,4 +1,4 @@
-import { useListCollection } from "@ark-ui/react";
+import { type ListCollection, useListCollection } from "@ark-ui/react";
 import { useFilter } from "@ark-ui/react/locale";
 import { Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -42,7 +42,6 @@ import {
 import { Input } from "../ui/input.tsx";
 import { Kbd } from "../ui/kbd.tsx";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/menu.tsx";
-import * as ArkSelect from "../ui/select.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 
 interface QueryFilterBuilderProps {
@@ -65,12 +64,41 @@ interface QueryFilterBuilderProps {
   presentation?: "panel" | "popover";
 }
 
-const logicalOperatorCollection = createListCollection({
-  items: [
-    { label: "Match all", value: "and" },
-    { label: "Match any", value: "or" },
-  ],
-});
+const LogicalOperatorToggle = ({
+  logicalOperator,
+  onChange,
+}: {
+  logicalOperator: LogicalOperatorType;
+  onChange: (operator: LogicalOperatorType) => void;
+}) => (
+  <div
+    className="bg-muted/70 inline-flex h-8 items-center rounded-md border p-0.5"
+    aria-label="Match conditions"
+  >
+    <Tooltip content="Match every condition">
+      <Button
+        variant={logicalOperator === "and" ? "secondary" : "ghost"}
+        size="sm"
+        onClick={() => onChange("and")}
+        className="h-6 px-2 text-xs"
+        aria-pressed={logicalOperator === "and"}
+      >
+        All
+      </Button>
+    </Tooltip>
+    <Tooltip content="Match any condition">
+      <Button
+        variant={logicalOperator === "or" ? "secondary" : "ghost"}
+        size="sm"
+        onClick={() => onChange("or")}
+        className="h-6 px-2 text-xs"
+        aria-pressed={logicalOperator === "or"}
+      >
+        Any
+      </Button>
+    </Tooltip>
+  </div>
+);
 
 export const QueryFilterBuilder = ({
   conditions,
@@ -118,54 +146,21 @@ export const QueryFilterBuilder = ({
             </p>
           </div>
           {conditions.length > 1 && (
-            <ArkSelect.Select
-              value={[logicalOperator]}
-              collection={logicalOperatorCollection}
-              positioning={{ sameWidth: true }}
-              onValueChange={(details: { value?: string[] }) => {
-                onLogicalOperatorChange((details.value?.[0] as LogicalOperatorType) || "and");
-              }}
-            >
-              <ArkSelect.SelectControl size="sm" className="bg-muted/70 h-8 shadow-none">
-                <ArkSelect.SelectTrigger className="px-2 text-xs">
-                  <ArkSelect.SelectValueText placeholder="Match all" />
-                  <ArkSelect.SelectIndicator />
-                </ArkSelect.SelectTrigger>
-              </ArkSelect.SelectControl>
-              <ArkSelect.SelectContent>
-                {logicalOperatorCollection.items.map((item) => (
-                  <ArkSelect.SelectItem key={item.value} item={item}>
-                    {item.label}
-                  </ArkSelect.SelectItem>
-                ))}
-              </ArkSelect.SelectContent>
-            </ArkSelect.Select>
+            <LogicalOperatorToggle
+              logicalOperator={logicalOperator}
+              onChange={onLogicalOperatorChange}
+            />
           )}
         </div>
       )}
       {conditions.length > 1 && presentation === "popover" && (
-        <ArkSelect.Select
-          value={[logicalOperator]}
-          collection={logicalOperatorCollection}
-          positioning={{ sameWidth: true }}
-          onValueChange={(details: { value?: string[] }) => {
-            onLogicalOperatorChange((details.value?.[0] as LogicalOperatorType) || "and");
-          }}
-        >
-          <ArkSelect.SelectControl size="sm" className="bg-muted/70 h-8 shadow-none">
-            <ArkSelect.SelectTrigger className="px-2 text-xs">
-              <ArkSelect.SelectValueText placeholder="Match all" />
-              <ArkSelect.SelectIndicator />
-            </ArkSelect.SelectTrigger>
-          </ArkSelect.SelectControl>
-          <ArkSelect.SelectContent>
-            {logicalOperatorCollection.items.map((item) => (
-              <ArkSelect.SelectItem key={item.value} item={item}>
-                {item.label}
-              </ArkSelect.SelectItem>
-            ))}
-          </ArkSelect.SelectContent>
-        </ArkSelect.Select>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-muted-foreground text-xs">Match conditions</span>
+          <LogicalOperatorToggle
+            logicalOperator={logicalOperator}
+            onChange={onLogicalOperatorChange}
+          />
+        </div>
       )}
       {conditions.length ? (
         <div className="space-y-1.5">
@@ -237,7 +232,7 @@ export const QueryFilterBuilder = ({
 interface FilterConditionRowProps {
   condition: FilterConditionExpression;
   index: number;
-  columnCollection: ArkSelect.ListCollection<{
+  columnCollection: ListCollection<{
     label: string;
     value: string;
   }>;

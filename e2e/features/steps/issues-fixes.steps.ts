@@ -129,9 +129,14 @@ When("I open the table filter builder", async ({ page }) => {
 Then("I should see the compact filter workbench", async ({ page }) => {
   const workbench = page.getByRole("dialog").filter({ hasText: "Filter rows" });
   await expect(workbench.getByRole("heading", { name: "Filter rows" })).toBeVisible();
-  await expect(workbench.getByText("No filter conditions yet", { exact: true })).toBeVisible();
-  await expect(workbench.getByRole("button", { name: "Add filter", exact: true })).toBeVisible();
+  await expect(workbench.getByPlaceholder("Column")).toBeVisible();
+  await expect(workbench.getByRole("button", { name: "Quick query", exact: false })).toBeVisible();
   await expect(page.getByRole("table")).toBeVisible();
+});
+
+Then("the query logger should be hidden by default", async ({ page }) => {
+  await expect(page.getByTestId("query-logger-splitter-panel")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Query history" })).toBeVisible();
 });
 
 When("I open the join builder", async ({ page }) => {
@@ -190,10 +195,10 @@ Then("I should not see a Detach button", async ({ page }) => {
 
 Given("the query logger panel is expanded", async ({ page }) => {
   const toggle = page.getByTestId("toggle-query-logger");
-  await expect(toggle).toBeVisible({ timeout: 15_000 });
-  if ((await toggle.getAttribute("aria-label")) === "Expand query logger") {
-    await toggle.click();
+  if (!(await toggle.isVisible().catch(() => false))) {
+    await page.getByRole("button", { name: "Query history" }).click();
   }
+  await expect(toggle).toBeVisible({ timeout: 15_000 });
   await expect(toggle).toHaveAttribute("aria-label", "Collapse query logger");
 });
 

@@ -47,10 +47,14 @@ Feature: Connection page UX issues from issues.md
     Then I should not see column header filters for expand or select columns
     And I should see a column header filter for column "name"
 
-  Scenario: Filters open in a compact advanced workbench
+  Scenario: Filters open ready to build a condition
     Given I open the "users" table
     When I open the table filter builder
     Then I should see the compact filter workbench
+
+  Scenario: Query logger is hidden until requested
+    Given I open the "users" table
+    Then the query logger should be hidden by default
 
   Scenario: Joins open in an inline workspace
     Given I open the "users" table

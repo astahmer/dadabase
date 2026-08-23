@@ -1,6 +1,7 @@
-import { cn } from "#src/lib/utils";
 import { Portal, type PortalProps } from "@ark-ui/react";
 import { Tooltip as TooltipPrimitive } from "@ark-ui/react/tooltip";
+
+import { cn } from "#src/lib/utils";
 
 import type { ExposedComponentProps } from "./component-props.ts";
 
@@ -39,7 +40,7 @@ export const Tooltip = (props: TooltipProps) => {
   return (
     <TooltipPrimitive.Root openDelay={0} closeDelay={0} lazyMount {...rest}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
-      <Portal disabled={!portalled} {...portalProps}>
+      <Portal disabled={portalled === false} {...portalProps}>
         <TooltipPrimitive.Positioner>
           <TooltipPrimitive.Content className={contentClassName} {...contentProps}>
             {showArrow && (

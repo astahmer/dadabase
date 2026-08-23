@@ -288,7 +288,10 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
         {/* Tables List */}
         <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden" data-tables-list>
           <Stack className="h-full flex-1" gap="2">
-            <div className="px-4">
+            <div className="flex items-center justify-between px-4">
+              <label className="text-foreground text-xs font-medium tracking-wide uppercase">
+                Tables
+              </label>
               <Tooltip content="Schema Explorer">
                 <Button
                   size="sm"
@@ -301,11 +304,9 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
                       }),
                     });
                   }}
-                  className="-mx-2 px-2"
+                  className="h-7 w-7 p-0"
+                  aria-label="Open Schema Explorer"
                 >
-                  <label className="text-foreground text-xs font-medium tracking-wide uppercase">
-                    Tables
-                  </label>
                   <DatabaseIcon className="size-3.5" />
                 </Button>
               </Tooltip>

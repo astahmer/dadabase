@@ -3,7 +3,15 @@ import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
-import { ArrowDown, ArrowDownUp, ArrowUp, GripHorizontal, RotateCcw, SearchX } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowDownUp,
+  ArrowUp,
+  Code2,
+  GripHorizontal,
+  RotateCcw,
+  SearchX,
+} from "lucide-react";
 import {
   type Dispatch,
   type SetStateAction,
@@ -236,9 +244,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
   // Splitter percentages must be deterministic during SSR. Calculating from the
   // browser viewport caused server/client min-size mismatches and hydration warnings.
-  const sidebarMinSize = 15;
+  const sidebarMinSize = 20;
   const sidebarMaxSize = 32;
-  const queryLoggerMinSize = 7;
 
   const search = useActiveTabState((tab) => ({
     schema: tab.schema,
@@ -263,8 +270,14 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     zenMode: layoutZenMode,
     queryLoggerSize: queryLoggerSize ?? 0,
   });
+  const openQueryLogger = (view: "favorites" | "history") => {
+    setQueryLoggerPaletteView(view);
+    void navigate({
+      search: (prev) => ({ ...prev, queryLoggerSize: 48 }),
+    });
+  };
   const sidebarPanelMinSize = layoutZenMode ? 0 : sidebarMinSize;
-  const queryLoggerPanelMinSize = layoutZenMode ? 0 : queryLoggerMinSize;
+  const queryLoggerPanelMinSize = 0;
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
 
   const schemaListQuery = useQuery({
@@ -497,8 +510,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                   activeConnectionUrl={activeConnectionUrl}
                   onAddConnection={() => setShowAddConnectionDrawer(true)}
                   onOpenAiAssistant={() => setAiAssistantOpen(true)}
-                  onOpenHistory={() => setQueryLoggerPaletteView("history")}
-                  onOpenFavorites={() => setQueryLoggerPaletteView("favorites")}
+                  onOpenHistory={() => openQueryLogger("history")}
+                  onOpenFavorites={() => openQueryLogger("favorites")}
                 />
               </Splitter.Panel>
             )}
@@ -532,7 +545,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             <Splitter.Context>
               {(sidebarSplitterCtx) => (
                 <Splitter.Root
-                  key={getZenLayoutRemountKey(layoutZenMode, "query-logger")}
+                  key={`${getZenLayoutRemountKey(layoutZenMode, "query-logger")}:${queryLoggerSize ?? 0}`}
                   orientation="vertical"
                   defaultSize={[...queryLoggerSplitterDefaultSize]}
                   panels={[
@@ -648,8 +661,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         data-testid="query-logger-splitter-panel"
                         data-zen-collapsed={layoutZenMode ? "true" : "false"}
                         className={cn(
-                          "bg-background flex h-full min-h-0 flex-col overflow-hidden border-t",
-                          layoutZenMode && "hidden",
+                          "bg-background flex min-h-0 flex-col overflow-hidden border-t",
+                          (layoutZenMode || !queryLoggerSize) && "hidden",
                         )}
                       >
                         <QueryLoggerContent
@@ -1088,6 +1101,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
             onAddColumn={search.table ? () => openSchemaMutate("add-column") : undefined}
             onDropTable={search.table ? onDropTable : undefined}
             onImportData={search.table ? () => setImportOpen(true) : undefined}
+            onExportTable={handleExportAll}
             onSchemaDiff={() => setSchemaDiffOpen(true)}
             onCreateIndex={
               search.table ? () => setIndexFk({ open: true, mode: "create-index" }) : undefined
@@ -1719,6 +1733,9 @@ const RowsTableContent = (
     search.clientFilter?.trim() && search.clientFilter !== search.clientFilterApproved;
 
   const approvedFilter = search.clientFilterApproved;
+  const [isJsFilterOpen, setIsJsFilterOpen] = useState(
+    Boolean(search.clientFilter || search.clientFilterApproved),
+  );
 
   return (
     <PendingCellEditsProvider>
@@ -1731,29 +1748,43 @@ const RowsTableContent = (
           onDuplicateRow={props.onDuplicateRow}
         />
 
-        <div className="flex flex-col gap-1 border-b px-2 py-1">
+        <div className="border-b px-2 py-1">
           <div className="flex items-center gap-2">
-            <Input
-              placeholder="r.name.includes('test')"
-              value={search.clientFilter || ""}
-              onChange={(e) => handleJsFilterChange(e.target.value)}
-              className="h-7 flex-1 font-mono text-xs"
-            />
-            {hasPendingFilter && (
-              <Button
-                onClick={handleApproveFilter}
-                size="sm"
-                variant="default"
-                className="h-7 px-2 text-xs"
-              >
-                Run
-              </Button>
-            )}
+            <Button
+              variant={isJsFilterOpen ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setIsJsFilterOpen((open) => !open)}
+              className="h-7 gap-1.5 px-2 text-xs"
+              aria-expanded={isJsFilterOpen}
+            >
+              <Code2 className="h-3.5 w-3.5" />
+              JavaScript filter
+            </Button>
             {approvedFilter && !hasPendingFilter && (
-              <span className="text-muted-foreground text-xs">(active)</span>
+              <span className="text-muted-foreground text-xs">Active</span>
             )}
           </div>
-          {jsFilterResult.error && (
+          {isJsFilterOpen && (
+            <div className="mt-1 flex items-center gap-2">
+              <Input
+                placeholder="r.name.includes('test')"
+                value={search.clientFilter || ""}
+                onChange={(e) => handleJsFilterChange(e.target.value)}
+                className="h-7 flex-1 font-mono text-xs"
+              />
+              {hasPendingFilter && (
+                <Button
+                  onClick={handleApproveFilter}
+                  size="sm"
+                  variant="default"
+                  className="h-7 px-2 text-xs"
+                >
+                  Run
+                </Button>
+              )}
+            </div>
+          )}
+          {isJsFilterOpen && jsFilterResult.error && (
             <p className="mt-1 text-xs text-red-500">{jsFilterResult.error}</p>
           )}
         </div>

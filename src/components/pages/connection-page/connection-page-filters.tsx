@@ -1,8 +1,18 @@
 import type { Table as TanstackTable } from "@tanstack/react-table";
 
 import { useNavigate } from "@tanstack/react-router";
-import { LayoutGrid, Link2, LucideListFilter, MoreHorizontal, Plus, Rows, X } from "lucide-react";
-import { type ReactNode, useCallback, useState } from "react";
+import {
+  Download,
+  LayoutGrid,
+  Link2,
+  Lock,
+  LucideListFilter,
+  MoreHorizontal,
+  Plus,
+  Rows,
+  X,
+} from "lucide-react";
+import { type ComponentProps, type ReactNode, useCallback, useState } from "react";
 
 import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
@@ -20,6 +30,7 @@ import { NaturalLanguageSearch } from "../../query-builder/natural-language-sear
 import { QueryFilterBuilder } from "../../query-builder/query-filter-builder.tsx";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
+import { Menu, MenuContent, MenuItem, MenuItemText, MenuTrigger } from "../../ui/menu.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover.tsx";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../ui/sheet.tsx";
 import { Tooltip } from "../../ui/tooltip.tsx";
@@ -42,6 +53,7 @@ interface ConnectionPageFiltersProps {
   onAddColumn?: () => void;
   onDropTable?: () => void;
   onImportData?: () => void;
+  onExportTable?: (format: "json" | "csv" | "tsv" | "sql") => void;
   onSchemaDiff?: () => void;
   onCreateIndex?: () => void;
   isReadOnly?: boolean;
@@ -78,6 +90,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
     onAddColumn,
     onDropTable,
     onImportData,
+    onExportTable,
     onSchemaDiff,
     onCreateIndex,
     isReadOnly = false,
@@ -105,12 +118,80 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
   const hasAppliedFilters = appliedFilterCount > 0;
 
   const openFilters = () => {
+    if (filterConditions.length === 0) {
+      queryBuilder.addCondition();
+    }
     void navigate({
       search: (prev) =>
         updateTabState(prev, {
           filtersOpened: true,
         }),
     });
+  };
+
+  const handleNaturalLanguageApply: ComponentProps<
+    typeof NaturalLanguageSearch
+  >["onApplyFilters"] = (parsed) => {
+    const { filters = [], orderBy, limit } = parsed;
+    const operatorMap: Record<string, any> = {
+      eq: "equals",
+      gt: "greater_than",
+      lt: "less_than",
+      gte: "greater_than_or_equal",
+      lte: "less_than_or_equal",
+      contains: "contains",
+      in: "in",
+      not_eq: "not_equals",
+      not_contains: "not_contains",
+      between: "between",
+    };
+
+    if (filters.length) {
+      if (parsed.clear) {
+        queryBuilder.updateManyConditions(
+          filterConditions.filter((current) => {
+            return filters.some(
+              (removed) =>
+                current.column === removed.field &&
+                current.operator === removed.operator &&
+                current.value === removed.value,
+            );
+          }),
+        );
+      } else {
+        queryBuilder.updateManyConditions([
+          ...filterConditions.map((filter) => ({
+            column: filter.column,
+            operator: filter.operator,
+            value: filter.value as string,
+          })),
+          ...filters.map((filter) => ({
+            column: filter.field,
+            operator: operatorMap[filter.operator] || "equals",
+            value: (Array.isArray(filter.value)
+              ? filter.value.map(String)
+              : String(filter.value ?? "")) as string | string[],
+            ...(filter.inverted ? { inverted: true as const } : {}),
+          })),
+        ] as Parameters<typeof queryBuilder.updateManyConditions>[0]);
+      }
+    }
+
+    if (orderBy) {
+      void navigate({
+        search: (prev) =>
+          updateTabState(prev, {
+            orderBy: orderBy.field,
+            orderDirection: orderBy.direction,
+          }),
+      });
+    }
+
+    if (limit) {
+      void navigate({
+        search: (prev) => updateTabState(prev, { limit }),
+      });
+    }
   };
 
   const handleJoinConfigChange = useCallback(
@@ -178,7 +259,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
               <LayoutGrid className="h-4 w-4" />
             </Button>
           </Tooltip>
-          <Tooltip content="ER diagram">
+          <Tooltip content="Schema map">
             <Button
               variant={viewMode === "er" ? "default" : "outline"}
               size="sm"
@@ -191,21 +272,24 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 })
               }
               data-testid="view-mode-er"
-              aria-label="ER diagram"
+              aria-label="Schema map"
             >
               <Link2 className="h-4 w-4" />
             </Button>
           </Tooltip>
         </div>
-        <span
-          className={
-            isReadOnly
-              ? "border-success/40 bg-success/10 text-success rounded border px-2 py-1 text-xs font-medium"
-              : "border-warning/40 bg-warning/10 text-warning rounded border px-2 py-1 text-xs font-medium"
-          }
-        >
-          {isReadOnly ? "Read-only: writes blocked" : "Writes enabled"}
-        </span>
+        <Tooltip content={isReadOnly ? "Read-only: writes are blocked" : "Writes enabled"}>
+          <span
+            className={
+              isReadOnly
+                ? "border-success/40 bg-success/10 text-success inline-flex h-8 items-center rounded border px-2"
+                : "border-warning/40 bg-warning/10 text-warning inline-flex h-8 items-center rounded border px-2"
+            }
+            aria-label={isReadOnly ? "Read-only: writes are blocked" : "Writes enabled"}
+          >
+            <Lock className="h-3.5 w-3.5" />
+          </span>
+        </Tooltip>
         {viewMode === "structure" && (
           <StructureFilterControls
             columnMetadata={columnMetadata}
@@ -237,27 +321,59 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 Import
               </Button>
             )}
+            {onExportTable && (
+              <Menu>
+                <MenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isLoading || !tableName}
+                    className="gap-1.5"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Export
+                  </Button>
+                </MenuTrigger>
+                <MenuContent>
+                  <MenuItem value="export-csv" onClick={() => onExportTable("csv")}>
+                    <MenuItemText>Download CSV</MenuItemText>
+                  </MenuItem>
+                  <MenuItem value="export-json" onClick={() => onExportTable("json")}>
+                    <MenuItemText>Download JSON</MenuItemText>
+                  </MenuItem>
+                  <MenuItem value="export-tsv" onClick={() => onExportTable("tsv")}>
+                    <MenuItemText>Download TSV</MenuItemText>
+                  </MenuItem>
+                  <MenuItem value="export-sql" onClick={() => onExportTable("sql")}>
+                    <MenuItemText>Download INSERT statements</MenuItemText>
+                  </MenuItem>
+                </MenuContent>
+              </Menu>
+            )}
             {onAddRow && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={onAddRow}
-                disabled={isLoading || isReadOnly}
-                data-testid="add-row-button"
-                className="gap-1.5"
-              >
-                <Plus className="h-3 w-3" />
-                Add row
-              </Button>
+              <Tooltip content="Add row">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onAddRow}
+                  disabled={isLoading || isReadOnly}
+                  data-testid="add-row-button"
+                  aria-label="Add row"
+                  className="w-8 p-0"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </Tooltip>
             )}
             <Popover
               open={filtersOpened}
               onOpenChange={(details) => {
+                if (details.open) {
+                  openFilters();
+                  return;
+                }
                 void navigate({
-                  search: (prev) =>
-                    updateTabState(prev, {
-                      filtersOpened: details.open,
-                    }),
+                  search: (prev) => updateTabState(prev, { filtersOpened: false }),
                 });
               }}
             >
@@ -281,9 +397,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 <div className="flex items-center justify-between border-b px-4 py-3">
                   <div>
                     <h2 className="text-sm font-semibold">Filter rows</h2>
-                    <p className="text-muted-foreground text-xs">
-                      Changes are saved in this view's URL.
-                    </p>
+                    <p className="text-muted-foreground text-xs">This view is shareable.</p>
                   </div>
                   {hasAppliedFilters && (
                     <Button
@@ -305,6 +419,15 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                       Clear all
                     </Button>
                   )}
+                </div>
+                <div className="bg-muted/20 border-b px-4 py-2.5">
+                  <NaturalLanguageSearch
+                    className="w-full"
+                    label="Quick query"
+                    placeholder="Try “name contains minecraft” or “sort by created_at desc”"
+                    availableColumns={columnList}
+                    onApplyFilters={handleNaturalLanguageApply}
+                  />
                 </div>
                 <div className="space-y-4 p-4">
                   <QueryFilterBuilder
@@ -377,6 +500,20 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     {groupBy.length > 1 ? ` +${groupBy.length - 1}` : ""}
                   </Button>
                 )}
+                <Tooltip content="Add filter">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      queryBuilder.addCondition();
+                      openFilters();
+                    }}
+                    className="h-8 w-8 rounded-full p-0"
+                    aria-label="Add filter"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </Tooltip>
               </div>
             )}
             <Tooltip content="Join tables">
@@ -396,76 +533,6 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 ) : null}
               </Button>
             </Tooltip>
-            <NaturalLanguageSearch
-              className="order-last w-full sm:order-none sm:max-w-sm sm:min-w-[10rem] sm:shrink"
-              availableColumns={columnList}
-              onApplyFilters={(parsed) => {
-                // oxlint-disable-next-line no-shadow
-                const { filters = [], orderBy, limit } = parsed;
-                const operatorMap: Record<string, any> = {
-                  eq: "equals",
-                  gt: "greater_than",
-                  lt: "less_than",
-                  gte: "greater_than_or_equal",
-                  lte: "less_than_or_equal",
-                  contains: "contains",
-                  in: "in",
-                  not_eq: "not_equals",
-                  not_contains: "not_contains",
-                  between: "between",
-                };
-
-                if (filters.length) {
-                  if (parsed.clear) {
-                    queryBuilder.updateManyConditions(
-                      filterConditions.filter((current) => {
-                        return filters.some(
-                          (removed) =>
-                            current.column === removed.field &&
-                            current.operator === removed.operator &&
-                            current.value === removed.value,
-                        );
-                      }),
-                    );
-                  } else {
-                    queryBuilder.updateManyConditions([
-                      ...filterConditions.map((f) => ({
-                        column: f.column,
-                        operator: f.operator,
-                        value: f.value as string,
-                      })),
-                      ...filters.map((f) => ({
-                        column: f.field,
-                        operator: operatorMap[f.operator] || "equals",
-                        value: (Array.isArray(f.value)
-                          ? f.value.map(String)
-                          : String(f.value ?? "")) as string | string[],
-                        ...(f.inverted ? { inverted: true as const } : {}),
-                      })),
-                    ] as Parameters<typeof queryBuilder.updateManyConditions>[0]);
-                  }
-                }
-
-                if (orderBy) {
-                  navigate({
-                    search: (prev) =>
-                      updateTabState(prev, {
-                        orderBy: orderBy.field,
-                        orderDirection: orderBy.direction,
-                      }),
-                  });
-                }
-
-                if (limit) {
-                  navigate({
-                    search: (prev) =>
-                      updateTabState(prev, {
-                        limit: limit,
-                      }),
-                  });
-                }
-              }}
-            />
             <Sheet
               open={isMobileControlsOpen}
               onOpenChange={(details) => setIsMobileControlsOpen(details.open)}

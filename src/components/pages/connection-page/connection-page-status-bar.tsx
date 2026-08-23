@@ -357,7 +357,7 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
               <MenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-6 px-2">
                   <Download className="mr-1 h-3 w-3" />
-                  <span className="hidden sm:inline">Export All</span>
+                  <span className="hidden sm:inline">Export table</span>
                   <span className="sm:hidden">Export</span>
                 </Button>
               </MenuTrigger>
