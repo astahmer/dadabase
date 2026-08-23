@@ -56,6 +56,10 @@ Feature: Connection page UX issues from issues.md
     Given I open the "users" table
     Then the query logger should be hidden by default
 
+  Scenario: Schema explorer has a dedicated page
+    When I open the dedicated schema explorer
+    Then I should see the dedicated schema explorer
+
   Scenario: Joins open in an inline workspace
     Given I open the "users" table
     When I open the join builder

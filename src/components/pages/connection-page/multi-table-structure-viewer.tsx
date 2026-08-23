@@ -1,3 +1,10 @@
+import { CheckboxLabel } from "@ark-ui/react";
+import { createListCollection } from "@ark-ui/react/combobox";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { Copy, Download, ExternalLink } from "lucide-react";
+import { useMemo, useState } from "react";
+
 import {
   Menu,
   MenuContent,
@@ -6,12 +13,6 @@ import {
   MenuTrigger,
 } from "#src/components/ui/menu.tsx";
 import { getTablesStructuresQueryOptions } from "#src/server/introspection/start-fns/get-tables-structures.start.ts";
-import { CheckboxLabel } from "@ark-ui/react";
-import { createListCollection } from "@ark-ui/react/combobox";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { Copy, Download, ExternalLink } from "lucide-react";
-import { useMemo, useState } from "react";
 
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
 
@@ -31,18 +32,19 @@ import { Spinner } from "../../ui/spinner.tsx";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import { addTabStateAfterCurrent, createTabState, scrollToTab } from "./create-tab-state.ts";
 import { StructureTable } from "./structure-table.tsx";
-import { useStructureFilters } from "./use-structure-filter-state.ts";
+import { getDefaultStructureFilters } from "./use-structure-filter-state.ts";
 
 interface MultiTableStructureViewerProps {
   activeConnectionUrl: string;
+  connectionName: string;
   schema: string;
   tableSize: DataTableSize;
 }
 
 export const MultiTableStructureViewer = (props: MultiTableStructureViewerProps) => {
-  const { activeConnectionUrl, schema, tableSize } = props;
-  const { filters } = useStructureFilters();
-  const navigate = useNavigate({ from: "/connections/$connectionName" });
+  const { activeConnectionUrl, connectionName, schema, tableSize } = props;
+  const navigate = useNavigate();
+  const filters = getDefaultStructureFilters();
 
   // Fetch all table structures
   const tablesStructuresQuery = useQuery({
@@ -243,6 +245,8 @@ export const MultiTableStructureViewer = (props: MultiTableStructureViewerProps)
   const viewTableRows = (tableName: string) => {
     const newTabState = createTabState(schema, tableName);
     navigate({
+      to: "/connections/$connectionName",
+      params: { connectionName },
       search: (prev) => ({
         ...prev,
         ...addTabStateAfterCurrent(prev, newTabState),
@@ -427,12 +431,18 @@ export const MultiTableStructureViewer = (props: MultiTableStructureViewerProps)
                             size="sm"
                             className="h-6 px-2"
                             onClick={() => viewTableRows(tableStructure.table)}
+                            aria-label={`Open ${tableStructure.table} rows`}
                           >
                             <ExternalLink className="h-4 w-4" />
                           </Button>
                           <Menu>
                             <MenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-6 px-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2"
+                                aria-label={`Copy ${tableStructure.table} structure`}
+                              >
                                 <Copy className="h-4 w-4" />
                               </Button>
                             </MenuTrigger>

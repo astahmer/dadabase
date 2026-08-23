@@ -1,10 +1,13 @@
+import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { ExternalLink } from "lucide-react";
+
 import { getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import type { DbConnection } from "../connection.types";
 
+import { Button } from "../../ui/button.tsx";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../../ui/sheet.tsx";
 import { useActiveTabState } from "./create-tab-state.ts";
 import { MultiTableStructureViewer } from "./multi-table-structure-viewer.tsx";
@@ -61,6 +64,16 @@ export const SchemaExplorerDrawer = ({ connection }: SchemaExplorerDrawerProps) 
                 View and export table structures for all tables in a schema
               </SheetDescription>
             </div>
+            <Link
+              to="/schema/$connectionName"
+              params={{ connectionName: connection.name }}
+              search={displaySchema ? { schema: displaySchema } : {}}
+            >
+              <Button variant="outline" size="sm" className="shrink-0">
+                Open page
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
             {/* Schema selector - inline and compact */}
             {schemas.length > 1 && displaySchema && (
               <select
@@ -90,6 +103,7 @@ export const SchemaExplorerDrawer = ({ connection }: SchemaExplorerDrawerProps) 
           {displaySchema ? (
             <MultiTableStructureViewer
               activeConnectionUrl={activeConnectionUrl}
+              connectionName={connection.name}
               schema={displaySchema}
               tableSize="compact"
             />

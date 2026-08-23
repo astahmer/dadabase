@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SandboxRouteImport } from './routes/sandbox'
 import { Route as ConnectionsConnectionNameRouteImport } from './routes/connections/$connectionName'
+import { Route as SchemaConnectionNameRouteImport } from './routes/schema/$connectionName'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,35 +30,57 @@ const ConnectionsConnectionNameRoute =
     path: '/connections/$connectionName',
     getParentRoute: () => rootRouteImport,
   } as any)
+const SchemaConnectionNameRoute = SchemaConnectionNameRouteImport.update({
+  id: '/schema/$connectionName',
+  path: '/schema/$connectionName',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sandbox': typeof SandboxRoute
   '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+  '/schema/$connectionName': typeof SchemaConnectionNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sandbox': typeof SandboxRoute
   '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+  '/schema/$connectionName': typeof SchemaConnectionNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/sandbox': typeof SandboxRoute
   '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+  '/schema/$connectionName': typeof SchemaConnectionNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sandbox' | '/connections/$connectionName'
+  fullPaths:
+    | '/'
+    | '/sandbox'
+    | '/connections/$connectionName'
+    | '/schema/$connectionName'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sandbox' | '/connections/$connectionName'
-  id: '__root__' | '/' | '/sandbox' | '/connections/$connectionName'
+  to:
+    | '/'
+    | '/sandbox'
+    | '/connections/$connectionName'
+    | '/schema/$connectionName'
+  id:
+    | '__root__'
+    | '/'
+    | '/sandbox'
+    | '/connections/$connectionName'
+    | '/schema/$connectionName'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SandboxRoute: typeof SandboxRoute
   ConnectionsConnectionNameRoute: typeof ConnectionsConnectionNameRoute
+  SchemaConnectionNameRoute: typeof SchemaConnectionNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -83,6 +106,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectionsConnectionNameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/schema/$connectionName': {
+      id: '/schema/$connectionName'
+      path: '/schema/$connectionName'
+      fullPath: '/schema/$connectionName'
+      preLoaderRoute: typeof SchemaConnectionNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -90,6 +120,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SandboxRoute: SandboxRoute,
   ConnectionsConnectionNameRoute: ConnectionsConnectionNameRoute,
+  SchemaConnectionNameRoute: SchemaConnectionNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

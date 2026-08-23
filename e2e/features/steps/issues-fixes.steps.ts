@@ -139,6 +139,17 @@ Then("the query logger should be hidden by default", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Query history" })).toBeVisible();
 });
 
+When("I open the dedicated schema explorer", async ({ page }) => {
+  await page.goto("/schema/e2e-sqlite?schema=main");
+});
+
+Then("I should see the dedicated schema explorer", async ({ page }) => {
+  await expect(page.getByRole("heading", { name: "Schema Explorer" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to workspace" })).toBeVisible();
+  await expect(page.getByPlaceholder("Filter or select tables...")).toBeVisible();
+  await expect(page.getByText("favorites", { exact: true })).toBeVisible();
+});
+
 When("I open the join builder", async ({ page }) => {
   await page.getByRole("button", { name: "Join tables", exact: true }).click();
 });
