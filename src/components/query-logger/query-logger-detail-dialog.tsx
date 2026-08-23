@@ -1,25 +1,16 @@
-import { useMutation } from "@tanstack/react-query";
-import { createColumnHelper } from "@tanstack/react-table";
 import { Check, Copy, Maximize2, Minimize2, Play } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import type { QueryLogEntryType } from "#src/server/query-logger/query-logger.types.ts";
 
 import { formatRelativeTime } from "#src/lib/format-relative-time.ts";
 import { normalizeSql, replaceSqlParameters } from "#src/lib/replace-sql-parameters.ts";
-import {
-  type ExecuteAndStoreCustomSqlInput,
-  executeAndStoreCustomSqlServerFn as executeAndStoreCustomSqlServerFn$1,
-} from "#src/server/custom-sql/start-fns/execute-custom-sql.start.ts";
 
-import { DataTable } from "../data-table/data-table.tsx";
-import { useDataTable } from "../data-table/use-data-table.ts";
 import { Badge } from "../ui/badge.tsx";
 import { Button } from "../ui/button.tsx";
 import { Dialog, DialogContent, DialogTitle } from "../ui/dialog.tsx";
 import { JsonViewer } from "../ui/json-viewer.tsx";
 import { HStack } from "../ui/layout.tsx";
-import { Spinner } from "../ui/spinner.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs.tsx";
 import { Tooltip } from "../ui/tooltip.tsx";
 import { QueryLogLevelBadge, QueryLogTypeBadge } from "./query-log-type-badge.tsx";
@@ -28,72 +19,25 @@ interface QueryLoggerDetailDialogProps {
   entry: QueryLogEntryType | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  connectionUrl?: string;
+  onOpenInEditor?: (sql: string) => void;
 }
 
 export const QueryLoggerDetailDialog = ({
   entry,
   open,
   onOpenChange,
-  connectionUrl,
+  onOpenInEditor,
 }: QueryLoggerDetailDialogProps) => {
   const [copied, setCopied] = useState(false);
-  const [resultsData, setResultsData] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("sql");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const runQueryMutation = useMutation({
-    mutationFn: async (input: ExecuteAndStoreCustomSqlInput) => {
-      return executeAndStoreCustomSqlServerFn$1({ data: input });
-    },
-    onSuccess: (response) => {
-      if (response && typeof response === "object" && "rows" in response) {
-        setResultsData(Array.isArray(response.rows) ? response.rows : []);
-      }
-      setActiveTab("results");
-    },
-  });
-
-  // Create table columns from results data - called unconditionally
-  const tableColumns = useMemo(() => {
-    if (resultsData.length === 0) return [];
-
-    const columnHelper = createColumnHelper<Record<string, unknown>>();
-    const firstRow = resultsData[0];
-
-    return Object.keys(firstRow).map((columnName) =>
-      columnHelper.accessor(columnName, {
-        id: columnName,
-        header: columnName,
-        cell: (info) => {
-          const value = info.getValue();
-          if (value === null) return <span className="text-muted-foreground italic">NULL</span>;
-          if (typeof value === "object") return JSON.stringify(value);
-          return String(value);
-        },
-      }),
-    );
-  }, [resultsData]);
-
-  const table = useDataTable({
-    data: resultsData as Record<string, unknown>[],
-    columns: tableColumns,
-    manualPagination: true, // Disable pagination to show all results
-  });
-
   if (!entry) return null;
 
-  const handleRunQuery = () => {
-    if (!connectionUrl || !entry) return;
-
-    const sql = replaceSqlParameters(entry.sql, entry.params) || entry.sql;
-
-    runQueryMutation.mutate({
-      url: connectionUrl,
-      sql,
-      schemaName: entry.schema,
-      tableName: entry.table,
-    });
+  const handleOpenInEditor = () => {
+    if (!entry || !onOpenInEditor) return;
+    onOpenInEditor(replaceSqlParameters(entry.sql, entry.params) || entry.sql);
+    onOpenChange(false);
   };
 
   const statusColorMap: Record<
@@ -158,9 +102,6 @@ export const QueryLoggerDetailDialog = ({
           <TabsList className="h-auto w-full justify-start rounded-none border-b bg-transparent px-6 py-0">
             <TabsTrigger value="sql">SQL</TabsTrigger>
             <TabsTrigger value="metadata">Metadata</TabsTrigger>
-            {resultsData.length > 0 && (
-              <TabsTrigger value="results">Results ({resultsData.length})</TabsTrigger>
-            )}
             {entry.error && <TabsTrigger value="error">Error</TabsTrigger>}
           </TabsList>
 
@@ -170,25 +111,10 @@ export const QueryLoggerDetailDialog = ({
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold">Query</h3>
                   <HStack gap="2">
-                    {connectionUrl && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleRunQuery}
-                        disabled={runQueryMutation.isPending}
-                        className="gap-2"
-                      >
-                        {runQueryMutation.isPending ? (
-                          <>
-                            <Spinner className="h-4 w-4" />
-                            Running...
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4" />
-                            Run Query
-                          </>
-                        )}
+                    {onOpenInEditor && (
+                      <Button size="sm" onClick={handleOpenInEditor} className="gap-2">
+                        <Play className="h-4 w-4" />
+                        Open in editor
                       </Button>
                     )}
                     <Button
@@ -250,39 +176,6 @@ export const QueryLoggerDetailDialog = ({
                 </div>
               )}
             </TabsContent>
-
-            {resultsData.length > 0 && (
-              <TabsContent
-                value="results"
-                className="m-0 flex flex-1 flex-col space-y-4 overflow-hidden p-6"
-              >
-                <div>
-                  <p className="text-muted-foreground mb-2 text-xs font-medium">Results</p>
-                  <p className="text-sm font-semibold">
-                    {resultsData.length} row
-                    {resultsData.length !== 1 ? "s" : ""} returned
-                  </p>
-                </div>
-
-                {runQueryMutation.isError && (
-                  <div className="bg-destructive/10 rounded-lg p-3">
-                    <p className="text-destructive text-sm">
-                      {runQueryMutation.error?.message || "Error running query"}
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex-1 overflow-hidden">
-                  <DataTable
-                    table={table}
-                    emptyState="No results"
-                    stickyHeader
-                    interactive
-                    variant="outline"
-                  />
-                </div>
-              </TabsContent>
-            )}
 
             <TabsContent value="metadata" className="m-0 space-y-4 p-6">
               <div className="grid grid-cols-2 gap-4">

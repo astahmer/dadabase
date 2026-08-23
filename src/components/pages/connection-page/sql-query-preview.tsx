@@ -158,25 +158,25 @@ export function SqlQueryPreview({
   // When a query is running (`isLoading` + existing sql), keep the editor so Cancel stays usable.
   if (isLoading && !sql) {
     return (
-      <div className={cn("rounded border border-gray-200 bg-gray-50 p-4", className)}>
-        <div className="text-sm text-gray-500">Generating SQL query...</div>
+      <div className={cn("border-border bg-muted/30 rounded border p-4", className)}>
+        <div className="text-muted-foreground text-sm">Generating SQL query...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className={cn("rounded border border-red-200 bg-red-50 p-4", className)}>
-        <div className="text-sm font-medium text-red-900">Error generating SQL:</div>
-        <div className="mt-1 text-sm text-red-800">{error.message || "Unknown error"}</div>
+      <div className={cn("border-destructive/30 bg-destructive/10 rounded border p-4", className)}>
+        <div className="text-foreground text-sm font-medium">Error generating SQL:</div>
+        <div className="text-muted-foreground mt-1 text-sm">{error.message || "Unknown error"}</div>
       </div>
     );
   }
 
   if (!sql && !customSql && !allowEmptySql) {
     return (
-      <div className={cn("rounded border border-gray-200 bg-gray-50 p-4", className)}>
-        <div className="text-sm text-gray-500">No SQL query generated</div>
+      <div className={cn("border-border bg-muted/30 rounded border p-4", className)}>
+        <div className="text-muted-foreground text-sm">No SQL query generated</div>
       </div>
     );
   }
@@ -221,14 +221,14 @@ export function SqlQueryPreview({
   return (
     <div
       className={cn(
-        "flex h-full min-h-0 flex-col rounded border border-gray-200",
+        "border-border bg-card flex h-full min-h-0 flex-col rounded border",
         isFullscreen && "bg-background fixed inset-0 z-50 rounded-none border-0",
         className,
       )}
       data-testid="sql-query-editor"
     >
       {/* Header with toggle and actions */}
-      <div className="border-b border-gray-200 px-4">
+      <div className="border-border bg-muted/20 border-b px-4">
         <div className="my-1 flex items-center justify-between gap-4">
           <div className="flex flex-1 items-center gap-4">
             <Tooltip content="Collapse SQL editor">
@@ -295,6 +295,7 @@ export function SqlQueryPreview({
                       onClick={onCancel}
                       disabled={!onCancel}
                       className="text-destructive hover:text-destructive h-8 px-2"
+                      aria-label="Cancel query"
                     >
                       <Square className="h-4 w-4" />
                     </Button>
@@ -307,6 +308,7 @@ export function SqlQueryPreview({
                       onClick={() => onRun?.(editorValueRef.current ?? "")}
                       className="h-8 px-2"
                       data-testid="sql-run-button"
+                      aria-label="Run query"
                     >
                       <Play className="h-4 w-4" />
                     </Button>
@@ -319,17 +321,30 @@ export function SqlQueryPreview({
                     onClick={onExplain}
                     disabled={disableExplain}
                     className="h-8 px-2"
+                    aria-label="Explain query"
                   >
                     <Zap className="h-4 w-4" />
                   </Button>
                 </Tooltip>
                 <Tooltip content="Format SQL">
-                  <Button variant="ghost" size="sm" onClick={onFormat} className="h-8 px-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onFormat}
+                    className="h-8 px-2"
+                    aria-label="Format SQL"
+                  >
                     <Wand2 className="h-4 w-4" />
                   </Button>
                 </Tooltip>
                 <Tooltip content="Copy SQL to clipboard">
-                  <Button variant="ghost" size="sm" onClick={handleCopy} className="h-8 px-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCopy}
+                    className="h-8 px-2"
+                    aria-label="Copy SQL to clipboard"
+                  >
                     {copied ? (
                       <Check className="h-4 w-4 text-green-600" />
                     ) : (
@@ -346,6 +361,7 @@ export function SqlQueryPreview({
                       onClick={() => onSaveFavorite(editorValueRef.current || customSql || sql)}
                       className="h-8 px-2"
                       data-testid="sql-save-favorite"
+                      aria-label="Save query to favorites"
                     >
                       <Star className="h-4 w-4" />
                     </Button>
@@ -359,6 +375,7 @@ export function SqlQueryPreview({
                       onClick={onToggleFullscreen}
                       className="h-8 px-2"
                       data-testid="sql-exit-fullscreen"
+                      aria-label="Exit fullscreen SQL editor"
                     >
                       <Minimize2 className="h-4 w-4" />
                     </Button>
@@ -407,10 +424,7 @@ export function SqlQueryPreview({
         </div>
       </div>
       {!isCollapsed && (
-        <div
-          className="min-h-0 flex-1 border-t border-gray-200 bg-gray-50"
-          data-testid="sql-monaco-panel"
-        >
+        <div className="border-border min-h-0 flex-1 border-t" data-testid="sql-monaco-panel">
           <SqlMonacoEditor
             sql={customSql || sql}
             onChange={handleEditorChange}

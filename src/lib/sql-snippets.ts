@@ -9,22 +9,30 @@ const STORAGE_KEY = "dadabase.sql-snippets";
 export const DEFAULT_SQL_SNIPPETS: readonly SqlSnippet[] = [
   {
     id: "default-select-star",
-    name: "Select *",
-    sql: "SELECT * FROM ",
+    name: "Browse a table",
+    sql: "SELECT *\nFROM your_table\nLIMIT 100;",
   },
   {
     id: "default-explain-analyze",
-    name: "Explain Analyze",
-    sql: "EXPLAIN ANALYZE ",
+    name: "Explain a query",
+    sql: "EXPLAIN\nSELECT *\nFROM your_table\nLIMIT 100;",
   },
   {
     id: "default-count",
-    name: "Count (*)",
-    sql: "SELECT COUNT(*) FROM ",
+    name: "Count rows",
+    sql: "SELECT COUNT(*) AS row_count\nFROM your_table;",
   },
 ];
 
 const cloneDefaults = (): SqlSnippet[] => DEFAULT_SQL_SNIPPETS.map((s) => ({ ...s }));
+
+const migrateBuiltInSnippets = (snippets: SqlSnippet[]): SqlSnippet[] => {
+  const defaultsById = new Map(DEFAULT_SQL_SNIPPETS.map((snippet) => [snippet.id, snippet]));
+  return snippets.map((snippet) => {
+    const replacement = defaultsById.get(snippet.id);
+    return replacement ? { ...replacement } : snippet;
+  });
+};
 
 const isSqlSnippet = (value: unknown): value is SqlSnippet => {
   if (value == null || typeof value !== "object") return false;
@@ -76,11 +84,11 @@ export const setSqlSnippets = (snippets: SqlSnippet[]): void => {
 
 /** Seed defaults into storage when nothing valid is stored yet. */
 export const ensureSqlSnippetsSeeded = (): SqlSnippet[] => {
-  const existing = getSqlSnippets();
+  const existing = migrateBuiltInSnippets(getSqlSnippets());
   if (typeof window === "undefined") return existing;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (parseSnippets(raw) == null) {
+    if (parseSnippets(raw) == null || JSON.stringify(existing) !== raw) {
       setSqlSnippets(existing);
     }
   } catch {

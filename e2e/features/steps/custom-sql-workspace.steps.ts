@@ -8,7 +8,8 @@ When("I open the custom SQL workspace", async ({ page }) => {
 
 Then("I should see the table-independent SQL workspace", async ({ page }) => {
   await expect(page.getByTestId("custom-sql-workspace")).toBeVisible();
-  await expect(page.getByTestId("custom-sql-workspace")).toContainText("No table is selected.");
+  await expect(page.getByTestId("custom-sql-workspace")).toContainText("e2e-sqlite");
+  await expect(page.getByTestId("custom-sql-workspace")).toContainText("Writes enabled");
   await expect(page.getByTestId("sql-query-editor")).toBeVisible();
 });
 

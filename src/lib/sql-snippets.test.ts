@@ -89,6 +89,19 @@ describe("ensureSqlSnippetsSeeded", () => {
     setSqlSnippets(custom);
     expect(ensureSqlSnippetsSeeded()).toEqual(custom);
   });
+
+  it("upgrades built-in snippets while preserving custom snippets", () => {
+    const legacyAndCustom = [
+      { id: "default-select-star", name: "Select *", sql: "SELECT * FROM " },
+      { id: "mine", name: "Forensics", sql: "SELECT 42" },
+    ];
+    setSqlSnippets(legacyAndCustom);
+
+    expect(ensureSqlSnippetsSeeded()).toEqual([
+      DEFAULT_SQL_SNIPPETS[0],
+      { id: "mine", name: "Forensics", sql: "SELECT 42" },
+    ]);
+  });
 });
 
 describe("CRUD", () => {

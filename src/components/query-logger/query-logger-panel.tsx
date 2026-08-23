@@ -15,6 +15,7 @@ import {
 import { deleteQueryFavoriteServerFn } from "#src/server/query-logger/start-fns/delete-query-favorite.start.ts";
 import { getQueryFavoritesQueryOptions } from "#src/server/query-logger/start-fns/get-query-favorites.start.ts";
 
+import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button, buttonVariants } from "../ui/button.tsx";
 import { HStack } from "../ui/layout.tsx";
 import * as Select from "../ui/select.tsx";
@@ -31,6 +32,8 @@ interface QueryLoggerContentProps {
   /** Command palette (or similar) requests opening favorites or history. */
   paletteView?: "favorites" | "history" | null;
   onPaletteViewConsumed?: () => void;
+  /** Open SQL for review in the editor. History never reruns SQL directly. */
+  onOpenQueryInEditor?: (sql: string) => void;
 }
 
 export const QueryLoggerContent = ({
@@ -41,6 +44,7 @@ export const QueryLoggerContent = ({
   onExpand,
   paletteView,
   onPaletteViewConsumed,
+  onOpenQueryInEditor,
 }: QueryLoggerContentProps) => {
   const queryClient = useQueryClient();
   const queryLogger = useQueryLogger({ connectionUrl });
@@ -105,6 +109,11 @@ export const QueryLoggerContent = ({
       >
         <div className="flex items-center gap-2 font-medium">
           <span>Query Logger</span>
+          {isExpanded ? (
+            <span className="text-muted-foreground hidden text-xs font-normal 2xl:inline">
+              History may contain sensitive SQL
+            </span>
+          ) : null}
           {connectionId && (
             <Button
               variant={showFavorites ? "default" : "ghost"}
@@ -280,19 +289,23 @@ export const QueryLoggerContent = ({
               ))}
             </Select.SelectContent>
           </Select.SelectRoot>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              queryLogger.clearHistory();
-            }}
-            disabled={queryLogger.isClearing}
-            title="Clear history"
-            aria-label="Clear query history"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <AlertDialog
+            trigger={
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={queryLogger.isClearing}
+                title="Clear history"
+                aria-label="Clear query history"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            }
+            title="Clear query history?"
+            description="This removes the recorded SQL for this connection from Dadabase. Saved queries are kept."
+            onConfirm={() => queryLogger.clearHistory()}
+          />
         </HStack>
       </div>
 
@@ -300,8 +313,13 @@ export const QueryLoggerContent = ({
         {showFavorites ? (
           <div className="flex h-full min-h-0 flex-1 flex-col divide-y overflow-auto">
             {(favoritesQuery.data?.length ?? 0) === 0 ? (
-              <div className="text-muted-foreground flex h-52 items-center justify-center text-sm">
-                No saved favorites yet — use the star in the SQL bar
+              <div className="text-muted-foreground flex h-52 flex-col items-center justify-center gap-3 text-sm">
+                <span>No saved queries yet.</span>
+                {onOpenQueryInEditor ? (
+                  <Button size="sm" variant="outline" onClick={() => onOpenQueryInEditor("")}>
+                    Open SQL editor
+                  </Button>
+                ) : null}
               </div>
             ) : (
               favoritesQuery.data?.map((fav) => (
@@ -320,6 +338,16 @@ export const QueryLoggerContent = ({
                     </div>
                     <p className="text-muted-foreground truncate font-mono text-xs">{fav.sql}</p>
                   </div>
+                  {onOpenQueryInEditor ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 shrink-0 px-2 text-xs"
+                      onClick={() => onOpenQueryInEditor(fav.sql)}
+                    >
+                      Open
+                    </Button>
+                  ) : null}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -371,7 +399,7 @@ export const QueryLoggerContent = ({
         entry={selectedEntry}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        connectionUrl={connectionUrl}
+        onOpenInEditor={onOpenQueryInEditor}
       />
     </>
   );

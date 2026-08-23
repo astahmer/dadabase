@@ -101,6 +101,14 @@ Then("the SQL snippets menu content should be near the trigger", async ({ page }
   expect(dy).toBeLessThan(80);
 });
 
+When("I open saved queries", async ({ page }) => {
+  await page.getByTestId("query-favorites-toggle").click();
+});
+
+When("I open the saved query SQL workspace", async ({ page }) => {
+  await page.getByRole("button", { name: "Open SQL editor", exact: true }).click();
+});
+
 Then("I should not see column header filters for expand or select columns", async ({ page }) => {
   await expect(page.getByTestId("column-header-filter-__expand")).toHaveCount(0);
   await expect(page.getByTestId("column-header-filter-__select")).toHaveCount(0);

@@ -65,7 +65,6 @@ import {
 } from "#src/components/pages/connection-page/use-zen-mode.ts";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
-import { fromPixelToPercentage } from "#src/lib/calculate-percentage-from-pixels.ts";
 import {
   buildCascadeDeletePreview,
   withDependentRowCounts,
@@ -77,7 +76,7 @@ import {
   parseSwitchSchemaCommandId,
   parseSwitchTableCommandId,
 } from "#src/lib/command-palette-commands.ts";
-import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
+import { guardReadOnlyMutation, isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import {
   registerCustomSqlRunner,
   runRegisteredCustomSql,
@@ -130,6 +129,7 @@ import { QueryFilterBuilder } from "../query-builder/query-filter-builder.tsx";
 import { deriveFavoriteLabel } from "../query-logger/derive-favorite-label.ts";
 import { QueryLoggerContent } from "../query-logger/query-logger-panel.tsx";
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
+import { Badge } from "../ui/badge.tsx";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Stack } from "../ui/layout.tsx";
@@ -243,8 +243,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   >(null);
   const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
   const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
-  const sidebarMinSize = fromPixelToPercentage(224, "horizontal");
-  const queryLoggerMinSize = fromPixelToPercentage(48, "vertical");
+  // Splitter percentages must be deterministic during SSR. Calculating from the
+  // browser viewport caused server/client min-size mismatches and hydration warnings.
+  const sidebarMinSize = 15;
+  const sidebarMaxSize = 32;
+  const queryLoggerMinSize = 7;
   const defaultQueryLoggerSize = queryLoggerSize ?? 0;
 
   const search = useActiveTabState((tab) => ({
@@ -415,6 +418,27 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     [navigate, search.schema, connection.dialect, toggleZenMode],
   );
 
+  const openSqlInNewTab = useCallback(
+    (sql: string) => {
+      const newTab = createTabState(
+        search.schema || getDialectDefaultSchema(connection.dialect),
+        "",
+        {
+          initialTabMode: "sql",
+          customSql: sql,
+          sqlEditorMode: "editor",
+        },
+      );
+      void navigate({
+        search: (prev) => ({
+          ...prev,
+          ...addTabStateAfterCurrent(prev, newTab),
+        }),
+      }).then(() => scrollToTab(newTab.tabId));
+    },
+    [navigate, search.schema, connection.dialect],
+  );
+
   return (
     <div className="bg-background flex h-screen flex-col">
       {/* Main Layout */}
@@ -429,7 +453,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
               collapsible: true,
               collapsedSize: 0,
               minSize: sidebarPanelMinSize,
-              maxSize: fromPixelToPercentage(400, "horizontal"),
+              maxSize: sidebarMaxSize,
             },
             {
               id: panels.mainContent,
@@ -655,6 +679,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                           onExpand={() => ctx.expandPanel(panels.queryLogger, 48)}
                           paletteView={queryLoggerPaletteView}
                           onPaletteViewConsumed={() => setQueryLoggerPaletteView(null)}
+                          onOpenQueryInEditor={openSqlInNewTab}
                         />
                       </Splitter.Panel>
                     )}
@@ -1688,7 +1713,7 @@ const RowsTableContent = (
     schema: string;
   } | null>(null);
   const [pastePending, setPastePending] = useState(false);
-  const relationshipPanelSize = fromPixelToPercentage(50, "vertical");
+  const relationshipPanelSize = 7;
 
   const search = useActiveTabState((tab, _search) => {
     return {
@@ -2501,25 +2526,43 @@ const EmptyTabContent = (props: { activeConnectionUrl: string; connection: DbCon
 
 const CustomSqlWorkspace = (props: { activeConnectionUrl: string; connection: DbConnection }) => {
   const executeCustomSql = useExecuteCustomSql({ activeConnectionUrl: props.activeConnectionUrl });
+  const tab = useActiveTabState((activeTab) => ({
+    schema: activeTab.schema,
+  }));
+  const isReadOnly = isReadOnlyConnection(props.activeConnectionUrl);
 
   return (
     <div
       className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
       data-testid="custom-sql-workspace"
     >
-      <div className="bg-card flex shrink-0 items-start justify-between gap-4 border-b px-4 py-3">
+      <div className="bg-card flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4">
         <div>
           <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
             Connection workspace
           </p>
           <h2 className="text-foreground mt-1 text-base font-semibold">Custom SQL</h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Run a query or script against this connection. No table is selected.
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <Badge colorPalette="muted" variant="outline" size="2xs">
+              {props.connection.name}
+            </Badge>
+            <Badge colorPalette="muted" variant="outline" size="2xs">
+              {props.connection.dialect}
+            </Badge>
+            {tab.schema ? (
+              <Badge colorPalette="muted" variant="outline" size="2xs">
+                {tab.schema}
+              </Badge>
+            ) : null}
+            <Badge colorPalette={isReadOnly ? "success" : "warning"} variant="outline" size="2xs">
+              {isReadOnly ? "Read-only: writes blocked" : "Writes enabled"}
+            </Badge>
+          </div>
         </div>
-        <kbd className="text-muted-foreground bg-muted shrink-0 rounded border px-2 py-1 font-mono text-xs">
-          Ctrl+Enter
-        </kbd>
+        <div className="text-muted-foreground flex shrink-0 flex-col items-end gap-1 text-xs">
+          <kbd className="bg-muted rounded border px-2 py-1 font-mono">Ctrl+Enter</kbd>
+          <span>Run selected SQL</span>
+        </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="min-h-64 shrink-0 border-b">

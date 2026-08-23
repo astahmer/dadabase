@@ -34,6 +34,14 @@ Feature: Connection page UX issues from issues.md
     And I open the SQL snippets menu
     Then the SQL snippets menu content should be near the trigger
 
+  Scenario: Saved query empty state opens a reviewable SQL workspace
+    Given I open the "users" table
+    And the query logger panel is expanded
+    When I open saved queries
+    Then I should see text "No saved queries yet."
+    When I open the saved query SQL workspace
+    Then I should see the table-independent SQL workspace
+
   Scenario: Utility columns have no header filter buttons
     Given I open the "users" table
     Then I should not see column header filters for expand or select columns
