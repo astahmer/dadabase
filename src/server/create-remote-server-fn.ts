@@ -12,6 +12,7 @@ import { makeRemoteSqlClientLayer } from "#src/db/postgres/remote-sql-client.lay
 import { getErrorMessage } from "#src/lib/get-error-message.ts";
 import {
   makeRemoteConnectionLayer,
+  makeRemoteDialectLayer,
   type RemoteConnection,
   RemoteConnectionId,
   type RemoteConnectionIdType,
@@ -35,6 +36,7 @@ const withRemoteConnectionLayers =
       const connectionLayer = QueryLoggerPersistentLayer.pipe(
         Layer.provide(Layer.succeedContext(context)),
         Layer.provideMerge(makeRemoteConnectionLayer(RemoteConnectionId.make(connectionId))),
+        Layer.provideMerge(makeRemoteDialectLayer(dialect)),
       );
 
       const sqlLayer = yield* makeRemoteSqlClientLayer(connectionUrl, dialect);
@@ -59,6 +61,7 @@ export const withRemoteConnectionLayersFromUrl =
       const connectionLayer = QueryLoggerPersistentLayer.pipe(
         Layer.provide(Layer.succeedContext(context)),
         Layer.provideMerge(makeRemoteConnectionLayer(RemoteConnectionId.make(connection.id))),
+        Layer.provideMerge(makeRemoteDialectLayer(connection.dialect)),
       );
 
       const sqlLayer = yield* makeRemoteSqlClientLayer(connectionUrl, connection.dialect);

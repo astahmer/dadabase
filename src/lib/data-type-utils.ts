@@ -18,6 +18,13 @@ export function isNumericDataType(dataType: string): boolean {
     "double",
     "float",
     "money",
+    // DuckDB
+    "tinyint",
+    "hugeint",
+    "utinyint",
+    "usmallint",
+    "uinteger",
+    "ubigint",
   ];
 
   return numericTypes.some((type) => normalized === type || normalized.includes(type));

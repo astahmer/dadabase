@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import { SqlClient } from "effect/unstable/sql";
 
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
@@ -15,10 +15,11 @@ import {
 import type { QueryLogger } from "../query-logger/query-logger.ts";
 import type { TableRelationshipInput } from "./connection-adapter.ts";
 
-import { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
+import { RemoteConnection, RemoteDialect } from "../db-connection/remote-connection.tag.ts";
 import { QueryLogLevel, QueryLogType } from "../query-logger/query-logger.types.ts";
 import { withQueryLogging } from "../query-logger/with-query-logging.ts";
 import { isSelectQuery } from "./detect-destructive-sql.ts";
+import { fetchDuckDbForeignKeys } from "./fns/duckdb-foreign-keys.ts";
 import { buildMysqlSystemRowIdSelect } from "./fns/mysql-row-fingerprint.ts";
 import { DADABASE_ROW_ID } from "./fns/row-identity.ts";
 import {
@@ -46,6 +47,16 @@ import { buildWhereClauseWithJoins } from "./sql-query-builder/build-query-sql.t
  */
 
 /**
+ * Whether the current remote connection is DuckDB. The DuckDB client shim reuses
+ * the pg statement compiler, so `sql.onDialectOrElse` selects pg branches; this
+ * service (provided by create-remote-server-fn) distinguishes actual DuckDB.
+ */
+const isDuckDbConnection = Effect.map(
+  Effect.serviceOption(RemoteDialect),
+  Option.contains(DatabaseDialect.DuckDB),
+);
+
+/**
  * Get available databases for the connected database
  * - PostgreSQL: Query pg_catalog.pg_database
  * - SQLite: Returns the attached databases
@@ -54,6 +65,23 @@ export const getAvailableDatabases = () =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const connectionId = yield* RemoteConnection;
+
+    if (yield* isDuckDbConnection) {
+      const query = sql<{ name: string }>`
+					SELECT database_name as name FROM duckdb_databases()
+					WHERE NOT internal ORDER BY database_name
+				`;
+      const compiled = query.compile();
+      return (yield* query.pipe(
+        withQueryLogging({
+          type: QueryLogType.SchemaIntrospection,
+          sql: compiled[0],
+          params: compiled[1],
+          level: QueryLogLevel.Trace,
+          connectionId,
+        }),
+      )) as Array<{ name: string }>;
+    }
 
     const result = yield* sql.onDialectOrElse({
       pg: () => {
@@ -273,6 +301,94 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const connectionId = yield* RemoteConnection;
+
+    if (yield* isDuckDbConnection) {
+      // FK metadata via duckdb_constraints() — DuckDB's information_schema
+      // constraint_column_usage misreports FK references as local columns.
+      const fkRows = yield* fetchDuckDbForeignKeys(sql, { schema: input.schema });
+      const fkMap = new Map<
+        string,
+        {
+          referencedSchema: string;
+          referencedTable: string;
+          referencedColumn: string;
+          constraintName: string;
+        }
+      >();
+      for (const fk of fkRows) {
+        if (fk.column_name) {
+          fkMap.set(fk.column_name, {
+            referencedSchema: fk.referenced_table_schema,
+            referencedTable: fk.referenced_table_name,
+            referencedColumn: fk.referenced_column_name,
+            constraintName: fk.constraint_name,
+          });
+        }
+      }
+
+      const columnsQuery = sql`
+					SELECT
+						c.column_name AS name,
+						c.data_type AS "dataType",
+						(c.is_nullable = 'YES') AS nullable,
+						COALESCE(pk.column_name IS NOT NULL, false) AS "primaryKey",
+						COALESCE(uq.column_name IS NOT NULL, false) AS "unique",
+						c.column_default AS "defaultValue",
+						false AS "isEnum",
+						NULL AS "enumValues"
+					FROM information_schema.columns c
+					LEFT JOIN (
+						SELECT kcu.table_schema, kcu.table_name, kcu.column_name
+						FROM information_schema.table_constraints tc
+						JOIN information_schema.key_column_usage kcu
+							ON tc.constraint_name = kcu.constraint_name
+						 AND tc.table_schema = kcu.table_schema
+						WHERE tc.constraint_type = 'PRIMARY KEY'
+					) pk ON pk.table_schema = c.table_schema
+						AND pk.table_name = c.table_name AND pk.column_name = c.column_name
+					LEFT JOIN (
+						SELECT DISTINCT kcu.table_schema, kcu.table_name, kcu.column_name
+						FROM information_schema.table_constraints tc
+						JOIN information_schema.key_column_usage kcu
+							ON tc.constraint_name = kcu.constraint_name
+						 AND tc.table_schema = kcu.table_schema
+						WHERE tc.constraint_type = 'UNIQUE'
+					) uq ON uq.table_schema = c.table_schema
+						AND uq.table_name = c.table_name AND uq.column_name = c.column_name
+					WHERE c.table_schema = ${input.schema} AND c.table_name = ${input.table}
+					ORDER BY c.ordinal_position
+				`;
+      const columnsCompiledQuery = columnsQuery.compile();
+      const columns = yield* columnsQuery.pipe(
+        withQueryLogging({
+          type: QueryLogType.ColumnMetadata,
+          sql: columnsCompiledQuery[0],
+          params: columnsCompiledQuery[1],
+          schema: input.schema,
+          table: input.table,
+          level: QueryLogLevel.Trace,
+          connectionId,
+        }),
+      );
+      return (
+        columns as Array<{
+          name: string;
+          dataType: string;
+          nullable: boolean;
+          primaryKey: boolean;
+          unique: boolean;
+          defaultValue: string | null;
+          isEnum: boolean;
+          enumValues: string[] | null;
+        }>
+      ).map((col) => ({
+        ...col,
+        isEnum: Boolean(col.isEnum),
+        enumValues: Array.isArray(col.enumValues) ? col.enumValues.map(String) : null,
+        isForeignKey: fkMap.has(col.name),
+        foreignKey: fkMap.get(col.name),
+      }));
+    }
 
     const output = yield* sql.onDialectOrElse({
       pg: () =>
@@ -647,6 +763,11 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
     const connectionId = yield* RemoteConnection;
     const { schema, table } = input;
 
+    if (yield* isDuckDbConnection) {
+      const allFks = yield* fetchDuckDbForeignKeys(sql, { schema });
+      return allFks.filter((fk) => fk.table_name === table);
+    }
+
     const result = yield* sql.onDialectOrElse({
       pg: () => {
         const query = sql<ForeignKeyInfo>`
@@ -825,6 +946,42 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
     const sql = yield* SqlClient.SqlClient;
     const connectionId = yield* RemoteConnection;
     const { schema, table } = input;
+
+    if (yield* isDuckDbConnection) {
+      // duckdb_indexes() exposes one row per index with the indexed expression
+      // list in `expressions` — explode it to one IndexInfo per column.
+      const idxRows = yield* sql`
+					SELECT index_name, is_unique, is_primary, expressions
+					FROM duckdb_indexes()
+					WHERE schema_name = ${schema} AND table_name = ${table}
+				`.pipe(
+        withQueryLogging({
+          type: QueryLogType.SchemaIntrospection,
+          sql: "duckdb_indexes()",
+          params: [],
+          schema,
+          table,
+          level: QueryLogLevel.Trace,
+          connectionId,
+        }),
+      );
+      const results: IndexInfo[] = [];
+      for (const row of idxRows as Array<Record<string, unknown>>) {
+        const exprs = String(row.expressions ?? "")
+          .split(",")
+          .map((part) => part.trim())
+          .filter((part) => part.length > 0);
+        for (const expression of exprs.length > 0 ? exprs : [""]) {
+          results.push({
+            index_name: String(row.index_name ?? ""),
+            column_name: expression,
+            is_unique: Boolean(row.is_unique),
+            is_primary: Boolean(row.is_primary),
+          });
+        }
+      }
+      return results;
+    }
 
     const result = yield* sql.onDialectOrElse({
       pg: () => {
@@ -1202,6 +1359,40 @@ export const getTableRelationships = (input: { schema: string; table: string }) 
     const sql = yield* SqlClient.SqlClient;
     const connectionId = yield* RemoteConnection;
     const { schema, table } = input;
+
+    if (yield* isDuckDbConnection) {
+      // Both directions derive from parsed duckdb_constraints() rows — the
+      // pg information_schema FK chain misreports referenced columns on DuckDB.
+      const allFks = yield* fetchDuckDbForeignKeys(sql, { schema });
+      const relationships: TableRelationship[] = [];
+      for (const fk of allFks) {
+        if (fk.table_name === table) {
+          relationships.push({
+            type: "outgoing",
+            referencingSchema: schema,
+            referencingTable: table,
+            referencingColumn: fk.column_name,
+            referencedSchema: fk.referenced_table_schema,
+            referencedTable: fk.referenced_table_name,
+            referencedColumn: fk.referenced_column_name,
+            constraintName: fk.constraint_name,
+          });
+        }
+        if (fk.referenced_table_name === table) {
+          relationships.push({
+            type: "incoming",
+            referencingSchema: schema,
+            referencingTable: fk.table_name,
+            referencingColumn: fk.column_name,
+            referencedSchema: schema,
+            referencedTable: table,
+            referencedColumn: fk.referenced_column_name,
+            constraintName: fk.constraint_name,
+          });
+        }
+      }
+      return relationships;
+    }
 
     const output = yield* sql.onDialectOrElse({
       pg: () => {
@@ -1773,6 +1964,44 @@ export const getRelationshipCardinality = (input: {
     const connectionId = yield* RemoteConnection;
     const { schema, table, columns, isIncomingRelationship } = input;
 
+    if (yield* isDuckDbConnection) {
+      // JS-computed from duckdb_constraints() metadata (same checks as the pg
+      // CTE): FK-side uniqueness → 1:1 candidate; referenced side PK → N:1.
+      const fks = yield* fetchDuckDbForeignKeys(sql, { schema });
+      const match = fks.find((fk) => fk.table_name === table && fk.column_name === columns[0]);
+      if (!match) return isIncomingRelationship ? "one-to-many" : "many-to-one";
+
+      const constraintCols = yield* sql`
+					SELECT tc.table_name, tc.constraint_type, kcu.column_name
+					FROM information_schema.table_constraints tc
+					JOIN information_schema.key_column_usage kcu
+						ON tc.constraint_name = kcu.constraint_name
+					 AND tc.table_schema = kcu.table_schema
+					WHERE tc.table_schema = ${schema}
+						AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
+				`;
+      const isConstrained = (tableName: string, columnName: string) =>
+        (constraintCols as Array<Record<string, unknown>>).some(
+          (row) => row.table_name === tableName && row.column_name === columnName,
+        );
+
+      const fkSideUnique = isConstrained(table, match.column_name);
+      const referencedIsPk = isConstrained(
+        match.referenced_table_name,
+        match.referenced_column_name,
+      );
+      const cardinality: RelationshipCardinality =
+        fkSideUnique && referencedIsPk
+          ? "one-to-one"
+          : !fkSideUnique && referencedIsPk
+            ? "many-to-one"
+            : fkSideUnique
+              ? "one-to-many"
+              : "many-to-many";
+      void connectionId;
+      return isIncomingRelationship && cardinality === "many-to-one" ? "one-to-many" : cardinality;
+    }
+
     const output = yield* sql.onDialectOrElse({
       pg: () => {
         const pgCardQuery = sql<{ cardinality: string }>`
@@ -2193,12 +2422,14 @@ export const queryTableRows = <TData>(input: {
       excludedColumns = [],
     } = input;
 
-    const defaultSchema = yield* sql.onDialectOrElse({
-      pg: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Postgres)),
-      mysql: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.MySQL)),
-      sqlite: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.SQLite)),
-      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
-    });
+    const defaultSchema = (yield* isDuckDbConnection)
+      ? getDialectDefaultSchema(DatabaseDialect.DuckDB)
+      : yield* sql.onDialectOrElse({
+          pg: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Postgres)),
+          mysql: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.MySQL)),
+          sqlite: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.SQLite)),
+          orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+        });
     const baseSchema = remapSchema(input.schema, defaultSchema);
 
     const joins = input.joins ?? [];
@@ -2293,10 +2524,10 @@ export const queryTableRows = <TData>(input: {
 
           let resultColumnList = columnList;
           if (includeSystemRowId) {
-            selectPart =
-              selectPart === "*"
-                ? `ctid::text AS "${DADABASE_ROW_ID}", *`
-                : `ctid::text AS "${DADABASE_ROW_ID}", ${selectPart}`;
+            const rowIdSelect = (yield* isDuckDbConnection)
+              ? `rowid AS "${DADABASE_ROW_ID}"`
+              : `ctid::text AS "${DADABASE_ROW_ID}"`;
+            selectPart = selectPart === "*" ? `${rowIdSelect}, *` : `${rowIdSelect}, ${selectPart}`;
             resultColumnList = [DADABASE_ROW_ID, ...columnList];
           }
 

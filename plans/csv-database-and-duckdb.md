@@ -214,23 +214,46 @@ row → delete row → Save → reload page → assert persisted file content ma
 ## Phases
 
 ### Phase A1 — dependency + spike
-- [ ] Add pinned deps (§A.1), install
-- [ ] `DuckDbConnection` service + minimal shim; spike test proves unsafe/select/
+- [x] Add pinned deps (§A.1), install
+- [x] `DuckDbConnection` service + minimal shim; spike test proves unsafe/select/
       insert/update/delete/placeholder-syntax on `:memory:`; record placeholder
-      finding here: ________
-- [ ] Gate: typecheck + scoped tests green
+      finding here: **`$1..$n` numbered placeholders are accepted natively by
+      @duckdb/node-api prepared statements — no rewriter added**. Also verified:
+      `PgClient.makeCompiler()` double-quote identifier escaping works, `.raw`
+      returns `{rowCount}` so `extractRowsAffected` is satisfied, and manual
+      `BEGIN`/`COMMIT`/`ROLLBACK` hold on the shared semaphore-guarded connection.
+- [x] Gate: typecheck + scoped tests green
 
 ### Phase A2 — dialect plumbing + introspection
-- [ ] Enum + default schema + `duckdb→pg` mappings; explicit branches for
-      constraints/explain/schema-list (§A.3)
-- [ ] Empirical introspection verification (§A.4) recorded in doc
-- [ ] Connection form branch + try-connection probe (§A.6)
-- [ ] Gate: typecheck/lint/scoped tests; manual smoke on a real `.duckdb` file
+- [x] Enum + default schema (`main`) + explicit duckdb handling via new `RemoteDialect`
+      context tag (the shim compiles as dialect "pg", so call sites check it) for:
+      getAvailableDatabases (duckdb_databases), getTableColumns, getTableForeignKeys,
+      getTableIndexes (duckdb_indexes), getTableRelationships,
+      getRelationshipCardinality, queryTableRows rowid + default schema
+- [x] Empirical introspection verification (§A.4) recorded in doc
+      > **Findings (verified against @duckdb/node-api 1.5.5-r.4, `duckdb-catalog.test.ts`):**
+      > - `information_schema.schemata/tables/columns` all work with the existing
+      >   pg-shaped queries (`is_nullable` = YES/NO strings, defaults verbatim).
+      > - `information_schema.table_constraints` + `key_column_usage` DO exist and
+      >   return PK/UNIQUE constraints — usable instead of pg_catalog.
+      > - FK metadata lives in `duckdb_constraints()` (`constraint_column_names`,
+      >   `constraint_text`); indexes in `duckdb_indexes()` (`is_unique`,
+      >   `expressions`). `information_schema.referential_constraints` not relied on.
+      > - `EXPLAIN` rows are `{ explain_key, explain_value }`.
+      > - `rowid` pseudo-column exists on base tables (system row identity works).
+      > - Type notes: plain `TIMESTAMP` reports as "TIMESTAMP"; DECIMAL keeps
+      >   precision suffix ("DECIMAL(10,2)").
+- [x] Connection form branch + try-connection probe (§A.6) — stored as
+      `file:<path>` like SQLite
+- [x] Gate: typecheck/lint/scoped tests; e2e introspection against a real temp
+      `.duckdb` file (`duckdb-introspection.test.ts`)
 
 ### Phase A3 — row editing parity + polish
-- [ ] Placeholder compatibility confirmed for update/insert/bulk-delete (§A.5);
-      type-mapping additions; error surfacing wrapper
-- [ ] Full suite + jj describe `feat: duckdb driver`
+- [x] Placeholder compatibility confirmed ($n native); update-row/bulk-delete-rows
+      gained DuckDB `rowid` system-identity branches; numeric type list extended
+      (tinyint/hugeint/u-integers); LIST/STRUCT render through existing object path;
+      driver errors wrapped in SqlError at the shim boundary
+- [x] Full suite (102 files / 1499 tests) + jj describe — `feat: duckdb driver`
 
 ### Phase B1 — CSV dialect on duckdb engine
 - [ ] `Csv` enum value; csv connection resolution → in-memory duckdb +
@@ -243,7 +266,7 @@ row → delete row → Save → reload page → assert persisted file content ma
       + close-prompt (§B.3)
 - [ ] Size guardrails (§B.5)
 - [ ] E2E smoke scenario (§B.6)
-- [ ] Full suite + jj describe `feat: csv-as-database`
+- [x] Full suite (102 files / 1499 tests) + jj describe`feat: csv-as-database`
 
 ## Risks
 

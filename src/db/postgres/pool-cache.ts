@@ -9,6 +9,7 @@ import { parseSshTunnelFromUrl, stripDadabaseMarkerParams } from "#src/lib/conne
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 
 import { DatabaseDialect } from "../dialect.ts";
+import { layer as duckDbLayer } from "#src/server/db-connection/duckdb/duckdb-client.ts";
 
 export class PoolCache extends Context.Service<
   PoolCache,
@@ -57,6 +58,12 @@ function buildDriverLayer(
       maxConnections: 20,
       connectionTTL: Duration.seconds(30),
     }) as Layer.Layer<SqlClient.SqlClient, SqlError>;
+  }
+  if (dialect === DatabaseDialect.DuckDB) {
+    // Stored like SQLite files as `file:<path>`; the driver wants the bare path.
+    return duckDbLayer({
+      url: driverUrl.startsWith("file:") ? driverUrl.slice("file:".length) : driverUrl,
+    });
   }
   return LibsqlClient.layer({ url: driverUrl });
 }

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "af52f968",
+  "scheduleId": "0a3d9117",
+  "plannedAt": "2026-08-24T18:50:49.049Z",
+  "dueReason": "timer",
+  "state": "running",
+  "startedAt": "2026-08-24T18:50:49.066Z",
+  "asyncId": "c05f7733-5e53-4851-9205-e007c186cf40",
+  "asyncDir": "/var/folders/_p/mx79mqqn6ss8755q205k8_340000gn/T/pi-subagents-uid-501/async-subagent-runs/c05f7733-5e53-4851-9205-e007c186cf40"
+}

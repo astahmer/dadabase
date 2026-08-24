@@ -24,6 +24,7 @@ export const isValidConnectionTarget = (
   input: Pick<ConnectionUrlInput, "connectionType" | "filePath" | "connectionUrl">,
 ): boolean => {
   if (input.connectionType === DatabaseDialect.SQLite) return input.filePath.trim().length > 0;
+  if (input.connectionType === DatabaseDialect.DuckDB) return input.filePath.trim().length > 0;
   try {
     const url = new URL(input.connectionUrl);
     if (input.connectionType === DatabaseDialect.Postgres) {
@@ -40,6 +41,14 @@ export const isValidConnectionTarget = (
 export const buildConnectionUrl = (values: ConnectionUrlInput): string => {
   if (values.connectionType === DatabaseDialect.SQLite) {
     const url = values.filePath.startsWith("file:") ? values.filePath : `file:${values.filePath}`;
+    return withReadOnlyFlag(url, values.readOnly);
+  }
+
+  if (values.connectionType === DatabaseDialect.DuckDB) {
+    // Same file-scheme convention as SQLite (`file:<path>`); survives the
+    // repository's URL handling and keeps readOnly metadata support.
+    const path = values.filePath.trim();
+    const url = path.startsWith("file:") ? path : `file:${path}`;
     return withReadOnlyFlag(url, values.readOnly);
   }
 

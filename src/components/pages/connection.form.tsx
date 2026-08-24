@@ -315,6 +315,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
               { label: "MySQL / MariaDB", value: "mysql" },
               { label: "SQLite", value: "sqlite" },
               { label: "libSQL / Turso", value: "libsql" },
+              { label: "DuckDB", value: "duckdb" },
             ]}
           />
         )}
@@ -329,10 +330,12 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
       >
         {({ connectionType, connectionUrl, filePath }) => {
           const label =
-            connectionType === DatabaseDialect.SQLite
+            connectionType === DatabaseDialect.SQLite || connectionType === DatabaseDialect.DuckDB
               ? filePath
-                ? "Local SQLite file selected"
-                : "Choose a local SQLite file"
+                ? connectionType === DatabaseDialect.SQLite
+                  ? "Local SQLite file selected"
+                  : "Local DuckDB file selected"
+                : "Choose a local database file"
               : (() => {
                   try {
                     const parsed = new URL(connectionUrl);
@@ -373,6 +376,28 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                     <field.TextField label="File Path" placeholder="/path/to/database.db" />
                   )}
                 </form.AppField>
+                <ReadOnlyField />
+              </>
+            );
+          }
+
+          if (connectionType === DatabaseDialect.DuckDB) {
+            return (
+              <>
+                <form.AppField name="connectionName">
+                  {(field) => <field.TextField label="Name" />}
+                </form.AppField>
+                <form.AppField name="filePath">
+                  {(field) => (
+                    <field.TextField
+                      label="Database File Path"
+                      placeholder="/path/to/database.duckdb"
+                    />
+                  )}
+                </form.AppField>
+                <p className="text-muted-foreground text-xs">
+                  Embedded analytics database — point at an existing `.duckdb` file.
+                </p>
                 <ReadOnlyField />
               </>
             );
@@ -551,7 +576,12 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                 sshPassword: form.getFieldValue("sshPassword"),
               });
 
-              if (!connectionUrl || (connectionType === DatabaseDialect.SQLite && !filePath)) {
+              if (
+                !connectionUrl ||
+                ((connectionType === DatabaseDialect.SQLite ||
+                  connectionType === DatabaseDialect.DuckDB) &&
+                  !filePath)
+              ) {
                 toaster.create({
                   title: "Connection details are required",
                   description: "Enter a valid connection URL or database file path before testing.",

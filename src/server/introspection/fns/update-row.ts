@@ -5,6 +5,7 @@ import { SqlClient } from "effect/unstable/sql";
 
 import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 
+import { DatabaseDialect } from "#src/db/dialect.ts";
 import { SqlError } from "#src/db/effect-compat.ts";
 import { RemoteConnection } from "#src/server/db-connection/remote-connection.tag.ts";
 import { QueryLogLevel, QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
@@ -70,21 +71,24 @@ export const updateRow = (
     );
 
     const whereClause = usesSystemRowId
-      ? yield* sql.onDialectOrElse({
-          pg: () =>
-            Effect.succeed(sql`ctid = CAST(${String(input.primaryKey[DADABASE_ROW_ID])} AS tid)`),
-          sqlite: () => Effect.succeed(sql`rowid = ${input.primaryKey[DADABASE_ROW_ID]}`),
-          mysql: () =>
-            Effect.gen(function* () {
-              const columnNames = yield* listMysqlTableColumnNames({
-                schema: input.schema,
-                table: input.table,
-              });
-              const expr = buildMysqlRowFingerprintExpr(columnNames);
-              return sql`${sql.unsafe(expr)} = ${String(input.primaryKey[DADABASE_ROW_ID])}`;
-            }),
-          orElse: () => Effect.die(new Error("Unsupported database dialect")),
-        })
+      ? _connection.dialect === DatabaseDialect.DuckDB
+        ? // DuckDB base tables expose a `rowid` pseudo-column (no ctid).
+          Effect.succeed(sql`rowid = ${input.primaryKey[DADABASE_ROW_ID]}`)
+        : yield* sql.onDialectOrElse({
+            pg: () =>
+              Effect.succeed(sql`ctid = CAST(${String(input.primaryKey[DADABASE_ROW_ID])} AS tid)`),
+            sqlite: () => Effect.succeed(sql`rowid = ${input.primaryKey[DADABASE_ROW_ID]}`),
+            mysql: () =>
+              Effect.gen(function* () {
+                const columnNames = yield* listMysqlTableColumnNames({
+                  schema: input.schema,
+                  table: input.table,
+                });
+                const expr = buildMysqlRowFingerprintExpr(columnNames);
+                return sql`${sql.unsafe(expr)} = ${String(input.primaryKey[DADABASE_ROW_ID])}`;
+              }),
+            orElse: () => Effect.die(new Error("Unsupported database dialect")),
+          })
       : sql.and(pkColumns.map((column) => sql`${sql(column)} = ${input.primaryKey[column]}`));
 
     const statement = yield* sql.onDialectOrElse({

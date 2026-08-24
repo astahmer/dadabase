@@ -29,8 +29,17 @@ export const explainQueryServerFn = createServerFn({ method: "POST" })
           pg: () =>
             Effect.gen(function* () {
               const result = yield* sql.unsafe(`EXPLAIN ANALYZE ${input.sql}`);
+              const rows = result as Array<Record<string, string>>;
+              // DuckDB routes through the pg compiler branch but returns rows as
+              // { explain_key, explain_value } instead of a single text column.
+              if (rows.length > 0 && typeof rows[0]?.explain_value === "string") {
+                return {
+                  plan: rows.map((row) => row.explain_value ?? "").join("\n"),
+                  dialect: "postgres" as const,
+                };
+              }
               return {
-                plan: (result as Array<Record<string, string>>)
+                plan: rows
                   .map((row) => {
                     const values = Object.values(row);
                     return values[0] || JSON.stringify(row);

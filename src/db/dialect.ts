@@ -3,12 +3,14 @@ export enum DatabaseDialect {
   SQLite = "sqlite",
   LibSQL = "libsql",
   MySQL = "mysql",
+  DuckDB = "duckdb",
 }
 
 export const getDialectDefaultSchema = (dialect: DatabaseDialect) => {
   switch (dialect) {
     case DatabaseDialect.SQLite:
     case DatabaseDialect.LibSQL:
+    case DatabaseDialect.DuckDB:
       return "main";
     case DatabaseDialect.MySQL:
       return "";

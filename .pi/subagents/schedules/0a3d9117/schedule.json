@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "0a3d9117",
+  "name": "csv-database-retry-after-outage",
+  "cwd": "/Users/astahmer/dev/dadabase",
+  "trigger": {
+    "kind": "once",
+    "at": "+30m"
+  },
+  "target": {
+    "workflowScript": "const out = {};\nconst task = `Implement the CSV-AS-DATABASE portion of /Users/astahmer/dev/dadabase/plans/csv-database-and-duckdb.md (feature B). cwd = /Users/astahmer/dev/dadabase.\n\nCONTEXT: Three prior attempts died at startup from provider 503 outages — no partial work exists. @ = tzszqvqtoonp contains the completed, gate-verified DuckDB driver. Start with \\`jj new -m \"feat: CSV files as editable databases\"\\` on top of it, then build feature B per plan decision §B.1 (in-memory DuckDB over read_csv_auto).\n\nRESOURCE DISCIPLINE: batched rg/sed edits, no wholesale node_modules reads, progressively scoped vitest runs.\n\nFollow the plan's Phase B checkboxes: connection kind + form UX (path picker; single file or directory of *.csv), table listing/naming from filenames, schema inference display, LIMIT/OFFSET paging, staged edits with explicit Save -> atomic write-back (+ .bak backup), unsaved-changes indicator, large-file guidance, colocated tests incl. round-trip (load -> edit cell -> save -> reload shows change + valid csv).\nGates: pnpm typecheck (keep 0 errors), pnpm lint (<= 8 pre-existing errors), scoped pnpm test --run. Report phases done + gate results + any plan deviations with reasoning.`;\n\nlet attempt = 0;\nlet lastError = '';\nwhile (attempt < 3) {\n  try {\n    const r = await runs.run('csv-retry-' + attempt, { agent: 'worker', maxRuntimeMs: 120 * 60 * 1000, task });\n    const text = String(r.output ?? '');\n    if (text.trim().length === 0) { lastError = 'empty output'; attempt += 1; continue; }\n    out.csv = text.slice(-900);\n    return { status: 'complete', attempts: attempt + 1, ...out };\n  } catch (e) {\n    lastError = String(e);\n    attempt += 1;\n  }\n}\nreturn { abortedAt: 'csv-database', attempts: attempt, error: lastError };"
+  },
+  "overlap": "skip",
+  "catchUp": "latest",
+  "paused": false,
+  "createdAt": "2026-08-24T18:20:49.049Z",
+  "updatedAt": "2026-08-24T18:50:49.066Z",
+  "activeRunId": "af52f968",
+  "lastRunId": "af52f968"
+}
