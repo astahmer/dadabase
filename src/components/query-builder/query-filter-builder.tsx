@@ -459,7 +459,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
                       className="h-8 shrink-0 px-2 text-xs"
                       aria-label="Insert SQL value"
                     >
-                      SQL
+                      Value
                     </Button>
                   </MenuTrigger>
                   <MenuContent>

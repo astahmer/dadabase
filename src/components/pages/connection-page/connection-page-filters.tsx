@@ -462,23 +462,35 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                 <div className="flex items-center justify-between border-b px-4 py-3">
                   <div>
                     <h2 className="text-sm font-semibold">Filter rows</h2>
-                    <p className="text-muted-foreground text-xs">This view is shareable.</p>
                   </div>
-                  {hasAppliedFilters && (
+                  <div className="flex items-center gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        setFilterDraft({
-                          conditions: [],
-                          logicalOperator: draftFilter.logicalOperator,
-                        });
+                        void navigator.clipboard.writeText(window.location.href);
+                        toaster.create({ title: "View link copied", type: "success" });
                       }}
                       className="text-muted-foreground h-7 px-1.5 text-xs"
                     >
-                      Clear filters
+                      Copy view link
                     </Button>
-                  )}
+                    {hasAppliedFilters && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setFilterDraft({
+                            conditions: [],
+                            logicalOperator: draftFilter.logicalOperator,
+                          });
+                        }}
+                        className="text-muted-foreground h-7 px-1.5 text-xs"
+                      >
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="bg-muted/20 border-b px-4 py-2.5">
                   <NaturalLanguageSearch
