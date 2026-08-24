@@ -59,9 +59,17 @@ export type ChatTransportErrorDecoder = (input: {
   response: Response;
 }) => Promise<ChatTransportError | undefined>;
 
+/** An armed approve/reject decision for a paused `needsApproval` tool call. */
+export interface ChatApprovalDecision {
+  approvalId: string;
+  approved: boolean;
+}
+
 export type ChatMessageEncoder = (input: {
   messages: ReadonlyArray<ChatMessage>;
   request: ChatTransportRequest;
+  /** Set when the send was triggered by `approveToolCall`; consumed once. */
+  approvalDecision?: ChatApprovalDecision | undefined;
 }) => ReadonlyArray<unknown>;
 
 export type ChatTransportActorEvent =

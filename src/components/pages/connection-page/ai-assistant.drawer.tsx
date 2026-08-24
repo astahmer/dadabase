@@ -1,9 +1,16 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { KeyRound, Loader2, Sparkles, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Check, KeyRound, Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { AiTableContext } from "#src/lib/ai/ai-types.ts";
+import { aiStatsFromRows } from "#src/lib/ai/ai-stats.ts";
+import { suggestMissingIndexes } from "#src/lib/ai/suggest-missing-indexes.ts";
+import { suggestQueriesFromSchema } from "#src/lib/ai/suggest-queries.ts";
+import { SQL_PREVIEW_REVEAL_SIZE } from "#src/lib/sql-preview-panel.ts";
+import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
+import { getTableIndexesQueryOptions } from "#src/server/introspection/start-fns/get-table-indexes.start.ts";
+
+import type { AiSchemaContext, AiTableContext } from "#src/lib/ai/ai-types.ts";
 
 import {
   clearStoredOpenAiApiKey,
@@ -11,16 +18,13 @@ import {
   hasStoredOpenAiApiKey,
   setStoredOpenAiApiKey,
 } from "#src/lib/ai-byok.ts";
-import { getAiGeneratingStatus } from "#src/lib/ai/ai-generating-status.ts";
-import { aiStatsFromRows } from "#src/lib/ai/ai-stats.ts";
-import { generateSqlFromNaturalLanguage } from "#src/lib/ai/generate-sql.ts";
-import { suggestMissingIndexes } from "#src/lib/ai/suggest-missing-indexes.ts";
-import { suggestQueriesFromSchema } from "#src/lib/ai/suggest-queries.ts";
-import { getErrorMessage } from "#src/lib/get-error-message.ts";
-import { SQL_PREVIEW_REVEAL_SIZE } from "#src/lib/sql-preview-panel.ts";
-import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
-import { getTableIndexesQueryOptions } from "#src/server/introspection/start-fns/get-table-indexes.start.ts";
-
+import { findPendingApproval } from "#src/lib/chat/chat/ui-messages.ts";
+import {
+  ChatProvider,
+  useChatActions,
+  useChatSelector,
+} from "#src/lib/chat/react-hooks.ts";
+import { ThreadMessage } from "#src/lib/chat/web/thread/thread-message.tsx";
 import type { DbConnection } from "../connection.types.ts";
 
 import { Badge } from "../../ui/badge.tsx";
@@ -32,6 +36,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Textarea } from "../../ui/textarea.tsx";
 import { AiStatsPanel } from "./ai-stats-panel.tsx";
 import { updateTabState, useActiveTabState } from "./create-tab-state.ts";
+import { useDadabaseChatRuntime } from "./use-chat-runtime.tsx";
 import { useTableColumnMetadata } from "./use-table-column-metadata.ts";
 
 interface ConnectionAiAssistantDrawerProps {
@@ -45,7 +50,6 @@ interface ConnectionAiAssistantDrawerProps {
 
 export const ConnectionAiAssistantDrawer = ({
   connection,
-  activeConnectionUrl,
   open,
   onOpenChange,
   onGenerateAndRun,
@@ -60,42 +64,35 @@ export const ConnectionAiAssistantDrawer = ({
 
   const [hasKey, setHasKey] = useState(false);
   const [keyDraft, setKeyDraft] = useState("");
-  const [question, setQuestion] = useState("");
   const [hasApprovedSchemaSharing, setHasApprovedSchemaSharing] = useState(false);
-  const [lastError, setLastError] = useState<string | null>(null);
-  const [chatMessages, setChatMessages] = useState<
-    Array<{ role: "user" | "assistant"; content: string; sql?: string }>
-  >([]);
 
   useEffect(() => {
     if (!open) return;
     setHasKey(hasStoredOpenAiApiKey());
     setKeyDraft(getStoredOpenAiApiKey() ?? "");
-    setLastError(null);
-    setHasApprovedSchemaSharing(false);
   }, [open]);
 
   const { columnMetadata } = useTableColumnMetadata({
-    url: activeConnectionUrl,
+    url: connection.url,
     schema: tab.schema || "",
     table: tab.table || "",
   });
 
   const allTablesColumnsQuery = useQuery({
     ...getAllTablesColumnsQueryOptions({
-      url: activeConnectionUrl,
+      url: connection.url,
       schema: tab.schema || "",
     }),
-    enabled: open && !!tab.schema && !!activeConnectionUrl,
+    enabled: open && !!tab.schema && !!connection.url,
   });
 
   const indexesQuery = useQuery({
     ...getTableIndexesQueryOptions({
-      url: activeConnectionUrl,
+      url: connection.url,
       schema: tab.schema || "",
       table: tab.table || "",
     }),
-    enabled: open && !!tab.schema && !!tab.table && !!activeConnectionUrl,
+    enabled: open && !!tab.schema && !!tab.table && !!connection.url,
   });
 
   const tableContext = useMemo(
@@ -131,7 +128,7 @@ export const ConnectionAiAssistantDrawer = ({
       tables,
       activeTable: tab.table || undefined,
     };
-  }, [allTablesColumnsQuery.data, connection.dialect, tab.schema, tab.table, tableContext]);
+  }, [allTablesColumnsQuery.data, connection.dialect, tab.table, tab.schema, tableContext]);
 
   const suggestedQueries = useMemo(() => {
     if (!tab.table || columnMetadata.length === 0) return [];
@@ -188,75 +185,9 @@ export const ConnectionAiAssistantDrawer = ({
     onOpenChange(false);
   };
 
-  const canGenerate =
-    Boolean(question.trim()) &&
-    hasApprovedSchemaSharing &&
-    schemaContext.tables.length > 0 &&
-    !allTablesColumnsQuery.isLoading;
-
-  const generateMutation = useMutation({
-    mutationFn: async () => {
-      if (schemaContext.tables.length === 0) {
-        throw new Error("Schema metadata not loaded yet.");
-      }
-      const history = chatMessages.map((m) => ({ role: m.role, content: m.content }));
-      return generateSqlFromNaturalLanguage({
-        question,
-        schema: schemaContext,
-        history,
-      });
-    },
-    onSuccess: (result) => {
-      setLastError(null);
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "user", content: question },
-        { role: "assistant", content: result.sql, sql: result.sql },
-      ]);
-      setQuestion("");
-    },
-    onError: (err) => {
-      setLastError(getErrorMessage(err));
-    },
-  });
-
-  const generateAndRunMutation = useMutation({
-    mutationFn: async () => {
-      if (schemaContext.tables.length === 0) {
-        throw new Error("Schema metadata not loaded yet.");
-      }
-      if (!onGenerateAndRun) throw new Error("Run handler not wired.");
-      const history = chatMessages.map((m) => ({ role: m.role, content: m.content }));
-      return generateSqlFromNaturalLanguage({
-        question,
-        schema: schemaContext,
-        history,
-      });
-    },
-    onSuccess: (result) => {
-      setLastError(null);
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "user", content: question },
-        { role: "assistant", content: result.sql, sql: result.sql },
-      ]);
-      setQuestion("");
-      applySqlAndRun(result.sql);
-    },
-    onError: (err) => {
-      setLastError(getErrorMessage(err));
-    },
-  });
-
-  const isGenerating = generateMutation.isPending || generateAndRunMutation.isPending;
-  const generatingStatus = isGenerating
-    ? getAiGeneratingStatus(generateAndRunMutation.isPending ? "generate-and-run" : "generate")
-    : null;
-
   const saveKey = () => {
     setStoredOpenAiApiKey(keyDraft);
     setHasKey(hasStoredOpenAiApiKey());
-    setLastError(null);
   };
 
   const clearKey = () => {
@@ -286,11 +217,11 @@ export const ConnectionAiAssistantDrawer = ({
               <KeyRound className="text-muted-foreground size-3.5" />
               <h3 className="text-sm font-medium">OpenAI API key</h3>
               {hasKey ? (
-                <Badge variant="outline" colorPalette="success" size="2xs">
+                <Badge variant="outline" colorPalette="success" size="xs">
                   saved
                 </Badge>
               ) : (
-                <Badge variant="outline" colorPalette="warning" size="2xs">
+                <Badge variant="outline" colorPalette="warning" size="xs">
                   missing
                 </Badge>
               )}
@@ -373,113 +304,14 @@ export const ConnectionAiAssistantDrawer = ({
                   </span>
                 </span>
               </label>
-              {chatMessages.length > 0 ? (
-                <div
-                  className="border-border max-h-48 space-y-2 overflow-auto rounded-md border p-2"
-                  data-testid="ai-chat-thread"
-                >
-                  {chatMessages.map((m, i) => (
-                    <div
-                      key={i}
-                      className={
-                        m.role === "user"
-                          ? "bg-muted/50 rounded-md px-2 py-1.5 text-xs"
-                          : "border-border rounded-md border px-2 py-1.5 text-xs"
-                      }
-                    >
-                      <div className="text-muted-foreground mb-1 font-medium">{m.role}</div>
-                      <pre className="font-mono whitespace-pre-wrap">{m.content}</pre>
-                      {m.sql ? (
-                        <div className="mt-2 flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => applySqlToEditor(m.sql!)}
-                          >
-                            Apply
-                          </Button>
-                          {onGenerateAndRun ? (
-                            <Button size="sm" onClick={() => applySqlAndRun(m.sql!)}>
-                              Run
-                            </Button>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              <Textarea
-                rows={3}
-                placeholder="e.g. show pending orders from the last 7 days"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                data-testid="ai-chat-input"
-                disabled={isGenerating}
-              />
-              {generatingStatus && (
-                <div
-                  className="border-border bg-muted/40 flex items-start gap-2 rounded-md border px-3 py-2 text-xs"
-                  data-testid="ai-generating-status"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin" />
-                  <div className="space-y-0.5">
-                    <p className="font-medium">{generatingStatus.title}</p>
-                    <p className="text-muted-foreground">{generatingStatus.detail}</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!canGenerate || isGenerating}
-                  onClick={() => generateMutation.mutate()}
-                  data-testid="ai-chat-send"
-                >
-                  {generateMutation.isPending ? (
-                    <>
-                      <Loader2 className="size-3.5 animate-spin" />
-                      Generating…
-                    </>
-                  ) : (
-                    "Send"
-                  )}
-                </Button>
-                {onGenerateAndRun && (
-                  <Button
-                    size="sm"
-                    disabled={!canGenerate || isGenerating}
-                    onClick={() => generateAndRunMutation.mutate()}
-                    data-testid="ai-chat-send-run"
-                  >
-                    {generateAndRunMutation.isPending ? (
-                      <>
-                        <Loader2 className="size-3.5 animate-spin" />
-                        Generating…
-                      </>
-                    ) : (
-                      "Send → run"
-                    )}
-                  </Button>
-                )}
-                {chatMessages.length > 0 ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setChatMessages([])}
-                    disabled={isGenerating}
-                  >
-                    Clear chat
-                  </Button>
-                ) : null}
-              </div>
-              {lastError && (
-                <p className="text-destructive text-xs" data-testid="ai-chat-error">
-                  {lastError}
-                </p>
+              {hasApprovedSchemaSharing && (
+                <ChatSection
+                  connectionName={connection.name}
+                  schemaContext={schemaContext}
+                  onApplySql={applySqlToEditor}
+                  onRunSql={applySqlAndRun}
+                  canRun={onGenerateAndRun !== undefined}
+                />
               )}
             </section>
           )}
@@ -524,7 +356,7 @@ export const ConnectionAiAssistantDrawer = ({
                     className="border-border space-y-1 rounded-md border px-3 py-2 text-xs"
                   >
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" colorPalette="muted" size="2xs">
+                      <Badge variant="outline" colorPalette="muted" size="xs">
                         {s.reason}
                       </Badge>
                       <span className="font-medium">{s.columns.join(", ")}</span>
@@ -548,3 +380,179 @@ export const ConnectionAiAssistantDrawer = ({
     </Sheet>
   );
 };
+
+/** Runtime-driven chat thread + composer + approval bar. */
+const ChatSection = ({
+  connectionName,
+  schemaContext,
+  onApplySql,
+  onRunSql,
+  canRun,
+}: {
+  connectionName: string;
+  schemaContext: AiSchemaContext;
+  onApplySql: (sql: string) => void;
+  onRunSql: (sql: string) => void;
+  canRun: boolean;
+}) => {
+  const schemaContextRef = useRef<AiSchemaContext | undefined>(schemaContext);
+  schemaContextRef.current = schemaContext;
+
+  const runtime = useDadabaseChatRuntime({ connectionName, schemaContextRef });
+
+  return (
+    <ChatProvider runtime={runtime}>
+      <ChatThread onApplySql={onApplySql} onRunSql={onRunSql} canRun={canRun} />
+    </ChatProvider>
+  );
+};
+
+const ChatThread = ({
+  onApplySql,
+  onRunSql,
+  canRun,
+}: {
+  onApplySql: (sql: string) => void;
+  onRunSql: (sql: string) => void;
+  canRun: boolean;
+}) => {
+  const messages = useChatSelector((s) => s.activeThread.messages);
+  const isStreaming = useChatSelector((s) => s.activeThread.isStreaming);
+  const draft = useChatSelector((s) => s.composer.text);
+  const error = useChatSelector((s) => s.error);
+  const actions = useChatActions();
+
+  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+  const pendingApproval = isStreaming ? undefined : findPendingApproval(lastAssistant);
+
+  const renderToolResult = ({ toolName, result }: { toolName: string; result: unknown }) => {
+    if ((toolName === "propose_sql" || toolName === "run_sql") && isRecord(result)) {
+      const sql = typeof result.sql === "string" ? result.sql : undefined;
+      if (sql !== undefined) {
+        return (
+          <div className="space-y-1.5">
+            <pre className="bg-muted/50 overflow-auto rounded-md p-2 font-mono text-xs">{sql}</pre>
+            <div className="flex gap-1.5">
+              <Button size="xs" variant="outline" onClick={() => onApplySql(sql)}>
+                Apply
+              </Button>
+              {canRun && toolName === "propose_sql" && (
+                <Button size="xs" onClick={() => onRunSql(sql)}>
+                  Run
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      }
+    }
+    return undefined;
+  };
+
+  return (
+    <div className="space-y-2">
+      <div
+        className="border-border max-h-72 space-y-2 overflow-auto rounded-md border p-2"
+        data-testid="ai-chat-thread"
+      >
+        {messages.length === 0 ? (
+          <p className="text-muted-foreground px-1 py-2 text-xs">
+            Ask a question — the assistant proposes SQL, you review before it runs.
+          </p>
+        ) : (
+          messages.map((message) => (
+            <ThreadMessage
+              key={message.id}
+              message={message}
+              isStreaming={isStreaming && message.role === "assistant"}
+              renderToolResult={renderToolResult}
+            />
+          ))
+        )}
+        {pendingApproval !== undefined && (
+          <div
+            className="border-border bg-muted/40 flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs"
+            data-testid="ai-chat-approval"
+            role="alert"
+          >
+            <span className="font-medium">
+              Allow running the proposed SQL via `{pendingApproval.toolName}`?
+            </span>
+            <span className="flex shrink-0 gap-1.5">
+              <Button
+                size="xs"
+                onClick={() =>
+                  actions.approveToolCall({
+                    approvalId: pendingApproval.approvalId,
+                    approved: true,
+                  })
+                }
+              >
+                <Check className="size-3" />
+                Approve
+              </Button>
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() =>
+                  actions.approveToolCall({
+                    approvalId: pendingApproval.approvalId,
+                    approved: false,
+                  })
+                }
+              >
+                <X className="size-3" />
+                Reject
+              </Button>
+            </span>
+          </div>
+        )}
+        {isStreaming && (
+          <div
+            className="border-border bg-muted/40 flex items-start gap-2 rounded-md border px-3 py-2 text-xs"
+            data-testid="ai-generating-status"
+            role="status"
+            aria-live="polite"
+          >
+            <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin" />
+            <span className="font-medium">Generating…</span>
+          </div>
+        )}
+      </div>
+      <Textarea
+        rows={3}
+        placeholder="e.g. show pending orders from the last 7 days"
+        value={draft}
+        onChange={(e) => actions.setDraft({ text: e.target.value })}
+        data-testid="ai-chat-input"
+        disabled={isStreaming}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!hasKeyForChat() || draft.trim() === "" || isStreaming}
+          onClick={() => actions.sendMessage({ text: draft })}
+          data-testid="ai-chat-send"
+        >
+          Send
+        </Button>
+        {messages.length > 0 ? (
+          <Button size="sm" variant="ghost" onClick={() => actions.startNewConversation()}>
+            New chat
+          </Button>
+        ) : null}
+      </div>
+      {error && (
+        <p className="text-destructive text-xs" data-testid="ai-chat-error">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+};
+
+const hasKeyForChat = (): boolean => getStoredOpenAiApiKey() !== null;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;

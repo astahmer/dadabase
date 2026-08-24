@@ -8,116 +8,150 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as ConnectionsConnectionNameRouteImport } from "./routes/connections/$connectionName";
-import { Route as IndexRouteImport } from "./routes/index";
-import { Route as SandboxRouteImport } from "./routes/sandbox";
-import { Route as SchemaConnectionNameRouteImport } from "./routes/schema/$connectionName";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as SandboxRouteImport } from './routes/sandbox'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ConnectionsConnectionNameRouteImport } from './routes/connections/$connectionName'
+import { Route as SchemaConnectionNameRouteImport } from './routes/schema/$connectionName'
 
 const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SandboxRoute = SandboxRouteImport.update({
-  id: "/sandbox",
-  path: "/sandbox",
+  id: '/sandbox',
+  path: '/sandbox',
   getParentRoute: () => rootRouteImport,
-} as any);
-const ConnectionsConnectionNameRoute = ConnectionsConnectionNameRouteImport.update({
-  id: "/connections/$connectionName",
-  path: "/connections/$connectionName",
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
+const ConnectionsConnectionNameRoute =
+  ConnectionsConnectionNameRouteImport.update({
+    id: '/connections/$connectionName',
+    path: '/connections/$connectionName',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const SchemaConnectionNameRoute = SchemaConnectionNameRouteImport.update({
-  id: "/schema/$connectionName",
-  path: "/schema/$connectionName",
+  id: '/schema/$connectionName',
+  path: '/schema/$connectionName',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute;
-  "/sandbox": typeof SandboxRoute;
-  "/connections/$connectionName": typeof ConnectionsConnectionNameRoute;
-  "/schema/$connectionName": typeof SchemaConnectionNameRoute;
+  '/': typeof IndexRoute
+  '/sandbox': typeof SandboxRoute
+  '/api/chat': typeof ApiChatRoute
+  '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+  '/schema/$connectionName': typeof SchemaConnectionNameRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute;
-  "/sandbox": typeof SandboxRoute;
-  "/connections/$connectionName": typeof ConnectionsConnectionNameRoute;
-  "/schema/$connectionName": typeof SchemaConnectionNameRoute;
+  '/': typeof IndexRoute
+  '/sandbox': typeof SandboxRoute
+  '/api/chat': typeof ApiChatRoute
+  '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+  '/schema/$connectionName': typeof SchemaConnectionNameRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/": typeof IndexRoute;
-  "/sandbox": typeof SandboxRoute;
-  "/connections/$connectionName": typeof ConnectionsConnectionNameRoute;
-  "/schema/$connectionName": typeof SchemaConnectionNameRoute;
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/sandbox': typeof SandboxRoute
+  '/api/chat': typeof ApiChatRoute
+  '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+  '/schema/$connectionName': typeof SchemaConnectionNameRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
-  fullPaths: "/" | "/sandbox" | "/connections/$connectionName" | "/schema/$connectionName";
-  fileRoutesByTo: FileRoutesByTo;
-  to: "/" | "/sandbox" | "/connections/$connectionName" | "/schema/$connectionName";
-  id: "__root__" | "/" | "/sandbox" | "/connections/$connectionName" | "/schema/$connectionName";
-  fileRoutesById: FileRoutesById;
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    | '/'
+    | '/sandbox'
+    | '/api/chat'
+    | '/connections/$connectionName'
+    | '/schema/$connectionName'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/sandbox'
+    | '/api/chat'
+    | '/connections/$connectionName'
+    | '/schema/$connectionName'
+  id:
+    | '__root__'
+    | '/'
+    | '/sandbox'
+    | '/api/chat'
+    | '/connections/$connectionName'
+    | '/schema/$connectionName'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
-  SandboxRoute: typeof SandboxRoute;
-  ConnectionsConnectionNameRoute: typeof ConnectionsConnectionNameRoute;
-  SchemaConnectionNameRoute: typeof SchemaConnectionNameRoute;
+  IndexRoute: typeof IndexRoute
+  SandboxRoute: typeof SandboxRoute
+  ApiChatRoute: typeof ApiChatRoute
+  ConnectionsConnectionNameRoute: typeof ConnectionsConnectionNameRoute
+  SchemaConnectionNameRoute: typeof SchemaConnectionNameRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/": {
-      id: "/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/sandbox": {
-      id: "/sandbox";
-      path: "/sandbox";
-      fullPath: "/sandbox";
-      preLoaderRoute: typeof SandboxRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/connections/$connectionName": {
-      id: "/connections/$connectionName";
-      path: "/connections/$connectionName";
-      fullPath: "/connections/$connectionName";
-      preLoaderRoute: typeof ConnectionsConnectionNameRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/schema/$connectionName": {
-      id: "/schema/$connectionName";
-      path: "/schema/$connectionName";
-      fullPath: "/schema/$connectionName";
-      preLoaderRoute: typeof SchemaConnectionNameRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandbox': {
+      id: '/sandbox'
+      path: '/sandbox'
+      fullPath: '/sandbox'
+      preLoaderRoute: typeof SandboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connections/$connectionName': {
+      id: '/connections/$connectionName'
+      path: '/connections/$connectionName'
+      fullPath: '/connections/$connectionName'
+      preLoaderRoute: typeof ConnectionsConnectionNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schema/$connectionName': {
+      id: '/schema/$connectionName'
+      path: '/schema/$connectionName'
+      fullPath: '/schema/$connectionName'
+      preLoaderRoute: typeof SchemaConnectionNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SandboxRoute: SandboxRoute,
+  ApiChatRoute: ApiChatRoute,
   ConnectionsConnectionNameRoute: ConnectionsConnectionNameRoute,
   SchemaConnectionNameRoute: SchemaConnectionNameRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
 
-import type { createStart } from "@tanstack/react-start";
-
-import type { getRouter } from "./router.tsx";
-declare module "@tanstack/react-start" {
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true;
-    router: Awaited<ReturnType<typeof getRouter>>;
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
   }
 }

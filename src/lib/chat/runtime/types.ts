@@ -292,6 +292,8 @@ export interface ChatActions {
     readonly text: string;
     readonly attachments?: ReadonlyArray<Attachment>;
   }): void;
+  /** Resume a paused `needsApproval` tool call with an approve/reject decision. */
+  approveToolCall(input: { readonly approvalId: string; readonly approved: boolean }): void;
   stop(): void;
   retry(input: { readonly messageId: string }): void;
   editMessage(input: { readonly messageId: string; readonly text: string }): void;
