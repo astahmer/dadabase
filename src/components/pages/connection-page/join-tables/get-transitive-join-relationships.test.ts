@@ -1,6 +1,6 @@
-import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
-
 import { describe, expect, it } from "vitest";
+
+import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 
 import { getTransitiveJoinRelationships } from "./get-transitive-join-relationships.ts";
 

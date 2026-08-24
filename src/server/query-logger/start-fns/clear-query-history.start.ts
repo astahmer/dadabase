@@ -4,6 +4,7 @@ import { Effect, Schema } from "effect";
 
 import type { InferServerFnSchema } from "#src/types.ts";
 
+import { toValidator } from "#src/db/effect-compat.ts";
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
 import { getQueryHistoryQueryOptions } from "#src/server/introspection/start-fns/get-query-history.start.ts";
 import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
@@ -14,7 +15,7 @@ const clearQueryHistoryInputSchema = Schema.Struct({
 });
 
 const clearQueryHistoryServerFn = createServerFn({ method: "POST" })
-  .validator(clearQueryHistoryInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(clearQueryHistoryInputSchema.pipe(toValidator))
   .handler(async (ctx) => {
     const program = Effect.gen(function* () {
       const queryLogger = yield* QueryLogger;

@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import {
   Pagination,
   PaginationContent,
@@ -7,7 +9,6 @@ import {
   PaginationNextTrigger,
   PaginationPrevTrigger,
 } from "#src/components/ui/pagination.tsx";
-import { useState } from "react";
 
 import { Stack } from "./layout.tsx";
 

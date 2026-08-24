@@ -1,6 +1,6 @@
-import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 import { executeCustomSql } from "./introspection.ts";
 import { PgContainer, isContainerRuntimeAvailable } from "./pg-test.layer.ts";
@@ -298,6 +298,6 @@ const testSuite = (
 
 describe.skipIf(!isContainerRuntimeAvailable())(
   "executeCustomSql (pg with testcontainers)",
-  testSuite(PgContainer.ClientLive.pipe(Layer.catchAll(Layer.die)), postgresConfig),
+  testSuite(PgContainer.ClientLive.pipe(Layer.orDie), postgresConfig),
   1000 * 60 * 10,
 );

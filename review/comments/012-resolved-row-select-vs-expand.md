@@ -1,11 +1,11 @@
 # RESOLVED — Row context menu / selection targeted `__expand` button
 
-| Field | Value |
-| --- | --- |
-| Status | **resolved** |
-| Severity | high (e2e / UX) |
-| Introduced | expand column predates competitor wave (`stmwpqxx` et al.); broke e2e assumptions in steps that used `getByRole("button").first()` |
-| Resolved by | `mqlntknv` + `mkspvyuv` (`data-testid="row-select-button"`, step updates) |
+| Field       | Value                                                                                                                              |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Status      | **resolved**                                                                                                                       |
+| Severity    | high (e2e / UX)                                                                                                                    |
+| Introduced  | expand column predates competitor wave (`stmwpqxx` et al.); broke e2e assumptions in steps that used `getByRole("button").first()` |
+| Resolved by | `mqlntknv` + `mkspvyuv` (`data-testid="row-select-button"`, step updates)                                                          |
 
 ## Original issue
 

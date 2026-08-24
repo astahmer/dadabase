@@ -1,6 +1,6 @@
-import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 import { makeTestLayer, libsqlLayer, sqliteConfig } from "../test.layer.ts";
 import { MAX_CASCADE_SEED_ROWS, countCascadeDependentsWalk } from "./count-cascade-dependents.ts";

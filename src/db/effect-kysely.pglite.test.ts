@@ -7,10 +7,10 @@ import type { EffectKysely } from "./effect-kysely.ts";
 
 import { makeEffectKyselyPglite } from "./effect-kysely.pglite.ts";
 
-class InMemoryPgliteDb extends Context.Tag("@dadabase/InMemoryPgliteDb")<
+class InMemoryPgliteDb extends Context.Service<
   InMemoryPgliteDb,
   EffectKysely<TestInMemoryDbSchema>
->() {}
+>()("@dadabase/InMemoryPgliteDb") {}
 
 interface TestInMemoryDbSchema {
   test_table: {

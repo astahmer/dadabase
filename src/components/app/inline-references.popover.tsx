@@ -1,8 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
+import { AlertCircle, ArrowRight, ChevronRight, Link as LinkIcon, Loader, X } from "lucide-react";
+
 import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 
 import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
-import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, ArrowRight, ChevronRight, Link as LinkIcon, Loader, X } from "lucide-react";
 
 import type { ForeignKeyInfo } from "../data-table/cell-context-menu.tsx";
 

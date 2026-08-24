@@ -9,8 +9,9 @@ import type {
   TransactionBuilder,
 } from "kysely";
 
-import { SqlError } from "@effect/sql/SqlError";
 import { Array, Data, Effect, Option } from "effect";
+
+import { SqlError } from "#src/db/effect-compat.ts";
 
 // taken from https://github.com/Effect-TS/effect/pull/5156
 
@@ -18,12 +19,8 @@ interface EffectExecutor {
   executeRaw: <O>(query: QueryRaw<O>) => Effect.Effect<QueryResult<O>, SqlError>;
   execute: <O>(query: Query<O>) => Effect.Effect<O[], SqlError>;
   executeTakeFirstOption: <O>(query: Query<O>) => Effect.Effect<Option.Option<O>, SqlError>;
-  executeTakeFirstOrUndefined: <O>(
-    query: Query<O>,
-  ) => Effect.Effect<O | undefined, SqlError>;
-  executeTakeFirstOrError: <O>(
-    query: Query<O>,
-  ) => Effect.Effect<O, SqlError | SqlNoFirstResult>;
+  executeTakeFirstOrUndefined: <O>(query: Query<O>) => Effect.Effect<O | undefined, SqlError>;
+  executeTakeFirstOrError: <O>(query: Query<O>) => Effect.Effect<O, SqlError | SqlNoFirstResult>;
   executeTakeFirstUnsafe: <O>(query: Query<O>) => Effect.Effect<O, SqlError>;
 }
 
@@ -68,7 +65,7 @@ export const makeFromKysely = <DB>(kysely: Kysely<DB>): EffectKysely<DB> => {
 
       return Object.assign(builder, {
         execute: (<A, E>(f: (trx: EffectTransition<DB>) => Effect.Effect<A, E>) => {
-          return Effect.async<A, E>((resume) => {
+          return Effect.callback<A, E>((resume) => {
             kyselyBuilderExecute((trx) =>
               Effect.runPromise(f(Object.assign(trx, makeExecutor(trx)))),
             )
@@ -108,14 +105,17 @@ const executeSpan = <TQuery extends Query<any> | QueryRaw<any>>(
   query: TQuery,
 ) => {
   const compiled = isRawBuilder(query) ? query.compile(client) : query.compile();
-  return Effect.withSpan(`kysely.execute`, {
-    kind: `client`,
-    captureStackTrace: false,
-    attributes: {
-      sql: compiled.sql,
-      // params: compiled.parameters,
+  return Effect.withSpan(
+    `kysely.execute`,
+    {
+      kind: `client`,
+      attributes: {
+        sql: compiled.sql,
+        // params: compiled.parameters,
+      },
     },
-  });
+    { captureStackTrace: false },
+  );
 };
 
 const executeRaw =
@@ -158,7 +158,7 @@ const executeTakeFirstOption =
   <O>(query: Query<O>) =>
     execute(client)(query).pipe(
       Effect.map((result) =>
-        Array.isNonEmptyReadonlyArray(result) ? Option.some(result[0]) : Option.none(),
+        Array.isReadonlyArrayNonEmpty(result) ? Option.some(result[0]) : Option.none(),
       ),
     );
 
@@ -180,12 +180,14 @@ export class SqlNoFirstResult extends Data.TaggedError(`SqlNoFirstResult`)<{}> {
 
 const executeTakeFirstOrError =
   <DB>(client: Kysely<DB>) =>
-  <O>(query: Query<O>) =>
+  <O>(query: Query<O>): Effect.Effect<O, SqlError | SqlNoFirstResult> =>
     executeTakeFirstOption(client)(query).pipe(
-      Effect.flatMap((result) => Effect.mapError(result, () => new SqlNoFirstResult())),
+      Effect.flatMap((result) =>
+        Option.isSome(result) ? Effect.succeed(result.value) : Effect.fail(new SqlNoFirstResult()),
+      ),
     );
 
 const executeTakeFirstUnsafe =
   <DB>(client: Kysely<DB>) =>
   <O>(query: Query<O>) =>
-    execute(client)(query).pipe(Effect.map((result) => Array.unsafeGet(result, 0)));
+    execute(client)(query).pipe(Effect.map((result) => Array.getUnsafe(result, 0)));

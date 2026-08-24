@@ -1,8 +1,9 @@
 "use client";
 
-import { cn } from "#src/lib/utils";
 import { Checkbox as CheckboxPrimitive } from "@ark-ui/react/checkbox";
 import { CheckIcon, MinusIcon } from "lucide-react";
+
+import { cn } from "#src/lib/utils";
 
 const Checkbox = CheckboxPrimitive.Root;
 

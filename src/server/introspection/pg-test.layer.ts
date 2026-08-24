@@ -1,6 +1,8 @@
+import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+
 import { PgClient } from "@effect/sql-pg";
 import { PostgreSqlContainer } from "@testcontainers/postgresql";
-import { Data, Effect, Layer, Redacted, String } from "effect";
+import { Context, Data, Effect, Layer, Redacted, String } from "effect";
 import { execFileSync } from "node:child_process";
 
 export class ContainerError extends Data.TaggedError("ContainerError")<{
@@ -20,16 +22,21 @@ export function isContainerRuntimeAvailable(): boolean {
   }
 }
 
-export class PgContainer extends Effect.Service<PgContainer>()("test/PgContainer", {
-  scoped: Effect.acquireRelease(
-    Effect.tryPromise({
-      try: () => new PostgreSqlContainer("postgres:alpine").start(),
-      catch: (cause) => new ContainerError({ cause }),
-    }),
-    (container) => Effect.promise(() => container.stop()),
-  ),
-}) {
-  static ClientLive = Layer.unwrapEffect(
+export class PgContainer extends Context.Service<PgContainer, StartedPostgreSqlContainer>()(
+  "test/PgContainer",
+) {
+  static readonly Default = Layer.effect(
+    PgContainer,
+    Effect.acquireRelease(
+      Effect.tryPromise({
+        try: () => new PostgreSqlContainer("postgres:alpine").start(),
+        catch: (cause) => new ContainerError({ cause }),
+      }),
+      (container) => Effect.promise(() => container.stop()),
+    ),
+  );
+
+  static ClientLive = Layer.unwrap(
     Effect.gen(function* () {
       const container = yield* PgContainer;
       return PgClient.layer({
@@ -38,7 +45,7 @@ export class PgContainer extends Effect.Service<PgContainer>()("test/PgContainer
     }),
   ).pipe(Layer.provide(this.Default));
 
-  static ClientTransformLive = Layer.unwrapEffect(
+  static ClientTransformLive = Layer.unwrap(
     Effect.gen(function* () {
       const container = yield* PgContainer;
       return PgClient.layer({

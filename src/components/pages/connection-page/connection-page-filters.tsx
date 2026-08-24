@@ -537,7 +537,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                         logicalOperator: draftFilter.logicalOperator,
                       });
                     }}
-                    logicalOperator={draftFilter.logicalOperator}
+                    logicalOperator={draftFilter.logicalOperator ?? "and"}
                     availableColumns={columnList}
                     isLoading={isLoading}
                     label="Where"
@@ -567,7 +567,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={openFilters}
+                      onClick={() => openFilters()}
                       className="h-full max-w-64 min-w-0 gap-0 rounded-none p-0 text-xs"
                     >
                       <span className="max-w-28 truncate px-2.5 font-medium">
@@ -600,7 +600,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={openFilters}
+                    onClick={() => openFilters()}
                     className="text-muted-foreground h-7 max-w-40 px-2 text-xs"
                     title={`Grouped by ${groupBy.join(", ")}`}
                   >

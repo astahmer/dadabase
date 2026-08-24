@@ -1,6 +1,6 @@
-import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
-
 import { useEffect, useState } from "react";
+
+import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 
 export function useStickyRelationshipTracking(
   containerRef: React.RefObject<HTMLDivElement | null>,

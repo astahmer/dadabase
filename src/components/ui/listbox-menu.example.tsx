@@ -1,7 +1,8 @@
-import { Button } from "#src/components/ui/button.tsx";
-import { ListboxMenu } from "#src/components/ui/listbox-menu.export.ts";
 import { createListCollection, useFilter } from "@ark-ui/react";
 import { useState } from "react";
+
+import { Button } from "#src/components/ui/button.tsx";
+import { ListboxMenu } from "#src/components/ui/listbox-menu.export.ts";
 
 export function ListboxMenuExample() {
   const [isOpen, setIsOpen] = useState(false);

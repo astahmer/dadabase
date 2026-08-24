@@ -1,8 +1,8 @@
-import { SqlError } from "@effect/sql/SqlError";
 import { mutationOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
+import { SqlError, toValidator } from "#src/db/effect-compat.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { isSelectQuery } from "#src/server/introspection/detect-destructive-sql.ts";
@@ -14,7 +14,7 @@ export const ExecuteCustomSqlInputSchema = Schema.Struct({
 });
 
 export const executeCustomSqlServerFn = createServerFn({ method: "POST" })
-  .validator(ExecuteCustomSqlInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(ExecuteCustomSqlInputSchema.pipe(toValidator))
   .handler(
     createRemoteIntrospectionHandler((input) =>
       Effect.gen(function* () {

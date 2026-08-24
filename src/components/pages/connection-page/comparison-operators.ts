@@ -28,4 +28,6 @@ export const INVERTED_COMPARISON_OPERATORS = COMPARISON_OPERATORS.filter((op) =>
 );
 
 export const isInvertedComparisonOperator = (operator: string): boolean =>
-  INVERTED_COMPARISON_OPERATORS.includes(operator as (typeof INVERTED_COMPARISON_OPERATORS)[number]);
+  INVERTED_COMPARISON_OPERATORS.includes(
+    operator as (typeof INVERTED_COMPARISON_OPERATORS)[number],
+  );

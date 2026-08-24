@@ -1,7 +1,8 @@
 import type * as React from "react";
 
-import { cn } from "#src/lib/utils";
 import { createAnatomy } from "@ark-ui/react/anatomy";
+
+import { cn } from "#src/lib/utils";
 
 const anatomy = createAnatomy("card", [
   "root",

@@ -1,7 +1,8 @@
-import { cn } from "#src/lib/utils.ts";
 import { HoverCard as HoverCardPrimitive, type HoverCardRootProps } from "@ark-ui/react/hover-card";
 import { Portal } from "@ark-ui/react/portal";
 import * as React from "react";
+
+import { cn } from "#src/lib/utils.ts";
 
 const HoverCard = (props: HoverCardRootProps) => (
   <HoverCardPrimitive.Root lazyMount openDelay={0} {...props} />

@@ -1,7 +1,8 @@
 "use client";
 
-import { cn } from "#src/lib/utils";
 import { Switch as SwitchPrimitive } from "@ark-ui/react/switch";
+
+import { cn } from "#src/lib/utils";
 
 import type { ExposedComponentProps } from "./component-props.ts";
 

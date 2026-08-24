@@ -52,9 +52,9 @@ export interface FilterJoinCondition {
 
 export interface JoinedTable {
   /** Table name to join */
-  table: string;
+  readonly table: string;
   /** Schema of the table to join */
-  schema: string;
+  readonly schema: string;
   /**
    * Which already-in-scope table this join is anchored to.
    * When omitted, the join is anchored to the base/original table.
@@ -66,7 +66,7 @@ export interface JoinedTable {
   /** Type of join */
   type: JoinType;
   /** Columns to include from this table - "all" or specific column names */
-  columns: "all" | string[];
+  columns: "all" | readonly string[];
   /** Join condition configuration (standard FK, custom SQL, or filter-based) */
   joinCondition: StandardJoinCondition | CustomJoinCondition | FilterJoinCondition;
   /** Optional filter conditions to apply to the joined table (WHERE clause) */

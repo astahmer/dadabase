@@ -1,11 +1,11 @@
 # RESOLVED — Testcontainers suites failed hard without Docker
 
-| Field | Value |
-| --- | --- |
-| Status | **resolved** |
-| Severity | medium (CI/dev UX) |
-| Introduced | long-standing `query-table-data` / `execute-custom-sql` PG container suites |
-| Resolved by | `xluxzskp` — `isContainerRuntimeAvailable()` + `describe.skipIf` |
+| Field       | Value                                                                       |
+| ----------- | --------------------------------------------------------------------------- |
+| Status      | **resolved**                                                                |
+| Severity    | medium (CI/dev UX)                                                          |
+| Introduced  | long-standing `query-table-data` / `execute-custom-sql` PG container suites |
+| Resolved by | `xluxzskp` — `isContainerRuntimeAvailable()` + `describe.skipIf`            |
 
 ## Original issue
 

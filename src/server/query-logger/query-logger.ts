@@ -19,7 +19,6 @@ export interface QueryLoggerInterface {
   remove: (id: string) => Effect.Effect<void>;
 }
 
-export class QueryLogger extends Context.Tag("@dadabase/QueryLogger")<
-  QueryLogger,
-  QueryLoggerInterface
->() {}
+export class QueryLogger extends Context.Service<QueryLogger, QueryLoggerInterface>()(
+  "@dadabase/QueryLogger",
+) {}

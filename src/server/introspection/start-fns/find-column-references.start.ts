@@ -4,6 +4,7 @@ import { Schema } from "effect";
 
 import type { InferServerFnSchema } from "#src/types.ts";
 
+import { toValidator } from "#src/db/effect-compat.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import {
   findColumnReferences,
@@ -21,7 +22,7 @@ const findColumnReferencesServerFn = createServerFn({ method: "POST" })
       referencedSchema: Schema.String,
       referencedTable: Schema.String,
       referencedColumn: Schema.String,
-    }).pipe(Schema.standardSchemaV1),
+    }).pipe(toValidator),
   )
   .handler(
     createRemoteIntrospectionHandler((input) =>
@@ -47,7 +48,7 @@ const findColumnReferencesWithCountsServerFn = createServerFn({
       referencedTable: Schema.String,
       referencedColumn: Schema.String,
       cellValue: Schema.Any,
-    }).pipe(Schema.standardSchemaV1),
+    }).pipe(toValidator),
   )
   .handler(
     createRemoteIntrospectionHandler((input) =>

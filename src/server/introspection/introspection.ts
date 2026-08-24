@@ -1,12 +1,12 @@
-import { SqlClient } from "@effect/sql";
-import { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 import type { JoinTablesConfig } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
 
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { SqlError } from "#src/db/effect-compat.ts";
 import {
   ALL_TABLES_INTROSPECTION_CONCURRENCY,
   pgSqliteHandlers,
@@ -1640,7 +1640,7 @@ export const findColumnReferencesWithCounts = (input: {
                   ...ref,
                   matchingRowCount: Number(rows[0]?.count ?? 0),
                 })),
-                Effect.catchAll(() =>
+                Effect.catch(() =>
                   Effect.succeed({
                     ...ref,
                     matchingRowCount: -1,
@@ -1668,7 +1668,7 @@ export const findColumnReferencesWithCounts = (input: {
                 ...ref,
                 matchingRowCount: Number(rows[0]?.count ?? 0),
               })),
-              Effect.catchAll(() =>
+              Effect.catch(() =>
                 Effect.succeed({
                   ...ref,
                   matchingRowCount: -1,
@@ -1699,7 +1699,7 @@ export const findColumnReferencesWithCounts = (input: {
                   ...ref,
                   matchingRowCount: Number(rows[0]?.count ?? 0),
                 })),
-                Effect.catchAll(() =>
+                Effect.catch(() =>
                   Effect.succeed({
                     ...ref,
                     matchingRowCount: -1,
@@ -1727,7 +1727,7 @@ export const findColumnReferencesWithCounts = (input: {
                 ...ref,
                 matchingRowCount: Number(rows[0]?.count ?? 0),
               })),
-              Effect.catchAll(() =>
+              Effect.catch(() =>
                 Effect.succeed({
                   ...ref,
                   matchingRowCount: -1,
@@ -2081,7 +2081,7 @@ export const getRelationshipsCounts = (input: {
                     connectionId,
                   }),
                   Effect.map((rows) => Number(rows[0]?.count ?? 0)),
-                  Effect.catchAll(() => Effect.succeed(0)),
+                  Effect.catch(() => Effect.succeed(0)),
                 );
               },
               sqlite: () => {
@@ -2102,7 +2102,7 @@ export const getRelationshipsCounts = (input: {
                     connectionId,
                   }),
                   Effect.map((rows) => Number(rows[0]?.count ?? 0)),
-                  Effect.catchAll(() => Effect.succeed(0)),
+                  Effect.catch(() => Effect.succeed(0)),
                 );
               },
               orElse: () => Effect.succeed(0),

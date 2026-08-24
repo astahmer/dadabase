@@ -1,3 +1,6 @@
+import { createListCollection } from "@ark-ui/react/select";
+import { useState } from "react";
+
 import {
   Select,
   SelectContent,
@@ -8,8 +11,6 @@ import {
   SelectTrigger,
   SelectValueText,
 } from "#src/components/ui/select.tsx";
-import { createListCollection } from "@ark-ui/react/select";
-import { useState } from "react";
 
 import { Stack } from "./layout.tsx";
 

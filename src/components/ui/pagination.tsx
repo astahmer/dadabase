@@ -2,11 +2,12 @@
 
 import type { VariantProps } from "class-variance-authority";
 
-import { buttonVariants } from "#src/components/ui/button";
-import { cn } from "#src/lib/utils";
 import { Pagination as PaginationPrimitive, paginationAnatomy } from "@ark-ui/react/pagination";
 import { MoreHorizontal } from "lucide-react";
 import * as React from "react";
+
+import { buttonVariants } from "#src/components/ui/button";
+import { cn } from "#src/lib/utils";
 
 import type { ExposedComponentProps } from "./component-props.ts";
 

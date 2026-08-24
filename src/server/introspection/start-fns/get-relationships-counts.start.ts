@@ -5,6 +5,7 @@ import { Schema } from "effect";
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 
+import { toValidator } from "#src/db/effect-compat.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { getRelationshipsCounts } from "#src/server/introspection/introspection.ts";
 
@@ -16,7 +17,7 @@ const TableRelationshipSchema = Schema.Struct({
   referencedSchema: Schema.String,
   referencedTable: Schema.String,
   referencedColumn: Schema.String,
-  type: Schema.Literal("incoming", "outgoing"),
+  type: Schema.Literals(["incoming", "outgoing"]),
 });
 TableRelationshipSchema.Type satisfies TableRelationship;
 
@@ -24,12 +25,12 @@ const InputSchema = Schema.Struct({
   url: Schema.String,
   schema: Schema.String,
   table: Schema.String,
-  relationships: TableRelationshipSchema.pipe(Schema.Array, Schema.mutable),
-  rowData: Schema.Record({ key: Schema.String, value: Schema.Any }),
+  relationships: Schema.Array(TableRelationshipSchema).pipe(Schema.mutable),
+  rowData: Schema.Record(Schema.String, Schema.Any),
 });
 
 const getRelationshipsCountsServerFn = createServerFn({ method: "POST" })
-  .validator(InputSchema.pipe(Schema.standardSchemaV1))
+  .validator(InputSchema.pipe(toValidator))
   .handler(
     createRemoteIntrospectionHandler((input) =>
       getRelationshipsCounts({

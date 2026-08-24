@@ -1,8 +1,9 @@
 "use client";
 
-import { cn } from "#src/lib/utils";
 import { TagsInput as TagsInputPrimitive } from "@ark-ui/react/tags-input";
 import { XIcon } from "lucide-react";
+
+import { cn } from "#src/lib/utils";
 
 const TagsInput = TagsInputPrimitive.Root;
 

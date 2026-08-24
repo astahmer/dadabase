@@ -1,7 +1,8 @@
 "use client";
 
-import { cn } from "#src/lib/utils";
 import { Tabs as TabsPrimitive } from "@ark-ui/react/tabs";
+
+import { cn } from "#src/lib/utils";
 
 import type { ExposedComponentProps } from "./component-props.ts";
 

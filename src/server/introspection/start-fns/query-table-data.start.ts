@@ -12,6 +12,7 @@ import {
   QueryFilter,
   type QueryFilterType,
 } from "#src/components/query-builder/query-filter.ts";
+import { toValidator } from "#src/db/effect-compat.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
 import { queryTableRows } from "#src/server/introspection/introspection.ts";
@@ -20,27 +21,27 @@ const StandardJoinConditionSchema = Schema.Struct({
   mode: Schema.Literal("standard"),
   referencingColumn: Schema.String,
   referencedColumn: Schema.String,
-}).pipe(Schema.mutable);
+});
 
 const CustomJoinConditionSchema = Schema.Struct({
   mode: Schema.Literal("custom"),
   referencingColumn: Schema.String.pipe(Schema.optional),
   referencedColumn: Schema.String.pipe(Schema.optional),
   conditions: Schema.Array(Schema.String).pipe(Schema.mutable),
-}).pipe(Schema.mutable);
+});
 
 const FilterJoinConditionSchema = Schema.Struct({
   mode: Schema.Literal("filters"),
   referencingColumn: Schema.String.pipe(Schema.optional),
   referencedColumn: Schema.String.pipe(Schema.optional),
   filters: QueryFilter.pipe(Schema.optional),
-}).pipe(Schema.mutable);
+});
 
-const JoinConditionSchema = Schema.Union(
+const JoinConditionSchema = Schema.Union([
   StandardJoinConditionSchema,
   CustomJoinConditionSchema,
   FilterJoinConditionSchema,
-);
+]);
 
 export const JoinedTableSchema = Schema.Struct({
   table: Schema.String,
@@ -50,14 +51,11 @@ export const JoinedTableSchema = Schema.Struct({
     table: Schema.String,
   }).pipe(Schema.optional),
   alias: Schema.String.pipe(Schema.optional),
-  type: Schema.Literal("left", "inner", "right", "full", "cross"),
-  columns: Schema.Union(
-    Schema.Literal("all"),
-    Schema.Array(Schema.String).pipe(Schema.mutable),
-  ).pipe(Schema.mutable),
+  type: Schema.Literals(["left", "inner", "right", "full", "cross"]),
+  columns: Schema.Union([Schema.Literal("all"), Schema.Array(Schema.String)]),
   joinCondition: JoinConditionSchema,
   filters: QueryFilter.pipe(Schema.optional),
-}).pipe(Schema.mutable);
+});
 
 type JoinedTableType = typeof JoinedTableSchema.Type;
 const _lint = {} as JoinedTableType satisfies JoinedTable;
@@ -67,20 +65,22 @@ _lint;
 export const QueryTableRowsInputSchema = Schema.Struct({
   url: Schema.String,
   dbName: Schema.String.pipe(Schema.optional),
-  schema: Schema.String.pipe(Schema.optionalWith({ default: () => "public" })),
+  schema: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed("public"))),
   table: Schema.String,
   orderBy: Schema.String.pipe(Schema.optional),
-  orderDirection: Schema.Literal("asc", "desc").pipe(Schema.optionalWith({ default: () => "asc" })),
-  nullsOrder: Schema.Literal("first", "last").pipe(Schema.optional),
-  limit: Schema.Number.pipe(Schema.optionalWith({ default: () => 50 })),
-  offset: Schema.Number.pipe(Schema.optionalWith({ default: () => 0 })),
+  orderDirection: Schema.Literals(["asc", "desc"]).pipe(
+    Schema.withDecodingDefault(Effect.succeed("asc")),
+  ),
+  nullsOrder: Schema.Literals(["first", "last"]).pipe(Schema.optional),
+  limit: Schema.Number.pipe(Schema.withDecodingDefault(Effect.succeed(50))),
+  offset: Schema.Number.pipe(Schema.withDecodingDefault(Effect.succeed(0))),
   filters: QueryFilter.pipe(Schema.optional),
   joins: Schema.Array(JoinedTableSchema).pipe(Schema.optional),
   selectedColumns: Schema.Array(Schema.String).pipe(Schema.mutable, Schema.optional),
   excludedColumns: Schema.Array(Schema.String).pipe(Schema.mutable, Schema.optional),
 });
 const queryTableDataServerFn = createServerFn({ method: "POST" })
-  .validator(QueryTableRowsInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(QueryTableRowsInputSchema.pipe(toValidator))
   .handler(
     createRemoteIntrospectionHandler((input) =>
       Effect.gen(function* () {

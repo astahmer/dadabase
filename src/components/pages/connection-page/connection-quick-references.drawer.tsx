@@ -1,6 +1,7 @@
+import { useNavigate } from "@tanstack/react-router";
+
 import { useTableColumnMetadata } from "#src/components/pages/connection-page/use-table-column-metadata.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
-import { useNavigate } from "@tanstack/react-router";
 
 import type { DbConnection } from "../connection.types.ts";
 

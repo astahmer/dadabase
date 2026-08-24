@@ -1,11 +1,11 @@
-import type { SqlClient } from "@effect/sql";
-import type { SqlError } from "@effect/sql/SqlError";
+import type { SqlClient } from "effect/unstable/sql";
 import type { Selectable } from "kysely";
 
-import { Effect, Layer, type ManagedRuntime } from "effect";
+import { Effect, Layer } from "effect";
 
 import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 import type { DatabaseDialect } from "#src/db/dialect.ts";
+import type { SqlError } from "#src/db/effect-compat.ts";
 
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { makeRemoteSqlClientLayer } from "#src/db/postgres/remote-sql-client.layer.ts";
@@ -30,8 +30,7 @@ const withRemoteConnectionLayers =
   ) =>
   (effect: Effect.Effect<TOutput, E, R | RemoteConnection | QueryLogger>) =>
     Effect.gen(function* () {
-      const context =
-        yield* Effect.context<ManagedRuntime.ManagedRuntime.Context<typeof AppRuntime>>();
+      const context = yield* AppRuntime.contextEffect;
 
       const connectionLayer = QueryLoggerPersistentLayer.pipe(
         Layer.provide(Layer.succeedContext(context)),
@@ -48,8 +47,7 @@ export const withRemoteConnectionLayersFromUrl =
   <TOutput, E, R>(connectionUrl: string) =>
   (effect: Effect.Effect<TOutput, E, R | RemoteConnection | QueryLogger>) =>
     Effect.gen(function* () {
-      const context =
-        yield* Effect.context<ManagedRuntime.ManagedRuntime.Context<typeof AppRuntime>>();
+      const context = yield* AppRuntime.contextEffect;
 
       const repo = yield* DatabaseConnectionRepository;
       const connection = yield* repo.findByUrl(connectionUrl);

@@ -2,6 +2,7 @@ import { mutationOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
+import { toValidator } from "#src/db/effect-compat.ts";
 import { updateDbConnection } from "#src/server/db-connection/fns/update-db-connection.ts";
 
 import { AppRuntime } from "../../services/app.runtime.ts";
@@ -11,8 +12,8 @@ const updateDbConnectionServerFn = createServerFn({ method: "POST" })
     Schema.Struct({
       id: Schema.String,
       name: Schema.String,
-      url: Schema.URL,
-    }).pipe(Schema.standardSchemaV1),
+      url: Schema.String,
+    }).pipe(toValidator),
   )
   .handler(async (ctx) => {
     return await AppRuntime.runPromise(

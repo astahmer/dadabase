@@ -3,6 +3,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { Schema } from "effect";
 
+import { toValidator } from "#src/db/effect-compat.ts";
+
 /**
  * Thin BYOK proxy: the browser sends the OpenAI key per request.
  * We never persist it — OpenAI's browser CORS blocks direct client calls.
@@ -13,7 +15,7 @@ export const generateSqlTextServerFn = createServerFn({ method: "POST" })
       apiKey: Schema.String,
       prompt: Schema.String,
       model: Schema.optional(Schema.String),
-    }).pipe(Schema.standardSchemaV1),
+    }).pipe(toValidator),
   )
   .handler(async ({ data }) => {
     const apiKey = data.apiKey.trim();

@@ -1,6 +1,3 @@
-import type { ColumnReference } from "#src/server/introspection/introspection.ts";
-
-import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 import { Clipboard, useFilter, useListCollection } from "@ark-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -13,6 +10,10 @@ import {
   Loader,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+
+import type { ColumnReference } from "#src/server/introspection/introspection.ts";
+
+import { findColumnReferencesWithCountsQueryOptions } from "#src/server/introspection/start-fns/find-column-references.start.ts";
 
 import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
 import { HStack, Stack } from "../../../ui/layout.tsx";

@@ -1,3 +1,7 @@
+import { useFilter } from "@ark-ui/react";
+import { createListCollection } from "@ark-ui/react/combobox";
+import { useState } from "react";
+
 import {
   Combobox,
   ComboboxClearTrigger,
@@ -11,9 +15,6 @@ import {
   ComboboxList,
   ComboboxTrigger,
 } from "#src/components/ui/combobox.tsx";
-import { useFilter } from "@ark-ui/react";
-import { createListCollection } from "@ark-ui/react/combobox";
-import { useState } from "react";
 
 import { Stack } from "./layout.tsx";
 

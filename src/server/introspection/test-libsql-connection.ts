@@ -1,6 +1,7 @@
-import { SqlError } from "@effect/sql";
 import { createClient } from "@libsql/client";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
+
+import { SqlError } from "#src/db/effect-compat.ts";
 
 export const testLibsqlConnectionUrl = (url: string) =>
   Effect.gen(function* () {
@@ -10,12 +11,12 @@ export const testLibsqlConnectionUrl = (url: string) =>
         await client.execute("SELECT 1");
         return { success: true };
       },
-      catch: (err) => new SqlError.SqlError({ cause: err }),
-    }).pipe(Effect.either);
+      catch: (err) => new SqlError({ cause: err }),
+    }).pipe(Effect.result);
 
-    if (Either.isLeft(canConnect)) {
-      if (canConnect.left.cause && typeof canConnect.left.cause === "object") {
-        const cause = canConnect.left.cause as any;
+    if (Result.isFailure(canConnect)) {
+      if (canConnect.failure.cause && typeof canConnect.failure.cause === "object") {
+        const cause = canConnect.failure.cause as any;
         if (cause.code === "SQLITE_CANTOPEN") {
           return {
             success: false,
@@ -39,8 +40,8 @@ export const testLibsqlConnectionUrl = (url: string) =>
       return {
         success: false,
         message:
-          canConnect.left.message ||
-          (canConnect.left.cause as any)?.message ||
+          canConnect.failure.message ||
+          (canConnect.failure.cause as any)?.message ||
           "Unknown connection error",
       } as const;
     }

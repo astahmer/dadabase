@@ -1,5 +1,5 @@
-import { SqlClient } from "@effect/sql";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 import { RemoteConnection } from "#src/server/db-connection/remote-connection.tag.ts";
 import { QueryLogLevel, QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
@@ -103,7 +103,7 @@ export const countCascadeDependentsWalk = (input: {
           connectionId,
           meta: { cascadeDependentCount: true },
         }),
-        Effect.catchAll(() => Effect.succeed([{ count: -1 }])),
+        Effect.catch(() => Effect.succeed([{ count: -1 }])),
       );
       const n = Number(countRows[0]?.count ?? 0);
       counts[edge.childTable] = n < 0 ? null : n;
@@ -134,7 +134,7 @@ export const countCascadeDependentsWalk = (input: {
             connectionId,
             meta: { cascadeDependentSeed: true },
           }),
-          Effect.catchAll(() => Effect.succeed([] as Record<string, unknown>[])),
+          Effect.catch(() => Effect.succeed([] as Record<string, unknown>[])),
         );
         parentRowsByTable.set(edge.childTable, seedRows);
       }

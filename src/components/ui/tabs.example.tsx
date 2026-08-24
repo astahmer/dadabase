@@ -1,5 +1,6 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "#src/components/ui/tabs.tsx";
 import { useState } from "react";
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "#src/components/ui/tabs.tsx";
 
 import { Stack } from "./layout.tsx";
 

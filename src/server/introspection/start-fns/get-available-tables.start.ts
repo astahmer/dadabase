@@ -4,6 +4,7 @@ import { Schema } from "effect";
 
 import type { InferServerFnSchema } from "#src/types.ts";
 
+import { toValidator } from "#src/db/effect-compat.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { getAvailableTables } from "#src/server/introspection/introspection.ts";
 
@@ -12,7 +13,7 @@ const getAvailableTablesServerFn = createServerFn({ method: "POST" })
     Schema.Struct({
       url: Schema.String,
       schema: Schema.optional(Schema.String),
-    }).pipe(Schema.standardSchemaV1),
+    }).pipe(toValidator),
   )
   .handler(
     createRemoteIntrospectionHandler((input) => getAvailableTables({ schema: input.schema })),

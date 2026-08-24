@@ -1,11 +1,11 @@
 # RESOLVED — JSON row editor e2e could not drive Monaco / save stale JSON
 
-| Field | Value |
-| --- | --- |
-| Status | **resolved** |
-| Severity | medium |
-| Introduced | JSON mode `uompqvxx` / deepened in `tuxstvww`; e2e fragility surfaced after competitor wave |
-| Resolved by | `xwxxssls` — sync `setValue` into controlled `onChange` |
+| Field       | Value                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| Status      | **resolved**                                                                                |
+| Severity    | medium                                                                                      |
+| Introduced  | JSON mode `uompqvxx` / deepened in `tuxstvww`; e2e fragility surfaced after competitor wave |
+| Resolved by | `xwxxssls` — sync `setValue` into controlled `onChange`                                     |
 
 ## Original issue
 

@@ -1,11 +1,11 @@
 import type { Selectable } from "kysely";
 
-import { SqlClient } from "@effect/sql";
-import { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 
+import { SqlError } from "#src/db/effect-compat.ts";
 import { RemoteConnection } from "#src/server/db-connection/remote-connection.tag.ts";
 import { QueryLogLevel, QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";

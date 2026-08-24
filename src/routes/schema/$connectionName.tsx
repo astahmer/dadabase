@@ -7,6 +7,7 @@ import { MultiTableStructureViewer } from "#src/components/pages/connection-page
 import { Button } from "#src/components/ui/button.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
 import { getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { toValidator } from "#src/db/effect-compat.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 
@@ -15,7 +16,7 @@ const searchSchema = Schema.Struct({
 });
 
 export const Route = createFileRoute("/schema/$connectionName")({
-  validateSearch: searchSchema.pipe(Schema.standardSchemaV1),
+  validateSearch: searchSchema.pipe(toValidator),
   component: RouteComponent,
 });
 

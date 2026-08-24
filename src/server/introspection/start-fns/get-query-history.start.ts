@@ -5,15 +5,16 @@ import { Effect, Schema } from "effect";
 import type { QueryLogFilters } from "#src/server/query-logger/query-logger.types.ts";
 import type { InferServerFnSchema } from "#src/types.ts";
 
+import { toValidator } from "#src/db/effect-compat.ts";
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
 import { QueryLogger } from "#src/server/query-logger/query-logger.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
 // TODO lint to sync with QueryLogFilters
 const QueryLogFiltersSchema = Schema.Struct({
-  type: Schema.optional(Schema.Union(Schema.String, Schema.Array(Schema.String))),
-  status: Schema.optional(Schema.Union(Schema.String, Schema.Array(Schema.String))),
-  level: Schema.optional(Schema.Union(Schema.Number, Schema.Array(Schema.Number))),
+  type: Schema.optional(Schema.Union([Schema.String, Schema.Array(Schema.String)])),
+  status: Schema.optional(Schema.Union([Schema.String, Schema.Array(Schema.String)])),
+  level: Schema.optional(Schema.Union([Schema.Number, Schema.Array(Schema.Number)])),
   schema: Schema.optional(Schema.String),
   table: Schema.optional(Schema.String),
 });
@@ -24,7 +25,7 @@ const getQueryHistoryInputSchema = Schema.Struct({
 });
 
 const getQueryHistoryServerFn = createServerFn({ method: "POST" })
-  .validator(getQueryHistoryInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(getQueryHistoryInputSchema.pipe(toValidator))
   .handler(async (ctx) => {
     const program = Effect.gen(function* () {
       const queryLogger = yield* QueryLogger;

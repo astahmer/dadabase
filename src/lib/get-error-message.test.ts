@@ -1,6 +1,7 @@
-import { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
+
+import { SqlError } from "#src/db/effect-compat.ts";
 
 import { getErrorMessage } from "./get-error-message.ts";
 

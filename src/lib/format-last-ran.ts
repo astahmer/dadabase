@@ -8,7 +8,7 @@ export const hasValidRanAt = (ranAt: number | null | undefined): ranAt is number
 
 export const formatRanAtIso = (ranAt: number): string | null => {
   if (!hasValidRanAt(ranAt)) return null;
-  return DateTime.formatIso(DateTime.unsafeMake(ranAt));
+  return DateTime.formatIso(DateTime.makeUnsafe(ranAt));
 };
 
 export const formatRefreshTooltip = (ranAt: number): string => {

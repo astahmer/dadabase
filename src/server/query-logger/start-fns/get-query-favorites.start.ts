@@ -4,6 +4,7 @@ import { Schema } from "effect";
 
 import type { InferServerFnSchema } from "#src/types.ts";
 
+import { toValidator } from "#src/db/effect-compat.ts";
 import { getFavorites } from "#src/server/query-logger/query-logger.kysely.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
@@ -11,7 +12,7 @@ const getQueryFavoritesServerFn = createServerFn({ method: "POST" })
   .validator(
     Schema.Struct({
       connectionId: Schema.String,
-    }).pipe(Schema.standardSchemaV1),
+    }).pipe(toValidator),
   )
   .handler(async (ctx) => {
     return await AppRuntime.runPromise(getFavorites(ctx.data.connectionId));

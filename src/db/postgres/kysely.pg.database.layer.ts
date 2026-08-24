@@ -30,7 +30,7 @@
 // 			// yield* Effect.addFinalizer(() =>
 // 			// 	Effect.tryPromise(() => {
 // 			// 		return qb.destroy();
-// 			// 	}).pipe(Effect.catchAll(() => Effect.void)),
+// 			// 	}).pipe(Effect.catch(() => Effect.void)),
 // 			// );
 
 // 			return makeFromKysely(qb);

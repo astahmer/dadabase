@@ -95,15 +95,13 @@ export const withQueryLogging =
 
           return queryLogger.update(entryId, updates);
         }),
-        Effect.catchAll((error) => {
+        Effect.catch((error) => {
           const endTime = new Date();
           const errorMessage = getErrorMessage(error);
 
           const errorStack =
             error instanceof Error
-              ? Cause.pretty(Cause.isCause(error.cause) ? error.cause : Cause.fail(error), {
-                  renderErrorCause: true,
-                })
+              ? Cause.pretty(Cause.isCause(error.cause) ? error.cause : Cause.fail(error))
               : String(error);
           const updates = {
             status: "error" as const,

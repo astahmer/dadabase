@@ -1,5 +1,6 @@
-import { cn } from "#src/lib/utils";
 import { Popover as ArkPopover } from "@ark-ui/react/popover";
+
+import { cn } from "#src/lib/utils";
 
 import type { ExposedComponentProps } from "./component-props";
 

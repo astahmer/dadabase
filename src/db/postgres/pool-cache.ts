@@ -1,16 +1,16 @@
-import { SqlClient } from "@effect/sql";
 import { LibsqlClient } from "@effect/sql-libsql";
 import { MysqlClient } from "@effect/sql-mysql2";
 import { PgClient } from "@effect/sql-pg";
-import { SqlError } from "@effect/sql/SqlError";
 import { Context, Deferred, Duration, Effect, Layer, Redacted, Ref, Schedule } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
+import { SqlError } from "#src/db/effect-compat.ts";
 import { parseSshTunnelFromUrl, stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 
 import { DatabaseDialect } from "../dialect.ts";
 
-export class PoolCache extends Context.Tag("@dadabase/PoolCache")<
+export class PoolCache extends Context.Service<
   PoolCache,
   {
     readonly getOrCreate: (
@@ -22,7 +22,7 @@ export class PoolCache extends Context.Tag("@dadabase/PoolCache")<
       urls: string[];
     }>;
   }
->() {}
+>()("@dadabase/PoolCache") {}
 
 type CacheEntry = {
   layer: Layer.Layer<SqlClient.SqlClient, SqlError>;
@@ -131,7 +131,7 @@ export const makePoolCacheLive = Layer.effect(
       });
     }).pipe(Effect.repeat(Schedule.spaced("3 seconds")));
 
-    yield* Effect.forkDaemon(cleanupRoutine);
+    yield* Effect.forkChild(cleanupRoutine);
 
     const createPool = (url: string, dialect: DatabaseDialect) =>
       Effect.gen(function* () {

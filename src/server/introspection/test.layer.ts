@@ -1,7 +1,7 @@
-import type { SqlClient } from "@effect/sql";
+import type { SqlClient } from "effect/unstable/sql";
 
-import { PgLiteClient } from "@dadabase/effect-pglite";
 import { LibsqlClient } from "@effect/sql-libsql";
+import { PgliteClient } from "@effect/sql-pglite";
 import { Layer } from "effect";
 
 import {
@@ -26,7 +26,7 @@ export const sqliteConfig: DatabaseTestConfig = {
 };
 
 // PgLite layer for introspection tests
-export const pgliteLayer = PgLiteClient.layer({
+export const pgliteLayer = PgliteClient.layer({
   dataDir: "memory://",
 }) as unknown as Layer.Layer<SqlClient.SqlClient>;
 

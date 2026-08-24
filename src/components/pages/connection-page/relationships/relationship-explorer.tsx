@@ -1,3 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
+import { memo, useCallback, useId, useMemo, useState } from "react";
+
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 
 import { renderPrimitiveValue } from "#src/components/ui/json-viewer.render-primitive-value.tsx";
@@ -6,9 +10,6 @@ import { cn } from "#src/lib/utils";
 import { queryRelationshipSubrowDataQueryOptions } from "#src/server/introspection/start-fns/get-relationship-subrow-data.start.ts";
 import { getRelationshipsCountsQueryOptions } from "#src/server/introspection/start-fns/get-relationships-counts.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronDown } from "lucide-react";
-import { memo, useCallback, useId, useMemo, useState } from "react";
 
 interface RelationshipExplorerProps {
   /** The current row data to display and explore relations for */

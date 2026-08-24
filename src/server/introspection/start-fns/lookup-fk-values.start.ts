@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
+import { toValidator } from "#src/db/effect-compat.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { lookupFkValues } from "#src/server/introspection/fns/lookup-fk-values.ts";
 
@@ -14,7 +15,7 @@ export const lookupFkValuesServerFn = createServerFn({ method: "POST" })
       labelColumn: Schema.optional(Schema.String),
       search: Schema.optional(Schema.String),
       limit: Schema.optional(Schema.Number),
-    }).pipe(Schema.standardSchemaV1),
+    }).pipe(toValidator),
   )
   .handler(
     createRemoteIntrospectionHandler((input, connection) =>

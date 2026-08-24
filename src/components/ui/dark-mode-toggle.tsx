@@ -1,7 +1,8 @@
 import type { ComponentProps } from "react";
 
-import { useTheme } from "#src/hooks/use-theme";
 import { Moon, Sun } from "lucide-react";
+
+import { useTheme } from "#src/hooks/use-theme";
 
 import { Button } from "./button";
 

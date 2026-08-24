@@ -78,7 +78,7 @@ export const JoinedTableRow = ({
 
   const [joinFilterLogicalOperator, setJoinFilterLogicalOperator] = useState<LogicalOperatorType>(
     joined.joinCondition.mode === "filters" && joined.joinCondition.filters
-      ? joined.joinCondition.filters.logicalOperator
+      ? (joined.joinCondition.filters.logicalOperator ?? "and")
       : "and",
   );
 

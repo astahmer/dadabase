@@ -1,3 +1,7 @@
+import { createListCollection } from "@ark-ui/react/combobox";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+
 import {
   Combobox,
   ComboboxClearTrigger,
@@ -8,9 +12,6 @@ import {
   ComboboxList,
 } from "#src/components/ui/combobox.tsx";
 import { lookupFkValuesServerFn } from "#src/server/introspection/start-fns/lookup-fk-values.start.ts";
-import { createListCollection } from "@ark-ui/react/combobox";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
 
 interface FkColumnSelectProps {
   connectionUrl: string;

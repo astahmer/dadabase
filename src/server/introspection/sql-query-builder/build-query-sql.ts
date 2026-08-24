@@ -59,10 +59,10 @@ export const buildWhereClauseWithJoins = (
   const mainFilter =
     filters && filters.conditions.length > 0
       ? dialect === DatabaseDialect.Postgres
-        ? buildPgWhereFragment(filters.conditions, filters.logicalOperator)
+        ? buildPgWhereFragment(filters.conditions, filters.logicalOperator ?? "and")
         : dialect === DatabaseDialect.MySQL
-          ? buildMysqlWhereFragment(filters.conditions, filters.logicalOperator)
-          : buildSqliteWhereFragment(filters.conditions, filters.logicalOperator)
+          ? buildMysqlWhereFragment(filters.conditions, filters.logicalOperator ?? "and")
+          : buildSqliteWhereFragment(filters.conditions, filters.logicalOperator ?? "and")
       : "";
 
   const joinFilter =

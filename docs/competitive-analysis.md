@@ -10,48 +10,48 @@ data-peek 1.7k · conar 1.4k · pgweb 9.5k · sqlchat 5.8k · chartbrew 4k.
 
 ## Feature matrix
 
-| Feature | dadabase | DBeaver CE | TablePlus | Beekeeper | DataGrip | DbGate | pgAdmin | Outerbase | Conar | data-peek |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Postgres / MySQL / SQLite / LibSQL | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | PG only | ✅ | PG/MySQL/MSSQL/CH | PG/MySQL/MSSQL/SQLite |
-| MSSQL / Oracle | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | MSSQL | MSSQL |
-| MongoDB / Redis | ❌ | ✅ | ⚠️ Mongo | ❌ | ⚠️ Mongo | ✅ both | ❌ | ❌ | Mongo soon | ❌ |
-| Web-based (no Electron install) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ Electron | ❌ Tauri |
-| Local-first / self-hosted | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ cloud conn store | ✅ |
-| SSH tunnel + SSL presets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Read-only connection mode | ✅ | ⚠️ | ✅ | ✅ read-only data | ⚠️ console RO | ✅ | ⚠️ | ✅ | ❌ | ✅ RO tools |
-| Grid browse + inline edit + pending edits review | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ browse-first | ✅ |
-| Paste TSV/CSV as rows | ✅ | ✅ | ✅ | ❌ | ✅ | ⚠️ | ❌ | ✅ | ❌ | ❌ |
-| Import wizard (CSV/JSON → typed INSERT preview) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Export CSV/TSV/INSERT | ✅ | ✅ +XLSX,MD,JSON… | ✅ +JSON,SQL dump | ✅ CSV/JSON/NDJSON/XLSX | ✅ many | ✅ many | ✅ CSV | ✅ | ❌ | ✅ CSV/JSON |
-| Export JSON / XLSX / Markdown | ❌ | ✅ | ✅ JSON | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ⚠️ JSON |
-| Monaco-class editor: completions + diagnostics | ✅ | ⚠️ own | ✅ | ⚠️ basic | ✅ best | ✅ Monaco | ⚠️ | ✅ Monaco | ✅ Monaco | ✅ Monaco |
-| Per-statement Run/Explain view zones | ✅ unique-ish | ❌ | ❌ | ❌ | ⚠️ run under cursor | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Explain plan visualizer | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | ⚠️ | ✅ | ❌ | ❌ | ✅ |
-| Views / triggers / functions browser | ❌ parked | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ❌ |
-| Table DDL (CREATE stmt) viewer | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ⚠️ |
-| Create/alter/drop table UI | ✅ | ✅ | ✅ | ⚠️ limited | ✅ | ✅ | ✅ | ⚠️ | ❌ | ❌ |
-| SQLite ALTER via table rebuild | ✅ rare | ✅ internal | ✅ | ✅ | ✅ | ✅ | n/a | ❌ | ❌ | ❌ |
-| Index create/drop + FK editor UI | ✅ | ✅ | ✅ | ⚠️ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Schema diff → migration SQL preview | ✅ | ✅ compare | ⚠️ | ❌ | ✅ best | ✅ | ⚠️ | ❌ | ❌ | ❌ |
-| ER diagram (FK graph, click-through) | ✅ | ✅ advanced | ✅ | ✅ | ✅ advanced | ✅ | ✅ | ✅ | ❌ | ✅ |
-| Visual query builder | ❌ planned | ✅ | ❌ | ❌ | ⚠️ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Saved queries + favorites + history | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ history |
-| Command palette | ✅ | ⚠️ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ | ⚠️ | ✅ |
-| AI: NL→SQL over whole schema (BYOK) | ✅ | ⚠️ Pro | ⚠️ AI add-on | ❌ | ✅ Assistant | ❌ | ❌ | ✅ | ✅ core | ✅ multi-provider |
-| AI chat thread (multi-turn) | ✅ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ✅ | ✅ | ✅ |
-| AI-generated charts from results | ❌ planned | ❌ | ❌ | ❌ | ⚠️ charts | ❌ | ❌ | ✅ Baseboard | ❌ | ✅ flagship |
-| Result charting / visualization | ❌ | ⚠️ EE only | ❌ | ❌ | ✅ | ❌ | ⚠️ graphs | ✅ dashboards | ❌ | ✅ |
-| Dashboards (saved charts) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ✅ | ❌ | ❌ |
-| Sessions/activity monitor + kill query | ❌ | ✅ | ⚠️ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| One-click backup / restore (dump) | ❌ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Users / grants / roles UI | ❌ | ✅ | ⚠️ PG roles | ❌ | ⚠️ | ⚠️ | ✅ | ⚠️ RLS view | ❌ | ❌ |
-| Credentials encrypted / OS keychain | ❌ plaintext sqlite | ✅ | ✅ | ✅ | ✅ | ✅ master pwd | ✅ | ⚠️ cloud | ✅ encrypted | ✅ keychain |
-| MCP server exposing connections to agents | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ approval-gated writes |
-| Mock / fake data generation | ❌ | ✅ Pro | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Global search across all table data | ❌ | ✅ | ⚠️ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Pivot / transpose results | ❌ | ✅ | ⚠️ | ❌ | ✅ | ❌ | ❌ | ⚠️ | ❌ | ❌ |
-| Geospatial (PostGIS) map preview | ❌ | ✅ | ❌ | ❌ | ✅ plugin | ❌ | ✅ | ❌ | ❌ | ❌ |
-| Connection groups / colors / tags | ❌ | ✅ | ✅ | ✅ folders | ✅ | ✅ | ✅ server groups | ✅ | ✅ | ❌ |
+| Feature                                          | dadabase            | DBeaver CE        | TablePlus         | Beekeeper               | DataGrip            | DbGate        | pgAdmin          | Outerbase     | Conar               | data-peek                |
+| ------------------------------------------------ | ------------------- | ----------------- | ----------------- | ----------------------- | ------------------- | ------------- | ---------------- | ------------- | ------------------- | ------------------------ |
+| Postgres / MySQL / SQLite / LibSQL               | ✅                  | ✅                | ✅                | ✅                      | ✅                  | ✅            | PG only          | ✅            | PG/MySQL/MSSQL/CH   | PG/MySQL/MSSQL/SQLite    |
+| MSSQL / Oracle                                   | ❌                  | ✅                | ✅                | ✅                      | ✅                  | ✅            | ❌               | ✅            | MSSQL               | MSSQL                    |
+| MongoDB / Redis                                  | ❌                  | ✅                | ⚠️ Mongo          | ❌                      | ⚠️ Mongo            | ✅ both       | ❌               | ❌            | Mongo soon          | ❌                       |
+| Web-based (no Electron install)                  | ✅                  | ❌                | ❌                | ❌                      | ❌                  | ✅            | ✅               | ✅            | ❌ Electron         | ❌ Tauri                 |
+| Local-first / self-hosted                        | ✅                  | ✅                | ✅                | ✅                      | ✅                  | ✅            | ✅               | ✅            | ⚠️ cloud conn store | ✅                       |
+| SSH tunnel + SSL presets                         | ✅                  | ✅                | ✅                | ✅                      | ✅                  | ✅            | ✅               | ✅            | ✅                  | ✅                       |
+| Read-only connection mode                        | ✅                  | ⚠️                | ✅                | ✅ read-only data       | ⚠️ console RO       | ✅            | ⚠️               | ✅            | ❌                  | ✅ RO tools              |
+| Grid browse + inline edit + pending edits review | ✅                  | ✅                | ✅                | ✅                      | ✅                  | ✅            | ✅               | ✅            | ⚠️ browse-first     | ✅                       |
+| Paste TSV/CSV as rows                            | ✅                  | ✅                | ✅                | ❌                      | ✅                  | ⚠️            | ❌               | ✅            | ❌                  | ❌                       |
+| Import wizard (CSV/JSON → typed INSERT preview)  | ✅                  | ✅                | ✅                | ✅                      | ✅                  | ✅            | ✅               | ✅            | ❌                  | ❌                       |
+| Export CSV/TSV/INSERT                            | ✅                  | ✅ +XLSX,MD,JSON… | ✅ +JSON,SQL dump | ✅ CSV/JSON/NDJSON/XLSX | ✅ many             | ✅ many       | ✅ CSV           | ✅            | ❌                  | ✅ CSV/JSON              |
+| Export JSON / XLSX / Markdown                    | ❌                  | ✅                | ✅ JSON           | ✅                      | ✅                  | ✅            | ❌               | ✅            | ❌                  | ⚠️ JSON                  |
+| Monaco-class editor: completions + diagnostics   | ✅                  | ⚠️ own            | ✅                | ⚠️ basic                | ✅ best             | ✅ Monaco     | ⚠️               | ✅ Monaco     | ✅ Monaco           | ✅ Monaco                |
+| Per-statement Run/Explain view zones             | ✅ unique-ish       | ❌                | ❌                | ❌                      | ⚠️ run under cursor | ❌            | ❌               | ❌            | ❌                  | ❌                       |
+| Explain plan visualizer                          | ✅                  | ✅                | ⚠️                | ⚠️                      | ✅                  | ⚠️            | ✅               | ❌            | ❌                  | ✅                       |
+| Views / triggers / functions browser             | ❌ parked           | ✅                | ✅                | ✅                      | ✅                  | ✅            | ✅               | ⚠️            | ❌                  | ❌                       |
+| Table DDL (CREATE stmt) viewer                   | ❌                  | ✅                | ✅                | ✅                      | ✅                  | ✅            | ✅               | ⚠️            | ❌                  | ⚠️                       |
+| Create/alter/drop table UI                       | ✅                  | ✅                | ✅                | ⚠️ limited              | ✅                  | ✅            | ✅               | ⚠️            | ❌                  | ❌                       |
+| SQLite ALTER via table rebuild                   | ✅ rare             | ✅ internal       | ✅                | ✅                      | ✅                  | ✅            | n/a              | ❌            | ❌                  | ❌                       |
+| Index create/drop + FK editor UI                 | ✅                  | ✅                | ✅                | ⚠️                      | ✅                  | ✅            | ✅               | ❌            | ❌                  | ❌                       |
+| Schema diff → migration SQL preview              | ✅                  | ✅ compare        | ⚠️                | ❌                      | ✅ best             | ✅            | ⚠️               | ❌            | ❌                  | ❌                       |
+| ER diagram (FK graph, click-through)             | ✅                  | ✅ advanced       | ✅                | ✅                      | ✅ advanced         | ✅            | ✅               | ✅            | ❌                  | ✅                       |
+| Visual query builder                             | ❌ planned          | ✅                | ❌                | ❌                      | ⚠️                  | ✅            | ❌               | ✅            | ❌                  | ❌                       |
+| Saved queries + favorites + history              | ✅                  | ✅                | ✅                | ✅                      | ✅                  | ✅            | ✅               | ✅            | ⚠️                  | ⚠️ history               |
+| Command palette                                  | ✅                  | ⚠️                | ✅                | ✅                      | ✅                  | ⚠️            | ❌               | ✅            | ⚠️                  | ✅                       |
+| AI: NL→SQL over whole schema (BYOK)              | ✅                  | ⚠️ Pro            | ⚠️ AI add-on      | ❌                      | ✅ Assistant        | ❌            | ❌               | ✅            | ✅ core             | ✅ multi-provider        |
+| AI chat thread (multi-turn)                      | ✅                  | ❌                | ❌                | ❌                      | ⚠️                  | ❌            | ❌               | ✅            | ✅                  | ✅                       |
+| AI-generated charts from results                 | ❌ planned          | ❌                | ❌                | ❌                      | ⚠️ charts           | ❌            | ❌               | ✅ Baseboard  | ❌                  | ✅ flagship              |
+| Result charting / visualization                  | ❌                  | ⚠️ EE only        | ❌                | ❌                      | ✅                  | ❌            | ⚠️ graphs        | ✅ dashboards | ❌                  | ✅                       |
+| Dashboards (saved charts)                        | ❌                  | ❌                | ❌                | ❌                      | ❌                  | ❌            | ⚠️               | ✅            | ❌                  | ❌                       |
+| Sessions/activity monitor + kill query           | ❌                  | ✅                | ⚠️                | ❌                      | ✅                  | ❌            | ✅               | ❌            | ❌                  | ❌                       |
+| One-click backup / restore (dump)                | ❌                  | ✅                | ✅                | ⚠️                      | ⚠️                  | ✅            | ✅               | ❌            | ❌                  | ❌                       |
+| Users / grants / roles UI                        | ❌                  | ✅                | ⚠️ PG roles       | ❌                      | ⚠️                  | ⚠️            | ✅               | ⚠️ RLS view   | ❌                  | ❌                       |
+| Credentials encrypted / OS keychain              | ❌ plaintext sqlite | ✅                | ✅                | ✅                      | ✅                  | ✅ master pwd | ✅               | ⚠️ cloud      | ✅ encrypted        | ✅ keychain              |
+| MCP server exposing connections to agents        | ❌                  | ❌                | ❌                | ❌                      | ❌                  | ❌            | ❌               | ❌            | ❌                  | ✅ approval-gated writes |
+| Mock / fake data generation                      | ❌                  | ✅ Pro            | ❌                | ❌                      | ✅                  | ❌            | ❌               | ✅            | ❌                  | ❌                       |
+| Global search across all table data              | ❌                  | ✅                | ⚠️                | ❌                      | ✅                  | ✅            | ❌               | ❌            | ❌                  | ❌                       |
+| Pivot / transpose results                        | ❌                  | ✅                | ⚠️                | ❌                      | ✅                  | ❌            | ❌               | ⚠️            | ❌                  | ❌                       |
+| Geospatial (PostGIS) map preview                 | ❌                  | ✅                | ❌                | ❌                      | ✅ plugin           | ❌            | ✅               | ❌            | ❌                  | ❌                       |
+| Connection groups / colors / tags                | ❌                  | ✅                | ✅                | ✅ folders              | ✅                  | ✅            | ✅ server groups | ✅            | ✅                  | ❌                       |
 
 ## Where dadabase already wins
 
@@ -64,7 +64,7 @@ data-peek 1.7k · conar 1.4k · pgweb 9.5k · sqlchat 5.8k · chartbrew 4k.
 
 ### Tier 1 — high impact, strong product fit
 
-1. **Views / triggers / functions browser** (read + open definition). Every mature client has it; it's the #1 "why can't I see my view" complaint. Introspection work only, no new drivers. *(already parked in ideas.md — promote)*
+1. **Views / triggers / functions browser** (read + open definition). Every mature client has it; it's the #1 "why can't I see my view" complaint. Introspection work only, no new drivers. _(already parked in ideas.md — promote)_
 2. **Charting / generative UI for query results.** data-peek's flagship, DataGrip's killer panel, Outerbase's whole pitch. You already plan vercel-labs/json-render — wire it to result sets first (bar/line/pie from any SELECT), saved charts later = mini-dashboards.
 3. **MCP server exposing saved connections to agents.** data-peek proved the pattern (read-only free, writes gated by in-app approve/reject). Dadabase is a web app with pools already running — a `127.0.0.1` streamable-HTTP MCP endpoint reusing PoolCache is cheap and uniquely aligned with your agent-heavy workflow. Nobody else in the table does this except data-peek.
 4. **Credential encryption (OS keychain or passphrase-derived)** for stored connection URLs. Currently plaintext in app.db — table stakes everywhere else.

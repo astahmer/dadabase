@@ -254,7 +254,7 @@ export const MultiTableStructureViewer = (props: MultiTableStructureViewerProps)
       params: { connectionName },
       search: (prev) => ({
         ...prev,
-        ...addTabStateAfterCurrent(prev, newTabState),
+        ...addTabStateAfterCurrent({ ...prev, tabs: prev.tabs ?? [] }, newTabState),
         activeTabId: newTabState.tabId,
         schemaExplorerOpen: false,
       }),

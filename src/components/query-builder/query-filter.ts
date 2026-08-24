@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { nanoid } from "nanoid";
 
 /**
@@ -6,7 +6,7 @@ import { nanoid } from "nanoid";
  * Note: Use the inverted flag for logical negation (NOT LIKE, NOT (...))
  * but NOT for operators that are already negations (!=, NOT IN, IS NOT NULL, NOT LIKE)
  */
-export const FilterOperator = Schema.Union(
+export const FilterOperator = Schema.Union([
   Schema.Literal("equals"),
   Schema.Literal("not_equals"),
   Schema.Literal("contains"),
@@ -22,7 +22,7 @@ export const FilterOperator = Schema.Union(
   Schema.Literal("in"),
   Schema.Literal("not_in"),
   Schema.Literal("between"),
-);
+]);
 
 export type FilterOperatorType = Schema.Schema.Type<typeof FilterOperator>;
 
@@ -34,13 +34,13 @@ export const FilterCondition = Schema.Struct({
   table: Schema.String.pipe(Schema.optional),
   operator: FilterOperator,
   inverted: Schema.Boolean.pipe(Schema.optional),
-  value: Schema.Union(
+  value: Schema.Union([
     Schema.String,
     Schema.Number,
     Schema.Boolean,
     Schema.Null,
     Schema.Array(Schema.String),
-  ).pipe(Schema.optional),
+  ]).pipe(Schema.optional),
 });
 
 export type FilterConditionExpression = Schema.Schema.Type<typeof FilterCondition>;
@@ -48,7 +48,7 @@ export type FilterConditionExpression = Schema.Schema.Type<typeof FilterConditio
 /**
  * Logical operator for combining conditions
  */
-export const LogicalOperator = Schema.Union(Schema.Literal("and"), Schema.Literal("or"));
+export const LogicalOperator = Schema.Union([Schema.Literal("and"), Schema.Literal("or")]);
 
 export type LogicalOperatorType = Schema.Schema.Type<typeof LogicalOperator>;
 
@@ -57,7 +57,7 @@ export type LogicalOperatorType = Schema.Schema.Type<typeof LogicalOperator>;
  */
 export const QueryFilter = Schema.Struct({
   conditions: Schema.Array(FilterCondition).pipe(Schema.mutable),
-  logicalOperator: LogicalOperator.pipe(Schema.optionalWith({ default: () => "and" })),
+  logicalOperator: LogicalOperator.pipe(Schema.withDecodingDefault(Effect.succeed("and"))),
 });
 
 export interface QueryFilterType extends Schema.Schema.Type<typeof QueryFilter> {}

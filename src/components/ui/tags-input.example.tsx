@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import {
   TagsInput,
   TagsInputControl,
@@ -7,7 +9,6 @@ import {
   TagsInputItemText,
   TagsInputLabel,
 } from "#src/components/ui/tags-input.tsx";
-import { useState } from "react";
 
 export function TagsInputExample() {
   const [tags, setTags] = useState(["react", "typescript"]);
