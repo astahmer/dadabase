@@ -275,7 +275,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
         />
       )}
       <HStack
-        className="w-full min-w-0 flex-wrap items-center gap-2 px-4 py-2 sm:flex-nowrap sm:overflow-x-auto"
+        className="w-full min-w-0 flex-wrap items-center gap-2 px-4 py-2 lg:flex-nowrap lg:overflow-x-auto"
         data-testid="connection-page-filters-toolbar"
       >
         <div className="hidden min-w-0 items-center gap-1.5 border-r pr-3 text-xs lg:flex">

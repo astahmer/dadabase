@@ -232,6 +232,7 @@ export const HomePage = () => {
       },
       {
         id: "_connect",
+        header: "Access",
         size: 180,
         cell: (ctx) => <ConnectionActions connection={ctx.row.original} />,
       },
@@ -297,18 +298,18 @@ export const HomePage = () => {
   }, [table, visibleConnections]);
 
   return (
-    <div className="bg-background min-h-screen px-6 py-10 lg:px-10">
+    <div className="bg-background min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
       <div className="mx-auto max-w-7xl">
         {/* Header Section */}
-        <div className="mb-10 flex items-end justify-between gap-6">
+        <div className="mb-8 flex items-end justify-between gap-6 sm:mb-10">
           <div className="space-y-2">
             <p className="text-primary text-xs font-semibold tracking-[0.18em] uppercase">
               Dadabase workspace
             </p>
-            <h1 className="text-foreground text-4xl font-semibold tracking-tight">
+            <h1 className="text-foreground text-3xl font-semibold tracking-tight sm:text-4xl">
               Database Connections
             </h1>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-muted-foreground text-base sm:text-lg">
               Open a saved database or set up a new, safe connection.
             </p>
           </div>
@@ -316,9 +317,9 @@ export const HomePage = () => {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-10">
           <div className="space-y-4">
-            <div className="flex items-end justify-between gap-6">
+            <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <h2 className="text-foreground text-2xl font-semibold">Saved connections</h2>
                 <p className="text-muted-foreground mt-1 text-sm">
@@ -327,7 +328,7 @@ export const HomePage = () => {
                 </p>
               </div>
               {savedDatabaseList.data.length > 0 ? (
-                <div className="relative w-72 shrink-0">
+                <div className="relative w-full sm:w-72 sm:shrink-0">
                   <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
                   <Input
                     value={connectionSearch}
@@ -340,7 +341,7 @@ export const HomePage = () => {
               ) : null}
             </div>
             {visibleConnections.length ? (
-              <div className="bg-card w-full overflow-hidden rounded-xl border shadow-sm">
+              <div className="bg-card w-full overflow-x-auto rounded-xl border shadow-sm">
                 <div className="min-w-[700px]">
                   <DataTable
                     key={normalizedSearch}

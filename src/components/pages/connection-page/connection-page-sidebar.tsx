@@ -296,9 +296,14 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
         <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden" data-tables-list>
           <Stack className="h-full flex-1" gap="2">
             <div className="flex items-center justify-between px-4">
-              <label className="text-foreground text-xs font-medium tracking-wide uppercase">
-                Tables
-              </label>
+              <div className="flex min-w-0 items-center gap-2">
+                <label className="text-foreground text-xs font-medium tracking-wide uppercase">
+                  Tables
+                </label>
+                {!tablesListQuery.isLoading && (
+                  <span className="text-muted-foreground text-xs">{filteredTables.length}</span>
+                )}
+              </div>
               <Tooltip content="Schema Explorer">
                 <Button
                   size="sm"
