@@ -1,4 +1,4 @@
-import { Splitter } from "@ark-ui/react";
+import { Portal, Splitter } from "@ark-ui/react";
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
@@ -136,6 +136,7 @@ import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Stack } from "../ui/layout.tsx";
 import { Menu, MenuContent, MenuItem, MenuItemText, MenuTriggerItem } from "../ui/menu.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.tsx";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
@@ -1808,46 +1809,64 @@ const RowsTableContent = (
           onDuplicateRow={props.onDuplicateRow}
         />
 
-        <div className="border-b px-2 py-1">
-          <div className="flex items-center gap-2">
-            <Button
-              variant={isJsFilterOpen ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setIsJsFilterOpen((open) => !open)}
-              className="h-7 gap-1.5 px-2 text-xs"
-              aria-expanded={isJsFilterOpen}
-            >
-              <Code2 className="h-3.5 w-3.5" />
-              JavaScript filter
-            </Button>
-            {approvedFilter && !hasPendingFilter && (
-              <span className="text-muted-foreground text-xs">Active</span>
-            )}
-          </div>
-          {isJsFilterOpen && (
-            <div className="mt-1 flex items-center gap-2">
-              <Input
-                placeholder="r.name.includes('test')"
-                value={search.clientFilter || ""}
-                onChange={(e) => handleJsFilterChange(e.target.value)}
-                className="h-7 flex-1 font-mono text-xs"
-              />
-              {hasPendingFilter && (
-                <Button
-                  onClick={handleApproveFilter}
-                  size="sm"
-                  variant="default"
-                  className="h-7 px-2 text-xs"
-                >
-                  Run
-                </Button>
-              )}
-            </div>
-          )}
-          {isJsFilterOpen && jsFilterResult.error && (
-            <p className="mt-1 text-xs text-red-500">{jsFilterResult.error}</p>
-          )}
-        </div>
+        <Portal
+          container={
+            typeof window === "undefined"
+              ? undefined
+              : { current: document.querySelector("#connection-page-filters-top-row") }
+          }
+        >
+          <Popover
+            open={isJsFilterOpen}
+            onOpenChange={(details) => setIsJsFilterOpen(details.open)}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                variant={approvedFilter ? "secondary" : "outline"}
+                size="sm"
+                className="h-8 gap-1.5"
+                aria-label="Open JavaScript row filter"
+              >
+                <Code2 className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline">
+                  {approvedFilter ? "JS filter active" : "Advanced filter"}
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="z-200 w-[min(32rem,calc(100vw-2rem))] p-3">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium">JavaScript row filter</p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Runs locally against the rows currently loaded in this view.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="r.name.includes('test')"
+                    value={search.clientFilter || ""}
+                    onChange={(e) => handleJsFilterChange(e.target.value)}
+                    className="h-8 flex-1 font-mono text-xs"
+                    aria-label="JavaScript row filter expression"
+                  />
+                  {hasPendingFilter && (
+                    <Button
+                      onClick={handleApproveFilter}
+                      size="sm"
+                      variant="default"
+                      className="h-8"
+                    >
+                      Apply
+                    </Button>
+                  )}
+                </div>
+                {jsFilterResult.error && (
+                  <p className="text-xs text-red-500">{jsFilterResult.error}</p>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </Portal>
 
         <Splitter.Root
           orientation="vertical"
