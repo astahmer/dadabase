@@ -1,6 +1,7 @@
 // Vendored from emi-healthfit @emi/core (protocol/parts.ts), adapted to zod.
 // Part-type unions are load-bearing for the UI — do not rename or reorder.
 import { z } from "zod";
+
 import { AttachmentIdSchema, ToolCallIdSchema } from "./ids.ts";
 
 const nonEmptyText = z.string().min(1).regex(/\S/);
@@ -12,7 +13,10 @@ const safeAttachmentUrl = z
   );
 const extensionNamespace = z.string().regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/i);
 const extensionName = z.string().regex(/^[a-z0-9][a-z0-9._-]*$/i);
-const componentIdentifier = z.string().min(1).regex(/^[a-z0-9][a-z0-9._-]*$/i);
+const componentIdentifier = z
+  .string()
+  .min(1)
+  .regex(/^[a-z0-9][a-z0-9._-]*$/i);
 
 export const AttachmentSchema = z.object({
   id: AttachmentIdSchema,
@@ -85,16 +89,6 @@ export const ToolInvocationMessagePartSchema = z.object({
 });
 export type ToolInvocationMessagePart = z.infer<typeof ToolInvocationMessagePartSchema>;
 
-export const MessagePartSchema = z.union([
-  TextMessagePartSchema,
-  ReasoningMessagePartSchema,
-  FileMessagePartSchema,
-  ToolCallMessagePartSchema,
-  ToolResultMessagePartSchema,
-  ToolInvocationMessagePartSchema,
-]);
-export type MessagePart = z.infer<typeof MessagePartSchema>;
-
 export const ExtensionPartSchema = z.object({
   type: z.literal("extension"),
   namespace: extensionNamespace,
@@ -102,6 +96,19 @@ export const ExtensionPartSchema = z.object({
   data: z.json(),
 });
 export type ExtensionPart = z.infer<typeof ExtensionPartSchema>;
+
+export const MessagePartSchema = z.union([
+  TextMessagePartSchema,
+  ReasoningMessagePartSchema,
+  FileMessagePartSchema,
+  ToolCallMessagePartSchema,
+  ToolResultMessagePartSchema,
+  ToolInvocationMessagePartSchema,
+  // dadabase approval flow rides in extension parts (see chat/ui-messages.ts);
+  // without this member every approval-requested tool call fails protocol decoding.
+  ExtensionPartSchema,
+]);
+export type MessagePart = z.infer<typeof MessagePartSchema>;
 
 export const DynamicComponentElementSchema = z.object({
   type: componentIdentifier,
