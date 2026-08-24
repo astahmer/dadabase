@@ -213,16 +213,19 @@ export const QueryFilterBuilder = ({
             <Plus className="h-3.5 w-3.5" />
             Add filter
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClearAll}
-            disabled={isLoading}
-            className="text-muted-foreground h-7 gap-1 px-1.5 text-xs"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Clear all
-          </Button>
+          {(conditions.length > 1 ||
+            conditions.some((condition) => condition.column || condition.value !== undefined)) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClearAll}
+              disabled={isLoading}
+              className="text-muted-foreground h-7 gap-1 px-1.5 text-xs"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Clear all
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -459,7 +462,7 @@ const FilterConditionRow = (props: FilterConditionRowProps) => {
                       className="h-8 shrink-0 px-2 text-xs"
                       aria-label="Insert SQL value"
                     >
-                      Value
+                      Insert
                     </Button>
                   </MenuTrigger>
                   <MenuContent>
