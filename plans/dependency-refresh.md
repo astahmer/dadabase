@@ -48,8 +48,8 @@ The Start/Router/router-plugin versions are cross-pinned; they must move as one 
 | `@tanstack/react-router`          | 1.170.31 | 1.170.32 | `1.170.32` | Patch.                        |
 | `@tanstack/react-start`           | 1.168.48 | 1.168.49 | `1.168.49` | Patch.                        |
 | `@tanstack/router-plugin`         | 1.168.34 | 1.168.35 | `1.168.35` | Patch. Regenerates routeTree. |
-| `@tanstack/react-query`           | 5.101.4  | 5.102.0  | `5.102.0`  | Minor.                        |
-| `@tanstack/react-query-devtools`  | 5.101.4  | 5.102.0  | `5.102.0`  | Bump with query.              |
+| `@tanstack/react-query`           | 5.101.4  | 5.102.0  | `5.101.4` (held) | ⚠️ 5.102.x breaks @tanstack/react-router-ssr-query hydration client-side (`Cannot read properties of undefined (reading .mutations)`) → app interactivity dies silently; verified e2e 2026-08-25. Re-test when ssr-query >1.167.1 ships. |
+| `@tanstack/react-query-devtools`  | 5.101.4  | 5.102.0  | `5.101.4` (held) | Must match react-query pin.   |
 | `@tanstack/react-router-devtools` | 1.167.1  | 1.167.1  | no change  | Already latest.               |
 
 Peer check done: react-query 5.102.0 peers `react ^18 || ^19` ✓.

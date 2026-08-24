@@ -70,3 +70,9 @@ minimumReleaseAgeExclude:
   - "@tanstack/react-query-devtools@5.102.2"
   - "@tanstack/react-query@5.102.2"
   - mysql2@3.24.1
+
+# Single query-core instance required: react-router-ssr-query otherwise resolves
+# its own query-core (5.102.2) which mismatches react-query's copy at hydration
+# ("Cannot read properties of undefined (reading 'mutations')").
+overrides:
+  '@tanstack/query-core': 5.101.4

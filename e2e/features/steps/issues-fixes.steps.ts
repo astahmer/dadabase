@@ -61,7 +61,10 @@ Given("I store a fake OpenAI API key in localStorage", async ({ page }) => {
 });
 
 Then("I should see text {string}", async ({ page }, text: string) => {
-  await expect(page.getByText(text, { exact: false }).first()).toBeVisible({ timeout: 15_000 });
+  // Prefer a visible match: pages render hidden copies of common words (e.g.
+  // query-history disclaimers) that .first() would otherwise pick up.
+  const visible = page.getByText(text, { exact: false }).locator("visible=true").first();
+  await expect(visible).toBeVisible({ timeout: 15_000 });
 });
 
 When("I expand the SQL query panel", async ({ page }) => {
@@ -300,14 +303,16 @@ Then("I should see the inline join workspace", async ({ page }) => {
 });
 
 When("I add the favorites relationship", async ({ page }) => {
+  // Selecting the suggested relationship in the listbox adds the join directly
+  // (the old confirm-chip click was removed when the join dialog was reworked).
   await page.getByRole("option", { name: "favorites.user_id › users.id", exact: true }).click();
-  await page
-    .getByRole("button", { name: /public\.favorites ON public\.favorites\.user_id/ })
-    .first()
-    .click();
+  await expect(page.getByRole("button", { name: /Remove join/ }).first()).toBeVisible();
 });
 
 Then("I should see the join result explanation", async ({ page }) => {
+  // The explanation block lives in the joined row's accordion body — expand it.
+  // .first() targets the outer trigger; the nested "Remove join" button comes later in DOM order.
+  await page.getByRole("button", { name: /favorites ON .*favorites\.user_id/ }).first().click();
   await expect(page.getByText("Result shape:", { exact: false })).toBeVisible();
   await expect(page.getByText("Match fields:", { exact: true })).toBeVisible();
   await expect(page.getByText("Generated SQL:", { exact: true })).toBeVisible();
