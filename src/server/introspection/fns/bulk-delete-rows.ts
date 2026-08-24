@@ -66,11 +66,10 @@ export const bulkDeleteRows = (
     }
 
     const whereClause = usesSystemRowId
-      ? _connection.dialect === DatabaseDialect.DuckDB
-        ? Effect.succeed(
-            // DuckDB base tables expose a `rowid` pseudo-column (no ctid).
-            sql.or(input.primaryKeys.map((pk) => sql`rowid = ${pk[DADABASE_ROW_ID]}`)),
-          )
+      ? _connection.dialect === DatabaseDialect.DuckDB ||
+        _connection.dialect === DatabaseDialect.Csv
+        ? // DuckDB base tables expose a `rowid` pseudo-column (no ctid).
+          sql.or(input.primaryKeys.map((pk) => sql`rowid = ${pk[DADABASE_ROW_ID]}`))
         : yield* sql.onDialectOrElse({
             pg: () =>
               Effect.succeed(

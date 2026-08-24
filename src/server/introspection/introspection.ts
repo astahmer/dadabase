@@ -47,13 +47,19 @@ import { buildWhereClauseWithJoins } from "./sql-query-builder/build-query-sql.t
  */
 
 /**
- * Whether the current remote connection is DuckDB. The DuckDB client shim reuses
- * the pg statement compiler, so `sql.onDialectOrElse` selects pg branches; this
- * service (provided by create-remote-server-fn) distinguishes actual DuckDB.
+ * Whether the current remote connection runs on the DuckDB engine — either an
+ * actual DuckDB database or a CSV connection (in-memory DuckDB over
+ * materialized csv tables). The DuckDB client shim reuses the pg statement
+ * compiler, so `sql.onDialectOrElse` selects pg branches; this service (provided
+ * by create-remote-server-fn) distinguishes the actual target.
  */
-const isDuckDbConnection = Effect.map(
+const isDuckDbEngineConnection = Effect.map(
   Effect.serviceOption(RemoteDialect),
-  Option.contains(DatabaseDialect.DuckDB),
+  // Note: must be a real lambda — `contains(a) || contains(b)` would break
+  // Option.contains's data-last currying and silently drop the Csv branch.
+  (dialect) =>
+    Option.contains(dialect, DatabaseDialect.DuckDB) ||
+    Option.contains(dialect, DatabaseDialect.Csv),
 );
 
 /**
@@ -66,7 +72,7 @@ export const getAvailableDatabases = () =>
     const sql = yield* SqlClient.SqlClient;
     const connectionId = yield* RemoteConnection;
 
-    if (yield* isDuckDbConnection) {
+    if (yield* isDuckDbEngineConnection) {
       const query = sql<{ name: string }>`
 					SELECT database_name as name FROM duckdb_databases()
 					WHERE NOT internal ORDER BY database_name
@@ -302,7 +308,7 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
     const sql = yield* SqlClient.SqlClient;
     const connectionId = yield* RemoteConnection;
 
-    if (yield* isDuckDbConnection) {
+    if (yield* isDuckDbEngineConnection) {
       // FK metadata via duckdb_constraints() — DuckDB's information_schema
       // constraint_column_usage misreports FK references as local columns.
       const fkRows = yield* fetchDuckDbForeignKeys(sql, { schema: input.schema });
@@ -763,7 +769,7 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
     const connectionId = yield* RemoteConnection;
     const { schema, table } = input;
 
-    if (yield* isDuckDbConnection) {
+    if (yield* isDuckDbEngineConnection) {
       const allFks = yield* fetchDuckDbForeignKeys(sql, { schema });
       return allFks.filter((fk) => fk.table_name === table);
     }
@@ -947,7 +953,7 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
     const connectionId = yield* RemoteConnection;
     const { schema, table } = input;
 
-    if (yield* isDuckDbConnection) {
+    if (yield* isDuckDbEngineConnection) {
       // duckdb_indexes() exposes one row per index with the indexed expression
       // list in `expressions` — explode it to one IndexInfo per column.
       const idxRows = yield* sql`
@@ -1360,7 +1366,7 @@ export const getTableRelationships = (input: { schema: string; table: string }) 
     const connectionId = yield* RemoteConnection;
     const { schema, table } = input;
 
-    if (yield* isDuckDbConnection) {
+    if (yield* isDuckDbEngineConnection) {
       // Both directions derive from parsed duckdb_constraints() rows — the
       // pg information_schema FK chain misreports referenced columns on DuckDB.
       const allFks = yield* fetchDuckDbForeignKeys(sql, { schema });
@@ -1964,7 +1970,7 @@ export const getRelationshipCardinality = (input: {
     const connectionId = yield* RemoteConnection;
     const { schema, table, columns, isIncomingRelationship } = input;
 
-    if (yield* isDuckDbConnection) {
+    if (yield* isDuckDbEngineConnection) {
       // JS-computed from duckdb_constraints() metadata (same checks as the pg
       // CTE): FK-side uniqueness → 1:1 candidate; referenced side PK → N:1.
       const fks = yield* fetchDuckDbForeignKeys(sql, { schema });
@@ -2422,7 +2428,7 @@ export const queryTableRows = <TData>(input: {
       excludedColumns = [],
     } = input;
 
-    const defaultSchema = (yield* isDuckDbConnection)
+    const defaultSchema = (yield* isDuckDbEngineConnection)
       ? getDialectDefaultSchema(DatabaseDialect.DuckDB)
       : yield* sql.onDialectOrElse({
           pg: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Postgres)),
@@ -2524,7 +2530,7 @@ export const queryTableRows = <TData>(input: {
 
           let resultColumnList = columnList;
           if (includeSystemRowId) {
-            const rowIdSelect = (yield* isDuckDbConnection)
+            const rowIdSelect = (yield* isDuckDbEngineConnection)
               ? `rowid AS "${DADABASE_ROW_ID}"`
               : `ctid::text AS "${DADABASE_ROW_ID}"`;
             selectPart = selectPart === "*" ? `${rowIdSelect}, *` : `${rowIdSelect}, ${selectPart}`;

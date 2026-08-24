@@ -11,15 +11,15 @@ CSV connections become nearly free by riding on DuckDB as their query engine.
 
 ## 0. Current architecture (measured)
 
-| Concern | File | Mechanism |
-|---|---|---|
-| Dialect enum | `src/db/dialect.ts` | `DatabaseDialect` (`postgres\|sqlite\|libsql\|mysql`), `getDialectDefaultSchema`, app-level `onDialectOrElse` |
-| Per-dialect SQL dispatch | `src/server/introspection/introspection.ts` (2720 lines) | `yield* sql.onDialectOrElse({ pg, mysql, sqlite, orElse })` — 57 call sites; `mysql → pg` mapping via `pgSqliteHandlers` helper (`src/server/introspection/pg-sqlite-handlers.ts`) |
-| SqlClient surface actually used | grep across `src/server`, `src/db` | `unsafe` ×22, builder helpers (`insert/update/or/and/raw/withTransaction/reserve/length/ts`) concentrated in `src/server/introspection/fns/{update-row,insert-row,insert-rows,bulk-delete-rows,count-cascade-dependents}.ts`, `src/server/custom-sql/start-fns/execute-custom-sql.start.ts`, `explain-query.start.ts`, `get-query-sql.start.ts`. Everything else is `onDialectOrElse` + `unsafe` |
-| Connection persistence | `src/db/app.db.schema.ts:18` + `src/db/database-connection.repository.ts` | `database_connections` row = `{id, name, url: TEXT, dialect: TEXT}` — a new dialect needs **no schema migration**, only a new enum value |
-| Connection creation UI | `src/components/pages/connection.form.tsx` | `z.enum(DatabaseDialect)` drives the form switch (`connectionType`); per-dialect URL/file-path branches at lines ~332–567 |
-| Row read path | `src/server/introspection/query-table-data.test.ts` (+ adapter interface at `connection-adapter.ts:140`) | `{rows, rowCount, hasNextPage}` with limit/offset/orderBy/filters |
-| Row edit paths | `src/server/introspection/fns/*` | kysely-style builders compiled to raw SQL against `SqlClient.SqlClient` |
+| Concern                         | File                                                                                                     | Mechanism                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Dialect enum                    | `src/db/dialect.ts`                                                                                      | `DatabaseDialect` (`postgres\|sqlite\|libsql\|mysql`), `getDialectDefaultSchema`, app-level `onDialectOrElse`                                                                                                                                                                                                                                                                                    |
+| Per-dialect SQL dispatch        | `src/server/introspection/introspection.ts` (2720 lines)                                                 | `yield* sql.onDialectOrElse({ pg, mysql, sqlite, orElse })` — 57 call sites; `mysql → pg` mapping via `pgSqliteHandlers` helper (`src/server/introspection/pg-sqlite-handlers.ts`)                                                                                                                                                                                                               |
+| SqlClient surface actually used | grep across `src/server`, `src/db`                                                                       | `unsafe` ×22, builder helpers (`insert/update/or/and/raw/withTransaction/reserve/length/ts`) concentrated in `src/server/introspection/fns/{update-row,insert-row,insert-rows,bulk-delete-rows,count-cascade-dependents}.ts`, `src/server/custom-sql/start-fns/execute-custom-sql.start.ts`, `explain-query.start.ts`, `get-query-sql.start.ts`. Everything else is `onDialectOrElse` + `unsafe` |
+| Connection persistence          | `src/db/app.db.schema.ts:18` + `src/db/database-connection.repository.ts`                                | `database_connections` row = `{id, name, url: TEXT, dialect: TEXT}` — a new dialect needs **no schema migration**, only a new enum value                                                                                                                                                                                                                                                         |
+| Connection creation UI          | `src/components/pages/connection.form.tsx`                                                               | `z.enum(DatabaseDialect)` drives the form switch (`connectionType`); per-dialect URL/file-path branches at lines ~332–567                                                                                                                                                                                                                                                                        |
+| Row read path                   | `src/server/introspection/query-table-data.test.ts` (+ adapter interface at `connection-adapter.ts:140`) | `{rows, rowCount, hasNextPage}` with limit/offset/orderBy/filters                                                                                                                                                                                                                                                                                                                                |
+| Row edit paths                  | `src/server/introspection/fns/*`                                                                         | kysely-style builders compiled to raw SQL against `SqlClient.SqlClient`                                                                                                                                                                                                                                                                                                                          |
 
 **Key constraint discovered:** all start-fns declare `SqlClient.SqlClient` in their R
 channel and call `.onDialectOrElse` / `.unsafe` / builder helpers on it. A DuckDB
@@ -100,7 +100,7 @@ Expected outcome: information_schema first (max reuse of pg handlers),
   directly — likely zero changes; if it emits `$1..$n`, add a placeholder rewriter
   in the shim's `unsafe`.
 - Type display: map DuckDB types (`INTEGER/BIGINT/DOUBLE/DECIMAL/VARCHAR/TIMESTAMP/
-  TIMESTAMP WITH TIME ZONE/BOOLEAN/BLOB/LIST/STRUCT`) into the existing column-type
+TIMESTAMP WITH TIME ZONE/BOOLEAN/BLOB/LIST/STRUCT`) into the existing column-type
   display util (follow `format-table-value.ts` conventions; LIST/STRUCT render as
   JSON strings like pg jsonb does today).
 - Error surfacing: catch duckdb exceptions → wrap into `SqlError` equivalents so
@@ -126,6 +126,7 @@ Expected outcome: information_schema first (max reuse of pg handlers),
 `read_csv_auto`; edits materialize then export atomically.
 
 Reasoning vs pure-JS parsing (option b):
+
 - Type inference, `LIMIT/OFFSET` paging, filtering, ORDER BY, aggregates come free
   and identical to every other dialect — no second read/edit code path.
 - Pure-JS would need its own parser (csv-parse/papaparse), its own inference, its own
@@ -143,7 +144,7 @@ Reasoning vs pure-JS parsing (option b):
   - Directory → each `*.csv` becomes one table (same naming rule); directory listing
     re-scanned on connect, not live.
 - Registration: `CREATE TABLE t AS SELECT * FROM read_csv_auto('path', header=true,
-  sample_size=-1)` — **materialize on connect** (not a view) so edits have a stable
+sample_size=-1)` — **materialize on connect** (not a view) so edits have a stable
   target and huge-file sampling happens once. `sample_size=-1` scans fully for
   accurate inference; gate behind size check (§B.5).
 
@@ -177,10 +178,10 @@ Reasoning vs pure-JS parsing (option b):
 ### B.5 Huge files (>100 MB guidance)
 
 - On connect: `stat` size. ≤100 MB → full-inference materialization.
-- >100 MB → still materialize but warn in connection status bar with elapsed time;
-  >1 GB → refuse by default with explanation (embedded OLAP will consume RAM ≈
-  uncompressed size), offer override flag stored on the connection record? v1:
-  hard limit 1 GB, warning ≥100 MB, documented in README section.
+- > 100 MB → still materialize but warn in connection status bar with elapsed time;
+  > 1 GB → refuse by default with explanation (embedded OLAP will consume RAM ≈
+  > uncompressed size), offer override flag stored on the connection record? v1:
+  > hard limit 1 GB, warning ≥100 MB, documented in README section.
 
 ### B.6 E2E smoke scenario
 
@@ -193,15 +194,15 @@ row → delete row → Save → reload page → assert persisted file content ma
 
 ## Shared touch points (both features)
 
-| Touch point | Files |
-|---|---|
-| Dialect enum + defaults | `src/db/dialect.ts` |
-| Introspection dispatch branches | `src/server/introspection/introspection.ts` (add `duckdb:`; csv inherits via engine=dialect-duckdb mapping in the client layer) |
-| Handler helper | `src/server/introspection/pg-sqlite-handlers.ts` (extend to include `duckdb` passthrough) |
-| Client construction | new `src/server/db-connection/duckdb/` module |
-| Connection CRUD | `src/components/pages/connection.form.tsx`, `src/server/db-connection/fns/create-db-connection.ts` (no repo change needed — `url`/`dialect` are TEXT) |
-| Row editing reuse | `src/server/introspection/fns/*` (verify placeholders only) |
-| Tests | `src/server/introspection/test.layer.ts` gains a duckdb layer for test DI |
+| Touch point                     | Files                                                                                                                                                 |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dialect enum + defaults         | `src/db/dialect.ts`                                                                                                                                   |
+| Introspection dispatch branches | `src/server/introspection/introspection.ts` (add `duckdb:`; csv inherits via engine=dialect-duckdb mapping in the client layer)                       |
+| Handler helper                  | `src/server/introspection/pg-sqlite-handlers.ts` (extend to include `duckdb` passthrough)                                                             |
+| Client construction             | new `src/server/db-connection/duckdb/` module                                                                                                         |
+| Connection CRUD                 | `src/components/pages/connection.form.tsx`, `src/server/db-connection/fns/create-db-connection.ts` (no repo change needed — `url`/`dialect` are TEXT) |
+| Row editing reuse               | `src/server/introspection/fns/*` (verify placeholders only)                                                                                           |
+| Tests                           | `src/server/introspection/test.layer.ts` gains a duckdb layer for test DI                                                                             |
 
 ## Gates (per phase)
 
@@ -214,6 +215,7 @@ row → delete row → Save → reload page → assert persisted file content ma
 ## Phases
 
 ### Phase A1 — dependency + spike
+
 - [x] Add pinned deps (§A.1), install
 - [x] `DuckDbConnection` service + minimal shim; spike test proves unsafe/select/
       insert/update/delete/placeholder-syntax on `:memory:`; record placeholder
@@ -225,30 +227,20 @@ row → delete row → Save → reload page → assert persisted file content ma
 - [x] Gate: typecheck + scoped tests green
 
 ### Phase A2 — dialect plumbing + introspection
+
 - [x] Enum + default schema (`main`) + explicit duckdb handling via new `RemoteDialect`
       context tag (the shim compiles as dialect "pg", so call sites check it) for:
       getAvailableDatabases (duckdb_databases), getTableColumns, getTableForeignKeys,
       getTableIndexes (duckdb_indexes), getTableRelationships,
       getRelationshipCardinality, queryTableRows rowid + default schema
-- [x] Empirical introspection verification (§A.4) recorded in doc
-      > **Findings (verified against @duckdb/node-api 1.5.5-r.4, `duckdb-catalog.test.ts`):**
-      > - `information_schema.schemata/tables/columns` all work with the existing
-      >   pg-shaped queries (`is_nullable` = YES/NO strings, defaults verbatim).
-      > - `information_schema.table_constraints` + `key_column_usage` DO exist and
-      >   return PK/UNIQUE constraints — usable instead of pg_catalog.
-      > - FK metadata lives in `duckdb_constraints()` (`constraint_column_names`,
-      >   `constraint_text`); indexes in `duckdb_indexes()` (`is_unique`,
-      >   `expressions`). `information_schema.referential_constraints` not relied on.
-      > - `EXPLAIN` rows are `{ explain_key, explain_value }`.
-      > - `rowid` pseudo-column exists on base tables (system row identity works).
-      > - Type notes: plain `TIMESTAMP` reports as "TIMESTAMP"; DECIMAL keeps
-      >   precision suffix ("DECIMAL(10,2)").
+- [x] Empirical introspection verification (§A.4) recorded in doc > **Findings (verified against @duckdb/node-api 1.5.5-r.4, `duckdb-catalog.test.ts`):** > - `information_schema.schemata/tables/columns` all work with the existing > pg-shaped queries (`is_nullable` = YES/NO strings, defaults verbatim). > - `information_schema.table_constraints` + `key_column_usage` DO exist and > return PK/UNIQUE constraints — usable instead of pg_catalog. > - FK metadata lives in `duckdb_constraints()` (`constraint_column_names`, > `constraint_text`); indexes in `duckdb_indexes()` (`is_unique`, > `expressions`). `information_schema.referential_constraints` not relied on. > - `EXPLAIN` rows are `{ explain_key, explain_value }`. > - `rowid` pseudo-column exists on base tables (system row identity works). > - Type notes: plain `TIMESTAMP` reports as "TIMESTAMP"; DECIMAL keeps > precision suffix ("DECIMAL(10,2)").
 - [x] Connection form branch + try-connection probe (§A.6) — stored as
       `file:<path>` like SQLite
 - [x] Gate: typecheck/lint/scoped tests; e2e introspection against a real temp
       `.duckdb` file (`duckdb-introspection.test.ts`)
 
 ### Phase A3 — row editing parity + polish
+
 - [x] Placeholder compatibility confirmed ($n native); update-row/bulk-delete-rows
       gained DuckDB `rowid` system-identity branches; numeric type list extended
       (tinyint/hugeint/u-integers); LIST/STRUCT render through existing object path;
@@ -256,24 +248,26 @@ row → delete row → Save → reload page → assert persisted file content ma
 - [x] Full suite (102 files / 1499 tests) + jj describe — `feat: duckdb driver`
 
 ### Phase B1 — CSV dialect on duckdb engine
-- [ ] `Csv` enum value; csv connection resolution → in-memory duckdb +
-      materializing registration incl. directory mode (§B.2)
-- [ ] Connection form: path picker/validation/table-list preview (§B.4)
-- [ ] Gate: scoped tests incl. fixture-csv round-trip
+
+- [x] `Csv` enum value; csv connection resolution → in-memory duckdb +
+      materializing registration incl. directory mode (§B.2) > `src/server/db-connection/duckdb/csv-client.ts`: instance registry keyed by > resolved path (process-lifetime, outside PoolCache TTL — evicting would > silently discard unsaved edits); `CREATE TABLE … AS SELECT * FROM
+  > read_csv_auto(…, header=true, sample_size=-1)`per file; table names = > sanitized filename stems. Stored url reuses the`file:<path>` convention.
+- [x] Connection form: path picker/validation/table-list preview (§B.4) > Debounced probe on path entry reuses tryConnectionServerFn; the csv result > carries `{tables, warnings}` for the preview (TryConnectionResult).
+- [x] Gate: scoped tests incl. fixture-csv round-trip > csv-client.test.ts (naming, size guard, resolve, probe, round-trip > load→edit→save→reload with .bak/no-tmp assertions); csv-introspection.test.ts. > Fixups discovered: `isDuckDbEngineConnection` needed a real lambda — > point-free `contains(a) || contains(b)` broke Option.contains currying and > silently routed csv to pg branches. update-row/bulk-delete rowid branches > wrapped statements in an un-yielded Effect.succeed (serialized as a query > param). DuckDB BIGINT → BigInt crashed server-fn JSON serialization; > shim now normalizes to Number/string at readRows/executeValues boundary. > vite.config optimizeDeps.exclude gained @duckdb/* (native binding broke > dep optimization at dev-server start — pre-existing from Phase A).
 
 ### Phase B2 — save semantics + guards
-- [ ] Staged-edit tracking, Save flow (tmp → atomic rename → .bak), unsaved badge
-      + close-prompt (§B.3)
-- [ ] Size guardrails (§B.5)
-- [ ] E2E smoke scenario (§B.6)
+
+- [x] Staged-edit tracking, Save flow (tmp → atomic rename → .bak), unsaved badge + close-prompt (§B.3) > src/lib/csv-unsaved-changes.ts counts issued row mutations per connection+table > (inline editor, pending-edits commit, row sheet insert/update, bulk delete, > paste rows). CsvSaveBar shows badge + Save button; beforeunload prompt while > dirty. saveCsvTableServerFn → COPY tmp → .bak rename → atomic swap.
+- [x] Size guardrails (§B.5) > checkCsvSizeGuard: ≥100 MB warn surfaced via probe/form preview; >1 GB refuse.
+- [x] E2E smoke scenario (§B.6) > e2e/features/csv-database.feature + steps: connect → browse → inline edit → > commit → insert → delete → Save → on-disk content/.bak/tmp-litter asserts → > reload shows persisted edit.
 - [x] Full suite (102 files / 1499 tests) + jj describe`feat: csv-as-database`
 
 ## Risks
 
-| Risk | Mitigation |
-|---|---|
-| Shim drift: future start-fns use deeper SqlClient surface | Keep §0 surface list updated; shim throws descriptive error on unknown method |
-| DuckDB placeholder syntax differs from generated SQL | Resolved in A1 spike; rewriter isolated in shim |
-| node-api native binary install issues in CI/docker | `@duckdb/node-bindings` pinned; docker image rebuild tested in A2 |
+| Risk                                                                  | Mitigation                                                                    |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Shim drift: future start-fns use deeper SqlClient surface             | Keep §0 surface list updated; shim throws descriptive error on unknown method |
+| DuckDB placeholder syntax differs from generated SQL                  | Resolved in A1 spike; rewriter isolated in shim                               |
+| node-api native binary install issues in CI/docker                    | `@duckdb/node-bindings` pinned; docker image rebuild tested in A2             |
 | Materialized CSV tables lose formatting quirks (delimiters, encoding) | `read_csv_auto` options surfaced later; v1 documents UTF-8/comma-only support |
-| Two writers historically SIGKILL under heavy gates | Batched edits, scoped test runs (standing instruction) |
+| Two writers historically SIGKILL under heavy gates                    | Batched edits, scoped test runs (standing instruction)                        |

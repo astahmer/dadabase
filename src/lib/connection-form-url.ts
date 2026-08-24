@@ -25,6 +25,7 @@ export const isValidConnectionTarget = (
 ): boolean => {
   if (input.connectionType === DatabaseDialect.SQLite) return input.filePath.trim().length > 0;
   if (input.connectionType === DatabaseDialect.DuckDB) return input.filePath.trim().length > 0;
+  if (input.connectionType === DatabaseDialect.Csv) return input.filePath.trim().length > 0;
   try {
     const url = new URL(input.connectionUrl);
     if (input.connectionType === DatabaseDialect.Postgres) {
@@ -49,6 +50,13 @@ export const buildConnectionUrl = (values: ConnectionUrlInput): string => {
     // repository's URL handling and keeps readOnly metadata support.
     const path = values.filePath.trim();
     const url = path.startsWith("file:") ? path : `file:${path}`;
+    return withReadOnlyFlag(url, values.readOnly);
+  }
+
+  if (values.connectionType === DatabaseDialect.Csv) {
+    // `file:<path>` where path is a .csv file OR a directory of *.csv files.
+    const pathValue = values.filePath.trim();
+    const url = pathValue.startsWith("file:") ? pathValue : `file:${pathValue}`;
     return withReadOnlyFlag(url, values.readOnly);
   }
 

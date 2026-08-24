@@ -39,6 +39,7 @@ import {
   getSidebarSplitterDefaultSize,
   getZenLayoutRemountKey,
 } from "#src/components/pages/connection-page/connection-layout-sizes.ts";
+import { CsvSaveBar } from "#src/components/pages/connection-page/csv-save-bar.tsx";
 import {
   copyToClipboard,
   exportRows,
@@ -80,6 +81,7 @@ import {
   parseSwitchTableCommandId,
 } from "#src/lib/command-palette-commands.ts";
 import { guardReadOnlyMutation, isReadOnlyConnection } from "#src/lib/connection-security.ts";
+import { noteRowMutations } from "#src/lib/csv-unsaved-changes.ts";
 import {
   registerCustomSqlRunner,
   runRegisteredCustomSql,
@@ -1287,6 +1289,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                   rowsQuery={pageState.rowsQuery}
                   isColumnMetadataLoading={pageState.isColumnMetadataLoading}
                   columnMetadata={pageState.columnMetadata}
+                  dialect={connection.dialect}
                   onEditRow={onEditRow}
                   onDuplicateRow={onDuplicateRow}
                 />
@@ -1724,6 +1727,7 @@ const RowsTableContent = (
     | "isColumnMetadataLoading"
     | "columnMetadata"
   > & {
+    dialect: DatabaseDialect;
     onEditRow?: (row: Record<string, unknown>) => void;
     onDuplicateRow?: (row: Record<string, unknown>) => void;
   },
@@ -1981,6 +1985,7 @@ const RowsTableContent = (
               )}
             >
               <RowsPendingEditsBar connectionUrl={props.activeConnectionUrl} />
+              <CsvSaveBar connectionUrl={props.activeConnectionUrl} dialect={props.dialect} />
               <DataTable
                 // virtualized={search.limit > 100}
                 enableRowVirtualization
@@ -2134,6 +2139,7 @@ const RowsTableContent = (
                 },
               });
               invalidateRowsQueries(queryClient);
+              noteRowMutations(props.activeConnectionUrl, pasteConfirm.table, result.inserted);
               setPasteConfirm(null);
               toaster.create({
                 title: "Pasted rows",
@@ -2319,6 +2325,7 @@ const BulkActions = (
       return primaryKeys.length;
     },
     onSuccess: (deletedCount) => {
+      if (search.table) noteRowMutations(props.activeConnectionUrl, search.table, deletedCount);
       props.rowsDataTable.resetRowSelection();
       invalidateRowsQueries(queryClient);
 

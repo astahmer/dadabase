@@ -15,6 +15,8 @@ const rootDir = path.join(__dirname, "..");
 const tmpDir = path.join(__dirname, ".tmp");
 const sampleDbPath = path.join(tmpDir, "sample.db");
 const appDbPath = path.join(tmpDir, "app.db");
+const csvDir = path.join(tmpDir, "csv");
+const peopleCsvPath = path.join(csvDir, "people.csv");
 const pathsFile = path.join(tmpDir, "paths.json");
 const migrationsDir = path.join(rootDir, "migrations");
 
@@ -69,6 +71,13 @@ async function upsertE2eConnection(samplePath) {
       name: "e2e-sqlite-readonly",
       url: `file:${samplePath}?dadabase_readonly=1`,
       dialect: "sqlite",
+    },
+    // CSV files as a database — directory mode over an in-memory DuckDB engine.
+    {
+      id: "e2e-csv-id",
+      name: "e2e-csv",
+      url: `file:${csvDir}`,
+      dialect: "csv",
     },
     // Closed port — asserts unreachable DBs fail fast with a useful message (not a hang /
     // generic FiberFailure).
@@ -188,6 +197,17 @@ async function prepareSampleDb() {
   sampleClient.close();
 }
 
+function prepareCsvFixture() {
+  // §B.6: 10 rows, mixed types incl. NULLs.
+  mkdirSync(csvDir, { recursive: true });
+  const rows = [];
+  for (let i = 1; i <= 10; i++) {
+    const active = i === 4 ? "" : i % 2 === 0 ? "true" : "false";
+    rows.push([i, `person_${i}`, active, (i * 1.5).toFixed(1)].join(","));
+  }
+  writeFileSync(peopleCsvPath, `id,name,active,score\n${rows.join("\n")}\n`);
+}
+
 function writePaths() {
   writeFileSync(
     pathsFile,
@@ -196,6 +216,8 @@ function writePaths() {
         sampleDbPath,
         appDbPath,
         appDbUrl: `file:${appDbPath}`,
+        csvDir,
+        peopleCsvPath,
       },
       null,
       2,
@@ -208,6 +230,7 @@ function writePaths() {
  */
 export async function prepareE2eFixtures(options = {}) {
   await prepareSampleDb();
+  prepareCsvFixture();
   await ensureAppDb({
     force: options.forceAppDb ?? false,
     sampleDbPathForConnection: sampleDbPath,

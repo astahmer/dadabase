@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { LucideCheck, LucideCross } from "lucide-react";
-import { useState } from "react";
+import { LucideCheck, LucideCross, LucideLoaderCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 import z from "zod";
 
 import {
@@ -276,6 +276,111 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
     );
   }
 
+  /** CSV path + detected-tables preview (§B.4). Inner component so it can hold
+   *  preview state while closing over the form and the probe server fn. */
+  function CsvConnectionFields({ filePath }: { filePath: string }) {
+    const trimmedPath = filePath.trim();
+    const [preview, setPreview] = useState<
+      | { state: "idle" }
+      | { state: "loading" }
+      | { state: "error"; message: string }
+      | {
+          state: "ok";
+          tables: ReadonlyArray<{ tableName: string; fileName: string }>;
+          warnings: ReadonlyArray<string>;
+        }
+    >({ state: "idle" });
+
+    useEffect(() => {
+      if (!trimmedPath) {
+        setPreview({ state: "idle" });
+        return;
+      }
+      let cancelled = false;
+      setPreview({ state: "loading" });
+      const timer = setTimeout(async () => {
+        try {
+          const url = trimmedPath.startsWith("file:") ? trimmedPath : `file:${trimmedPath}`;
+          const result = await testConnectionFn({ data: { url, dialect: DatabaseDialect.Csv } });
+          if (cancelled) return;
+          if (result.success) {
+            setPreview({
+              state: "ok",
+              tables: result.tables ?? [],
+              warnings: result.warnings ?? [],
+            });
+          } else {
+            setPreview({ state: "error", message: result.message });
+          }
+        } catch {
+          if (!cancelled) setPreview({ state: "error", message: "Failed to inspect CSV path" });
+        }
+      }, 400);
+      return () => {
+        cancelled = true;
+        clearTimeout(timer);
+      };
+    }, [trimmedPath]);
+
+    return (
+      <>
+        <form.AppField name="connectionName">
+          {(field) => <field.TextField label="Name" />}
+        </form.AppField>
+        <form.AppField name="filePath">
+          {(field) => (
+            <field.TextField
+              label="CSV File or Directory Path"
+              placeholder="/path/to/data.csv or /path/to/csv-directory"
+            />
+          )}
+        </form.AppField>
+        <p className="text-muted-foreground text-xs">
+          Point at a single `.csv` file or a directory of `*.csv` files — each file becomes an
+          editable table backed by an embedded DuckDB engine.
+        </p>
+        {preview.state === "loading" ? (
+          <p
+            className="text-muted-foreground flex items-center gap-2 text-xs"
+            data-testid="csv-preview-loading"
+          >
+            <LucideLoaderCircle className="h-3 w-3 animate-spin" />
+            Detecting tables…
+          </p>
+        ) : null}
+        {preview.state === "error" ? (
+          <p className="text-chart-1 text-xs" role="alert" data-testid="csv-preview-error">
+            {preview.message}
+          </p>
+        ) : null}
+        {preview.state === "ok" ? (
+          <div
+            className="border-border/70 bg-muted/30 rounded-md border px-3 py-2 text-xs"
+            data-testid="csv-table-preview"
+          >
+            <p className="text-muted-foreground mb-1">
+              Detected {preview.tables.length} table{preview.tables.length === 1 ? "" : "s"}:
+            </p>
+            <ul className="space-y-0.5">
+              {preview.tables.map((t) => (
+                <li key={t.tableName} className="font-mono">
+                  {t.tableName}
+                  <span className="text-muted-foreground ml-2">← {t.fileName}</span>
+                </li>
+              ))}
+            </ul>
+            {preview.warnings.map((w) => (
+              <p key={w} className="text-warning mt-1">
+                {w}
+              </p>
+            ))}
+          </div>
+        ) : null}
+        <ReadOnlyField />
+      </>
+    );
+  }
+
   function submitForm() {
     const validation = connectionFormSchema.safeParse(form.state.values);
     if (!validation.success) {
@@ -316,6 +421,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
               { label: "SQLite", value: "sqlite" },
               { label: "libSQL / Turso", value: "libsql" },
               { label: "DuckDB", value: "duckdb" },
+              { label: "CSV files", value: "csv" },
             ]}
           />
         )}
@@ -336,14 +442,18 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                   ? "Local SQLite file selected"
                   : "Local DuckDB file selected"
                 : "Choose a local database file"
-              : (() => {
-                  try {
-                    const parsed = new URL(connectionUrl);
-                    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
-                  } catch {
-                    return "Paste a URL or fill in the connection fields";
-                  }
-                })();
+              : connectionType === DatabaseDialect.Csv
+                ? filePath
+                  ? "Local CSV file or directory selected"
+                  : "Choose a CSV file or a directory of *.csv files"
+                : (() => {
+                    try {
+                      const parsed = new URL(connectionUrl);
+                      return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+                    } catch {
+                      return "Paste a URL or fill in the connection fields";
+                    }
+                  })();
 
           return (
             <div
@@ -359,8 +469,11 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
       </form.Subscribe>
 
       <form.Subscribe
-        selector={(state) => state.values.connectionType}
-        children={(connectionType) => {
+        selector={(state) => ({
+          connectionType: state.values.connectionType,
+          filePath: state.values.filePath,
+        })}
+        children={({ connectionType, filePath }) => {
           if (!connectionType) {
             return;
           }
@@ -401,6 +514,10 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                 <ReadOnlyField />
               </>
             );
+          }
+
+          if (connectionType === DatabaseDialect.Csv) {
+            return <CsvConnectionFields filePath={filePath} />;
           }
 
           if (connectionType === DatabaseDialect.LibSQL) {
@@ -579,7 +696,8 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
               if (
                 !connectionUrl ||
                 ((connectionType === DatabaseDialect.SQLite ||
-                  connectionType === DatabaseDialect.DuckDB) &&
+                  connectionType === DatabaseDialect.DuckDB ||
+                  connectionType === DatabaseDialect.Csv) &&
                   !filePath)
               ) {
                 toaster.create({

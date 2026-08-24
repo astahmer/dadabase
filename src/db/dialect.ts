@@ -4,6 +4,8 @@ export enum DatabaseDialect {
   LibSQL = "libsql",
   MySQL = "mysql",
   DuckDB = "duckdb",
+  /** CSV file(s) queried through an in-memory DuckDB engine (see csv-client.ts). */
+  Csv = "csv",
 }
 
 export const getDialectDefaultSchema = (dialect: DatabaseDialect) => {
@@ -11,6 +13,7 @@ export const getDialectDefaultSchema = (dialect: DatabaseDialect) => {
     case DatabaseDialect.SQLite:
     case DatabaseDialect.LibSQL:
     case DatabaseDialect.DuckDB:
+    case DatabaseDialect.Csv:
       return "main";
     case DatabaseDialect.MySQL:
       return "";

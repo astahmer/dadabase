@@ -7,9 +7,10 @@ import { SqlClient } from "effect/unstable/sql";
 import { SqlError } from "#src/db/effect-compat.ts";
 import { parseSshTunnelFromUrl, stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
+import { layer as csvDbLayer } from "#src/server/db-connection/duckdb/csv-client.ts";
+import { layer as duckDbLayer } from "#src/server/db-connection/duckdb/duckdb-client.ts";
 
 import { DatabaseDialect } from "../dialect.ts";
-import { layer as duckDbLayer } from "#src/server/db-connection/duckdb/duckdb-client.ts";
 
 export class PoolCache extends Context.Service<
   PoolCache,
@@ -64,6 +65,11 @@ function buildDriverLayer(
     return duckDbLayer({
       url: driverUrl.startsWith("file:") ? driverUrl.slice("file:".length) : driverUrl,
     });
+  }
+  if (dialect === DatabaseDialect.Csv) {
+    // Same file-scheme convention; the CSV engine owns its own in-memory
+    // DuckDB instances keyed by path (see csv-client.ts).
+    return csvDbLayer(driverUrl);
   }
   return LibsqlClient.layer({ url: driverUrl });
 }

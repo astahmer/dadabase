@@ -62,6 +62,11 @@ export function clearPendingCellEdits(_edits: PendingCellEdit[] = []): PendingCe
   return [];
 }
 
+/** Number of distinct rows touched by a set of pending cell edits. */
+export function distinctRowCount(edits: PendingCellEdit[]): number {
+  return new Set(edits.map((e) => JSON.stringify(e.primaryKey))).size;
+}
+
 export function getPendingCellEditCount(edits: PendingCellEdit[]): number {
   return edits.length;
 }

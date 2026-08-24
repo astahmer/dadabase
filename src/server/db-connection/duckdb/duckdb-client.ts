@@ -43,9 +43,36 @@ const toSqlError = (cause: unknown, message: string) =>
 /** Serializes all queries: an embedded DuckDB allows one writer per process. */
 const querySemaphore = Semaphore.makeUnsafe(1);
 
+/**
+ * DuckDB returns JS BigInt for BIGINT/UBIGINT/HUGEINT columns. BigInt has no JSON
+ * representation, so any value reaching a server-fn response (row data, rowid
+ * identity) would crash serialization. Convert safe ranges to Number; fall back
+ * to the exact decimal string beyond Number's safe range.
+ */
+const normalizeValue = (value: unknown): unknown => {
+  if (typeof value === "bigint") {
+    return value >= -Number.MAX_SAFE_INTEGER && value <= Number.MAX_SAFE_INTEGER
+      ? Number(value)
+      : value.toString();
+  }
+  if (value !== null && typeof value === "object") {
+    if (Array.isArray(value)) return value.map(normalizeValue);
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, normalizeValue(entry)]),
+    );
+  }
+  return value;
+};
+
+const normalizeRow = (row: Record<string, unknown>): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeValue(value)]));
+
 const readRows = (result: Awaited<ReturnType<DuckDBConnection["run"]>>) =>
   Effect.tryPromise({
-    try: async () => await result.getRowObjectsJS(),
+    try: async () => {
+      const rows = await result.getRowObjectsJS();
+      return rows.map(normalizeRow);
+    },
     catch: (cause) => toSqlError(cause, "DuckDbClient: failed to read result rows"),
   });
 
@@ -84,7 +111,10 @@ const makeSqlConnection = (connection: DuckDBConnection): SqlConnection.Connecti
     executeValues: (sql, params) =>
       Effect.flatMap(run(sql, params), (result) =>
         Effect.tryPromise({
-          try: async () => await result.getRowsJS(),
+          try: async () => {
+            const rows = await result.getRowsJS();
+            return rows.map((row) => row.map(normalizeValue));
+          },
           catch: (cause) => toSqlError(cause, "DuckDbClient: failed to read result rows"),
         }),
       ),
@@ -92,7 +122,10 @@ const makeSqlConnection = (connection: DuckDBConnection): SqlConnection.Connecti
     executeValuesUnprepared: (sql, params) =>
       Effect.flatMap(run(sql, params), (result) =>
         Effect.tryPromise({
-          try: async () => await result.getRowsJS(),
+          try: async () => {
+            const rows = await result.getRowsJS();
+            return rows.map((row) => row.map(normalizeValue));
+          },
           catch: (cause) => toSqlError(cause, "DuckDbClient: failed to read result rows"),
         }),
       ),
@@ -198,11 +231,17 @@ export interface MakeDuckDbClientOptions {
 }
 
 /**
- * Builds a `SqlClient.SqlClient` over DuckDB. Scoped: the underlying duckdb
- * connection is closed when the layer's scope ends.
+ * Builds a `SqlClient.SqlClient` over an already-open DuckDB instance. Scoped: the
+ * underlying duckdb connection is closed when the layer's scope ends.
+ *
+ * Exported for the CSV engine (`csv-client.ts`), which owns its own in-memory
+ * instances keyed by CSV path and needs clients attached to those exact instances
+ * (a fresh `DuckDBInstance.create(":memory:")` would be a different, empty DB).
  */
-export const makeDuckDbClient = Effect.fnUntraced(function* (options: MakeDuckDbClientOptions) {
-  const instance = yield* getOrCreateInstance(options.url);
+export const makeDuckDbClientFromInstance = Effect.fnUntraced(function* (
+  instance: DuckDBInstance,
+  dbPath: string,
+) {
   const connection = yield* Effect.acquireRelease(
     Effect.tryPromise({
       try: () => instance.connect(),
@@ -227,9 +266,14 @@ export const makeDuckDbClient = Effect.fnUntraced(function* (options: MakeDuckDb
     compiler: PgClient.makeCompiler(),
     spanAttributes: [
       ["db.system", "duckdb"],
-      ["db.path", options.url],
+      ["db.path", dbPath],
     ],
   });
+});
+
+export const makeDuckDbClient = Effect.fnUntraced(function* (options: MakeDuckDbClientOptions) {
+  const instance = yield* getOrCreateInstance(options.url);
+  return yield* makeDuckDbClientFromInstance(instance, options.url);
 });
 
 export const layer = (config: DuckDbClientConfig): Layer.Layer<Client.SqlClient, SqlError> =>
