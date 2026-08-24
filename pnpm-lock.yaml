@@ -247,6 +247,9 @@ importers:
       vite-tsconfig-paths:
         specifier: 6.1.1
         version: 6.1.1(supports-color@8.1.1)(typescript@7.0.2)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
+      xstate:
+        specifier: 5.32.5
+        version: 5.32.5
       zipson:
         specifier: 0.2.12
         version: 0.2.12
@@ -7368,6 +7371,9 @@ packages:
 
   xmlchars@2.2.0:
     resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
+
+  xstate@5.32.5:
+    resolution: {integrity: sha512-ULazi1oe6wGrXl0Frb6otSlkm5HLifbbVTkMk5kkSKqz4TkxJaVpnl6jOJwKeid3ORPxYyZQgNLUSYX9q65SIA==}
 
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
@@ -14576,6 +14582,8 @@ snapshots:
 
   xmlchars@2.2.0:
     optional: true
+
+  xstate@5.32.5: {}
 
   xtend@4.0.2: {}
 

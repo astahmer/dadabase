@@ -72,6 +72,16 @@
         "typescript/restrict-template-expressions": "off",
         "unicorn/no-array-sort": "off"
       }
+    },
+    {
+      "files": ["src/lib/chat/**"],
+      "rules": {
+        "typescript/no-extraneous-class": "off",
+        "react/static-components": "off",
+        "promise/always-return": "off",
+        "react/exhaustive-effect-dependencies": "off",
+        "unicorn/require-post-message-target-origin": "off"
+      }
     }
   ]
 }
