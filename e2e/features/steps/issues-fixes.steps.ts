@@ -264,7 +264,7 @@ When("I open the schema explorer page from the sidebar rail", async ({ page }) =
 Then("I should see the dedicated schema explorer", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Schema Explorer" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Back to workspace" })).toBeVisible();
-  await expect(page.getByPlaceholder("Filter or select tables...")).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Filter tables" })).toBeVisible();
   await expect(page.getByText("favorites", { exact: true })).toBeVisible();
 });
 
