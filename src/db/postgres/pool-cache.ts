@@ -9,6 +9,7 @@ import { parseSshTunnelFromUrl, stripDadabaseMarkerParams } from "#src/lib/conne
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { layer as csvDbLayer } from "#src/server/db-connection/duckdb/csv-client.ts";
 import { layer as duckDbLayer } from "#src/server/db-connection/duckdb/duckdb-client.ts";
+import { layerFromUrl as mssqlLayerFromUrl } from "#src/server/db-connection/mssql/mssql-client.ts";
 
 import { DatabaseDialect } from "../dialect.ts";
 
@@ -37,6 +38,7 @@ const POOL_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 function defaultDbPort(dialect: DatabaseDialect): number {
   if (dialect === DatabaseDialect.MySQL) return 3306;
+  if (dialect === DatabaseDialect.Mssql) return 1433;
   return 5432;
 }
 
@@ -70,6 +72,9 @@ function buildDriverLayer(
     // Same file-scheme convention; the CSV engine owns its own in-memory
     // DuckDB instances keyed by path (see csv-client.ts).
     return csvDbLayer(driverUrl);
+  }
+  if (dialect === DatabaseDialect.Mssql) {
+    return mssqlLayerFromUrl(driverUrl);
   }
   return LibsqlClient.layer({ url: driverUrl });
 }

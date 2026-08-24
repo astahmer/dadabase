@@ -32,6 +32,9 @@ export const isValidConnectionTarget = (
       return url.protocol === "postgres:" || url.protocol === "postgresql:";
     }
     if (input.connectionType === DatabaseDialect.MySQL) return url.protocol === "mysql:";
+    if (input.connectionType === DatabaseDialect.Mssql) {
+      return url.protocol === "mssql:" && Boolean(url.hostname) && Boolean(url.username);
+    }
     return ["libsql:", "http:", "https:"].includes(url.protocol);
   } catch {
     return false;

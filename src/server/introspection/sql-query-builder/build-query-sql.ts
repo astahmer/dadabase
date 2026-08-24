@@ -60,7 +60,10 @@ export const buildWhereClauseWithJoins = (
     filters && filters.conditions.length > 0
       ? dialect === DatabaseDialect.Postgres ||
         dialect === DatabaseDialect.DuckDB ||
-        dialect === DatabaseDialect.Csv
+        dialect === DatabaseDialect.Csv ||
+        // T-SQL: pg-style quoted identifiers + single-quoted literals are valid;
+        // TRUE/FALSE literals are not — bit-column boolean filters need 1/0.
+        dialect === DatabaseDialect.Mssql
         ? buildPgWhereFragment(filters.conditions, filters.logicalOperator ?? "and")
         : dialect === DatabaseDialect.MySQL
           ? buildMysqlWhereFragment(filters.conditions, filters.logicalOperator ?? "and")
@@ -72,7 +75,8 @@ export const buildWhereClauseWithJoins = (
       ? dialect === DatabaseDialect.Postgres ||
         dialect === DatabaseDialect.MySQL ||
         dialect === DatabaseDialect.DuckDB ||
-        dialect === DatabaseDialect.Csv
+        dialect === DatabaseDialect.Csv ||
+        dialect === DatabaseDialect.Mssql
         ? buildPgJoinFilters(joins, joinAliases)
         : buildSqliteJoinFilters(joins, joinAliases)
       : "";
@@ -128,6 +132,13 @@ export const buildQuerySql = (
   const orderClause = buildOrderByClause(orderBy, orderDirection, nullsOrder);
   const limitClause = buildLimitClause(limit, offset);
 
+  // T-SQL paging is ORDER BY + OFFSET/FETCH (ORDER BY mandatory; no LIMIT syntax,
+  // no NULLS FIRST/LAST — nullsOrder ignored).
+  const mssqlOrderClause = orderBy
+    ? `ORDER BY ${orderBy} ${orderDirection.toUpperCase()}`
+    : "ORDER BY (SELECT NULL)";
+  const mssqlLimitClause = `OFFSET ${Math.max(offset ?? 0, 0)} ROWS FETCH NEXT ${limit ?? 50} ROWS ONLY`;
+
   // Build SELECT clause — with GROUP BY and no explicit columns, select the group keys
   // (SELECT * GROUP BY is invalid in PostgreSQL)
   let selectClause = customSelectClause || "*";
@@ -139,7 +150,9 @@ export const buildQuerySql = (
 
   // Build the query
   const fromClause =
-    dialect === DatabaseDialect.Postgres || dialect === DatabaseDialect.DuckDB
+    dialect === DatabaseDialect.Postgres ||
+    dialect === DatabaseDialect.DuckDB ||
+    dialect === DatabaseDialect.Mssql
       ? schema
         ? `FROM ${escapeIdentifier(schema)}.${escapeIdentifier(table)}`
         : `FROM ${escapeIdentifier(table)}`
@@ -156,8 +169,8 @@ export const buildQuerySql = (
     whereClause && `WHERE ${whereClause}`,
     groupByClause,
     havingClause,
-    orderClause,
-    limitClause,
+    dialect === DatabaseDialect.Mssql ? mssqlOrderClause : orderClause,
+    dialect === DatabaseDialect.Mssql ? mssqlLimitClause : limitClause,
   ].filter(Boolean);
 
   const sql = sqlParts.join(" ");

@@ -41,14 +41,15 @@
     "@ai-sdk/openai": "4.0.46",
     "@ai-sdk/react": "4.0.80",
     "@ark-ui/react": "5.39.0",
-    "@duckdb/node-api": "1.5.5-r.4",
-    "@duckdb/node-bindings": "1.5.5-r.4",
     "@dnd-kit/core": "6.3.1",
     "@dnd-kit/modifiers": "9.0.0",
     "@dnd-kit/sortable": "10.0.0",
     "@dnd-kit/utilities": "3.2.2",
+    "@duckdb/node-api": "1.5.5-r.4",
+    "@duckdb/node-bindings": "1.5.5-r.4",
     "@effect/platform-node": "catalog:",
     "@effect/sql-libsql": "catalog:",
+    "@effect/sql-mssql": "4.0.0-rc.111",
     "@effect/sql-mysql2": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@effect/sql-pglite": "4.0.0-rc.111",
@@ -104,6 +105,7 @@
     "ssh2": "1.17.0",
     "tailwind-merge": "3.6.0",
     "tailwindcss": "4.3.3",
+    "tedious": "20.0.0",
     "tm-themes": "1.12.8",
     "tw-animate-css": "1.4.0",
     "vite-tsconfig-paths": "6.1.1",
@@ -139,7 +141,8 @@
     "typescript": "7.0.2",
     "unplugin-jsx-source": "0.2.2",
     "vite": "8.2.2",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "@testcontainers/mssqlserver": "12.1.0"
   },
   "packageManager": "pnpm@11.23.0"
 }

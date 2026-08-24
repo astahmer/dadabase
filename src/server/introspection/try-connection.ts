@@ -4,6 +4,7 @@ import { DatabaseDialect } from "#src/db/dialect.ts";
 import { stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
 import { probeCsvPath } from "#src/server/db-connection/duckdb/csv-client.ts";
 import { probeDuckDbPath } from "#src/server/db-connection/duckdb/duckdb-client.ts";
+import { probeMssqlUrl } from "#src/server/db-connection/mssql/mssql-client.ts";
 
 import { testLibsqlConnectionUrl } from "./test-libsql-connection.ts";
 import { testMysqlConnectionUrl } from "./test-mysql-connection.ts";
@@ -42,6 +43,9 @@ export const tryConnectionUrl = (input: {
       // Same file-scheme convention as DuckDB; also returns detected tables for
       // the connection form preview (§B.4).
       return yield* probeCsvPath(url.startsWith("file:") ? url.slice("file:".length) : url);
+    }
+    if (input.dialect === DatabaseDialect.Mssql) {
+      return yield* probeMssqlUrl(url);
     }
 
     return {

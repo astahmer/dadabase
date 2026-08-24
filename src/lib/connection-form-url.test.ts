@@ -53,4 +53,45 @@ describe("connection form URL", () => {
       }),
     ).toBe(false);
   });
+
+  it("validates mssql URLs require the mssql scheme, host and user", () => {
+    expect(
+      isValidConnectionTarget({
+        connectionType: DatabaseDialect.Mssql,
+        filePath: "",
+        connectionUrl: "mssql://sa:secret@db.example.com:1433/AppDb",
+      }),
+    ).toBe(true);
+    // wrong scheme rejected
+    expect(
+      isValidConnectionTarget({
+        connectionType: DatabaseDialect.Mssql,
+        filePath: "",
+        connectionUrl: "postgres://sa:secret@db.example.com/AppDb",
+      }),
+    ).toBe(false);
+    // SQL-auth user is mandatory
+    expect(
+      isValidConnectionTarget({
+        connectionType: DatabaseDialect.Mssql,
+        filePath: "",
+        connectionUrl: "mssql://db.example.com:1433/AppDb",
+      }),
+    ).toBe(false);
+  });
+
+  it("builds mssql URLs with readonly flag and sslmode applied", () => {
+    const url = buildConnectionUrl({
+      ...baseInput,
+      connectionType: DatabaseDialect.Mssql,
+      connectionUrl: "mssql://sa:secret@db.example.com/AppDb",
+      readOnly: false,
+      sslMode: "require" as const,
+    });
+
+    expect(url).toContain("mssql://sa:secret@db.example.com/AppDb");
+    // readOnly=false removes the marker entirely (absence means read-write)
+    expect(url).not.toContain("dadabase_readonly");
+    expect(url).toContain("sslmode=require");
+  });
 });

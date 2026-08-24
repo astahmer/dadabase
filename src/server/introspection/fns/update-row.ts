@@ -13,6 +13,10 @@ import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts
 
 import { listMysqlTableColumnNames } from "./list-mysql-table-column-names.ts";
 import { buildMysqlRowFingerprintExpr } from "./mysql-row-fingerprint.ts";
+import {
+  buildMssqlRowFingerprintExpr,
+  listMssqlTableColumnNames,
+} from "./mssql-row-fingerprint.ts";
 import { DADABASE_ROW_ID, isDadabaseRowIdKey } from "./row-identity.ts";
 import {
   assertSafeIdentifier,
@@ -88,6 +92,15 @@ export const updateRow = (
                 const expr = buildMysqlRowFingerprintExpr(columnNames);
                 return sql`${sql.unsafe(expr)} = ${String(input.primaryKey[DADABASE_ROW_ID])}`;
               }),
+            mssql: () =>
+              Effect.gen(function* () {
+                const columnNames = yield* listMssqlTableColumnNames({
+                  schema: input.schema || "dbo",
+                  table: input.table,
+                });
+                const expr = buildMssqlRowFingerprintExpr(columnNames);
+                return sql`${sql.unsafe(expr)} = ${String(input.primaryKey[DADABASE_ROW_ID])}`;
+              }),
             orElse: () => Effect.die(new Error("Unsupported database dialect")),
           })
       : sql.and(pkColumns.map((column) => sql`${sql(column)} = ${input.primaryKey[column]}`));
@@ -109,6 +122,14 @@ export const updateRow = (
       sqlite: () =>
         Effect.succeed(
           sql`UPDATE ${sql(input.table)} SET ${sql.update(valuesForUpdate)} WHERE ${whereClause}`,
+        ),
+      mssql: () =>
+        Effect.succeed(
+          // T-SQL has no UPDATE ... LIMIT — fingerprint collisions could touch
+          // multiple rows; the rowsAffected===1 check below guards no-PK edits.
+          input.schema
+            ? sql`UPDATE ${sql(input.schema)}.${sql(input.table)} SET ${sql.update(valuesForUpdate)} WHERE ${whereClause}`
+            : sql`UPDATE ${sql(input.table)} SET ${sql.update(valuesForUpdate)} WHERE ${whereClause}`,
         ),
       orElse: () => Effect.die(new Error("Unsupported database dialect")),
     });

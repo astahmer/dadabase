@@ -13,6 +13,10 @@ import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts
 
 import { listMysqlTableColumnNames } from "./list-mysql-table-column-names.ts";
 import { buildMysqlRowFingerprintExpr } from "./mysql-row-fingerprint.ts";
+import {
+  buildMssqlRowFingerprintExpr,
+  listMssqlTableColumnNames,
+} from "./mssql-row-fingerprint.ts";
 import { DADABASE_ROW_ID, isDadabaseRowIdKey } from "./row-identity.ts";
 import {
   assertSafeIdentifier,
@@ -96,6 +100,19 @@ export const bulkDeleteRows = (
                   ),
                 );
               }),
+            mssql: () =>
+              Effect.gen(function* () {
+                const columnNames = yield* listMssqlTableColumnNames({
+                  schema: input.schema || "dbo",
+                  table: input.table,
+                });
+                const expr = buildMssqlRowFingerprintExpr(columnNames);
+                return sql.or(
+                  input.primaryKeys.map(
+                    (pk) => sql`${sql.unsafe(expr)} = ${String(pk[DADABASE_ROW_ID])}`,
+                  ),
+                );
+              }),
             orElse: () => Effect.die(new Error("Unsupported database dialect")),
           })
       : sql.or(
@@ -123,6 +140,14 @@ export const bulkDeleteRows = (
               : sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`,
         ),
       sqlite: () => Effect.succeed(sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`),
+      mssql: () =>
+        // T-SQL has no DELETE ... LIMIT — fingerprint collisions could delete extra
+        // rows; documented gap for no-PK tables (same as UPDATE path).
+        Effect.succeed(
+          input.schema
+            ? sql`DELETE FROM ${sql(input.schema)}.${sql(input.table)} WHERE ${whereClause}`
+            : sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`,
+        ),
       orElse: () => Effect.die(new Error("Unsupported database dialect")),
     });
 

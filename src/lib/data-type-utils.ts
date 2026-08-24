@@ -25,6 +25,9 @@ export function isNumericDataType(dataType: string): boolean {
     "usmallint",
     "uinteger",
     "ubigint",
+    // SQL Server
+    "int",
+    "smallmoney",
   ];
 
   return numericTypes.some((type) => normalized === type || normalized.includes(type));

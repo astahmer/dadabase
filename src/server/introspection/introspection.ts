@@ -20,6 +20,7 @@ import { QueryLogLevel, QueryLogType } from "../query-logger/query-logger.types.
 import { withQueryLogging } from "../query-logger/with-query-logging.ts";
 import { isSelectQuery } from "./detect-destructive-sql.ts";
 import { fetchDuckDbForeignKeys } from "./fns/duckdb-foreign-keys.ts";
+import { buildMssqlSystemRowIdSelect } from "./fns/mssql-row-fingerprint.ts";
 import { buildMysqlSystemRowIdSelect } from "./fns/mysql-row-fingerprint.ts";
 import { DADABASE_ROW_ID } from "./fns/row-identity.ts";
 import {
@@ -135,6 +136,24 @@ export const getAvailableDatabases = () =>
           }),
         );
       },
+      mssql: () => {
+        // database_id <= 4: master/tempdb/model/msdb system databases.
+        const query = sql<{ name: string }>`
+					SELECT name FROM sys.databases
+					WHERE database_id > 4 AND state_desc = 'ONLINE'
+					ORDER BY name
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
 
@@ -190,6 +209,23 @@ export const getAvailableSchemas = () =>
         const query = sql<{ schema_name: string }>`
 					SELECT 'main' as schema_name
 					UNION SELECT 'temp' as schema_name
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      mssql: () => {
+        const query = sql<{ schema_name: string }>`
+					SELECT name AS schema_name FROM sys.schemas
+					WHERE name NOT IN ('guest', 'INFORMATION_SCHEMA', 'sys', 'db_owner', 'db_accessadmin', 'db_securityadmin', 'db_ddladmin', 'db_backupoperator', 'db_datareader', 'db_datawriter', 'db_denydatareader', 'db_denydatawriter')
+					ORDER BY name
 				`;
         const compiled = query.compile();
         return query.pipe(
@@ -279,6 +315,25 @@ export const getAvailableTables = (input?: { schema?: string }) =>
             sql: compiled[0],
             params: compiled[1],
             schema: input?.schema,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      mssql: () => {
+        // `schema` is a reserved keyword in T-SQL — bracket-quoted alias required.
+        const query = sql<{ name: string; schema: string }>`
+					SELECT table_name as name, table_schema as [schema] FROM information_schema.tables
+					WHERE table_schema = ${input?.schema || getDialectDefaultSchema(DatabaseDialect.Mssql)}
+					AND table_type = 'BASE TABLE'
+					ORDER BY table_name
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
             level: QueryLogLevel.Trace,
             connectionId,
           }),
@@ -732,6 +787,134 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
             foreignKey: fkMap.get(col.name),
           }));
         }),
+      mssql: () =>
+        Effect.gen(function* () {
+          // FK metadata from sys.* — information_schema.constraint_column_usage
+          // does not exist in SQL Server.
+          const fkQuery = sql<{
+            columnName: string;
+            referencedSchema: string;
+            referencedTable: string;
+            referencedColumn: string;
+            constraintName: string;
+          }>`
+				SELECT
+					fk.name AS constraintName,
+					pc.name AS columnName,
+					rs.name AS referencedSchema,
+					rt.name AS referencedTable,
+					rc.name AS referencedColumn
+				FROM sys.foreign_keys fk
+				JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+				JOIN sys.tables pt ON pt.object_id = fk.parent_object_id
+				JOIN sys.schemas ps ON ps.schema_id = pt.schema_id
+				JOIN sys.columns pc ON pc.object_id = fkc.parent_object_id AND pc.column_id = fkc.parent_column_id
+				JOIN sys.tables rt ON rt.object_id = fk.referenced_object_id
+				JOIN sys.schemas rs ON rs.schema_id = rt.schema_id
+				JOIN sys.columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+				WHERE ps.name = ${input.schema}
+					AND pt.name = ${input.table}
+			`;
+          const fkCompiled = fkQuery.compile();
+          const foreignKeys = yield* fkQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ForeignKeyLookup,
+              sql: fkCompiled[0],
+              params: fkCompiled[1],
+              schema: input.schema,
+              table: input.table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
+          const fkMap = new Map<
+            string,
+            {
+              referencedSchema: string;
+              referencedTable: string;
+              referencedColumn: string;
+              constraintName: string;
+            }
+          >();
+          for (const fk of foreignKeys) {
+            fkMap.set(fk.columnName, {
+              referencedSchema: fk.referencedSchema,
+              referencedTable: fk.referencedTable,
+              referencedColumn: fk.referencedColumn,
+              constraintName: fk.constraintName,
+            });
+          }
+
+          const columnsQuery = sql<{
+            name: string;
+            dataType: string;
+            nullable: number | boolean;
+            primaryKey: number | boolean;
+            unique: number | boolean;
+            defaultValue: string | null;
+          }>`
+			SELECT
+				c.COLUMN_NAME as name,
+				c.DATA_TYPE as "dataType",
+				CASE WHEN c.IS_NULLABLE = 'YES' THEN 1 ELSE 0 END as nullable,
+				CASE WHEN pk.COLUMN_NAME IS NOT NULL THEN 1 ELSE 0 END as "primaryKey",
+				CASE WHEN uq.COLUMN_NAME IS NOT NULL THEN 1 ELSE 0 END as "unique",
+				c.COLUMN_DEFAULT as "defaultValue"
+			FROM INFORMATION_SCHEMA.COLUMNS c
+			LEFT JOIN (
+				SELECT kcu.TABLE_SCHEMA, kcu.TABLE_NAME, kcu.COLUMN_NAME
+				FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+				JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+					ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+					AND tc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+				WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
+			) pk ON pk.TABLE_SCHEMA = c.TABLE_SCHEMA
+				AND pk.TABLE_NAME = c.TABLE_NAME AND pk.COLUMN_NAME = c.COLUMN_NAME
+			LEFT JOIN (
+				SELECT DISTINCT kcu.TABLE_SCHEMA, kcu.TABLE_NAME, kcu.COLUMN_NAME
+				FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+				JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+					ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+					AND tc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+				WHERE tc.CONSTRAINT_TYPE = 'UNIQUE'
+			) uq ON uq.TABLE_SCHEMA = c.TABLE_SCHEMA
+				AND uq.TABLE_NAME = c.TABLE_NAME AND uq.COLUMN_NAME = c.COLUMN_NAME
+			WHERE c.TABLE_SCHEMA = ${input.schema}
+				AND c.TABLE_NAME = ${input.table}
+			ORDER BY c.ORDINAL_POSITION
+		`;
+          const columnsCompiled = columnsQuery.compile();
+          const columns = yield* columnsQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ColumnMetadata,
+              sql: columnsCompiled[0],
+              params: columnsCompiled[1],
+              schema: input.schema,
+              table: input.table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
+          // SQL Server wraps COLUMN_DEFAULT in layers of parentheses — `(('none'))`.
+          const stripDefaultParens = (value: string | null): string | null => {
+            if (value === null) return value;
+            let out = value.trim();
+            while (out.startsWith("(") && out.endsWith(")")) out = out.slice(1, -1).trim();
+            return out;
+          };
+          return columns.map((col) => ({
+            name: col.name,
+            dataType: String(col.dataType),
+            nullable: Boolean(col.nullable),
+            primaryKey: Boolean(col.primaryKey),
+            unique: Boolean(col.unique),
+            defaultValue: stripDefaultParens(col.defaultValue),
+            isEnum: false,
+            enumValues: null,
+            isForeignKey: fkMap.has(col.name),
+            foreignKey: fkMap.get(col.name),
+          }));
+        }),
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
     return output as Array<TableColumnMetadata>;
@@ -921,6 +1104,42 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
               return posA - posB;
             }) as ForeignKeyInfo[];
         }),
+      mssql: () => {
+        const query = sql<ForeignKeyInfo>`
+				SELECT
+					fk.name AS constraint_name,
+					pc.name AS column_name,
+					rs.name AS referenced_table_schema,
+					rt.name AS referenced_table_name,
+					rc.name AS referenced_column_name,
+					CASE fk.delete_referential_action
+						WHEN 1 THEN 'CASCADE'
+						WHEN 2 THEN 'SET NULL'
+						WHEN 3 THEN 'SET DEFAULT'
+						ELSE 'NO ACTION'
+					END AS delete_rule
+				FROM sys.foreign_keys fk
+				JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+				JOIN sys.tables pt ON pt.object_id = fk.parent_object_id
+				JOIN sys.schemas ps ON ps.schema_id = pt.schema_id
+				JOIN sys.columns pc ON pc.object_id = fkc.parent_object_id AND pc.column_id = fkc.parent_column_id
+				JOIN sys.tables rt ON rt.object_id = fk.referenced_object_id
+				JOIN sys.schemas rs ON rs.schema_id = rt.schema_id
+				JOIN sys.columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+				WHERE ps.name = ${schema}
+					AND pt.name = ${table}
+			`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.ForeignKeyLookup,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
 
@@ -1110,6 +1329,33 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 
           return results;
         }),
+      mssql: () => {
+        const query = sql<IndexInfo>`
+				SELECT
+					i.name AS index_name,
+					c.name AS column_name,
+					CASE WHEN i.is_unique = 1 THEN 1 ELSE 0 END AS is_unique,
+					CASE WHEN i.is_primary_key = 1 THEN 1 ELSE 0 END AS is_primary
+				FROM sys.indexes i
+				JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+				JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+				JOIN sys.tables t ON t.object_id = i.object_id
+				JOIN sys.schemas s ON s.schema_id = t.schema_id
+				WHERE s.name = ${schema}
+					AND t.name = ${table}
+				ORDER BY i.name, ic.key_ordinal
+			`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
 
@@ -1621,6 +1867,62 @@ export const getTableRelationships = (input: { schema: string; table: string }) 
 
           return combined;
         }),
+      mssql: () => {
+        const outgoingQuery = sql<TableRelationship>`
+				SELECT
+					'outgoing' AS type,
+					ps.name AS "referencingSchema",
+					pt.name AS "referencingTable",
+					pc.name AS "referencingColumn",
+					rs.name AS "referencedSchema",
+					rt.name AS "referencedTable",
+					rc.name AS "referencedColumn",
+					fk.name AS "constraintName"
+				FROM sys.foreign_keys fk
+				JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+				JOIN sys.tables pt ON pt.object_id = fk.parent_object_id
+				JOIN sys.schemas ps ON ps.schema_id = pt.schema_id
+				JOIN sys.columns pc ON pc.object_id = fkc.parent_object_id AND pc.column_id = fkc.parent_column_id
+				JOIN sys.tables rt ON rt.object_id = fk.referenced_object_id
+				JOIN sys.schemas rs ON rs.schema_id = rt.schema_id
+				JOIN sys.columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+				WHERE ps.name = ${schema}
+					AND pt.name = ${table}
+			`;
+        const incomingQuery = sql<TableRelationship>`
+				SELECT
+					'incoming' AS type,
+					psn.name AS "referencingSchema",
+					ptn.name AS "referencingTable",
+					pcn.name AS "referencingColumn",
+					rs.name AS "referencedSchema",
+					rt.name AS "referencedTable",
+					rc.name AS "referencedColumn",
+					fk.name AS "constraintName"
+				FROM sys.foreign_keys fk
+				JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+				JOIN sys.tables rt ON rt.object_id = fk.referenced_object_id
+				JOIN sys.schemas rs ON rs.schema_id = rt.schema_id
+				JOIN sys.columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+				JOIN sys.tables ptn ON ptn.object_id = fk.parent_object_id
+				JOIN sys.schemas psn ON psn.schema_id = ptn.schema_id
+				JOIN sys.columns pcn ON pcn.object_id = fkc.parent_object_id AND pcn.column_id = fkc.parent_column_id
+				WHERE rs.name = ${schema}
+					AND rt.name = ${table}
+			`;
+        return Effect.all([outgoingQuery, incomingQuery]).pipe(
+          Effect.map(([outgoing, incoming]) => [...outgoing, ...incoming]),
+          withQueryLogging({
+            type: QueryLogType.RelationshipDiscovery,
+            sql: `${outgoingQuery.compile()[0]}; ${incomingQuery.compile()[0]}`,
+            params: [...outgoingQuery.compile()[1], ...incomingQuery.compile()[1]],
+            schema,
+            table,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
 
@@ -1769,6 +2071,41 @@ export const findColumnReferences = (input: {
             return a.column.localeCompare(b.column);
           });
         }),
+      mssql: () => {
+        // `table`/`column`/`schema` are reserved-ish in T-SQL — bracket-quoted aliases.
+        const query = sql`
+					SELECT
+						ps.name AS [schema],
+						pt.name AS [table],
+						pc.name AS [column],
+						rc.name AS "referencedColumn",
+						fk.name AS "constraintName"
+					FROM sys.foreign_keys fk
+					JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+					JOIN sys.tables pt ON pt.object_id = fk.parent_object_id
+					JOIN sys.schemas ps ON ps.schema_id = pt.schema_id
+					JOIN sys.columns pc ON pc.object_id = fkc.parent_object_id AND pc.column_id = fkc.parent_column_id
+					JOIN sys.tables rt ON rt.object_id = fk.referenced_object_id
+					JOIN sys.schemas rs ON rs.schema_id = rt.schema_id
+					JOIN sys.columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+					WHERE rs.name = ${referencedSchema}
+						AND rt.name = ${referencedTable}
+						AND rc.name = ${referencedColumn}
+					ORDER BY pt.name, pc.name
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.RelationshipDiscovery,
+            sql: compiled[0],
+            params: compiled[1],
+            schema: referencedSchema,
+            table: referencedTable,
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
 
@@ -1915,6 +2252,65 @@ export const findColumnReferencesWithCounts = (input: {
                 type: QueryLogType.RelationshipCounting,
                 sql: sqliteValueCompiled[0],
                 params: sqliteValueCompiled[1],
+                schema: ref.schema,
+                table: ref.table,
+                level: QueryLogLevel.Trace,
+                connectionId,
+              }),
+              Effect.map((rows) => ({
+                ...ref,
+                matchingRowCount: Number(rows[0]?.count ?? 0),
+              })),
+              Effect.catch(() =>
+                Effect.succeed({
+                  ...ref,
+                  matchingRowCount: -1,
+                }),
+              ),
+            );
+          },
+          mssql: () => {
+            // COUNT(*) is portable — mirror the pg shape.
+            if (normalizedCellValue === null) {
+              const nullQuery = sql<{ count: number }>`
+								SELECT COUNT(*) as count
+								FROM ${tableRef}
+								WHERE ${column} IS NULL
+							`;
+              const nullQueryCompiled = nullQuery.compile();
+              return nullQuery.pipe(
+                withQueryLogging({
+                  type: QueryLogType.RelationshipCounting,
+                  sql: nullQueryCompiled[0],
+                  params: nullQueryCompiled[1],
+                  schema: ref.schema,
+                  table: ref.table,
+                  level: QueryLogLevel.Trace,
+                  connectionId,
+                }),
+                Effect.map((rows) => ({
+                  ...ref,
+                  matchingRowCount: Number(rows[0]?.count ?? 0),
+                })),
+                Effect.catch(() =>
+                  Effect.succeed({
+                    ...ref,
+                    matchingRowCount: -1,
+                  }),
+                ),
+              );
+            }
+            const valueQuery = sql<{ count: number }>`
+							SELECT COUNT(*) as count
+							FROM ${tableRef}
+							WHERE ${column} = ${normalizedCellValue}
+						`;
+            const valueQueryCompiled = valueQuery.compile();
+            return valueQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.RelationshipCounting,
+                sql: valueQueryCompiled[0],
+                params: valueQueryCompiled[1],
                 schema: ref.schema,
                 table: ref.table,
                 level: QueryLogLevel.Trace,
@@ -2228,6 +2624,36 @@ export const getRelationshipCardinality = (input: {
 
           return [{ cardinality }];
         }),
+      mssql: () =>
+        Effect.gen(function* () {
+          // JS-computed from sys metadata (same checks as the pg CTE). Single-column
+          // approximation: composite unique indexes only match via their member columns.
+          const fks = yield* getTableForeignKeys({ schema, table });
+          const match = fks.find((fk) => fk.column_name === columns[0]);
+          if (!match) {
+            return [{ cardinality: isIncomingRelationship ? "one-to-many" : "many-to-one" }];
+          }
+
+          const indexes = yield* getTableIndexes({ schema, table });
+          const fkSideUnique = indexes.some(
+            (idx) => idx.column_name === match.column_name && idx.is_unique,
+          );
+          const refIndexes = yield* getTableIndexes({
+            schema: match.referenced_table_schema,
+            table: match.referenced_table_name,
+          });
+          const referencedIsPk = refIndexes.some(
+            (idx) => idx.column_name === match.referenced_column_name && idx.is_primary,
+          );
+
+          let cardinality: string;
+          if (fkSideUnique && referencedIsPk) cardinality = "one-to-one";
+          else if (!fkSideUnique && referencedIsPk) cardinality = "many-to-one";
+          else if (fkSideUnique) cardinality = "one-to-many";
+          else cardinality = "many-to-many";
+          void connectionId;
+          return [{ cardinality }];
+        }),
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
     const result = output as Array<{ cardinality: string }>;
@@ -2434,6 +2860,7 @@ export const queryTableRows = <TData>(input: {
           pg: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Postgres)),
           mysql: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.MySQL)),
           sqlite: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.SQLite)),
+          mssql: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Mssql)),
           orElse: () => new SqlError({ cause: "Unsupported dialect" }),
         });
     const baseSchema = remapSchema(input.schema, defaultSchema);
@@ -2791,6 +3218,115 @@ export const queryTableRows = <TData>(input: {
 
           return {
             rows: rows as TData[],
+            columnList: resultColumnList,
+            rowCount,
+            hasNextPage: offset + limit < rowCount,
+          };
+        }),
+      mssql: () =>
+        Effect.gen(function* () {
+          // T-SQL paging is ORDER BY + OFFSET/FETCH — ORDER BY is mandatory.
+          const whereClause = buildWhereClauseWithJoins(
+            DatabaseDialect.Mssql,
+            filters,
+            joins.length > 0 ? joinsRemapped : undefined,
+            joinAliases,
+          );
+
+          const joinClauses = buildJoinSqlClauses(
+            joinsRemapped,
+            input.schema,
+            input.table,
+            DatabaseDialect.Mssql,
+            joinAliases,
+          );
+
+          const countQuery = sql`
+						SELECT COUNT(*) as count
+						FROM ${sql(input.schema)}.${sql(input.table)}
+						${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
+						${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
+					`;
+
+          let selectPart =
+            joins.length > 0
+              ? buildPgSelectWithJoins(
+                  baseSchema,
+                  input.table,
+                  joinsRemapped,
+                  tableColumnsMap,
+                  joinAliases,
+                )
+              : columnList.length > 0 &&
+                  columnList.length < (columnResults[0]?.columns.length ?? 999)
+                ? columnList.join(", ")
+                : "*";
+
+          let resultColumnList = columnList;
+          if (includeSystemRowId) {
+            // No physical row id exposed to DML on MSSQL — hash all columns like MySQL.
+            const fingerprintCols =
+              columnList.length > 0
+                ? columnList
+                : (columnResults[0]?.columns.map((c) => c.name) ?? []);
+            if (fingerprintCols.length === 0) {
+              return yield* Effect.fail(
+                new SqlError({
+                  cause: "Cannot locate SQL Server rows without a primary key or column list",
+                }),
+              );
+            }
+            const idSelect = buildMssqlSystemRowIdSelect(fingerprintCols);
+            selectPart = selectPart === "*" ? `${idSelect}, *` : `${idSelect}, ${selectPart}`;
+            resultColumnList = [DADABASE_ROW_ID, ...columnList];
+          }
+
+          // T-SQL has no NULLS FIRST/LAST — nullsOrder is ignored here (documented gap).
+          const orderClause = orderBy
+            ? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
+            : "ORDER BY (SELECT NULL)";
+
+          const rowsQuery = sql`
+					SELECT ${sql.unsafe(selectPart)}
+					FROM ${sql(input.schema)}.${sql(input.table)}
+					${sql.unsafe(joinClauses.length > 0 ? joinClauses.join("\n") : "")}
+					${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
+					${sql.unsafe(orderClause)}
+					OFFSET ${offset} ROWS FETCH NEXT ${limit} ROWS ONLY
+				`;
+
+          const rowsCompiledQuery = rowsQuery.compile();
+          const countCompiledQuery = countQuery.compile();
+
+          const [rows, countResult] = yield* Effect.all([
+            rowsQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableRows,
+                sql: rowsCompiledQuery[0],
+                params: rowsCompiledQuery[1],
+                schema: input.schema,
+                table: input.table,
+                level: QueryLogLevel.Info,
+                connectionId: connectionId,
+                meta: { input },
+              }),
+            ),
+            countQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableCount,
+                sql: countCompiledQuery[0],
+                params: countCompiledQuery[1],
+                schema: input.schema,
+                table: input.table,
+                level: QueryLogLevel.Trace,
+                connectionId: connectionId,
+                meta: { input },
+              }),
+            ),
+          ]);
+          const rowCount = Number(countResult?.[0]?.count ?? 0);
+          return {
+            rows: (rows ?? []) as TData[],
             columnList: resultColumnList,
             rowCount,
             hasNextPage: offset + limit < rowCount,

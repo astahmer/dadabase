@@ -232,7 +232,13 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
     const user = url.username;
     const password = url.password;
     const host = url.hostname;
-    const port = url.port ? parseInt(url.port, 10) : 5432; // Default to 5432 if no port specified
+    const port = url.port
+      ? parseInt(url.port, 10)
+      : protocol === "mssql"
+        ? 1433 // driver default
+        : protocol === "mysql"
+          ? 3306
+          : 5432;
     const databaseName = url.pathname.replace("/", "");
 
     return {
@@ -430,6 +436,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
               { label: "libSQL / Turso", value: "libsql" },
               { label: "DuckDB", value: "duckdb" },
               { label: "CSV files", value: "csv" },
+              { label: "SQL Server", value: "mssql" },
             ]}
           />
         )}
@@ -594,10 +601,16 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                   listeners={{
                     onChange: (props) => {
                       const type = form.getFieldValue("connectionType");
-                      const prefix = type === DatabaseDialect.MySQL ? "mysql://" : "postgres://";
+                      const prefix =
+                        type === DatabaseDialect.MySQL
+                          ? "mysql://"
+                          : type === DatabaseDialect.Mssql
+                            ? "mssql://"
+                            : "postgres://";
                       if (
                         !props.value.startsWith("postgres://") &&
-                        !props.value.startsWith("mysql://")
+                        !props.value.startsWith("mysql://") &&
+                        !props.value.startsWith("mssql://")
                       ) {
                         form.setFieldValue("connectionUrl", `${prefix}${props.value}`);
                       }
