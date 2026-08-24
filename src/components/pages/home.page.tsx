@@ -416,6 +416,7 @@ export const HomePage = () => {
                   id: editingConnection.id,
                   connectionName: editingConnection.name,
                   connectionType: editingConnection.dialect,
+                  preset: null,
                   filePath: "",
                   connectionUrl: editingConnection.url,
                   libsqlAuthToken: "",

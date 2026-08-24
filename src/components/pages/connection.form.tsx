@@ -13,6 +13,11 @@ import {
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { buildConnectionUrl, isValidConnectionTarget } from "#src/lib/connection-form-url.ts";
 import {
+  getPresetDefaults,
+  getPresetOptions,
+  type ConnectionPresetId,
+} from "#src/lib/connection-presets.ts";
+import {
   isReadOnlyConnection,
   parseSslMode,
   parseSshTunnelFromUrl,
@@ -34,6 +39,8 @@ const connectionFormSchema = z
   .object({
     connectionName: z.string().min(1),
     connectionType,
+    // Tier-0 hosted-provider preset (presentation-only; seeds port/SSL/type)
+    preset: z.string().nullable(),
     // sqlite / libsql
     filePath: z.string(),
     libsqlAuthToken: z.string(),
@@ -65,6 +72,7 @@ const connectionFormSchema = z
 const defaultValues = {
   connectionName: "",
   connectionType: DatabaseDialect.Postgres as z.infer<typeof connectionType>,
+  preset: null as string | null,
   filePath: "",
   libsqlAuthToken: "",
   connectionUrl: "",
@@ -549,6 +557,35 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
             <Stack>
               <form.AppField name="connectionName">
                 {(field) => <field.TextField label="Name" />}
+              </form.AppField>
+
+              <form.AppField
+                name="preset"
+                listeners={{
+                  onChange: (props) => {
+                    const presetId = props.value as ConnectionPresetId | "" | undefined;
+                    const defaults = presetId ? getPresetDefaults(presetId) : undefined;
+                    if (!defaults) return; // "Custom" or unknown — leave fields untouched
+                    form.setFieldValue("connectionType", defaults.dialect);
+                    form.setFieldValue("port", defaults.port);
+                    form.setFieldValue("sslMode", defaults.sslMode ?? null);
+                    updateConnectionUrl();
+                  },
+                }}
+              >
+                {(field) => (
+                  <field.Select
+                    label="Provider preset (optional)"
+                    defaultValue={field.state.value ? [field.state.value] : []}
+                    options={[
+                      { label: "Custom", value: "" },
+                      ...getPresetOptions().map((option) => ({
+                        label: option.label,
+                        value: option.value as string,
+                      })),
+                    ]}
+                  />
+                )}
               </form.AppField>
 
               <Stack gap="2">
