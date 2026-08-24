@@ -367,10 +367,8 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
             onImportData={onImportData}
             onSchemaDiff={onSchemaDiff}
             onCreateIndex={onCreateIndex}
+            isReadOnly={isReadOnly}
           />
-        )}
-        {viewMode === "er" && (
-          <span className="text-muted-foreground ml-auto text-xs">Click a table to open it</span>
         )}
         {viewMode === "rows" && (
           <>

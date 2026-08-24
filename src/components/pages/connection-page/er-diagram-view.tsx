@@ -118,8 +118,8 @@ export function ErDiagramView(props: ErDiagramViewProps) {
         <div>
           <p className="text-foreground text-sm font-semibold">Schema map</p>
           <p className="text-muted-foreground text-xs">
-            {layout.nodes.length} tables · {edges.length} relationships · select a table to inspect
-            it
+            {schema} · {layout.nodes.length} tables · {edges.length} relationships · open a table to
+            inspect it
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -251,14 +251,6 @@ export function ErDiagramView(props: ErDiagramViewProps) {
                   >
                     <title>{`${edge.fromTable}.${label} ${edge.toTable}`}</title>
                   </line>
-                  <text
-                    x={(from.x + to.x + to.w) / 2}
-                    y={(fromY + toY) / 2 - 5}
-                    textAnchor="middle"
-                    className="fill-muted-foreground text-[10px]"
-                  >
-                    {label}
-                  </text>
                 </g>
               );
             })}

@@ -173,10 +173,10 @@ export const StructureFilterControls = (props: StructureFilterControlsProps = {}
               size="sm"
               className="h-8 gap-1"
               disabled={isReadOnly}
-              title={isReadOnly ? "This connection is read-only" : "Change table data or schema"}
+              title={isReadOnly ? "This connection is read-only" : "Change this table's schema"}
             >
               <MoreHorizontal className="h-3.5 w-3.5" />
-              Change
+              Schema actions
             </Button>
           </MenuTrigger>
           <MenuContent className="z-100 min-w-48">

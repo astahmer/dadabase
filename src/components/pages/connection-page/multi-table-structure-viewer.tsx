@@ -29,6 +29,7 @@ import {
 } from "../../ui/combobox.tsx";
 import { HStack, Stack } from "../../ui/layout.tsx";
 import { Spinner } from "../../ui/spinner.tsx";
+import { Tooltip } from "../../ui/tooltip.tsx";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import { addTabStateAfterCurrent, createTabState, scrollToTab } from "./create-tab-state.ts";
 import { StructureTable } from "./structure-table.tsx";
@@ -95,6 +96,10 @@ export const MultiTableStructureViewer = (props: MultiTableStructureViewerProps)
       ? filteredTables.filter((t) => selectedTables.includes(t.table))
       : filteredTables;
   };
+  const exportScope =
+    selectedTables.length > 0
+      ? `${selectedTables.length} selected table${selectedTables.length === 1 ? "" : "s"}`
+      : `${filteredTables.length} visible table${filteredTables.length === 1 ? "" : "s"}`;
 
   // Measure actual DOM heights for accurate virtualization
   const measureElement = (element: HTMLElement) => {
@@ -272,7 +277,7 @@ export const MultiTableStructureViewer = (props: MultiTableStructureViewerProps)
             allowCustomValue
           >
             <ComboboxControl size="sm">
-              <ComboboxInput placeholder="Filter or select tables..." />
+              <ComboboxInput placeholder="Filter tables..." aria-label="Filter tables" />
               <ComboboxTrigger />
             </ComboboxControl>
             <ComboboxContent>
@@ -329,26 +334,26 @@ export const MultiTableStructureViewer = (props: MultiTableStructureViewerProps)
           <MenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 gap-2">
               <Download className="h-4 w-4" />
-              Export
+              Export visible
             </Button>
           </MenuTrigger>
           <MenuContent className="z-100">
             <MenuItem onClick={handleCopyJSON} value="copy-json">
               <Copy className="mr-2 h-4 w-4" />
-              Copy as JSON
+              Copy {exportScope} as JSON
             </MenuItem>
             <MenuItem onClick={handleCopyCSV} value="copy-csv">
               <Copy className="mr-2 h-4 w-4" />
-              Copy as CSV
+              Copy {exportScope} as CSV
             </MenuItem>
             <MenuSeparator />
             <MenuItem onClick={handleExportJSON} value="export-json">
               <Download className="mr-2 h-4 w-4" />
-              Download as JSON
+              Download {exportScope} as JSON
             </MenuItem>
             <MenuItem onClick={handleExportCSV} value="export-csv">
               <Download className="mr-2 h-4 w-4" />
-              Download as CSV
+              Download {exportScope} as CSV
             </MenuItem>
           </MenuContent>
         </Menu>
@@ -426,25 +431,29 @@ export const MultiTableStructureViewer = (props: MultiTableStructureViewerProps)
                           </HStack>
                         </Checkbox>
                         <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2"
-                            onClick={() => viewTableRows(tableStructure.table)}
-                            aria-label={`Open ${tableStructure.table} rows`}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
+                          <Tooltip content="Open table rows">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2"
+                              onClick={() => viewTableRows(tableStructure.table)}
+                              aria-label={`Open ${tableStructure.table} rows`}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </Tooltip>
                           <Menu>
                             <MenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-2"
-                                aria-label={`Copy ${tableStructure.table} structure`}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
+                              <Tooltip content="Copy table structure">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2"
+                                  aria-label={`Copy ${tableStructure.table} structure`}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </Tooltip>
                             </MenuTrigger>
                             <MenuContent className="z-100">
                               <MenuItem

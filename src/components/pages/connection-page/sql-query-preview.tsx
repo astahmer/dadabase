@@ -6,6 +6,7 @@ import {
   Copy,
   Maximize2,
   Minimize2,
+  MoreHorizontal,
   Play,
   Square,
   Star,
@@ -290,83 +291,74 @@ export function SqlQueryPreview({
                 {isLoading ? (
                   <Tooltip content="Cancel query">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
                       onClick={onCancel}
                       disabled={!onCancel}
-                      className="text-destructive hover:text-destructive h-8 px-2"
+                      className="text-destructive hover:text-destructive h-8 gap-1.5 px-2"
                       aria-label="Cancel query"
                     >
                       <Square className="h-4 w-4" />
+                      <span className="hidden sm:inline">Cancel</span>
                     </Button>
                   </Tooltip>
                 ) : (
                   <Tooltip content="Run query (Ctrl+Enter)">
                     <Button
-                      variant="ghost"
+                      variant="default"
                       size="sm"
                       onClick={() => onRun?.(editorValueRef.current ?? "")}
-                      className="h-8 px-2"
+                      className="h-8 gap-1.5 px-2"
                       data-testid="sql-run-button"
                       aria-label="Run query"
                     >
                       <Play className="h-4 w-4" />
+                      <span className="hidden sm:inline">Run</span>
                     </Button>
                   </Tooltip>
                 )}
-                <Tooltip content="Explain query">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onExplain}
-                    disabled={disableExplain}
-                    className="h-8 px-2"
-                    aria-label="Explain query"
-                  >
-                    <Zap className="h-4 w-4" />
-                  </Button>
-                </Tooltip>
-                <Tooltip content="Format SQL">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onFormat}
-                    className="h-8 px-2"
-                    aria-label="Format SQL"
-                  >
-                    <Wand2 className="h-4 w-4" />
-                  </Button>
-                </Tooltip>
-                <Tooltip content="Copy SQL to clipboard">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCopy}
-                    className="h-8 px-2"
-                    aria-label="Copy SQL to clipboard"
-                  >
-                    {copied ? (
-                      <Check className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                </Tooltip>
-                {onSaveFavorite && (
-                  <Tooltip content="Save as favorite">
+                <Menu>
+                  <MenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      disabled={isSavingFavorite}
-                      onClick={() => onSaveFavorite(editorValueRef.current || customSql || sql)}
-                      className="h-8 px-2"
-                      data-testid="sql-save-favorite"
-                      aria-label="Save query to favorites"
+                      className="h-8 gap-1.5 px-2"
+                      aria-label="SQL tools"
                     >
-                      <Star className="h-4 w-4" />
+                      <MoreHorizontal className="h-4 w-4" />
+                      <span className="hidden lg:inline">Tools</span>
                     </Button>
-                  </Tooltip>
-                )}
+                  </MenuTrigger>
+                  <MenuContent>
+                    <MenuItem value="explain-query" onClick={onExplain} disabled={disableExplain}>
+                      <Zap className="h-4 w-4" />
+                      <MenuItemText>Explain query</MenuItemText>
+                    </MenuItem>
+                    <MenuItem value="format-sql" onClick={onFormat}>
+                      <Wand2 className="h-4 w-4" />
+                      <MenuItemText>Format SQL</MenuItemText>
+                    </MenuItem>
+                    <MenuItem value="copy-sql" onClick={handleCopy}>
+                      {copied ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                      <MenuItemText>{copied ? "Copied SQL" : "Copy SQL"}</MenuItemText>
+                    </MenuItem>
+                    {onSaveFavorite && (
+                      <MenuItem
+                        value="save-favorite"
+                        disabled={isSavingFavorite}
+                        onClick={() => onSaveFavorite(editorValueRef.current || customSql || sql)}
+                        data-testid="sql-save-favorite"
+                      >
+                        <Star className="h-4 w-4" />
+                        <MenuItemText>Save to favorites</MenuItemText>
+                      </MenuItem>
+                    )}
+                  </MenuContent>
+                </Menu>
                 {isFullscreen ? (
                   <Tooltip content="Exit fullscreen">
                     <Button
