@@ -5,6 +5,7 @@ import { SqlClient } from "effect/unstable/sql";
 
 import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 
+import { DatabaseDialect } from "#src/db/dialect.ts";
 import { SqlError } from "#src/db/effect-compat.ts";
 import { RemoteConnection } from "#src/server/db-connection/remote-connection.tag.ts";
 import { QueryLogLevel, QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
@@ -33,6 +34,17 @@ export const insertRow = (
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const connectionId = yield* RemoteConnection;
+
+    if (_connection.dialect === DatabaseDialect.Clickhouse) {
+      // Read-only policy (see clickhouse-client.ts).
+      return yield* Effect.fail(
+        new SqlError({
+          cause: null,
+          message:
+            "ClickHouse connections are read-only. Row changes require async ALTER TABLE mutations, which dadabase does not run.",
+        }),
+      );
+    }
 
     assertSafeIdentifier(input.table, "table");
     if (input.schema) {

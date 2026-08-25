@@ -35,6 +35,9 @@ export const isValidConnectionTarget = (
     if (input.connectionType === DatabaseDialect.Mssql) {
       return url.protocol === "mssql:" && Boolean(url.hostname) && Boolean(url.username);
     }
+    if (input.connectionType === DatabaseDialect.Clickhouse) {
+      return url.protocol === "clickhouse:" && Boolean(url.hostname);
+    }
     return ["libsql:", "http:", "https:"].includes(url.protocol);
   } catch {
     return false;

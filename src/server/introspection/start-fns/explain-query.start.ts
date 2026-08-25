@@ -61,6 +61,21 @@ export const explainQueryServerFn = createServerFn({ method: "POST" })
                 dialect: "sqlite" as const,
               };
             }),
+          clickhouse: () =>
+            Effect.gen(function* () {
+              // EXPLAIN PLAN emits one row per plan line in the `explain` column.
+              const result = yield* sql.unsafe(`EXPLAIN PLAN index=1 ${input.sql}`);
+              const rows = result as Array<Record<string, unknown>>;
+              return {
+                plan: rows
+                  .map((row) => {
+                    const values = Object.values(row);
+                    return typeof values[0] === "string" ? values[0] : JSON.stringify(row);
+                  })
+                  .join("\n"),
+                dialect: "clickhouse" as const,
+              };
+            }),
           orElse: () => Effect.fail(new SqlError({ cause: "Unsupported database dialect" })),
         });
 
@@ -72,7 +87,7 @@ export const explainQueryServerFn = createServerFn({ method: "POST" })
 export type ExplainQueryInput = ExplainInput;
 export type ExplainQueryResult = {
   plan: string;
-  dialect: "postgres" | "sqlite";
+  dialect: "postgres" | "sqlite" | "clickhouse";
 };
 
 export const explainQueryQueryOptions = (input: ExplainQueryInput) =>

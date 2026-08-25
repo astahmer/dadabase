@@ -47,6 +47,18 @@ export const updateRow = (
     const sql = yield* SqlClient.SqlClient;
     const connectionId = yield* RemoteConnection;
 
+    if (_connection.dialect === DatabaseDialect.Clickhouse) {
+      // Read-only policy (see clickhouse-client.ts): ClickHouse mutations are async
+      // ALTER TABLE … UPDATE/DELETE, non-transactional and eventually consistent.
+      return yield* Effect.fail(
+        new SqlError({
+          cause: null,
+          message:
+            "ClickHouse connections are read-only. Row changes require async ALTER TABLE mutations, which dadabase does not run.",
+        }),
+      );
+    }
+
     assertSafeIdentifier(input.table, "table");
     if (input.schema) {
       assertSafeIdentifier(input.schema, "schema");

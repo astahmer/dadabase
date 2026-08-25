@@ -236,9 +236,11 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
       ? parseInt(url.port, 10)
       : protocol === "mssql"
         ? 1433 // driver default
-        : protocol === "mysql"
-          ? 3306
-          : 5432;
+        : protocol === "clickhouse"
+          ? 8123
+          : protocol === "mysql"
+            ? 3306
+            : 5432;
     const databaseName = url.pathname.replace("/", "");
 
     return {
@@ -437,6 +439,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
               { label: "DuckDB", value: "duckdb" },
               { label: "CSV files", value: "csv" },
               { label: "SQL Server", value: "mssql" },
+              { label: "ClickHouse", value: "clickhouse" },
             ]}
           />
         )}
@@ -606,11 +609,14 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                           ? "mysql://"
                           : type === DatabaseDialect.Mssql
                             ? "mssql://"
-                            : "postgres://";
+                            : type === DatabaseDialect.Clickhouse
+                              ? "clickhouse://"
+                              : "postgres://";
                       if (
                         !props.value.startsWith("postgres://") &&
                         !props.value.startsWith("mysql://") &&
-                        !props.value.startsWith("mssql://")
+                        !props.value.startsWith("mssql://") &&
+                        !props.value.startsWith("clickhouse://")
                       ) {
                         form.setFieldValue("connectionUrl", `${prefix}${props.value}`);
                       }

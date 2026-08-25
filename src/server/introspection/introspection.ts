@@ -7,6 +7,7 @@ import type { QueryFilterType } from "#src/components/query-builder/query-filter
 
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { SqlError } from "#src/db/effect-compat.ts";
+import { parseClickhouseEnumValues } from "#src/server/db-connection/clickhouse/clickhouse-client.ts";
 import {
   ALL_TABLES_INTROSPECTION_CONCURRENCY,
   pgSqliteHandlers,
@@ -154,6 +155,23 @@ export const getAvailableDatabases = () =>
           }),
         );
       },
+      clickhouse: () => {
+        const query = sql<{ name: string }>`
+					SELECT name FROM system.databases
+					WHERE name NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
+					ORDER BY name
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
 
@@ -225,6 +243,24 @@ export const getAvailableSchemas = () =>
         const query = sql<{ schema_name: string }>`
 					SELECT name AS schema_name FROM sys.schemas
 					WHERE name NOT IN ('guest', 'INFORMATION_SCHEMA', 'sys', 'db_owner', 'db_accessadmin', 'db_securityadmin', 'db_ddladmin', 'db_backupoperator', 'db_datareader', 'db_datawriter', 'db_denydatareader', 'db_denydatawriter')
+					ORDER BY name
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      clickhouse: () => {
+        // ClickHouse databases are the schema level; system DBs are hidden.
+        const query = sql<{ schema_name: string }>`
+					SELECT name AS schema_name FROM system.databases
+					WHERE name NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
 					ORDER BY name
 				`;
         const compiled = query.compile();
@@ -327,6 +363,27 @@ export const getAvailableTables = (input?: { schema?: string }) =>
 					WHERE table_schema = ${input?.schema || getDialectDefaultSchema(DatabaseDialect.Mssql)}
 					AND table_type = 'BASE TABLE'
 					ORDER BY table_name
+				`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      clickhouse: () => {
+        // system.tables is authoritative; view-like engines are excluded so the
+        // browser lists base tables only (kind mapping in mapEngineToTableKind).
+        const query = sql<{ name: string; schema: string }>`
+					SELECT name, database AS \`schema\`
+					FROM system.tables
+					WHERE database = ${input?.schema || getDialectDefaultSchema(DatabaseDialect.Clickhouse)}
+					AND engine NOT IN ('View', 'MaterializedView', 'LiveView', 'WindowView', 'Dictionary')
+					ORDER BY name
 				`;
         const compiled = query.compile();
         return query.pipe(
@@ -915,6 +972,81 @@ export const getTableColumns = (input: { schema: string; table: string }) =>
             foreignKey: fkMap.get(col.name),
           }));
         }),
+      clickhouse: () =>
+        Effect.gen(function* () {
+          // No foreign keys exist in ClickHouse (by design); uniqueness is not
+          // enforced. Primary key = the table's `primary_key` expression columns
+          // (system.tables), matched as whole tokens in JS to avoid dialect-risky
+          // string splitting inside SQL.
+          const pkQuery = sql<{ primary_key: string }>`
+					SELECT primary_key FROM system.tables
+					WHERE database = ${input.schema} AND name = ${input.table}
+				`;
+          const pkCompiled = pkQuery.compile();
+          const pkRows = yield* pkQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ColumnMetadata,
+              sql: pkCompiled[0],
+              params: pkCompiled[1],
+              schema: input.schema,
+              table: input.table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
+          const pkTokens = new Set(
+            (pkRows[0]?.primary_key ?? "")
+              .split(/[\s,]+/)
+              .map((token) => token.replace(/^`|`$/g, ""))
+              .filter(Boolean),
+          );
+
+          const columnsQuery = sql<{
+            name: string;
+            dataType: string;
+            defaultValue: string | null;
+            ordinal: number;
+          }>`
+					SELECT
+						name,
+						type AS "dataType",
+						CASE WHEN default_kind = 'DEFAULT' THEN default_expr ELSE NULL END AS "defaultValue",
+						position AS ordinal
+					FROM system.columns
+					WHERE database = ${input.schema} AND table = ${input.table}
+					ORDER BY position
+				`;
+          const columnsCompiled = columnsQuery.compile();
+          const columns = yield* columnsQuery.pipe(
+            withQueryLogging({
+              type: QueryLogType.ColumnMetadata,
+              sql: columnsCompiled[0],
+              params: columnsCompiled[1],
+              schema: input.schema,
+              table: input.table,
+              level: QueryLogLevel.Trace,
+              connectionId,
+            }),
+          );
+
+          return columns.map((col) => {
+            const dataType = String(col.dataType);
+            const enumValues = parseClickhouseEnumValues(dataType);
+            return {
+              name: col.name,
+              dataType,
+              // ClickHouse nullability lives in the type wrapper: Nullable(T).
+              nullable: dataType.startsWith("Nullable("),
+              primaryKey: pkTokens.has(col.name),
+              unique: false,
+              defaultValue: col.defaultValue ?? null,
+              isEnum: enumValues !== null,
+              enumValues,
+              isForeignKey: false,
+              foreignKey: undefined,
+            };
+          });
+        }),
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
     return output as Array<TableColumnMetadata>;
@@ -1140,6 +1272,10 @@ export const getTableForeignKeys = (input: { schema: string; table: string }) =>
           }),
         );
       },
+      clickhouse: () =>
+        // ClickHouse has no foreign keys (by design) — reported honestly as none;
+        // relationship panels show no edges for clickhouse connections.
+        Effect.succeed([] as Array<ForeignKeyInfo>),
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
 
@@ -1345,6 +1481,34 @@ export const getTableIndexes = (input: { schema: string; table: string }) =>
 					AND t.name = ${table}
 				ORDER BY i.name, ic.key_ordinal
 			`;
+        const compiled = query.compile();
+        return query.pipe(
+          withQueryLogging({
+            type: QueryLogType.SchemaIntrospection,
+            sql: compiled[0],
+            params: compiled[1],
+            level: QueryLogLevel.Trace,
+            connectionId,
+          }),
+        );
+      },
+      // ClickHouse: the primary/sorting key is the only ordered access structure
+      // (plus optional data-skipping indexes); report it as the single index.
+      clickhouse: () => {
+        const query = sql<IndexInfo>`
+					SELECT
+						'primary' AS index_name,
+						column_name,
+						false AS is_unique,
+						true AS is_primary
+					FROM system.columns
+					WHERE database = ${schema} AND table = ${table}
+					AND hasToken(
+						(SELECT primary_key FROM system.tables WHERE database = ${schema} AND name = ${table}),
+						name
+					)
+					ORDER BY position
+				`;
         const compiled = query.compile();
         return query.pipe(
           withQueryLogging({
@@ -1923,6 +2087,9 @@ export const getTableRelationships = (input: { schema: string; table: string }) 
           }),
         );
       },
+      clickhouse: () =>
+        // No FKs in ClickHouse — no relationships to report (see getTableForeignKeys).
+        Effect.succeed([] as Array<TableRelationship>),
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
 
@@ -2106,6 +2273,9 @@ export const findColumnReferences = (input: {
           }),
         );
       },
+      clickhouse: () =>
+        // No FKs in ClickHouse — no column references to resolve.
+        Effect.succeed([] as Array<ColumnReference>),
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
 
@@ -2654,6 +2824,10 @@ export const getRelationshipCardinality = (input: {
           void connectionId;
           return [{ cardinality }];
         }),
+      clickhouse: () =>
+        // No FKs → no relationships → cardinality falls through to the default
+        // direction-based result below.
+        Effect.succeed([] as Array<{ cardinality: string }>),
       orElse: () => new SqlError({ cause: "Unsupported dialect" }),
     });
     const result = output as Array<{ cardinality: string }>;
@@ -2861,6 +3035,7 @@ export const queryTableRows = <TData>(input: {
           mysql: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.MySQL)),
           sqlite: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.SQLite)),
           mssql: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Mssql)),
+          clickhouse: () => Effect.succeed(getDialectDefaultSchema(DatabaseDialect.Clickhouse)),
           orElse: () => new SqlError({ cause: "Unsupported dialect" }),
         });
     const baseSchema = remapSchema(input.schema, defaultSchema);
@@ -3328,6 +3503,87 @@ export const queryTableRows = <TData>(input: {
           return {
             rows: (rows ?? []) as TData[],
             columnList: resultColumnList,
+            rowCount,
+            hasNextPage: offset + limit < rowCount,
+          };
+        }),
+      clickhouse: () =>
+        Effect.gen(function* () {
+          // Standard LIMIT/OFFSET works; NULLS FIRST/LAST is not supported
+          // (nullsOrder ignored — documented gap). No system row id is injected:
+          // ClickHouse connections are read-only, so row targeting never happens.
+          const whereClause = buildWhereClauseWithJoins(
+            DatabaseDialect.Clickhouse,
+            filters,
+            joins.length > 0 ? joinsRemapped : undefined,
+            joinAliases,
+          );
+
+          if (joins.length > 0) {
+            // No FKs exist on ClickHouse, so the UI cannot offer joins; fail loudly
+            // if one ever arrives instead of emitting dialect-fragile SQL.
+            return yield* Effect.fail(
+              new SqlError({ cause: null, message: "Joins are not supported for ClickHouse connections" }),
+            );
+          }
+
+          const countQuery = sql`
+						SELECT COUNT(*) as count
+						FROM ${sql(input.schema)}.${sql(input.table)}
+						${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
+					`;
+
+          const selectPart =
+            columnList.length > 0 &&
+            columnList.length < (columnResults[0]?.columns.length ?? 999)
+              ? columnList.join(", ")
+              : "*";
+
+          const orderClause = orderBy
+            ? `ORDER BY ${sql(orderBy).value} ${orderDirection.toUpperCase()}`
+            : "";
+
+          const rowsQuery = sql`
+					SELECT ${sql.unsafe(selectPart)}
+					FROM ${sql(input.schema)}.${sql(input.table)}
+					${sql.unsafe(whereClause ? `WHERE ${whereClause}` : "")}
+					${sql.unsafe(orderClause)}
+					LIMIT ${limit} OFFSET ${offset}
+				`;
+
+          const rowsCompiledQuery = rowsQuery.compile();
+          const countCompiledQuery = countQuery.compile();
+
+          const [rows, countResult] = yield* Effect.all([
+            rowsQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableRows,
+                sql: rowsCompiledQuery[0],
+                params: rowsCompiledQuery[1],
+                schema: input.schema,
+                table: input.table,
+                level: QueryLogLevel.Info,
+                connectionId,
+                meta: { input },
+              }),
+            ),
+            countQuery.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableCount,
+                sql: countCompiledQuery[0],
+                params: countCompiledQuery[1],
+                schema: input.schema,
+                table: input.table,
+                level: QueryLogLevel.Trace,
+                connectionId,
+                meta: { input },
+              }),
+            ),
+          ]);
+          const rowCount = Number(countResult?.[0]?.count ?? 0);
+          return {
+            rows: (rows ?? []) as TData[],
+            columnList,
             rowCount,
             hasNextPage: offset + limit < rowCount,
           };

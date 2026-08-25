@@ -5,6 +5,7 @@ import { stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
 import { probeCsvPath } from "#src/server/db-connection/duckdb/csv-client.ts";
 import { probeDuckDbPath } from "#src/server/db-connection/duckdb/duckdb-client.ts";
 import { probeMssqlUrl } from "#src/server/db-connection/mssql/mssql-client.ts";
+import { probeClickhouseUrl } from "#src/server/db-connection/clickhouse/clickhouse-client.ts";
 
 import { testLibsqlConnectionUrl } from "./test-libsql-connection.ts";
 import { testMysqlConnectionUrl } from "./test-mysql-connection.ts";
@@ -46,6 +47,9 @@ export const tryConnectionUrl = (input: {
     }
     if (input.dialect === DatabaseDialect.Mssql) {
       return yield* probeMssqlUrl(url);
+    }
+    if (input.dialect === DatabaseDialect.Clickhouse) {
+      return yield* probeClickhouseUrl(url);
     }
 
     return {

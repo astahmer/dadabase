@@ -10,6 +10,7 @@ import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { layer as csvDbLayer } from "#src/server/db-connection/duckdb/csv-client.ts";
 import { layer as duckDbLayer } from "#src/server/db-connection/duckdb/duckdb-client.ts";
 import { layerFromUrl as mssqlLayerFromUrl } from "#src/server/db-connection/mssql/mssql-client.ts";
+import { layerFromUrl as clickhouseLayerFromUrl } from "#src/server/db-connection/clickhouse/clickhouse-client.ts";
 
 import { DatabaseDialect } from "../dialect.ts";
 
@@ -39,6 +40,7 @@ const POOL_TTL_MS = 5 * 60 * 1000; // 5 minutes
 function defaultDbPort(dialect: DatabaseDialect): number {
   if (dialect === DatabaseDialect.MySQL) return 3306;
   if (dialect === DatabaseDialect.Mssql) return 1433;
+  if (dialect === DatabaseDialect.Clickhouse) return 8123;
   return 5432;
 }
 
@@ -75,6 +77,9 @@ function buildDriverLayer(
   }
   if (dialect === DatabaseDialect.Mssql) {
     return mssqlLayerFromUrl(driverUrl);
+  }
+  if (dialect === DatabaseDialect.Clickhouse) {
+    return clickhouseLayerFromUrl(driverUrl);
   }
   return LibsqlClient.layer({ url: driverUrl });
 }

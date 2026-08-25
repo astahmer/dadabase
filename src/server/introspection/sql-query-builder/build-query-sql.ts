@@ -63,7 +63,10 @@ export const buildWhereClauseWithJoins = (
         dialect === DatabaseDialect.Csv ||
         // T-SQL: pg-style quoted identifiers + single-quoted literals are valid;
         // TRUE/FALSE literals are not — bit-column boolean filters need 1/0.
-        dialect === DatabaseDialect.Mssql
+        dialect === DatabaseDialect.Mssql ||
+        // ClickHouse rides the pg fragment shape: the driver sets
+        // enable_ansiquotes so double-quoted identifiers behave like Postgres.
+        dialect === DatabaseDialect.Clickhouse
         ? buildPgWhereFragment(filters.conditions, filters.logicalOperator ?? "and")
         : dialect === DatabaseDialect.MySQL
           ? buildMysqlWhereFragment(filters.conditions, filters.logicalOperator ?? "and")
@@ -76,7 +79,8 @@ export const buildWhereClauseWithJoins = (
         dialect === DatabaseDialect.MySQL ||
         dialect === DatabaseDialect.DuckDB ||
         dialect === DatabaseDialect.Csv ||
-        dialect === DatabaseDialect.Mssql
+        dialect === DatabaseDialect.Mssql ||
+        dialect === DatabaseDialect.Clickhouse
         ? buildPgJoinFilters(joins, joinAliases)
         : buildSqliteJoinFilters(joins, joinAliases)
       : "";

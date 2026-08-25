@@ -28,6 +28,21 @@ export function isNumericDataType(dataType: string): boolean {
     // SQL Server
     "int",
     "smallmoney",
+    // ClickHouse (Nullable(T)/LowCardinality(T) wrappers resolve via includes)
+    "uint8",
+    "uint16",
+    "uint32",
+    "uint64",
+    "uint128",
+    "uint256",
+    "int8",
+    "int16",
+    "int32",
+    "int64",
+    "int128",
+    "int256",
+    "float32",
+    "float64",
   ];
 
   return numericTypes.some((type) => normalized === type || normalized.includes(type));
@@ -49,6 +64,8 @@ export function isDateTimeDataType(dataType: string): boolean {
     "timestamptz",
     "datetime",
     "datetime2",
+    // ClickHouse
+    "datetime64",
   ];
 
   return dateTimeTypes.some((type) => normalized === type || normalized.startsWith(type));

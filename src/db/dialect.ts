@@ -7,6 +7,8 @@ export enum DatabaseDialect {
   /** CSV file(s) queried through an in-memory DuckDB engine (see csv-client.ts). */
   Csv = "csv",
   Mssql = "mssql",
+  /** Queried via @clickhouse/client over HTTP (see clickhouse-client.ts). Read-only. */
+  Clickhouse = "clickhouse",
 }
 
 export const getDialectDefaultSchema = (dialect: DatabaseDialect) => {
@@ -18,6 +20,8 @@ export const getDialectDefaultSchema = (dialect: DatabaseDialect) => {
       return "main";
     case DatabaseDialect.Mssql:
       return "dbo";
+    case DatabaseDialect.Clickhouse:
+      return "default";
     case DatabaseDialect.MySQL:
       return "";
     default:
