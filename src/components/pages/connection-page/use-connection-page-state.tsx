@@ -333,9 +333,6 @@ export const useConnectionPageState = ({
 
           return (
             <div className="flex h-full w-full items-center justify-center gap-1 text-center">
-              <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-                Select
-              </span>
               <Tooltip content="Select all rows" colorPalette="inverted">
                 <Checkbox
                   className="flex items-center gap-2"

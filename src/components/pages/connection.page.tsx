@@ -153,6 +153,7 @@ import { CascadeDeleteConfirmDialog } from "./connection-page/cascade-delete-con
 import { ConnectionCommandPalette } from "./connection-page/command-palette.tsx";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
+import { ConnectionSwitcher } from "./connection-page/connection-switcher.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
 import { ConnectionPageTabs } from "./connection-page/connection-page-tabs.tsx";
 import { ConnectionQuickReferencesDrawer } from "./connection-page/connection-quick-references.drawer.tsx";
@@ -265,6 +266,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     table: tab.table,
     initialTabMode: tab.initialTabMode,
   }));
+  const selectedSchema = search.schema || undefined;
 
   const zenMode = useZenModeEnabled();
   const { toggleZenMode } = useZenModeActions();
@@ -480,6 +482,35 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     <div className="bg-background flex h-screen flex-col">
       {/* Main Layout */}
       <div className="flex h-full min-h-0 flex-1 flex-col">
+      {/* Icon rail: always visible (except zen mode) so hiding the sidebar
+          never hides connection switching / AI / history / favorites. */}
+      <div className="flex h-full min-h-0 flex-1">
+        {!layoutZenMode && (
+          <aside
+            className="bg-muted/30 border-border flex h-full shrink-0 flex-col items-center gap-1 overflow-y-auto border-r px-1 py-2"
+            data-testid="workspace-icon-rail"
+          >
+            <ConnectionSwitcher
+              connection={connection}
+              onAddConnection={() => setShowAddConnectionDrawer(true)}
+              onOpenAiAssistant={() =>
+                void navigate({
+                  to: "/connections/$connectionName/ai",
+                  params: { connectionName: connection.name },
+                })
+              }
+              onOpenHistory={() => openQueryLogger("history")}
+              onOpenFavorites={() => openQueryLogger("favorites")}
+              onOpenSchemaExplorer={() =>
+                navigate({
+                  to: "/schema/$connectionName",
+                  params: { connectionName: connection.name },
+                  search: selectedSchema ? { schema: selectedSchema } : {},
+                })
+              }
+            />
+          </aside>
+        )}
         <Splitter.Root
           key={`${getZenLayoutRemountKey(layoutZenMode, "sidebar")}:${isCompactViewport ? "compact" : "wide"}`}
           orientation="horizontal"
@@ -733,6 +764,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
             </Splitter.Context>
           </Splitter.Panel>
         </Splitter.Root>
+      </div>
       </div>
 
       {/* Add Connection Drawer */}

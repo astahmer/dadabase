@@ -24,7 +24,6 @@ import { LoadingSpinner } from "../../shared/loading-spinner";
 import { Stack } from "../../ui/layout.tsx";
 import * as ArkSelect from "../../ui/select";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
-import { ConnectionSwitcher } from "./connection-switcher";
 import {
   addTabStateAfterCurrent,
   createTabState,
@@ -139,27 +138,12 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
   });
 
   return (
-    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
-      <ConnectionSwitcher
-        connection={connection}
-        onAddConnection={props.onAddConnection}
-        onOpenAiAssistant={props.onOpenAiAssistant}
-        onOpenHistory={props.onOpenHistory}
-        onOpenFavorites={props.onOpenFavorites}
-        onOpenSchemaExplorer={() => {
-          navigate({
-            to: "/schema/$connectionName",
-            params: { connectionName: connection.name },
-            search: selectedSchema ? { schema: selectedSchema } : {},
-          });
-        }}
-      />
-      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="border-border shrink-0 border-b px-4 py-2">
-          <div className="text-foreground truncate text-sm font-medium" title={connection.name}>
-            {connection.name}
-          </div>
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="border-border shrink-0 border-b px-4 py-2">
+        <div className="text-foreground truncate text-sm font-medium" title={connection.name}>
+          {connection.name}
         </div>
+      </div>
         {/* Database Selector */}
         {isNotSqlite && (
           <Stack className="shrink-0 px-4 pt-4" gap="2">
@@ -483,7 +467,6 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
           </Stack>
         </div>
       </div>
-    </div>
   );
 };
 
