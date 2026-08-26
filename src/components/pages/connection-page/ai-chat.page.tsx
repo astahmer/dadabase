@@ -23,6 +23,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AiSchemaContext, AiTableContext } from "#src/lib/ai/ai-types.ts";
 
 import { getDialectDefaultSchema, type DatabaseDialect } from "#src/db/dialect.ts";
+import type { FilterOperatorType } from "#src/components/query-builder/query-filter.ts";
 import { useDocumentTitle } from "#src/hooks/use-document-title.ts";
 import {
   clearStoredByokConfig,
@@ -293,6 +294,57 @@ const AiChatPageInner = ({
     void navigateToEditor(sql, newTab);
   };
 
+  /** open_workspace_view card click: browse tab pre-set with the model's state. */
+  const openWorkspaceViewTab = (view: {
+    table: string;
+    schema?: string;
+    filters?: Array<{
+      column: string;
+      operator: FilterOperatorType;
+      value?: string | number | boolean;
+    }>;
+    orderBy?: { column: string; direction: "asc" | "desc" };
+    limit?: number;
+  }) => {
+    const viewSchema = view.schema || getDialectDefaultSchema(connection.dialect);
+    const newTab = createTabState(viewSchema, view.table, {
+      ...(view.filters
+        ? {
+            filters: {
+              conditions: view.filters.map((filter) =>
+              filter.value === undefined
+                ? { column: filter.column, operator: filter.operator }
+                : {
+                    column: filter.column,
+                    operator: filter.operator,
+                    value: filter.value,
+                  },
+            ),
+              logicalOperator: "and" as const,
+            },
+            filtersOpened: true,
+          }
+        : {}),
+      ...(view.orderBy
+        ? { orderBy: view.orderBy.column, orderDirection: view.orderBy.direction }
+        : {}),
+      ...(view.limit !== undefined ? { limit: view.limit, offset: 0 } : {}),
+    });
+    return navigate({
+      to: "/connections/$connectionName",
+      params: { connectionName: connection.name },
+      search: (prev) => {
+        if (!embedded || !prev.tabs?.length) {
+          return { schema: viewSchema, activeTabId: newTab.tabId, tabs: [newTab] };
+        }
+        const tabs = prev.tabs.some((t) => t.tabId === newTab.tabId)
+          ? prev.tabs.map((t) => (t.tabId === newTab.tabId ? { ...t, ...newTab } : t))
+          : [...prev.tabs, newTab];
+        return { ...prev, schema: viewSchema, activeTabId: newTab.tabId, tabs };
+      },
+    });
+  };
+
   return (
     <div className="bg-background flex h-full min-h-0 flex-col" data-testid="ai-chat-page">
       <header className="border-border flex items-center gap-3 border-b px-4 py-2.5">
@@ -386,6 +438,7 @@ const AiChatPageInner = ({
           }}
           onApplySql={applySqlToEditor}
           onRunSql={applySqlAndRun}
+          onOpenWorkspaceView={openWorkspaceViewTab}
           onOpenProviderSettings={() => setSettingsOpen(true)}
           initialAskTable={initialAskTable}
           initialAiIntent={initialAiIntent}
@@ -627,6 +680,11 @@ const ToolsSettingsSection = ({ defaultOpen = false }: { defaultOpen?: boolean }
   useEffect(() => {
     setEnabled(getStoredEnabledChatTools());
     setHydrated(true);
+    // Storage is the source of truth: any other surface (or a remount racing
+    // hydration) must never let a stale in-memory selection win a persist.
+    const sync = () => setEnabled(getStoredEnabledChatTools());
+    window.addEventListener(BYOK_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(BYOK_CHANGED_EVENT, sync);
   }, []);
 
   const persist = (next: (typeof CHAT_TOOLS)[number]["id"][]) => {
@@ -868,6 +926,7 @@ const AiChatBody = ({
   onRevokeSchemaSharing,
   onApplySql,
   onRunSql,
+  onOpenWorkspaceView,
   onOpenProviderSettings,
   initialConversationId,
   initialAskTable,
@@ -889,6 +948,18 @@ const AiChatBody = ({
   /** Audit S8: meta identifies the thread a seeded editor can link back to. */
   onApplySql: (sql: string, meta?: ChatReturnMeta) => void;
   onRunSql: (sql: string, meta?: ChatReturnMeta) => void;
+  /** open_workspace_view card click: browse tab with the model's state. */
+  onOpenWorkspaceView: (view: {
+    table: string;
+    schema?: string;
+    filters?: Array<{
+      column: string;
+      operator: FilterOperatorType;
+      value?: string | number | boolean;
+    }>;
+    orderBy?: { column: string; direction: "asc" | "desc" };
+    limit?: number;
+  }) => void;
   /** Audit S10: auth-class errors deep-link back into provider settings. */
   onOpenProviderSettings: () => void;
   /** Audit S8: `?thread=` deep link consumed once on mount. */
@@ -998,6 +1069,7 @@ const AiChatBody = ({
           connectionName={connection.name}
           onApplySql={onApplySql}
           onRunSql={onRunSql}
+          onOpenWorkspaceView={onOpenWorkspaceView}
           onOpenProviderSettings={onOpenProviderSettings}
           schemaHint={schemaStatus}
           consentRequired={!hasApprovedSchemaSharing}
@@ -1611,6 +1683,7 @@ const ChatSurface = ({
   connectionName,
   onApplySql,
   onRunSql,
+  onOpenWorkspaceView,
   onOpenProviderSettings,
   schemaHint,
   consentRequired,
@@ -1625,6 +1698,18 @@ const ChatSurface = ({
   connectionName: string;
   onApplySql: (sql: string, meta?: ChatReturnMeta) => void;
   onRunSql: (sql: string, meta?: ChatReturnMeta) => void;
+  /** open_workspace_view card click: browse tab with the model's state. */
+  onOpenWorkspaceView: (view: {
+    table: string;
+    schema?: string;
+    filters?: Array<{
+      column: string;
+      operator: FilterOperatorType;
+      value?: string | number | boolean;
+    }>;
+    orderBy?: { column: string; direction: "asc" | "desc" };
+    limit?: number;
+  }) => void;
   /** Audit S10: auth-class errors deep-link back into provider settings. */
   onOpenProviderSettings: () => void;
   /** Post-consent transparency line about the schema context in use. */
@@ -1875,10 +1960,139 @@ const ChatSurface = ({
         </div>
       );
     }
+    if (toolName === "open_workspace_view" && isRecord(input) && typeof input.table === "string") {
+      return (
+        <div className="bg-muted/40 border-border space-y-1.5 rounded-md border p-2.5">
+          <p className="text-xs font-medium">Workspace view — {input.table}</p>
+          <ul className="text-muted-foreground space-y-0.5 text-xs">
+            {Array.isArray(input.filters)
+              ? input.filters.map((filter, i) =>
+                  isRecord(filter) && typeof filter.column === "string" ? (
+                    <li key={i}>
+                      {filter.column} {String(filter.operator)} {String(filter.value ?? "")}
+                    </li>
+                  ) : null,
+                )
+              : null}
+            {isRecord(input.orderBy) && typeof input.orderBy.column === "string" ? (
+              <li>
+                ordered by {input.orderBy.column} ({String(input.orderBy.direction ?? "asc")})
+              </li>
+            ) : null}
+            {typeof input.limit === "number" ? <li>limit {input.limit}</li> : null}
+          </ul>
+        </div>
+      );
+    }
+    if (toolName === "explain_sql" && isRecord(input) && typeof input.sql === "string") {
+      return (
+        <pre className="bg-muted/50 overflow-auto rounded-md p-2 font-mono text-xs">{input.sql}</pre>
+      );
+    }
     return undefined;
   };
 
   const renderToolResult = ({ toolName, result }: { toolName: string; result: unknown }) => {
+    if (toolName === "open_workspace_view") {
+      const view = isRecord(result) && isRecord(result.view) ? result.view : undefined;
+      const viewTable = typeof view?.table === "string" ? view.table : undefined;
+      if (viewTable !== undefined && view !== undefined) {
+        const viewFilters = Array.isArray(view.filters)
+          ? (view.filters as Array<Record<string, unknown>>)
+          : [];
+        return (
+          <div
+            className="bg-muted/40 border-border space-y-2 rounded-md border p-2.5"
+            data-testid="ai-chat-workspace-view-card"
+          >
+            <p className="text-xs font-medium">Workspace view ready</p>
+            <p className="text-muted-foreground text-xs">
+              Browse tab on {viewTable}
+              {viewFilters.length > 0
+                ? ` with ${viewFilters.length} filter${viewFilters.length === 1 ? "" : "s"}`
+                : ""}.
+            </p>
+            <Button
+              size="xs"
+              onClick={() => onOpenWorkspaceView(view as never)}
+              data-testid="ai-chat-open-view"
+            >
+              Open workspace view
+            </Button>
+          </div>
+        );
+      }
+    }
+    if (toolName === "preview_rows" && isRecord(result) && Array.isArray(result.rows)) {
+      const rows = result.rows.filter(isRecord).slice(0, 25);
+      const columns = rows.length > 0 ? Object.keys(rows[0]).slice(0, 6) : [];
+      return (
+        <div className="overflow-auto rounded-md border" data-testid="ai-chat-preview-rows">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-muted/50">
+              <tr>
+                {columns.map((column) => (
+                  <th key={column} className="px-2 py-1 font-medium">
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.slice(0, 8).map((row, i) => (
+                <tr key={i} className="border-t">
+                  {columns.map((column) => (
+                    <td key={column} className="px-2 py-1">
+                      {String(row[column] ?? "")}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    if (toolName === "table_details" && isRecord(result) && Array.isArray(result.columns)) {
+      const detailColumns = result.columns
+        .filter(isRecord)
+        .map((column) => String(column.column_name ?? column.name ?? ""))
+        .filter(Boolean);
+      return (
+        <div className="text-xs" data-testid="ai-chat-table-details">
+          <p>
+            {detailColumns.length} column(s): {detailColumns.join(", ")}
+          </p>
+          <p className="text-muted-foreground">
+            {Array.isArray(result.foreignKeys) ? `${result.foreignKeys.length} FK` : "0 FK"} ·{" "}
+            {Array.isArray(result.indexes) ? `${result.indexes.length} index(es)` : "0 index(es)"}
+          </p>
+        </div>
+      );
+    }
+    if (toolName === "explain_sql" && isRecord(result)) {
+      const planText =
+        typeof result.plan === "string"
+          ? result.plan
+          : Array.isArray(result.rows) && result.rows.length > 0
+            ? Object.values(result.rows[0] as Record<string, unknown>).join("\n")
+            : undefined;
+      if (result.ok === false || planText === undefined) {
+        return (
+          <p className="text-muted-foreground text-xs" data-testid="ai-chat-explain-skipped">
+            Plan unavailable — continuing without it.
+          </p>
+        );
+      }
+      return (
+        <pre
+          className="bg-muted/50 overflow-auto rounded-md p-2 font-mono text-xs"
+          data-testid="ai-chat-explain-plan"
+        >
+          {planText.slice(0, 2000)}
+        </pre>
+      );
+    }
     if ((toolName === "propose_sql" || toolName === "run_sql") && isRecord(result)) {
       const sql = typeof result.sql === "string" ? result.sql : undefined;
       if (sql !== undefined) {

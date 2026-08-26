@@ -154,6 +154,26 @@ export const buildChatSystemPrompt = (input: {
             "3. After a successful run_sql, summarize the result rows briefly; do not repeat full row dumps.",
           ]
       : []),
+    ...(hasTool("preview_rows")
+      ? [
+            "- When unsure about column contents or value formats, call `preview_rows` on the table first instead of guessing.",
+          ]
+      : []),
+    ...(hasTool("table_details")
+      ? [
+            "- When you need key/index/FK detail beyond the schema above, call `table_details` for that specific table.",
+          ]
+      : []),
+    ...(hasTool("explain_sql")
+      ? [
+            "- For expensive-looking scans or joins, call `explain_sql` before `propose_sql` and mention any red flags in your explanation.",
+          ]
+      : []),
+    ...(hasTool("open_workspace_view")
+      ? [
+            "- When the user wants to explore/filter a table interactively rather than get an answer, call `open_workspace_view`; they will click a card to open it.",
+          ]
+      : []),
     "",
     "SQL rules:",
     "- Prefer read-only SELECT/WITH queries.",

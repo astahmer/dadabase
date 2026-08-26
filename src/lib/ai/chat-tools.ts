@@ -14,6 +14,26 @@ export const CHAT_TOOLS = [
     label: "Run SQL",
     description: "Execute SQL against the connection (approval-gated).",
   },
+  {
+    id: "open_workspace_view",
+    label: "Open workspace view",
+    description: "Offer opening a browse tab pre-filtered on a table.",
+  },
+  {
+    id: "preview_rows",
+    label: "Preview rows",
+    description: "Peek at a few sample rows of a table before drafting SQL.",
+  },
+  {
+    id: "table_details",
+    label: "Table details",
+    description: "Inspect columns, types, keys and indexes of a table.",
+  },
+  {
+    id: "explain_sql",
+    label: "Explain SQL",
+    description: "Fetch the query plan for a statement before proposing it.",
+  },
 ] as const;
 
 export type ChatToolId = (typeof CHAT_TOOLS)[number]["id"];

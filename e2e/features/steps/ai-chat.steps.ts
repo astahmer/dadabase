@@ -20,7 +20,13 @@ const SEND_BUTTON = '[data-testid="ai-chat-send"]';
 const THREAD = '[data-testid="ai-chat-thread"]';
 const CONSENT_PARAM = "ai-schema-sharing-consent";
 
-type MockMode = "text" | "approval" | "fail500" | "proposal" | "stalled";
+type MockMode =
+  | "text"
+  | "approval"
+  | "fail500"
+  | "proposal"
+  | "stalled"
+  | "workspace_view";
 
 interface ChatTestState {
   mode: MockMode;
@@ -40,6 +46,14 @@ interface ChatTestState {
   withContext?: boolean;
   /** SQL used by the "proposal" mock mode. */
   proposalSql?: string;
+  /** Table/filter payload for the "workspace_view" mock mode (audit: tools). */
+  workspaceView?: {
+    table: string;
+    schema?: string;
+    filters?: Array<{ column: string; operator: string; value?: string | number | boolean }>;
+    orderBy?: { column: string; direction: "asc" | "desc" };
+    limit?: number;
+  };
 }
 
 const states = new WeakMap<Page, ChatTestState>();
@@ -131,6 +145,29 @@ const approvalChunks = (): Array<Record<string, unknown>> => [
   { type: "finish", finishReason: "tool-calls" },
 ];
 
+const workspaceViewChunks = (
+  view: NonNullable<ChatTestState["workspaceView"]>,
+): Array<Record<string, unknown>> => [
+  { type: "start", messageId: "mock-msg-4" },
+  { type: "start-step" },
+  { type: "text-start", id: "t1" },
+  {
+    type: "text-delta",
+    id: "t1",
+    delta: `I can open a filtered view of ${view.table} for you.`,
+  },
+  { type: "text-end", id: "t1" },
+  {
+    type: "tool-input-available",
+    toolCallId: "call_5",
+    toolName: "open_workspace_view",
+    input: view,
+  },
+  { type: "tool-output-available", toolCallId: "call_5", output: { ok: true, view } },
+  { type: "finish-step" },
+  { type: "finish", finishReason: "stop" },
+];
+
 /** Completed propose_sql (output already available): enables Use-this-SQL/Run buttons. */
 const proposalChunks = (sql: string): Array<Record<string, unknown>> => [
   { type: "start", messageId: "mock-msg-3" },
@@ -183,7 +220,9 @@ const installMock = async (page: Page): Promise<void> => {
     // Small delay so the pending-turn UI state is observable.
     await sleep(500);
     const chunks =
-      state.mode === "approval"
+      state.mode === "workspace_view"
+        ? workspaceViewChunks(state.workspaceView ?? { table: "users" })
+        : state.mode === "approval"
         ? approvalChunks()
         : state.mode === "proposal"
           ? proposalChunks(state.proposalSql ?? "SELECT 42 AS answer")
@@ -463,10 +502,27 @@ Then("a chat error becomes visible", async ({ page }) => {
 // ---------------------------------------------------------------------------
 
 const toolIdForLabel = (label: string): string => {
-  if (label === "Propose SQL") return "propose_sql";
-  if (label === "Run SQL") return "run_sql";
-  throw new Error(`Unknown chat tool label: ${label}`);
+  const known: Record<string, string> = {
+    "Propose SQL": "propose_sql",
+    "Run SQL": "run_sql",
+    "Open workspace view": "open_workspace_view",
+    "Preview rows": "preview_rows",
+    "Table details": "table_details",
+    "Explain SQL": "explain_sql",
+  };
+  const id = known[label];
+  if (id === undefined) throw new Error(`Unknown chat tool label: ${label}`);
+  return id;
 };
+
+const ALL_CHAT_TOOL_IDS = [
+  "explain_sql",
+  "open_workspace_view",
+  "preview_rows",
+  "propose_sql",
+  "run_sql",
+  "table_details",
+];
 
 When("I open the AI settings panel", async ({ page }) => {
   // Audit C7: the section may be collapsed even while its shell is rendered.
@@ -493,8 +549,8 @@ When("I toggle tool {string}", async ({ page }, label: string) => {
   await page.getByTestId(`ai-tool-checkbox-${toolIdForLabel(label)}`).click();
 });
 
-Then("both tools are checked by default", async ({ page }) => {
-  for (const id of ["propose_sql", "run_sql"]) {
+Then("all tools are checked by default", async ({ page }) => {
+  for (const id of ALL_CHAT_TOOL_IDS) {
     // ark-ui renders the checked state on the control inside the checkbox root.
     await expect(page.getByTestId(`ai-tool-checkbox-${id}`)).toHaveAttribute(
       "data-state",
@@ -1361,4 +1417,43 @@ When("I click {string}", async ({ page }, label: string) => {
     return;
   }
   throw new Error(`Unhandled generic click step: ${label}`);
+});
+
+// ---------------------------------------------------------------------------
+// open_workspace_view tool
+// ---------------------------------------------------------------------------
+
+Given(
+  "the chat API streams an open_workspace_view call for table {string} filtered by {string} equals {string}",
+  async ({ page }, table: string, column: string, value: string) => {
+    const state = stateFor(page);
+    state.mode = "workspace_view";
+    state.workspaceView = {
+      table,
+      filters: [{ column, operator: "equals", value }],
+      orderBy: { column: "id", direction: "desc" },
+      limit: 100,
+    };
+    await installMock(page);
+  },
+);
+
+When("I click the open workspace view card button", async ({ page }) => {
+  await page.getByTestId("ai-chat-open-view").click();
+});
+
+Then("a browse tab opens on table {string} with a filter on {string}", async ({ page }, table: string, column: string) => {
+  // Embedded mode keeps the workspace URL; the new tab is active and named.
+  expect(new URL(page.url()).pathname).not.toContain("/ai");
+  await expect(page.locator("[data-table-tab]").last()).toContainText(table);
+  const url = new URL(page.url());
+  // Workspace tab state rides URL-encoded (zipson + base64); decode to assert.
+  const tabsParam = url.searchParams.get("tabs") ?? "";
+  const decoded = Buffer.from(tabsParam, "base64").toString("utf8");
+  expect(decoded).toContain(table);
+  expect(decoded).toContain(column);
+});
+
+Then("the workspace view card is visible", async ({ page }) => {
+  await expect(page.getByTestId("ai-chat-workspace-view-card")).toBeVisible();
 });

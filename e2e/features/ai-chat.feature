@@ -116,17 +116,17 @@ Feature: AI chat assistant
     When I open the AI chat page
     And I approve sharing schema context
     When I open the AI settings panel
-    Then both tools are checked by default
+    Then all tools are checked by default
     And I toggle tool "Run SQL"
     And I type "list tables" and press send
-    Then the last chat request carries enabled tools "propose_sql"
+    Then the last chat request carries enabled tools "explain_sql,open_workspace_view,preview_rows,propose_sql,table_details"
     When I toggle tool "Run SQL"
     And I toggle tool "Propose SQL"
     And I type "no tools now" and press send
-    Then the last chat request carries enabled tools "run_sql"
+    Then the last chat request carries enabled tools "explain_sql,open_workspace_view,preview_rows,table_details"
     When I press "Select all" in the tools settings
     And I type "tools are back" and press send
-    Then the last chat request carries enabled tools "propose_sql,run_sql"
+    Then the last chat request carries enabled tools "explain_sql,open_workspace_view,preview_rows,propose_sql,run_sql,table_details"
 
   Scenario: Composer model picker persists a custom model into requests
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
@@ -494,3 +494,13 @@ Feature: AI chat assistant
     And I approve sharing schema context if needed
     Then the AI assistant is visible inside the workspace tabs
     And the composer contains "Write a SQL query for `users`:"
+
+  Scenario: open_workspace_view tool renders a card that opens a filtered tab
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API streams an open_workspace_view call for table "users" filtered by "status" equals "active"
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    And I type "show me active users" and press send
+    Then the workspace view card is visible
+    When I click the open workspace view card button
+    Then a browse tab opens on table "users" with a filter on "status"

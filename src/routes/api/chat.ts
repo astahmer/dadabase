@@ -18,6 +18,12 @@ import type { AiSchemaContext } from "#src/lib/ai/ai-types.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { ChatRequestConfigSchema } from "#src/lib/ai/chat-request-config.ts";
 import { AUTO_SCHEMA_HEADER } from "#src/lib/ai/chat-schema-selection.ts";
+import {
+  ExplainSqlInputSchema,
+  OpenWorkspaceViewInputSchema,
+  PreviewRowsInputSchema,
+  TableDetailsInputSchema,
+} from "#src/lib/ai/chat-tool-schemas.ts";
 import { buildChatSystemPrompt } from "#src/lib/ai/nl-to-sql-prompt.ts";
 import {
   applyAutoSelection,
@@ -31,10 +37,40 @@ import {
 } from "#src/server/chat/chat-thread.repository.ts";
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
 import { isSelectQuery } from "#src/server/introspection/detect-destructive-sql.ts";
-import { executeCustomSql } from "#src/server/introspection/introspection.ts";
+import {
+  executeCustomSql,
+  getTableColumns,
+  getTableForeignKeys,
+  getTableIndexes,
+} from "#src/server/introspection/introspection.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
 const MAX_RESULT_ROWS = 50;
+const MAX_PREVIEW_ROWS = 25;
+
+/** Minimal identifier quoting for the preview/explain helpers. */
+const quoteToolIdent = (name: string): string =>
+  /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name) ? name : `"${name.replace(/"/g, '""')}"`;
+
+/** Dialect-aware EXPLAIN prefix; null where the dialect has no EXPLAIN. */
+const explainPrefix = (dialect: string): string | null => {
+  switch (dialect) {
+    case "postgres":
+      return "EXPLAIN (FORMAT TEXT) ";
+    case "mysql":
+      return "EXPLAIN ";
+    case "sqlite":
+    case "libsql":
+      return "EXPLAIN QUERY PLAN ";
+    case "duckdb":
+      return "EXPLAIN ";
+    case "clickhouse":
+      return "EXPLAIN ";
+    default:
+      // mssql, csv (duckdb-backed but plan text is noisy) — skip gracefully.
+      return null;
+  }
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -93,6 +129,79 @@ const runSqlToolExecute = async ({
   }).pipe(withRemoteConnectionLayersFromUrl(connectionUrl));
 
   return AppRuntime.runPromise(program as never);
+};
+
+/** preview_rows: capped SELECT * over the quoted table. */
+const previewRowsToolExecute = async ({
+  table,
+  schema,
+  limit,
+  connectionUrl,
+  dialect,
+}: {
+  table: string;
+  schema?: string;
+  limit: number;
+  connectionUrl: string;
+  dialect: string;
+}) => {
+  const qualified = schema
+    ? `${quoteToolIdent(schema)}.${quoteToolIdent(table)}`
+    : quoteToolIdent(table);
+  // DuckDB-backed CSV connections default to main; qualify explicitly there.
+  const sql =
+    dialect === "duckdb" && !schema
+      ? `SELECT * FROM main.${quoteToolIdent(table)} LIMIT ${Math.min(limit, MAX_PREVIEW_ROWS)}`
+      : `SELECT * FROM ${qualified} LIMIT ${Math.min(limit, MAX_PREVIEW_ROWS)}`;
+  return runSqlToolExecute({ sql, connectionUrl });
+};
+
+/** table_details: columns + FK + indexes via the existing introspection fns. */
+const tableDetailsToolExecute = async ({
+  table,
+  schema,
+  connectionUrl,
+}: {
+  table: string;
+  schema?: string;
+  connectionUrl: string;
+}) => {
+  const program = Effect.gen(function* () {
+    const resolvedSchema = schema || "public";
+    const columns = yield* getTableColumns({ schema: resolvedSchema, table });
+    const foreignKeys = yield* getTableForeignKeys({ schema: resolvedSchema, table }).pipe(
+      Effect.catch(() => Effect.succeed([])),
+    );
+    const indexes = yield* getTableIndexes({ schema: resolvedSchema, table }).pipe(
+      Effect.catch(() => Effect.succeed([])),
+    );
+    return { ok: true as const, columns, foreignKeys, indexes };
+  }).pipe(withRemoteConnectionLayersFromUrl(connectionUrl));
+
+  return AppRuntime.runPromise(program as never);
+};
+
+/** explain_sql: dialect-aware plan; graceful skip where unsupported. */
+const explainSqlToolExecute = async ({
+  sql,
+  connectionUrl,
+  dialect,
+}: {
+  sql: string;
+  connectionUrl: string;
+  dialect: string;
+}) => {
+  const prefix = explainPrefix(dialect);
+  if (prefix === null) {
+    return {
+      ok: false as const,
+      error: `EXPLAIN is not supported for ${dialect} in dadabase; propose without it.`,
+    };
+  }
+  if (!isSelectQuery(sql)) {
+    return { ok: false as const, error: "Only SELECT/WITH statements can be explained." };
+  }
+  return runSqlToolExecute({ sql: `${prefix}${sql}`, connectionUrl });
 };
 
 export const Route = createFileRoute("/api/chat")({
@@ -239,6 +348,63 @@ export const Route = createFileRoute("/api/chat")({
                     }),
                     execute: async ({ sql }) =>
                       runSqlToolExecute({ sql, connectionUrl: connection.url }),
+                  }),
+                }
+              : {}),
+            ...(enabledTools.includes("open_workspace_view")
+              ? {
+                  open_workspace_view: tool({
+                    description:
+                      "Offer opening a workspace browse tab pre-filtered on a table. The user must click the card to open it — never assume they did.",
+                    inputSchema: OpenWorkspaceViewInputSchema,
+                    execute: async (input) => ({ ok: true as const, view: input }),
+                  }),
+                }
+              : {}),
+            ...(enabledTools.includes("preview_rows")
+              ? {
+                  preview_rows: tool({
+                    description:
+                      "Peek at up to 25 sample rows of a table to learn its shape before drafting SQL.",
+                    inputSchema: PreviewRowsInputSchema,
+                    execute: async ({ table, schema, limit }) =>
+                      previewRowsToolExecute({
+                        table,
+                        schema,
+                        limit,
+                        connectionUrl: connection.url,
+                        dialect: connection.dialect,
+                      }),
+                  }),
+                }
+              : {}),
+            ...(enabledTools.includes("table_details")
+              ? {
+                  table_details: tool({
+                    description:
+                      "Inspect a table's columns/types plus FK and index metadata.",
+                    inputSchema: TableDetailsInputSchema,
+                    execute: async ({ table, schema }) =>
+                      tableDetailsToolExecute({
+                        table,
+                        schema,
+                        connectionUrl: connection.url,
+                      }),
+                  }),
+                }
+              : {}),
+            ...(enabledTools.includes("explain_sql")
+              ? {
+                  explain_sql: tool({
+                    description:
+                      "Fetch the query execution plan for a SELECT statement before proposing it.",
+                    inputSchema: ExplainSqlInputSchema,
+                    execute: async ({ sql }) =>
+                      explainSqlToolExecute({
+                        sql,
+                        connectionUrl: connection.url,
+                        dialect: connection.dialect,
+                      }),
                   }),
                 }
               : {}),
