@@ -381,7 +381,8 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
                   <div className="px-4">
                     <Listbox.Input
                       placeholder="Filter tables..."
-                      autoFocus
+                      // No autoFocus here: the new-tab empty state owns initial focus
+                      // (its central search input). This filter is one click away.
                       defaultValue={tableFilter}
                       onChange={(e) =>
                         navigate({
