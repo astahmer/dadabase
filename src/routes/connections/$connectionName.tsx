@@ -80,7 +80,10 @@ const TabStateSchema = Schema.Struct({
   customSqlId: Schema.String.pipe(Schema.optional), // ID of executed custom SQL (replaces customSql after execution)
   // Legacy: ignored. Draft sticky is local editor state now.
   editorDetached: Schema.Boolean.pipe(Schema.optional),
-  initialTabMode: Schema.Literals(["table", "sql"]).pipe(Schema.optional), // Initial mode for empty tabs
+  // "ai" tabs host the embedded assistant; askTable/aiIntent carry its seed.
+  initialTabMode: Schema.Literals(["table", "sql", "ai"]).pipe(Schema.optional), // Initial mode for empty tabs
+  askTable: Schema.String.pipe(Schema.optional), // AI tab seed: scope schema to this table
+  aiIntent: Schema.Literals(["chat", "sql"]).pipe(Schema.optional), // AI tab seed: propose-a-query vs explore
   clientFilter: Schema.String.pipe(Schema.optional), // Client-side JS filter expression (draft input)
   clientFilterApproved: Schema.String.pipe(Schema.optional), // Approved client-side JS filter expression (active)
 });

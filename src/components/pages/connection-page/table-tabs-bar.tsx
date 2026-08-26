@@ -24,6 +24,7 @@ import {
   Edit2,
   PanelLeft,
   Plus,
+  Sparkles,
   X,
 } from "lucide-react";
 
@@ -47,6 +48,7 @@ interface TableTabsBarProps {
   onTabChange: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
   onAddTab?: () => void;
+  onAddAiTab?: () => void;
   onTabHover?: (tab: TableTab) => void;
   onDuplicateTab?: (tabId: string) => void;
   onCloseTabsOnLeft?: (tabId: string) => void;
@@ -231,6 +233,7 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
     onTabChange,
     onTabClose,
     onAddTab,
+  onAddAiTab,
     onTabHover,
     onDuplicateTab,
     onCloseTabsOnLeft,
@@ -325,6 +328,21 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
                 type="button"
               >
                 <Plus className="h-4 w-4" />
+              </Button>
+            </Tooltip>
+          )}
+          {onAddAiTab && (
+            <Tooltip content="New AI assistant tab">
+              <Button
+                onClick={onAddAiTab}
+                variant="ghost"
+                size="xs"
+                className="relative top-[3px] shrink-0"
+                aria-label="New AI assistant tab"
+                data-testid="tab-ai-new"
+                type="button"
+              >
+                <Sparkles className="text-primary h-4 w-4" />
               </Button>
             </Tooltip>
           )}

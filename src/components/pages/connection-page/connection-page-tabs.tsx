@@ -21,6 +21,7 @@ import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/
 
 import {
   addTabStateAfterCurrent,
+  aiTabSearchUpdate,
   createTabState,
   scrollToTab,
   updateTabState,
@@ -365,6 +366,11 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
       onCloseAllTabs={onCloseAllTabs}
       onCopyTabUrl={handleCopyTabUrl}
       onRenameTab={handleRenameTab}
+      onAddAiTab={() => {
+        void navigate({
+          search: (prev) => aiTabSearchUpdate(prev),
+        });
+      }}
       onAddTab={() => {
         const currentTab = tabs.find((t) => t.tabId === activeTabId);
         const tabId = `empty-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;

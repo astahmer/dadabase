@@ -13,7 +13,13 @@ export const createTabState = (
   table: string,
   options?: Partial<TabState>,
 ): TabState => {
-  const tabName = options?.tabName ?? (table ? table : "New Tab");
+  const tabName =
+    options?.tabName ??
+    (table
+      ? table
+      : options?.initialTabMode === "ai"
+        ? "AI Assistant"
+        : "New Tab");
 
   return {
     tabId: `${schema}.${table}:${options?.fkValue ?? ""}:${Math.random().toString(36).substr(2, 4)}`,
@@ -47,6 +53,8 @@ export const createTabState = (
     sqlPreviewSize: options?.sqlPreviewSize ?? 0,
     clientFilter: options?.clientFilter,
     clientFilterApproved: options?.clientFilterApproved,
+    askTable: options?.askTable,
+    aiIntent: options?.aiIntent,
   };
 };
 
@@ -114,6 +122,23 @@ export const addTabStateAfterCurrent = (prev: ConnectionPageSearch, _newTab: Tab
     tabs: tabs,
     activeTabId: newTab.tabId,
   };
+};
+
+/**
+ * Build the search update that appends an AI tab after the current one.
+ * Existing tabs/state are untouched — AI is just another tab kind.
+ */
+export const aiTabSearchUpdate = (
+  prev: ConnectionPageSearch,
+  options?: { askTable?: string; aiIntent?: "chat" | "sql" },
+): ConnectionPageSearch => {
+  const schema = prev.schema || "public";
+  const newTab = createTabState(schema, "", {
+    initialTabMode: "ai",
+    askTable: options?.askTable,
+    aiIntent: options?.aiIntent ?? (options?.askTable ? "sql" : "chat"),
+  });
+  return addTabStateAfterCurrent(prev, newTab);
 };
 
 export const scrollToTab = (tabId: string) => {

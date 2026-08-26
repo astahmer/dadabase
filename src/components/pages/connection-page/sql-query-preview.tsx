@@ -12,6 +12,7 @@ import {
   Star,
   Wand2,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { type ReactNode, useEffectEvent, useRef, useState } from "react";
 
@@ -81,6 +82,8 @@ interface SqlQueryPreviewProps {
   snippetTables?: Array<string>;
   /** Table preselected in the snippet picker. */
   snippetActiveTable?: string;
+  /** Audit: open an AI tab seeded to propose a query for this context. */
+  onSuggestQuery?: () => void;
   /** Callback to toggle collapsed state */
   onToggleCollapsed?: (collapsed: boolean) => void;
   /** Available tables for intellisense suggestions */
@@ -127,6 +130,7 @@ export function SqlQueryPreview({
   tables = [],
   columns = [],
   snippetActiveTable,
+  onSuggestQuery,
   onInsertSnippet,
   className,
   warning,
@@ -296,6 +300,22 @@ export function SqlQueryPreview({
               tables={tables.map((table) => table.name)}
               activeTable={snippetActiveTable}
             />
+            {onSuggestQuery && (
+              <Tooltip content="Suggest query with AI">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onSuggestQuery}
+                  data-testid="suggest-query-ai"
+                  aria-label="Suggest query with AI"
+                  type="button"
+                  className="h-8 gap-1.5 px-2"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Suggest query
+                </Button>
+              </Tooltip>
+            )}
             {/* Action buttons — when expanded, or while running so Cancel stays reachable */}
             {(!isCollapsed || isLoading) && (
               <>

@@ -126,12 +126,19 @@ export const AiChatPage = ({
   connectionName,
   initialConversationId,
   initialAskTable,
+  initialAiIntent,
+  embedded,
 }: {
   connectionName: string;
   /** Audit S8: `?thread=` deep link — select this conversation on mount. */
   initialConversationId?: string;
   /** Audit K4: `?askTable=` deep link — scope schema + pre-seed a draft. */
   initialAskTable?: string;
+  /** "sql" seeds a propose-a-query draft instead of explore phrasing. */
+  initialAiIntent?: "chat" | "sql";
+  /** Rendered inside a workspace tab: keep tab-state URLs intact, skip
+   * flat-route URL cleanup, and never discard sibling tabs on "Use this SQL". */
+  embedded?: boolean;
 }) => {
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
   useDocumentTitle(`${connectionName} · AI assistant — Dadabase`);
@@ -159,6 +166,8 @@ export const AiChatPage = ({
     connection={connection}
     initialConversationId={initialConversationId}
     initialAskTable={initialAskTable}
+    initialAiIntent={initialAiIntent}
+    embedded={embedded}
   />;
 };
 
@@ -166,29 +175,32 @@ const AiChatPageInner = ({
   connection,
   initialConversationId,
   initialAskTable,
+  initialAiIntent,
+  embedded,
 }: {
   connection: DbConnection;
   initialConversationId?: string;
   initialAskTable?: string;
+  initialAiIntent?: "chat" | "sql";
+  embedded?: boolean;
 }) => {
-  const navigate = useNavigate({ from: "/connections/$connectionName/ai" });
+  const navigate = useNavigate();
   // Audit T5: workspace tab-state writers can fire while the /ai child route
   // is active (they `navigate({ search })` without a destination, so the tab
   // fields land on this route's URL). Strip inherited tab keys so shared
   // links stay clean. `thread`/`askTable` are ours and are kept.
   useEffect(() => {
+    // Embedded mode lives in the workspace tab state — inherited keys are ours.
+    if (embedded) return;
     const params = new URLSearchParams(window.location.search);
     const stale = [...params.keys()].filter((key) => key !== "thread" && key !== "askTable");
     if (stale.length === 0) return;
-    void navigate({
-      search: (prev) => {
-        const next = { ...prev } as Record<string, unknown>;
-        for (const key of stale) delete next[key];
-        return next;
-      },
-      replace: true,
-    });
-  }, [navigate]);
+    // Same mechanism as the K4 seed: plain history API keeps this component
+    // routable both from the flat route and embedded inside a workspace tab.
+    const url = new URL(window.location.href);
+    for (const key of stale) url.searchParams.delete(key);
+    window.history.replaceState({}, "", url);
+  }, [embedded]);
   // Dialect-aware: SQLite/LibSQL live in "main", Postgres in "public".
   const [schema] = useState(() => getDialectDefaultSchema(connection.dialect));
   const [settingsOpen, setSettingsOpen] = useState(() => !hasUsableByokConfig());
@@ -251,7 +263,17 @@ const AiChatPageInner = ({
     return navigate({
       to: "/connections/$connectionName",
       params: { connectionName: connection.name },
-      search: { schema, activeTabId: newTab.tabId, tabs: [newTab] },
+      search: (prev) => {
+        // Embedded (workspace tab): add/activate the editor tab WITHOUT
+        // discarding sibling tabs — the whole point of AI-as-a-tab.
+        if (!embedded || !prev.tabs?.length) {
+          return { schema, activeTabId: newTab.tabId, tabs: [newTab] };
+        }
+        const tabs = prev.tabs.some((t) => t.tabId === newTab.tabId)
+          ? prev.tabs.map((t) => (t.tabId === newTab.tabId ? { ...t, ...newTab } : t))
+          : [...prev.tabs, newTab];
+        return { ...prev, schema, activeTabId: newTab.tabId, tabs };
+      },
     });
   };
 
@@ -366,6 +388,7 @@ const AiChatPageInner = ({
           onRunSql={applySqlAndRun}
           onOpenProviderSettings={() => setSettingsOpen(true)}
           initialAskTable={initialAskTable}
+          initialAiIntent={initialAiIntent}
           onAdoptAutoTables={(tables) => {
             // Audit T2: clicking auto-picked table chips adopts them as the
             // manual selection — "Auto guessed wrong" becomes one click away.
@@ -848,6 +871,7 @@ const AiChatBody = ({
   onOpenProviderSettings,
   initialConversationId,
   initialAskTable,
+  initialAiIntent,
   onAdoptAutoTables,
   onOpenSchemaPanel,
   threadList,
@@ -871,6 +895,7 @@ const AiChatBody = ({
   initialConversationId?: string;
   /** Audit K4: `?askTable=` pre-seeds draft + Selected scope for one table. */
   initialAskTable?: string;
+  initialAiIntent?: "chat" | "sql";
   /** Audit T2: adopt auto-picked tables as a manual selection. */
   onAdoptAutoTables: (tables: readonly string[]) => void;
   /** Audit K6: `/schema` opens the schema settings panel. */
@@ -980,6 +1005,7 @@ const AiChatBody = ({
           providerReady={providerReady}
           dialect={connection.dialect}
           initialAskTable={initialAskTable}
+          initialAiIntent={initialAiIntent}
           onAdoptAutoTables={onAdoptAutoTables}
           onOpenSchemaPanel={onOpenSchemaPanel}
         />
@@ -1147,7 +1173,6 @@ const ThreadListItem = ({
  * events sent to an actor before start() runs.
  */
 const InitialThreadConsumer = ({ initialConversationId }: { initialConversationId?: string }) => {
-  const navigate = useNavigate({ from: "/connections/$connectionName/ai" });
   const actions = useChatActions();
   const consumed = useRef<string | undefined>(undefined);
   useEffect(() => {
@@ -1156,10 +1181,14 @@ const InitialThreadConsumer = ({ initialConversationId }: { initialConversationI
     consumed.current = initialConversationId;
     const timer = window.setTimeout(() => {
       actions.selectConversation({ conversationId: initialConversationId });
-      void navigate({ search: {}, replace: true });
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("thread")) {
+        url.searchParams.delete("thread");
+        window.history.replaceState({}, "", url);
+      }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [initialConversationId, actions, navigate]);
+  }, [initialConversationId, actions]);
   return null;
 };
 
@@ -1591,6 +1620,7 @@ const ChatSurface = ({
   onAdoptAutoTables,
   onOpenSchemaPanel,
   initialAskTable,
+  initialAiIntent,
 }: {
   connectionName: string;
   onApplySql: (sql: string, meta?: ChatReturnMeta) => void;
@@ -1611,6 +1641,7 @@ const ChatSurface = ({
   onOpenSchemaPanel: () => void;
   /** Audit K4: `?askTable=` pre-seeds draft + Selected scope for one table. */
   initialAskTable?: string;
+  initialAiIntent?: "chat" | "sql";
 }) => {
   const messages = useChatSelector((s) => s.activeThread.messages);
   const isStreaming = useChatSelector((s) => s.activeThread.isStreaming);
@@ -1657,7 +1688,10 @@ const ChatSurface = ({
       selectedTables: [initialAskTable],
     });
     window.dispatchEvent(new Event(SCHEMA_SELECTION_CHANGED_EVENT));
-    const seededText = `Explore the \`${initialAskTable}\` table:`;
+    const seededText =
+      initialAiIntent === "sql"
+        ? `Write a SQL query for \`${initialAskTable}\`:`
+        : `Explore the \`${initialAskTable}\` table:`;
     let attempts = 0;
     const seed = (): void => {
       attempts += 1;
@@ -1673,7 +1707,7 @@ const ChatSurface = ({
     }
     // Run once per param value; the draft belongs to the runtime afterwards.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialAskTable]);
+  }, [initialAskTable, initialAiIntent]);
 
   // Audit S6: the runtime persists the composer draft per connection, but
   // nothing re-read it after a reload until the next conversation switch —

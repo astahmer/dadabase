@@ -167,6 +167,7 @@ import {
 } from "./connection-page/create-tab-state.ts";
 import { DestructiveQueryConfirmDialog } from "./connection-page/destructive-query-confirm.dialog.tsx";
 import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
+import { AiChatPage } from "./connection-page/ai-chat.page.tsx";
 import { ErDiagramView } from "./connection-page/er-diagram-view.tsx";
 import { ExplainOutputDrawer } from "./connection-page/explain-output-drawer.tsx";
 import { ImportDataSheet, type ImportTask } from "./connection-page/import-data-sheet.tsx";
@@ -265,6 +266,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     schema: tab.schema,
     table: tab.table,
     initialTabMode: tab.initialTabMode,
+    askTable: tab.askTable,
+    aiIntent: tab.aiIntent,
   }));
   const selectedSchema = search.schema || undefined;
 
@@ -695,6 +698,13 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                       </div>
                     ) : schemaListQuery.isError ? (
                       <TabErrorState activeConnectionUrl={activeConnectionUrl} />
+                    ) : search.initialTabMode === "ai" ? (
+                      <AiChatPage
+                        connectionName={connection.name}
+                        initialAskTable={search.askTable}
+                        initialAiIntent={search.aiIntent}
+                        embedded
+                      />
                     ) : search.initialTabMode === "sql" ? (
                       <CustomSqlWorkspace
                         activeConnectionUrl={activeConnectionUrl}
@@ -1576,6 +1586,19 @@ const RowsTableSqlEditor = (
     };
   });
 
+  /** Open an AI tab seeded to propose a query for this context. */
+  const suggestQueryWithAi = () => {
+    const askTable = search.table || undefined;
+    const newTab = createTabState(
+      search.schema || getDialectDefaultSchema(props.connection.dialect),
+      "",
+      { initialTabMode: "ai", askTable, aiIntent: "sql" },
+    );
+    void navigate({
+      search: (prev) => ({ ...prev, ...addTabStateAfterCurrent(prev, newTab) }),
+    }).then(() => scrollToTab(newTab.tabId));
+  };
+
   const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
 
   // Keep draft SQL locally - don't switch to custom SQL mode until user runs
@@ -1708,6 +1731,7 @@ const RowsTableSqlEditor = (
         tables={tables}
         columns={columns}
         snippetActiveTable={search.table}
+        onSuggestQuery={suggestQueryWithAi}
         sql={props.sqlQueryAsText}
         customSql={draftSql ?? undefined}
         allowEmptySql={props.allowEmptySql}

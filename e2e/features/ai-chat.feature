@@ -471,3 +471,26 @@ Feature: AI chat assistant
     And I approve sharing schema context if needed
     Then the composer contains "Explore the `posts` table:"
     And the schema status reports a manually selected subset
+
+  Scenario: Opening an AI tab preserves existing workspace tabs
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    When I open the connection workspace
+    And I pick table "users" from the new-tab listbox
+    Then the rows grid is visible
+    When I open a new AI tab from the tab strip
+    And I approve sharing schema context if needed
+    Then the AI assistant is visible inside the workspace tabs
+    And the tab strip shows 2 tabs
+    When I switch back to the "users" workspace tab
+    Then the rows grid is visible
+    When I switch to the AI assistant workspace tab
+    Then the AI assistant is visible inside the workspace tabs
+
+  Scenario: Suggest query with AI opens a seeded AI tab
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    When I open the connection workspace
+    And I pick table "users" from the new-tab listbox
+    And I click "Suggest query with AI"
+    And I approve sharing schema context if needed
+    Then the AI assistant is visible inside the workspace tabs
+    And the composer contains "Write a SQL query for `users`:"

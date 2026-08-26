@@ -1296,3 +1296,69 @@ Then("the schema status reports a manually selected subset", async ({ page }) =>
     { timeout: 15_000 },
   );
 });
+
+When("I open the connection workspace", async ({ page }) => {
+  await page.goto("/connections/e2e-sqlite", {
+    waitUntil: "domcontentloaded",
+    timeout: 30_000,
+  });
+  await expect(page.getByTestId("connection-tabs-bar")).toBeVisible({ timeout: 30_000 });
+});
+
+When("I pick table {string} from the new-tab listbox", async ({ page }, table: string) => {
+  await page.getByTestId(`empty-tab-option-${table}`).click({ timeout: 15_000 });
+  await expect(page.getByTestId("rows-table-panel")).toBeVisible({ timeout: 20_000 });
+});
+
+Then("the rows grid is visible", async ({ page }) => {
+  await expect(page.getByTestId("rows-table-panel")).toBeVisible({ timeout: 15_000 });
+});
+
+When("I open a new AI tab from the tab strip", async ({ page }) => {
+  await page.getByTestId("tab-ai-new").click();
+});
+
+When("I switch back to the {string} workspace tab", async ({ page }, name: string) => {
+  await page
+    .locator('[data-table-tab]')
+    .filter({ hasText: name })
+    .first()
+    .click();
+  await expect(page.locator('[data-table-tab]').filter({ hasText: name }).first()).toHaveAttribute(
+    'data-table-tab-active',
+    /.*/,
+  );
+});
+
+When("I switch to the AI assistant workspace tab", async ({ page }) => {
+  await page
+    .locator('[data-table-tab]')
+    .filter({ hasText: 'AI Assistant' })
+    .first()
+    .click();
+  await expect(page.getByTestId('ai-chat-page')).toBeVisible({ timeout: 15_000 });
+});
+
+Then("the AI assistant is visible inside the workspace tabs", async ({ page }) => {
+  await expect(page.getByTestId('ai-chat-page')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('connection-tabs-bar')).toBeVisible();
+  // Embedded mode keeps the workspace URL — not the flat /ai route.
+  expect(new URL(page.url()).pathname).not.toContain('/ai');
+});
+
+Then("the tab strip shows {int} tabs", async ({ page }, count: number) => {
+  await expect(page.locator('[data-table-tab]')).toHaveCount(count);
+});
+
+When("I click {string}", async ({ page }, label: string) => {
+  if (label === "Suggest query with AI") {
+    const btn = page.getByTestId("suggest-query-ai");
+    // The SQL preview collapses by default; the button lives in its toolbar.
+    if (!(await btn.isVisible().catch(() => false))) {
+      await page.getByTestId("sql-query-toggle").click();
+    }
+    await btn.click({ timeout: 15_000 });
+    return;
+  }
+  throw new Error(`Unhandled generic click step: ${label}`);
+});
