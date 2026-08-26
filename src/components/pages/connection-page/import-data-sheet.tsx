@@ -24,6 +24,7 @@ import {
 } from "#src/lib/data-import/index.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { getErrorMessage } from "#src/lib/get-error-message.ts";
+import { queryHistorySkipFlag } from "#src/lib/query-history-settings.ts";
 import { executeCustomSqlServerFn } from "#src/server/introspection/start-fns/execute-custom-sql.start.ts";
 
 import { invalidateSchemaMetadataQueries } from "./invalidate-schema-metadata.ts";
@@ -88,7 +89,9 @@ export function ImportDataSheet(props: ImportDataSheetProps) {
     mutationFn: async (input: { sql: string; task: ImportTask }) => {
       const blocked = guardReadOnlyMutation(connectionUrl);
       if (blocked) throw new Error(blocked);
-      return executeCustomSqlServerFn({ data: { url: connectionUrl, sql: input.sql } });
+      return executeCustomSqlServerFn({
+        data: { url: connectionUrl, sql: input.sql, ...queryHistorySkipFlag() },
+      });
     },
     onSuccess: async (_data, input) => {
       toaster.create({

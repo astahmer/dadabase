@@ -156,7 +156,7 @@ export const GroupByHavingControls = (props: GroupByHavingControlsProps) => {
           onLogicalOperatorChange={havingBuilder.setLogicalOperator}
           onAddCondition={havingBuilder.addCondition}
           onClearAll={havingBuilder.clearConditions}
-          logicalOperator={havingBuilder.filter.logicalOperator}
+          logicalOperator={havingBuilder.filter.logicalOperator ?? "and"}
           availableColumns={havingColumns}
           isLoading={isLoading}
           disabled={groupBy.length === 0}

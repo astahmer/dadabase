@@ -5,6 +5,7 @@ import { Button } from "#src/components/ui/button.tsx";
 import { Input } from "#src/components/ui/input.tsx";
 import { Switch, SwitchControl, SwitchThumb } from "#src/components/ui/switch.tsx";
 import { toaster } from "#src/components/ui/toaster.tsx";
+import { noteRowMutations } from "#src/lib/csv-unsaved-changes.ts";
 import {
   coerceColumnValue,
   isBooleanDataType,
@@ -119,6 +120,7 @@ export function InlineCellEditor(props: InlineCellEditorProps) {
       });
     },
     onSuccess: () => {
+      noteRowMutations(connectionUrl, table);
       toaster.create({
         title: "Saved",
         description: `Updated ${columnName}`,

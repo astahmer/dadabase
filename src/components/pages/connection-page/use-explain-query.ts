@@ -14,7 +14,12 @@ function isExplainSupported(dialect: DatabaseDialect): boolean {
   return (
     dialect === DatabaseDialect.Postgres ||
     dialect === DatabaseDialect.SQLite ||
-    dialect === DatabaseDialect.LibSQL
+    dialect === DatabaseDialect.LibSQL ||
+    // DuckDB supports EXPLAIN ANALYZE; its {explain_key, explain_value} result
+    // shape is normalized server-side in explain-query.start.ts.
+    dialect === DatabaseDialect.DuckDB ||
+    // CSV connections run on the same embedded engine.
+    dialect === DatabaseDialect.Csv
   );
 }
 

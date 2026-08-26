@@ -1,5 +1,6 @@
-import { Checkbox, CheckboxControl, CheckboxLabel } from "#src/components/ui/checkbox.tsx";
 import { useState } from "react";
+
+import { Checkbox, CheckboxControl, CheckboxLabel } from "#src/components/ui/checkbox.tsx";
 
 import { Stack } from "./layout.tsx";
 

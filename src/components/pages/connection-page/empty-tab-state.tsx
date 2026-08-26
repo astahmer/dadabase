@@ -1,21 +1,19 @@
-import { createListCollection, Listbox } from "@ark-ui/react/listbox";
-import { useFilter } from "@ark-ui/react/locale";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { MessageCircleQuestion, Plus, Table2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 
-import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
-import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 
 import type { DbConnection } from "../connection.types";
 
 import { Button } from "../../ui/button";
-import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import { createTabState, updateTabState, useActiveTabState } from "./create-tab-state.ts";
+import { getRecentTables, recordRecentTable, type RecentTable } from "./recent-tables.ts";
 
 interface EmptyTabState {
   activeConnectionUrl: string;
@@ -31,20 +29,17 @@ export const EmptyTabState = (props: EmptyTabState) => {
   const mode = useActiveTabState((s) => s.initialTabMode ?? "table");
   const selectedSchema = useActiveTabState((s) => s.schema);
 
-  const tablesListQuery = useQuery({
-    ...listAvailableTablesQueryOptions({ url: activeConnectionUrl, schema: selectedSchema }),
-    enabled: !!selectedSchema,
-    retry: 3,
-  });
+  // Defer interactive UI until after hydration — clicking these buttons on the
+  // SSR-rendered markup would hit elements whose handlers aren't attached yet.
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => setIsMounted(true), []);
 
-  if (tablesListQuery.isLoading) {
-    return (
-      <div className="text-center">
-        <span className="text-muted-foreground">Loading tables...</span>
-      </div>
-    );
+  if (!isMounted) {
+    return null;
   }
 
+  // The sidebar is the single authoritative table navigator; this surface is a
+  // launcher (recents + quick actions), so no second table list lives here.
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col gap-4 py-2">
       {/* Mode Tabs */}
@@ -110,76 +105,32 @@ export const EmptyTabState = (props: EmptyTabState) => {
         </Button>
       </div>
 
-      {/* Table Selection Mode */}
+      {/* Launcher */}
       {mode === "table" && (
-        <TableSelectionTab
+        <EmptyTabLauncher
+          connection={props.connection}
           activeConnectionUrl={activeConnectionUrl}
-          connection={connection}
           selectedSchema={selectedSchema}
-          tables={props.tables}
-          columns={props.columns}
         />
       )}
     </div>
   );
 };
 
-const TableSelectionTab = (props: {
-  activeConnectionUrl: string;
-  connection: DbConnection;
-  selectedSchema: string;
-  tables: Array<{ schema: string; name: string }>;
-  columns: Array<TableWithColumnsMetadata>;
-}) => {
+/** Pick a table straight into a browse tab (shared by recents + future launchers). */
+const useOpenTable = (activeConnectionUrl: string, connection: DbConnection) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const queryClient = useQueryClient();
+  const selectedSchema = useActiveTabState((s) => s.schema);
+  const { connectionName } = useConnectionNameParam();
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [filterText, setFilterText] = useState("");
-  const { contains } = useFilter({ sensitivity: "base" });
-
-  const isNotSqlite = !(
-    props.connection.dialect === DatabaseDialect.SQLite ||
-    props.connection.dialect === DatabaseDialect.LibSQL
-  );
-
-  const tablesListQuery = useQuery({
-    ...listAvailableTablesQueryOptions({
-      url: props.activeConnectionUrl,
-      schema: props.selectedSchema,
-    }),
-    enabled: !!props.selectedSchema,
-    retry: 3,
-  });
-  const tableList = tablesListQuery.data || [];
-  const filteredTables = useMemo(
-    () =>
-      tableList.filter(
-        (table) =>
-          (filterText ? contains(table.name, filterText) : true) &&
-          (isNotSqlite ? props.selectedSchema === table.schema : true),
-      ),
-    [tableList, filterText, props.selectedSchema, contains, isNotSqlite],
-  );
-
-  const tableCollection = useMemo(
-    () =>
-      createListCollection({
-        items: filteredTables.map((t) => ({
-          label: t.name,
-          value: t.name,
-        })),
-      }),
-    [filteredTables],
-  );
-
-  const handleTableSelect = (tableName: string) => {
-    const schema = props.selectedSchema || getDialectDefaultSchema(props.connection.dialect);
-    const newTab = createTabState(schema, tableName);
+  return (tableName: string) => {
+    const schema = selectedSchema || getDialectDefaultSchema(connection.dialect);
+    recordRecentTable(connectionName, schema, tableName);
 
     queryClient.prefetchQuery({
       ...queryTableDataQueryOptions({
-        url: props.activeConnectionUrl,
+        url: activeConnectionUrl,
         schema,
         table: tableName,
         limit: getStoredPageLimit(),
@@ -197,6 +148,7 @@ const TableSelectionTab = (props: {
       search: (prev) => {
         const currentTab = (prev.tabs ?? []).find((t) => t.tabId === prev.activeTabId);
         const isCurrentTabEmpty = !currentTab?.table;
+        const newTab = createTabState(schema, tableName);
 
         // Replace the empty tab
         if (isCurrentTabEmpty && currentTab) {
@@ -223,118 +175,125 @@ const TableSelectionTab = (props: {
       },
     });
   };
+};
+
+// Tiny helper so hooks above can read the route param without prop drilling.
+const useConnectionNameParam = () =>
+  useParams({ from: "/connections/$connectionName" }) as { connectionName: string };
+
+const EmptyTabLauncher = (props: {
+  connection: DbConnection;
+  activeConnectionUrl: string;
+  selectedSchema: string;
+}) => {
+  const { connectionName } = useConnectionNameParam();
+  const [recents, setRecents] = useState<Array<RecentTable>>(() =>
+    getRecentTables(connectionName),
+  );
+
+  // Re-read when the launcher mounts for a different connection.
+  useEffect(() => {
+    setRecents(getRecentTables(connectionName));
+  }, [connectionName]);
+
+  const openTable = useOpenTable(props.activeConnectionUrl, props.connection);
+  const navigate = useNavigate({ from: "/connections/$connectionName" });
+
+  const openSqlTab = () => {
+    navigate({
+      search: (prev) => {
+        const schema =
+          props.selectedSchema || getDialectDefaultSchema(props.connection.dialect);
+        const newTab = createTabState(schema, "", { initialTabMode: "sql" });
+        const currentTab = (prev.tabs ?? []).find((t) => t.tabId === prev.activeTabId);
+
+        if (currentTab && !currentTab.table) {
+          return {
+            ...prev,
+            ...updateTabState(prev, {
+              ...newTab,
+              tabId: currentTab.tabId,
+              initialTabMode: "sql",
+            }),
+          };
+        }
+
+        return {
+          ...prev,
+          ...newTab,
+          tabs: [...(prev.tabs ?? []), newTab],
+          activeTabId: newTab.tabId,
+        };
+      },
+    });
+  };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header */}
+    <div className="flex flex-col gap-5 py-6">
       <div>
-        <h2 className="text-foreground mb-1 text-xl font-semibold">Select a table</h2>
-        <p className="text-muted-foreground text-sm">Choose a table to view and explore its data</p>
+        <h2 className="text-foreground mb-1 text-xl font-semibold">What would you like to do?</h2>
+        <p className="text-muted-foreground text-sm">
+          Pick a table from the sidebar to browse it — or start from one of these.
+        </p>
       </div>
 
-      <Listbox.Root
-        collection={tableCollection}
-        onSelect={(details) => {
-          handleTableSelect(details.value);
-        }}
-      >
-        {/* Search Input */}
-        <div className="relative">
-          <svg
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          <Listbox.Input
-            ref={inputRef}
-            placeholder="Search tables..."
-            value={filterText}
-            autoFocus
-            onChange={(e) => setFilterText(e.target.value)}
-            className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-ring w-full rounded-lg border py-2.5 pr-4 pl-10 shadow-sm transition-all focus-visible:border-transparent focus-visible:ring-2 focus-visible:outline-none"
-          />
-        </div>
-
-        {/* Tables List */}
-        {filteredTables.length === 0 ? (
-          <div className="border-muted-foreground/30 bg-muted/20 rounded-lg border border-dashed p-8 text-center">
-            <svg
-              className="text-muted-foreground/40 mx-auto mb-3 h-10 w-10"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M12 6v6m0 0v6m0-6h6m0 0h6M6 12a6 6 0 11-0.001.001A6.002 6.002 0 016 12z"
-              />
-            </svg>
-            <span className="text-muted-foreground text-sm">
-              {tableList.length === 0 ? "No tables available" : "No tables match your search"}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Button
+          variant="outline"
+          className="h-auto items-start justify-start gap-3 p-4 text-left"
+          onClick={openSqlTab}
+          data-testid="launcher-new-sql"
+        >
+          <Plus className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <span className="block font-medium">New SQL query</span>
+            <span className="text-muted-foreground block text-xs">
+              Open the custom SQL workspace
             </span>
+          </span>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-auto items-start justify-start gap-3 p-4 text-left"
+          onClick={() =>
+            navigate({ to: "/connections/$connectionName/ai", params: { connectionName } })
+          }
+          data-testid="launcher-ask-ai"
+        >
+          <MessageCircleQuestion className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <span className="block font-medium">Ask AI</span>
+            <span className="text-muted-foreground block text-xs">
+              Query your data in plain language
+            </span>
+          </span>
+        </Button>
+      </div>
+
+      {recents.length > 0 && (
+        <div>
+          <h3 className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
+            Recent tables
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {recents.map((entry) => (
+              <Button
+                key={`${entry.schema}.${entry.table}`}
+                variant="outline"
+                size="sm"
+                onClick={() => openTable(entry.table)}
+                data-testid={`launcher-recent-${entry.table}`}
+              >
+                <Table2 className="h-3.5 w-3.5" />
+                {entry.schema !== props.selectedSchema ? (
+                  <span className="text-muted-foreground">{entry.schema}.</span>
+                ) : null}
+                {entry.table}
+              </Button>
+            ))}
           </div>
-        ) : (
-          <div className="border-input bg-card mt-4 flex flex-col overflow-hidden rounded-lg border shadow-sm">
-            <VirtualizerArea count={filteredTables.length}>
-              {({ virtualItems, totalSize, paddingTop, paddingBottom }) => (
-                <>
-                  <div style={{ height: `${totalSize}px` }} className="relative">
-                    {/* Padding for virtualizer */}
-                    {paddingTop > 0 && <div style={{ height: `${paddingTop}px` }} />}
-
-                    <Listbox.Content>
-                      <Listbox.ItemGroup>
-                        {virtualItems.map((virtualItem) => {
-                          const table = filteredTables[virtualItem.index];
-                          if (!table) return null;
-
-                          const isLast = virtualItem.index === filteredTables.length - 1;
-
-                          return (
-                            <Listbox.Item
-                              key={table.name}
-                              item={{
-                                label: table.name,
-                                value: table.name,
-                              }}
-                              className={`hover:bg-accent hover:text-accent-foreground data-highlighted:bg-accent data-highlighted:text-accent-foreground cursor-pointer px-4 py-2.5 text-sm transition-colors ${
-                                !isLast ? "border-border/50 border-b" : ""
-                              }`}
-                            >
-                              <Listbox.ItemText className="flex items-center gap-2">
-                                <span className="font-medium">{table.name}</span>
-                              </Listbox.ItemText>
-                            </Listbox.Item>
-                          );
-                        })}
-                      </Listbox.ItemGroup>
-                    </Listbox.Content>
-
-                    {/* Padding for virtualizer */}
-                    {paddingBottom > 0 && <div style={{ height: `${paddingBottom}px` }} />}
-                  </div>
-
-                  {/* Footer with count */}
-                  <div className="bg-muted/50 border-border/50 text-muted-foreground border-t px-4 py-2 text-xs">
-                    {filteredTables.length} table
-                    {filteredTables.length !== 1 ? "s" : ""} available
-                  </div>
-                </>
-              )}
-            </VirtualizerArea>
-          </div>
-        )}
-      </Listbox.Root>
+        </div>
+      )}
     </div>
   );
 };

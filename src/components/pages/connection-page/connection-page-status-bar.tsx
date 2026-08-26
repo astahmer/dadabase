@@ -133,12 +133,28 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
               >
                 <div className="flex items-center gap-0.5">
                   <Pagination.PrevTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-5 px-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-1"
+                      aria-label="Previous page"
+                      title={offset === 0 ? "Already on first page" : "Previous page"}
+                    >
                       ‹
                     </Button>
                   </Pagination.PrevTrigger>
                   <Pagination.NextTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-5 px-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-1"
+                      aria-label="Next page"
+                      title={
+                        offset + limit >= props.totalRowCount
+                          ? "Already on last page"
+                          : "Next page"
+                      }
+                    >
                       ›
                     </Button>
                   </Pagination.NextTrigger>
@@ -146,7 +162,13 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
               </Pagination.Root>
             )}
             <Tooltip content={formatRefreshTooltip(props.ranAt)}>
-              <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-5 px-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetch()}
+                className="h-5 px-1.5"
+                aria-label="Refresh table data"
+              >
                 <RefreshCw className={cn("h-3 w-3", isFetching && "animate-spin")} />
               </Button>
             </Tooltip>
@@ -235,7 +257,13 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
                   {(pagination) => (
                     <div className="flex items-center gap-1">
                       <Pagination.PrevTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 px-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-1"
+                          aria-label="Previous page"
+                          title={offset === 0 ? "Already on first page" : "Previous page"}
+                        >
                           ‹
                         </Button>
                       </Pagination.PrevTrigger>
@@ -244,7 +272,17 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
                         {pagination.totalPages === 0 ? "..." : pagination.totalPages}
                       </span>
                       <Pagination.NextTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 px-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-1"
+                          aria-label="Next page"
+                          title={
+                            offset + limit >= props.totalRowCount
+                              ? "Already on last page"
+                              : "Next page"
+                          }
+                        >
                           ›
                         </Button>
                       </Pagination.NextTrigger>
@@ -344,6 +382,7 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
               onClick={() => refetch()}
               className="h-6 px-2"
               data-testid="table-refresh-button"
+              aria-label="Refresh table data"
             >
               <RefreshCw className={cn("h-3 w-3", isFetching && "animate-spin")} />
             </Button>

@@ -1,6 +1,7 @@
-import { SqlError } from "@effect/sql";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { Pool } from "pg";
+
+import { SqlError } from "#src/db/effect-compat.ts";
 
 export const testPgConnectionUrl = (url: string) =>
   Effect.gen(function* () {
@@ -12,16 +13,16 @@ export const testPgConnectionUrl = (url: string) =>
         client.release();
         return { success: true };
       },
-      catch: (err) => new SqlError.SqlError({ cause: err }),
-    }).pipe(Effect.either);
+      catch: (err) => new SqlError({ cause: err }),
+    }).pipe(Effect.result);
 
-    if (Either.isLeft(canConnect)) {
+    if (Result.isFailure(canConnect)) {
       if (
-        canConnect.left.cause &&
-        typeof canConnect.left.cause === "object" &&
-        "code" in canConnect.left.cause
+        canConnect.failure.cause &&
+        typeof canConnect.failure.cause === "object" &&
+        "code" in canConnect.failure.cause
       ) {
-        if (canConnect.left.cause.code === "ECONNREFUSED") {
+        if (canConnect.failure.cause.code === "ECONNREFUSED") {
           return {
             success: false,
             message: "Connection refused (ECONNREFUSED)",
@@ -31,7 +32,7 @@ export const testPgConnectionUrl = (url: string) =>
 
       return {
         success: false,
-        message: canConnect.left.message || (canConnect.left.cause as any)?.message,
+        message: canConnect.failure.message || (canConnect.failure.cause as any)?.message,
       } as const;
     }
 

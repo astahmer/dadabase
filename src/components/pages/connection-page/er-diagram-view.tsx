@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Download, RotateCcw, Search, ZoomIn, ZoomOut } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "#src/components/ui/button.tsx";
 import { Input } from "#src/components/ui/input.tsx";
@@ -25,6 +25,10 @@ export function ErDiagramView(props: ErDiagramViewProps) {
   const { connectionUrl, schema, onOpenTable } = props;
   const [tableSearch, setTableSearch] = useState("");
   const [zoom, setZoom] = useState(1);
+  const [highlightedTable, setHighlightedTable] = useState<string | null>(null);
+  const [scroll, setScroll] = useState({ left: 0, top: 0 });
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const didFitRef = useRef(false);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const diagramRef = useRef<SVGSVGElement | null>(null);
 
@@ -59,6 +63,56 @@ export function ErDiagramView(props: ErDiagramViewProps) {
     };
   }, [fksQuery.data, tableSearch, tablesQuery.data]);
 
+  const { edges, layout, tableByName } = diagram;
+  const width = Math.max(800, ...layout.nodes.map((node) => node.x + node.w + 40));
+  const height = Math.max(400, ...layout.nodes.map((node) => node.y + node.h + 40));
+  const nodeById = useMemo(
+    () => new Map(layout.nodes.map((node) => [node.id, node])),
+    [layout.nodes],
+  );
+  const matchingTables = useMemo(
+    () =>
+      layout.nodes
+        .filter((node) => node.id.toLocaleLowerCase().includes(tableSearch.trim().toLocaleLowerCase()))
+        .slice(0, 8)
+        .map((node) => ({ id: node.id, columnCount: Math.round((node.h - ER_NODE_HEADER_HEIGHT) / ER_NODE_ROW_HEIGHT) })),
+    [layout.nodes, tableSearch],
+  );
+
+  // Audit W4: fit-to-view is the default — first non-empty layout fits the
+  // diagram to the canvas instead of starting at 100% zoom.
+  const fitZoom = useMemo(() => {
+    if (layout.nodes.length === 0) return null;
+    return Math.min(
+      1,
+      Math.max(
+        0.2,
+        (canvasRef.current?.clientWidth ?? 800) / (width + 32),
+        (canvasRef.current?.clientHeight ?? 400) / (height + 32),
+      ),
+    );
+  }, [height, layout.nodes.length, width]);
+
+  useEffect(() => {
+    if (fitZoom === null || didFitRef.current) return;
+    didFitRef.current = true;
+    setZoom(fitZoom);
+    canvasRef.current?.scrollTo({ left: 0, top: 0 });
+  }, [fitZoom]);
+
+  const jumpToTable = (table: string) => {
+    const node = nodeById.get(table);
+    const canvas = canvasRef.current;
+    if (!node || !canvas) return;
+    setHighlightedTable(table);
+    window.setTimeout(() => setHighlightedTable(null), 2000);
+    canvas.scrollTo({
+      left: Math.max(0, node.x * zoom - canvas.clientWidth / 2 + node.w),
+      top: Math.max(0, node.y * zoom - canvas.clientHeight / 2 + node.h / 2),
+      behavior: "smooth",
+    });
+  };
+
   if (tablesQuery.isLoading || fksQuery.isLoading) {
     return (
       <div className="flex h-full items-center justify-center" data-testid="er-diagram-loading">
@@ -73,11 +127,6 @@ export function ErDiagramView(props: ErDiagramViewProps) {
       </div>
     );
   }
-
-  const { edges, layout, tableByName } = diagram;
-  const width = Math.max(800, ...layout.nodes.map((node) => node.x + node.w + 40));
-  const height = Math.max(400, ...layout.nodes.map((node) => node.y + node.h + 40));
-  const nodeById = new Map(layout.nodes.map((node) => [node.id, node]));
 
   const resetView = () => {
     setZoom(1);
@@ -132,6 +181,28 @@ export function ErDiagramView(props: ErDiagramViewProps) {
               aria-label="Find a table in the schema diagram"
               className="h-8 pl-8 text-xs"
             />
+            {/* Searchable table index (audit W4): jump straight to a node. */}
+            {tableSearch.trim() !== "" && matchingTables.length > 0 ? (
+              <div
+                className="bg-card absolute top-full left-0 z-20 mt-1 max-h-48 w-full overflow-auto rounded-md border shadow-lg"
+                data-testid="er-table-index"
+              >
+                {matchingTables.map((table) => (
+                  <button
+                    key={table.id}
+                    type="button"
+                    className="hover:bg-muted flex w-full items-center justify-between px-2.5 py-1.5 text-left text-xs"
+                    onClick={() => {
+                      jumpToTable(table.id);
+                      setTableSearch("");
+                    }}
+                  >
+                    <span className="truncate font-medium">{table.id}</span>
+                    <span className="text-muted-foreground shrink-0">{table.columnCount} cols</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
           <Button
             size="sm"
@@ -188,7 +259,17 @@ export function ErDiagramView(props: ErDiagramViewProps) {
           No tables match “{tableSearch}”.
         </div>
       ) : (
-        <div ref={canvasRef} className="min-h-0 flex-1 overflow-auto p-4">
+        <div
+          ref={canvasRef}
+          className="relative min-h-0 flex-1 overflow-auto p-4"
+          onScroll={(event) =>
+            setScroll({ left: event.currentTarget.scrollLeft, top: event.currentTarget.scrollTop })
+          }
+          onMouseEnter={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            setViewport({ width: rect.width, height: rect.height });
+          }}
+        >
           <svg
             ref={diagramRef}
             width={width * zoom}
@@ -239,14 +320,23 @@ export function ErDiagramView(props: ErDiagramViewProps) {
 
               return (
                 <g key={`${edge.fromTable}-${edge.toTable}-${edge.constraintName}-${index}`}>
+                  {/* Contrast-safe edge: light halo under the colored line. */}
+                  <line
+                    x1={from.x}
+                    y1={fromY}
+                    x2={to.x + to.w}
+                    y2={toY}
+                    className="stroke-background"
+                    strokeWidth={4}
+                  />
                   <line
                     x1={from.x}
                     y1={fromY}
                     x2={to.x + to.w}
                     y2={toY}
                     className="stroke-primary"
-                    strokeOpacity={0.7}
-                    strokeWidth={1.75}
+                    strokeOpacity={0.9}
+                    strokeWidth={2}
                     markerEnd="url(#er-arrow)"
                   >
                     <title>{`${edge.fromTable}.${label} ${edge.toTable}`}</title>
@@ -281,8 +371,12 @@ export function ErDiagramView(props: ErDiagramViewProps) {
                     width={node.w}
                     height={node.h}
                     rx={8}
-                    className="fill-card stroke-border hover:stroke-primary"
-                    strokeWidth={1.5}
+                    className={
+                      highlightedTable === node.id
+                        ? "fill-card stroke-warning animate-pulse"
+                        : "fill-card stroke-border hover:stroke-primary"
+                    }
+                    strokeWidth={highlightedTable === node.id ? 2.5 : 1.5}
                   />
                   <rect
                     x={node.x}
@@ -321,7 +415,7 @@ export function ErDiagramView(props: ErDiagramViewProps) {
                             className="stroke-border"
                           />
                         ) : null}
-                        <text x={node.x + 12} y={y} className="fill-foreground text-[11px]">
+                        <text x={node.x + 12} y={y} className="fill-foreground text-xs font-medium">
                           {marker}
                           {column.name}
                         </text>
@@ -329,7 +423,7 @@ export function ErDiagramView(props: ErDiagramViewProps) {
                           x={node.x + node.w - 12}
                           y={y}
                           textAnchor="end"
-                          className="fill-muted-foreground text-[10px]"
+                          className="fill-muted-foreground text-xs"
                         >
                           {column.dataType.slice(0, 18)}
                         </text>
@@ -340,7 +434,7 @@ export function ErDiagramView(props: ErDiagramViewProps) {
                     <text
                       x={node.x + 12}
                       y={node.y + node.h - 8}
-                      className="fill-muted-foreground text-[10px]"
+                      className="fill-muted-foreground text-xs"
                     >
                       +{table.columns.length - MAX_COLUMNS_PER_NODE} more columns
                     </text>
@@ -349,6 +443,55 @@ export function ErDiagramView(props: ErDiagramViewProps) {
               );
             })}
           </svg>
+          {/* Minimap (audit W4): scaled overview + viewport rectangle. */}
+          {layout.nodes.length > 0 && width > 0 && height > 0 ? (
+            <div
+              className="bg-card/90 border-border absolute right-4 bottom-4 rounded-md border p-1 shadow-md"
+              data-testid="er-minimap"
+            >
+              <svg
+                width={160}
+                height={Math.max(60, Math.min(120, (160 * height) / width))}
+                viewBox={`0 0 ${width} ${height}`}
+                role="img"
+                aria-label="Diagram minimap"
+                className="block cursor-pointer"
+                onClick={(event) => {
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+                  const rect = event.currentTarget.getBoundingClientRect();
+                    const x = ((event.clientX - rect.left) / rect.width) * width;
+                    const y = ((event.clientY - rect.top) / rect.height) * height;
+                    canvas.scrollTo({
+                      left: x * zoom - canvas.clientWidth / 2,
+                      top: y * zoom - canvas.clientHeight / 2,
+                      behavior: "smooth",
+                    });
+                }}
+              >
+                {layout.nodes.map((node) => (
+                  <rect
+                    key={node.id}
+                    x={node.x}
+                    y={node.y}
+                    width={node.w}
+                    height={node.h}
+                    rx={6}
+                    className="fill-muted-foreground/40 stroke-border"
+                    strokeWidth={2}
+                  />
+                ))}
+                <rect
+                  x={scroll.left / zoom}
+                  y={scroll.top / zoom}
+                  width={viewport.width / zoom || 0}
+                  height={viewport.height / zoom || 0}
+                  className="fill-primary/15 stroke-primary"
+                  strokeWidth={3}
+                />
+              </svg>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

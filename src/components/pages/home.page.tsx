@@ -8,14 +8,23 @@ import {
   EllipsisIcon,
   LucideAlertCircle,
   LucideCheck,
+  LucideCloud,
+  LucideFileText,
+  LucidePenLine,
+  LucidePlus,
+  LucideStar,
   LucideWifi,
+  LucideZap,
   Search,
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { DatabaseDialect } from "#src/db/dialect.ts";
+import type { LucideIcon } from "lucide-react";
 
+import { useDocumentTitle } from "#src/hooks/use-document-title.ts";
+import { useLocalStorage } from "#src/hooks/use-local-storage.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { deleteDbConnectionMutation } from "#src/server/db-connection/start-fns/delete-db-connection.start.ts";
@@ -28,6 +37,7 @@ import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Badge } from "../ui/badge.tsx";
 import { Button } from "../ui/button.tsx";
 import { DarkModeToggle } from "../ui/dark-mode-toggle.tsx";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog.tsx";
 import { Input } from "../ui/input.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/menu.tsx";
@@ -59,7 +69,40 @@ function getEndpointLabel(url: string): string {
   return redactConnectionUrl(url);
 }
 
-function ConnectionActions({ connection }: { connection: EditableConnection }) {
+/** H17: split a file-path URL into basename + ellipsized parent for table cells. */
+function getEndpointPathParts(url: string): { basename: string; parent: string } | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "file:") return null;
+    const segments = decodeURIComponent(parsed.pathname).split("/").filter(Boolean);
+    if (segments.length === 0) return null;
+    const basename = segments.at(-1) ?? "";
+    const parent = segments.slice(0, -1).join("/");
+    return { basename, parent: parent ? `…/${parent}` : "/" };
+  } catch {
+    return null;
+  }
+}
+
+/** H4: capitalized display labels + icons for dialect scanning. */
+const DIALECT_META: Record<DatabaseDialect, { label: string; Icon: LucideIcon }> = {
+  postgres: { label: "Postgres", Icon: LucideCloud },
+  mysql: { label: "MySQL / MariaDB", Icon: LucideCloud },
+  sqlite: { label: "SQLite", Icon: LucideFileText },
+  libsql: { label: "libSQL / Turso", Icon: LucideCloud },
+  duckdb: { label: "DuckDB", Icon: LucideZap },
+  csv: { label: "CSV files", Icon: LucideFileText },
+  mssql: { label: "SQL Server", Icon: LucideCloud },
+  clickhouse: { label: "ClickHouse", Icon: LucideZap },
+};
+
+function ConnectionActions({
+  connection,
+  onOpen,
+}: {
+  connection: EditableConnection;
+  onOpen: (connectionName: string) => void;
+ }) {
   const testConnection = useServerFn(tryConnectionServerFn);
   const [state, setState] = useState<"idle" | "success" | "failure">("idle");
 
@@ -119,7 +162,11 @@ function ConnectionActions({ connection }: { connection: EditableConnection }) {
           </>
         )}
       </Button>
-      <Link to="/connections/$connectionName" params={{ connectionName: connection.name }}>
+      <Link
+        to="/connections/$connectionName"
+        params={{ connectionName: connection.name }}
+        onClick={() => onOpen(connection.name)}
+      >
         <Button size="sm">Open</Button>
       </Link>
     </HStack>
@@ -129,9 +176,13 @@ function ConnectionActions({ connection }: { connection: EditableConnection }) {
 function ConnectionRowMenu({
   connection,
   onEdit,
+  isFavorite,
+  onToggleFavorite,
 }: {
   connection: EditableConnection;
   onEdit: (connection: EditableConnection) => void;
+  isFavorite: boolean;
+  onToggleFavorite: (connectionName: string) => void;
 }) {
   const deleteMutation = useMutation(deleteDbConnectionMutation);
 
@@ -149,6 +200,18 @@ function ConnectionRowMenu({
       </MenuTrigger>
       <Portal>
         <MenuContent>
+          <MenuItem
+            value="favorite"
+            onClick={() => onToggleFavorite(connection.name)}
+            data-testid={`connection-favorite-${connection.name}`}
+          >
+            <LucideStar
+              size={14}
+              className={isFavorite ? "fill-warning text-warning" : ""}
+              aria-hidden="true"
+            />
+            {isFavorite ? "Remove from favorites" : "Add to favorites"}
+          </MenuItem>
           <MenuItem value="edit" onClick={() => onEdit(connection)}>
             Edit connection
           </MenuItem>
@@ -166,23 +229,62 @@ function ConnectionRowMenu({
   );
 }
 
+/** H3 storage defaults must be referentially stable — useLocalStorage re-runs its
+ *  load effect whenever the fallback identity changes. */
+const NO_FAVORITES: string[] = [];
+const NEVER_OPENED: Record<string, number> = {};
+
 export const HomePage = () => {
+  useDocumentTitle("Connections — Dadabase");
   const [editingConnection, setEditingConnection] = useState<EditableConnection | null>(null);
   const [connectionSearch, setConnectionSearch] = useState("");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [favorites, setFavorites] = useLocalStorage<string[]>(
+    "dadabase.favorite-connections",
+    NO_FAVORITES,
+  );
+  const favoriteNames = favorites ?? NO_FAVORITES;
+  const [lastOpened, setLastOpened] = useLocalStorage<Record<string, number>>(
+    "dadabase.connection-last-opened",
+    NEVER_OPENED,
+  );
+  const lastOpenedMap = lastOpened ?? NEVER_OPENED;
 
   const savedDatabaseList = useSuspenseQuery(listDbConnectionQueryOptions);
   const normalizedSearch = connectionSearch.trim().toLocaleLowerCase();
   const visibleConnections = useMemo(
     () =>
-      savedDatabaseList.data.filter((connection) => {
-        if (!normalizedSearch) return true;
-        return [connection.name, connection.dialect, getEndpointLabel(connection.url)]
-          .join(" ")
-          .toLocaleLowerCase()
-          .includes(normalizedSearch);
-      }),
-    [normalizedSearch, savedDatabaseList.data],
+      savedDatabaseList.data
+        .filter((connection) => {
+          if (!normalizedSearch) return true;
+          return [connection.name, connection.dialect, getEndpointLabel(connection.url)]
+            .join(" ")
+            .toLocaleLowerCase()
+            .includes(normalizedSearch);
+        })
+        // H3: favorites first, then most-recently opened, then name.
+        .toSorted((a, b) => {
+          const favoriteDelta =
+            Number(favoriteNames.includes(b.name)) - Number(favoriteNames.includes(a.name));
+          if (favoriteDelta !== 0) return favoriteDelta;
+          const recencyDelta = (lastOpenedMap[b.name] ?? 0) - (lastOpenedMap[a.name] ?? 0);
+          if (recencyDelta !== 0) return recencyDelta;
+          return a.name.localeCompare(b.name);
+        }),
+    [normalizedSearch, savedDatabaseList.data, favoriteNames, lastOpenedMap],
   );
+
+  const recordOpened = (connectionName: string) => {
+    setLastOpened({ ...lastOpenedMap, [connectionName]: Date.now() });
+  };
+
+  const toggleFavorite = (connectionName: string) => {
+    setFavorites(
+      favoriteNames.includes(connectionName)
+        ? favoriteNames.filter((name) => name !== connectionName)
+        : [...favoriteNames, connectionName],
+    );
+  };
 
   const table = useDataTable({
     enableColumnPinning: false,
@@ -223,6 +325,7 @@ export const HomePage = () => {
                   className="mt-1"
                   data-testid={`connection-safety-${ctx.row.original.name}`}
                 >
+                  <LucidePenLine className="mr-1 size-3" />
                   Writes enabled
                 </Badge>
               )}
@@ -234,9 +337,23 @@ export const HomePage = () => {
         id: "_connect",
         header: "Access",
         size: 180,
-        cell: (ctx) => <ConnectionActions connection={ctx.row.original} />,
+        cell: (ctx) => (
+          <ConnectionActions connection={ctx.row.original} onOpen={recordOpened} />
+        ),
       },
-      { accessorKey: "dialect", header: "Dialect" },
+      {
+        accessorKey: "dialect",
+        header: "Dialect",
+        cell: (ctx) => {
+          const meta = DIALECT_META[ctx.row.original.dialect];
+          return (
+            <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+              <meta.Icon className="size-3.5" aria-hidden="true" />
+              {meta.label}
+            </span>
+          );
+        },
+      },
       // {
       // 	accessorKey: "created_at",
       // 	header: "Created At",
@@ -261,31 +378,56 @@ export const HomePage = () => {
         accessorKey: "url",
         header: "Endpoint",
         size: 220,
-        cell: (ctx) => (
-          <div className="flex min-w-0 items-center gap-1">
-            <span className="text-muted-foreground truncate text-xs">
-              {getEndpointLabel(ctx.row.original.url)}
-            </span>
-            <Clipboard.Root value={ctx.row.original.url}>
-              <Tooltip content="Copy connection URL (includes credentials)">
-                <Clipboard.Trigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Clipboard.Indicator copied={<CheckIcon />}>
-                      <ClipboardIcon />
-                    </Clipboard.Indicator>
-                  </Button>
-                </Clipboard.Trigger>
-              </Tooltip>
-            </Clipboard.Root>
-          </div>
-        ),
+        cell: (ctx) => {
+          // H17: local paths show basename + ellipsized parent — never the raw path.
+          const pathParts = getEndpointPathParts(ctx.row.original.url);
+          return (
+            <div className="flex min-w-0 items-center gap-1">
+              {pathParts ? (
+                <Tooltip content={decodeURIComponent(new URL(ctx.row.original.url).pathname)} portalled>
+                  <span
+                    className="flex min-w-0 flex-col leading-tight"
+                    data-testid={`connection-endpoint-${ctx.row.original.name}`}
+                  >
+                    <span className="text-foreground truncate text-xs font-medium">
+                      {pathParts.basename}
+                    </span>
+                    <span className="text-muted-foreground truncate text-[10px]">
+                      {pathParts.parent}
+                    </span>
+                  </span>
+                </Tooltip>
+              ) : (
+                <span className="text-muted-foreground truncate text-xs">
+                  {getEndpointLabel(ctx.row.original.url)}
+                </span>
+              )}
+              <Clipboard.Root value={ctx.row.original.url}>
+                <Tooltip content="Copy connection URL (includes credentials)">
+                  <Clipboard.Trigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="Copy connection URL">
+                      <Clipboard.Indicator copied={<CheckIcon />}>
+                        <ClipboardIcon />
+                      </Clipboard.Indicator>
+                    </Button>
+                  </Clipboard.Trigger>
+                </Tooltip>
+              </Clipboard.Root>
+            </div>
+          );
+        },
       },
       {
         accessorKey: "actions",
         header: "Actions",
         size: 80,
         cell: (ctx) => (
-          <ConnectionRowMenu connection={ctx.row.original} onEdit={setEditingConnection} />
+          <ConnectionRowMenu
+            connection={ctx.row.original}
+            onEdit={setEditingConnection}
+            isFavorite={favoriteNames.includes(ctx.row.original.name)}
+            onToggleFavorite={toggleFavorite}
+          />
         ),
       },
     ],
@@ -298,7 +440,7 @@ export const HomePage = () => {
   }, [table, visibleConnections]);
 
   return (
-    <div className="bg-background min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
+    <div className="bg-background relative min-h-screen px-4 py-6 sm:px-6 sm:py-10 lg:px-10">
       <div className="mx-auto max-w-7xl">
         {/* Header Section */}
         <div className="mb-8 flex items-end justify-between gap-6 sm:mb-10">
@@ -313,7 +455,15 @@ export const HomePage = () => {
               Open a saved database or set up a new, safe connection.
             </p>
           </div>
-          <DarkModeToggle aria-label="Toggle application theme" />
+          <div className="flex items-end gap-3">
+            <Button
+              data-testid="new-connection-cta"
+              onClick={() => setCreateDialogOpen(true)}
+            >
+              <LucidePlus className="size-4" />
+              New connection
+            </Button>
+          </div>
         </div>
 
         {/* Main Content Grid */}
@@ -371,30 +521,52 @@ export const HomePage = () => {
                 <p className="text-muted-foreground mt-1 text-sm">
                   Start with a local SQLite file or a read-only database connection.
                 </p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  data-testid="new-connection-empty-cta"
+                  onClick={() => setCreateDialogOpen(true)}
+                >
+                  <LucidePlus className="size-4" />
+                  New connection
+                </Button>
               </div>
             )}
           </div>
-
-          <aside>
-            <div className="sticky top-8">
-              <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
-                <div className="border-b px-5 py-5">
-                  <p className="text-primary text-xs font-semibold tracking-[0.16em] uppercase">
-                    New connection
-                  </p>
-                  <h2 className="text-foreground mt-1 text-lg font-semibold">Connect safely</h2>
-                  <p className="text-muted-foreground mt-1 text-sm leading-5">
-                    Read-only is on by default. Turn it off only when you intend to make changes.
-                  </p>
-                </div>
-                <div className="p-5">
-                  <ConnectionForm mode="create" />
-                </div>
-              </div>
-            </div>
-          </aside>
         </div>
       </div>
+
+      {/* Audit G9: utility toggle rendered last in the DOM (so keyboard tab
+          order reaches primary content first) but visually pinned to the
+          header corner via absolute positioning. */}
+      <DarkModeToggle
+        aria-label="Toggle application theme"
+        className="absolute top-6 right-4 sm:top-10 sm:right-6 lg:top-10 lg:right-10"
+      />
+
+      {/* Create Connection Dialog (H1: form collapsed behind a CTA, not a permanent pane) */}
+      <Dialog
+        open={createDialogOpen}
+        onOpenChange={(details) => setCreateDialogOpen(details.open)}
+      >
+        <Portal>
+          <DialogContent className="max-h-[85vh] w-full max-w-xl overflow-y-auto sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>New connection</DialogTitle>
+              <DialogDescription>
+                Read-only is on by default. Turn it off only when you intend to make changes.
+              </DialogDescription>
+            </DialogHeader>
+            <ConnectionForm
+              mode="create"
+              onSuccess={() => {
+                // Stay on home so the saved row is visible in the table.
+                setCreateDialogOpen(false);
+              }}
+            />
+          </DialogContent>
+        </Portal>
+      </Dialog>
 
       {/* Edit Connection Drawer */}
       {editingConnection && (
@@ -416,6 +588,7 @@ export const HomePage = () => {
                   id: editingConnection.id,
                   connectionName: editingConnection.name,
                   connectionType: editingConnection.dialect,
+                  preset: null,
                   filePath: "",
                   connectionUrl: editingConnection.url,
                   libsqlAuthToken: "",

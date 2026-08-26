@@ -1,5 +1,3 @@
-import { SqlError } from "@effect/sql";
-
 // oxlint-disable typescript/no-non-null-assertion
 import type {
   CustomJoinCondition,
@@ -10,6 +8,7 @@ import type {
 import type { LogicalOperatorType } from "#src/components/query-builder/query-filter.ts";
 
 import { DatabaseDialect, onDialectOrElse } from "#src/db/dialect.ts";
+import { SqlError } from "#src/db/effect-compat.ts";
 
 import {
   buildMysqlWhereFragment,
@@ -132,7 +131,7 @@ export const buildPgJoinFilters = (joins: JoinedTable[], aliases?: Map<number, s
 
     const filterClause = buildPgWhereFragment(
       conditions,
-      join.filters.logicalOperator,
+      join.filters.logicalOperator ?? "and",
       alias ? undefined : join.schema,
       alias ? undefined : join.table,
     );
@@ -173,7 +172,7 @@ export const buildSqliteJoinFilters = (
 
     const filterClause = buildSqliteWhereFragment(
       conditions,
-      join.filters.logicalOperator,
+      join.filters.logicalOperator ?? "and",
       alias ? undefined : join.table,
     );
     if (filterClause) {
@@ -194,7 +193,7 @@ const getTableRef = (schema: string, table: string, dialect: DatabaseDialect): s
     sqlite: () => `"${table}"`,
     libsql: () => `"${table}"`,
     orElse: () => {
-      throw new SqlError.SqlError({ cause: "Unsupported dialect" });
+      throw new SqlError({ cause: "Unsupported dialect" });
     },
   });
 };
@@ -255,7 +254,7 @@ const buildFilterExpression = (
       sqlite: () => buildSqliteWhereFragment(conditions, logicalOperator, alias || table),
       libsql: () => buildSqliteWhereFragment(conditions, logicalOperator, alias || table),
       orElse: () => {
-        throw new SqlError.SqlError({ cause: "Unsupported dialect" });
+        throw new SqlError({ cause: "Unsupported dialect" });
       },
     }) || ""
   );
@@ -271,7 +270,7 @@ const buildStandardJoinCondition = (
   dialect: DatabaseDialect,
 ): string => {
   if (!join.joinCondition.referencingColumn || !join.joinCondition.referencedColumn) {
-    throw new SqlError.SqlError({
+    throw new SqlError({
       cause: `Standard join mode requires referencingColumn and referencedColumn for table ${join.table}`,
     });
   }
@@ -315,7 +314,7 @@ const buildCustomJoinCondition = (
   }
 
   // No conditions and no FK info
-  throw new SqlError.SqlError({
+  throw new SqlError({
     cause: `Custom join mode requires either custom conditions or FK columns (referencingColumn, referencedColumn) for table ${join.table}`,
   });
 };
@@ -342,7 +341,7 @@ const buildFilterJoinCondition = ({
 
   // No filters and no FK info
   if (!hasFilters && !hasFkInfo) {
-    throw new SqlError.SqlError({
+    throw new SqlError({
       cause: `Filter-based join without filters requires FK columns (referencingColumn, referencedColumn) for table ${join.table}`,
     });
   }
@@ -361,7 +360,7 @@ const buildFilterJoinCondition = ({
   // Has filters - use alias if available
   const filterExpression = buildFilterExpression(
     joinCondition.filters!.conditions,
-    joinCondition.filters!.logicalOperator,
+    joinCondition.filters!.logicalOperator ?? "and",
     join.schema,
     join.table,
     dialect,
@@ -382,7 +381,7 @@ const buildFilterJoinCondition = ({
 
   // Filters alone
   if (!filterExpression || filterExpression.trim() === "") {
-    throw new SqlError.SqlError({
+    throw new SqlError({
       cause: `Filter-based join has no valid filter expressions for table ${join.table}`,
     });
   }
@@ -505,7 +504,7 @@ export const buildJoinSqlClauses = (
         });
         break;
       default:
-        throw new SqlError.SqlError({
+        throw new SqlError({
           cause: "Unsupported join condition mode",
         });
     }
@@ -531,7 +530,7 @@ export const buildJoinSqlPreview = (
     sqlite: () => `"${table}"`,
     libsql: () => `"${table}"`,
     orElse: () => {
-      throw new SqlError.SqlError({ cause: "Unsupported dialect" });
+      throw new SqlError({ cause: "Unsupported dialect" });
     },
   });
 
@@ -559,7 +558,7 @@ export const buildJoinSqlPreview = (
         return alias ? `${baseRef} AS "${alias}"` : baseRef;
       },
       orElse: () => {
-        throw new SqlError.SqlError({ cause: "Unsupported dialect" });
+        throw new SqlError({ cause: "Unsupported dialect" });
       },
     });
 

@@ -17,6 +17,23 @@ Given("I open the connections home page", async ({ page }) => {
   await page.waitForTimeout(3_000);
 });
 
+// H1: the creation form collapsed behind a CTA — scenarios operating the form
+// must open it explicitly so list-only scenarios keep an uninert background.
+Given("I open the new connection form", async ({ page }) => {
+  await page.getByTestId("new-connection-cta").click();
+  await expect(page.getByTestId("connection-save")).toBeVisible();
+});
+
+When("I open the new connection page directly", async ({ page }) => {
+  await page.goto("/connections/new", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "New connection" })).toBeVisible();
+  await page.waitForTimeout(3_000);
+});
+
+Then("I should see the heading {string}", async ({ page }, heading: string) => {
+  await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+});
+
 Then("the new connection should default to read-only", async ({ page }) => {
   const readOnly = page.getByTestId("connection-readonly-checkbox");
   await expect(readOnly).toBeChecked();

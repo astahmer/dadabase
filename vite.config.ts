@@ -34,7 +34,7 @@ const config = defineConfig((env) => ({
   optimizeDeps: {
     // ssh2 is loaded only by the server when an SSH tunnel is configured. Its optional
     // native binding cannot be scanned by the browser dependency optimizer.
-    exclude: ["ssh2"],
+    exclude: ["ssh2", "@duckdb/node-api", "@duckdb/node-bindings"],
   },
   server: {
     // Project-local `.references/` clones + docs must not enter the watch graph.

@@ -124,9 +124,54 @@ export const custom_sql_executions = sqlite.sqliteTable(
   ],
 );
 
+/**
+ * AI chat threads — one conversation per row, scoped to a saved connection.
+ */
+export const chat_threads = sqlite.sqliteTable(
+  "chat_threads",
+  {
+    id: primaryId(), // nanoid short id
+    connection_id: sqlite
+      .text()
+      .notNull()
+      .references(() => database_connections.id),
+    title: sqlite.text().notNull(),
+    status: sqlite.text().notNull().default("regular"), // "regular" | "archived"
+    pinned: sqlite.integer({ mode: "boolean" }).notNull().default(false),
+    created_at: timestamp(),
+    updated_at: timestamp(),
+  },
+  (self) => [
+    sqlite.index("chat_threads_connection_id_index").on(self.connection_id),
+    sqlite.index("chat_threads_created_at_index").on(self.created_at),
+  ],
+);
+
+/**
+ * Chat messages — protocol parts stored as JSON; one row per message.
+ */
+export const chat_messages = sqlite.sqliteTable(
+  "chat_messages",
+  {
+    id: primaryId(),
+    thread_id: sqlite
+      .text()
+      .notNull()
+      .references(() => chat_threads.id, { onDelete: "cascade" }),
+    role: sqlite.text().notNull(), // MessageRole (user | assistant | system | summary | tool)
+    parts: json().notNull(), // JSON array of protocol MessagePart
+    model: sqlite.text(),
+    usage: json(), // { promptTokens, completionTokens, totalTokens } | null
+    created_at: timestamp(),
+  },
+  (self) => [sqlite.index("chat_messages_thread_id_index").on(self.thread_id)],
+);
+
 export interface AppDatabaseSchema {
   database_connections: Kyselify<typeof database_connections>;
   query_logs: Kyselify<typeof query_logs>;
   query_favorites: Kyselify<typeof query_favorites>;
   custom_sql_executions: Kyselify<typeof custom_sql_executions>;
+  chat_threads: Kyselify<typeof chat_threads>;
+  chat_messages: Kyselify<typeof chat_messages>;
 }

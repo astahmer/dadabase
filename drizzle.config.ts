@@ -1,32 +1,23 @@
 import type { Config as DrizzleConfig } from "drizzle-kit";
 
-import { Path } from "@effect/platform";
-import { NodeContext } from "@effect/platform-node";
-import { Effect, Redacted } from "effect";
+import path from "node:path";
 
-import { DatabaseUrl } from "./src/db/app.db.config.ts";
+// @ts-expect-error drizle-kit wont work with the line below but node does
+if (typeof __dirname === "undefined") {
+  var __dirname = new URL(".", import.meta.url).pathname;
+}
+const dbFilePath = path.resolve(path.join(__dirname, "./app.db"));
 
-const getConfig = Effect.gen(function* () {
-  const path = yield* Path.Path;
-  const schemaPath = path.resolve(process.cwd(), "./src/db/app.db.schema.ts");
+const dbUrl = process.env.DB_URL ?? `file:${dbFilePath}`;
 
-  const url = yield* DatabaseUrl;
-
-  const base = {
-    dialect: "sqlite",
-    schema: schemaPath,
-    out: "./migrations",
-    verbose: true,
-    dbCredentials: {
-      url: Redacted.value(url),
-    },
-  } satisfies DrizzleConfig;
-
-  // console.log(base);
-
-  return base;
-});
-
-const drizzleConfig = Effect.runSync(getConfig.pipe(Effect.provide(NodeContext.layer)));
+const drizzleConfig = {
+  dialect: "sqlite",
+  schema: path.resolve(process.cwd(), "./src/db/app.db.schema.ts"),
+  out: "./migrations",
+  verbose: true,
+  dbCredentials: {
+    url: dbUrl,
+  },
+} satisfies DrizzleConfig;
 
 export default drizzleConfig;

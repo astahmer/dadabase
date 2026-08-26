@@ -1,7 +1,7 @@
 import { Portal, Splitter } from "@ark-ui/react";
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, Outlet, useMatches, useNavigate, useSearch } from "@tanstack/react-router";
 import { createColumnHelper } from "@tanstack/react-table";
 import {
   ArrowDown,
@@ -26,6 +26,8 @@ import {
 } from "react";
 
 import type { TableStructure } from "#src/lib/schema-diff/index.ts";
+import { queryHistorySkipFlag } from "#src/lib/query-history-settings.ts";
+import { stageCustomSqlRun } from "#src/lib/custom-sql-run-handoff.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import { BulkActionBar } from "#src/components/app/bulk-action-bar.tsx";
@@ -39,6 +41,7 @@ import {
   getSidebarSplitterDefaultSize,
   getZenLayoutRemountKey,
 } from "#src/components/pages/connection-page/connection-layout-sizes.ts";
+import { CsvSaveBar } from "#src/components/pages/connection-page/csv-save-bar.tsx";
 import {
   copyToClipboard,
   exportRows,
@@ -67,6 +70,7 @@ import {
   useZenModeEnabled,
 } from "#src/components/pages/connection-page/use-zen-mode.ts";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { useDocumentTitle } from "#src/hooks/use-document-title.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import {
   buildCascadeDeletePreview,
@@ -80,10 +84,9 @@ import {
   parseSwitchTableCommandId,
 } from "#src/lib/command-palette-commands.ts";
 import { guardReadOnlyMutation, isReadOnlyConnection } from "#src/lib/connection-security.ts";
-import {
-  registerCustomSqlRunner,
-  runRegisteredCustomSql,
-} from "#src/lib/custom-sql-runner-bridge.ts";
+import { noteRowMutations } from "#src/lib/csv-unsaved-changes.ts";
+import { registerCustomSqlRunner } from "#src/lib/custom-sql-runner-bridge.ts";
+import { consumeStagedCustomSqlRun } from "#src/lib/custom-sql-run-handoff.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
@@ -140,7 +143,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.tsx";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
-import { ConnectionAiAssistantDrawer } from "./connection-page/ai-assistant.drawer.tsx";
 import { CascadeDeleteConfirmDialog } from "./connection-page/cascade-delete-confirm.dialog.tsx";
 import { ConnectionCommandPalette } from "./connection-page/command-palette.tsx";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
@@ -199,6 +201,7 @@ interface ConnectionPageProps {
 }
 
 export const ConnectionPage = ({ connectionName }: ConnectionPageProps) => {
+  useDocumentTitle(connectionName ? `${connectionName} — Dadabase` : "Dadabase");
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
   const connection = connectionList.data.find((c) => c.name === connectionName);
 
@@ -240,7 +243,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   useZenMode();
 
   const [showAddConnectionDrawer, setShowAddConnectionDrawer] = useState(false);
-  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [queryLoggerPaletteView, setQueryLoggerPaletteView] = useState<
     "favorites" | "history" | null
   >(null);
@@ -337,7 +339,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     (commandId: string) => {
       const switchTable = parseSwitchTableCommandId(commandId);
       if (switchTable) {
-        const newTab = createTabState(switchTable.schema, switchTable.table);
+        // Schema-less ids (SQLite/LibSQL) resolve to the dialect default,
+        // matching how the sidebar opens tables for schema-less dialects.
+        const schema = switchTable.schema || getDialectDefaultSchema(connection.dialect);
+        const newTab = createTabState(schema, switchTable.table);
         void navigate({
           search: (prev) => ({
             ...prev,
@@ -390,7 +395,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
           toggleZenMode();
           break;
         case COMMAND_PALETTE_IDS.openAi:
-          setAiAssistantOpen(true);
+          void navigate({
+            to: "/connections/$connectionName/ai",
+            params: { connectionName: connection.name },
+          });
           break;
         case COMMAND_PALETTE_IDS.openFavorites:
           setQueryLoggerPaletteView("favorites");
@@ -436,7 +444,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   );
 
   const openSqlInNewTab = useCallback(
-    (sql: string) => {
+    (sql: string, opts?: { run?: boolean }) => {
       const newTab = createTabState(
         search.schema || getDialectDefaultSchema(connection.dialect),
         "",
@@ -446,6 +454,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
           sqlEditorMode: "editor",
         },
       );
+      if (opts?.run) stageCustomSqlRun(newTab.tabId, { sql });
       void navigate({
         search: (prev) => ({
           ...prev,
@@ -454,6 +463,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       }).then(() => scrollToTab(newTab.tabId));
     },
     [navigate, search.schema, connection.dialect],
+  );
+  // The AI chat is a child route of this connection page: the workspace shell
+  // (sidebar + tabs bar) stays visible and only the main content region swaps.
+  const aiChatActive = useMatches().some(
+    (match) => match.routeId === "/connections/$connectionName/ai",
   );
 
   return (
@@ -523,7 +537,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                   connection={connection}
                   activeConnectionUrl={activeConnectionUrl}
                   onAddConnection={() => setShowAddConnectionDrawer(true)}
-                  onOpenAiAssistant={() => setAiAssistantOpen(true)}
+                  onOpenAiAssistant={() =>
+                    void navigate({
+                      to: "/connections/$connectionName/ai",
+                      params: { connectionName: connection.name },
+                    })
+                  }
                   onOpenHistory={() => openQueryLogger("history")}
                   onOpenFavorites={() => openQueryLogger("favorites")}
                 />
@@ -541,6 +560,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                   "bg-border hover:bg-primary/50 h-full cursor-col-resize transition-colors",
                 )}
                 title="Drag to resize, double-click to toggle"
+                aria-label="Sidebar splitter: drag to resize, activate to toggle sidebar"
                 onDoubleClick={() => {
                   // oxlint-disable-next-line no-unused-expressions
                   ctx.isPanelExpanded(panels.sidebar)
@@ -632,7 +652,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                       }}
                       isSidebarCollapsed={sidebarSplitterCtx.isPanelCollapsed(panels.sidebar)}
                     />
-                    {schemaListQuery.isError ? (
+                    {aiChatActive ? (
+                      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <Outlet />
+                      </div>
+                    ) : schemaListQuery.isError ? (
                       <TabErrorState activeConnectionUrl={activeConnectionUrl} />
                     ) : search.initialTabMode === "sql" ? (
                       <CustomSqlWorkspace
@@ -660,7 +684,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         className={cn(
                           tryFn(() => ctx.isPanelCollapsed(panels.queryLogger)) ? "h-3" : "h-1.5",
                           "bg-border hover:bg-primary/50 w-full cursor-row-resize transition-colors",
-                          layoutZenMode && "hidden",
+                          (layoutZenMode || aiChatActive) && "hidden",
                         )}
                         title="Drag to resize, double-click to toggle"
                         onDoubleClick={() => {
@@ -682,7 +706,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         data-zen-collapsed={layoutZenMode ? "true" : "false"}
                         className={cn(
                           "bg-background flex min-h-0 flex-col overflow-hidden border-t",
-                          (layoutZenMode || !queryLoggerSize) && "hidden",
+                          (layoutZenMode || aiChatActive || !queryLoggerSize) && "hidden",
                         )}
                       >
                         <QueryLoggerContent
@@ -725,17 +749,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
 
       {/* Schema Explorer */}
       <SchemaExplorerDrawer connection={connection} />
-
-      {/* AI assistant (BYOK) */}
-      <ConnectionAiAssistantDrawer
-        connection={connection}
-        activeConnectionUrl={activeConnectionUrl}
-        open={aiAssistantOpen}
-        onOpenChange={setAiAssistantOpen}
-        onGenerateAndRun={(sql) => {
-          runRegisteredCustomSql(sql, { revealEditor: true });
-        }}
-      />
 
       <ConnectionCommandPalette
         commands={commandPaletteCommands}
@@ -1287,6 +1300,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                   rowsQuery={pageState.rowsQuery}
                   isColumnMetadataLoading={pageState.isColumnMetadataLoading}
                   columnMetadata={pageState.columnMetadata}
+                  dialect={connection.dialect}
                   onEditRow={onEditRow}
                   onDuplicateRow={onDuplicateRow}
                 />
@@ -1515,6 +1529,7 @@ const RowsTableSqlEditor = (
 
   const search = useActiveTabState((tab) => {
     return {
+      tabId: tab.tabId,
       schema: tab.schema,
       table: tab.table,
       sqlEditorMode: tab.sqlEditorMode,
@@ -1551,6 +1566,27 @@ const RowsTableSqlEditor = (
     });
     // Intentionally re-bind when run handler / expand identity changes.
   }, [props.onRunQuery, props.onExpand]);
+
+  /**
+   * Auto-run handed off from the AI chat page: consume-once per tab id, so
+   * StrictMode double-effects and re-renders never double-execute.
+   */
+  const activeTabId = search.tabId;
+  const runQueryRef = useRef(props.onRunQuery);
+  runQueryRef.current = props.onRunQuery;
+  useEffect(() => {
+    if (!activeTabId) return;
+    // Defer past the mount-effect flush: executing synchronously here races
+    // router/tab-state settling and leaves the query UI wedged. Consume only
+    // when the deferred callback actually fires — early unmount/remount cycles
+    // (Suspense resolution, tab-state settling) cancel the first attempt, and
+    // the payload must survive until a mounted instance really executes it.
+    const timer = window.setTimeout(() => {
+      const staged = consumeStagedCustomSqlRun(activeTabId);
+      if (staged) runQueryRef.current(staged.sql);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [activeTabId]);
 
   const saveFavoriteMutation = useMutation({
     mutationFn: (sql: string) =>
@@ -1604,6 +1640,7 @@ const RowsTableSqlEditor = (
       <SqlQueryPreview
         tables={tables}
         columns={columns}
+        snippetActiveTable={search.table}
         sql={props.sqlQueryAsText}
         customSql={draftSql ?? undefined}
         allowEmptySql={props.allowEmptySql}
@@ -1724,6 +1761,7 @@ const RowsTableContent = (
     | "isColumnMetadataLoading"
     | "columnMetadata"
   > & {
+    dialect: DatabaseDialect;
     onEditRow?: (row: Record<string, unknown>) => void;
     onDuplicateRow?: (row: Record<string, unknown>) => void;
   },
@@ -1981,11 +2019,17 @@ const RowsTableContent = (
               )}
             >
               <RowsPendingEditsBar connectionUrl={props.activeConnectionUrl} />
+              <CsvSaveBar connectionUrl={props.activeConnectionUrl} dialect={props.dialect} />
               <DataTable
                 // virtualized={search.limit > 100}
                 enableRowVirtualization
                 enableColumnOrdering
                 enableFind
+                onRowDoubleClick={
+                  props.onEditRow && !isReadOnlyConnection(props.activeConnectionUrl)
+                    ? (row) => props.onEditRow?.(row.original as Record<string, unknown>)
+                    : undefined
+                }
                 table={props.rowsDataTable}
                 getTableContainer={setTableContainer}
                 isLoading={
@@ -2134,6 +2178,7 @@ const RowsTableContent = (
                 },
               });
               invalidateRowsQueries(queryClient);
+              noteRowMutations(props.activeConnectionUrl, pasteConfirm.table, result.inserted);
               setPasteConfirm(null);
               toaster.create({
                 title: "Pasted rows",
@@ -2319,6 +2364,7 @@ const BulkActions = (
       return primaryKeys.length;
     },
     onSuccess: (deletedCount) => {
+      if (search.table) noteRowMutations(props.activeConnectionUrl, search.table, deletedCount);
       props.rowsDataTable.resetRowSelection();
       invalidateRowsQueries(queryClient);
 
@@ -2777,6 +2823,8 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
       try {
         return await executeAndStoreCustomSqlServerFn({
           ...variables,
+          // Audit S2: honor record-history preference for user-authored SQL.
+          ...queryHistorySkipFlag(),
           signal: controller.signal,
         });
       } catch (error) {
@@ -2853,11 +2901,12 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
         : null;
 
   const onRunQuery = (editorValue?: string) => {
+    // An untouched Monaco never fires onChange, so the editor value can be an
+    // empty STRING (not just undefined) — fall through to the seeded sources
+    // instead of silently no-oping on falsy-but-not-nullish input.
+    const editorSql = editorValue != null && editorValue.trim() !== "" ? editorValue : undefined;
     const sqlToRun =
-      editorValue ??
-      search.customSql ??
-      storedData?.sql ??
-      executeCustomSqlMutation.variables?.data.sql;
+      editorSql ?? search.customSql ?? storedData?.sql ?? executeCustomSqlMutation.variables?.data.sql;
     console.log("onRunQuery", { sqlToRun });
     if (!sqlToRun) return;
 

@@ -1,0 +1,41 @@
+/**
+ * Data-driven registry of tools the chat assistant can register server-side.
+ * The settings UI renders this list; the /api/chat route registers only the
+ * enabled subset and the system prompt drops instructions for disabled tools.
+ */
+export const CHAT_TOOLS = [
+  {
+    id: "propose_sql",
+    label: "Propose SQL",
+    description: "Draft SQL from natural language. Always reviewed before it runs.",
+  },
+  {
+    id: "run_sql",
+    label: "Run SQL",
+    description: "Execute SQL against the connection (approval-gated).",
+  },
+] as const;
+
+export type ChatToolId = (typeof CHAT_TOOLS)[number]["id"];
+
+/** Every known tool id, canonical order. */
+export const CHAT_TOOL_IDS: ChatToolId[] = CHAT_TOOLS.map((tool) => tool.id);
+
+/** Default selection: everything enabled. */
+export const DEFAULT_ENABLED_CHAT_TOOLS = [...CHAT_TOOL_IDS];
+
+export const isChatToolId = (value: unknown): value is ChatToolId =>
+  typeof value === "string" && CHAT_TOOL_IDS.includes(value as ChatToolId);
+
+/**
+ * Normalize an arbitrary stored/requested list to a valid enabled set:
+ * unknown ids dropped, canonical order, duplicates collapsed. `undefined`
+ * (nothing stored) means the default — all tools. An empty array is a
+ * legitimate explicit state ("select none") and is preserved.
+ */
+export const normalizeEnabledChatTools = (
+  value: readonly unknown[] | undefined,
+): ChatToolId[] => {
+  if (!Array.isArray(value)) return [...DEFAULT_ENABLED_CHAT_TOOLS];
+  return CHAT_TOOL_IDS.filter((id) => value.includes(id));
+};

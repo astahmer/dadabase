@@ -1,9 +1,9 @@
-import { SqlClient } from "@effect/sql";
-import { SqlError } from "@effect/sql/SqlError";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
+import { SqlError, toValidator } from "#src/db/effect-compat.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 
 const ExplainInputSchema = Schema.Struct({
@@ -18,7 +18,7 @@ type ExplainInput = typeof ExplainInputSchema.Type;
  * Uses EXPLAIN for PostgreSQL and EXPLAIN QUERY PLAN for SQLite
  */
 export const explainQueryServerFn = createServerFn({ method: "POST" })
-  .validator(ExplainInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(ExplainInputSchema.pipe(toValidator))
   .handler(
     createRemoteIntrospectionHandler((input) =>
       Effect.gen(function* () {
@@ -29,8 +29,17 @@ export const explainQueryServerFn = createServerFn({ method: "POST" })
           pg: () =>
             Effect.gen(function* () {
               const result = yield* sql.unsafe(`EXPLAIN ANALYZE ${input.sql}`);
+              const rows = result as Array<Record<string, string>>;
+              // DuckDB routes through the pg compiler branch but returns rows as
+              // { explain_key, explain_value } instead of a single text column.
+              if (rows.length > 0 && typeof rows[0]?.explain_value === "string") {
+                return {
+                  plan: rows.map((row) => row.explain_value ?? "").join("\n"),
+                  dialect: "postgres" as const,
+                };
+              }
               return {
-                plan: (result as Array<Record<string, string>>)
+                plan: rows
                   .map((row) => {
                     const values = Object.values(row);
                     return values[0] || JSON.stringify(row);
@@ -52,6 +61,21 @@ export const explainQueryServerFn = createServerFn({ method: "POST" })
                 dialect: "sqlite" as const,
               };
             }),
+          clickhouse: () =>
+            Effect.gen(function* () {
+              // EXPLAIN PLAN emits one row per plan line in the `explain` column.
+              const result = yield* sql.unsafe(`EXPLAIN PLAN index=1 ${input.sql}`);
+              const rows = result as Array<Record<string, unknown>>;
+              return {
+                plan: rows
+                  .map((row) => {
+                    const values = Object.values(row);
+                    return typeof values[0] === "string" ? values[0] : JSON.stringify(row);
+                  })
+                  .join("\n"),
+                dialect: "clickhouse" as const,
+              };
+            }),
           orElse: () => Effect.fail(new SqlError({ cause: "Unsupported database dialect" })),
         });
 
@@ -63,7 +87,7 @@ export const explainQueryServerFn = createServerFn({ method: "POST" })
 export type ExplainQueryInput = ExplainInput;
 export type ExplainQueryResult = {
   plan: string;
-  dialect: "postgres" | "sqlite";
+  dialect: "postgres" | "sqlite" | "clickhouse";
 };
 
 export const explainQueryQueryOptions = (input: ExplainQueryInput) =>

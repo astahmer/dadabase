@@ -1,3 +1,5 @@
+import * as React from "react";
+
 import {
   BreadcrumbCurrentLink,
   BreadcrumbItem,
@@ -6,7 +8,6 @@ import {
   BreadcrumbRoot,
   BreadcrumbSeparator,
 } from "#src/components/ui/breadcrumb.tsx";
-import * as React from "react";
 
 import { Stack } from "./layout.tsx";
 

@@ -1,6 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
+
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
-import { useQuery } from "@tanstack/react-query";
 
 interface UseTablesColumnsForIntellisenseOptions {
   connectionUrl: string;

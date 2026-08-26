@@ -62,6 +62,36 @@ describe("buildCommandPaletteCommands", () => {
     expect(tableIds).not.toContain(switchTableCommandId("public", "users"));
   });
 
+  // SQLite/LibSQL introspection returns rows without a schema column; cmdk
+  // crashes on undefined keywords, so every emitted field must be a string.
+  it("emits string-only schema-less commands for tables without a schema", () => {
+    const commands = buildCommandPaletteCommands({
+      tables: [
+        { name: "chat_threads" },
+        { name: "chat_messages" },
+      ],
+    });
+
+    const tableCommands = commands.filter((c) => c.id.startsWith("switch-table:"));
+    expect(tableCommands.map((c) => c.id)).toEqual([
+      switchTableCommandId("", "chat_threads"),
+      switchTableCommandId("", "chat_messages"),
+    ]);
+    for (const command of tableCommands) {
+      expect(typeof command.label).toBe("string");
+      expect(command.label).not.toMatch(/undefined|null/);
+      for (const keyword of command.keywords) {
+        expect(typeof keyword).toBe("string");
+      }
+    }
+    expect(tableCommands[0]?.label).toBe("Switch to chat_threads");
+  });
+
+  it("round-trips schema-less switch-table ids", () => {
+    const id = switchTableCommandId("", "chat_messages");
+    expect(parseSwitchTableCommandId(id)).toEqual({ schema: "", table: "chat_messages" });
+  });
+
   it("adds switch-schema commands when schemas are available", () => {
     const commands = buildCommandPaletteCommands({
       currentSchema: "public",

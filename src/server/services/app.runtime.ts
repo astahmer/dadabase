@@ -5,11 +5,13 @@ import { CustomSqlExecutionRepository } from "#src/db/custom-sql-execution.repos
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { makePoolCacheLive } from "#src/db/postgres/pool-cache.ts";
 import { DotEnvProvider } from "#src/dotenv.runtime.ts";
+import { ChatThreadRepository } from "#src/server/chat/chat-thread.repository.ts";
 import { NanoId } from "#src/server/services/nano-id.ts";
 
 const AppLayer = Layer.mergeAll(
   DatabaseConnectionRepository.Default,
   CustomSqlExecutionRepository.Default,
+  ChatThreadRepository.Default,
   NanoId.Default,
   DotEnvProvider,
   makePoolCacheLive,

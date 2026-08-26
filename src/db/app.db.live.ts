@@ -29,14 +29,14 @@ const makeAppDatabaseLayer = (url: string) =>
         Effect.tryPromise(() => {
           // console.log("Destroying database");
           return qb.destroy();
-        }).pipe(Effect.catchAll(() => Effect.void)),
+        }).pipe(Effect.catch(() => Effect.void)),
       );
 
       return makeFromKysely(qb);
     }).pipe(Effect.scoped),
   );
 
-export const makeAppDatabaseLayerFromEnv = Layer.unwrapEffect(
+export const makeAppDatabaseLayerFromEnv = Layer.unwrap(
   Effect.gen(function* () {
     const url = yield* DatabaseUrl;
     const rawValue = Redacted.value(url);

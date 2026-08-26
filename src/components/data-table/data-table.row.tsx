@@ -25,6 +25,7 @@ export const DataTableRow = memo(function TableRow({
   index,
   getRow,
   onRowClick,
+  onRowDoubleClick,
   size,
   striped,
   interactive,
@@ -40,6 +41,7 @@ export const DataTableRow = memo(function TableRow({
   index: number;
   getRow: () => Row<any>;
   onRowClick?: (row: Row<any>) => void;
+  onRowDoubleClick?: (row: Row<any>) => void;
   size: DataTableSize;
   striped: boolean;
   interactive: boolean;
@@ -170,6 +172,15 @@ export const DataTableRow = memo(function TableRow({
               if (isDescendantOfButton(e, ["BUTTON", "A"])) return;
               e.stopPropagation();
               return onRowClick(row);
+            }
+          : undefined
+      }
+      onDoubleClick={
+        onRowDoubleClick
+          ? (e) => {
+              if (isDescendantOfButton(e, ["BUTTON", "A"])) return;
+              e.stopPropagation();
+              return onRowDoubleClick(row);
             }
           : undefined
       }

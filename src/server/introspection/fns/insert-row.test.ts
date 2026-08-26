@@ -1,6 +1,6 @@
-import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 import type { DatabaseTestConfig } from "../test.layer.ts";
 
@@ -106,9 +106,9 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseT
             values: {},
           },
           { id: "test" } as any,
-        ).pipe(Effect.either);
+        ).pipe(Effect.result);
 
-        expect(result._tag).toBe("Left");
+        expect(result._tag).toBe("Failure");
       }).pipe(Effect.provide(testLayer));
     });
 

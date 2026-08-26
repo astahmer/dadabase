@@ -1,6 +1,6 @@
-import type { RelationshipViewMode } from "#src/components/pages/connection-page/relationships/relationship-view-mode.ts";
-
 import { useReducer } from "react";
+
+import type { RelationshipViewMode } from "#src/components/pages/connection-page/relationships/relationship-view-mode.ts";
 
 interface RelationshipsPanelState {
   selectedRelationships: Set<string>;

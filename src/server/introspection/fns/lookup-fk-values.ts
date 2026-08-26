@@ -1,7 +1,7 @@
 import type { Selectable } from "kysely";
 
-import { SqlClient } from "@effect/sql";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 

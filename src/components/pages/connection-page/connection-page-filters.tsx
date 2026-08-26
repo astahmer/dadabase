@@ -8,9 +8,11 @@ import {
   Lock,
   LucideListFilter,
   MoreHorizontal,
+  PenLine,
   Plus,
   Rows,
   Table2,
+  Upload,
   X,
 } from "lucide-react";
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useState } from "react";
@@ -33,7 +35,14 @@ import { NaturalLanguageSearch } from "../../query-builder/natural-language-sear
 import { QueryFilterBuilder } from "../../query-builder/query-filter-builder.tsx";
 import { Button } from "../../ui/button";
 import { HStack } from "../../ui/layout.tsx";
-import { Menu, MenuContent, MenuItem, MenuItemText, MenuTrigger } from "../../ui/menu.tsx";
+import {
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuSeparator,
+  MenuItemText,
+  MenuTrigger,
+} from "../../ui/menu.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover.tsx";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../ui/sheet.tsx";
 import { toaster } from "../../ui/toaster.tsx";
@@ -374,17 +383,44 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
           <>
             <div id="connection-page-filters-top-row" className="contents" />
             {onImportData && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onImportData}
-                disabled={isLoading || !tableName || isReadOnly}
-                data-testid="import-data"
-                className="gap-1.5"
-              >
-                Import
-              </Button>
-            )}
+                  <Menu>
+                    <MenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        data-testid="toolbar-change-menu"
+                        aria-label="Change data"
+                      >
+                        <PenLine className="h-3.5 w-3.5" />
+                        Change
+                      </Button>
+                    </MenuTrigger>
+                    <MenuContent>
+                      <p
+                        className={
+                          isReadOnly
+                            ? "text-destructive px-2 py-1 text-xs font-medium"
+                            : "text-success px-2 py-1 text-xs font-medium"
+                        }
+                      >
+                        {isReadOnly ? "Read-only connection" : "Writes enabled"}
+                      </p>
+                      <MenuSeparator />
+                      {onImportData && (
+                        <MenuItem
+                          value="import-data"
+                          onClick={onImportData}
+                          disabled={isReadOnly}
+                          data-testid="import-data"
+                        >
+                          <Upload className="h-3.5 w-3.5" />
+                          Import data…
+                        </MenuItem>
+                      )}
+                    </MenuContent>
+                  </Menu>
+                )}
             {onExportTable && (
               <Menu>
                 <MenuTrigger asChild>
@@ -537,7 +573,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                         logicalOperator: draftFilter.logicalOperator,
                       });
                     }}
-                    logicalOperator={draftFilter.logicalOperator}
+                    logicalOperator={draftFilter.logicalOperator ?? "and"}
                     availableColumns={columnList}
                     isLoading={isLoading}
                     label="Where"
@@ -567,7 +603,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={openFilters}
+                      onClick={() => openFilters()}
                       className="h-full max-w-64 min-w-0 gap-0 rounded-none p-0 text-xs"
                     >
                       <span className="max-w-28 truncate px-2.5 font-medium">
@@ -600,7 +636,7 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={openFilters}
+                    onClick={() => openFilters()}
                     className="text-muted-foreground h-7 max-w-40 px-2 text-xs"
                     title={`Grouped by ${groupBy.join(", ")}`}
                   >

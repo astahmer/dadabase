@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { toValidator } from "#src/db/effect-compat.ts";
 import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { createCustomSqlExecution } from "#src/server/custom-sql/fns/create-custom-sql-execution.ts";
@@ -21,6 +22,8 @@ export const ExecuteAndStoreCustomSqlInputSchema = Schema.Struct({
   schemaName: Schema.optional(Schema.String),
   tableName: Schema.optional(Schema.String),
   previousId: Schema.optional(Schema.String), // Reference to parent execution (for edit chains)
+  /** Audit S2: honor the user's record-history preference. */
+  skipQueryLog: Schema.optional(Schema.Boolean),
 });
 
 export type ExecuteAndStoreCustomSqlInput = Schema.Schema.Type<
@@ -34,7 +37,7 @@ export type ExecuteAndStoreCustomSqlInput = Schema.Schema.Type<
 export const executeAndStoreCustomSqlServerFn = createServerFn({
   method: "POST",
 })
-  .validator(ExecuteAndStoreCustomSqlInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(ExecuteAndStoreCustomSqlInputSchema.pipe(toValidator))
   .handler(async (ctx) => {
     const readOnlyError = guardReadOnlyMutation(ctx.data.url, {
       isSelect: isSelectQuery(ctx.data.sql),
@@ -66,7 +69,8 @@ export const executeAndStoreCustomSqlServerFn = createServerFn({
     // Now execute the SQL query using the remote introspection handler
     try {
       const result = await createRemoteIntrospectionHandler(
-        (input: ExecuteAndStoreCustomSqlInput) => executeCustomSql({ sql: input.sql }),
+        (input: ExecuteAndStoreCustomSqlInput) =>
+          executeCustomSql({ sql: input.sql, skipQueryLog: input.skipQueryLog }),
       )({ data: ctx.data });
 
       // Update the execution record with success (including the result rows)
@@ -115,7 +119,7 @@ export const executeAndStoreCustomSqlServerFn = createServerFn({
   });
 
 const getCustomSqlExecutionServerFn = createServerFn({ method: "GET" })
-  .validator(Schema.Struct({ id: Schema.String }).pipe(Schema.standardSchemaV1))
+  .validator(Schema.Struct({ id: Schema.String }).pipe(toValidator))
   .handler((ctx) => AppRuntime.runPromise(getCustomSqlExecution(ctx.data.id)));
 
 export const customSqlExecutionQueryOptions = (id: string | undefined) =>

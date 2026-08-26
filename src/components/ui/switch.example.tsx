@@ -1,5 +1,6 @@
-import { Switch, SwitchControl, SwitchLabel } from "#src/components/ui/switch.tsx";
 import { useState } from "react";
+
+import { Switch, SwitchControl, SwitchLabel } from "#src/components/ui/switch.tsx";
 
 import { Stack } from "./layout.tsx";
 

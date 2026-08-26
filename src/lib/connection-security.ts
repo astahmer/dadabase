@@ -124,8 +124,14 @@ export function withReadOnlyFlag(url: string, readOnly: boolean): string {
   }
 }
 
-/** Whether a connection URL is marked read-only via `withReadOnlyFlag`. */
+/** Whether a connection URL is marked read-only via `withReadOnlyFlag`.
+ *
+ * ClickHouse connections are always read-only: data changes run through async,
+ * non-transactional `ALTER TABLE … UPDATE/DELETE` mutations that don't fit the
+ * synchronous row-editor contract, so every UI write guard engages for them.
+ */
 export function isReadOnlyConnection(url: string): boolean {
+  if (url.startsWith("clickhouse://")) return true;
   try {
     const parsed = new URL(url);
     return parsed.searchParams.get(READ_ONLY_QUERY_PARAM) === "1";

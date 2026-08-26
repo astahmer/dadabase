@@ -4,23 +4,35 @@ export interface SqlSnippet {
   sql: string;
 }
 
+/**
+ * Audit S3: snippets can reference a table with this token; the snippets menu
+ * replaces it with a schema-aware table choice at insert time.
+ */
+export const SNIPPET_TABLE_TOKEN = "{{table}}";
+
+/** Replace every table token with `table` (identity when no token present). */
+export const resolveSnippetSql = (sql: string, table: string): string =>
+  sql.replaceAll(SNIPPET_TABLE_TOKEN, table || SNIPPET_TABLE_TOKEN);
+
+export const snippetReferencesTable = (sql: string): boolean => sql.includes(SNIPPET_TABLE_TOKEN);
+
 const STORAGE_KEY = "dadabase.sql-snippets";
 
 export const DEFAULT_SQL_SNIPPETS: readonly SqlSnippet[] = [
   {
     id: "default-select-star",
     name: "Browse a table",
-    sql: "SELECT *\nFROM your_table\nLIMIT 100;",
+    sql: "SELECT *\nFROM {{table}}\nLIMIT 100;",
   },
   {
     id: "default-explain-analyze",
     name: "Explain a query",
-    sql: "EXPLAIN\nSELECT *\nFROM your_table\nLIMIT 100;",
+    sql: "EXPLAIN\nSELECT *\nFROM {{table}}\nLIMIT 100;",
   },
   {
     id: "default-count",
     name: "Count rows",
-    sql: "SELECT COUNT(*) AS row_count\nFROM your_table;",
+    sql: "SELECT COUNT(*) AS row_count\nFROM {{table}};",
   },
 ];
 

@@ -1,3 +1,5 @@
+import { createFileRoute } from "@tanstack/react-router";
+
 import { AccordionExample } from "#src/components/ui/accordion.example.tsx";
 import { ActionBarExample } from "#src/components/ui/action-bar.example.tsx";
 import { AlertDialogExample } from "#src/components/ui/alert-dialog.example.tsx";
@@ -25,7 +27,6 @@ import { TagsInputExample } from "#src/components/ui/tags-input.example.tsx";
 import { TextareaExample } from "#src/components/ui/textarea.example.tsx";
 import { ToastExample } from "#src/components/ui/toast.example.tsx";
 import { TooltipExample } from "#src/components/ui/tooltip.example.tsx";
-import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/sandbox")({
   component: RouteComponent,

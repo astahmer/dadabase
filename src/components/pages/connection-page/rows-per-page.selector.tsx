@@ -1,11 +1,12 @@
-import { Button } from "#src/components/ui/button";
-import { Stack } from "#src/components/ui/layout.tsx";
-import { ListboxMenu } from "#src/components/ui/listbox-menu.export.ts";
-import { setStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { Portal, useListCollection } from "@ark-ui/react";
 import { useFilter } from "@ark-ui/react/locale";
 import { ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
+
+import { Button } from "#src/components/ui/button";
+import { Stack } from "#src/components/ui/layout.tsx";
+import { ListboxMenu } from "#src/components/ui/listbox-menu.export.ts";
+import { setStoredPageLimit } from "#src/lib/default-page-limit.ts";
 
 interface RowsPerPageSelectorProps {
   value: number;

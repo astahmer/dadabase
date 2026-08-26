@@ -1,101 +1,91 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 
 import {
-  clearStoredOpenAiApiKey,
-  getStoredOpenAiApiKey,
-  hasStoredOpenAiApiKey,
-  looksLikeOpenAiApiKey,
-  OPENAI_API_KEY_STORAGE_KEY,
-  setStoredOpenAiApiKey,
+  getStoredByokConfig,
+  setStoredByokConfig,
 } from "./ai-byok.ts";
 
-const createMemoryStorage = (): Storage => {
-  const store = new Map<string, string>();
-  return {
-    get length() {
-      return store.size;
-    },
-    clear: () => store.clear(),
-    getItem: (key) => store.get(key) ?? null,
-    key: (index) => [...store.keys()][index] ?? null,
-    removeItem: (key) => {
-      store.delete(key);
-    },
-    setItem: (key, value) => {
-      store.set(key, String(value));
-    },
+/**
+ * localStorage stub — ai-byok only touches `window.localStorage`, so a plain
+ * Map-backed fake avoids pulling jsdom into the unit suite.
+ */
+const createStorageStub = () => {
+  const backing = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => backing.get(key) ?? null,
+    setItem: (key: string, value: string) => void backing.set(key, value),
+    removeItem: (key: string) => void backing.delete(key),
   };
+  return { storage, backing };
 };
 
+const installWindow = () => {
+  const { storage, backing } = createStorageStub();
+  vi.stubGlobal("window", { localStorage: storage });
+  return backing;
+};
+
+let backing: Map<string, string>;
+
 beforeEach(() => {
-  Object.defineProperty(globalThis, "window", {
-    configurable: true,
-    value: { localStorage: createMemoryStorage() },
-    writable: true,
+  vi.restoreAllMocks();
+  backing = installWindow();
+});
+
+
+test("legacy bare-string API keys migrate to the provider config shape", () => {
+  // Pre-providers builds stored JSON.stringify(apiKey) — a quoted string.
+  backing.set("dadabase.openai-api-key", JSON.stringify("sk-legacy-key"));
+
+  const config = getStoredByokConfig();
+
+  expect(config).toEqual({ providerId: "openai", apiKey: "sk-legacy-key" });
+  // The rewrite happens immediately so both formats never coexist.
+  expect(JSON.parse(backing.get("dadabase.openai-api-key") ?? "")).toEqual({
+    providerId: "openai",
+    apiKey: "sk-legacy-key",
   });
 });
 
-afterEach(() => {
-  // @ts-expect-error cleanup test polyfill
-  delete globalThis.window;
+test("legacy empty string is treated as no config", () => {
+  backing.set("dadabase.openai-api-key", JSON.stringify("   "));
+  expect(getStoredByokConfig()).toBeNull();
 });
 
-describe("getStoredOpenAiApiKey / setStoredOpenAiApiKey", () => {
-  it("returns null when nothing stored", () => {
-    expect(getStoredOpenAiApiKey()).toBeNull();
-    expect(hasStoredOpenAiApiKey()).toBe(false);
-  });
-
-  it("round-trips a key", () => {
-    setStoredOpenAiApiKey("sk-test-key-1234567890");
-    expect(getStoredOpenAiApiKey()).toBe("sk-test-key-1234567890");
-    expect(hasStoredOpenAiApiKey()).toBe(true);
-  });
-
-  it("trims whitespace on write and read", () => {
-    setStoredOpenAiApiKey("  sk-test-key-1234567890  ");
-    expect(getStoredOpenAiApiKey()).toBe("sk-test-key-1234567890");
-  });
-
-  it("clears when empty string is written", () => {
-    setStoredOpenAiApiKey("sk-test-key-1234567890");
-    setStoredOpenAiApiKey("   ");
-    expect(getStoredOpenAiApiKey()).toBeNull();
-  });
-
-  it("clearStoredOpenAiApiKey removes the key", () => {
-    setStoredOpenAiApiKey("sk-test-key-1234567890");
-    clearStoredOpenAiApiKey();
-    expect(getStoredOpenAiApiKey()).toBeNull();
-  });
-
-  it("ignores corrupt JSON and non-strings", () => {
-    window.localStorage.setItem(OPENAI_API_KEY_STORAGE_KEY, "{not-json");
-    expect(getStoredOpenAiApiKey()).toBeNull();
-
-    window.localStorage.setItem(OPENAI_API_KEY_STORAGE_KEY, JSON.stringify(42));
-    expect(getStoredOpenAiApiKey()).toBeNull();
-
-    window.localStorage.setItem(OPENAI_API_KEY_STORAGE_KEY, JSON.stringify(""));
-    expect(getStoredOpenAiApiKey()).toBeNull();
-  });
-
-  it("returns null when window is unavailable", () => {
-    // @ts-expect-error cleanup test polyfill
-    delete globalThis.window;
-    expect(getStoredOpenAiApiKey()).toBeNull();
-    expect(hasStoredOpenAiApiKey()).toBe(false);
+test("keyless local providers yield a usable config without an API key", () => {
+  backing.set(
+    "dadabase.openai-api-key",
+    JSON.stringify({ providerId: "ollama-local", apiKey: "", model: "llama3" }),
+  );
+  expect(getStoredByokConfig()).toEqual({
+    providerId: "ollama-local",
+    baseUrl: undefined,
+    apiKey: "",
+    model: "llama3",
+    enabledTools: undefined,
   });
 });
 
-describe("looksLikeOpenAiApiKey", () => {
-  it("accepts sk- keys of sufficient length", () => {
-    expect(looksLikeOpenAiApiKey("sk-abcdefghijklmnopqrstuvwxyz")).toBe(true);
-  });
+test("hosted providers without an API key are rejected", () => {
+  backing.set(
+    "dadabase.openai-api-key",
+    JSON.stringify({ providerId: "openai", apiKey: "" }),
+  );
+  expect(getStoredByokConfig()).toBeNull();
+});
 
-  it("rejects short or wrong-prefix values", () => {
-    expect(looksLikeOpenAiApiKey("sk-short")).toBe(false);
-    expect(looksLikeOpenAiApiKey("pk-abcdefghijklmnopqrstuvwxyz")).toBe(false);
-    expect(looksLikeOpenAiApiKey("")).toBe(false);
-  });
+test("custom providers require an explicit base url", () => {
+  backing.set(
+    "dadabase.openai-api-key",
+    JSON.stringify({ providerId: "custom", apiKey: "", baseUrl: "" }),
+  );
+  // Custom is key-optional, but with no URL and no key there is nothing to
+  // talk to — the config survives read-side, save-side refuses via canSave.
+  const config = getStoredByokConfig();
+  expect(config?.providerId).toBe("custom");
+});
+
+test("saving a keyless local preset keeps the config alive for send gating", () => {
+  setStoredByokConfig({ providerId: "lmstudio-local", apiKey: "" });
+  expect(getStoredByokConfig()?.providerId).toBe("lmstudio-local");
 });

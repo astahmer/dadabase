@@ -36,5 +36,5 @@ export const getCustomSqlExecution = Effect.fn(function* (id: string) {
 });
 
 export type CustomSqlExecutionResult = NonNullable<
-  Effect.Effect.Success<ReturnType<typeof getCustomSqlExecution>>
+  Effect.Success<ReturnType<typeof getCustomSqlExecution>>
 >;

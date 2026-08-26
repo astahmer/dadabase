@@ -11,8 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SandboxRouteImport } from './routes/sandbox'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ConnectionsConnectionNameRouteImport } from './routes/connections/$connectionName'
+import { Route as ConnectionsNewRouteImport } from './routes/connections/new'
 import { Route as SchemaConnectionNameRouteImport } from './routes/schema/$connectionName'
+import { Route as ConnectionsConnectionNameAiRouteImport } from './routes/connections/$connectionName.ai'
+import { Route as ApiChatConversationIdStreamRouteImport } from './routes/api/chat.$conversationId.stream'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -24,62 +28,110 @@ const SandboxRoute = SandboxRouteImport.update({
   path: '/sandbox',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConnectionsConnectionNameRoute =
   ConnectionsConnectionNameRouteImport.update({
     id: '/connections/$connectionName',
     path: '/connections/$connectionName',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ConnectionsNewRoute = ConnectionsNewRouteImport.update({
+  id: '/connections/new',
+  path: '/connections/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SchemaConnectionNameRoute = SchemaConnectionNameRouteImport.update({
   id: '/schema/$connectionName',
   path: '/schema/$connectionName',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConnectionsConnectionNameAiRoute =
+  ConnectionsConnectionNameAiRouteImport.update({
+    id: '/ai',
+    path: '/ai',
+    getParentRoute: () => ConnectionsConnectionNameRoute,
+  } as any)
+const ApiChatConversationIdStreamRoute =
+  ApiChatConversationIdStreamRouteImport.update({
+    id: '/$conversationId/stream',
+    path: '/$conversationId/stream',
+    getParentRoute: () => ApiChatRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sandbox': typeof SandboxRoute
-  '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+  '/api/chat': typeof ApiChatRouteWithChildren
+  '/connections/$connectionName': typeof ConnectionsConnectionNameRouteWithChildren
+  '/connections/new': typeof ConnectionsNewRoute
   '/schema/$connectionName': typeof SchemaConnectionNameRoute
+  '/connections/$connectionName/ai': typeof ConnectionsConnectionNameAiRoute
+  '/api/chat/$conversationId/stream': typeof ApiChatConversationIdStreamRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sandbox': typeof SandboxRoute
-  '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+  '/api/chat': typeof ApiChatRouteWithChildren
+  '/connections/$connectionName': typeof ConnectionsConnectionNameRouteWithChildren
+  '/connections/new': typeof ConnectionsNewRoute
   '/schema/$connectionName': typeof SchemaConnectionNameRoute
+  '/connections/$connectionName/ai': typeof ConnectionsConnectionNameAiRoute
+  '/api/chat/$conversationId/stream': typeof ApiChatConversationIdStreamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/sandbox': typeof SandboxRoute
-  '/connections/$connectionName': typeof ConnectionsConnectionNameRoute
+  '/api/chat': typeof ApiChatRouteWithChildren
+  '/connections/$connectionName': typeof ConnectionsConnectionNameRouteWithChildren
+  '/connections/new': typeof ConnectionsNewRoute
   '/schema/$connectionName': typeof SchemaConnectionNameRoute
+  '/connections/$connectionName/ai': typeof ConnectionsConnectionNameAiRoute
+  '/api/chat/$conversationId/stream': typeof ApiChatConversationIdStreamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/sandbox'
+    | '/api/chat'
     | '/connections/$connectionName'
+    | '/connections/new'
     | '/schema/$connectionName'
+    | '/connections/$connectionName/ai'
+    | '/api/chat/$conversationId/stream'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/sandbox'
+    | '/api/chat'
     | '/connections/$connectionName'
+    | '/connections/new'
     | '/schema/$connectionName'
+    | '/connections/$connectionName/ai'
+    | '/api/chat/$conversationId/stream'
   id:
     | '__root__'
     | '/'
     | '/sandbox'
+    | '/api/chat'
     | '/connections/$connectionName'
+    | '/connections/new'
     | '/schema/$connectionName'
+    | '/connections/$connectionName/ai'
+    | '/api/chat/$conversationId/stream'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SandboxRoute: typeof SandboxRoute
-  ConnectionsConnectionNameRoute: typeof ConnectionsConnectionNameRoute
+  ApiChatRoute: typeof ApiChatRouteWithChildren
+  ConnectionsConnectionNameRoute: typeof ConnectionsConnectionNameRouteWithChildren
+  ConnectionsNewRoute: typeof ConnectionsNewRoute
   SchemaConnectionNameRoute: typeof SchemaConnectionNameRoute
 }
 
@@ -99,11 +151,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SandboxRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/connections/$connectionName': {
       id: '/connections/$connectionName'
       path: '/connections/$connectionName'
       fullPath: '/connections/$connectionName'
       preLoaderRoute: typeof ConnectionsConnectionNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connections/new': {
+      id: '/connections/new'
+      path: '/connections/new'
+      fullPath: '/connections/new'
+      preLoaderRoute: typeof ConnectionsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/schema/$connectionName': {
@@ -113,13 +179,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SchemaConnectionNameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connections/$connectionName/ai': {
+      id: '/connections/$connectionName/ai'
+      path: '/ai'
+      fullPath: '/connections/$connectionName/ai'
+      preLoaderRoute: typeof ConnectionsConnectionNameAiRouteImport
+      parentRoute: typeof ConnectionsConnectionNameRoute
+    }
+    '/api/chat/$conversationId/stream': {
+      id: '/api/chat/$conversationId/stream'
+      path: '/$conversationId/stream'
+      fullPath: '/api/chat/$conversationId/stream'
+      preLoaderRoute: typeof ApiChatConversationIdStreamRouteImport
+      parentRoute: typeof ApiChatRoute
+    }
   }
 }
+
+interface ApiChatRouteChildren {
+  ApiChatConversationIdStreamRoute: typeof ApiChatConversationIdStreamRoute
+}
+
+const ApiChatRouteChildren: ApiChatRouteChildren = {
+  ApiChatConversationIdStreamRoute: ApiChatConversationIdStreamRoute,
+}
+
+const ApiChatRouteWithChildren =
+  ApiChatRoute._addFileChildren(ApiChatRouteChildren)
+
+interface ConnectionsConnectionNameRouteChildren {
+  ConnectionsConnectionNameAiRoute: typeof ConnectionsConnectionNameAiRoute
+}
+
+const ConnectionsConnectionNameRouteChildren: ConnectionsConnectionNameRouteChildren =
+  {
+    ConnectionsConnectionNameAiRoute: ConnectionsConnectionNameAiRoute,
+  }
+
+const ConnectionsConnectionNameRouteWithChildren =
+  ConnectionsConnectionNameRoute._addFileChildren(
+    ConnectionsConnectionNameRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SandboxRoute: SandboxRoute,
-  ConnectionsConnectionNameRoute: ConnectionsConnectionNameRoute,
+  ApiChatRoute: ApiChatRouteWithChildren,
+  ConnectionsConnectionNameRoute: ConnectionsConnectionNameRouteWithChildren,
+  ConnectionsNewRoute: ConnectionsNewRoute,
   SchemaConnectionNameRoute: SchemaConnectionNameRoute,
 }
 export const routeTree = rootRouteImport

@@ -15,8 +15,10 @@ const isDocumentDark = (): boolean =>
  * Reacts to dark-class toggles and `setStoredEditorTheme` (same tab + storage).
  */
 export const useMonacoTheme = (): ResolvedEditorThemeId => {
+  // Initialize from the live document so the first editor paint already matches
+  // the shell theme (avoids a light "vs" flash inside the dark workspace).
   const [theme, setTheme] = useState<ResolvedEditorThemeId>(() =>
-    resolveEditorTheme(getStoredEditorTheme(), false),
+    resolveEditorTheme(getStoredEditorTheme(), isDocumentDark()),
   );
 
   const refresh = useEffectEvent(() => {

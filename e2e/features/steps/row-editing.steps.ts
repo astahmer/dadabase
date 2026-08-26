@@ -131,7 +131,10 @@ When("I click Add row", async ({ page }) => {
 
 Then("I should not be able to add rows", async ({ page }) => {
   await expect(page.getByTestId("add-row-button")).toBeDisabled();
-  await expect(page.getByText("Read-only: writes blocked", { exact: true })).toBeVisible();
+  // The read-only indicator lives in the table toolbar as an icon <span> with an
+  // aria-label (tooltip on hover); the old visible-text badge only exists in the
+  // custom SQL workspace now.
+  await expect(page.locator('[aria-label="Read-only: writes are blocked"]')).toBeVisible();
 });
 
 When(

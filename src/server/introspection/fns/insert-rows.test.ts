@@ -1,7 +1,7 @@
-import { SqlClient } from "@effect/sql";
 import { LibsqlClient } from "@effect/sql-libsql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -107,9 +107,9 @@ const testSuite = (sqlLayer: Layer.Layer<SqlClient.SqlClient>, config: DatabaseT
             ],
           },
           { id: "test" } as never,
-        ).pipe(Effect.either);
+        ).pipe(Effect.result);
 
-        expect(failed._tag).toBe("Left");
+        expect(failed._tag).toBe("Failure");
 
         const rows = yield* sql.onDialectOrElse({
           pg: () => sql<{ count: number }>`SELECT COUNT(*) as count FROM ${sql(schema)}.users`,

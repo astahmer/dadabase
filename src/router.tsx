@@ -4,6 +4,7 @@ import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query
 import { parse, stringify } from "zipson";
 
 import { FullCenter } from "./components/ui/layout.tsx";
+import { AppAriaLiveRegion } from "./components/ui/aria-live.tsx";
 import { Spinner } from "./components/ui/spinner.tsx";
 import { ToasterProvider } from "./components/ui/toaster.tsx";
 import { queryClient } from "./query-client.ts";
@@ -32,6 +33,7 @@ export const getRouter = () => {
       return (
         <QueryClientProvider client={queryClient}>
           <ToasterProvider />
+          <AppAriaLiveRegion />
           {props.children}
         </QueryClientProvider>
       );

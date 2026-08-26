@@ -1,10 +1,10 @@
 # RESOLVED — Cascade delete hard-blocked on any RESTRICT/NO ACTION edge
 
-| Field | Value |
-| --- | --- |
-| Status | **resolved** |
-| Severity | high (at introduction) |
-| Introduced | `xvmpmoqq` / cascade dialog wiring in `mnzqpkpo` |
+| Field       | Value                                                                              |
+| ----------- | ---------------------------------------------------------------------------------- |
+| Status      | **resolved**                                                                       |
+| Severity    | high (at introduction)                                                             |
+| Introduced  | `xvmpmoqq` / cascade dialog wiring in `mnzqpkpo`                                   |
 | Resolved by | `wnslvszo` — `fix(cascade): treat RESTRICT FK edges as advisory, not a hard block` |
 
 ## Original issue

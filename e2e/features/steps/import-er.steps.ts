@@ -21,6 +21,7 @@ Then(
 );
 
 When("I import CSV rows into the current table:", async ({ page }, docString: string) => {
+  await page.getByTestId("toolbar-change-menu").click();
   await page.getByTestId("import-data").click();
   await expect(page.getByTestId("import-data-dialog")).toBeVisible();
 
@@ -38,6 +39,7 @@ When("I import CSV rows into the current table:", async ({ page }, docString: st
 });
 
 When("I import SQL into the current table:", async ({ page }, docString: string) => {
+  await page.getByTestId("toolbar-change-menu").click();
   await page.getByTestId("import-data").click();
   await page.getByTestId("import-format-sql").click();
   await page.getByTestId("import-file-input").setInputFiles({

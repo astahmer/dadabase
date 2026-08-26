@@ -11,6 +11,7 @@ import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 export interface VirtualizedTableBodyProps<TData> {
   rows: Row<TData>[];
   onRowClick?: (row: Row<TData>) => void;
+  onRowDoubleClick?: (row: Row<TData>) => void;
   size: DataTableSize;
   striped: boolean;
   interactive: boolean;
@@ -30,6 +31,7 @@ export interface VirtualizedTableBodyProps<TData> {
 export function VirtualizedTableBody<TData>({
   rows,
   onRowClick,
+  onRowDoubleClick,
   size,
   striped,
   interactive,
@@ -76,6 +78,7 @@ export function VirtualizedTableBody<TData>({
             index={virtualRow.index}
             getRow={() => row}
             onRowClick={onRowClick}
+            onRowDoubleClick={onRowDoubleClick}
             size={size}
             striped={striped}
             interactive={interactive}

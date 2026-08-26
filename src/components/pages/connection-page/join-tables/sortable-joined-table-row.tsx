@@ -1,10 +1,11 @@
-import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
-import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 import type { CSSProperties } from "react";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
+
+import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
+import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import type { JoinConditionMode, JoinedTable } from "./join-tables.types";
 

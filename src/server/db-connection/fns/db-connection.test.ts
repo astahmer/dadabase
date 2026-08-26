@@ -23,22 +23,18 @@ const TestAppDatabaseLayer = Layer.effect(
   }),
 );
 
-const TestNanoIdLayer = Layer.succeed(
-  NanoId,
-  new NanoId({
-    unsafeGenerate: (prefix: string) => `${prefix}-test-nanoid`,
-    unsafeNanoId: defaultNanoId,
-    generate: testNanoId,
-    generateMany: (prefix: string, count: number) =>
-      Effect.sync(() =>
-        Array.from(
-          { length: count },
-          (_, _i) =>
-            `${prefix}-test-${customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 12)()}`,
-        ),
+const TestNanoIdLayer = Layer.succeed(NanoId, {
+  unsafeGenerate: (prefix: string) => `${prefix}-test-nanoid`,
+  unsafeNanoId: defaultNanoId,
+  generate: testNanoId,
+  generateMany: (prefix: string, count: number) =>
+    Effect.sync(() =>
+      Array.from(
+        { length: count },
+        (_, _i) => `${prefix}-test-${customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 12)()}`,
       ),
-  }),
-);
+    ),
+});
 
 const TestDatabaseRepositoryLayer = DatabaseConnectionRepository.Default.pipe(
   Layer.provide(TestAppDatabaseLayer),

@@ -12,16 +12,16 @@ API mapping below against the actual v4 code).
 
 **Import volume:** 190 effect-family import statements across 113 files in `src/`.
 
-| Package | Import sites | Notes |
-|---|---|---|
-| `effect` | 112 | core runtime |
-| `@effect/sql` (+ `/SqlError`, `/SqlClient`) | ~50 | entire DB access layer |
-| `@effect/vitest` | 18 test files | `describe/it.effect/it.scoped` |
-| `@effect/sql-libsql` | 3 | `LibsqlClient.layer` |
-| `@effect/sql-pg` | 2 | `PgClient.layer` |
-| `@effect/sql-mysql2` | 1 | `MysqlClient.layer` |
-| `@effect/platform-node` | 2 | `NodeContext.layer` (`src/dotenv.runtime.ts:2`, `src/sandbox/remote-pg.ts:14`) |
-| `@effect/platform` | 2 | `PlatformConfigProvider.layerDotEnvAdd` (same two files) |
+| Package                                     | Import sites  | Notes                                                                          |
+| ------------------------------------------- | ------------- | ------------------------------------------------------------------------------ |
+| `effect`                                    | 112           | core runtime                                                                   |
+| `@effect/sql` (+ `/SqlError`, `/SqlClient`) | ~50           | entire DB access layer                                                         |
+| `@effect/vitest`                            | 18 test files | `describe/it.effect/it.scoped`                                                 |
+| `@effect/sql-libsql`                        | 3             | `LibsqlClient.layer`                                                           |
+| `@effect/sql-pg`                            | 2             | `PgClient.layer`                                                               |
+| `@effect/sql-mysql2`                        | 1             | `MysqlClient.layer`                                                            |
+| `@effect/platform-node`                     | 2             | `NodeContext.layer` (`src/dotenv.runtime.ts:2`, `src/sandbox/remote-pg.ts:14`) |
+| `@effect/platform`                          | 2             | `PlatformConfigProvider.layerDotEnvAdd` (same two files)                       |
 
 **Installed but never imported in `src/` (candidates for removal):**
 `@effect/rpc`, `@effect/experimental`, `@effect/workflow`, `@effect/opentelemetry`,
@@ -30,14 +30,14 @@ API mapping below against the actual v4 code).
 
 **Core API usage counts (`rg -o "Effect\.[A-Za-z]+" src/`):**
 
-| API | Count | | API | Count |
-|---|---|---|---|---|
-| `Effect.gen` | 402 | | `Effect.fn` | 17 |
-| `Effect.provide` | 267 | | `Effect.tryPromise` | 13 |
-| `Effect.fail` | 54 | | `Effect.catchAll` | 11 ⚠️ removed in v4 |
-| `Effect.Effect` (type) | 47 | | `Effect.either` | 7 ✅ still exists |
-| `Effect.runPromise` | 39 | | `Effect.scoped` | 5 |
-| `Effect.succeed` | 33 | | `Effect.Service` | 4 sites ⚠️ removed |
+| API                    | Count |     | API                 | Count               |
+| ---------------------- | ----- | --- | ------------------- | ------------------- |
+| `Effect.gen`           | 402   |     | `Effect.fn`         | 17                  |
+| `Effect.provide`       | 267   |     | `Effect.tryPromise` | 13                  |
+| `Effect.fail`          | 54    |     | `Effect.catchAll`   | 11 ⚠️ removed in v4 |
+| `Effect.Effect` (type) | 47    |     | `Effect.either`     | 7 ✅ still exists   |
+| `Effect.runPromise`    | 39    |     | `Effect.scoped`     | 5                   |
+| `Effect.succeed`       | 33    |     | `Effect.Service`    | 4 sites ⚠️ removed  |
 
 **Schema usage (~460 total):** `Schema.String` 171, `Schema.optional` 83,
 `Schema.Struct` 52, **`Schema.standardSchemaV1` 38 ⚠️ renamed**, `Schema.Literal` 32,
@@ -104,7 +104,7 @@ node_modules) and npm dist-tags:
 - **Packages with no v4 line** (all unused by us → delete from package.json):
   `@effect/rpc` → `effect/unstable/rpc`, `@effect/workflow` →
   `effect/unstable/workflow`, `@effect/experimental`, `@effect/cluster`
-  (→ `effect/unstable/cluster`), `@effect/opentelemetry` *does* have rc.111 but we
+  (→ `effect/unstable/cluster`), `@effect/opentelemetry` _does_ have rc.111 but we
   don't use it.
 - `@effect/vitest` has rc.111 (peer `vitest >=4.1 <5` — ours is 4.1.11 ✅).
 
@@ -122,14 +122,14 @@ node_modules) and npm dist-tags:
 
 ### 2.3 Schema drift (≈70 mechanical touch points)
 
-| v3 | v4 | dadabase call sites |
-|---|---|---|
-| `Schema.standardSchemaV1` | `Schema.toStandardSchemaV1(schema)` (v4 `Schema.ts:1107`) | 38×: route `validateSearch`/`validator` in `src/routes/**`, server-fn `.validator` (e.g. `src/server/ai/generate-sql-text.start.ts:13`) |
-| `X.pipe(Schema.optionalWith({ default }))` | `X.pipe(Schema.optional, Schema.withDecodingDefault(...))` (v4 exports `withDecodingDefault` at `Schema.ts:5806`) | 14×: mostly `src/routes/connections/$connectionName.tsx:16-58` search schema |
-| module-level `Schema.pipe(A, B)` | instance `.pipe()` survives (Pipeable), but filter lambdas are now standalone constructors used via `.check(Schema.isPattern(...))` etc. (emi-healthfit idiom) | ~13× — review each during mechanical pass |
-| `Schema.safeParse` | `Schema.decodeUnknownSync` / `decodeUnknownOption` | `src/lib/ai/ai-stats.ts:23`, `src/components/pages/connection.form.tsx:118,280` |
-| `Schema.Enums` | `Schema.Enum` (singular, v4 `Schema.ts:2848`) | 2× |
-| `optionalWith` positional flags (`onNil`-style options) | restructure as `UndefinedOr` + `withDecoding*` | any site not covered above |
+| v3                                                      | v4                                                                                                                                                             | dadabase call sites                                                                                                                     |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `Schema.standardSchemaV1`                               | `Schema.toStandardSchemaV1(schema)` (v4 `Schema.ts:1107`)                                                                                                      | 38×: route `validateSearch`/`validator` in `src/routes/**`, server-fn `.validator` (e.g. `src/server/ai/generate-sql-text.start.ts:13`) |
+| `X.pipe(Schema.optionalWith({ default }))`              | `X.pipe(Schema.optional, Schema.withDecodingDefault(...))` (v4 exports `withDecodingDefault` at `Schema.ts:5806`)                                              | 14×: mostly `src/routes/connections/$connectionName.tsx:16-58` search schema                                                            |
+| module-level `Schema.pipe(A, B)`                        | instance `.pipe()` survives (Pipeable), but filter lambdas are now standalone constructors used via `.check(Schema.isPattern(...))` etc. (emi-healthfit idiom) | ~13× — review each during mechanical pass                                                                                               |
+| `Schema.safeParse`                                      | `Schema.decodeUnknownSync` / `decodeUnknownOption`                                                                                                             | `src/lib/ai/ai-stats.ts:23`, `src/components/pages/connection.form.tsx:118,280`                                                         |
+| `Schema.Enums`                                          | `Schema.Enum` (singular, v4 `Schema.ts:2848`)                                                                                                                  | 2×                                                                                                                                      |
+| `optionalWith` positional flags (`onNil`-style options) | restructure as `UndefinedOr` + `withDecoding*`                                                                                                                 | any site not covered above                                                                                                              |
 
 Survivors verified present in v4: `Struct, Array, Literal, Union, Record, Null,
 Boolean, Number, mutable, URL, transform, brand, decodeUnknownSync,
@@ -141,9 +141,9 @@ decodeUnknownOption, is` ✅.
   (the v4 idiom; emi-healthfit uses it 32×). 11 call sites in dadabase.
   `Effect.catchIf/catchTag/catchCause` also exist; `Effect.either` survives.
 - Everything else we use survives: `gen, provide, provideService, fail, succeed,
-  map, flatMap, all, tap, tapError, tryPromise, try, sync, promise, async?,
-  repeat, void, die, orDie, ignore, orElseSucceed, logWarning, context, asVoid,
-  ensuring, addFinalizer, withSpan, forEach, acquireRelease, scoped, runPromise, fn`
+map, flatMap, all, tap, tapError, tryPromise, try, sync, promise, async?,
+repeat, void, die, orDie, ignore, orElseSucceed, logWarning, context, asVoid,
+ensuring, addFinalizer, withSpan, forEach, acquireRelease, scoped, runPromise, fn`
   (⚠️ `async` not found in v4 beta.88 top-level greps — single call site, verify;
   candidate replacement: `suspend` + `tryPromise`).
 
@@ -187,17 +187,17 @@ in core `effect`, implemented by `NodeFileSystem.layer`.)
 > packages align. If rc.111 shows regressions, fall back to beta.107/beta.88 across
 > the board (all packages below have those tags too).
 
-| Package | From | To (pinned) |
-|---|---|---|
-| `effect` | 3.22.1 | `4.0.0-rc.111` |
-| `@effect/sql-pg` | catalog 0.52.x→ | `4.0.0-rc.111` |
-| `@effect/sql-libsql` | 0.42.0 | `4.0.0-rc.111` |
-| `@effect/sql-mysql2` | 0.53.0 | `4.0.0-rc.111` |
-| `@effect/vitest` | 0.30.0 | `4.0.0-rc.111` |
-| `@effect/platform-node` | 0.108.1 | `4.0.0-rc.111` |
-| `@effect/platform` | 0.97.1 | **remove** |
-| `@effect/sql` | 0.52.1 | **remove** (merged into `effect/unstable/sql`) |
-| `@effect/rpc`, `@effect/workflow`, `@effect/experimental`, `@effect/cluster`, `@effect/opentelemetry`, `@effect/sql-sqlite-node`, `@effect/platform-browser`, `@effect/platform-node-shared` | — | **remove** (unused; no v4 line or superseded) |
+| Package                                                                                                                                                                                      | From            | To (pinned)                                    |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------------- |
+| `effect`                                                                                                                                                                                     | 3.22.1          | `4.0.0-rc.111`                                 |
+| `@effect/sql-pg`                                                                                                                                                                             | catalog 0.52.x→ | `4.0.0-rc.111`                                 |
+| `@effect/sql-libsql`                                                                                                                                                                         | 0.42.0          | `4.0.0-rc.111`                                 |
+| `@effect/sql-mysql2`                                                                                                                                                                         | 0.53.0          | `4.0.0-rc.111`                                 |
+| `@effect/vitest`                                                                                                                                                                             | 0.30.0          | `4.0.0-rc.111`                                 |
+| `@effect/platform-node`                                                                                                                                                                      | 0.108.1         | `4.0.0-rc.111`                                 |
+| `@effect/platform`                                                                                                                                                                           | 0.97.1          | **remove**                                     |
+| `@effect/sql`                                                                                                                                                                                | 0.52.1          | **remove** (merged into `effect/unstable/sql`) |
+| `@effect/rpc`, `@effect/workflow`, `@effect/experimental`, `@effect/cluster`, `@effect/opentelemetry`, `@effect/sql-sqlite-node`, `@effect/platform-browser`, `@effect/platform-node-shared` | —               | **remove** (unused; no v4 line or superseded)  |
 
 Also update `pnpm-workspace.yaml` catalog entries accordingly (dadabase pins
 several `@effect/*` through `catalog:`).
@@ -210,6 +210,7 @@ Work on a **fresh jj change** (`jj new -m "effect-4 migration"`); never mix with
 unrelated work so `jj restore`/`jj abandon` is a clean rollback.
 
 ### Phase 0 — types-only preparation (no runtime bump)
+
 - [ ] Add codemod-friendly shims: create `src/db/effect-compat.ts` re-exporting the
       ~10 v3 symbols that get renamed, and import from there in the affected files
       (optional but makes phase 2 nearly mechanical; skip if it fights oxlint rules).
@@ -217,11 +218,13 @@ unrelated work so `jj restore`/`jj abandon` is a clean rollback.
       all green before starting.
 
 ### Phase 1 — package bumps (one change, expect red typecheck)
+
 - [ ] Update `package.json` + `pnpm-workspace.yaml` catalog to the pinned versions
       in §3 (removals included). `pnpm install --no-frozen-lockfile`.
 - [ ] Do NOT fix code yet; record `pnpm typecheck` error count as the work backlog.
 
 ### Phase 2 — mechanical import rewrites (codemod-able, sed-safe)
+
 - [ ] `"@effect/sql"` → `"effect/unstable/sql"`; `"@effect/sql/SqlError"` →
       `"effect/unstable/sql/SqlError"` (~50 imports, keep `SqlClient.SqlClient`
       type usage unchanged).
@@ -232,6 +235,7 @@ unrelated work so `jj restore`/`jj abandon` is a clean rollback.
 - [ ] `Effect.catchAll(handler)` → `Effect.catch(handler)` (11 sites).
 
 ### Phase 3 — structural rewrites (hand-done, small blast radius each)
+
 - [ ] 7 × `Context.Tag` classes → `Context.Service`/`Context.Reference`
       (`§1` list). Update every `yield* X` / `Layer.succeed(X, …)` /
       `Context.make` reference; typecheck drives discovery.
@@ -249,6 +253,7 @@ unrelated work so `jj restore`/`jj abandon` is a clean rollback.
 - [ ] Verify the single `Effect.async` site (grep `Effect.async`).
 
 ### Phase 4 — gate
+
 - [ ] `pnpm typecheck` — zero errors
 - [ ] `pnpm check` — lint clean
 - [ ] `pnpm test --run` — full suite green (**always `--run`, never watch mode**)
@@ -261,14 +266,14 @@ unrelated work so `jj restore`/`jj abandon` is a clean rollback.
 
 ## 5. Risks & rollback
 
-| Risk | Mitigation |
-|---|---|
-| rc.111 vs healthfit's proven beta.88 behavioral drift | All APIs above were verified in beta.88 source; rc.111 changelog check before starting; fallback pin set = beta.107 everywhere (single-line catalog change) |
-| `Context.Tag` → `Context.Service` subtle typing differences (service shapes are inferred differently in the two-stage form) | Migrate one tag first (`NanoId`, smallest), run suite, then batch the rest |
-| Hidden reliance on removed `@effect/platform` utilities beyond the two known files | grep gate in Phase 2: `rg "@effect/platform" src/` must be empty post-migration |
-| `EffectKysely` wrapper (`src/db/effect-kysely.ts`, PR #5156 pattern) may lean on internals | It only uses `Effect`/`Option`/`SqlError` public API — verified; watch its tests |
-| vitest peer range of `@effect/vitest@4` requires vitest `>=4.1 <5` | We're on 4.1.11 ✅ (verify again at dep-refresh time — coordinate with dependency-refresh plan) |
-| Beta/RC instability generally (pre-GA) | Single jj change; rollback = `jj abandon` + restore lockfile; do not stack other feature work on top until green |
+| Risk                                                                                                                        | Mitigation                                                                                                                                                  |
+| --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| rc.111 vs healthfit's proven beta.88 behavioral drift                                                                       | All APIs above were verified in beta.88 source; rc.111 changelog check before starting; fallback pin set = beta.107 everywhere (single-line catalog change) |
+| `Context.Tag` → `Context.Service` subtle typing differences (service shapes are inferred differently in the two-stage form) | Migrate one tag first (`NanoId`, smallest), run suite, then batch the rest                                                                                  |
+| Hidden reliance on removed `@effect/platform` utilities beyond the two known files                                          | grep gate in Phase 2: `rg "@effect/platform" src/` must be empty post-migration                                                                             |
+| `EffectKysely` wrapper (`src/db/effect-kysely.ts`, PR #5156 pattern) may lean on internals                                  | It only uses `Effect`/`Option`/`SqlError` public API — verified; watch its tests                                                                            |
+| vitest peer range of `@effect/vitest@4` requires vitest `>=4.1 <5`                                                          | We're on 4.1.11 ✅ (verify again at dep-refresh time — coordinate with dependency-refresh plan)                                                             |
+| Beta/RC instability generally (pre-GA)                                                                                      | Single jj change; rollback = `jj abandon` + restore lockfile; do not stack other feature work on top until green                                            |
 
 ## 6. Coordination notes
 

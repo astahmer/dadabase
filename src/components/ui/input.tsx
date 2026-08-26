@@ -1,7 +1,7 @@
+import type { VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
 
 import { cn } from "#src/lib/utils";
-import type { VariantProps } from "class-variance-authority";
 
 import type { ExposedInputProps } from "./component-props.ts";
 

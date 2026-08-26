@@ -11,17 +11,19 @@ Feature: Connection page UX issues from issues.md
   Scenario: AI assistant uses whole database schema context
     Given I open the "users" table
     When I open the AI assistant
+    Then I should see text "not configured"
+    And the AI assistant should require schema-sharing approval
+    When I approve sharing schema context
     Then the AI assistant should mention the whole database schema
-    And I should see text "Add OpenAI key"
 
   Scenario: AI assistant unlocks ask UI after saving a key
     Given I open the "users" table
     And I store a fake OpenAI API key in localStorage
     When I open the AI assistant
-    Then I should see text "Ask for a query"
-    And I should see text "saved"
-    And the AI assistant should mention the whole database schema
+    Then I should see text "provider configured"
     And the AI assistant should require schema-sharing approval
+    When I approve sharing schema context
+    Then the send button unlocks for a typed draft
 
   Scenario: SQL editor is unified without preview/editor tabs
     Given I open the "users" table

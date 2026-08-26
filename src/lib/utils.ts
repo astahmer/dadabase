@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 export const tryFn = <T>(fn: () => T) => {
   try {
     return fn();
-  } catch  {
+  } catch {
     return undefined;
   }
 };

@@ -1,3 +1,5 @@
+import { createListCollection } from "@ark-ui/react";
+
 import {
   Select,
   SelectContent,
@@ -5,7 +7,6 @@ import {
   SelectTrigger,
   SelectValueText,
 } from "#src/components/ui/select.tsx";
-import { createListCollection } from "@ark-ui/react";
 
 import type { JoinableTableOption } from "./join-tables.types";
 

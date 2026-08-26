@@ -1,6 +1,7 @@
-import { cn } from "#src/lib/utils";
 import { Accordion as AccordionPrimitive } from "@ark-ui/react/accordion";
 import { ChevronDown } from "lucide-react";
+
+import { cn } from "#src/lib/utils";
 
 const Accordion = AccordionPrimitive.Root;
 

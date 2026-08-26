@@ -1,16 +1,20 @@
-import { SqlClient } from "@effect/sql";
 import { LibsqlClient } from "@effect/sql-libsql";
 import { MysqlClient } from "@effect/sql-mysql2";
 import { PgClient } from "@effect/sql-pg";
-import { SqlError } from "@effect/sql/SqlError";
 import { Context, Deferred, Duration, Effect, Layer, Redacted, Ref, Schedule } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
+import { SqlError } from "#src/db/effect-compat.ts";
 import { parseSshTunnelFromUrl, stripDadabaseMarkerParams } from "#src/lib/connection-security.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
+import { layerFromUrl as clickhouseLayerFromUrl } from "#src/server/db-connection/clickhouse/clickhouse-client.ts";
+import { layer as csvDbLayer } from "#src/server/db-connection/duckdb/csv-client.ts";
+import { layer as duckDbLayer } from "#src/server/db-connection/duckdb/duckdb-client.ts";
+import { layerFromUrl as mssqlLayerFromUrl } from "#src/server/db-connection/mssql/mssql-client.ts";
 
 import { DatabaseDialect } from "../dialect.ts";
 
-export class PoolCache extends Context.Tag("@dadabase/PoolCache")<
+export class PoolCache extends Context.Service<
   PoolCache,
   {
     readonly getOrCreate: (
@@ -22,7 +26,7 @@ export class PoolCache extends Context.Tag("@dadabase/PoolCache")<
       urls: string[];
     }>;
   }
->() {}
+>()("@dadabase/PoolCache") {}
 
 type CacheEntry = {
   layer: Layer.Layer<SqlClient.SqlClient, SqlError>;
@@ -35,6 +39,8 @@ const POOL_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 function defaultDbPort(dialect: DatabaseDialect): number {
   if (dialect === DatabaseDialect.MySQL) return 3306;
+  if (dialect === DatabaseDialect.Mssql) return 1433;
+  if (dialect === DatabaseDialect.Clickhouse) return 8123;
   return 5432;
 }
 
@@ -57,6 +63,23 @@ function buildDriverLayer(
       maxConnections: 20,
       connectionTTL: Duration.seconds(30),
     }) as Layer.Layer<SqlClient.SqlClient, SqlError>;
+  }
+  if (dialect === DatabaseDialect.DuckDB) {
+    // Stored like SQLite files as `file:<path>`; the driver wants the bare path.
+    return duckDbLayer({
+      url: driverUrl.startsWith("file:") ? driverUrl.slice("file:".length) : driverUrl,
+    });
+  }
+  if (dialect === DatabaseDialect.Csv) {
+    // Same file-scheme convention; the CSV engine owns its own in-memory
+    // DuckDB instances keyed by path (see csv-client.ts).
+    return csvDbLayer(driverUrl);
+  }
+  if (dialect === DatabaseDialect.Mssql) {
+    return mssqlLayerFromUrl(driverUrl);
+  }
+  if (dialect === DatabaseDialect.Clickhouse) {
+    return clickhouseLayerFromUrl(driverUrl);
   }
   return LibsqlClient.layer({ url: driverUrl });
 }
@@ -131,7 +154,7 @@ export const makePoolCacheLive = Layer.effect(
       });
     }).pipe(Effect.repeat(Schedule.spaced("3 seconds")));
 
-    yield* Effect.forkDaemon(cleanupRoutine);
+    yield* Effect.forkChild(cleanupRoutine);
 
     const createPool = (url: string, dialect: DatabaseDialect) =>
       Effect.gen(function* () {

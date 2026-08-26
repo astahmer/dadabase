@@ -1,11 +1,11 @@
 # RESOLVED — E2E sample DB reset hit `SQLITE_BUSY`
 
-| Field | Value |
-| --- | --- |
-| Status | **resolved** |
-| Severity | medium (flake) |
-| Introduced | shared fixture SQLite + long-lived Vite pool (exposed under parallel schema mutate scenarios) |
-| Resolved by | `skzovpuy` — retry/backoff in `resetSampleDb` |
+| Field       | Value                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------- |
+| Status      | **resolved**                                                                                  |
+| Severity    | medium (flake)                                                                                |
+| Introduced  | shared fixture SQLite + long-lived Vite pool (exposed under parallel schema mutate scenarios) |
+| Resolved by | `skzovpuy` — retry/backoff in `resetSampleDb`                                                 |
 
 ## Original issue
 

@@ -34,8 +34,9 @@ export interface CommandPaletteCommand {
 }
 
 export interface CommandPaletteTableRef {
-  schema: string;
   name: string;
+  /** SQLite/LibSQL introspection omits this column entirely. */
+  schema?: string | null;
 }
 
 export interface CommandPaletteConnectionRef {
@@ -63,7 +64,8 @@ export const parseSwitchTableCommandId = (id: string): { schema: string; table: 
   if (!id.startsWith("switch-table:")) return null;
   const rest = id.slice("switch-table:".length);
   const dot = rest.indexOf(".");
-  if (dot <= 0 || dot === rest.length - 1) return null;
+  // Leading dot = schema-less (SQLite/LibSQL) table; trailing dot is malformed.
+  if (dot === -1 || dot === rest.length - 1) return null;
   return { schema: rest.slice(0, dot), table: rest.slice(dot + 1) };
 };
 
@@ -161,10 +163,19 @@ export function buildCommandPaletteCommands(
 
   for (const table of ctx.tables ?? []) {
     if (table.schema === currentSchema && table.name === currentTable) continue;
+    // SQLite/LibSQL introspection returns rows without a schema column.
+    // cmdk crashes on non-string keywords, so schema must never reach the
+    // command as undefined/null — omit it from label/keywords instead.
+    const schema = table.schema ?? "";
     commands.push({
-      id: switchTableCommandId(table.schema, table.name),
-      label: `Switch to ${table.schema}.${table.name}`,
-      keywords: ["table", "switch", table.name, table.schema, `${table.schema}.${table.name}`],
+      id: switchTableCommandId(schema, table.name),
+      label: schema ? `Switch to ${schema}.${table.name}` : `Switch to ${table.name}`,
+      keywords: [
+        "table",
+        "switch",
+        table.name,
+        ...(schema ? [schema, `${schema}.${table.name}`] : []),
+      ],
       group: "Tables",
     });
   }
@@ -174,7 +185,7 @@ export function buildCommandPaletteCommands(
     commands.push({
       id: switchSchemaCommandId(schema),
       label: `Switch schema to ${schema}`,
-      keywords: ["schema", "database", "switch", schema],
+      keywords: ["schema", "database", "switch", String(schema)],
       group: "Schemas",
     });
   }

@@ -1,3 +1,8 @@
+import { Splitter } from "@ark-ui/react/splitter";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { useRef } from "react";
+
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 
 import { RelationshipViewMode } from "#src/components/pages/connection-page/relationships/relationship-view-mode.ts";
@@ -6,10 +11,6 @@ import { useStickyRelationshipTracking as useStickyTracking } from "#src/compone
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { getRelationshipsCountsQueryOptions } from "#src/server/introspection/start-fns/get-relationships-counts.start.ts";
 import { getTableRelationshipsQueryOptions } from "#src/server/introspection/start-fns/get-table-relationships.start.ts";
-import { Splitter } from "@ark-ui/react/splitter";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
-import { useRef } from "react";
 
 import { Button } from "../../../ui/button.tsx";
 import { Checkbox, CheckboxControl } from "../../../ui/checkbox.tsx";

@@ -4,6 +4,7 @@ import { Schema } from "effect";
 
 import type { InferServerFnSchema } from "#src/types.ts";
 
+import { toValidator } from "#src/db/effect-compat.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { getRelationshipCardinality } from "#src/server/introspection/introspection.ts";
 
@@ -15,7 +16,7 @@ const getRelationshipCardinalityServerFn = createServerFn({ method: "POST" })
       table: Schema.String,
       columns: Schema.Array(Schema.String),
       isIncomingRelationship: Schema.optional(Schema.Boolean),
-    }).pipe(Schema.standardSchemaV1),
+    }).pipe(toValidator),
   )
   .handler(
     createRemoteIntrospectionHandler((input) =>

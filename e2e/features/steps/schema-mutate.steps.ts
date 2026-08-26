@@ -3,12 +3,15 @@ import { expect, type Page } from "@playwright/test";
 import { Then, When } from "./fixtures";
 
 const openSchemaChangeMenu = async (page: Page) => {
-  await page.getByRole("button", { name: "Change" }).click();
+  // Renamed from "Change" to "Schema actions" when the structure toolbar was reworked.
+  await page.getByRole("button", { name: "Schema actions" }).click();
 };
 
 When("I switch to structure view", async ({ page }) => {
   await page.getByTestId("view-mode-structure").click();
-  await expect(page.getByRole("button", { name: "Change" })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: "Schema actions" })).toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 When(

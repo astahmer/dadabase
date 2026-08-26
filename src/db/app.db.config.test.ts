@@ -1,4 +1,4 @@
-import { ConfigProvider, Effect, Layer, Redacted } from "effect";
+import { ConfigProvider, Effect, Redacted } from "effect";
 import { describe, expect, it } from "vitest";
 
 import { DatabaseUrl } from "./app.db.config.ts";
@@ -8,7 +8,7 @@ describe("DatabaseUrl default", () => {
     const value = await Effect.runPromise(
       DatabaseUrl.pipe(
         Effect.map(Redacted.value),
-        Effect.provide(Layer.setConfigProvider(ConfigProvider.fromMap(new Map()))),
+        Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnvRecord({}))),
       ),
     );
     expect(value.startsWith("file:")).toBe(true);

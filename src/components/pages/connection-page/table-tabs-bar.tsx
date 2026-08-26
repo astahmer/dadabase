@@ -259,7 +259,7 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
   const tabIds = tabs.map((tab) => tab.tabId);
 
   return (
-    <div className="bg-muted/50 min-h-0 shrink-0 border-b">
+    <div className="bg-muted/50 min-h-0 shrink-0 border-b" data-testid="connection-tabs-bar">
       <Tabs.Root
         value={activeTabId || ""}
         onValueChange={(details) => {

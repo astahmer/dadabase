@@ -1,6 +1,6 @@
-import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 import { executeSqliteTableRebuild } from "./introspection.ts";
 import { libsqlLayer, makeTestLayer } from "./test.layer.ts";
@@ -49,9 +49,9 @@ describe("executeSqliteTableRebuild", () => {
           "SELECT * FROM definitely_missing_table;",
           "COMMIT;",
         ],
-      }).pipe(Effect.either);
+      }).pipe(Effect.result);
 
-      expect(result._tag).toBe("Left");
+      expect(result._tag).toBe("Failure");
 
       const fk = yield* sql<{ foreign_keys: number }>`PRAGMA foreign_keys`;
       expect(Number(fk[0]?.foreign_keys)).toBe(1);

@@ -1,10 +1,12 @@
-import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { useRowsColumnsAction } from "#src/components/pages/connection-page/use-rows-columns.actions.ts";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Maximize2, X } from "lucide-react";
 import { useMemo, useState } from "react";
+
+import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
+
+import { useRowsColumnsAction } from "#src/components/pages/connection-page/use-rows-columns.actions.ts";
 
 import { queryFkTargetDataQueryOptions } from "../../../../server/introspection/start-fns/get-fk-target-data.start.ts";
 import { DataTable } from "../../../data-table/data-table.tsx";

@@ -1,8 +1,8 @@
-import type { ColumnReference } from "#src/server/introspection/introspection.ts";
-
 import { Popover, Portal } from "@ark-ui/react";
 import { Link as LinkIcon } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+
+import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 
 import type { ForeignKeyInfo } from "../data-table/cell-context-menu.tsx";
 

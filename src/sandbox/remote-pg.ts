@@ -1,18 +1,15 @@
+import { NodeFileSystem } from "@effect/platform-node";
+import { ConfigProvider, Config, Effect, Layer } from "effect";
+
 import { DatabaseDialect } from "#src/db/dialect.ts";
 import { makeRemoteSqlClientLayer } from "#src/db/postgres/remote-sql-client.layer.ts";
 import {
   makeRemoteConnectionLayer,
   RemoteConnectionId,
 } from "#src/server/db-connection/remote-connection.tag.ts";
-import {
-  getAvailableTables,
-  queryTableRows,
-} from "#src/server/introspection/introspection.ts";
+import { getAvailableTables, queryTableRows } from "#src/server/introspection/introspection.ts";
 import { QueryLoggerInMemoryLayer } from "#src/server/query-logger/query-logger.layer.in-memory.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
-import { PlatformConfigProvider } from "@effect/platform";
-import { NodeContext } from "@effect/platform-node";
-import { Config, Effect } from "effect";
 
 // const program = Effect.gen(function* () {
 // 	const dbList = yield* getAvailableDatabases();
@@ -41,8 +38,11 @@ const res = await AppRuntime.runPromise(
     Effect.provide(makeRemoteConnectionLayer(RemoteConnectionId.make("123"))),
     Effect.provide(QueryLoggerInMemoryLayer),
     Effect.scoped,
-    Effect.provide(PlatformConfigProvider.layerDotEnv(".env")),
-    Effect.provide(NodeContext.layer),
+    Effect.provide(
+      ConfigProvider.layerAdd(ConfigProvider.fromDotEnv({ path: ".env" })).pipe(
+        Layer.provideMerge(NodeFileSystem.layer),
+      ),
+    ),
   ),
 );
 console.log(res);

@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 
 import { DatabaseDialect } from "#src/db/dialect.ts";
+import { toValidator } from "#src/db/effect-compat.ts";
 import { createDbConnection } from "#src/server/db-connection/fns/create-db-connection.ts";
 
 import { AppRuntime } from "../../services/app.runtime.ts";
@@ -11,9 +12,9 @@ const createDbConnectionServerFn = createServerFn({ method: "POST" })
   .validator(
     Schema.Struct({
       name: Schema.String,
-      url: Schema.URL,
-      dialect: Schema.Enums(DatabaseDialect),
-    }).pipe(Schema.standardSchemaV1),
+      url: Schema.String,
+      dialect: Schema.Enum(DatabaseDialect),
+    }).pipe(toValidator),
   )
   .handler(async (ctx) => {
     return await AppRuntime.runPromise(

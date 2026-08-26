@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "#src/components/ui/dialog.tsx";
 import { toaster } from "#src/components/ui/toaster.tsx";
+import { noteRowMutations } from "#src/lib/csv-unsaved-changes.ts";
 import { coerceColumnValue } from "#src/lib/data-type-utils.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
@@ -20,6 +21,7 @@ import { updateRowServerFn } from "#src/server/introspection/start-fns/update-ro
 import {
   buildPendingUpdateSql,
   clearPendingCellEdits,
+  distinctRowCount,
   getPendingCellEditCount,
   type PendingCellEdit,
 } from "./pending-cell-edits.ts";
@@ -72,6 +74,8 @@ export function PendingCellEditsBar({ connectionUrl, edits, onChange }: PendingC
       return edits.length;
     },
     onSuccess: (n) => {
+      // Rows are grouped per UPDATE; count distinct rows for staged tracking.
+      noteRowMutations(connectionUrl, edits[0]?.table ?? "", distinctRowCount(edits));
       onChange(clearPendingCellEdits());
       setReviewOpen(false);
       invalidateRowsQueries(queryClient);

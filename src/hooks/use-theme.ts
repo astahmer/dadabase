@@ -3,7 +3,14 @@ import { useEffect, useState } from "react";
 type Theme = "light" | "dark";
 
 export const useTheme = () => {
-  const [theme, setTheme] = useState<Theme>("light");
+  // The blocking bootstrap in __root.tsx already applied the persisted/system
+  // theme to <html> before first paint — read it back instead of assuming
+  // "light" (which caused a dark→light mismatch until the effect ran).
+  const [theme, setTheme] = useState<Theme>(() =>
+    typeof document === "undefined" || !document.documentElement.classList.contains("dark")
+      ? "light"
+      : "dark",
+  );
   const [mounted, setMounted] = useState(false);
 
   const applyTheme = (newTheme: Theme) => {

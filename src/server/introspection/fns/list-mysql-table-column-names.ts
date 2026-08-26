@@ -1,5 +1,5 @@
-import { SqlClient } from "@effect/sql";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 /**
  * Fetch ordered column names for a MySQL table (for no-PK fingerprint WHERE clauses).

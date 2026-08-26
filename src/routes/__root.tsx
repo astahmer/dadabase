@@ -9,7 +9,34 @@ interface MyRouterContext {
   queryClient: QueryClient;
 }
 
+/**
+ * Blocking theme bootstrap — must run before first paint so the correct
+ * theme class is on <html> immediately (no light flash on dark loads) and
+ * native controls pick the right color-scheme. Mirrors src/hooks/use-theme.ts.
+ */
+const themeBootstrapScript = `(function(){try{var t=localStorage.getItem("theme");var d=t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;var el=document.documentElement;if(d){el.classList.add("dark");}}catch(e){}})();`;
+
+const RootErrorComponent = ({ error }: { error: unknown }) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    <div className="bg-background text-foreground flex h-full min-h-screen flex-col items-center justify-center gap-4 p-8">
+      <h1 className="text-lg font-semibold">Something went wrong</h1>
+      <p className="text-muted-foreground max-w-md text-center text-sm">{message}</p>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium"
+      >
+        Reload Dadabase
+      </button>
+    </div>
+  );
+};
+
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+  // Last-resort boundary: without this a render crash anywhere above the
+  // route tree blanks the entire app (see ux-audit-2026-08-25 G1).
+  errorComponent: RootErrorComponent,
   head: () => ({
     meta: [
       {
@@ -20,6 +47,10 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: "width=device-width, initial-scale=1",
       },
       {
+        name: "color-scheme",
+        content: "dark light",
+      },
+      {
         title: "Dadabase",
       },
     ],
@@ -27,6 +58,16 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      {
+        rel: "icon",
+        type: "image/svg+xml",
+        href: "/favicon.svg",
+      },
+      {
+        rel: "alternate icon",
+        href: "/favicon.ico",
+        sizes: "any",
       },
     ],
   }),
@@ -38,6 +79,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
         <HeadContent />
         {/* {import.meta.env.DEV && (
 					<script

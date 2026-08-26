@@ -26,7 +26,7 @@ export const QueryLoggerPersistentLayer = Layer.effect(
         Effect.gen(function* () {
           return yield* getQueryLogs(connectionId, filters, 1000).pipe(
             Effect.tapError((err) =>
-              Effect.logWarning("Failed to fetch query logs from database", err),
+              Effect.logDebug(`query-log read skipped: ${String(err).slice(0, 120)}`),
             ),
             Effect.orElseSucceed(() => ({
               rows: [],
@@ -39,7 +39,7 @@ export const QueryLoggerPersistentLayer = Layer.effect(
           const entryId = yield* nanoId.generate("ql");
           yield* persistQueryLog(connectionId, { ...entry, id: entryId }).pipe(
             Effect.tapError((err) =>
-              Effect.logWarning("Failed to insert query log to database", err),
+              Effect.logDebug(`query-log insert skipped: ${String(err).slice(0, 120)}`),
             ),
             Effect.orElseSucceed(() => undefined),
           );
@@ -50,7 +50,7 @@ export const QueryLoggerPersistentLayer = Layer.effect(
         return updatePersistedQueryLog(entryId, updates)
           .pipe(
             Effect.tapError((err) =>
-              Effect.logWarning("Failed to update query log to database", err),
+              Effect.logDebug(`query-log update skipped: ${String(err).slice(0, 120)}`),
             ),
             Effect.orElseSucceed(() => undefined),
           )
@@ -61,7 +61,7 @@ export const QueryLoggerPersistentLayer = Layer.effect(
           yield* db.execute(db.deleteFrom("query_logs").where("id", "is not", null)).pipe(
             Effect.orElseSucceed(() => undefined),
             Effect.tapError((err) =>
-              Effect.logWarning("Failed to clear all query log in database", err),
+              Effect.logDebug(`query-log clear skipped: ${String(err).slice(0, 120)}`),
             ),
           );
         }).pipe(Effect.provideService(AppDatabase, db));
@@ -69,7 +69,7 @@ export const QueryLoggerPersistentLayer = Layer.effect(
       remove: function (id: string): Effect.Effect<void> {
         return deleteQueryLog(id).pipe(
           Effect.tapError((err) =>
-            Effect.logWarning("Failed to remove query log from database", err),
+            Effect.logDebug(`query-log remove skipped: ${String(err).slice(0, 120)}`),
           ),
           Effect.orElseSucceed(() => undefined),
           Effect.provideService(AppDatabase, db),

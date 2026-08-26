@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { DateTime, Effect, Layer, Logger, LogLevel } from "effect";
+import { DateTime, Effect, Layer, References } from "effect";
 
 import { AppDatabase } from "#src/db/app.db.ts";
 import { makeEffectKyselyPglite } from "#src/db/effect-kysely.pglite.ts";
@@ -18,7 +18,7 @@ describe("QueryLoggerNoopLayer", () => {
       const queryLogger = yield* QueryLogger;
 
       // All operations should succeed without side effects
-      const now = DateTime.unsafeNow();
+      const now = DateTime.nowUnsafe();
       const id = yield* queryLogger.push({
         sql: "SELECT 1",
         type: QueryLogType.TableRows,
@@ -43,7 +43,7 @@ describe("QueryLoggerInMemoryLayer", () => {
     return Effect.gen(function* () {
       const queryLogger = yield* QueryLogger;
 
-      const now = DateTime.unsafeNow();
+      const now = DateTime.nowUnsafe();
       const id = yield* queryLogger.push({
         sql: "SELECT * FROM users",
         type: QueryLogType.TableRows,
@@ -70,7 +70,7 @@ describe("QueryLoggerInMemoryLayer", () => {
     return Effect.gen(function* () {
       const queryLogger = yield* QueryLogger;
 
-      const now = DateTime.unsafeNow();
+      const now = DateTime.nowUnsafe();
       const id = yield* queryLogger.push({
         sql: "SELECT 1",
         type: QueryLogType.TableRows,
@@ -101,7 +101,7 @@ describe("QueryLoggerInMemoryLayer", () => {
     return Effect.gen(function* () {
       const queryLogger = yield* QueryLogger;
 
-      const now = DateTime.unsafeNow();
+      const now = DateTime.nowUnsafe();
       const id1 = yield* queryLogger.push({
         sql: "SELECT 1",
         type: QueryLogType.TableRows,
@@ -131,7 +131,7 @@ describe("QueryLoggerInMemoryLayer", () => {
     return Effect.gen(function* () {
       const queryLogger = yield* QueryLogger;
 
-      const now = DateTime.unsafeNow();
+      const now = DateTime.nowUnsafe();
       yield* queryLogger.push({
         sql: "SELECT 1",
         type: QueryLogType.TableRows,
@@ -160,7 +160,7 @@ describe("QueryLoggerInMemoryLayer", () => {
     return Effect.gen(function* () {
       const queryLogger = yield* QueryLogger;
 
-      const now = DateTime.unsafeNow();
+      const now = DateTime.nowUnsafe();
       const id = yield* queryLogger.push({
         sql: "SELECT * FROM invalid_table",
         type: QueryLogType.TableRows,
@@ -199,7 +199,7 @@ describe("QueryLoggerInMemoryLayer", () => {
     return Effect.gen(function* () {
       const queryLogger = yield* QueryLogger;
 
-      const now = DateTime.unsafeNow();
+      const now = DateTime.nowUnsafe();
       yield* queryLogger.push({
         sql: "SELECT * FROM users",
         type: QueryLogType.TableRows,
@@ -228,7 +228,7 @@ describe("QueryLoggerInMemoryLayer", () => {
       const queryLogger = yield* QueryLogger;
 
       const params = [1, "test", true];
-      const now = DateTime.unsafeNow();
+      const now = DateTime.nowUnsafe();
       yield* queryLogger.push({
         sql: "SELECT * FROM users WHERE id = ? AND name = ? AND active = ?",
         params,
@@ -251,7 +251,7 @@ describe("QueryLoggerInMemoryLayer", () => {
     return Effect.gen(function* () {
       const queryLogger = yield* QueryLogger;
 
-      const now = DateTime.unsafeNow();
+      const now = DateTime.nowUnsafe();
       yield* queryLogger.push({
         sql: "SELECT * FROM users",
         type: QueryLogType.TableRows,
@@ -337,7 +337,7 @@ describe("QueryLoggerPersistentLayer", () => {
         const logs = yield* queryLogger.get();
 
         expect(logs.rows).toEqual([]);
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
 
     it.effect("retrieves all logs for a connection in chronological order", () => {
@@ -345,7 +345,7 @@ describe("QueryLoggerPersistentLayer", () => {
         const queryLogger = yield* QueryLogger;
 
         // Add some logs
-        const now = DateTime.unsafeNow();
+        const now = DateTime.nowUnsafe();
         yield* queryLogger.push({
           sql: "SELECT * FROM users",
           type: QueryLogType.TableRows,
@@ -382,7 +382,7 @@ describe("QueryLoggerPersistentLayer", () => {
             }),
           ]),
         );
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
 
     it.effect("only returns logs for the specific connection", () => {
@@ -390,7 +390,7 @@ describe("QueryLoggerPersistentLayer", () => {
         const queryLogger = yield* QueryLogger;
 
         // Add a log
-        const now = DateTime.unsafeNow();
+        const now = DateTime.nowUnsafe();
         yield* queryLogger.push({
           sql: "SELECT * FROM users",
           type: QueryLogType.TableRows,
@@ -402,7 +402,7 @@ describe("QueryLoggerPersistentLayer", () => {
         const logsForConnection = yield* queryLogger.get();
 
         expect(logsForConnection.rows).toHaveLength(1);
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
   });
 
@@ -411,7 +411,7 @@ describe("QueryLoggerPersistentLayer", () => {
       return Effect.gen(function* () {
         const queryLogger = yield* QueryLogger;
 
-        const now = DateTime.unsafeNow();
+        const now = DateTime.nowUnsafe();
         yield* queryLogger.push({
           sql: "SELECT * FROM users WHERE id = ?",
           params: [1],
@@ -443,14 +443,14 @@ describe("QueryLoggerPersistentLayer", () => {
             }),
           ]),
         );
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
 
     it.effect("generates a unique ID for each entry", () => {
       return Effect.gen(function* () {
         const queryLogger = yield* QueryLogger;
 
-        const now = DateTime.unsafeNow();
+        const now = DateTime.nowUnsafe();
         const id1 = yield* queryLogger.push({
           sql: "SELECT 1",
           type: QueryLogType.TableRows,
@@ -468,14 +468,14 @@ describe("QueryLoggerPersistentLayer", () => {
         });
 
         expect(id1).not.toEqual(id2);
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
 
     it.effect("handles optional fields gracefully", () => {
       return Effect.gen(function* () {
         const queryLogger = yield* QueryLogger;
 
-        const now = DateTime.unsafeNow();
+        const now = DateTime.nowUnsafe();
         yield* queryLogger.push({
           sql: "SELECT * FROM users",
           type: QueryLogType.TableRows,
@@ -495,7 +495,7 @@ describe("QueryLoggerPersistentLayer", () => {
             rowsReturned: undefined,
           }),
         );
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
   });
 
@@ -504,7 +504,7 @@ describe("QueryLoggerPersistentLayer", () => {
       return Effect.gen(function* () {
         const queryLogger = yield* QueryLogger;
 
-        const now = DateTime.unsafeNow();
+        const now = DateTime.nowUnsafe();
         const entryId = yield* queryLogger.push({
           sql: "SELECT * FROM users",
           type: QueryLogType.TableRows,
@@ -532,14 +532,14 @@ describe("QueryLoggerPersistentLayer", () => {
             rowsReturned: 10,
           }),
         );
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
 
     it.effect("handles error updates", () => {
       return Effect.gen(function* () {
         const queryLogger = yield* QueryLogger;
 
-        const now = DateTime.unsafeNow();
+        const now = DateTime.nowUnsafe();
         const entryId = yield* queryLogger.push({
           sql: "SELECT * FROM users",
           type: QueryLogType.TableRows,
@@ -572,7 +572,7 @@ describe("QueryLoggerPersistentLayer", () => {
             },
           }),
         );
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
   });
 
@@ -581,7 +581,7 @@ describe("QueryLoggerPersistentLayer", () => {
       return Effect.gen(function* () {
         const queryLogger = yield* QueryLogger;
 
-        const now = DateTime.unsafeNow();
+        const now = DateTime.nowUnsafe();
         const id1 = yield* queryLogger.push({
           sql: "SELECT 1",
           type: QueryLogType.TableRows,
@@ -610,7 +610,7 @@ describe("QueryLoggerPersistentLayer", () => {
             }),
           ]),
         );
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
 
     it.effect("handles removing non-existent entry gracefully", () => {
@@ -623,7 +623,7 @@ describe("QueryLoggerPersistentLayer", () => {
         const logs = yield* queryLogger.get();
 
         expect(logs.rows).toEqual([]);
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
   });
 
@@ -633,7 +633,7 @@ describe("QueryLoggerPersistentLayer", () => {
         const queryLogger = yield* QueryLogger;
 
         // Add some logs
-        const now = DateTime.unsafeNow();
+        const now = DateTime.nowUnsafe();
         yield* queryLogger.push({
           sql: "SELECT 1",
           type: QueryLogType.TableRows,
@@ -656,7 +656,7 @@ describe("QueryLoggerPersistentLayer", () => {
         const logs = yield* queryLogger.get();
 
         expect(logs.rows).toEqual([]);
-      }).pipe(Effect.provide(TestLayer), Logger.withMinimumLogLevel(LogLevel.All));
+      }).pipe(Effect.provide(TestLayer), Effect.provideService(References.MinimumLogLevel, "All"));
     });
   });
 });

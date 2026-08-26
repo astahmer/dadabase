@@ -1,8 +1,8 @@
-import { SqlError } from "@effect/sql/SqlError";
 import { mutationOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
+import { SqlError, toValidator } from "#src/db/effect-compat.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { isSelectQuery } from "#src/server/introspection/detect-destructive-sql.ts";
@@ -11,10 +11,11 @@ import { executeCustomSql } from "#src/server/introspection/introspection.ts";
 export const ExecuteCustomSqlInputSchema = Schema.Struct({
   url: Schema.String,
   sql: Schema.String,
+  skipQueryLog: Schema.optional(Schema.Boolean),
 });
 
 export const executeCustomSqlServerFn = createServerFn({ method: "POST" })
-  .validator(ExecuteCustomSqlInputSchema.pipe(Schema.standardSchemaV1))
+  .validator(ExecuteCustomSqlInputSchema.pipe(toValidator))
   .handler(
     createRemoteIntrospectionHandler((input) =>
       Effect.gen(function* () {
@@ -28,6 +29,7 @@ export const executeCustomSqlServerFn = createServerFn({ method: "POST" })
 
         const result = yield* executeCustomSql({
           sql: input.sql,
+          skipQueryLog: input.skipQueryLog,
         });
 
         const endTime = Date.now();
@@ -40,14 +42,7 @@ export const executeCustomSqlServerFn = createServerFn({ method: "POST" })
           });
           return record as any;
         });
-        console.log({
-          rows: rows,
-          columns: result.columns,
-          rowCount: result.rowCount,
-          rowsAffected: result.rowsAffected,
-          timeTaken: endTime - startTime,
-          ranAt: startTime,
-        });
+
 
         return {
           rows: rows,

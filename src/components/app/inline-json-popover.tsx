@@ -1,6 +1,7 @@
-import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
 import { Clipboard, useClipboard } from "@ark-ui/react";
 import { Check, Code, Copy, X } from "lucide-react";
+
+import { RelationshipExplorer } from "#src/components/pages/connection-page/relationships/relationship-explorer.tsx";
 
 import { JsonViewerModal } from "../ui/json-viewer.tsx";
 import { Stack } from "../ui/layout.tsx";

@@ -1,7 +1,8 @@
 import type { ComponentProps } from "react";
 
-import { useTheme } from "#src/hooks/use-theme";
 import { Moon, Sun } from "lucide-react";
+
+import { useTheme } from "#src/hooks/use-theme";
 
 import { Button } from "./button";
 
@@ -13,7 +14,13 @@ export const DarkModeToggle = (props: ComponentProps<typeof Button>) => {
   }
 
   return (
-    <Button variant="outline" size="icon" {...props} onClick={toggleTheme}>
+    <Button
+      variant="outline"
+      size="icon"
+      aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+      {...props}
+      onClick={toggleTheme}
+    >
       {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
     </Button>
   );

@@ -77,6 +77,10 @@ interface SqlQueryPreviewProps {
   isFullscreen?: boolean;
   /** Whether the preview is collapsed */
   isCollapsed?: boolean;
+  /** Schema-aware snippet insertion (audit S3). */
+  snippetTables?: Array<string>;
+  /** Table preselected in the snippet picker. */
+  snippetActiveTable?: string;
   /** Callback to toggle collapsed state */
   onToggleCollapsed?: (collapsed: boolean) => void;
   /** Available tables for intellisense suggestions */
@@ -122,12 +126,15 @@ export function SqlQueryPreview({
   onToggleCollapsed,
   tables = [],
   columns = [],
+  snippetActiveTable,
   onInsertSnippet,
   className,
   warning,
 }: SqlQueryPreviewProps) {
   const [copied, setCopied] = useState(false);
-  const editorValueRef = useRef<string>(sql);
+  // An untouched Monaco never fires onChange; seed from displayed content so
+  // Run never submits "" after a deep-link seed (AI chat / URL params).
+  const editorValueRef = useRef<string>(sql || customSql || "");
 
   const handleCopy = async () => {
     try {
@@ -284,7 +291,11 @@ export function SqlQueryPreview({
           </div>
 
           <div className="flex items-center gap-2">
-            <SqlSnippetsMenu onInsertSnippet={handleInsertSnippet} />
+            <SqlSnippetsMenu
+              onInsertSnippet={handleInsertSnippet}
+              tables={tables.map((table) => table.name)}
+              activeTable={snippetActiveTable}
+            />
             {/* Action buttons — when expanded, or while running so Cancel stays reachable */}
             {(!isCollapsed || isLoading) && (
               <>
@@ -307,7 +318,7 @@ export function SqlQueryPreview({
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => onRun?.(editorValueRef.current ?? "")}
+                      onClick={() => onRun?.(editorValueRef.current || customSql || sql || "")}
                       className="h-8 gap-1.5 px-2"
                       data-testid="sql-run-button"
                       aria-label="Run query"

@@ -1,18 +1,18 @@
-import { SqlError } from "@effect/sql/SqlError";
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
+import { SqlError, toValidator } from "#src/db/effect-compat.ts";
 import { guardReadOnlyMutation } from "#src/lib/connection-security.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
 import { bulkDeleteRows } from "#src/server/introspection/fns/bulk-delete-rows.ts";
 
-const CellValue = Schema.Union(
+const CellValue = Schema.Union([
   Schema.String,
   Schema.Number,
   Schema.Boolean,
   Schema.Null,
   Schema.Undefined,
-);
+]);
 
 export const bulkDeleteRowsServerFn = createServerFn({ method: "POST" })
   .validator(
@@ -20,8 +20,8 @@ export const bulkDeleteRowsServerFn = createServerFn({ method: "POST" })
       url: Schema.String,
       schema: Schema.String,
       table: Schema.String,
-      primaryKeys: Schema.Array(Schema.Record({ key: Schema.String, value: CellValue })),
-    }).pipe(Schema.standardSchemaV1),
+      primaryKeys: Schema.Array(Schema.Record(Schema.String, CellValue)),
+    }).pipe(toValidator),
   )
   .handler(
     createRemoteIntrospectionHandler((input, connection) =>

@@ -1,9 +1,13 @@
 import { createListCollection } from "@ark-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cx } from "class-variance-authority";
-import { ChevronDown, ChevronUp, Star, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, PauseCircle, PlayCircle, Settings2, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  isQueryHistoryOptOut,
+  setQueryHistoryOptOut,
+} from "#src/lib/query-history-settings.ts";
 import { useQueryLogger } from "#src/components/query-logger/use-query-logger.ts";
 import { Badge } from "#src/components/ui/badge.tsx";
 import {
@@ -20,6 +24,7 @@ import { Button, buttonVariants } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { HStack } from "../ui/layout.tsx";
 import * as Select from "../ui/select.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.tsx";
 import { VirtualizerArea } from "../ui/virtualizer-area.tsx";
 import { QueryLogEntry } from "./query-log-entry.tsx";
 import { QueryLoggerDetailDialog } from "./query-logger-detail-dialog.tsx";
@@ -33,8 +38,8 @@ interface QueryLoggerContentProps {
   /** Command palette (or similar) requests opening favorites or history. */
   paletteView?: "favorites" | "history" | null;
   onPaletteViewConsumed?: () => void;
-  /** Open SQL for review in the editor. History never reruns SQL directly. */
-  onOpenQueryInEditor?: (sql: string) => void;
+  /** Open SQL for review in the editor. `run` additionally executes on arrival. */
+  onOpenQueryInEditor?: (sql: string, opts?: { run?: boolean }) => void;
 }
 
 export const QueryLoggerContent = ({
@@ -53,7 +58,8 @@ export const QueryLoggerContent = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
-
+  const [favoritesSearch, setFavoritesSearch] = useState("");
+  const [recordingPaused, setRecordingPaused] = useState(isQueryHistoryOptOut);
   const visibleHistory = useMemo(() => {
     const search = historySearch.trim().toLocaleLowerCase();
     if (!search) return queryLogger.history;
@@ -76,6 +82,18 @@ export const QueryLoggerContent = ({
     ...getQueryFavoritesQueryOptions({ connectionId: connectionId ?? "" }),
     enabled: Boolean(connectionId) && showFavorites,
   });
+
+
+  const visibleFavorites = useMemo(() => {
+    const favorites = favoritesQuery.data ?? [];
+    const search = favoritesSearch.trim().toLocaleLowerCase();
+    if (!search) return favorites;
+    return favorites.filter((fav) =>
+      [fav.label, fav.sql, fav.description]
+        .filter(Boolean)
+        .some((value) => value!.toLocaleLowerCase().includes(search)),
+    );
+  }, [favoritesQuery.data, favoritesSearch]);
 
   const deleteFavoriteMutation = useMutation({
     mutationFn: (id: string) => deleteQueryFavoriteServerFn({ data: { id } }),
@@ -125,6 +143,50 @@ export const QueryLoggerContent = ({
           {isExpanded ? (
             <span className="text-muted-foreground text-xs font-normal">Reviewable history</span>
           ) : null}
+          {connectionId && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  data-testid="query-history-settings"
+                  aria-label="Query history settings"
+                  title={recordingPaused ? "History recording paused" : "Query history settings"}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {recordingPaused ? (
+                    <PauseCircle className="h-3.5 w-3.5 text-amber-500" />
+                  ) : (
+                    <Settings2 className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="z-50 w-72">
+                <p className="mb-1 text-xs font-semibold">Record query history</p>
+                <p className="text-muted-foreground mb-2 text-xs">
+                  When off, SQL you run in the editor and imports are not recorded. Literal values
+                  are always redacted before anything is stored.
+                </p>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={!recordingPaused}
+                    data-testid="query-history-record-toggle"
+                    onChange={(event) => {
+                      const record = event.target.checked;
+                      setRecordingPaused(!record);
+                      setQueryHistoryOptOut(!record);
+                      if (!record) {
+                        void queryLogger.clearHistory();
+                      }
+                    }}
+                  />
+                  Record executed queries
+                </label>
+              </PopoverContent>
+            </Popover>
+          )}
           {connectionId && (
             <Button
               variant={showFavorites ? "default" : "ghost"}
@@ -323,9 +385,22 @@ export const QueryLoggerContent = ({
       <div className="flex h-full min-h-0 flex-1 flex-col">
         {showFavorites ? (
           <div className="flex h-full min-h-0 flex-1 flex-col divide-y overflow-auto">
-            {(favoritesQuery.data?.length ?? 0) === 0 ? (
+            <div className="border-b px-3 py-2">
+              <Input
+                value={favoritesSearch}
+                onChange={(event) => setFavoritesSearch(event.target.value)}
+                placeholder="Search saved queries..."
+                aria-label="Search saved queries"
+                className="h-8 text-xs"
+              />
+            </div>
+            {(visibleFavorites.length ?? 0) === 0 ? (
               <div className="text-muted-foreground flex h-52 flex-col items-center justify-center gap-3 text-sm">
-                <span>No saved queries yet.</span>
+                <span>
+                  {favoritesSearch.trim() && (favoritesQuery.data?.length ?? 0) > 0
+                    ? "No matching saved queries"
+                    : "No saved queries yet."}
+                </span>
                 {onOpenQueryInEditor ? (
                   <Button size="sm" variant="outline" onClick={() => onOpenQueryInEditor("")}>
                     Open SQL editor
@@ -333,7 +408,7 @@ export const QueryLoggerContent = ({
                 ) : null}
               </div>
             ) : (
-              favoritesQuery.data?.map((fav) => (
+              visibleFavorites.map((fav) => (
                 <div
                   key={fav.id}
                   className="hover:bg-muted/50 flex items-start gap-2 px-3 py-2"
@@ -350,14 +425,28 @@ export const QueryLoggerContent = ({
                     <p className="text-muted-foreground truncate font-mono text-xs">{fav.sql}</p>
                   </div>
                   {onOpenQueryInEditor ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 shrink-0 px-2 text-xs"
-                      onClick={() => onOpenQueryInEditor(fav.sql)}
-                    >
-                      Open
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 shrink-0 px-2 text-xs"
+                        title="Open in editor for review"
+                        onClick={() => onOpenQueryInEditor(fav.sql)}
+                      >
+                        Open
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 shrink-0 gap-1 px-2 text-xs"
+                        title="Open in editor and run"
+                        data-testid="query-favorite-run"
+                        onClick={() => onOpenQueryInEditor(fav.sql, { run: true })}
+                      >
+                        <PlayCircle className="h-3.5 w-3.5" />
+                        Run
+                      </Button>
+                    </>
                   ) : null}
                   <Button
                     variant="ghost"

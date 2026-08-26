@@ -1,6 +1,7 @@
-import { SqlError } from "@effect/sql";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import mysql from "mysql2/promise";
+
+import { SqlError } from "#src/db/effect-compat.ts";
 
 export const testMysqlConnectionUrl = (url: string) =>
   Effect.gen(function* () {
@@ -11,11 +12,11 @@ export const testMysqlConnectionUrl = (url: string) =>
         await connection.end();
         return { success: true };
       },
-      catch: (err) => new SqlError.SqlError({ cause: err }),
-    }).pipe(Effect.either);
+      catch: (err) => new SqlError({ cause: err }),
+    }).pipe(Effect.result);
 
-    if (Either.isLeft(canConnect)) {
-      const cause = canConnect.left.cause;
+    if (Result.isFailure(canConnect)) {
+      const cause = canConnect.failure.cause;
       if (cause && typeof cause === "object" && "code" in cause && cause.code === "ECONNREFUSED") {
         return {
           success: false,
@@ -25,7 +26,7 @@ export const testMysqlConnectionUrl = (url: string) =>
 
       return {
         success: false,
-        message: canConnect.left.message || (cause as { message?: string } | null)?.message,
+        message: canConnect.failure.message || (cause as { message?: string } | null)?.message,
       } as const;
     }
 

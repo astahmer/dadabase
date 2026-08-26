@@ -3,6 +3,7 @@ import { Cause, Effect } from "effect";
 import type { QueryLogEntryType, QueryLogLevel, QueryLogType } from "./query-logger.types.ts";
 
 import { QueryLogger } from "./query-logger.ts";
+import { redactSqlLiterals } from "./redact-sql.ts";
 
 export interface WithQueryLoggingOptions {
   type: QueryLogType;
@@ -54,7 +55,9 @@ export const withQueryLogging =
       const queryLogger = yield* QueryLogger;
       const startTime = new Date();
       const logEntry: Omit<QueryLogEntryType, "id"> = {
-        sql: trimSql(options.sql || ""),
+        // Redact literal values before anything is stored: history must be
+        // reviewable without persisting user data (S2).
+        sql: redactSqlLiterals(trimSql(options.sql || "")),
         params: options.params,
         type: options.type,
         schema: options.schema,
@@ -95,15 +98,13 @@ export const withQueryLogging =
 
           return queryLogger.update(entryId, updates);
         }),
-        Effect.catchAll((error) => {
+        Effect.catch((error) => {
           const endTime = new Date();
           const errorMessage = getErrorMessage(error);
 
           const errorStack =
             error instanceof Error
-              ? Cause.pretty(Cause.isCause(error.cause) ? error.cause : Cause.fail(error), {
-                  renderErrorCause: true,
-                })
+              ? Cause.pretty(Cause.isCause(error.cause) ? error.cause : Cause.fail(error))
               : String(error);
           const updates = {
             status: "error" as const,

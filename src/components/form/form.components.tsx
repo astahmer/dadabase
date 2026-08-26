@@ -140,7 +140,9 @@ export function Select(props: {
             <ArkSelect.SelectIndicator />
           </ArkSelect.SelectTrigger>
         </ArkSelect.SelectControl>
-        <ArkSelect.SelectContent>
+        {/* Audit follow-up: portalled select content gets swallowed by the
+            dialog's dismiss stack (H1) — render inline so options open. */}
+        <ArkSelect.SelectContent portalled={false}>
           {collection.items.map((item) => (
             <ArkSelect.SelectItem key={item.value} item={item}>
               {item.label}

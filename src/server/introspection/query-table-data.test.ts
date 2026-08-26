@@ -1,6 +1,6 @@
-import { SqlClient } from "@effect/sql";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect, Layer } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 import type { JoinedTable } from "#src/components/pages/connection-page/join-tables/join-tables.types.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
@@ -3431,6 +3431,6 @@ const testSuite =
 // describe("queryTableData (libsql)", testSuite(libsqlLayer, sqliteConfig));
 describe.skipIf(!isContainerRuntimeAvailable())(
   "queryTableData (pg with testcontainers)",
-  testSuite(PgContainer.ClientLive.pipe(Layer.catchAll(Layer.die)), postgresConfig),
+  testSuite(PgContainer.ClientLive.pipe(Layer.orDie), postgresConfig),
   1000 * 60 * 10,
 );

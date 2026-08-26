@@ -1,10 +1,10 @@
-import type { SqlClient } from "@effect/sql";
-import type { SqlError } from "@effect/sql/SqlError";
+import type { SqlClient } from "effect/unstable/sql";
 
 import { Context, type Effect } from "effect";
 
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
 import type { QueryFilterType } from "#src/components/query-builder/query-filter.ts";
+import type { SqlError } from "#src/db/effect-compat.ts";
 
 import type { RemoteConnection } from "../db-connection/remote-connection.tag.ts";
 import type { QueryLogger } from "../query-logger/query-logger.ts";
@@ -154,10 +154,10 @@ export interface DatabaseConnectionAdapterType {
   >;
 }
 
-export class DatabaseConnectionAdapter extends Context.Tag("@dadabase/DatabaseConnectionAdapter")<
+export class DatabaseConnectionAdapter extends Context.Service<
   DatabaseConnectionAdapter,
   DatabaseConnectionAdapterType
->() {}
+>()("@dadabase/DatabaseConnectionAdapter") {}
 
 export interface TableRelationshipInput {
   constraintName: string;

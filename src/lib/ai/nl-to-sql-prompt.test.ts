@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AiSchemaContext, AiTableContext } from "./ai-types.ts";
 
 import {
+  buildChatSystemPrompt,
   buildNlToSqlChatPrompt,
   buildNlToSqlPrompt,
   extractSqlFromModelText,
@@ -102,6 +103,29 @@ describe("buildNlToSqlPrompt", () => {
       table: sampleTable,
     });
     expect(prompt).toContain("User question: count rows");
+  });
+});
+
+describe("buildChatSystemPrompt tool filtering", () => {
+  const schema = undefined;
+
+  it("mentions both tools by default (no enabledTools given)", () => {
+    const prompt = buildChatSystemPrompt({ schema });
+    expect(prompt).toContain("propose_sql");
+    expect(prompt).toContain("run_sql");
+  });
+
+  it("drops run_sql instructions when run_sql is disabled", () => {
+    const prompt = buildChatSystemPrompt({ schema, enabledTools: ["propose_sql"] });
+    expect(prompt).toContain("propose_sql");
+    expect(prompt).not.toContain("run_sql");
+  });
+
+  it("drops all workflow tool lines when every tool is disabled", () => {
+    const prompt = buildChatSystemPrompt({ schema, enabledTools: [] });
+    expect(prompt).not.toContain("propose_sql");
+    expect(prompt).not.toContain("run_sql");
+    expect(prompt).toContain("plain language");
   });
 });
 

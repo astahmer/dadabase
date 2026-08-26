@@ -1,16 +1,21 @@
 import type { Selectable } from "kysely";
 
-import { SqlClient } from "@effect/sql";
-import { SqlError } from "@effect/sql/SqlError";
 import { Effect } from "effect";
+import { SqlClient } from "effect/unstable/sql";
 
 import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 
+import { DatabaseDialect } from "#src/db/dialect.ts";
+import { SqlError } from "#src/db/effect-compat.ts";
 import { RemoteConnection } from "#src/server/db-connection/remote-connection.tag.ts";
 import { QueryLogLevel, QueryLogType } from "#src/server/query-logger/query-logger.types.ts";
 import { withQueryLogging } from "#src/server/query-logger/with-query-logging.ts";
 
 import { listMysqlTableColumnNames } from "./list-mysql-table-column-names.ts";
+import {
+  buildMssqlRowFingerprintExpr,
+  listMssqlTableColumnNames,
+} from "./mssql-row-fingerprint.ts";
 import { buildMysqlRowFingerprintExpr } from "./mysql-row-fingerprint.ts";
 import { DADABASE_ROW_ID, isDadabaseRowIdKey } from "./row-identity.ts";
 import {
@@ -40,6 +45,17 @@ export const bulkDeleteRows = (
     const sql = yield* SqlClient.SqlClient;
     const connectionId = yield* RemoteConnection;
 
+    if (_connection.dialect === DatabaseDialect.Clickhouse) {
+      // Read-only policy (see clickhouse-client.ts) — mirrors the updateRow guard.
+      return yield* Effect.fail(
+        new SqlError({
+          cause: null,
+          message:
+            "ClickHouse connections are read-only. Row changes require async ALTER TABLE mutations, which dadabase does not run.",
+        }),
+      );
+    }
+
     if (input.primaryKeys.length === 0) {
       return { rowsAffected: 0 };
     }
@@ -65,34 +81,51 @@ export const bulkDeleteRows = (
     }
 
     const whereClause = usesSystemRowId
-      ? yield* sql.onDialectOrElse({
-          pg: () =>
-            Effect.succeed(
-              sql.or(
-                input.primaryKeys.map(
-                  (pk) => sql`ctid = CAST(${String(pk[DADABASE_ROW_ID])} AS tid)`,
+      ? _connection.dialect === DatabaseDialect.DuckDB ||
+        _connection.dialect === DatabaseDialect.Csv
+        ? // DuckDB base tables expose a `rowid` pseudo-column (no ctid).
+          sql.or(input.primaryKeys.map((pk) => sql`rowid = ${pk[DADABASE_ROW_ID]}`))
+        : yield* sql.onDialectOrElse({
+            pg: () =>
+              Effect.succeed(
+                sql.or(
+                  input.primaryKeys.map(
+                    (pk) => sql`ctid = CAST(${String(pk[DADABASE_ROW_ID])} AS tid)`,
+                  ),
                 ),
               ),
-            ),
-          sqlite: () =>
-            Effect.succeed(
-              sql.or(input.primaryKeys.map((pk) => sql`rowid = ${pk[DADABASE_ROW_ID]}`)),
-            ),
-          mysql: () =>
-            Effect.gen(function* () {
-              const columnNames = yield* listMysqlTableColumnNames({
-                schema: input.schema,
-                table: input.table,
-              });
-              const expr = buildMysqlRowFingerprintExpr(columnNames);
-              return sql.or(
-                input.primaryKeys.map(
-                  (pk) => sql`${sql.unsafe(expr)} = ${String(pk[DADABASE_ROW_ID])}`,
-                ),
-              );
-            }),
-          orElse: () => Effect.die(new Error("Unsupported database dialect")),
-        })
+            sqlite: () =>
+              Effect.succeed(
+                sql.or(input.primaryKeys.map((pk) => sql`rowid = ${pk[DADABASE_ROW_ID]}`)),
+              ),
+            mysql: () =>
+              Effect.gen(function* () {
+                const columnNames = yield* listMysqlTableColumnNames({
+                  schema: input.schema,
+                  table: input.table,
+                });
+                const expr = buildMysqlRowFingerprintExpr(columnNames);
+                return sql.or(
+                  input.primaryKeys.map(
+                    (pk) => sql`${sql.unsafe(expr)} = ${String(pk[DADABASE_ROW_ID])}`,
+                  ),
+                );
+              }),
+            mssql: () =>
+              Effect.gen(function* () {
+                const columnNames = yield* listMssqlTableColumnNames({
+                  schema: input.schema || "dbo",
+                  table: input.table,
+                });
+                const expr = buildMssqlRowFingerprintExpr(columnNames);
+                return sql.or(
+                  input.primaryKeys.map(
+                    (pk) => sql`${sql.unsafe(expr)} = ${String(pk[DADABASE_ROW_ID])}`,
+                  ),
+                );
+              }),
+            orElse: () => Effect.die(new Error("Unsupported database dialect")),
+          })
       : sql.or(
           input.primaryKeys.map((pk) =>
             sql.and(pkColumns.map((column) => sql`${sql(column)} = ${pk[column]}`)),
@@ -118,6 +151,14 @@ export const bulkDeleteRows = (
               : sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`,
         ),
       sqlite: () => Effect.succeed(sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`),
+      mssql: () =>
+        // T-SQL has no DELETE ... LIMIT — fingerprint collisions could delete extra
+        // rows; documented gap for no-PK tables (same as UPDATE path).
+        Effect.succeed(
+          input.schema
+            ? sql`DELETE FROM ${sql(input.schema)}.${sql(input.table)} WHERE ${whereClause}`
+            : sql`DELETE FROM ${sql(input.table)} WHERE ${whereClause}`,
+        ),
       orElse: () => Effect.die(new Error("Unsupported database dialect")),
     });
 

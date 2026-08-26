@@ -33,6 +33,7 @@ import {
   useActiveTabState,
 } from "./create-tab-state.ts";
 import { TableContextMenu } from "./table-context-menu.tsx";
+import { recordRecentTable } from "./recent-tables.ts";
 
 interface ConnectionPageSidebarProps {
   connection: DbConnection;
@@ -366,6 +367,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
                   const tableName = details.value;
                   if (!tableName) return;
 
+                  recordRecentTable(connection.name, selectedSchema, tableName);
                   const newTabState = createTabState(selectedSchema, tableName);
                   navigate({
                     search: (prev) => ({

@@ -34,6 +34,7 @@ code {
 }
 
 :root {
+  color-scheme: light;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -70,6 +71,7 @@ code {
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.141 0.005 285.823);
@@ -176,5 +178,13 @@ code {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Audit G8: visible keyboard focus everywhere, UA-independent. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
 }

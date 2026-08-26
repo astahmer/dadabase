@@ -37,9 +37,22 @@ AI assistant (BYOK OpenAI — key stays in the browser; requests are proxied onc
 ### Connections
 
 - Postgres / MySQL / SQLite / LibSQL URLs
+- DuckDB database files (embedded analytics engine)
+- CSV files as editable databases (single `.csv` file or a directory of `*.csv`)
 - Optional SSL mode + SSH tunnel markers on the URL
 - Read-only mode (`dadabase_readonly`) blocks mutations
 - Sidebar: databases → schemas → tables with filter
+
+### CSV connections
+
+- Each `*.csv` file becomes a table; column types are inferred by DuckDB's
+  `read_csv_auto` (full-scan, UTF-8 / comma-delimited)
+- Edits apply to an in-memory table — nothing touches your file until you press
+  **Save to file** in the rows view
+- Save writes atomically: previous file version is kept once as `<name>.csv.bak`
+- Size guidance: total data ≥ 100 MB shows a warning at connect time; above 1 GB
+  the connection is refused by default (the embedded engine holds roughly the
+  uncompressed data in RAM)
 
 ### Data browsing & editing
 

@@ -108,6 +108,7 @@ export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
           variant="outline"
           size="sm"
           className="absolute top-12 right-2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center p-0"
+          aria-label="Scroll to hidden columns"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>

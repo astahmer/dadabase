@@ -69,6 +69,7 @@ export interface DataTableProps<TData> {
   isLoading?: boolean;
   hasError?: boolean;
   onRowClick?: (row: Row<TData>) => void;
+  onRowDoubleClick?: (row: Row<TData>) => void;
   onColumnFilterClick?: (columnId: string, columnName: string) => void;
   /** Active equals/contains filter for a column header (from query filter state). */
   getColumnHeaderFilter?: (
@@ -181,6 +182,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
           isLoading={props.isLoading}
           hasError={props.hasError}
           onRowClick={props.onRowClick}
+            onRowDoubleClick={props.onRowDoubleClick}
           onColumnFilterClick={props.onColumnFilterClick}
           getColumnHeaderFilter={props.getColumnHeaderFilter}
           onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
@@ -256,6 +258,7 @@ const TableContainer = (
     | "isLoading"
     | "hasError"
     | "onRowClick"
+    | "onRowDoubleClick"
     | "onColumnFilterClick"
     | "getColumnHeaderFilter"
     | "onColumnHeaderFilterChange"
@@ -518,6 +521,7 @@ const TableContainer = (
             isLoading={props.isLoading}
             enableRowVirtualization={props.enableRowVirtualization}
             onRowClick={props.onRowClick}
+            onRowDoubleClick={props.onRowDoubleClick}
             withRowContextMenu={props.withRowContextMenu}
             ExpandedRow={props.ExpandedRow}
             onExpandRowJson={props.onExpandRowJson}
@@ -543,6 +547,7 @@ const TableContainer = (
             enableRowVirtualization={props.enableRowVirtualization}
             columnVirtualization={columnVirtualization}
             onRowClick={props.onRowClick}
+            onRowDoubleClick={props.onRowDoubleClick}
             withRowContextMenu={props.withRowContextMenu}
             ExpandedRow={props.ExpandedRow}
             onExpandRowJson={props.onExpandRowJson}
@@ -578,6 +583,7 @@ const TableBody = (
     | "isLoading"
     | "enableRowVirtualization"
     | "onRowClick"
+    | "onRowDoubleClick"
     | "withRowContextMenu"
     | "ExpandedRow"
     | "onExpandRowJson"
@@ -667,6 +673,7 @@ const TableBody = (
       <VirtualizedTableBody
         rows={rows}
         onRowClick={props.onRowClick}
+        onRowDoubleClick={props.onRowDoubleClick}
         size={props.size}
         striped={props.striped}
         interactive={props.interactive}
@@ -692,6 +699,7 @@ const TableBody = (
             index={index}
             getRow={() => row}
             onRowClick={props.onRowClick}
+            onRowDoubleClick={props.onRowDoubleClick}
             size={props.size}
             striped={props.striped}
             interactive={props.interactive}
@@ -877,6 +885,7 @@ const CellHeaderContent = memo(
               size="xs"
               withIcon={false}
               onClick={() => column.pin(false)}
+              aria-label={`Unpin column ${String(column.id)}`}
               className={
                 hideColumnPinIconUnlessHovered
                   ? "absolute right-3 opacity-0 transition-opacity group-hover:opacity-100"
@@ -891,6 +900,7 @@ const CellHeaderContent = memo(
               size="xs"
               withIcon={false}
               onClick={() => column.pin("left")}
+              aria-label={`Pin column ${String(column.id)} to the left`}
               className={
                 hideColumnPinIconUnlessHovered
                   ? "absolute right-3 opacity-0 transition-opacity group-hover:opacity-100"

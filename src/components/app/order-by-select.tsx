@@ -144,12 +144,18 @@ export function OrderBySelect(props: OrderBySelectProps) {
                         size="sm"
                         variant="outline"
                         className="h-7 px-2"
+                        aria-label={
+                          orderBy
+                            ? `Sort ${orderDirection === "asc" ? "descending" : "ascending"}`
+                            : "Toggle sort direction"
+                        }
+                        disabled={!orderBy}
+                        title={orderBy ? undefined : "Add a sort order first"}
                         onClick={() => {
                           if (orderBy) {
                             onOrderChange(orderBy, orderDirection === "asc" ? "desc" : "asc");
                           }
                         }}
-                        disabled={!orderBy}
                       >
                         {orderDirection === "desc" ? (
                           <ArrowDown className="h-4 w-4" />
