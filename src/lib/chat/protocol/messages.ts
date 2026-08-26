@@ -16,6 +16,14 @@ export const MessageUsageSchema = z.object({
 });
 export type MessageUsage = z.infer<typeof MessageUsageSchema>;
 
+/** Audit T1/T2: what a turn actually sent — schema mode, table subset, tools. */
+export const ChatContextReceiptSchema = z.object({
+  mode: z.enum(["all", "selected", "auto"]),
+  tables: z.array(z.string()),
+  tools: z.array(z.string()),
+});
+export type ChatContextReceipt = z.infer<typeof ChatContextReceiptSchema>;
+
 const chatMessageFields = {
   id: MessageIdSchema,
   role: MessageRoleSchema,
@@ -23,6 +31,7 @@ const chatMessageFields = {
   createdAt: TimestampSchema,
   model: z.optional(z.string()),
   usage: z.optional(MessageUsageSchema),
+  context: z.optional(ChatContextReceiptSchema),
 };
 
 export const ChatMessageSchema = z.object(chatMessageFields);

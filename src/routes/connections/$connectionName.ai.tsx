@@ -12,11 +12,27 @@ import { Spinner } from "#src/components/ui/spinner.tsx";
  * swaps to the chat — ConnectionPage renders the matched child via <Outlet/>.
  */
 export const Route = createFileRoute("/connections/$connectionName/ai")({
+  // Audit S8: `?thread=<conversationId>` deep link from a seeded editor tab.
+  // Audit K4: `?askTable=<name>` pre-seeds a draft + Selected schema scoped to
+  // that table (`askTable`, not `table`, to avoid colliding with workspace
+  // tab-state search keys).
+  validateSearch: (search: Record<string, unknown>): {
+    thread?: string;
+    askTable?: string;
+  } => {
+    const thread = search.thread;
+    const askTable = search.askTable;
+    return {
+      ...(typeof thread === "string" && thread !== "" ? { thread } : {}),
+      ...(typeof askTable === "string" && askTable !== "" ? { askTable } : {}),
+    };
+  },
   component: RouteComponent,
 });
 
 function RouteComponent() {
   const { connectionName } = Route.useParams();
+  const { thread: initialConversationId, askTable: initialAskTable } = Route.useSearch();
 
   return (
     <Suspense
@@ -26,7 +42,11 @@ function RouteComponent() {
         </div>
       }
     >
-      <AiChatPage connectionName={connectionName} />
+      <AiChatPage
+        connectionName={connectionName}
+        initialConversationId={initialConversationId}
+        initialAskTable={initialAskTable}
+      />
     </Suspense>
   );
 }

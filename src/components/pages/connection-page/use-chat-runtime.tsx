@@ -13,6 +13,7 @@ import {
   recordResolvedAutoTables,
   resolveSchemaRequestParts,
 } from "#src/lib/ai/chat-schema-selection.ts";
+import { recordCurrentChatConversationId } from "#src/lib/ai/chat-conversation-current.ts";
 import { defaultGenericChatSettings } from "#src/lib/chat/chat/settings.ts";
 import { ChatUiMessages } from "#src/lib/chat/chat/ui-messages.ts";
 import { createDadabaseConversationClient } from "#src/lib/chat/dadabase/conversation-client.ts";
@@ -42,6 +43,16 @@ const localStorageStore = (keyPrefix: string): KeyValueStorage => ({
   set: (key, value) => globalThis.localStorage.setItem(`${keyPrefix}:${key}`, value),
   remove: (key) => globalThis.localStorage.removeItem(`${keyPrefix}:${key}`),
 });
+
+/**
+ * Exact localStorage key the vendored runtime persists the composer draft
+ * under (audit S6): `createChatRuntime` composes `storage.drafts` (the store
+ * below) with its default `draftStorageKey` (`<settingsKey>:draft`, and the
+ * settings key is left at the emi-core default), so the final key is this
+ * composition. Keep in sync if `storage.keys` is ever passed explicitly.
+ */
+export const chatComposerDraftStorageKey = (connectionName: string): string =>
+  `dadabase.chat.drafts.${connectionName}:emi-core-chat-settings:draft`;
 
 export const useDadabaseChatRuntime = ({
   connectionName,
@@ -74,6 +85,12 @@ export const useDadabaseChatRuntime = ({
               } catch {
                 // Malformed header — ignore, the UI keeps the generic auto label.
               }
+            }
+            // Audit S8: mirror the assigned conversation id for host UI
+            // (editor back-links) without reaching into runtime internals.
+            const conversationId = input.response.headers.get("x-conversation-id");
+            if (conversationId !== null && conversationId !== "") {
+              recordCurrentChatConversationId(conversationId);
             }
             return Effect.tryPromise(() => ChatUiMessages.decodeStream(input));
           },

@@ -6,6 +6,7 @@ import { createColumnHelper } from "@tanstack/react-table";
 import {
   ArrowDown,
   ArrowDownUp,
+  ArrowLeft,
   ArrowUp,
   CircleCheck,
   Code2,
@@ -86,7 +87,12 @@ import {
 import { guardReadOnlyMutation, isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { noteRowMutations } from "#src/lib/csv-unsaved-changes.ts";
 import { registerCustomSqlRunner } from "#src/lib/custom-sql-runner-bridge.ts";
-import { consumeStagedCustomSqlRun } from "#src/lib/custom-sql-run-handoff.ts";
+import {
+  clearChatReturn,
+  consumeStagedCustomSqlRun,
+  peekChatReturn,
+  type StagedChatReturn,
+} from "#src/lib/custom-sql-run-handoff.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
@@ -1572,6 +1578,13 @@ const RowsTableSqlEditor = (
    * StrictMode double-effects and re-renders never double-execute.
    */
   const activeTabId = search.tabId;
+
+  // Audit S8: when this tab was seeded from the AI chat, offer a way back.
+  const [chatReturn, setChatReturn] = useState<StagedChatReturn | null>(null);
+  useEffect(() => {
+    if (!activeTabId) return;
+    setChatReturn(peekChatReturn(activeTabId));
+  }, [activeTabId]);
   const runQueryRef = useRef(props.onRunQuery);
   runQueryRef.current = props.onRunQuery;
   useEffect(() => {
@@ -1637,6 +1650,28 @@ const RowsTableSqlEditor = (
 
   return (
     <>
+      {chatReturn !== null && (
+        <div className="mb-1 flex items-center gap-2 px-1">
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground inline-flex cursor-pointer items-center gap-1 text-xs underline underline-offset-2"
+            onClick={() => {
+              if (activeTabId) clearChatReturn(activeTabId);
+              const conversationId = chatReturn.conversationId;
+              setChatReturn(null);
+              void navigate({
+                to: "/connections/$connectionName/ai",
+                params: { connectionName: props.connection.name },
+                search: conversationId === "" ? {} : { thread: conversationId },
+              });
+            }}
+            data-testid="ai-chat-return-link"
+          >
+            <ArrowLeft className="size-3" />
+            Back to chat · {chatReturn.title}
+          </button>
+        </div>
+      )}
       <SqlQueryPreview
         tables={tables}
         columns={columns}

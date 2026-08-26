@@ -304,6 +304,16 @@ Feature: AI chat assistant
     Then the full reply "Hello from the mocked assistant stream" is visible
     Then the last chat request config has provider "ollama-local", base url "http://localhost:11434/v1", key "" and model "llama3"
 
+  Scenario: Message meta row shows model, time, tokens (M4/T3)
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API streams a canned reply carrying model and token usage
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    And I type "meta probe" and press send
+    Then the full reply "Hello from the mocked assistant stream" is visible
+    Then the last assistant message shows model and token meta
+    And the composer area shows the thread token total
+
   Scenario: Assistant role label precedes its message text (C8)
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
     And the chat API streams a canned text reply in parts "Hello ", "from the mocked ", "assistant stream"
@@ -319,3 +329,145 @@ Feature: AI chat assistant
     When I open the AI chat page
     And I approve sharing schema context if needed
     Then the chat thread is visible and the page has no horizontal overflow
+
+  Scenario: Code fences are highlighted, labeled, and copyable (M1/M2)
+    Given clipboard permissions are granted
+    And BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API streams a canned reply containing a sql code fence
+    When I open the AI chat page
+    And I approve sharing schema context
+    And I type "count users via sql fence" and press send
+    Then the assistant reply contains a highlighted "sql" code block
+    When I copy the assistant code block
+    Then the clipboard contains "SELECT count(*) FROM users;"
+
+  Scenario: Proposal SQL has a copy button (M2)
+    Given clipboard permissions are granted
+    And BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API streams a canned propose_sql reply with sql "SELECT count(*) AS users FROM users"
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    And I type "count users" and press send
+    When I copy the proposed SQL
+    Then the clipboard contains "SELECT count(*) AS users FROM users"
+
+  Scenario: Enter sends and Shift+Enter inserts a newline (K1)
+    Given console errors are being collected
+    And BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API is mocked with canned streams and request recording
+    And the current mock mode is "text"
+    When I open the AI chat page
+    And I approve sharing schema context
+    Then the composer shows the keyboard hint
+    When I type "first question" in the chat composer
+    And I press Enter in the chat composer
+    Then my message "first question" is visible in the thread
+    And the composer is empty after sending
+    When I type "line one" in the chat composer
+    And I press Shift+Enter in the chat composer
+    And I type "line two" more in the chat composer
+    Then the composer value contains a newline
+
+  Scenario: Retry re-sends without retyping after a failure (S4)
+    Given console errors are being collected
+    And BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API is mocked with canned streams and request recording
+    And the current mock mode is "text"
+    When I open the AI chat page
+    And I approve sharing schema context
+    And I type "first question" and press send
+    Then the full reply "Hello from the mocked assistant stream" is visible
+    When the current mock mode is "fail500"
+    And I note the number of chat requests
+    And I type "second question" and press send
+    Then a chat error becomes visible
+    And the latest assistant reply offers retry
+    When the current mock mode is "text"
+    And I retry the latest assistant reply
+    Then at least one more chat request has been sent
+
+  Scenario: Stop hides the generating state before a stalled stream ends (S5)
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API is mocked with canned streams and request recording
+    And the current mock mode is "stalled"
+    When I open the AI chat page
+    And I approve sharing schema context
+    And I type "long question" and press send
+    And I stop the generation
+    Then the generating indicator disappears after stopping
+
+  Scenario: Use this SQL offers a return path to the conversation (S8)
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API streams a canned propose_sql reply with sql "SELECT 42 AS answer"
+    When I open the AI chat page
+    And I approve sharing schema context
+    And I type "draft a query" and press send
+    Then the full reply "Here is a query you can run." is visible
+    When I click "Use this SQL" on the assistant proposal
+    Then I land on a custom SQL editor seeded with the proposal
+    And a back-to-chat link for the conversation is shown
+    When I follow the back-to-chat link
+    Then the AI chat page is open again
+
+  Scenario: Threads can be renamed, pinned, and deleted with confirmation (S3)
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And a persisted chat thread "pin me" exists for the connection
+    And a persisted chat thread "rename me" exists for the connection
+    And a persisted chat thread "delete me" exists for the connection
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    And I pin the chat titled "pin me"
+    Then the chat titled "pin me" shows as pinned
+    When I rename the chat titled "rename me" to "renamed probe"
+    Then the thread list shows a chat titled "renamed probe"
+    When I delete the chat titled "delete me"
+    Then a delete confirmation is requested for "delete me"
+    When I confirm deleting the chat titled "delete me"
+    Then the thread list no longer shows a chat titled "delete me"
+
+  Scenario: Thread search filters the saved chats (K3)
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And a persisted chat thread "alpha research" exists for the connection
+    And a persisted chat thread "beta notes" exists for the connection
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    When I search chats for "alpha"
+    Then only chats matching "alpha" are listed
+
+  Scenario: Export downloads the conversation as markdown (K2)
+    Given console errors are being collected
+    And BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API is mocked with canned streams and request recording
+    And the current mock mode is "text"
+    When I open the AI chat page
+    And I approve sharing schema context
+    And I type "exportable question" and press send
+    And the full reply "Hello from the mocked assistant stream" is visible
+    When I export the chat as markdown
+    Then a markdown download named after the chat is offered
+
+  Scenario: Draft survives a reload (S6)
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    When I open the AI chat page
+    And I approve sharing schema context
+    And I type "unsent draft text" in the chat composer
+    And I reload the chat page
+    Then the composer contains "unsent draft text"
+
+  Scenario: Assistant replies carry a context receipt (T1/T2)
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API is mocked with canned streams and request recording
+    And the current mock mode is "text"
+    And the chat API mock emits a context receipt
+    When I open the AI chat page
+    And I approve sharing schema context
+    And I type "how many users" and press send
+    And the full reply "Hello from the mocked assistant stream" is visible
+    Then an assistant context receipt shows mode "auto" with table "users"
+
+  Scenario: Ask-about-table deep link scopes schema and seeds a draft (K4)
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    When I open the AI chat page with askTable "posts"
+    And I approve sharing schema context if needed
+    Then the composer contains "Explore the `posts` table:"
+    And the schema status reports a manually selected subset

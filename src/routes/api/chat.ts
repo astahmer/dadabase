@@ -36,6 +36,9 @@ import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
 const MAX_RESULT_ROWS = 50;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
 const bodySchema = z.object({
   messages: z.array(z.record(z.string(), z.unknown())),
   config: ChatRequestConfigSchema,
@@ -197,10 +200,20 @@ export const Route = createFileRoute("/api/chat")({
           }
         }
 
+        // Audit T1/T2: one receipt of what this turn will actually send.
+        const sentContext = {
+          mode: body.schemaMode ?? "all",
+          tables: effectiveSchema?.tables.map((table) => table.table) ?? [],
+          tools: enabledTools,
+        };
+
         const result = streamText({
           model: openai.chat(body.config.model),
           system: buildChatSystemPrompt({ schema: effectiveSchema, enabledTools }),
           messages: await convertToModelMessages(uiMessages),
+          // Audit S5: Stop must reach the upstream provider, not just detach
+          // the client — request.signal fires on client disconnect.
+          abortSignal: request.signal,
           tools: {
             ...(enabledTools.includes("propose_sql")
               ? {
@@ -235,8 +248,27 @@ export const Route = createFileRoute("/api/chat")({
 
         // Persist the full turn once the stream finishes: incoming history plus
         // the final accumulated assistant message, mapped back to protocol parts.
-        const uiStream = result.toUIMessageStream();
-        const [forClient, forPersistence] = uiStream.tee();
+        // Audit M4/T3: attach model + token usage to the UI stream's finish
+        // metadata so the client can render per-message meta.
+        const uiStream = result
+          .toUIMessageStream({
+            messageMetadata: ({ part }) => {
+              if (part.type !== "finish") return undefined;
+              const totalUsage = part.totalUsage;
+              return {
+                model: body.config.model,
+                usage: {
+                  promptTokens: totalUsage.inputTokens ?? null,
+                  completionTokens: totalUsage.outputTokens ?? null,
+                  totalTokens: totalUsage.totalTokens ?? null,
+                },
+                // Audit T1/T2: the receipt of what this turn actually sent.
+                context: sentContext,
+              };
+            },
+          })
+          .tee();
+        const [forClient, forPersistence] = uiStream;
 
         const persistTurn = (async () => {
           const reader = readUIMessageStream({ stream: forPersistence }).getReader();
@@ -250,25 +282,58 @@ export const Route = createFileRoute("/api/chat")({
           if (!finalMessage) return;
 
           const createId = (): string => crypto.randomUUID();
+          // Audit M4/T3: preserve prior-turn model/usage that ai-sdk's
+          // UIMessage schema strips — read them from the raw client records.
+          const rawMetaById = new Map<
+            string,
+            { model?: unknown; usage?: unknown; context?: unknown }
+          >();
+          for (const record of body.messages) {
+            if (isRecord(record) && typeof record.id === "string") {
+              rawMetaById.set(record.id, {
+                model: record.model,
+                usage: record.usage,
+                context: record.context,
+              });
+            }
+          }
           const historyMessages = await Promise.all(
             uiMessages.map(async (message) => ({
               id: message.id || createId(),
               role: message.role,
               parts: JSON.stringify(message.parts),
-              model: undefined,
+              ...(rawMetaById.has(message.id)
+                ? (rawMetaById.get(message.id) as {
+                    model?: string;
+                    usage?: unknown;
+                    context?: unknown;
+                  })
+                : { model: undefined }),
             })),
           );
+          const finalMetaRaw: unknown = finalMessage.metadata;
+          const finalMetadata = isRecord(finalMetaRaw) ? finalMetaRaw : undefined;
+          const assistantUsage =
+            finalMetadata !== undefined && finalMetadata.usage !== undefined
+              ? finalMetadata.usage
+              : undefined;
           const assistantMessage = {
             id: finalMessage.id || createId(),
             role: finalMessage.role,
             parts: JSON.stringify(finalMessage.parts),
             model: body.config.model,
+            ...(assistantUsage !== undefined ? { usage: assistantUsage } : {}),
+            // Audit T1/T2: persist what was sent so hydration can show it.
+            context: sentContext,
           };
           const rows: Array<Omit<UpsertChatMessageInput, "threadId">> = [
             ...historyMessages.filter(
               (m) => m.role !== "assistant" || m.id !== assistantMessage.id,
             ),
-            assistantMessage,
+            // Audit S5: a user-initiated stop aborts generation mid-turn; the
+            // partial assistant message would read as a complete answer once
+            // hydration exists. Keep the history, drop the truncated reply.
+            ...(request.signal.aborted ? [] : [assistantMessage]),
           ];
           const program = Effect.gen(function* () {
             const repo = yield* ChatThreadRepository;

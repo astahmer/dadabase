@@ -11,6 +11,10 @@ import {
 } from "#src/server/chat/chat-thread.start.ts";
 
 import type { ChatMessage } from "../protocol/messages.ts";
+import {
+  ChatContextReceiptSchema,
+  MessageUsageSchema,
+} from "../protocol/messages.ts";
 import type { MemorySummary } from "../protocol/resources.ts";
 import type { ConversationClient, Memory } from "../web/chat-runtime/conversation-client.ts";
 
@@ -48,6 +52,16 @@ const decodeMessages = async (
       parts: message.parts,
       createdAt: message.createdAt,
       ...(message.model === null ? {} : { model: message.model }),
+      ...(message.usage === null || message.usage === undefined
+        ? {}
+        : MessageUsageSchema.safeParse(message.usage).success === true
+          ? { usage: MessageUsageSchema.parse(message.usage) }
+          : {}),
+      ...(message.context === null || message.context === undefined
+        ? {}
+        : ChatContextReceiptSchema.safeParse(message.context).success === true
+          ? { context: ChatContextReceiptSchema.parse(message.context) }
+          : {}),
     })),
   );
   const decoded = await Promise.all(
@@ -62,6 +76,10 @@ const decodeMessages = async (
           parts,
           createdAt: message.createdAt,
           ...(message.model === undefined ? {} : { model: message.model }),
+          ...("usage" in message && message.usage !== undefined ? { usage: message.usage } : {}),
+          ...("context" in message && message.context !== undefined
+            ? { context: message.context }
+            : {}),
         };
       } catch {
         return undefined;

@@ -2,10 +2,15 @@ import { createListCollection } from "@ark-ui/react/select";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  ArrowDown,
   ArrowLeft,
   Check,
   ChevronDown,
+  FileText,
   KeyRound,
+  PencilLine,
+  Pin,
+  PinOff,
   PanelLeft,
   Settings2,
   Sparkles,
@@ -46,11 +51,30 @@ import {
   type ChatSchemaMode,
   type StoredChatSchemaSelection,
 } from "#src/lib/ai/chat-schema-selection.ts";
+import {
+  parseComposerCommand,
+  runComposerCommand,
+  UNKNOWN_COMMAND_HINT,
+} from "#src/lib/ai/chat-composer-commands.ts";
 import { CHAT_TOOLS, DEFAULT_ENABLED_CHAT_TOOLS } from "#src/lib/ai/chat-tools.ts";
+import {
+  CHAT_CONVERSATION_RESOLVED,
+  getCurrentChatConversationId,
+} from "#src/lib/ai/chat-conversation-current.ts";
+import { conversationMarkdown } from "#src/lib/chat/web/conversation/conversation-markdown.ts";
 import { findPendingApproval } from "#src/lib/chat/chat/ui-messages.ts";
-import { ChatProvider, useChatActions, useChatSelector } from "#src/lib/chat/react-hooks.ts";
+import type { Conversation } from "#src/lib/chat/protocol/resources.ts";
+import {
+  ChatProvider,
+  useChatActions,
+  useChatRuntime,
+  useChatSelector,
+} from "#src/lib/chat/react-hooks.ts";
 import { ThreadMessage } from "#src/lib/chat/web/thread/thread-message.tsx";
-import { stageCustomSqlRun } from "#src/lib/custom-sql-run-handoff.ts";
+import {
+  stageChatReturn,
+  stageCustomSqlRun,
+} from "#src/lib/custom-sql-run-handoff.ts";
 import { SQL_PREVIEW_REVEAL_SIZE } from "#src/lib/sql-preview-panel.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
@@ -81,7 +105,11 @@ import {
 } from "../../ui/select.tsx";
 import { Textarea } from "../../ui/textarea.tsx";
 import { createTabState } from "./create-tab-state.ts";
-import { BYOK_CHANGED_EVENT, useDadabaseChatRuntime } from "./use-chat-runtime.tsx";
+import {
+  BYOK_CHANGED_EVENT,
+  chatComposerDraftStorageKey,
+  useDadabaseChatRuntime,
+} from "./use-chat-runtime.tsx";
 
 /**
  * First-class AI chat surface (replaces the retired assistant drawer):
@@ -94,7 +122,17 @@ import { BYOK_CHANGED_EVENT, useDadabaseChatRuntime } from "./use-chat-runtime.t
  * it exactly once on mount (see custom-sql-run-handoff.ts) — no timing-
  * sensitive polling across navigation.
  */
-export const AiChatPage = ({ connectionName }: { connectionName: string }) => {
+export const AiChatPage = ({
+  connectionName,
+  initialConversationId,
+  initialAskTable,
+}: {
+  connectionName: string;
+  /** Audit S8: `?thread=` deep link — select this conversation on mount. */
+  initialConversationId?: string;
+  /** Audit K4: `?askTable=` deep link — scope schema + pre-seed a draft. */
+  initialAskTable?: string;
+}) => {
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
   useDocumentTitle(`${connectionName} · AI assistant — Dadabase`);
   const connection: DbConnection | undefined = connectionList.data.find(
@@ -117,11 +155,40 @@ export const AiChatPage = ({ connectionName }: { connectionName: string }) => {
     );
   }
 
-  return <AiChatPageInner connection={connection} />;
+  return <AiChatPageInner
+    connection={connection}
+    initialConversationId={initialConversationId}
+    initialAskTable={initialAskTable}
+  />;
 };
 
-const AiChatPageInner = ({ connection }: { connection: DbConnection }) => {
+const AiChatPageInner = ({
+  connection,
+  initialConversationId,
+  initialAskTable,
+}: {
+  connection: DbConnection;
+  initialConversationId?: string;
+  initialAskTable?: string;
+}) => {
   const navigate = useNavigate({ from: "/connections/$connectionName/ai" });
+  // Audit T5: workspace tab-state writers can fire while the /ai child route
+  // is active (they `navigate({ search })` without a destination, so the tab
+  // fields land on this route's URL). Strip inherited tab keys so shared
+  // links stay clean. `thread`/`askTable` are ours and are kept.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stale = [...params.keys()].filter((key) => key !== "thread" && key !== "askTable");
+    if (stale.length === 0) return;
+    void navigate({
+      search: (prev) => {
+        const next = { ...prev } as Record<string, unknown>;
+        for (const key of stale) delete next[key];
+        return next;
+      },
+      replace: true,
+    });
+  }, [navigate]);
   // Dialect-aware: SQLite/LibSQL live in "main", Postgres in "public".
   const [schema] = useState(() => getDialectDefaultSchema(connection.dialect));
   const [settingsOpen, setSettingsOpen] = useState(() => !hasUsableByokConfig());
@@ -177,9 +244,10 @@ const AiChatPageInner = ({ connection }: { connection: DbConnection }) => {
     });
   };
 
-  /** Open the connection page on a fresh SQL-editor tab seeded with generated SQL. */
-  const navigateToEditor = (sql: string, newTab = createEditorTab(sql)) => {
+  /** Audit S8: meta identifies the originating thread for the back-link. */
+  const navigateToEditor = (sql: string, newTab = createEditorTab(sql), meta?: ChatReturnMeta) => {
     const schema = getDialectDefaultSchema(connection.dialect);
+    if (meta !== undefined) stageChatReturn(newTab.tabId, meta);
     return navigate({
       to: "/connections/$connectionName",
       params: { connectionName: connection.name },
@@ -187,8 +255,8 @@ const AiChatPageInner = ({ connection }: { connection: DbConnection }) => {
     });
   };
 
-  const applySqlToEditor = (sql: string) => {
-    void navigateToEditor(sql);
+  const applySqlToEditor = (sql: string, meta?: ChatReturnMeta) => {
+    void navigateToEditor(sql, undefined, meta);
   };
 
   /**
@@ -196,9 +264,10 @@ const AiChatPageInner = ({ connection }: { connection: DbConnection }) => {
    * BEFORE navigating; the mounted editor consumes and executes it exactly
    * once (custom-sql-run-handoff.ts).
    */
-  const applySqlAndRun = (sql: string) => {
+  const applySqlAndRun = (sql: string, meta?: ChatReturnMeta) => {
     const newTab = createEditorTab(sql);
     stageCustomSqlRun(newTab.tabId, { sql });
+    if (meta !== undefined) stageChatReturn(newTab.tabId, meta);
     void navigateToEditor(sql, newTab);
   };
 
@@ -279,6 +348,7 @@ const AiChatPageInner = ({ connection }: { connection: DbConnection }) => {
           connection={connection}
           schemaContext={schemaContext}
           schemaLoading={allTablesColumnsQuery.isLoading}
+          initialConversationId={initialConversationId}
           providerReady={byokState === "usable"}
           hasApprovedSchemaSharing={hasApprovedSchemaSharing}
           onApproveSchemaSharing={() => {
@@ -294,6 +364,19 @@ const AiChatPageInner = ({ connection }: { connection: DbConnection }) => {
           }}
           onApplySql={applySqlToEditor}
           onRunSql={applySqlAndRun}
+          onOpenProviderSettings={() => setSettingsOpen(true)}
+          initialAskTable={initialAskTable}
+          onAdoptAutoTables={(tables) => {
+            // Audit T2: clicking auto-picked table chips adopts them as the
+            // manual selection — "Auto guessed wrong" becomes one click away.
+            setStoredChatSchemaSelection(connection.name, {
+              mode: "selected",
+              selectedTables: [...tables],
+            });
+            window.dispatchEvent(new Event(SCHEMA_SELECTION_CHANGED_EVENT));
+            announce(`Schema selection set to ${tables.length} table${tables.length === 1 ? "" : "s"}.`);
+          }}
+          onOpenSchemaPanel={() => setSettingsOpen(true)}
           threadList={{
             narrow,
             open: threadListOpen,
@@ -762,6 +845,11 @@ const AiChatBody = ({
   onRevokeSchemaSharing,
   onApplySql,
   onRunSql,
+  onOpenProviderSettings,
+  initialConversationId,
+  initialAskTable,
+  onAdoptAutoTables,
+  onOpenSchemaPanel,
   threadList,
 }: {
   connection: DbConnection;
@@ -774,11 +862,24 @@ const AiChatBody = ({
   onApproveSchemaSharing: () => void;
   /** Audit S2: a persisted grant needs an explicit, announced revoke. */
   onRevokeSchemaSharing: () => void;
-  onApplySql: (sql: string) => void;
-  onRunSql: (sql: string) => void;
+  /** Audit S8: meta identifies the thread a seeded editor can link back to. */
+  onApplySql: (sql: string, meta?: ChatReturnMeta) => void;
+  onRunSql: (sql: string, meta?: ChatReturnMeta) => void;
+  /** Audit S10: auth-class errors deep-link back into provider settings. */
+  onOpenProviderSettings: () => void;
+  /** Audit S8: `?thread=` deep link consumed once on mount. */
+  initialConversationId?: string;
+  /** Audit K4: `?askTable=` pre-seeds draft + Selected scope for one table. */
+  initialAskTable?: string;
+  /** Audit T2: adopt auto-picked tables as a manual selection. */
+  onAdoptAutoTables: (tables: readonly string[]) => void;
+  /** Audit K6: `/schema` opens the schema settings panel. */
+  onOpenSchemaPanel: () => void;
   /** Audit C6/R1: narrow-viewport thread-list drawer state. */
   threadList: { narrow: boolean; open: boolean; onClose: () => void };
 }) => {
+  // Audit S8: the ?thread= consumer must live INSIDE ChatProvider (it calls
+  // useChatActions); see InitialThreadConsumer below.
   const schemaContextRef = useRef<AiSchemaContext | undefined>(schemaContext);
   schemaContextRef.current = schemaContext;
 
@@ -833,6 +934,9 @@ const AiChatBody = ({
 
   return (
     <ChatProvider runtime={runtime}>
+      {initialConversationId !== undefined && (
+        <InitialThreadConsumer initialConversationId={initialConversationId} />
+      )}
       <ThreadListPanel
         narrow={threadList.narrow}
         overlayOpen={threadList.open}
@@ -866,17 +970,197 @@ const AiChatBody = ({
           </div>
         )}
         <ChatSurface
+          connectionName={connection.name}
           onApplySql={onApplySql}
           onRunSql={onRunSql}
+          onOpenProviderSettings={onOpenProviderSettings}
           schemaHint={schemaStatus}
           consentRequired={!hasApprovedSchemaSharing}
           onRevokeSchemaSharing={onRevokeSchemaSharing}
           providerReady={providerReady}
           dialect={connection.dialect}
+          initialAskTable={initialAskTable}
+          onAdoptAutoTables={onAdoptAutoTables}
+          onOpenSchemaPanel={onOpenSchemaPanel}
         />
       </main>
     </ChatProvider>
   );
+};
+
+/**
+ * Audit K3: date-group hydrated threads for scanability. Pinned threads are
+ * lifted into their own bucket regardless of recency.
+ */
+const THREAD_GROUP_LABELS = ["Pinned", "Today", "Yesterday", "Earlier"] as const;
+type ThreadGroupLabel = (typeof THREAD_GROUP_LABELS)[number];
+
+const groupThreadsByRecency = (
+  threads: ReadonlyArray<Conversation>,
+): Array<[ThreadGroupLabel, Array<Conversation>]> => {
+  const buckets = new Map<ThreadGroupLabel, Array<Conversation>>(
+    THREAD_GROUP_LABELS.map((label) => [label, []]),
+  );
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfYesterday = startOfToday.getTime() - 86_400_000;
+  for (const thread of threads) {
+    let label: ThreadGroupLabel = "Earlier";
+    if (thread.pinned === true) {
+      label = "Pinned";
+    } else {
+      const updated = Date.parse(thread.updatedAt);
+      if (!Number.isNaN(updated)) {
+        if (updated >= startOfToday.getTime()) label = "Today";
+        else if (updated >= startOfYesterday) label = "Yesterday";
+      }
+    }
+    buckets.get(label)?.push(thread);
+  }
+  return [...buckets.entries()].filter(([, group]) => group.length > 0);
+};
+
+/** One saved-chat row: select / rename / pin / two-step delete (audit S3). */
+const ThreadListItem = ({
+  thread,
+  active,
+  renaming,
+  renameDraft,
+  confirmingDelete,
+  onSelect,
+  onRenameStart,
+  onRenameChange,
+  onRenameCommit,
+  onRenameCancel,
+  onTogglePin,
+  onDeleteRequest,
+  onDeleteConfirm,
+}: {
+  thread: Conversation;
+  active: boolean;
+  renaming: boolean;
+  renameDraft: string;
+  confirmingDelete: boolean;
+  onSelect: () => void;
+  onRenameStart: () => void;
+  onRenameChange: (value: string) => void;
+  onRenameCommit: () => void;
+  onRenameCancel: () => void;
+  onTogglePin: () => void;
+  onDeleteRequest: () => void;
+  onDeleteConfirm: () => void;
+}) => {
+  const title = thread.title || "New chat";
+  return (
+    <li className="group/thread flex items-center gap-0.5">
+      {renaming ? (
+        <input
+          /* eslint-disable-next-line jsx-a11y/no-autofocus */
+          autoFocus
+          value={renameDraft}
+          onChange={(e) => onRenameChange(e.target.value)}
+          onKeyDown={(e) => {
+            // IME-safe: composition-confirming Enter does not commit.
+            if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+              e.preventDefault();
+              onRenameCommit();
+            }
+            if (e.key === "Escape") onRenameCancel();
+          }}
+          onBlur={onRenameCommit}
+          aria-label="Chat name"
+          data-testid="ai-thread-rename-input"
+          className="border-input focus-visible:border-ring min-w-0 flex-1 rounded-md border bg-transparent px-2 py-1 text-xs outline-none"
+        />
+      ) : (
+        <button
+          type="button"
+          className={`hover:bg-muted/60 min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+            active ? "bg-muted font-medium" : ""
+          }`}
+          onClick={onSelect}
+          data-testid="ai-thread-item"
+        >
+          {thread.pinned === true ? <Pin className="mr-1 inline size-3 shrink-0" /> : null}
+          <span className="truncate">{title}</span>
+        </button>
+      )}
+      {!renaming && (
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/thread:opacity-100 focus-within:opacity-100">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-6"
+            aria-label={thread.pinned === true ? `Unpin chat ${title}` : `Pin chat ${title}`}
+            title={thread.pinned === true ? "Unpin chat" : "Pin chat"}
+            onClick={onTogglePin}
+            data-testid="ai-thread-pin"
+          >
+            {thread.pinned === true ? <PinOff className="size-3" /> : <Pin className="size-3" />}
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-6"
+            aria-label={`Rename chat ${title}`}
+            title="Rename chat"
+            onClick={onRenameStart}
+            data-testid="ai-thread-rename"
+          >
+            <PencilLine className="size-3" />
+          </Button>
+          {confirmingDelete ? (
+            <Button
+              size="xs"
+              variant="outline"
+              className="text-destructive"
+              aria-label={`Confirm deleting chat ${title}`}
+              onClick={onDeleteConfirm}
+              data-testid="ai-thread-delete-confirm"
+            >
+              Confirm
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-6"
+              aria-label={`Delete chat ${title}`}
+              title="Delete chat"
+              onClick={onDeleteRequest}
+              data-testid="ai-thread-delete"
+            >
+              <Trash2 className="size-3" />
+            </Button>
+          )}
+        </div>
+      )}
+    </li>
+  );
+};
+
+/**
+ * Audit S8: consume the `?thread=` deep link exactly once — select that
+ * conversation, then strip the param so refreshes don't re-select forever.
+ * Must be a child of ChatProvider (useChatActions) — hence its own component.
+ * Deferred one tick like the thread-list hydration effect: xstate v5 drops
+ * events sent to an actor before start() runs.
+ */
+const InitialThreadConsumer = ({ initialConversationId }: { initialConversationId?: string }) => {
+  const navigate = useNavigate({ from: "/connections/$connectionName/ai" });
+  const actions = useChatActions();
+  const consumed = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (initialConversationId === undefined || initialConversationId === "") return;
+    if (consumed.current === initialConversationId) return;
+    consumed.current = initialConversationId;
+    const timer = window.setTimeout(() => {
+      actions.selectConversation({ conversationId: initialConversationId });
+      void navigate({ search: {}, replace: true });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [initialConversationId, actions, navigate]);
+  return null;
 };
 
 /** Saved-thread list; ghost entry before the first thread exists (audit C12). */
@@ -897,6 +1181,22 @@ const ThreadListPanel = ({
   const conversations = useChatSelector((s) => s.conversations.items);
   const activeConversationId = useChatSelector((s) => s.activeThread.conversationId);
   const actions = useChatActions();
+
+  // Audit K3: search + date grouping over the hydrated thread list.
+  const [search, setSearch] = useState("");
+  const visibleConversations = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (query === "") return conversations;
+    return conversations.filter((thread) =>
+      (thread.title || "New chat").toLowerCase().includes(query),
+    );
+  }, [conversations, search]);
+
+  /** Audit S3: one inline flow at a time (rename target / delete confirm). */
+  const [renamingId, setRenamingId] = useState<string | undefined>(undefined);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | undefined>(undefined);
+
   useEffect(() => {
     // Deferred one tick: this panel mounts as a child of ChatProvider, and
     // child effects flush before the provider's start() effect — xstate v5
@@ -911,47 +1211,80 @@ const ThreadListPanel = ({
         Chats will appear here once you start chatting.
       </p>
     ) : (
-      <ul className="space-y-0.5">
-        {conversations.map((thread) => (
-          <li key={thread.id} className="group/thread flex items-center gap-0.5">
-            <button
-              type="button"
-              className={`hover:bg-muted/60 min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
-                thread.id === activeConversationId ? "bg-muted font-medium" : ""
-              }`}
-              onClick={() => {
-                // Flat model: the conversation IS the thread — selecting one
-                // loads its persisted messages into the runtime session.
-                actions.selectConversation({ conversationId: thread.id });
-                onClose();
-              }}
-              data-testid="ai-thread-item"
-            >
-              {thread.title || "New chat"}
-            </button>
-            {/* Audit C15: destructive per-thread action must be named, not a
-                bare icon (and previously did not exist at all). */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-6 opacity-0 transition-opacity group-hover/thread:opacity-100 focus-visible:opacity-100"
-              aria-label={`Delete chat ${thread.title || "New chat"}`}
-              title="Delete chat"
-              onClick={() => {
-                actions.deleteConversation({
-                  conversationId: thread.id,
-                  resetSession: thread.id === activeConversationId,
-                });
-                // Audit G6: destructive action feedback must reach AT.
-                announce(`Chat deleted.`);
-              }}
-              data-testid="ai-thread-delete"
-            >
-              <Trash2 className="size-3" />
-            </Button>
-          </li>
-        ))}
-      </ul>
+      <div>
+        {/* Audit K3: search over hydrated threads; the input is scoped to this
+            panel so it never collides with workspace search fields. */}
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search chats"
+          aria-label="Search chats"
+          data-testid="ai-thread-search"
+          className="border-input placeholder:text-muted-foreground/70 focus-visible:border-ring mb-1 w-full rounded-md border bg-transparent px-2 py-1 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring)]/30"
+        />
+        {visibleConversations.length === 0 ? (
+          <p className="text-muted-foreground px-2 py-4 text-xs" data-testid="ai-thread-search-empty">
+            No chats match “{search}”.
+          </p>
+        ) : (
+          groupThreadsByRecency(visibleConversations).map(([label, threads]) => (
+            <section key={label} data-testid="ai-thread-group" data-group={label}>
+              <p className="text-muted-foreground/80 px-2 pt-1.5 pb-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                {label}
+              </p>
+              <ul className="space-y-0.5">
+                {threads.map((thread) => (
+                  <ThreadListItem
+                    key={thread.id}
+                    thread={thread}
+                    active={thread.id === activeConversationId}
+                    renaming={renamingId === thread.id}
+                    renameDraft={renamingId === thread.id ? renameDraft : ""}
+                    confirmingDelete={confirmDeleteId === thread.id}
+                    onSelect={() => {
+                      // Flat model: the conversation IS the thread — selecting one
+                      // loads its persisted messages into the runtime session.
+                      actions.selectConversation({ conversationId: thread.id });
+                      onClose();
+                    }}
+                    onRenameStart={() => {
+                      setRenamingId(thread.id);
+                      setRenameDraft(thread.title || "New chat");
+                    }}
+                    onRenameChange={(value) => setRenameDraft(value)}
+                    onRenameCommit={() => {
+                      const title = renameDraft.trim();
+                      if (title !== "") {
+                        actions.updateConversation({ conversationId: thread.id, title });
+                        announce("Chat renamed.");
+                      }
+                      setRenamingId(undefined);
+                    }}
+                    onRenameCancel={() => setRenamingId(undefined)}
+                    onTogglePin={() => {
+                      actions.updateConversation({ conversationId: thread.id, pinned: !thread.pinned });
+                      announce(thread.pinned === true ? "Chat unpinned." : "Chat pinned.");
+                    }}
+                    onDeleteRequest={() =>
+                      setConfirmDeleteId((current) => (current === thread.id ? undefined : thread.id))
+                    }
+                    onDeleteConfirm={() => {
+                      actions.deleteConversation({
+                        conversationId: thread.id,
+                        resetSession: thread.id === activeConversationId,
+                      });
+                      // Audit G6: destructive action feedback must reach AT.
+                      announce("Chat deleted.");
+                      setConfirmDeleteId(undefined);
+                    }}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))
+        )}
+      </div>
     );
 
   const header = (
@@ -1201,18 +1534,69 @@ const ComposerModelPicker = () => {
   );
 };
 
+/** Audit S8: identifies the thread a seeded editor tab can link back to. */
+type ChatReturnMeta = { conversationId: string; title: string };
+
+/** Audit S10: classify a raw transport error into user-actionable buckets. */
+const classifyChatError = (
+  raw: string,
+): {
+  kind: "auth" | "model" | "quota" | "network" | "unknown";
+  headline: string;
+  hint?: string;
+} => {
+  const text = raw.toLowerCase();
+  if (/401|403|unauthorized|invalid[ _-]api[ _-]?key|incorrect api key|api key/.test(text)) {
+    return {
+      kind: "auth",
+      headline: "The provider rejected the credentials.",
+      hint: "Check the API key in provider settings.",
+    };
+  }
+  if (/404|does not exist|not found/.test(text) && /model/.test(text)) {
+    return {
+      kind: "model",
+      headline: "That model is not available on this provider.",
+      hint: "Pick a different model in the composer.",
+    };
+  }
+  if (/429|quota|rate limit|billing|insufficient/.test(text)) {
+    return {
+      kind: "quota",
+      headline: "Provider quota or rate limit hit.",
+      hint: "Wait a moment or switch provider/model.",
+    };
+  }
+  if (/fetch failed|failed to fetch|network|econnrefused|enotfound|econnreset/.test(text)) {
+    return {
+      kind: "network",
+      headline: "Could not reach the provider endpoint.",
+      hint: "Check the base URL and your connection.",
+    };
+  }
+  return { kind: "unknown", headline: raw };
+};
+
 /** Runtime-driven thread viewport + approval bar + composer. */
 const ChatSurface = ({
+  connectionName,
   onApplySql,
   onRunSql,
+  onOpenProviderSettings,
   schemaHint,
   consentRequired,
   onRevokeSchemaSharing,
   providerReady,
   dialect,
+  onAdoptAutoTables,
+  onOpenSchemaPanel,
+  initialAskTable,
 }: {
-  onApplySql: (sql: string) => void;
-  onRunSql: (sql: string) => void;
+  connectionName: string;
+  onApplySql: (sql: string, meta?: ChatReturnMeta) => void;
+  onRunSql: (sql: string, meta?: ChatReturnMeta) => void;
+  /** Audit S10: auth-class errors deep-link back into provider settings. */
+  onOpenProviderSettings: () => void;
   /** Post-consent transparency line about the schema context in use. */
   schemaHint: string;
   /** Schema-sharing consent outstanding — Send stays disabled until approved. */
@@ -1221,12 +1605,91 @@ const ChatSurface = ({
   /** Stored BYOK config satisfies its provider's key requirement. */
   providerReady: boolean;
   dialect: DatabaseDialect;
+  /** Audit T2: clicking an auto chip adopts those tables as a manual selection. */
+  onAdoptAutoTables: (tables: readonly string[]) => void;
+  /** Audit K6: `/schema` opens the schema settings panel. */
+  onOpenSchemaPanel: () => void;
+  /** Audit K4: `?askTable=` pre-seeds draft + Selected scope for one table. */
+  initialAskTable?: string;
 }) => {
   const messages = useChatSelector((s) => s.activeThread.messages);
   const isStreaming = useChatSelector((s) => s.activeThread.isStreaming);
   const draft = useChatSelector((s) => s.composer.text);
+  const activeConversationId = useChatSelector((s) => s.activeThread.conversationId);
+  const conversations = useChatSelector((s) => s.conversations.items);
   const error = useChatSelector((s) => s.error);
   const actions = useChatActions();
+  const providerId = useChatSelector((s) => s.settings.provider);
+
+  // Audit K7: finishing a stream in an unfocused tab gets a title badge so
+  // users switching back know the answer landed.
+  const prevStreamingRef = useRef(isStreaming);
+  useEffect(() => {
+    if (prevStreamingRef.current && !isStreaming && document.hidden) {
+      const original = document.title;
+      document.title = `● Reply ready — Dadabase`;
+      const restore = () => {
+        document.title = original;
+        window.removeEventListener("focus", restore);
+        window.removeEventListener("visibilitychange", restore);
+      };
+      window.addEventListener("focus", restore);
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) restore();
+      });
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
+  // Audit K4: `?askTable=<name>` scopes the schema to that table and pre-seeds
+  // a draft, then strips the param so refreshes never re-seed.
+  // The seed re-asserts itself briefly: thread hydration (audit S1) resolves
+  // asynchronously after mount and resets the composer to the persisted draft,
+  // which would clobber a single fire-and-forget setDraft.
+  const consumedAskTable = useRef<string | undefined>(undefined);
+  const runtimeForSeed = useChatRuntime();
+  useEffect(() => {
+    if (initialAskTable === undefined || initialAskTable === "") return;
+    if (consumedAskTable.current === initialAskTable) return;
+    consumedAskTable.current = initialAskTable;
+    setStoredChatSchemaSelection(connectionName, {
+      mode: "selected",
+      selectedTables: [initialAskTable],
+    });
+    window.dispatchEvent(new Event(SCHEMA_SELECTION_CHANGED_EVENT));
+    const seededText = `Explore the \`${initialAskTable}\` table:`;
+    let attempts = 0;
+    const seed = (): void => {
+      attempts += 1;
+      runtimeForSeed.actions.setDraft({ text: seededText });
+      if (runtimeForSeed.getState().composer.text === seededText) return;
+      if (attempts < 20) window.setTimeout(seed, 250);
+    };
+    window.setTimeout(seed, 0);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("askTable")) {
+      url.searchParams.delete("askTable");
+      window.history.replaceState({}, "", url);
+    }
+    // Run once per param value; the draft belongs to the runtime afterwards.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAskTable]);
+
+  // Audit S6: the runtime persists the composer draft per connection, but
+  // nothing re-read it after a reload until the next conversation switch —
+  // restore it once on mount so a refresh never eats an in-progress question.
+  useEffect(() => {
+    if (draft !== "") return;
+    let stored: string | null = null;
+    try {
+      stored = globalThis.localStorage.getItem(chatComposerDraftStorageKey(connectionName));
+    } catch {
+      return;
+    }
+    if (typeof stored === "string" && stored !== "") actions.setDraft({ text: stored });
+    // Once on mount; later draft state belongs to the runtime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Audit G7: async failures must not live only in inline text — surface them
   // as toasts and announce them so they reach users regardless of focus.
@@ -1256,11 +1719,93 @@ const ChatSurface = ({
   // pending) — keep the decision visible until the resumed stream finishes.
   const [lastDecision, setLastDecision] = useState<"approved" | "rejected" | undefined>(undefined);
 
+  // Audit S7: track distance from the thread bottom; offer a manual jump when
+  // the user scrolled away while new content streams in.
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const onViewportScroll = () => {
+    const el = viewportRef.current;
+    if (el === null) return;
+    setShowJumpToLatest(el.scrollHeight - el.scrollTop - el.clientHeight > 160);
+  };
+  const scrollToLatest = () => {
+    const el = viewportRef.current;
+    if (el === null) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    setShowJumpToLatest(false);
+  };
+
   const composerFocus = () =>
     document.querySelector<HTMLTextAreaElement>('[data-testid="ai-chat-input"]')?.focus();
 
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
   const pendingApproval = isStreaming ? undefined : findPendingApproval(lastAssistant);
+
+  // Audit S8: identify the originating thread so seeded editor tabs can link
+  // back to this conversation.
+  // Audit S8: identify the originating thread so seeded editor tabs can link
+  // back to this conversation. The runtime mirrors the id from the SSE
+  // response header; listen for it instead of polling internals.
+  const activeConversationTitle =
+    conversations.find((c) => c.id === activeConversationId)?.title || "New chat";
+  const [resolvedConversationId, setResolvedConversationId] = useState<string | undefined>(
+    getCurrentChatConversationId(),
+  );
+  useEffect(() => {
+    const refresh = () => setResolvedConversationId(getCurrentChatConversationId());
+    window.addEventListener(CHAT_CONVERSATION_RESOLVED, refresh);
+    return () => window.removeEventListener(CHAT_CONVERSATION_RESOLVED, refresh);
+  }, []);
+  const conversationIdForMeta = activeConversationId ?? resolvedConversationId;
+  const chatMeta: ChatReturnMeta | undefined =
+    conversationIdForMeta === undefined || conversationIdForMeta === ""
+      ? undefined
+      : { conversationId: conversationIdForMeta, title: activeConversationTitle };
+
+  // Audit K1: single gate shared by the button and the Enter handler.
+  const sendDisabled = consentRequired || !providerReady || draft.trim() === "" || isStreaming;
+  // Audit T4: the transparency line retires itself after the first send.
+  const [trustNoteDismissed, setTrustNoteDismissed] = useState(() => {
+    try {
+      return globalThis.localStorage.getItem(`dadabase.chat.trust-note.${connectionName}`) === "1";
+    } catch {
+      return true;
+    }
+  });
+  const providerLabel = getAiProviderPreset(providerId)?.label ?? providerId;
+  const sendCurrentDraft = () => {
+    if (sendDisabled) return;
+    // Audit K6: leading slash routes to commands instead of the model.
+    const parsed = parseComposerCommand(draft);
+    if (parsed.kind === "unknown") {
+      toaster.create({ title: UNKNOWN_COMMAND_HINT, type: "info" });
+      return;
+    }
+    if (parsed.kind === "command") {
+      runComposerCommand({
+        command: parsed.command,
+        onClear: () => actions.startNewConversation(),
+        onOpenSchemaPanel,
+        announce,
+      });
+      actions.setDraft({ text: "" });
+      return;
+    }
+    if (!trustNoteDismissed) {
+      setTrustNoteDismissed(true);
+      try {
+        globalThis.localStorage.setItem(`dadabase.chat.trust-note.${connectionName}`, "1");
+      } catch {
+        // Private mode: the note simply stays visible; never blocks sending.
+      }
+    }
+    actions.sendMessage({ text: draft });
+  };
+  // Audit M4/T3: thread total across per-message usage.
+  const threadTokens = messages.reduce(
+    (total, message) => total + (message.usage?.totalTokens ?? 0),
+    0,
+  );
   useEffect(() => {
     if (!isStreaming && !findPendingApproval(lastAssistant)) setLastDecision(undefined);
   }, [isStreaming, lastAssistant]);
@@ -1284,12 +1829,15 @@ const ChatSurface = ({
       return (
         <div className="space-y-1.5">
           {purpose !== undefined && <p className="text-muted-foreground text-xs">{purpose}</p>}
-          <pre
-            className="bg-muted/50 overflow-auto rounded-md p-2 font-mono text-xs"
-            data-testid="ai-chat-proposed-sql"
-          >
-            {input.sql}
-          </pre>
+          <div className="relative">
+            <pre
+              className="bg-muted/50 overflow-auto rounded-md p-2 pe-16 font-mono text-xs"
+              data-testid="ai-chat-proposed-sql"
+            >
+              {input.sql}
+            </pre>
+            <CopySqlButton sql={input.sql} />
+          </div>
         </div>
       );
     }
@@ -1326,18 +1874,21 @@ const ChatSurface = ({
         return (
           <div className="space-y-1.5">
             {outcome}
-            <pre className="bg-muted/50 overflow-auto rounded-md p-2 font-mono text-xs">{sql}</pre>
+            <div className="relative">
+              <pre className="bg-muted/50 overflow-auto rounded-md p-2 pe-16 font-mono text-xs">{sql}</pre>
+              <CopySqlButton sql={sql} />
+            </div>
             <div className="flex gap-1.5">
               <Button
                 size="xs"
                 variant="outline"
-                onClick={() => onApplySql(sql)}
+                onClick={() => onApplySql(sql, chatMeta)}
                 data-testid="ai-chat-apply-sql"
               >
                 Use this SQL
               </Button>
               {toolName === "propose_sql" && (
-                <Button size="xs" onClick={() => onRunSql(sql)} data-testid="ai-chat-run-sql">
+                <Button size="xs" onClick={() => onRunSql(sql, chatMeta)} data-testid="ai-chat-run-sql">
                   Run
                 </Button>
               )}
@@ -1351,10 +1902,26 @@ const ChatSurface = ({
 
   return (
     <>
-      <div
-        className="mx-auto min-h-0 w-full max-w-3xl flex-1 space-y-3 overflow-auto p-4"
-        data-testid="ai-chat-thread"
-      >
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {/* Audit S7: manual jump-to-latest when the user scrolled up during a
+            stream; the auto-stick behaviour alone hides new content. */}
+        {showJumpToLatest && (
+          <button
+            type="button"
+            className="bg-background border-border text-muted-foreground hover:text-foreground absolute right-4 bottom-3 z-10 flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs shadow-sm"
+            onClick={scrollToLatest}
+            data-testid="ai-chat-jump-latest"
+          >
+            <ArrowDown className="size-3" />
+            Jump to latest
+          </button>
+        )}
+        <div
+          ref={viewportRef}
+          onScroll={onViewportScroll}
+          className="mx-auto min-h-0 w-full max-w-3xl flex-1 space-y-3 overflow-auto p-4"
+          data-testid="ai-chat-thread"
+        >
         {messages.length === 0 ? (
           <div className="text-muted-foreground flex flex-col items-center gap-4 px-1 py-10 text-center text-sm">
             <p>
@@ -1374,16 +1941,101 @@ const ChatSurface = ({
             </Button>
           </div>
         ) : (
-          messages.map((message) => (
-            <div key={message.id} data-testid="ai-chat-message" data-role={message.role}>
-              <ThreadMessage
-                message={message}
-                isStreaming={isStreaming && message.role === "assistant"}
-                renderToolResult={renderToolResult}
-                renderToolInput={renderToolInput}
-              />
-            </div>
-          ))
+          messages.map((message, index) => {
+            // Audit S4: retry-after-error without retyping — the vendored
+            // ThreadMessage ships the affordance; wire it to the runtime's
+            // retry action on the latest turn (assistant after success, user
+            // after a failed stream).
+            const isLatestTurn = index === messages.length - 1;
+            const isLatestAssistant = message.role === "assistant" && isLatestTurn;
+            const isFailedUserTurn =
+              message.role === "user" &&
+              isLatestTurn &&
+              error !== undefined &&
+              !isStreaming;
+            return (
+              <div key={message.id} data-testid="ai-chat-message" data-role={message.role}>
+                <ThreadMessage
+                  message={message}
+                  isStreaming={isStreaming && message.role === "assistant"}
+                  metadata={{
+                    ...(typeof message.model === "string" && message.model !== ""
+                      ? { modelLabel: message.model }
+                      : {}),
+                    ...(message.usage?.totalTokens !== null &&
+                    typeof message.usage?.totalTokens === "number" &&
+                    message.usage.totalTokens > 0
+                      ? { totalTokens: message.usage.totalTokens }
+                      : {}),
+                    ...(typeof message.createdAt === "string"
+                      ? { createdAt: message.createdAt }
+                      : {}),
+                  }}
+                  renderToolResult={renderToolResult}
+                  renderToolInput={renderToolInput}
+                  {...((isLatestAssistant && !isStreaming) || isFailedUserTurn
+                    ? {
+                        onRegenerate: (messageId: string) => actions.retry({ messageId }),
+                        regenerateText: "Try again",
+                      }
+                    : {})}
+                />
+                {/* Audit T1/T2: per-turn context receipt — the model, schema
+                    mode, table subset, tools, and tokens actually sent. In auto
+                    mode the picked tables are clickable to adopt as manual
+                    selection ("Auto worked" vs "Auto guessed wrong"). */}
+                {message.role === "assistant" && message.context !== undefined ? (
+                  <div
+                    className="text-muted-foreground mt-1 flex flex-wrap items-center gap-1.5 px-3 text-[11px]"
+                    data-testid="ai-chat-context-receipt"
+                  >
+                    <span>{message.context.mode}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>
+                      {message.context.tables.length === 0
+                        ? "no tables"
+                        : `${message.context.tables.length} table${message.context.tables.length === 1 ? "" : "s"}`}
+                    </span>
+                    {message.context.mode !== "all" ? (
+                      <span className="flex flex-wrap gap-1">
+                        {message.context.tables.map((table) => {
+                          const adoptable =
+                            message.context !== undefined && message.context.mode === "auto";
+                          return adoptable ? (
+                            <button
+                              key={table}
+                              type="button"
+                              className="bg-muted hover:text-foreground rounded px-1 py-px font-mono transition-colors"
+                              title={`Adopt \`${table}\` as your schema selection`}
+                              onClick={() => onAdoptAutoTables([table])}
+                            >
+                              {table}
+                            </button>
+                          ) : (
+                            <span key={table} className="bg-muted rounded px-1 py-px font-mono">
+                              {table}
+                            </span>
+                          );
+                        })}
+                      </span>
+                    ) : null}
+                    <span aria-hidden="true">·</span>
+                    <span>
+                      {message.context.tools.length === 0
+                        ? "tools off"
+                        : message.context.tools.join(", ")}
+                    </span>
+                    {message.usage?.totalTokens != null && message.usage.totalTokens > 0 ? (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span>{message.usage.totalTokens.toLocaleString()} ctx</span>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })
         )}
         {pendingApproval !== undefined ? (
           <div
@@ -1463,38 +2115,99 @@ const ChatSurface = ({
             </Button>
           </div>
         )}
+        </div>
       </div>
 
       <div className="border-border border-t p-3">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-2">
+          {/* Audit M4/T3: thread-level token total anchors cost awareness. */}
+          {threadTokens > 0 && (
+            <span
+              className="text-muted-foreground text-[11px]"
+              data-testid="ai-chat-thread-tokens"
+            >
+              {threadTokens.toLocaleString()} tokens this thread
+            </span>
+          )}
           <Textarea
             rows={3}
             placeholder={composerPlaceholder(dialect)}
             value={draft}
             onChange={(e) => actions.setDraft({ text: e.target.value })}
+            onKeyDown={(e) => {
+              // Audit K1: Enter sends, Shift+Enter inserts a newline. IME-safe:
+              // composition-confirming Enter never sends.
+              if (e.key !== "Enter" || e.shiftKey) return;
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+              e.preventDefault();
+              sendCurrentDraft();
+            }}
             data-testid="ai-chat-input"
             disabled={isStreaming}
             aria-label="Chat message"
           />
+          {/* Audit K6: make the keyboard model discoverable. */}
+          <p className="text-muted-foreground text-[11px]" data-testid="ai-chat-kbd-hint">
+            Enter to send · Shift+Enter for a new line
+          </p>
+          {/* Audit T4: moment-of-send trust microcopy — retires after the
+              first successful send (per connection). */}
+          {providerReady && !consentRequired && !trustNoteDismissed ? (
+            <p className="text-muted-foreground text-[11px]" data-testid="ai-chat-trust-note">
+              Schema and table names are sent to {providerLabel} — never row data.
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <ComposerModelPicker />
             <Button
               size="sm"
-              disabled={consentRequired || !providerReady || draft.trim() === "" || isStreaming}
-              onClick={() => actions.sendMessage({ text: draft })}
+              disabled={sendDisabled}
+              onClick={sendCurrentDraft}
               data-testid="ai-chat-send"
             >
               Send
             </Button>
             {messages.length > 0 ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => actions.startNewConversation()}
-                data-testid="ai-chat-new-chat"
-              >
-                New chat
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => actions.startNewConversation()}
+                  data-testid="ai-chat-new-chat"
+                >
+                  New chat
+                </Button>
+                {/* Audit K2: the vendored markdown helper finally gets a caller. */}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    const markdown = conversationMarkdown(
+                      messages.map((message) => ({
+                        id: message.id,
+                        parentId: null,
+                        createdAt: typeof message.createdAt === "string" ? message.createdAt : "",
+                        role: message.role,
+                        parts: message.parts,
+                      })),
+                    );
+                    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+                    const url = URL.createObjectURL(blob);
+                    const anchor = document.createElement("a");
+                    anchor.href = url;
+                    anchor.download = `${activeConversationTitle.replace(/[^\w.-]+/g, "_").slice(0, 60) || "chat"}.md`;
+                    document.body.append(anchor);
+                    anchor.click();
+                    anchor.remove();
+                    URL.revokeObjectURL(url);
+                    announce("Chat exported as markdown.");
+                  }}
+                  data-testid="ai-chat-export"
+                >
+                  <FileText className="size-3.5" />
+                  Export .md
+                </Button>
+              </>
             ) : null}
             {consentRequired ? (
               <span className="text-muted-foreground text-xs" data-testid="ai-chat-send-reason">
@@ -1506,11 +2219,36 @@ const ChatSurface = ({
               </span>
             ) : null}
           </div>
-          {error && (
-            <p className="text-destructive text-xs" data-testid="ai-chat-error">
-              {error}
-            </p>
-          )}
+          {error && (() => {
+            // Audit S10: one flat message for every failure mode taught users
+            // to ignore errors — classify and make recovery actionable.
+            const classified = classifyChatError(error);
+            return (
+              <div
+                className="border-destructive/40 bg-destructive/5 text-destructive rounded-md border px-2.5 py-2 text-xs"
+                data-testid="ai-chat-error"
+              >
+                <p className="font-medium">{classified.headline}</p>
+                {classified.hint !== undefined && (
+                  <p className="mt-0.5 opacity-80">{classified.hint}</p>
+                )}
+                {classified.kind === "auth" && (
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    className="mt-1.5"
+                    onClick={onOpenProviderSettings}
+                    data-testid="ai-chat-error-open-settings"
+                  >
+                    Open provider settings
+                  </Button>
+                )}
+                {classified.kind !== "auth" && classified.kind !== "unknown" && (
+                  <p className="mt-0.5 opacity-70">{error}</p>
+                )}
+              </div>
+            );
+          })()}
           <div className="flex items-center justify-between gap-2">
             <p className="text-muted-foreground text-xs" data-testid="ai-schema-context-hint">
               {schemaHint}
@@ -1545,3 +2283,28 @@ const canSaveConfig = (input: { providerId: string; baseUrl: string; apiKey: str
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
+
+/** Audit M2: copy affordance for proposal/result SQL — the product's core output. */
+const CopySqlButton = ({ sql }: { sql: string }): ReactNode => {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      aria-label={copied ? "SQL copied" : "Copy SQL"}
+      title="Copy SQL"
+      data-testid="copy-proposed-sql"
+      onClick={() => {
+        void navigator.clipboard.writeText(sql).then(
+          () => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          },
+          () => {},
+        );
+      }}
+      className="bg-background text-muted-foreground absolute end-1.5 top-1.5 cursor-pointer rounded border px-1.5 py-0.5 text-[11px] font-medium hover:bg-accent"
+    >
+      {copied ? "Copied ✓" : "Copy"}
+    </button>
+  );
+};

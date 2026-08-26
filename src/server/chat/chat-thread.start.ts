@@ -2,9 +2,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
 import type { ChatMessageRow, ChatThreadRow } from "#src/server/chat/chat-thread.repository.ts";
+import type {
+  ChatContextReceipt,
+  MessageUsage,
+} from "#src/lib/chat/protocol/messages.ts";
 
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { toValidator } from "#src/db/effect-compat.ts";
+import {
+  ChatContextReceiptSchema,
+  MessageUsageSchema,
+} from "#src/lib/chat/protocol/messages.ts";
 import { ChatThreadRepository } from "#src/server/chat/chat-thread.repository.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
@@ -26,6 +34,8 @@ export interface ChatMessageSummary {
   role: string;
   parts: string; // JSON array of protocol MessagePart
   model: string | null;
+  usage: MessageUsage | null; // token counts or null
+  context: ChatContextReceipt | null; // Audit T1/T2: { mode, tables, tools } | null
   createdAt: string;
 }
 
@@ -53,13 +63,43 @@ const toSummary = (row: ChatThreadRow): ChatThreadSummary => ({
   updatedAt: new Date(row.updated_at ?? row.created_at ?? Date.now()).toISOString(),
 });
 
-const toMessageSummary = (row: ChatMessageRow): ChatMessageSummary => ({
-  id: row.id,
-  role: row.role,
-  parts: typeof row.parts === "string" ? row.parts : JSON.stringify(row.parts ?? []),
-  model: row.model,
-  createdAt: new Date(row.created_at ?? Date.now()).toISOString(),
-});
+const toMessageSummary = (row: ChatMessageRow): ChatMessageSummary => {
+  // Audit M4/T3: usage rides as JSON (kysely types json() as string|null).
+  const rawUsage: unknown = row.usage;
+  const parsedUsage: unknown =
+    typeof rawUsage === "string"
+      ? (() => {
+          try {
+            return JSON.parse(rawUsage) as unknown;
+          } catch {
+            return undefined;
+          }
+        })()
+      : rawUsage;
+  const parsed = MessageUsageSchema.safeParse(parsedUsage);
+  // Audit T1/T2: context rides as JSON exactly like usage.
+  const rawContext: unknown = row.context;
+  const parsedContextRaw: unknown =
+    typeof rawContext === "string"
+      ? (() => {
+          try {
+            return JSON.parse(rawContext) as unknown;
+          } catch {
+            return undefined;
+          }
+        })()
+      : rawContext;
+  const parsedContext = ChatContextReceiptSchema.safeParse(parsedContextRaw);
+  return {
+    id: row.id,
+    role: row.role,
+    parts: typeof row.parts === "string" ? row.parts : JSON.stringify(row.parts ?? []),
+    model: row.model,
+    usage: parsed.success ? parsed.data : null,
+    context: parsedContext.success ? parsedContext.data : null,
+    createdAt: new Date(row.created_at ?? Date.now()).toISOString(),
+  };
+};
 
 /** Resolve a saved connection by name, then run the inner effect with its id. */
 type AnyEffect<A> = Effect.Effect<A, Error, DatabaseConnectionRepository | ChatThreadRepository>;

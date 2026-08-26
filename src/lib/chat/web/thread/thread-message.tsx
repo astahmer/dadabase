@@ -236,7 +236,7 @@ export const ThreadMessage = ({
           </form>
         )}
         {isUser && error !== undefined && (
-          <div className="bg-destructive/10 text-destructive ms-auto flex max-w-[85%] items-center gap-2 rounded-md px-3 py-2 text-sm">
+          <div className="border-destructive/30 bg-destructive/10 text-destructive ms-auto flex max-w-[85%] items-center gap-2 rounded-md border px-3 py-2 text-sm">
             <span>{error.message}</span>
             {onRetry !== undefined && (
               <button

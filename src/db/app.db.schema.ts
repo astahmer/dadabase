@@ -162,6 +162,7 @@ export const chat_messages = sqlite.sqliteTable(
     parts: json().notNull(), // JSON array of protocol MessagePart
     model: sqlite.text(),
     usage: json(), // { promptTokens, completionTokens, totalTokens } | null
+    context: json(), // Audit T1/T2: { mode, tables, tools } | null
     created_at: timestamp(),
   },
   (self) => [sqlite.index("chat_messages_thread_id_index").on(self.thread_id)],

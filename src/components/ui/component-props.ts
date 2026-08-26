@@ -42,6 +42,7 @@ export interface ExposedTextareaProps extends Pick<
   | "onChange"
   | "onChangeCapture"
   | "onBlur"
+  | "onKeyDown"
   | "placeholder"
   | "disabled"
 > {}

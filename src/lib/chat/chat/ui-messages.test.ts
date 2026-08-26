@@ -2,7 +2,7 @@ import type { UIMessage, UIMessageChunk } from "ai";
 
 import { describe, expect, it } from "vitest";
 
-import { ChatMessageSchema } from "../protocol/messages.ts";
+import { ChatMessageSchema, type ChatMessage } from "../protocol/messages.ts";
 import {
   APPROVAL_EXTENSION_NAME,
   APPROVAL_EXTENSION_NAMESPACE,
@@ -14,6 +14,12 @@ import {
 } from "./ui-messages.ts";
 
 type UiPart = UIMessage["parts"][number];
+
+const messageText = (message: ChatMessage): string =>
+  message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => (typeof part.text === "string" ? part.text : ""))
+    .join("");
 
 const dynamicToolPart = (overrides: Partial<Record<string, unknown>>): UiPart =>
   ({
@@ -371,5 +377,64 @@ describe("ChatUiMessages.decodeStream — message identity across deltas", () =>
     const folded = foldUpsertById(sent);
     expect(folded).toHaveLength(1);
     expect(folded[0]?.text).toBe("hello world");
+  });
+});
+
+describe("ChatUiMessages.decodeStream — usage metadata (audit M4/T3)", () => {
+  it("attaches model + token usage carried on stream metadata", async () => {
+    const sent: Array<ChatMessage> = [];
+    await ChatUiMessages.decodeStream({
+      response: sseResponse([
+        {
+          type: "start",
+          messageId: "meta-1",
+          messageMetadata: { model: "gpt-4o-mini" },
+        } as UIMessageChunk,
+        { type: "text-start", id: "t1" } as UIMessageChunk,
+        { type: "text-delta", id: "t1", delta: "done" } as UIMessageChunk,
+        { type: "text-end", id: "t1" } as UIMessageChunk,
+        {
+          type: "finish",
+          finishReason: "stop",
+          messageMetadata: {
+            usage: { promptTokens: 12, completionTokens: 34, totalTokens: 46 },
+          },
+        } as unknown as UIMessageChunk,
+      ]),
+      now: () => "2026-08-26T00:00:00.000Z",
+      createId: () => "local-1",
+      inactivityTimeoutMilliseconds: 1_000,
+      sendMessage: (message) => void sent.push(message),
+      isCurrent: () => true,
+    });
+
+    const folded = foldUpsertById(
+      sent.map((message) => ({ id: message.id, text: messageText(message) })),
+    );
+    expect(folded).toHaveLength(1);
+    // Re-read the folded message through the full protocol shape.
+    const all = sent.at(-1);
+    expect(all?.model).toBe("gpt-4o-mini");
+    expect(all?.usage).toEqual({ promptTokens: 12, completionTokens: 34, totalTokens: 46 });
+  });
+
+  it("omits usage when the stream carries none", async () => {
+    const sent: Array<ChatMessage> = [];
+    await ChatUiMessages.decodeStream({
+      response: sseResponse([
+        { type: "start", messageId: "plain-1" } as UIMessageChunk,
+        { type: "text-start", id: "t1" } as UIMessageChunk,
+        { type: "text-delta", id: "t1", delta: "hi" } as UIMessageChunk,
+        { type: "text-end", id: "t1" } as UIMessageChunk,
+        { type: "finish", finishReason: "stop" } as UIMessageChunk,
+      ]),
+      now: () => "2026-08-26T00:00:00.000Z",
+      createId: () => "local-1",
+      inactivityTimeoutMilliseconds: 1_000,
+      sendMessage: (message) => void sent.push(message),
+      isCurrent: () => true,
+    });
+    expect(sent.at(-1)?.usage).toBeUndefined();
+    expect(sent.at(-1)?.model).toBeUndefined();
   });
 });

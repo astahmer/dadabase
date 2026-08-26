@@ -188,3 +188,69 @@ code {
     outline-offset: 2px;
   }
 }
+
+/* Audit M1: chat markdown code highlighting. Token colors are mapped to theme
+   variables instead of shipping a second highlight.js theme, so fenced SQL
+   reads correctly in both light and dark without a flash or extra CSS. */
+.hljs {
+  color: var(--foreground);
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-doctag,
+.hljs-type,
+.hljs-name,
+.hljs-strong {
+  color: var(--primary);
+  font-weight: 600;
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-attribute,
+.hljs-meta .hljs-string {
+  color: oklch(0.55 0.15 155);
+}
+.dark .hljs-string,
+.dark .hljs-regexp,
+.dark .hljs-addition,
+.dark .hljs-attribute,
+.dark .hljs-meta .hljs-string {
+  color: oklch(0.75 0.15 155);
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-quote {
+  color: oklch(0.55 0.12 60);
+}
+.dark .hljs-number,
+.dark .hljs-symbol,
+.dark .hljs-bullet,
+.dark .hljs-quote {
+  color: oklch(0.78 0.12 60);
+}
+.hljs-comment,
+.hljs-meta {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+.hljs-title,
+.hljs-function,
+.hljs-built_in,
+.hljs-class .hljs-title,
+.hljs-variable.language_ {
+  color: oklch(0.52 0.16 265);
+}
+.dark .hljs-title,
+.dark .hljs-function,
+.dark .hljs-built_in,
+.dark .hljs-class .hljs-title,
+.dark .hljs-variable.language_ {
+  color: oklch(0.78 0.13 265);
+}
+.hljs-deletion {
+  color: var(--destructive);
+}

@@ -104,6 +104,10 @@ const makeChatThreadRepository = Effect.gen(function* () {
                 message.usage === undefined || message.usage === null
                   ? null
                   : JSON.stringify(message.usage),
+              context:
+                message.context === undefined || message.context === null
+                  ? null
+                  : JSON.stringify(message.context),
               created_at: Date.now(),
             }),
           );
@@ -135,4 +139,5 @@ export type UpsertChatMessageInput = {
   parts: unknown;
   model?: string | undefined;
   usage?: unknown;
+  context?: unknown;
 };

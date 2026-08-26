@@ -9,7 +9,12 @@ import type { UIMessage } from "ai";
 import { readUIMessageStream, parseJsonEventStream, uiMessageChunkSchema } from "ai";
 import { z } from "zod";
 
-import type { ChatMessage } from "../protocol/messages.ts";
+import {
+  ChatContextReceiptSchema,
+  MessageUsageSchema,
+  type ChatContextReceipt,
+  type ChatMessage,
+} from "../protocol/messages.ts";
 
 import { MessagePartSchema, type MessagePart } from "../protocol/parts.ts";
 
@@ -63,6 +68,9 @@ export const hasPendingApproval = (messages: ReadonlyArray<ChatMessage>): boolea
 // Re-exported for the thread adapter (vendored Phase A contract).
 export type ChatUiMessageRole = UIMessage["role"] | "summary";
 export type ChatUiMessage = Omit<UIMessage, "role"> & { role: ChatUiMessageRole };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
 
 export class ChatUiMessagesError extends Error {
   readonly code: string;
@@ -426,6 +434,13 @@ export const ChatUiMessages = {
     // messageId, so readUIMessageStream accumulates under id "" — deriving a
     // fresh id per emission would split every delta into its own message.
     const fallbackId = createId();
+    // Audit M4/T3: the route rides model + token usage on chunk metadata;
+    // readUIMessageStream drops it, so capture it from the raw chunk stream.
+    let streamMeta: {
+      model?: string;
+      usage?: { promptTokens: number | null; completionTokens: number | null; totalTokens: number | null };
+      context?: ChatContextReceipt;
+    } = {};
     const timeout = new AbortController();
     const timer = setTimeout(() => timeout.abort(), inactivityTimeoutMilliseconds);
     try {
@@ -439,6 +454,24 @@ export const ChatUiMessages = {
               if (!result.success) {
                 controller.error(result.error);
                 return;
+              }
+              // Chunk variants disagree on the field (looseObject union), so
+              // read it defensively off the parsed value.
+              const rawChunkMeta: unknown =
+                (result.value as { messageMetadata?: unknown }).messageMetadata;
+              const meta = isRecord(rawChunkMeta) ? rawChunkMeta : undefined;
+              if (meta !== undefined) {
+                if (typeof meta.model === "string" && meta.model !== "") {
+                  streamMeta.model = meta.model;
+                }
+                if (MessageUsageSchema.safeParse(meta.usage).success === true) {
+                  streamMeta.usage = MessageUsageSchema.parse(meta.usage);
+                }
+                // Audit T1/T2: the route reports what the turn sent (mode,
+                // table subset, tools) on the same metadata channel.
+                if (ChatContextReceiptSchema.safeParse(meta.context).success === true) {
+                  streamMeta.context = ChatContextReceiptSchema.parse(meta.context);
+                }
               }
               controller.enqueue(result.value);
             },
@@ -469,6 +502,9 @@ export const ChatUiMessages = {
           role: uiMessage.role,
           parts,
           createdAt: now(),
+          ...(streamMeta.model !== undefined ? { model: streamMeta.model } : {}),
+          ...(streamMeta.usage?.totalTokens != null ? { usage: streamMeta.usage } : {}),
+          ...(streamMeta.context !== undefined ? { context: streamMeta.context } : {}),
         };
         latest = message;
         sendMessage(message);

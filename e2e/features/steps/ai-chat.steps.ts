@@ -20,7 +20,7 @@ const SEND_BUTTON = '[data-testid="ai-chat-send"]';
 const THREAD = '[data-testid="ai-chat-thread"]';
 const CONSENT_PARAM = "ai-schema-sharing-consent";
 
-type MockMode = "text" | "approval" | "fail500" | "proposal";
+type MockMode = "text" | "approval" | "fail500" | "proposal" | "stalled";
 
 interface ChatTestState {
   mode: MockMode;
@@ -29,8 +29,15 @@ interface ChatTestState {
   consoleTexts: string[];
   /** Index into requests already consumed by decision assertions. */
   decisionsCheckedUpTo: number;
+  /** Composer/flow round: noted request count + download filename. */
+  notedRequestCount?: number;
+  downloadName?: string;
   /** Emit a start chunk without messageId (providers without response ids). */
   omitMessageId?: boolean;
+  /** Emit model + token usage metadata (audit M4/T3). */
+  withUsage?: boolean;
+  /** Emit a context receipt on the finish chunk (audit T1/T2). */
+  withContext?: boolean;
   /** SQL used by the "proposal" mock mode. */
   proposalSql?: string;
 }
@@ -56,19 +63,55 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const sse = (chunks: Array<Record<string, unknown>>): string =>
   chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join("") + "data: [DONE]\n\n";
 
+/** The real /api/chat always assigns a conversation id; mocks must too. */
+const CONVERSATION_HEADER = { "x-conversation-id": "mock-conv-1" };
+
 const textChunks = (
   parts: readonly string[],
-  options: { omitMessageId?: boolean } = {},
+  options: {
+    omitMessageId?: boolean;
+    withUsage?: boolean;
+    withContext?: boolean;
+  } = {},
 ): Array<Record<string, unknown>> => [
   // Providers that return no response message id emit a start chunk without
   // messageId — the runtime must still keep ONE assistant message.
-  options.omitMessageId === true ? { type: "start" } : { type: "start", messageId: "mock-msg-1" },
+  options.omitMessageId === true
+    ? { type: "start" }
+    : {
+        type: "start",
+        messageId: "mock-msg-1",
+        ...(options.withUsage === true
+          ? { messageMetadata: { model: "gpt-4o-mini" } }
+          : {}),
+      },
   { type: "start-step" },
   { type: "text-start", id: "t1" },
   ...parts.map((delta) => ({ type: "text-delta", id: "t1", delta })),
   { type: "text-end", id: "t1" },
   { type: "finish-step" },
-  { type: "finish", finishReason: "stop" },
+  {
+    type: "finish",
+    finishReason: "stop",
+    ...(options.withUsage === true || options.withContext === true
+      ? {
+          messageMetadata: {
+            ...(options.withUsage === true
+              ? { model: "gpt-4o-mini", usage: { promptTokens: 12, completionTokens: 34, totalTokens: 46 } }
+              : {}),
+            ...(options.withContext === true
+              ? {
+                  context: {
+                    mode: "auto",
+                    tables: ["users"],
+                    tools: ["propose_sql"],
+                  },
+                }
+              : {}),
+          },
+        }
+      : {}),
+  },
 ];
 
 const approvalChunks = (): Array<Record<string, unknown>> => [
@@ -125,6 +168,18 @@ const installMock = async (page: Page): Promise<void> => {
       });
       return;
     }
+    if (state.mode === "stalled") {
+      // Audit S5: a stream that would not finish for a long time — Stop must
+      // hide the generating state well before the payload ever arrives.
+      await sleep(15_000);
+      await route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        headers: CONVERSATION_HEADER,
+        body: sse(textChunks(state.textParts)),
+      });
+      return;
+    }
     // Small delay so the pending-turn UI state is observable.
     await sleep(500);
     const chunks =
@@ -132,8 +187,20 @@ const installMock = async (page: Page): Promise<void> => {
         ? approvalChunks()
         : state.mode === "proposal"
           ? proposalChunks(state.proposalSql ?? "SELECT 42 AS answer")
-          : textChunks(state.textParts, { omitMessageId: state.omitMessageId === true });
-    await route.fulfill({ status: 200, contentType: "text/event-stream", body: sse(chunks) });
+          : textChunks(state.textParts, {
+              omitMessageId: state.omitMessageId === true,
+              withUsage: state.withUsage === true,
+              withContext: state.withContext === true,
+            });
+    // The real route always returns the assigned conversation id; mocks must
+    // too, or the runtime stays anonymous (blocking retry/revisions and
+    // thread-list identification).
+    await route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      headers: CONVERSATION_HEADER,
+      body: sse(chunks),
+    });
   });
 };
 
@@ -217,6 +284,18 @@ Given(
     await installMock(page);
   },
 );
+
+Given("the chat API streams a canned reply containing a sql code fence", async ({ page }) => {
+  const state = stateFor(page);
+  state.mode = "text";
+  state.textParts = [
+    "Here is the query:\n\n",
+    "```sql\n",
+    "SELECT count(*) FROM users;\n",
+    "```\n",
+  ];
+  await installMock(page);
+});
 
 Given(
   "the chat API streams a canned text reply without a message id in parts {string}, {string}, {string}",
@@ -962,4 +1041,258 @@ Then("the assistant role label precedes its message text", async ({ page }) => {
     return srOnly.parentElement?.firstElementChild === srOnly;
   });
   expect(isFirst).toBe(true);
+});
+
+// ---------------------------------------------------------------------------
+// Audit M1/M2/M4/T3: highlighting, copy affordances, message meta
+// ---------------------------------------------------------------------------
+
+Given(
+  "the chat API streams a canned reply carrying model and token usage",
+  async ({ page }) => {
+    const state = stateFor(page);
+    state.mode = "text";
+    state.withUsage = true;
+    await installMock(page);
+  },
+);
+
+Given("clipboard permissions are granted", async ({ page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+});
+
+When("I copy the assistant code block", async ({ page }) => {
+  await page.getByTestId("code-copy").first().click({ timeout: 20_000 });
+});
+
+Then("the assistant reply contains a highlighted {string} code block", async ({ page }, language: string) => {
+  const block = page.getByTestId("chat-code-block").first();
+  await expect(block).toBeVisible({ timeout: 20_000 });
+  await expect(block.getByTestId("code-language")).toHaveText(language.toUpperCase());
+  const keywordCount = await block.locator(".hljs-keyword").count();
+  expect(keywordCount).toBeGreaterThan(0);
+});
+
+Then("the clipboard contains {string}", async ({ page }, expected: string) => {
+  const content = await page.evaluate(() => navigator.clipboard.readText());
+  expect(content.trim()).toBe(expected.trim());
+});
+
+Then("the last assistant message shows model and token meta", async ({ page }) => {
+  const footer = page
+    .locator('[data-testid="ai-chat-message"][data-role="assistant"]')
+    .last()
+    .locator('[data-slot="message-footer"]')
+    .first();
+  await expect(footer.getByText("gpt-4o-mini")).toBeVisible({ timeout: 20_000 });
+  await expect(footer.getByText("46 tokens")).toBeVisible();
+});
+
+Then("the composer area shows the thread token total", async ({ page }) => {
+  await expect(page.getByTestId("ai-chat-thread-tokens")).toContainText("46 tokens this thread");
+});
+
+When("I copy the proposed SQL", async ({ page }) => {
+  await page.getByTestId("copy-proposed-sql").first().click({ timeout: 20_000 });
+});
+
+// ---------------------------------------------------------------------------
+// Audit round: composer & flows (K1, S3-S6, S8, K2, K3)
+// ---------------------------------------------------------------------------
+
+const threadRow = (page: Page, title: string) =>
+  page
+    .locator("li")
+    .filter({ has: page.getByTestId("ai-thread-item") })
+    .filter({ hasText: title });
+
+When("I type {string} in the chat composer", async ({ page }, text: string) => {
+  const input = page.locator(CHAT_INPUT);
+  await expect(input).toBeEnabled({ timeout: 15_000 });
+  await input.fill(text);
+});
+
+When("I type {string} more in the chat composer", async ({ page }, text: string) => {
+  // Append without replacing: Shift+Enter newline tests depend on this.
+  await page.locator(CHAT_INPUT).pressSequentially(text, { delay: 40 });
+});
+
+
+When("I press Enter in the chat composer", async ({ page }) => {
+  await page.locator(CHAT_INPUT).press("Enter");
+});
+
+When("I press Shift+Enter in the chat composer", async ({ page }) => {
+  await page.locator(CHAT_INPUT).press("Shift+Enter");
+});
+
+Then("the composer shows the keyboard hint", async ({ page }) => {
+  await expect(page.getByTestId("ai-chat-kbd-hint")).toContainText("Enter to send");
+});
+
+Then("the composer is empty after sending", async ({ page }) => {
+  await expect(page.locator(CHAT_INPUT)).toHaveValue("", { timeout: 10_000 });
+});
+
+Then("the composer value contains a newline", async ({ page }) => {
+  const value = await page.locator(CHAT_INPUT).inputValue();
+  const hasNewline = value.includes("\n");
+  expect(hasNewline, `expected newline in draft, got ${JSON.stringify(value)}`).toBe(true);
+});
+
+Then("the composer contains {string}", async ({ page }, text: string) => {
+  await expect(page.locator(CHAT_INPUT)).toHaveValue(text, { timeout: 10_000 });
+});
+
+Then("the latest assistant reply offers retry", async ({ page }) => {
+  // After a failed stream the retry affordance sits on the latest user turn.
+  await expect(page.locator(THREAD).getByText("Try again").first()).toBeVisible({
+    timeout: 10_000,
+  });
+});
+
+When("I note the number of chat requests", async ({ page }) => {
+  stateFor(page).notedRequestCount = stateFor(page).requests.length;
+});
+
+When("I retry the latest assistant reply", async ({ page }) => {
+  await page.locator(THREAD).getByText("Try again").first().click({ timeout: 15_000 });
+});
+
+Then("at least one more chat request has been sent", async ({ page }) => {
+  const state = stateFor(page);
+  await expect
+    .poll(() => state.requests.length, { timeout: 15_000 })
+    .toBeGreaterThan(state.notedRequestCount ?? 0);
+});
+
+Then("the generating indicator disappears after stopping", async ({ page }) => {
+  // The mocked stream would only complete after 15s — hiding within 5s
+  // proves the client actually aborted instead of waiting it out.
+  await expect(page.getByTestId("ai-generating-status")).toBeHidden({ timeout: 5_000 });
+});
+
+Then("a back-to-chat link for the conversation is shown", async ({ page }) => {
+  const link = page.getByTestId("ai-chat-return-link");
+  const visible = await link.isVisible().catch(() => false);
+  if (!visible) {
+    const diag = await page.evaluate(() => ({
+      s8: (window as Record<string, unknown>).__s8,
+      s8click: (window as Record<string, unknown>).__s8click,
+      ss: Object.fromEntries(
+        Array.from({ length: window.sessionStorage.length }, (_, i) => {
+          const k = window.sessionStorage.key(i);
+          return [k, window.sessionStorage.getItem(k)?.slice(0, 80)];
+        }),
+      ),
+    }));
+    throw new Error(`back-to-chat link missing; sessionStorage=${JSON.stringify(diag)}`);
+  }
+  await expect(link).toContainText("Back to chat ·", { timeout: 10_000 });
+});
+
+When("I follow the back-to-chat link", async ({ page }) => {
+  await page.getByTestId("ai-chat-return-link").click({ timeout: 10_000 });
+});
+
+Then("the AI chat page is open again", async ({ page }) => {
+  await expect(page).toHaveURL(/\/ai/, { timeout: 20_000 });
+  await expect(page.getByTestId("ai-chat-page")).toBeVisible({ timeout: 20_000 });
+});
+
+const threadRowByTitle = (page: Page, title: string) => threadRow(page, title).first();
+
+When("I pin the chat titled {string}", async ({ page }, title: string) => {
+  await threadRowByTitle(page, title).getByTestId("ai-thread-pin").click();
+});
+
+Then("the chat titled {string} shows as pinned", async ({ page }, title: string) => {
+  await expect(
+    threadRowByTitle(page, title).getByTestId("ai-thread-pin"),
+  ).toHaveAttribute("aria-label", `Unpin chat ${title}`, { timeout: 10_000 });
+});
+
+When("I rename the chat titled {string} to {string}", async ({ page }, from: string, to: string) => {
+  // Clicking rename swaps the title button for the inline input, so the row
+  // locator by old title no longer matches — scope the input globally (only
+  // one rename is active at a time).
+  await threadRowByTitle(page, from).getByTestId("ai-thread-rename").click();
+  const input = page.getByTestId("ai-thread-rename-input");
+  await expect(input).toBeVisible({ timeout: 5_000 });
+  await input.fill(to);
+  await input.press("Enter");
+});
+
+When("I delete the chat titled {string}", async ({ page }, title: string) => {
+  // Two-step destructive flow (audit S3): first click only requests it.
+  await threadRowByTitle(page, title).getByTestId("ai-thread-delete").click();
+});
+
+Then("a delete confirmation is requested for {string}", async ({ page }, title: string) => {
+  await expect(
+    threadRowByTitle(page, title).getByTestId("ai-thread-delete-confirm"),
+  ).toBeVisible({ timeout: 5_000 });
+});
+
+When("I confirm deleting the chat titled {string}", async ({ page }, title: string) => {
+  await threadRowByTitle(page, title).getByTestId("ai-thread-delete-confirm").click();
+});
+
+Then("the thread list no longer shows a chat titled {string}", async ({ page }, title: string) => {
+  await expect(threadRowByTitle(page, title)).toHaveCount(0, { timeout: 10_000 });
+});
+
+When("I search chats for {string}", async ({ page }, query: string) => {
+  await page.getByTestId("ai-thread-search").fill(query);
+});
+
+Then("only chats matching {string} are listed", async ({ page }, query: string) => {
+  const items = page.getByTestId("ai-thread-item");
+  await expect(items.filter({ hasText: query }).first()).toBeVisible({ timeout: 10_000 });
+  const count = await items.count();
+  expect(count).toBeGreaterThan(0);
+  for (let index = 0; index < count; index += 1) {
+    expect(await items.nth(index).innerText()).toMatch(new RegExp(query, "i"));
+  }
+});
+
+When("I export the chat as markdown", async ({ page }) => {
+  const downloadPromise = page.waitForEvent("download", { timeout: 15_000 });
+  await page.getByTestId("ai-chat-export").click();
+  stateFor(page).downloadName = (await downloadPromise).suggestedFilename();
+});
+
+Then("a markdown download named after the chat is offered", async ({ page }) => {
+  const name = stateFor(page).downloadName ?? "";
+  const isMarkdown = name.endsWith(".md");
+  expect(isMarkdown, `expected .md download, got ${name}`).toBe(true);
+});
+
+Given("the chat API mock emits a context receipt", async ({ page }) => {
+  stateFor(page).withContext = true;
+});
+
+When("I open the AI chat page with askTable {string}", async ({ page }, table: string) => {
+  await page.goto(`/connections/e2e-sqlite/ai?askTable=${table}`, {
+    waitUntil: "domcontentloaded",
+    timeout: 30_000,
+  });
+  await expect(page.getByTestId("ai-chat-page")).toBeVisible({ timeout: 30_000 });
+});
+
+Then(
+  "an assistant context receipt shows mode {string} with table {string}",
+  async ({ page }, mode: string, table: string) => {
+    const receipt = page.getByTestId("ai-chat-context-receipt");
+    await expect(receipt).toBeVisible({ timeout: 15_000 });
+    await expect(receipt).toContainText(mode);
+    await expect(receipt).toContainText(table);
+  },
+);
+
+Then("the schema status reports a manually selected subset", async ({ page }) => {
+  await expect(page.getByTestId("ai-schema-context-hint")).toContainText(
+    "manually selected",
+    { timeout: 15_000 },
+  );
 });

@@ -116,3 +116,54 @@ Severity: **P0** blocks daily use · **P1** high friction · **P2** medium · **
 **Why the jump:** every C1–C16 remediation verifiably holds in live use — the six P0-class breakages from 08-25 (dead palette aside, they were chat's whole failure story) are gone; the keyless flow works end-to-end; proposals show their SQL; streaming has real affordances; narrow widths stopped overflowing. The product no longer fights the user.
 
 **Why not higher:** two P0s remain that a daily-returning user hits immediately — conversations don't survive a reload (S1), and the consent gate re-arms every visit (S2) — plus an interaction baseline (Enter-to-send, copy, regenerate) that every mainstream chat ships by default. All of it is small, well-scoped work on top of foundations that are now genuinely sound; clearing the Top-10 above puts this at A−.
+
+## Remediation status (2026-08-26 sweep)
+
+Legend: ✅ RESOLVED · 🟡 PARTIAL · ⏸ DEFERRED. Change: `feat(chat): context receipt, error taxonomy, ask-about-table`.
+
+### Flows & state
+
+- S1 hydration on mount: ✅ RESOLVED (landed in an earlier batch this arc; THREADS hydrate from drizzle-backed threads, persisted messages load into the runtime).
+- S2 consent persistence + labeled checkbox: ✅ RESOLVED (earlier batch; per-connection grant + revoke, `aria-labelledby`).
+- S3 rename/pin/delete + K3 search/date groups: ✅ RESOLVED (earlier batch).
+- S4 Regenerate wired to runtime retry: ✅ RESOLVED (earlier batch).
+- S5 AbortSignal propagation to the server route: ✅ RESOLVED (earlier batch — request.signal aborts upstream generation and drops the truncated reply from persistence).
+- S6 draft restore after reload: ✅ RESOLVED (earlier batch).
+- S7 jump-to-bottom button: ✅ RESOLVED (earlier batch).
+- S8 editor back-link (`?thread=` + staged return meta): ✅ RESOLVED (earlier batch).
+- S9 option-list bleed-through: ✅ RESOLVED (earlier batch — provider popup scoped; verified by scoped role=option queries in chat e2e).
+- S10 error taxonomy (auth/model/quota/network + provider body + settings deep link): ✅ RESOLVED this sweep (`classifyChatError` + inline recovery actions).
+
+### Trust & context transparency
+
+- T1 context receipt per assistant turn (mode · tables · tools · ctx tokens): ✅ RESOLVED this sweep — route emits a receipt on the stream metadata channel AND persists it in a new `chat_messages.context` column (migration 0006), so hydrated history shows it too.
+- T2 auto chips click-to-edit: ✅ RESOLVED this sweep — auto-mode table chips are buttons that adopt the subset as a manual selection.
+- T3 token/latency metadata: ✅ RESOLVED (earlier batch — per-message usage + thread total footer).
+- T4 moment-of-send microcopy: ✅ RESOLVED this sweep — "Schema and table names are sent to <provider> — never row data." under the composer; retires after first send.
+- T5 `?tabs=` pollution on /ai: ✅ RESOLVED this sweep — inherited workspace tab keys are stripped from the AI route URL.
+
+### Power-user & keyboard
+
+- K1 Enter-to-send/Shift+Enter + hint: ✅ RESOLVED (earlier batch).
+- K2 Export .md via vendored helper: ✅ RESOLVED (earlier batch).
+- K3 thread search + date grouping + pinned bucket: ✅ RESOLVED (earlier batch).
+- K4 "Ask AI about this table": ✅ RESOLVED this sweep — `?askTable=<name>` scopes Selected schema to that table, pre-seeds the composer draft (hydration-race-safe re-assert), strips the param; e2e covered.
+- K5 approval outcome inline under the approved card: ✅ RESOLVED (earlier batch renders "Ran ✓ · N rows / Failed" at the decision site).
+- K6 slash commands (/clear, /schema, /tools): ✅ RESOLVED this sweep — parser unit-tested; unknown commands get an actionable hint toast.
+- K7 unfocused-tab completion cue: ✅ RESOLVED this sweep — title badge while hidden, restored on focus.
+
+### Message rendering / Composer / Layout / Narrow
+
+- M1 highlighting + language labels, M2 copy affordances, M4 meta row, T3 thread tokens: ✅ RESOLVED (earlier batch).
+- M3 overflow fade/collapse: ⏸ DEFERRED (polish; no user reports).
+- M5 error-banner light-theme contrast: 🟡 PARTIAL (banner uses semantic destructive tokens; dedicated contrast pass deferred).
+- C-A auto-grow composer: ⏸ DEFERRED.
+- C-B schema-aware placeholder example: ⏸ DEFERRED.
+- C-C model picker grouping/keyless tag: 🟡 PARTIAL (picker works, bare id still shown).
+- C-D preset-change inline summary: 🟡 PARTIAL (save gating exists; summary text pending).
+- C-E compose-while-streaming: ⏸ DEFERRED.
+- L1/L2/L3/L4 layout rhythm & width tuning: ⏸ DEFERRED (cosmetic; L4 unblocked now that S1 landed — revisit with 500-message benchmark).
+- N1 ≤620px re-test: 🟡 PARTIAL — stacked layout shipped earlier; a dedicated 560–620px pass is still outstanding.
+- N2 true browser-zoom pass: ⏸ DEFERRED.
+
+**Net:** all P0/P1 findings across every section are resolved; remainder is P2 polish (M3/C-A/C-B/C-E/L1–L4) explicitly listed above for a future pass.

@@ -60,3 +60,59 @@ export const consumeStagedCustomSqlRun = (tabId: string): StagedCustomSqlRun | n
     return null;
   }
 };
+
+/** Audit S8: where the seeded editor tab came from, for a return link. */
+export type StagedChatReturn = {
+  conversationId: string;
+  title: string;
+};
+
+const returnKeyFor = (tabId: string): string => `dadabase.custom-sql-return.${tabId}`;
+
+/**
+ * Stage a chat-return marker for an editor tab. Unlike the run handoff this
+ * is NOT consume-once: the editor renders the back-link for as long as the
+ * tab lives, and the marker is cleared when the user follows it.
+ */
+export const stageChatReturn = (tabId: string, payload: StagedChatReturn): void => {
+  const store = storage();
+  if (!store || !tabId) return;
+  try {
+    store.setItem(returnKeyFor(tabId), JSON.stringify(payload));
+  } catch {
+    // Best-effort affordance — never block the navigation.
+  }
+};
+
+/** Read (without consuming) the chat-return marker for a tab. */
+export const peekChatReturn = (tabId: string): StagedChatReturn | null => {
+  const store = storage();
+  if (!store || !tabId) return null;
+  const raw = store.getItem(returnKeyFor(tabId));
+  if (raw === null) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as StagedChatReturn).conversationId === "string" &&
+      typeof (parsed as StagedChatReturn).title === "string"
+    ) {
+      return parsed as StagedChatReturn;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+/** Clear the chat-return marker after the user follows the back-link. */
+export const clearChatReturn = (tabId: string): void => {
+  const store = storage();
+  if (!store || !tabId) return;
+  try {
+    store.removeItem(returnKeyFor(tabId));
+  } catch {
+    // Ignore private-mode failures.
+  }
+};
