@@ -123,7 +123,7 @@ Feature: AI chat assistant
     When I toggle tool "Run SQL"
     And I toggle tool "Propose SQL"
     And I type "no tools now" and press send
-    Then the last chat request carries enabled tools "explain_sql,open_workspace_view,preview_rows,table_details"
+    Then the last chat request carries enabled tools "explain_sql,open_workspace_view,preview_rows,run_sql,table_details"
     When I press "Select all" in the tools settings
     And I type "tools are back" and press send
     Then the last chat request carries enabled tools "explain_sql,open_workspace_view,preview_rows,propose_sql,run_sql,table_details"
@@ -504,3 +504,44 @@ Feature: AI chat assistant
     Then the workspace view card is visible
     When I click the open workspace view card button
     Then a browse tab opens on table "users" with a filter on "status"
+
+  Scenario: Suggest query with AI from a custom SQL tab
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API is mocked with canned streams and request recording
+    And the current mock mode is "text"
+    When I open the connection workspace
+    And I open the custom SQL workspace
+    And I click "Suggest query with AI"
+    And I approve sharing schema context if needed
+    Then the AI assistant is visible inside the workspace tabs
+    And the composer contains "Write a SQL query for the current schema:"
+
+  Scenario: New table tab focuses its keyboard-searchable listbox
+    When I open the connection workspace
+    Then the new-tab table search is focused
+    When I filter new-tab tables to "users"
+    And I open the highlighted table with the keyboard
+    Then the rows grid is visible
+    And the active table tab is "users"
+
+  Scenario: Sidebar hide removes navigation and reopen restores it
+    Given I open the "users" table
+    When I collapse the sidebar
+    Then the sidebar should be fully collapsed
+    And the hidden sidebar has no visible table navigation
+    When I restore the sidebar
+    Then the table sidebar navigation is visible
+
+  Scenario: Bulk selection header is represented by an accessible checkbox only
+    Given I open the "users" table
+    Then the bulk selection header has no visible Select label
+
+  Scenario: Read-only AI inspection tools render their results
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API streams read-only inspection tool results
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    And I type "inspect users" and press send
+    Then the preview rows result is visible
+    And the table details result is visible
+    And the explain SQL result is visible

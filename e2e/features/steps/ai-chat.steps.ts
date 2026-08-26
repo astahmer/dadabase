@@ -26,7 +26,8 @@ type MockMode =
   | "fail500"
   | "proposal"
   | "stalled"
-  | "workspace_view";
+  | "workspace_view"
+  | "data_tools";
 
 interface ChatTestState {
   mode: MockMode;
@@ -168,6 +169,62 @@ const workspaceViewChunks = (
   { type: "finish", finishReason: "stop" },
 ];
 
+/** Completed read-only inspection tools with deterministic result payloads. */
+const dataToolsChunks = (): Array<Record<string, unknown>> => [
+  { type: "start", messageId: "mock-msg-data-tools" },
+  { type: "start-step" },
+  { type: "text-start", id: "t-data-tools" },
+  { type: "text-delta", id: "t-data-tools", delta: "I checked the table shape and query plan." },
+  { type: "text-end", id: "t-data-tools" },
+  {
+    type: "tool-input-available",
+    toolCallId: "preview-call",
+    toolName: "preview_rows",
+    input: { table: "users", limit: 8 },
+  },
+  {
+    type: "tool-output-available",
+    toolCallId: "preview-call",
+    output: {
+      ok: true,
+      columns: ["id", "name"],
+      rows: [
+        { id: 1, name: "Ada" },
+        { id: 2, name: "Grace" },
+      ],
+    },
+  },
+  {
+    type: "tool-input-available",
+    toolCallId: "details-call",
+    toolName: "table_details",
+    input: { table: "users" },
+  },
+  {
+    type: "tool-output-available",
+    toolCallId: "details-call",
+    output: {
+      ok: true,
+      columns: [{ column_name: "id" }, { column_name: "name" }],
+      foreignKeys: [],
+      indexes: [{ name: "users_pkey" }],
+    },
+  },
+  {
+    type: "tool-input-available",
+    toolCallId: "explain-call",
+    toolName: "explain_sql",
+    input: { sql: "SELECT * FROM users" },
+  },
+  {
+    type: "tool-output-available",
+    toolCallId: "explain-call",
+    output: { ok: true, rows: [{ plan: "Seq Scan on users" }] },
+  },
+  { type: "finish-step" },
+  { type: "finish", finishReason: "stop" },
+];
+
 /** Completed propose_sql (output already available): enables Use-this-SQL/Run buttons. */
 const proposalChunks = (sql: string): Array<Record<string, unknown>> => [
   { type: "start", messageId: "mock-msg-3" },
@@ -222,7 +279,9 @@ const installMock = async (page: Page): Promise<void> => {
     const chunks =
       state.mode === "workspace_view"
         ? workspaceViewChunks(state.workspaceView ?? { table: "users" })
-        : state.mode === "approval"
+        : state.mode === "data_tools"
+          ? dataToolsChunks()
+          : state.mode === "approval"
         ? approvalChunks()
         : state.mode === "proposal"
           ? proposalChunks(state.proposalSql ?? "SELECT 42 AS answer")
@@ -1456,4 +1515,24 @@ Then("a browse tab opens on table {string} with a filter on {string}", async ({ 
 
 Then("the workspace view card is visible", async ({ page }) => {
   await expect(page.getByTestId("ai-chat-workspace-view-card")).toBeVisible();
+});
+
+Given("the chat API streams read-only inspection tool results", async ({ page }) => {
+  stateFor(page).mode = "data_tools";
+  await installMock(page);
+});
+
+Then("the preview rows result is visible", async ({ page }) => {
+  await expect(page.getByTestId("ai-chat-preview-rows")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("ai-chat-preview-rows")).toContainText("Ada");
+});
+
+Then("the table details result is visible", async ({ page }) => {
+  await expect(page.getByTestId("ai-chat-table-details")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("ai-chat-table-details")).toContainText("id");
+});
+
+Then("the explain SQL result is visible", async ({ page }) => {
+  await expect(page.getByTestId("ai-chat-explain-plan")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("ai-chat-explain-plan")).toContainText("Seq Scan");
 });

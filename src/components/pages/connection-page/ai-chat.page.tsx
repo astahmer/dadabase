@@ -92,7 +92,7 @@ import {
 import { Button, buttonVariants } from "../../ui/button.tsx";
 import { Spinner } from "../../ui/spinner.tsx";
 import { toaster } from "../../ui/toaster.tsx";
-import { Checkbox, CheckboxControl } from "../../ui/checkbox.tsx";
+import { Checkbox, CheckboxControl, CheckboxLabel } from "../../ui/checkbox.tsx";
 import { Input } from "../../ui/input.tsx";
 import { Label } from "../../ui/label.tsx";
 import {
@@ -746,19 +746,18 @@ const ToolsSettingsSection = ({ defaultOpen = false }: { defaultOpen?: boolean }
         <ul className="mt-1 space-y-1.5 pb-2">
           {CHAT_TOOLS.map((tool) => (
             <li key={tool.id}>
-              <label className="flex cursor-pointer items-start gap-2 text-sm">
-                <Checkbox
-                  checked={enabled.includes(tool.id)}
-                  onCheckedChange={(details) => toggleTool(tool.id, details.checked === true)}
-                  data-testid={`ai-tool-checkbox-${tool.id}`}
-                >
-                  <CheckboxControl />
-                </Checkbox>
-                <span>
+              <Checkbox
+                checked={enabled.includes(tool.id)}
+                onCheckedChange={(details) => toggleTool(tool.id, details.checked === true)}
+                data-testid={`ai-tool-checkbox-${tool.id}`}
+                className="flex items-start gap-2 text-sm"
+              >
+                <CheckboxControl />
+                <CheckboxLabel className="cursor-pointer">
                   <span className="font-medium">{tool.label}</span>
                   <span className="text-muted-foreground block text-xs">{tool.description}</span>
-                </span>
-              </label>
+                </CheckboxLabel>
+              </Checkbox>
             </li>
           ))}
         </ul>
@@ -1765,17 +1764,29 @@ const ChatSurface = ({
   const consumedAskTable = useRef<string | undefined>(undefined);
   const runtimeForSeed = useChatRuntime();
   useEffect(() => {
-    if (initialAskTable === undefined || initialAskTable === "") return;
-    if (consumedAskTable.current === initialAskTable) return;
-    consumedAskTable.current = initialAskTable;
-    setStoredChatSchemaSelection(connectionName, {
-      mode: "selected",
-      selectedTables: [initialAskTable],
-    });
-    window.dispatchEvent(new Event(SCHEMA_SELECTION_CHANGED_EVENT));
+    // SQL suggestions from a custom SQL tab have no table to scope, but still
+    // need a useful draft seed. Ordinary new AI tabs intentionally stay blank.
+    if (
+      (initialAskTable === undefined || initialAskTable === "") &&
+      initialAiIntent !== "sql"
+    ) {
+      return;
+    }
+    const seedKey = initialAskTable || "__current_schema__";
+    if (consumedAskTable.current === seedKey) return;
+    consumedAskTable.current = seedKey;
+    if (initialAskTable !== undefined && initialAskTable !== "") {
+      setStoredChatSchemaSelection(connectionName, {
+        mode: "selected",
+        selectedTables: [initialAskTable],
+      });
+      window.dispatchEvent(new Event(SCHEMA_SELECTION_CHANGED_EVENT));
+    }
     const seededText =
       initialAiIntent === "sql"
-        ? `Write a SQL query for \`${initialAskTable}\`:`
+        ? initialAskTable
+          ? `Write a SQL query for \`${initialAskTable}\`:`
+          : "Write a SQL query for the current schema:"
         : `Explore the \`${initialAskTable}\` table:`;
     let attempts = 0;
     const seed = (): void => {

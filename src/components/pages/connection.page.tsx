@@ -572,20 +572,27 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                 }
                 className="bg-muted/30 flex h-full shrink-0 flex-col overflow-hidden border-r"
               >
-                {/* Sidebar */}
-                <ConnectionPageSidebar
-                  connection={connection}
-                  activeConnectionUrl={activeConnectionUrl}
-                  onAddConnection={() => setShowAddConnectionDrawer(true)}
-                  onOpenAiAssistant={() =>
-                    void navigate({
-                      to: "/connections/$connectionName/ai",
-                      params: { connectionName: connection.name },
-                    })
-                  }
-                  onOpenHistory={() => openQueryLogger("history")}
-                  onOpenFavorites={() => openQueryLogger("favorites")}
-                />
+                {/* Keep the splitter panel mounted for a reversible collapse, but
+                    remove its contents entirely so hiding never leaves an icon rail. */}
+                <div
+                  hidden={tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar))}
+                  aria-hidden={tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar))}
+                  className="h-full min-h-0"
+                >
+                  <ConnectionPageSidebar
+                    connection={connection}
+                    activeConnectionUrl={activeConnectionUrl}
+                    onAddConnection={() => setShowAddConnectionDrawer(true)}
+                    onOpenAiAssistant={() =>
+                      void navigate({
+                        to: "/connections/$connectionName/ai",
+                        params: { connectionName: connection.name },
+                      })
+                    }
+                    onOpenHistory={() => openQueryLogger("history")}
+                    onOpenFavorites={() => openQueryLogger("favorites")}
+                  />
+                </div>
               </Splitter.Panel>
             )}
           </Splitter.Context>

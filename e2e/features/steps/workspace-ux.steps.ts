@@ -79,3 +79,50 @@ Then("no unnamed icon buttons remain on the grid surface", async ({ page }) => {
 Then("the connection switcher trigger has an accessible name", async ({ page }) => {
   await expect(page.getByLabel("Switch connection")).toBeVisible();
 });
+
+When("I restore the sidebar", async ({ page }) => {
+  await page.getByTestId("toggle-sidebar").click();
+});
+
+Then("the hidden sidebar has no visible table navigation", async ({ page }) => {
+  const sidebar = page.getByTestId("connection-sidebar");
+  await expect(sidebar).toHaveAttribute("data-collapsed", "true");
+  await expect(sidebar.getByRole("option", { name: "users", exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Show sidebar", exact: true })).toBeVisible();
+});
+
+Then("the table sidebar navigation is visible", async ({ page }) => {
+  const sidebar = page.getByTestId("connection-sidebar");
+  await expect(sidebar).toHaveAttribute("data-collapsed", "false");
+  await expect(sidebar.getByRole("option", { name: "users", exact: true })).toBeVisible();
+});
+
+Then("the new-tab table search is focused", async ({ page }) => {
+  await expect(page.getByTestId("empty-tab-search-input")).toBeFocused();
+});
+
+When("I filter new-tab tables to {string}", async ({ page }, query: string) => {
+  const input = page.getByTestId("empty-tab-search-input");
+  await input.fill(query);
+  await expect(page.getByTestId(`empty-tab-option-${query}`)).toBeVisible();
+});
+
+When("I open the highlighted table with the keyboard", async ({ page }) => {
+  const input = page.getByTestId("empty-tab-search-input");
+  await input.press("ArrowDown");
+  await input.press("Enter");
+});
+
+Then("the active table tab is {string}", async ({ page }, table: string) => {
+  await expect(
+    page.locator('[data-table-tab][data-table-tab-active="true"]').filter({ hasText: table }),
+  ).toBeVisible();
+});
+
+Then("the bulk selection header has no visible Select label", async ({ page }) => {
+  const checkbox = page.getByRole("checkbox", { name: "Select all rows", exact: true });
+  await expect(checkbox).toBeVisible();
+  const header = checkbox.locator("xpath=ancestor::th");
+  await expect(header).toBeVisible();
+  await expect(header).not.toContainText("Select", { useInnerText: true });
+});
