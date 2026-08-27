@@ -29,6 +29,7 @@ export const DataTableCell = memo(function TableCell(props: {
   isFindMatch?: boolean;
   isCellSelected?: boolean;
   isCellFocused?: boolean;
+  tabIndex?: number;
   cellSelectionEdges?: CellSelectionEdges;
   onCellMouseDown?: MouseEventHandler<HTMLTableCellElement>;
   onCellMouseEnter?: MouseEventHandler<HTMLTableCellElement>;
@@ -48,6 +49,7 @@ export const DataTableCell = memo(function TableCell(props: {
     isFindMatch,
     isCellSelected,
     isCellFocused,
+    tabIndex,
     cellSelectionEdges,
     onCellMouseDown,
     onCellMouseEnter,
@@ -106,6 +108,7 @@ export const DataTableCell = memo(function TableCell(props: {
         onMouseDown={onCellMouseDown}
         onMouseEnter={onCellMouseEnter}
         onClick={onCellClick}
+        tabIndex={tabIndex}
         style={{
           width: `${props.columnSize}px`,
           boxShadow: selectionShadow,
@@ -142,6 +145,7 @@ export const DataTableCell = memo(function TableCell(props: {
       onMouseDown={onCellMouseDown}
       onMouseEnter={onCellMouseEnter}
       onClick={onCellClick}
+      tabIndex={tabIndex}
       style={{
         width: `${props.columnSize}px`,
         boxShadow: selectionShadow,

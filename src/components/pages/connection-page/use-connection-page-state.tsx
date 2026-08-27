@@ -280,6 +280,7 @@ export const useConnectionPageState = ({
     () => [
       {
         id: "__expand",
+        enableCellSelection: false,
         meta: { enableColumnOrdering: false, enableCellSelection: false },
         header: () => null,
         cell: (ctx) => {
@@ -325,6 +326,7 @@ export const useConnectionPageState = ({
       } as ColumnDef<Record<string, unknown>>,
       {
         id: "__select",
+        enableCellSelection: false,
         meta: { enableColumnOrdering: false, enableCellSelection: false },
         header: (ctx) => {
           const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
@@ -446,6 +448,7 @@ export const useConnectionPageState = ({
       } as ColumnDef<Record<string, unknown>>,
       {
         id: "__actions",
+        enableCellSelection: false,
         meta: { enableColumnOrdering: false, enableCellSelection: false },
         header: () => null,
         cell: (ctx) => {
@@ -700,6 +703,7 @@ export const useConnectionPageState = ({
     manualPagination: true,
     manualSorting: true,
     enableRowSelection: true,
+    enableCellSelection: true,
     enableColumnPinning: true,
     onRowSelectionChange: setRowSelection,
     rowCount: queryResponse.rowCount,

@@ -89,6 +89,7 @@ const MemoizedDataTableRow = memo(function TableRow<TData extends RowData>({
           className={className}
           isCellSelected={selection?.isSelected}
           isCellFocused={selection?.isFocused}
+          tabIndex={selection?.tabIndex}
           cellSelectionEdges={selection?.edges}
           onCellMouseDown={selection?.onMouseDown}
           onCellMouseEnter={selection?.onMouseEnter}
