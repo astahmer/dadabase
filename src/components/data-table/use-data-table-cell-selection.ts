@@ -1,9 +1,10 @@
-import type { Table as TanstackTable } from "@tanstack/react-table";
+import type { Row, Table as TanstackTable } from "@tanstack/react-table";
 import type { MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { copyToClipboard } from "../../lib/data-export/index.ts";
+import { copyToClipboard, exportRows } from "../../lib/data-export/index.ts";
+import { matrixToDelimitedText, parseCellClipboard, stringifyCellValue } from "./cell-selection.ts";
 
 type CellPosition = {
   rowId: string;
@@ -37,27 +38,54 @@ export type CellSelectionCellState = {
   onClick: (event: ReactMouseEvent<HTMLTableCellElement>) => void;
 };
 
+export type CellSelectionExportFormat = "tsv" | "csv" | "json" | "sql";
+
+export interface SelectedDataTableCell<TData> {
+  row: Row<TData>;
+  columnId: string;
+  value: unknown;
+}
+
+export interface DataTableSelectionSnapshot<TData> {
+  columns: string[];
+  matrix: unknown[][];
+  rows: Array<{ row: Row<TData>; values: Record<string, unknown> }>;
+  cells: SelectedDataTableCell<TData>[];
+  focusedCell: SelectedDataTableCell<TData> | null;
+}
+
+export interface DataTableSelectionExportInput<TData> {
+  format: CellSelectionExportFormat;
+  download: boolean;
+  selection: DataTableSelectionSnapshot<TData>;
+}
+
+export interface DataTableCellSelectionOptions<TData> {
+  onPasteSelection?: (input: {
+    rowId: string;
+    columnId: string;
+    matrix: string[][];
+    selection: DataTableSelectionSnapshot<TData>;
+  }) => void | Promise<void>;
+  onBulkFillSelection?: (input: {
+    value: string;
+    selection: DataTableSelectionSnapshot<TData>;
+  }) => void | Promise<void>;
+  onSelectionExport?: (input: DataTableSelectionExportInput<TData>) => boolean | Promise<boolean>;
+}
+
 const cellId = ({ rowId, columnId }: CellPosition) => `${rowId}::${columnId}`;
+
+const parseCellId = (id: string | null): CellPosition | null => {
+  if (!id) return null;
+  const separatorIndex = id.lastIndexOf("::");
+  if (separatorIndex < 0) return null;
+  return { rowId: id.slice(0, separatorIndex), columnId: id.slice(separatorIndex + 2) };
+};
 
 const isInteractiveTarget = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   target.closest("button, a, input, textarea, select, [contenteditable='true']") != null;
-
-const stringifyCell = (value: unknown): string => {
-  if (value == null) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-    return value.toString();
-  }
-  if (typeof value === "object") return JSON.stringify(value);
-  return "";
-};
-
-const escapeTsvValue = (value: unknown): string => {
-  const text = stringifyCell(value);
-  const safeText = /^[\t\r ]*[=+@-]/.test(text) ? `'${text}` : text;
-  return /["\t\n\r]/.test(safeText) ? `"${safeText.replaceAll('"', '""')}"` : safeText;
-};
 
 const isWithinRange = (
   range: CellSelectionRange,
@@ -86,7 +114,11 @@ const isWithinRange = (
   );
 };
 
-export function useDataTableCellSelection<TData>(table: TanstackTable<TData>, enabled: boolean) {
+export function useDataTableCellSelection<TData>(
+  table: TanstackTable<TData>,
+  enabled: boolean,
+  options: DataTableCellSelectionOptions<TData> = {},
+) {
   const [selection, setSelection] = useState<CellSelectionState>({
     ranges: [],
     focusedCellId: null,
@@ -132,6 +164,58 @@ export function useDataTableCellSelection<TData>(table: TanstackTable<TData>, en
     }
     return selected;
   }, [columnIndexes, rowIndexes, rows, selectableColumns, selection.ranges]);
+
+  const selectionSnapshot = useMemo<DataTableSelectionSnapshot<TData>>(() => {
+    const selectedColumns = selectableColumns.filter((column) =>
+      rows.some((row) => selectedCellIds.has(cellId({ rowId: row.id, columnId: column.id }))),
+    );
+    const selectedRows = rows.filter((row) =>
+      selectedColumns.some((column) =>
+        selectedCellIds.has(cellId({ rowId: row.id, columnId: column.id })),
+      ),
+    );
+    const matrix = selectedRows.map((row) =>
+      selectedColumns.map((column) =>
+        selectedCellIds.has(cellId({ rowId: row.id, columnId: column.id }))
+          ? row.getValue(column.id)
+          : "",
+      ),
+    );
+    const selectedCells = selectedRows.flatMap((row) =>
+      selectedColumns.flatMap((column) => {
+        if (!selectedCellIds.has(cellId({ rowId: row.id, columnId: column.id }))) return [];
+        return [{ row, columnId: column.id, value: row.getValue(column.id) }];
+      }),
+    );
+    const rowValues = selectedRows.map((row, rowIndex) => ({
+      row,
+      values: Object.fromEntries(
+        selectedColumns.map((column, columnIndex) => [column.id, matrix[rowIndex]?.[columnIndex]]),
+      ),
+    }));
+    const focusedPosition = parseCellId(selection.focusedCellId);
+    const focusedRow = focusedPosition
+      ? rows.find((row) => row.id === focusedPosition.rowId)
+      : undefined;
+    const focusedColumn = focusedPosition
+      ? selectableColumns.find((column) => column.id === focusedPosition.columnId)
+      : undefined;
+    const focusedCell =
+      focusedRow && focusedColumn
+        ? {
+            row: focusedRow,
+            columnId: focusedColumn.id,
+            value: focusedRow.getValue(focusedColumn.id),
+          }
+        : null;
+    return {
+      columns: selectedColumns.map((column) => column.id),
+      matrix,
+      rows: rowValues,
+      cells: selectedCells,
+      focusedCell,
+    };
+  }, [rows, selectableColumns, selectedCellIds, selection.focusedCellId]);
 
   const stopSelecting = useCallback(() => {
     selectingRangeIndex.current = null;
@@ -237,66 +321,93 @@ export function useDataTableCellSelection<TData>(table: TanstackTable<TData>, en
     ],
   );
 
-  const selectionToTsv = useCallback(() => {
-    const cellById = new Map(
-      rows.flatMap((row) =>
-        row
-          .getVisibleCells()
-          .map((cell) => [cellId({ rowId: row.id, columnId: cell.column.id }), cell] as const),
-      ),
-    );
-
-    return selection.ranges
-      .filter((range) => range.mode === "include")
-      .map((range) => {
-        const anchorRowIndex = rowIndexes.get(range.rowId);
-        const focusRowIndex = rowIndexes.get(range.focusRowId);
-        const anchorColumnIndex = columnIndexes.get(range.columnId);
-        const focusColumnIndex = columnIndexes.get(range.focusColumnId);
-        if (
-          anchorRowIndex == null ||
-          focusRowIndex == null ||
-          anchorColumnIndex == null ||
-          focusColumnIndex == null
+  const serializeSelection = useCallback(
+    (format: CellSelectionExportFormat) => {
+      if (format === "tsv") return matrixToDelimitedText(selectionSnapshot.matrix, "\t");
+      if (format === "csv") return matrixToDelimitedText(selectionSnapshot.matrix, ",");
+      if (format === "json") {
+        return JSON.stringify(
+          selectionSnapshot.rows.map(({ values }) => values),
+          null,
+          2,
+        );
+      }
+      return selectionSnapshot.rows
+        .map(({ values }) =>
+          selectionSnapshot.columns
+            .map((column) => `${column}=${stringifyCellValue(values[column])}`)
+            .join("\t"),
         )
-          return "";
+        .join("\n");
+    },
+    [selectionSnapshot],
+  );
 
-        const rowsInRange = rows.slice(
-          Math.min(anchorRowIndex, focusRowIndex),
-          Math.max(anchorRowIndex, focusRowIndex) + 1,
+  const copySelection = useCallback(
+    async (format: CellSelectionExportFormat = "tsv") => {
+      if (selectionSnapshot.cells.length === 0) return false;
+      if (options.onSelectionExport) {
+        return (
+          (await options.onSelectionExport({
+            format,
+            download: false,
+            selection: selectionSnapshot,
+          })) ?? true
         );
-        const columnsInRange = selectableColumns.slice(
-          Math.min(anchorColumnIndex, focusColumnIndex),
-          Math.max(anchorColumnIndex, focusColumnIndex) + 1,
-        );
-        return rowsInRange
-          .map((row) =>
-            columnsInRange
-              .map((column) => {
-                const cell = cellById.get(cellId({ rowId: row.id, columnId: column.id }));
-                return selectedCellIds.has(cellId({ rowId: row.id, columnId: column.id }))
-                  ? escapeTsvValue(cell?.getValue())
-                  : "";
-              })
-              .join("\t"),
-          )
-          .join("\n");
-      })
-      .filter(Boolean)
-      .join("\n\n");
-  }, [columnIndexes, rowIndexes, rows, selectableColumns, selectedCellIds, selection.ranges]);
+      }
+      return copyToClipboard(serializeSelection(format));
+    },
+    [options, selectionSnapshot, serializeSelection],
+  );
 
-  const copySelection = useCallback(async () => {
-    const text = selectionToTsv();
-    return text.length > 0 && (await copyToClipboard(text));
-  }, [selectionToTsv]);
+  const exportSelection = useCallback(
+    async (format: CellSelectionExportFormat) => {
+      if (selectionSnapshot.cells.length === 0) return false;
+      if (options.onSelectionExport) {
+        return (
+          (await options.onSelectionExport({
+            format,
+            download: true,
+            selection: selectionSnapshot,
+          })) ?? true
+        );
+      }
+      exportRows(
+        selectionSnapshot.rows.map(({ values }) => values),
+        selectionSnapshot.columns,
+        { format, filename: `selection.${format}` },
+      );
+      return true;
+    },
+    [options, selectionSnapshot, serializeSelection],
+  );
+
+  const onGridPaste = useCallback(
+    (event: React.ClipboardEvent<HTMLDivElement>) => {
+      if (!options.onPasteSelection || isInteractiveTarget(event.target)) return;
+      const focusedPosition = parseCellId(selection.focusedCellId);
+      if (!focusedPosition) return;
+      const matrix = parseCellClipboard(event.clipboardData.getData("text/plain"));
+      if (matrix.length === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void options.onPasteSelection({
+        rowId: focusedPosition.rowId,
+        columnId: focusedPosition.columnId,
+        matrix,
+        selection: selectionSnapshot,
+      });
+    },
+    [options, selection.focusedCellId, selectionSnapshot],
+  );
 
   const onGridKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      const focused = selection.focusedCellId?.split("::") ?? [];
-      const focusedRowId = focused.slice(0, -1).join("::");
-      const focusedColumnId = focused.at(-1);
-      const focusedRowIndex = rowIndexes.get(focusedRowId);
+      if (isInteractiveTarget(event.target)) return;
+      const focusedPosition = parseCellId(selection.focusedCellId);
+      const focusedRowId = focusedPosition?.rowId;
+      const focusedColumnId = focusedPosition?.columnId;
+      const focusedRowIndex = focusedRowId ? rowIndexes.get(focusedRowId) : undefined;
       const focusedColumnIndex = focusedColumnId ? columnIndexes.get(focusedColumnId) : undefined;
       const direction =
         event.key === "ArrowUp"
@@ -378,6 +489,22 @@ export function useDataTableCellSelection<TData>(table: TanstackTable<TData>, en
         event.preventDefault();
         void copySelection();
       }
+
+      const isPrintableFill =
+        event.key === "Enter" ||
+        (Array.from(event.key).length === 1 &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey &&
+          !event.nativeEvent.isComposing);
+      if (isPrintableFill && selectedCellIds.size > 1 && options.onBulkFillSelection) {
+        event.preventDefault();
+        void options.onBulkFillSelection({
+          value: event.key === "Enter" ? "" : event.key,
+          selection: selectionSnapshot,
+        });
+        return;
+      }
       if (event.key === "Escape" && selection.ranges.length > 0) {
         event.preventDefault();
         setSelection({ ranges: [], focusedCellId: null });
@@ -386,21 +513,26 @@ export function useDataTableCellSelection<TData>(table: TanstackTable<TData>, en
     [
       columnIndexes,
       copySelection,
+      options,
       rowIndexes,
       rows,
       selectedCellIds.size,
       selectableColumns,
       selection.focusedCellId,
       selection.ranges.length,
+      selectionSnapshot,
     ],
   );
 
   return {
     enabled,
     selectedCellCount: selectedCellIds.size,
+    selectionSnapshot,
     getCellState,
     onGridKeyDown,
+    onGridPaste,
     copySelection,
+    exportSelection,
     clearSelection: () => setSelection({ ranges: [], focusedCellId: null }),
   };
 }

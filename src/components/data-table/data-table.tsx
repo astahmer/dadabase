@@ -35,6 +35,7 @@ import { cn } from "../../lib/utils.ts";
 import { PageLimitSelect } from "../app/page-limit.select.tsx";
 import { Button } from "../ui/button.tsx";
 import { HStack } from "../ui/layout.tsx";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/menu.tsx";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
 import { ColumnHeaderFilter } from "./column-header-filter.tsx";
 import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
@@ -50,7 +51,11 @@ import { VirtualizedTableBody } from "./data-table.virtualized-table-body.tsx";
 import { DraggableColumnHeader } from "./draggable-column-header.tsx";
 import { TableFindBar } from "./table-find-bar.tsx";
 import { TableFindProvider } from "./table-find-context.tsx";
-import { useDataTableCellSelection } from "./use-data-table-cell-selection.ts";
+import {
+  useDataTableCellSelection,
+  type CellSelectionExportFormat,
+  type DataTableCellSelectionOptions,
+} from "./use-data-table-cell-selection.ts";
 import { useTableFind } from "./use-table-find.ts";
 
 const i18n = {
@@ -104,6 +109,9 @@ export interface DataTableProps<TData> {
   enableFind?: boolean;
   /** Spreadsheet-style cell selection and clipboard copy for this table. */
   enableCellSelection?: boolean;
+  onPasteSelection?: DataTableCellSelectionOptions<TData>["onPasteSelection"];
+  onBulkFillSelection?: DataTableCellSelectionOptions<TData>["onBulkFillSelection"];
+  onSelectionExport?: DataTableCellSelectionOptions<TData>["onSelectionExport"];
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -152,7 +160,12 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
     enabled: enableFind,
     columnIds: findColumnIds,
   });
-  const cellSelection = useDataTableCellSelection(table, enableCellSelection);
+  const cellSelection = useDataTableCellSelection(table, enableCellSelection, {
+    onPasteSelection: props.onPasteSelection,
+    onBulkFillSelection: props.onBulkFillSelection,
+    onSelectionExport: props.onSelectionExport,
+  });
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -221,8 +234,21 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
         {cellSelection.enabled && cellSelection.selectedCellCount > 0 ? (
           <CellSelectionStatus
             count={cellSelection.selectedCellCount}
+            rowCount={cellSelection.selectionSnapshot.rows.length}
+            columnCount={cellSelection.selectionSnapshot.columns.length}
             onClear={cellSelection.clearSelection}
             onCopy={cellSelection.copySelection}
+            onExport={cellSelection.exportSelection}
+            onPaste={Boolean(props.onPasteSelection)}
+            onFill={Boolean(props.onBulkFillSelection)}
+            onDetails={() => setDetailsOpen(true)}
+          />
+        ) : null}
+        {cellSelection.enabled && cellSelection.selectionSnapshot.focusedCell ? (
+          <CellSelectionDetails
+            open={detailsOpen}
+            onOpenChange={setDetailsOpen}
+            cell={cellSelection.selectionSnapshot.focusedCell}
           />
         ) : null}
       </div>
@@ -376,6 +402,7 @@ const TableContainer = (
       data-cell-selection-grid={props.enableCellSelection ? true : undefined}
       tabIndex={props.enableCellSelection ? 0 : undefined}
       onKeyDown={props.cellSelection?.onGridKeyDown}
+      onPaste={props.cellSelection?.onGridPaste}
       ref={(el) => {
         if (props.containerRef) {
           props.containerRef.current = el;
@@ -812,13 +839,19 @@ const estimateSizeByTableSize = (size: DataTableSize) => {
 
 function CellSelectionStatus(props: {
   count: number;
-  onCopy: () => Promise<boolean>;
+  rowCount: number;
+  columnCount: number;
+  onCopy: (format?: CellSelectionExportFormat) => Promise<boolean>;
+  onExport: (format: CellSelectionExportFormat) => Promise<boolean>;
   onClear: () => void;
+  onPaste: boolean;
+  onFill: boolean;
+  onDetails: () => void;
 }) {
   const [copied, setCopied] = useState(false);
 
-  const copy = async () => {
-    const didCopy = await props.onCopy();
+  const copy = async (format: CellSelectionExportFormat = "tsv") => {
+    const didCopy = await props.onCopy(format);
     if (!didCopy) return;
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1400);
@@ -828,17 +861,74 @@ function CellSelectionStatus(props: {
     <div className="border-border bg-muted/30 text-muted-foreground flex shrink-0 items-center justify-between gap-3 border-t px-2 py-1 text-xs">
       <span>
         {props.count} cell{props.count === 1 ? "" : "s"} selected
+        <span className="text-muted-foreground/70 ml-1">
+          · {props.rowCount} row{props.rowCount === 1 ? "" : "s"} · {props.columnCount} column
+          {props.columnCount === 1 ? "" : "s"}
+        </span>
       </span>
       <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="xs"
-          className="h-6 gap-1 px-1.5"
-          onClick={() => void copy()}
-          aria-label="Copy selected cells"
-        >
-          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
-          {copied ? "Copied" : "Copy"}
+        <Menu>
+          <MenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="h-6 gap-1 px-1.5"
+              aria-label="Copy selected cells"
+            >
+              {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+          </MenuTrigger>
+          <MenuContent>
+            <MenuItem value="copy-tsv" onClick={() => void copy("tsv")}>
+              Copy as TSV
+            </MenuItem>
+            <MenuItem value="copy-csv" onClick={() => void copy("csv")}>
+              Copy as CSV
+            </MenuItem>
+            <MenuItem value="copy-json" onClick={() => void copy("json")}>
+              Copy as JSON
+            </MenuItem>
+            <MenuItem value="copy-sql" onClick={() => void copy("sql")}>
+              Copy as INSERT SQL
+            </MenuItem>
+          </MenuContent>
+        </Menu>
+        <Menu>
+          <MenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="h-6 px-1.5"
+              aria-label="Export selected cells"
+            >
+              Export
+            </Button>
+          </MenuTrigger>
+          <MenuContent>
+            {(["tsv", "csv", "json", "sql"] as const).map((format) => (
+              <MenuItem
+                key={format}
+                value={`export-${format}`}
+                onClick={() => void props.onExport(format)}
+              >
+                Export as {format === "sql" ? "INSERT SQL" : format.toUpperCase()}
+              </MenuItem>
+            ))}
+          </MenuContent>
+        </Menu>
+        {props.onFill ? (
+          <span className="text-muted-foreground/80 hidden text-[11px] sm:inline">
+            Type to fill
+          </span>
+        ) : null}
+        {props.onPaste ? (
+          <span className="text-muted-foreground/80 hidden text-[11px] md:inline">
+            Paste to replace
+          </span>
+        ) : null}
+        <Button variant="ghost" size="xs" className="h-6 px-1.5" onClick={props.onDetails}>
+          Details
         </Button>
         <Button
           variant="ghost"
@@ -849,6 +939,64 @@ function CellSelectionStatus(props: {
         >
           Clear
         </Button>
+      </div>
+    </div>
+  );
+}
+
+function CellSelectionDetails<TData>(props: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  cell: { row: Row<TData>; columnId: string; value: unknown };
+}) {
+  if (!props.open) return null;
+
+  const value = props.cell.value;
+  let displayValue = "";
+  if (value === null) displayValue = "NULL";
+  else if (value === undefined) displayValue = "undefined";
+  else if (typeof value === "string") displayValue = value;
+  else {
+    try {
+      displayValue = JSON.stringify(value, null, 2) ?? Object.prototype.toString.call(value);
+    } catch {
+      displayValue = Object.prototype.toString.call(value);
+    }
+  }
+
+  return (
+    <div
+      className={cn(
+        "bg-background fixed inset-y-0 right-0 z-100 flex w-[min(32rem,100vw)] flex-col border-l shadow-xl transition-transform duration-200",
+        "translate-x-0",
+      )}
+    >
+      <div className="border-border flex items-start justify-between gap-4 border-b px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            Cell details
+          </p>
+          <h2 className="text-foreground mt-1 truncate text-sm font-semibold">
+            {props.cell.columnId}
+          </h2>
+          <p className="text-muted-foreground mt-1 truncate text-xs">Row {props.cell.row.id}</p>
+        </div>
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={() => props.onOpenChange(false)}
+          aria-label="Close cell details"
+        >
+          Close
+        </Button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto p-4">
+        <div className="text-muted-foreground mb-2 text-xs">
+          {value === null ? "null" : typeof value}
+        </div>
+        <pre className="bg-muted/40 text-foreground min-h-32 overflow-auto rounded-md border p-3 font-mono text-xs leading-5 break-words whitespace-pre-wrap">
+          {displayValue}
+        </pre>
       </div>
     </div>
   );

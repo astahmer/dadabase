@@ -27,8 +27,6 @@ import {
 } from "react";
 
 import type { TableStructure } from "#src/lib/schema-diff/index.ts";
-import { queryHistorySkipFlag } from "#src/lib/query-history-settings.ts";
-import { stageCustomSqlRun } from "#src/lib/custom-sql-run-handoff.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import { BulkActionBar } from "#src/components/app/bulk-action-bar.tsx";
@@ -47,6 +45,7 @@ import {
   copyToClipboard,
   exportRows,
   rowsToInsertStatements,
+  stringifyRows,
 } from "#src/components/pages/connection-page/export-rows.ts";
 import { GroupByHavingControls } from "#src/components/pages/connection-page/group-by-having-controls.tsx";
 import {
@@ -86,13 +85,15 @@ import {
 } from "#src/lib/command-palette-commands.ts";
 import { guardReadOnlyMutation, isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { noteRowMutations } from "#src/lib/csv-unsaved-changes.ts";
-import { registerCustomSqlRunner } from "#src/lib/custom-sql-runner-bridge.ts";
+import { stageCustomSqlRun } from "#src/lib/custom-sql-run-handoff.ts";
 import {
   clearChatReturn,
   consumeStagedCustomSqlRun,
   peekChatReturn,
   type StagedChatReturn,
 } from "#src/lib/custom-sql-run-handoff.ts";
+import { registerCustomSqlRunner } from "#src/lib/custom-sql-runner-bridge.ts";
+import { coerceColumnValue } from "#src/lib/data-type-utils.ts";
 import { formatDbError } from "#src/lib/format-db-error.ts";
 import { formatSQL } from "#src/lib/format-sql.ts";
 import { invalidateRowsQueries, rowMutationMeta } from "#src/lib/invalidate-rows-queries.ts";
@@ -102,6 +103,7 @@ import {
   createQueryAbortController,
   isQueryAbortError,
 } from "#src/lib/query-abort-controller.ts";
+import { queryHistorySkipFlag } from "#src/lib/query-history-settings.ts";
 import { buildDropColumnSql, buildDropTableSql } from "#src/lib/schema-mutate/index.ts";
 import {
   getSqlPreviewSplitterDefaultSize,
@@ -149,15 +151,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.tsx";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
+import { AiChatPage } from "./connection-page/ai-chat.page.tsx";
 import { CascadeDeleteConfirmDialog } from "./connection-page/cascade-delete-confirm.dialog.tsx";
 import { ConnectionCommandPalette } from "./connection-page/command-palette.tsx";
 import { ConnectionPageFilters } from "./connection-page/connection-page-filters.tsx";
 import { ConnectionPageSidebar } from "./connection-page/connection-page-sidebar.tsx";
-import { ConnectionSwitcher } from "./connection-page/connection-switcher.tsx";
 import { ConnectionPageStatusBar } from "./connection-page/connection-page-status-bar.tsx";
 import { ConnectionPageTabs } from "./connection-page/connection-page-tabs.tsx";
 import { ConnectionQuickReferencesDrawer } from "./connection-page/connection-quick-references.drawer.tsx";
 import { ConnectionRowJsonViewerDrawer } from "./connection-page/connection-row-json-viewer.drawer.tsx";
+import { ConnectionSwitcher } from "./connection-page/connection-switcher.tsx";
 import {
   addTabStateAfterCurrent,
   createTabState,
@@ -167,7 +170,6 @@ import {
 } from "./connection-page/create-tab-state.ts";
 import { DestructiveQueryConfirmDialog } from "./connection-page/destructive-query-confirm.dialog.tsx";
 import { EmptyTabState } from "./connection-page/empty-tab-state.tsx";
-import { AiChatPage } from "./connection-page/ai-chat.page.tsx";
 import { ErDiagramView } from "./connection-page/er-diagram-view.tsx";
 import { ExplainOutputDrawer } from "./connection-page/explain-output-drawer.tsx";
 import { ImportDataSheet, type ImportTask } from "./connection-page/import-data-sheet.tsx";
@@ -485,303 +487,303 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     <div className="bg-background flex h-screen flex-col">
       {/* Main Layout */}
       <div className="flex h-full min-h-0 flex-1 flex-col">
-      {/* Icon rail: always visible (except zen mode) so hiding the sidebar
+        {/* Icon rail: always visible (except zen mode) so hiding the sidebar
           never hides connection switching / AI / history / favorites. */}
-      <div className="flex h-full min-h-0 flex-1">
-        {!layoutZenMode && (
-          <aside
-            className="bg-muted/30 border-border flex h-full shrink-0 flex-col items-center gap-1 overflow-y-auto border-r px-1 py-2"
-            data-testid="workspace-icon-rail"
-          >
-            <ConnectionSwitcher
-              connection={connection}
-              onAddConnection={() => setShowAddConnectionDrawer(true)}
-              onOpenAiAssistant={() =>
-                void navigate({
-                  to: "/connections/$connectionName/ai",
-                  params: { connectionName: connection.name },
-                })
-              }
-              onOpenHistory={() => openQueryLogger("history")}
-              onOpenFavorites={() => openQueryLogger("favorites")}
-              onOpenSchemaExplorer={() =>
-                navigate({
-                  to: "/schema/$connectionName",
-                  params: { connectionName: connection.name },
-                  search: selectedSchema ? { schema: selectedSchema } : {},
-                })
-              }
-            />
-          </aside>
-        )}
-        <Splitter.Root
-          key={`${getZenLayoutRemountKey(layoutZenMode, "sidebar")}:${isCompactViewport ? "compact" : "wide"}`}
-          orientation="horizontal"
-          defaultSize={[...sidebarSplitterDefaultSize]}
-          panels={[
-            {
-              id: panels.sidebar,
-              collapsible: true,
-              collapsedSize: 0,
-              minSize: sidebarPanelMinSize,
-              maxSize: sidebarPanelMaxSize,
-            },
-            {
-              id: panels.mainContent,
-              collapsible: false,
-            },
-          ]}
-          onResizeEnd={(details) => {
-            if (layoutZenMode || isCompactViewport) return;
-            const size = details.size[0];
-            void navigate({
-              search: (prev) => ({ ...prev, sidebarSize: size }),
-            });
-          }}
-          onExpand={(details) => {
-            if (layoutZenMode || isCompactViewport) return;
-            if (details.panelId === panels.sidebar) {
-              void navigate({
-                search: (prev) => ({ ...prev, sidebarSize: details.size }),
-              });
-            }
-          }}
-          onCollapse={(details) => {
-            if (layoutZenMode || isCompactViewport) return;
-            if (details.panelId === panels.sidebar) {
-              void navigate({
-                search: (prev) => ({ ...prev, sidebarSize: 0 }),
-              });
-            }
-          }}
-          className="flex h-full min-h-0 flex-1"
-        >
-          {/* Sidebar Panel */}
-          <Splitter.Context>
-            {(sidebarCtx) => (
-              <Splitter.Panel
-                id={panels.sidebar}
-                data-testid="connection-sidebar"
-                data-collapsed={
-                  tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar)) ? "true" : "false"
+        <div className="flex h-full min-h-0 flex-1">
+          {!layoutZenMode && (
+            <aside
+              className="bg-muted/30 border-border flex h-full shrink-0 flex-col items-center gap-1 overflow-y-auto border-r px-1 py-2"
+              data-testid="workspace-icon-rail"
+            >
+              <ConnectionSwitcher
+                connection={connection}
+                onAddConnection={() => setShowAddConnectionDrawer(true)}
+                onOpenAiAssistant={() =>
+                  void navigate({
+                    to: "/connections/$connectionName/ai",
+                    params: { connectionName: connection.name },
+                  })
                 }
-                style={
-                  tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar))
-                    ? { minWidth: 0 }
-                    : undefined
+                onOpenHistory={() => openQueryLogger("history")}
+                onOpenFavorites={() => openQueryLogger("favorites")}
+                onOpenSchemaExplorer={() =>
+                  navigate({
+                    to: "/schema/$connectionName",
+                    params: { connectionName: connection.name },
+                    search: selectedSchema ? { schema: selectedSchema } : {},
+                  })
                 }
-                className="bg-muted/30 flex h-full shrink-0 flex-col overflow-hidden border-r"
-              >
-                {/* Keep the splitter panel mounted for a reversible collapse, but
-                    remove its contents entirely so hiding never leaves an icon rail. */}
-                <div
-                  hidden={tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar))}
-                  aria-hidden={tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar))}
-                  className="h-full min-h-0"
-                >
-                  <ConnectionPageSidebar
-                    connection={connection}
-                    activeConnectionUrl={activeConnectionUrl}
-                    onAddConnection={() => setShowAddConnectionDrawer(true)}
-                    onOpenAiAssistant={() =>
-                      void navigate({
-                        to: "/connections/$connectionName/ai",
-                        params: { connectionName: connection.name },
-                      })
-                    }
-                    onOpenHistory={() => openQueryLogger("history")}
-                    onOpenFavorites={() => openQueryLogger("favorites")}
-                  />
-                </div>
-              </Splitter.Panel>
-            )}
-          </Splitter.Context>
-
-          {/* Resize Handle with Toggle */}
-          <Splitter.Context>
-            {(ctx) => (
-              <Splitter.ResizeTrigger
-                id={`${panels.sidebar}:${panels.mainContent}`}
-                className={cn(
-                  tryFn(() => ctx.isPanelCollapsed(panels.sidebar)) ? "w-3" : "w-1.5",
-                  "bg-border hover:bg-primary/50 h-full cursor-col-resize transition-colors",
-                )}
-                title="Drag to resize, double-click to toggle"
-                aria-label="Sidebar splitter: drag to resize, activate to toggle sidebar"
-                onDoubleClick={() => {
-                  // oxlint-disable-next-line no-unused-expressions
-                  ctx.isPanelExpanded(panels.sidebar)
-                    ? ctx.collapsePanel(panels.sidebar)
-                    : ctx.expandPanel(panels.sidebar);
-                }}
               />
-            )}
-          </Splitter.Context>
-
-          {/* Main Content Panel - Contains Vertical Splitter for Query Logger */}
-          <Splitter.Panel
-            id={panels.mainContent}
-            className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+            </aside>
+          )}
+          <Splitter.Root
+            key={`${getZenLayoutRemountKey(layoutZenMode, "sidebar")}:${isCompactViewport ? "compact" : "wide"}`}
+            orientation="horizontal"
+            defaultSize={[...sidebarSplitterDefaultSize]}
+            panels={[
+              {
+                id: panels.sidebar,
+                collapsible: true,
+                collapsedSize: 0,
+                minSize: sidebarPanelMinSize,
+                maxSize: sidebarPanelMaxSize,
+              },
+              {
+                id: panels.mainContent,
+                collapsible: false,
+              },
+            ]}
+            onResizeEnd={(details) => {
+              if (layoutZenMode || isCompactViewport) return;
+              const size = details.size[0];
+              void navigate({
+                search: (prev) => ({ ...prev, sidebarSize: size }),
+              });
+            }}
+            onExpand={(details) => {
+              if (layoutZenMode || isCompactViewport) return;
+              if (details.panelId === panels.sidebar) {
+                void navigate({
+                  search: (prev) => ({ ...prev, sidebarSize: details.size }),
+                });
+              }
+            }}
+            onCollapse={(details) => {
+              if (layoutZenMode || isCompactViewport) return;
+              if (details.panelId === panels.sidebar) {
+                void navigate({
+                  search: (prev) => ({ ...prev, sidebarSize: 0 }),
+                });
+              }
+            }}
+            className="flex h-full min-h-0 flex-1"
           >
+            {/* Sidebar Panel */}
             <Splitter.Context>
-              {(sidebarSplitterCtx) => (
-                <Splitter.Root
-                  key={`${getZenLayoutRemountKey(layoutZenMode, "query-logger")}:${queryLoggerSize ?? 0}`}
-                  orientation="vertical"
-                  defaultSize={[...queryLoggerSplitterDefaultSize]}
-                  panels={[
-                    {
-                      id: panels.rowsContent,
-                      collapsible: false,
-                    },
-                    {
-                      id: panels.queryLogger,
-                      collapsible: true,
-                      collapsedSize: queryLoggerPanelMinSize,
-                      minSize: queryLoggerPanelMinSize,
-                      maxSize: 50,
-                    },
-                  ]}
-                  onResizeEnd={(details) => {
-                    if (layoutZenMode) return;
-                    const size = details.size[1];
-                    void navigate({
-                      search: (prev) => ({ ...prev, queryLoggerSize: size }),
-                    });
-                  }}
-                  onExpand={(details) => {
-                    if (layoutZenMode) return;
-                    if (details.panelId === panels.queryLogger) {
-                      void navigate({
-                        search: (prev) => ({ ...prev, queryLoggerSize: details.size }),
-                      });
-                    }
-                  }}
-                  onCollapse={(details) => {
-                    if (layoutZenMode) return;
-                    if (details.panelId === panels.queryLogger) {
-                      void navigate({
-                        search: (prev) => ({ ...prev, queryLoggerSize: details.size }),
-                      });
-                    }
-                  }}
-                  className="flex h-full min-h-0 flex-1 flex-col"
+              {(sidebarCtx) => (
+                <Splitter.Panel
+                  id={panels.sidebar}
+                  data-testid="connection-sidebar"
+                  data-collapsed={
+                    tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar)) ? "true" : "false"
+                  }
+                  style={
+                    tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar))
+                      ? { minWidth: 0 }
+                      : undefined
+                  }
+                  className="bg-muted/30 flex h-full shrink-0 flex-col overflow-hidden border-r"
                 >
-                  {/* Rows Content Panel */}
-                  <Splitter.Panel
-                    id={panels.rowsContent}
-                    className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+                  {/* Keep the splitter panel mounted for a reversible collapse, but
+                    remove its contents entirely so hiding never leaves an icon rail. */}
+                  <div
+                    hidden={tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar))}
+                    aria-hidden={tryFn(() => sidebarCtx.isPanelCollapsed(panels.sidebar))}
+                    className="h-full min-h-0"
                   >
-                    {/* Tabs */}
-                    <ConnectionPageTabs
+                    <ConnectionPageSidebar
+                      connection={connection}
                       activeConnectionUrl={activeConnectionUrl}
-                      dialect={connection.dialect}
-                      onToggleSidebar={() => {
-                        if (sidebarSplitterCtx.isPanelExpanded(panels.sidebar)) {
-                          sidebarSplitterCtx.collapsePanel(panels.sidebar);
-                          if (!isCompactViewport) {
-                            void navigate({
-                              search: (prev) => ({ ...prev, sidebarSize: 0 }),
-                            });
-                          }
-                          return;
-                        }
-
-                        sidebarSplitterCtx.expandPanel(
-                          panels.sidebar,
-                          isCompactViewport ? 60 : undefined,
-                        );
-                        if (isCompactViewport) return;
-                        const size = sidebarSplitterCtx.getPanelSize(panels.sidebar);
+                      onAddConnection={() => setShowAddConnectionDrawer(true)}
+                      onOpenAiAssistant={() =>
                         void navigate({
-                          search: (prev) => ({ ...prev, sidebarSize: size }),
-                        });
-                      }}
-                      isSidebarCollapsed={sidebarSplitterCtx.isPanelCollapsed(panels.sidebar)}
+                          to: "/connections/$connectionName/ai",
+                          params: { connectionName: connection.name },
+                        })
+                      }
+                      onOpenHistory={() => openQueryLogger("history")}
+                      onOpenFavorites={() => openQueryLogger("favorites")}
                     />
-                    {aiChatActive ? (
-                      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <Outlet />
-                      </div>
-                    ) : schemaListQuery.isError ? (
-                      <TabErrorState activeConnectionUrl={activeConnectionUrl} />
-                    ) : search.initialTabMode === "ai" ? (
-                      <AiChatPage
-                        connectionName={connection.name}
-                        initialAskTable={search.askTable}
-                        initialAiIntent={search.aiIntent}
-                        embedded
-                      />
-                    ) : search.initialTabMode === "sql" ? (
-                      <CustomSqlWorkspace
-                        activeConnectionUrl={activeConnectionUrl}
-                        connection={connection}
-                      />
-                    ) : search.table && search.schema ? (
-                      <RowsTabContent
-                        connection={connection}
-                        activeConnectionUrl={activeConnectionUrl}
-                      />
-                    ) : (
-                      <EmptyTabContent
-                        activeConnectionUrl={activeConnectionUrl}
-                        connection={connection}
-                      />
-                    )}
-                  </Splitter.Panel>
-
-                  {/* Resize Handle for Query Logger */}
-                  <Splitter.Context>
-                    {(ctx) => (
-                      <Splitter.ResizeTrigger
-                        id={`${panels.rowsContent}:${panels.queryLogger}`}
-                        className={cn(
-                          tryFn(() => ctx.isPanelCollapsed(panels.queryLogger)) ? "h-3" : "h-1.5",
-                          "bg-border hover:bg-primary/50 w-full cursor-row-resize transition-colors",
-                          (layoutZenMode || aiChatActive) && "hidden",
-                        )}
-                        title="Drag to resize, double-click to toggle"
-                        onDoubleClick={() => {
-                          // oxlint-disable-next-line no-unused-expressions
-                          ctx.isPanelExpanded(panels.queryLogger)
-                            ? ctx.collapsePanel(panels.queryLogger)
-                            : ctx.expandPanel(panels.queryLogger);
-                        }}
-                      />
-                    )}
-                  </Splitter.Context>
-
-                  {/* Query Logger Panel */}
-                  <Splitter.Context>
-                    {(ctx) => (
-                      <Splitter.Panel
-                        id={panels.queryLogger}
-                        data-testid="query-logger-splitter-panel"
-                        data-zen-collapsed={layoutZenMode ? "true" : "false"}
-                        className={cn(
-                          "bg-background flex min-h-0 flex-col overflow-hidden border-t",
-                          (layoutZenMode || aiChatActive || !queryLoggerSize) && "hidden",
-                        )}
-                      >
-                        <QueryLoggerContent
-                          connectionUrl={activeConnectionUrl}
-                          connectionId={connection.id}
-                          isExpanded={ctx.isPanelExpanded(panels.queryLogger)}
-                          onCollapse={() => ctx.collapsePanel(panels.queryLogger)}
-                          onExpand={() => ctx.expandPanel(panels.queryLogger, 48)}
-                          paletteView={queryLoggerPaletteView}
-                          onPaletteViewConsumed={() => setQueryLoggerPaletteView(null)}
-                          onOpenQueryInEditor={openSqlInNewTab}
-                        />
-                      </Splitter.Panel>
-                    )}
-                  </Splitter.Context>
-                </Splitter.Root>
+                  </div>
+                </Splitter.Panel>
               )}
             </Splitter.Context>
-          </Splitter.Panel>
-        </Splitter.Root>
-      </div>
+
+            {/* Resize Handle with Toggle */}
+            <Splitter.Context>
+              {(ctx) => (
+                <Splitter.ResizeTrigger
+                  id={`${panels.sidebar}:${panels.mainContent}`}
+                  className={cn(
+                    tryFn(() => ctx.isPanelCollapsed(panels.sidebar)) ? "w-3" : "w-1.5",
+                    "bg-border hover:bg-primary/50 h-full cursor-col-resize transition-colors",
+                  )}
+                  title="Drag to resize, double-click to toggle"
+                  aria-label="Sidebar splitter: drag to resize, activate to toggle sidebar"
+                  onDoubleClick={() => {
+                    // oxlint-disable-next-line no-unused-expressions
+                    ctx.isPanelExpanded(panels.sidebar)
+                      ? ctx.collapsePanel(panels.sidebar)
+                      : ctx.expandPanel(panels.sidebar);
+                  }}
+                />
+              )}
+            </Splitter.Context>
+
+            {/* Main Content Panel - Contains Vertical Splitter for Query Logger */}
+            <Splitter.Panel
+              id={panels.mainContent}
+              className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <Splitter.Context>
+                {(sidebarSplitterCtx) => (
+                  <Splitter.Root
+                    key={`${getZenLayoutRemountKey(layoutZenMode, "query-logger")}:${queryLoggerSize ?? 0}`}
+                    orientation="vertical"
+                    defaultSize={[...queryLoggerSplitterDefaultSize]}
+                    panels={[
+                      {
+                        id: panels.rowsContent,
+                        collapsible: false,
+                      },
+                      {
+                        id: panels.queryLogger,
+                        collapsible: true,
+                        collapsedSize: queryLoggerPanelMinSize,
+                        minSize: queryLoggerPanelMinSize,
+                        maxSize: 50,
+                      },
+                    ]}
+                    onResizeEnd={(details) => {
+                      if (layoutZenMode) return;
+                      const size = details.size[1];
+                      void navigate({
+                        search: (prev) => ({ ...prev, queryLoggerSize: size }),
+                      });
+                    }}
+                    onExpand={(details) => {
+                      if (layoutZenMode) return;
+                      if (details.panelId === panels.queryLogger) {
+                        void navigate({
+                          search: (prev) => ({ ...prev, queryLoggerSize: details.size }),
+                        });
+                      }
+                    }}
+                    onCollapse={(details) => {
+                      if (layoutZenMode) return;
+                      if (details.panelId === panels.queryLogger) {
+                        void navigate({
+                          search: (prev) => ({ ...prev, queryLoggerSize: details.size }),
+                        });
+                      }
+                    }}
+                    className="flex h-full min-h-0 flex-1 flex-col"
+                  >
+                    {/* Rows Content Panel */}
+                    <Splitter.Panel
+                      id={panels.rowsContent}
+                      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+                    >
+                      {/* Tabs */}
+                      <ConnectionPageTabs
+                        activeConnectionUrl={activeConnectionUrl}
+                        dialect={connection.dialect}
+                        onToggleSidebar={() => {
+                          if (sidebarSplitterCtx.isPanelExpanded(panels.sidebar)) {
+                            sidebarSplitterCtx.collapsePanel(panels.sidebar);
+                            if (!isCompactViewport) {
+                              void navigate({
+                                search: (prev) => ({ ...prev, sidebarSize: 0 }),
+                              });
+                            }
+                            return;
+                          }
+
+                          sidebarSplitterCtx.expandPanel(
+                            panels.sidebar,
+                            isCompactViewport ? 60 : undefined,
+                          );
+                          if (isCompactViewport) return;
+                          const size = sidebarSplitterCtx.getPanelSize(panels.sidebar);
+                          void navigate({
+                            search: (prev) => ({ ...prev, sidebarSize: size }),
+                          });
+                        }}
+                        isSidebarCollapsed={sidebarSplitterCtx.isPanelCollapsed(panels.sidebar)}
+                      />
+                      {aiChatActive ? (
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                          <Outlet />
+                        </div>
+                      ) : schemaListQuery.isError ? (
+                        <TabErrorState activeConnectionUrl={activeConnectionUrl} />
+                      ) : search.initialTabMode === "ai" ? (
+                        <AiChatPage
+                          connectionName={connection.name}
+                          initialAskTable={search.askTable}
+                          initialAiIntent={search.aiIntent}
+                          embedded
+                        />
+                      ) : search.initialTabMode === "sql" ? (
+                        <CustomSqlWorkspace
+                          activeConnectionUrl={activeConnectionUrl}
+                          connection={connection}
+                        />
+                      ) : search.table && search.schema ? (
+                        <RowsTabContent
+                          connection={connection}
+                          activeConnectionUrl={activeConnectionUrl}
+                        />
+                      ) : (
+                        <EmptyTabContent
+                          activeConnectionUrl={activeConnectionUrl}
+                          connection={connection}
+                        />
+                      )}
+                    </Splitter.Panel>
+
+                    {/* Resize Handle for Query Logger */}
+                    <Splitter.Context>
+                      {(ctx) => (
+                        <Splitter.ResizeTrigger
+                          id={`${panels.rowsContent}:${panels.queryLogger}`}
+                          className={cn(
+                            tryFn(() => ctx.isPanelCollapsed(panels.queryLogger)) ? "h-3" : "h-1.5",
+                            "bg-border hover:bg-primary/50 w-full cursor-row-resize transition-colors",
+                            (layoutZenMode || aiChatActive) && "hidden",
+                          )}
+                          title="Drag to resize, double-click to toggle"
+                          onDoubleClick={() => {
+                            // oxlint-disable-next-line no-unused-expressions
+                            ctx.isPanelExpanded(panels.queryLogger)
+                              ? ctx.collapsePanel(panels.queryLogger)
+                              : ctx.expandPanel(panels.queryLogger);
+                          }}
+                        />
+                      )}
+                    </Splitter.Context>
+
+                    {/* Query Logger Panel */}
+                    <Splitter.Context>
+                      {(ctx) => (
+                        <Splitter.Panel
+                          id={panels.queryLogger}
+                          data-testid="query-logger-splitter-panel"
+                          data-zen-collapsed={layoutZenMode ? "true" : "false"}
+                          className={cn(
+                            "bg-background flex min-h-0 flex-col overflow-hidden border-t",
+                            (layoutZenMode || aiChatActive || !queryLoggerSize) && "hidden",
+                          )}
+                        >
+                          <QueryLoggerContent
+                            connectionUrl={activeConnectionUrl}
+                            connectionId={connection.id}
+                            isExpanded={ctx.isPanelExpanded(panels.queryLogger)}
+                            onCollapse={() => ctx.collapsePanel(panels.queryLogger)}
+                            onExpand={() => ctx.expandPanel(panels.queryLogger, 48)}
+                            paletteView={queryLoggerPaletteView}
+                            onPaletteViewConsumed={() => setQueryLoggerPaletteView(null)}
+                            onOpenQueryInEditor={openSqlInNewTab}
+                          />
+                        </Splitter.Panel>
+                      )}
+                    </Splitter.Context>
+                  </Splitter.Root>
+                )}
+              </Splitter.Context>
+            </Splitter.Panel>
+          </Splitter.Root>
+        </div>
       </div>
 
       {/* Add Connection Drawer */}
@@ -1865,6 +1867,7 @@ const RowsTableContent = (
   },
 ) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
+  const pendingCellEdits = usePendingCellEdits();
 
   const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(null);
   const [pasteConfirm, setPasteConfirm] = useState<{
@@ -1933,6 +1936,150 @@ const RowsTableContent = (
   const [isJsFilterOpen, setIsJsFilterOpen] = useState(
     Boolean(search.clientFilter || search.clientFilterApproved),
   );
+
+  const queueCellEdit = (rowId: string, columnId: string, rawValue: string) => {
+    if (!pendingCellEdits || !search.schema || !search.table) return false;
+    if (isReadOnlyConnection(props.activeConnectionUrl)) return false;
+
+    const row = props.rowsDataTable.getRowModel().rows.find((candidate) => candidate.id === rowId);
+    const column = props.columnMetadata.find((candidate) => candidate.name === columnId);
+    if (!row || !column || column.primaryKey) return false;
+
+    const nextValue =
+      rawValue.trim() === "" && column.nullable
+        ? null
+        : rawValue.trim() === "" && !column.nullable
+          ? undefined
+          : coerceColumnValue(column.dataType, rawValue);
+    if (nextValue === undefined) return false;
+
+    const primaryKey = extractPrimaryKeyValues(
+      props.columnMetadata,
+      row.original as Record<string, unknown>,
+    );
+    if (Object.keys(primaryKey).length === 0) return false;
+
+    pendingCellEdits.bufferEdit({
+      schema: search.schema,
+      table: search.table,
+      column: column.name,
+      dataType: column.dataType,
+      primaryKey,
+      previousValue: row.getValue(column.name),
+      nextValue,
+    });
+    return true;
+  };
+
+  const handlePasteSelection = ({
+    rowId,
+    columnId,
+    matrix,
+    selection,
+  }: {
+    rowId: string;
+    columnId: string;
+    matrix: string[][];
+    selection: {
+      cells: Array<{ row: { id: string }; columnId: string; value: unknown }>;
+    };
+  }) => {
+    const selectedCells = selection.cells;
+    const tableRows = props.rowsDataTable.getRowModel().rows;
+    const visibleColumns = props.rowsDataTable.getVisibleLeafColumns();
+    const startRowIndex = tableRows.findIndex((candidate) => candidate.id === rowId);
+    const startColumnIndex = visibleColumns.findIndex((column) => column.id === columnId);
+    const targets =
+      matrix.length === 1 && matrix[0]?.length === 1 && selectedCells.length > 1
+        ? selectedCells.map((cell) => ({
+            rowId: cell.row.id,
+            columnId: cell.columnId,
+            value: matrix[0]?.[0] ?? "",
+          }))
+        : matrix.flatMap((row, rowOffset) =>
+            row.map((value, columnOffset) => ({
+              rowId: tableRows[startRowIndex + rowOffset]?.id,
+              columnId: visibleColumns[startColumnIndex + columnOffset]?.id,
+              value,
+            })),
+          );
+
+    let applied = 0;
+    for (const target of targets) {
+      if (
+        target.rowId &&
+        target.columnId &&
+        queueCellEdit(target.rowId, target.columnId, target.value)
+      ) {
+        applied += 1;
+      }
+    }
+    if (applied > 0) {
+      toaster.create({
+        title: "Pasted cell changes",
+        description: `${applied} cell${applied === 1 ? "" : "s"} queued for review`,
+        type: "success",
+      });
+    }
+  };
+
+  const handleBulkFillSelection = ({
+    value,
+    selection,
+  }: {
+    value: string;
+    selection: { cells: Array<{ row: { id: string }; columnId: string; value: unknown }> };
+  }) => {
+    let applied = 0;
+    for (const cell of selection.cells) {
+      if (queueCellEdit(cell.row.id, cell.columnId, value)) applied += 1;
+    }
+    if (applied > 0) {
+      toaster.create({
+        title: "Filled selected cells",
+        description: `${applied} cell${applied === 1 ? "" : "s"} queued for review`,
+        type: "success",
+      });
+    }
+  };
+
+  const handleSelectionExport = async ({
+    format,
+    download,
+    selection,
+  }: {
+    format: "tsv" | "csv" | "json" | "sql";
+    download: boolean;
+    selection: {
+      columns: string[];
+      rows: Array<{ values: Record<string, unknown> }>;
+    };
+  }) => {
+    if (!search.table || selection.rows.length === 0) return false;
+    const rows = selection.rows.map(({ values }) => values);
+    const content = stringifyRows(rows, selection.columns, {
+      format,
+      tableName: search.table,
+      schemaName: search.schema,
+    });
+    if (download) {
+      exportRows(rows, selection.columns, {
+        format,
+        tableName: search.table,
+        schemaName: search.schema,
+        filename: `${search.table}-selection.${format}`,
+      });
+    } else {
+      const copied = await copyToClipboard(content);
+      if (!copied) return false;
+    }
+    toaster.create({
+      title: download ? "Selection exported" : "Selection copied",
+      description: `${selection.rows.length} row${selection.rows.length === 1 ? "" : "s"} as ${format.toUpperCase()}`,
+      type: "success",
+    });
+    return true;
+  };
 
   return (
     <PendingCellEditsProvider>
@@ -2124,6 +2271,15 @@ const RowsTableContent = (
                 enableColumnOrdering
                 enableFind
                 enableCellSelection
+                onPasteSelection={
+                  isReadOnlyConnection(props.activeConnectionUrl) ? undefined : handlePasteSelection
+                }
+                onBulkFillSelection={
+                  isReadOnlyConnection(props.activeConnectionUrl)
+                    ? undefined
+                    : handleBulkFillSelection
+                }
+                onSelectionExport={handleSelectionExport}
                 onRowDoubleClick={
                   props.onEditRow && !isReadOnlyConnection(props.activeConnectionUrl)
                     ? (row) => props.onEditRow?.(row.original as Record<string, unknown>)
@@ -3005,7 +3161,10 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
     // instead of silently no-oping on falsy-but-not-nullish input.
     const editorSql = editorValue != null && editorValue.trim() !== "" ? editorValue : undefined;
     const sqlToRun =
-      editorSql ?? search.customSql ?? storedData?.sql ?? executeCustomSqlMutation.variables?.data.sql;
+      editorSql ??
+      search.customSql ??
+      storedData?.sql ??
+      executeCustomSqlMutation.variables?.data.sql;
     console.log("onRunQuery", { sqlToRun });
     if (!sqlToRun) return;
 

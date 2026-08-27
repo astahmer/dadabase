@@ -5,6 +5,7 @@
 export {
   copyToClipboard,
   exportRows,
+  stringifyRows,
   type ExportOptions,
   rowsToInsertStatements,
 } from "#src/lib/data-export/index.ts";

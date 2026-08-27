@@ -126,7 +126,7 @@ export function CellContextMenu({
                 }}
               >
                 <Search className="size-4" />
-                <MenuItemText>Filter rows with this value</MenuItemText>
+                <MenuItemText>Filter {columnName} by this value</MenuItemText>
               </MenuItem>
             </>
           )}

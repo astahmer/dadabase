@@ -88,6 +88,20 @@ export const DataTableCell = memo(function TableCell(props: {
         ref={sortable.setNodeRef}
         className={cellClassName}
         data-testid={`cell-${index}-${columnId}`}
+        data-cell-selected={isCellSelected || undefined}
+        data-cell-focused={isCellFocused || undefined}
+        data-selection-edge={
+          isCellSelected
+            ? [
+                cellSelectionEdges?.top && "top",
+                cellSelectionEdges?.right && "right",
+                cellSelectionEdges?.bottom && "bottom",
+                cellSelectionEdges?.left && "left",
+              ]
+                .filter(Boolean)
+                .join(" ") || undefined
+            : undefined
+        }
         data-find-match={isFindMatch || undefined}
         onMouseDown={onCellMouseDown}
         onMouseEnter={onCellMouseEnter}
@@ -110,6 +124,20 @@ export const DataTableCell = memo(function TableCell(props: {
     <td
       className={cellClassName}
       data-testid={`cell-${index}-${columnId}`}
+      data-cell-selected={isCellSelected || undefined}
+      data-cell-focused={isCellFocused || undefined}
+      data-selection-edge={
+        isCellSelected
+          ? [
+              cellSelectionEdges?.top && "top",
+              cellSelectionEdges?.right && "right",
+              cellSelectionEdges?.bottom && "bottom",
+              cellSelectionEdges?.left && "left",
+            ]
+              .filter(Boolean)
+              .join(" ") || undefined
+          : undefined
+      }
       data-find-match={isFindMatch || undefined}
       onMouseDown={onCellMouseDown}
       onMouseEnter={onCellMouseEnter}
