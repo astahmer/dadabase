@@ -42,6 +42,15 @@ import { runIfFn } from "../../lib/run-if-fn.ts";
 import { cn } from "../../lib/utils.ts";
 import { PageLimitSelect } from "../app/page-limit.select.tsx";
 import { Button } from "../ui/button.tsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog.tsx";
+import { Input } from "../ui/input.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/menu.tsx";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
@@ -174,6 +183,7 @@ export function DataTable<TData extends RowData>(props: DataTableProps<TData>) {
     onSelectionExport: props.onSelectionExport,
   });
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [bulkFillOpen, setBulkFillOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -255,6 +265,7 @@ export function DataTable<TData extends RowData>(props: DataTableProps<TData>) {
                   onExport={cellSelection.exportSelection}
                   onPaste={Boolean(props.onPasteSelection)}
                   onFill={Boolean(props.onBulkFillSelection)}
+                  onOpenFill={() => setBulkFillOpen(true)}
                   onDetails={() => setDetailsOpen(true)}
                 />
               ) : null
@@ -266,6 +277,21 @@ export function DataTable<TData extends RowData>(props: DataTableProps<TData>) {
             open={detailsOpen}
             onOpenChange={setDetailsOpen}
             cell={cellSelection.selectionSnapshot.focusedCell}
+          />
+        ) : null}
+        {cellSelection.enabled && props.onBulkFillSelection ? (
+          <BulkCellFillDialog
+            open={bulkFillOpen}
+            onOpenChange={setBulkFillOpen}
+            rowCount={cellSelection.selectionSnapshot.rows.length}
+            columnCount={cellSelection.selectionSnapshot.columns.length}
+            columns={cellSelection.selectionSnapshot.columns}
+            onSubmit={async (value) => {
+              await props.onBulkFillSelection?.({
+                value,
+                selection: cellSelection.selectionSnapshot,
+              });
+            }}
           />
         ) : null}
       </div>
@@ -863,6 +889,7 @@ function CellSelectionStatus(props: {
   onClear: () => void;
   onPaste: boolean;
   onFill: boolean;
+  onOpenFill: () => void;
   onDetails: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -935,9 +962,20 @@ function CellSelectionStatus(props: {
           </MenuContent>
         </Menu>
         {props.onFill ? (
-          <span className="text-muted-foreground/80 hidden text-[11px] sm:inline">
-            Type to fill
-          </span>
+          <>
+            <Button
+              variant="ghost"
+              size="xs"
+              className="h-6 px-1.5"
+              onClick={props.onOpenFill}
+              aria-label="Update selected cells"
+            >
+              Update
+            </Button>
+            <span className="text-muted-foreground/80 hidden text-[11px] sm:inline">
+              Type to fill
+            </span>
+          </>
         ) : null}
         {props.onPaste ? (
           <span className="text-muted-foreground/80 hidden text-[11px] md:inline">
@@ -958,6 +996,73 @@ function CellSelectionStatus(props: {
         </Button>
       </div>
     </div>
+  );
+}
+
+function BulkCellFillDialog(props: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  rowCount: number;
+  columnCount: number;
+  columns: string[];
+  onSubmit: (value: string) => void | Promise<void>;
+}) {
+  const [value, setValue] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const submit = async () => {
+    setIsSubmitting(true);
+    try {
+      await props.onSubmit(value);
+      props.onOpenChange(false);
+      setValue("");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={props.open} onOpenChange={({ open }) => props.onOpenChange(open)}>
+      <DialogContent data-testid="bulk-cell-fill-dialog" className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Update selected cells</DialogTitle>
+          <DialogDescription>
+            Set one value across {props.rowCount} row{props.rowCount === 1 ? "" : "s"} in{" "}
+            {props.columnCount} column{props.columnCount === 1 ? "" : "s"}.
+            {props.columns.length === 1 ? ` Column: ${props.columns[0]}.` : null}
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submit();
+          }}
+          className="space-y-4"
+        >
+          <Input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            placeholder="Value (leave empty for NULL where supported)"
+            aria-label="Bulk update value"
+            disabled={isSubmitting}
+          />
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => props.onOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={isSubmitting}>
+              {isSubmitting ? "Updating…" : "Update cells"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
