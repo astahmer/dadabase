@@ -20,10 +20,11 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import type { FilterOperatorType } from "#src/components/query-builder/query-filter.ts";
 import type { AiSchemaContext, AiTableContext } from "#src/lib/ai/ai-types.ts";
+import type { Conversation } from "#src/lib/chat/protocol/resources.ts";
 
 import { getDialectDefaultSchema, type DatabaseDialect } from "#src/db/dialect.ts";
-import type { FilterOperatorType } from "#src/components/query-builder/query-filter.ts";
 import { useDocumentTitle } from "#src/hooks/use-document-title.ts";
 import {
   clearStoredByokConfig,
@@ -43,6 +44,20 @@ import {
   isProviderKeyOptional,
 } from "#src/lib/ai/ai-providers.ts";
 import {
+  parseComposerCommand,
+  runComposerCommand,
+  UNKNOWN_COMMAND_HINT,
+} from "#src/lib/ai/chat-composer-commands.ts";
+import {
+  grantSchemaSharingConsent,
+  hasSchemaSharingConsent,
+  revokeSchemaSharingConsent,
+} from "#src/lib/ai/chat-consent.ts";
+import {
+  CHAT_CONVERSATION_RESOLVED,
+  getCurrentChatConversationId,
+} from "#src/lib/ai/chat-conversation-current.ts";
+import {
   applySelectedTables,
   getStoredChatSchemaSelection,
   getLastResolvedAutoTables,
@@ -52,46 +67,26 @@ import {
   type ChatSchemaMode,
   type StoredChatSchemaSelection,
 } from "#src/lib/ai/chat-schema-selection.ts";
-import {
-  parseComposerCommand,
-  runComposerCommand,
-  UNKNOWN_COMMAND_HINT,
-} from "#src/lib/ai/chat-composer-commands.ts";
 import { CHAT_TOOLS, DEFAULT_ENABLED_CHAT_TOOLS } from "#src/lib/ai/chat-tools.ts";
-import {
-  CHAT_CONVERSATION_RESOLVED,
-  getCurrentChatConversationId,
-} from "#src/lib/ai/chat-conversation-current.ts";
-import { conversationMarkdown } from "#src/lib/chat/web/conversation/conversation-markdown.ts";
 import { findPendingApproval } from "#src/lib/chat/chat/ui-messages.ts";
-import type { Conversation } from "#src/lib/chat/protocol/resources.ts";
 import {
   ChatProvider,
   useChatActions,
   useChatRuntime,
   useChatSelector,
 } from "#src/lib/chat/react-hooks.ts";
+import { conversationMarkdown } from "#src/lib/chat/web/conversation/conversation-markdown.ts";
 import { ThreadMessage } from "#src/lib/chat/web/thread/thread-message.tsx";
-import {
-  stageChatReturn,
-  stageCustomSqlRun,
-} from "#src/lib/custom-sql-run-handoff.ts";
+import { stageChatReturn, stageCustomSqlRun } from "#src/lib/custom-sql-run-handoff.ts";
 import { SQL_PREVIEW_REVEAL_SIZE } from "#src/lib/sql-preview-panel.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 
 import type { DbConnection } from "../connection.types.ts";
 
-import { Badge } from "../../ui/badge.tsx";
 import { announce } from "../../ui/aria-live.tsx";
-import {
-  grantSchemaSharingConsent,
-  hasSchemaSharingConsent,
-  revokeSchemaSharingConsent,
-} from "#src/lib/ai/chat-consent.ts";
+import { Badge } from "../../ui/badge.tsx";
 import { Button, buttonVariants } from "../../ui/button.tsx";
-import { Spinner } from "../../ui/spinner.tsx";
-import { toaster } from "../../ui/toaster.tsx";
 import { Checkbox, CheckboxControl, CheckboxLabel } from "../../ui/checkbox.tsx";
 import { Input } from "../../ui/input.tsx";
 import { Label } from "../../ui/label.tsx";
@@ -104,7 +99,9 @@ import {
   SelectTrigger,
   SelectValueText,
 } from "../../ui/select.tsx";
+import { Spinner } from "../../ui/spinner.tsx";
 import { Textarea } from "../../ui/textarea.tsx";
+import { toaster } from "../../ui/toaster.tsx";
 import { createTabState } from "./create-tab-state.ts";
 import {
   BYOK_CHANGED_EVENT,
@@ -163,13 +160,15 @@ export const AiChatPage = ({
     );
   }
 
-  return <AiChatPageInner
-    connection={connection}
-    initialConversationId={initialConversationId}
-    initialAskTable={initialAskTable}
-    initialAiIntent={initialAiIntent}
-    embedded={embedded}
-  />;
+  return (
+    <AiChatPageInner
+      connection={connection}
+      initialConversationId={initialConversationId}
+      initialAskTable={initialAskTable}
+      initialAiIntent={initialAiIntent}
+      embedded={embedded}
+    />
+  );
 };
 
 const AiChatPageInner = ({
@@ -312,14 +311,14 @@ const AiChatPageInner = ({
         ? {
             filters: {
               conditions: view.filters.map((filter) =>
-              filter.value === undefined
-                ? { column: filter.column, operator: filter.operator }
-                : {
-                    column: filter.column,
-                    operator: filter.operator,
-                    value: filter.value,
-                  },
-            ),
+                filter.value === undefined
+                  ? { column: filter.column, operator: filter.operator }
+                  : {
+                      column: filter.column,
+                      operator: filter.operator,
+                      value: filter.value,
+                    },
+              ),
               logicalOperator: "and" as const,
             },
             filtersOpened: true,
@@ -450,7 +449,9 @@ const AiChatPageInner = ({
               selectedTables: [...tables],
             });
             window.dispatchEvent(new Event(SCHEMA_SELECTION_CHANGED_EVENT));
-            announce(`Schema selection set to ${tables.length} table${tables.length === 1 ? "" : "s"}.`);
+            announce(
+              `Schema selection set to ${tables.length} table${tables.length === 1 ? "" : "s"}.`,
+            );
           }}
           onOpenSchemaPanel={() => setSettingsOpen(true)}
           threadList={{
@@ -632,6 +633,23 @@ const ProviderSettingsSection = ({
               </p>
             )}
           </div>
+          {selectedPreset ? (
+            <div
+              className="border-primary/20 bg-primary/5 rounded-md border px-3 py-2 text-xs"
+              data-testid="ai-provider-preset-summary"
+            >
+              <span className="text-foreground font-medium">{selectedPreset.label}:</span>{" "}
+              <span className="text-muted-foreground">
+                Save will use{" "}
+                <span className="font-mono">
+                  {baseUrlDraft.trim() || selectedPreset.defaultBaseUrl || "the entered base URL"}
+                </span>
+                {keyOptional
+                  ? " and does not require an API key."
+                  : " with the API key kept in this browser."}
+              </span>
+            </div>
+          ) : null}
           <div className="flex items-center gap-2">
             <Button
               size="sm"
@@ -1324,7 +1342,10 @@ const ThreadListPanel = ({
           className="border-input placeholder:text-muted-foreground/70 focus-visible:border-ring mb-1 w-full rounded-md border bg-transparent px-2 py-1 text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring)]/30"
         />
         {visibleConversations.length === 0 ? (
-          <p className="text-muted-foreground px-2 py-4 text-xs" data-testid="ai-thread-search-empty">
+          <p
+            className="text-muted-foreground px-2 py-4 text-xs"
+            data-testid="ai-thread-search-empty"
+          >
             No chats match “{search}”.
           </p>
         ) : (
@@ -1363,11 +1384,16 @@ const ThreadListPanel = ({
                     }}
                     onRenameCancel={() => setRenamingId(undefined)}
                     onTogglePin={() => {
-                      actions.updateConversation({ conversationId: thread.id, pinned: !thread.pinned });
+                      actions.updateConversation({
+                        conversationId: thread.id,
+                        pinned: !thread.pinned,
+                      });
                       announce(thread.pinned === true ? "Chat unpinned." : "Chat pinned.");
                     }}
                     onDeleteRequest={() =>
-                      setConfirmDeleteId((current) => (current === thread.id ? undefined : thread.id))
+                      setConfirmDeleteId((current) =>
+                        current === thread.id ? undefined : thread.id,
+                      )
                     }
                     onDeleteConfirm={() => {
                       actions.deleteConversation({
@@ -1766,10 +1792,7 @@ const ChatSurface = ({
   useEffect(() => {
     // SQL suggestions from a custom SQL tab have no table to scope, but still
     // need a useful draft seed. Ordinary new AI tabs intentionally stay blank.
-    if (
-      (initialAskTable === undefined || initialAskTable === "") &&
-      initialAiIntent !== "sql"
-    ) {
+    if ((initialAskTable === undefined || initialAskTable === "") && initialAiIntent !== "sql") {
       return;
     }
     const seedKey = initialAskTable || "__current_schema__";
@@ -1997,7 +2020,9 @@ const ChatSurface = ({
     }
     if (toolName === "explain_sql" && isRecord(input) && typeof input.sql === "string") {
       return (
-        <pre className="bg-muted/50 overflow-auto rounded-md p-2 font-mono text-xs">{input.sql}</pre>
+        <pre className="bg-muted/50 overflow-auto rounded-md p-2 font-mono text-xs">
+          {input.sql}
+        </pre>
       );
     }
     return undefined;
@@ -2021,7 +2046,8 @@ const ChatSurface = ({
               Browse tab on {viewTable}
               {viewFilters.length > 0
                 ? ` with ${viewFilters.length} filter${viewFilters.length === 1 ? "" : "s"}`
-                : ""}.
+                : ""}
+              .
             </p>
             <Button
               size="xs"
@@ -2134,7 +2160,9 @@ const ChatSurface = ({
           <div className="space-y-1.5">
             {outcome}
             <div className="relative">
-              <pre className="bg-muted/50 overflow-auto rounded-md p-2 pe-16 font-mono text-xs">{sql}</pre>
+              <pre className="bg-muted/50 overflow-auto rounded-md p-2 pe-16 font-mono text-xs">
+                {sql}
+              </pre>
               <CopySqlButton sql={sql} />
             </div>
             <div className="flex gap-1.5">
@@ -2147,7 +2175,11 @@ const ChatSurface = ({
                 Use this SQL
               </Button>
               {toolName === "propose_sql" && (
-                <Button size="xs" onClick={() => onRunSql(sql, chatMeta)} data-testid="ai-chat-run-sql">
+                <Button
+                  size="xs"
+                  onClick={() => onRunSql(sql, chatMeta)}
+                  data-testid="ai-chat-run-sql"
+                >
                   Run
                 </Button>
               )}
@@ -2181,199 +2213,196 @@ const ChatSurface = ({
           className="mx-auto min-h-0 w-full max-w-3xl flex-1 space-y-3 overflow-auto p-4"
           data-testid="ai-chat-thread"
         >
-        {messages.length === 0 ? (
-          <div className="text-muted-foreground flex flex-col items-center gap-4 px-1 py-10 text-center text-sm">
-            <p>
-              Ask a question about this database — the assistant proposes SQL, you review it before
-              it runs.
-            </p>
-            {/* Audit C7: one primary action instead of a 90%-empty viewport. */}
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={consentRequired || !providerReady}
-              onClick={composerFocus}
-              data-testid="ai-chat-first-question"
-            >
-              <Sparkles className="size-3.5" />
-              Ask your first question
-            </Button>
-          </div>
-        ) : (
-          messages.map((message, index) => {
-            // Audit S4: retry-after-error without retyping — the vendored
-            // ThreadMessage ships the affordance; wire it to the runtime's
-            // retry action on the latest turn (assistant after success, user
-            // after a failed stream).
-            const isLatestTurn = index === messages.length - 1;
-            const isLatestAssistant = message.role === "assistant" && isLatestTurn;
-            const isFailedUserTurn =
-              message.role === "user" &&
-              isLatestTurn &&
-              error !== undefined &&
-              !isStreaming;
-            return (
-              <div key={message.id} data-testid="ai-chat-message" data-role={message.role}>
-                <ThreadMessage
-                  message={message}
-                  isStreaming={isStreaming && message.role === "assistant"}
-                  metadata={{
-                    ...(typeof message.model === "string" && message.model !== ""
-                      ? { modelLabel: message.model }
-                      : {}),
-                    ...(message.usage?.totalTokens !== null &&
-                    typeof message.usage?.totalTokens === "number" &&
-                    message.usage.totalTokens > 0
-                      ? { totalTokens: message.usage.totalTokens }
-                      : {}),
-                    ...(typeof message.createdAt === "string"
-                      ? { createdAt: message.createdAt }
-                      : {}),
-                  }}
-                  renderToolResult={renderToolResult}
-                  renderToolInput={renderToolInput}
-                  {...((isLatestAssistant && !isStreaming) || isFailedUserTurn
-                    ? {
-                        onRegenerate: (messageId: string) => actions.retry({ messageId }),
-                        regenerateText: "Try again",
-                      }
-                    : {})}
-                />
-                {/* Audit T1/T2: per-turn context receipt — the model, schema
+          {messages.length === 0 ? (
+            <div className="text-muted-foreground flex flex-col items-center gap-4 px-1 py-10 text-center text-sm">
+              <p>
+                Ask a question about this database — the assistant proposes SQL, you review it
+                before it runs.
+              </p>
+              {/* Audit C7: one primary action instead of a 90%-empty viewport. */}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={consentRequired || !providerReady}
+                onClick={composerFocus}
+                data-testid="ai-chat-first-question"
+              >
+                <Sparkles className="size-3.5" />
+                Ask your first question
+              </Button>
+            </div>
+          ) : (
+            messages.map((message, index) => {
+              // Audit S4: retry-after-error without retyping — the vendored
+              // ThreadMessage ships the affordance; wire it to the runtime's
+              // retry action on the latest turn (assistant after success, user
+              // after a failed stream).
+              const isLatestTurn = index === messages.length - 1;
+              const isLatestAssistant = message.role === "assistant" && isLatestTurn;
+              const isFailedUserTurn =
+                message.role === "user" && isLatestTurn && error !== undefined && !isStreaming;
+              return (
+                <div key={message.id} data-testid="ai-chat-message" data-role={message.role}>
+                  <ThreadMessage
+                    message={message}
+                    isStreaming={isStreaming && message.role === "assistant"}
+                    metadata={{
+                      ...(typeof message.model === "string" && message.model !== ""
+                        ? { modelLabel: message.model }
+                        : {}),
+                      ...(message.usage?.totalTokens !== null &&
+                      typeof message.usage?.totalTokens === "number" &&
+                      message.usage.totalTokens > 0
+                        ? { totalTokens: message.usage.totalTokens }
+                        : {}),
+                      ...(typeof message.createdAt === "string"
+                        ? { createdAt: message.createdAt }
+                        : {}),
+                    }}
+                    renderToolResult={renderToolResult}
+                    renderToolInput={renderToolInput}
+                    {...((isLatestAssistant && !isStreaming) || isFailedUserTurn
+                      ? {
+                          onRegenerate: (messageId: string) => actions.retry({ messageId }),
+                          regenerateText: "Try again",
+                        }
+                      : {})}
+                  />
+                  {/* Audit T1/T2: per-turn context receipt — the model, schema
                     mode, table subset, tools, and tokens actually sent. In auto
                     mode the picked tables are clickable to adopt as manual
                     selection ("Auto worked" vs "Auto guessed wrong"). */}
-                {message.role === "assistant" && message.context !== undefined ? (
-                  <div
-                    className="text-muted-foreground mt-1 flex flex-wrap items-center gap-1.5 px-3 text-[11px]"
-                    data-testid="ai-chat-context-receipt"
-                  >
-                    <span>{message.context.mode}</span>
-                    <span aria-hidden="true">·</span>
-                    <span>
-                      {message.context.tables.length === 0
-                        ? "no tables"
-                        : `${message.context.tables.length} table${message.context.tables.length === 1 ? "" : "s"}`}
-                    </span>
-                    {message.context.mode !== "all" ? (
-                      <span className="flex flex-wrap gap-1">
-                        {message.context.tables.map((table) => {
-                          const adoptable =
-                            message.context !== undefined && message.context.mode === "auto";
-                          return adoptable ? (
-                            <button
-                              key={table}
-                              type="button"
-                              className="bg-muted hover:text-foreground rounded px-1 py-px font-mono transition-colors"
-                              title={`Adopt \`${table}\` as your schema selection`}
-                              onClick={() => onAdoptAutoTables([table])}
-                            >
-                              {table}
-                            </button>
-                          ) : (
-                            <span key={table} className="bg-muted rounded px-1 py-px font-mono">
-                              {table}
-                            </span>
-                          );
-                        })}
+                  {message.role === "assistant" && message.context !== undefined ? (
+                    <div
+                      className="text-muted-foreground mt-1 flex flex-wrap items-center gap-1.5 px-3 text-[11px]"
+                      data-testid="ai-chat-context-receipt"
+                    >
+                      <span>{message.context.mode}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        {message.context.tables.length === 0
+                          ? "no tables"
+                          : `${message.context.tables.length} table${message.context.tables.length === 1 ? "" : "s"}`}
                       </span>
-                    ) : null}
-                    <span aria-hidden="true">·</span>
-                    <span>
-                      {message.context.tools.length === 0
-                        ? "tools off"
-                        : message.context.tools.join(", ")}
-                    </span>
-                    {message.usage?.totalTokens != null && message.usage.totalTokens > 0 ? (
-                      <>
-                        <span aria-hidden="true">·</span>
-                        <span>{message.usage.totalTokens.toLocaleString()} ctx</span>
-                      </>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })
-        )}
-        {pendingApproval !== undefined ? (
-          <div
-            className="border-border bg-muted/40 flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
-            data-testid="ai-chat-approval"
-            role="alert"
-          >
-            <span className="font-medium">
-              Allow running the proposed SQL via `{pendingApproval.toolName}`?
-            </span>
-            <span className="flex shrink-0 gap-1.5">
-              <Button
-                size="xs"
-                onClick={() => {
-                  setLastDecision("approved");
-                  actions.approveToolCall({
-                    approvalId: pendingApproval.approvalId,
-                    approved: true,
-                  });
-                }}
-                data-testid="ai-chat-approve"
-              >
-                <Check className="size-3" />
-                Approve
-              </Button>
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => {
-                  setLastDecision("rejected");
-                  actions.approveToolCall({
-                    approvalId: pendingApproval.approvalId,
-                    approved: false,
-                  });
-                }}
-                data-testid="ai-chat-reject"
-              >
-                <X className="size-3" />
-                Reject
-              </Button>
-            </span>
-          </div>
-        ) : lastDecision !== undefined ? (
-          /* Audit C14: keep the decision visible while the resumed stream runs. */
-          <div
-            className="border-border bg-muted/40 text-muted-foreground rounded-md border px-3 py-2 text-xs"
-            data-testid="ai-chat-decision"
-            role="status"
-          >
-            {lastDecision === "approved"
-              ? "Approved — executing the proposed SQL…"
-              : "Rejected — nothing was executed."}
-          </div>
-        ) : null}
-        {isStreaming && (
-          <div
-            className="border-border bg-muted/40 flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
-            data-testid="ai-generating-status"
-            role="status"
-            aria-live="polite"
-          >
-            <span className="flex items-center gap-2">
-              {/* Audit G5: ui Spinner is the app-wide spinner token. */}
-              <Spinner size="xs" label="Generating response" />
-              {/* Audit C11: elapsed seconds make progress tangible. */}
-              <span className="font-medium">Generating… {elapsedSeconds}s</span>
-            </span>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => actions.stop()}
-              data-testid="ai-chat-cancel"
-              aria-label="Stop generating"
+                      {message.context.mode !== "all" ? (
+                        <span className="flex flex-wrap gap-1">
+                          {message.context.tables.map((table) => {
+                            const adoptable =
+                              message.context !== undefined && message.context.mode === "auto";
+                            return adoptable ? (
+                              <button
+                                key={table}
+                                type="button"
+                                className="bg-muted hover:text-foreground rounded px-1 py-px font-mono transition-colors"
+                                title={`Adopt \`${table}\` as your schema selection`}
+                                onClick={() => onAdoptAutoTables([table])}
+                              >
+                                {table}
+                              </button>
+                            ) : (
+                              <span key={table} className="bg-muted rounded px-1 py-px font-mono">
+                                {table}
+                              </span>
+                            );
+                          })}
+                        </span>
+                      ) : null}
+                      <span aria-hidden="true">·</span>
+                      <span>
+                        {message.context.tools.length === 0
+                          ? "tools off"
+                          : message.context.tools.join(", ")}
+                      </span>
+                      {message.usage?.totalTokens != null && message.usage.totalTokens > 0 ? (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span>{message.usage.totalTokens.toLocaleString()} ctx</span>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+          {pendingApproval !== undefined ? (
+            <div
+              className="border-border bg-muted/40 flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+              data-testid="ai-chat-approval"
+              role="alert"
             >
-              <Square className="size-3" />
-              Stop
-            </Button>
-          </div>
-        )}
+              <span className="font-medium">
+                Allow running the proposed SQL via `{pendingApproval.toolName}`?
+              </span>
+              <span className="flex shrink-0 gap-1.5">
+                <Button
+                  size="xs"
+                  onClick={() => {
+                    setLastDecision("approved");
+                    actions.approveToolCall({
+                      approvalId: pendingApproval.approvalId,
+                      approved: true,
+                    });
+                  }}
+                  data-testid="ai-chat-approve"
+                >
+                  <Check className="size-3" />
+                  Approve
+                </Button>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => {
+                    setLastDecision("rejected");
+                    actions.approveToolCall({
+                      approvalId: pendingApproval.approvalId,
+                      approved: false,
+                    });
+                  }}
+                  data-testid="ai-chat-reject"
+                >
+                  <X className="size-3" />
+                  Reject
+                </Button>
+              </span>
+            </div>
+          ) : lastDecision !== undefined ? (
+            /* Audit C14: keep the decision visible while the resumed stream runs. */
+            <div
+              className="border-border bg-muted/40 text-muted-foreground rounded-md border px-3 py-2 text-xs"
+              data-testid="ai-chat-decision"
+              role="status"
+            >
+              {lastDecision === "approved"
+                ? "Approved — executing the proposed SQL…"
+                : "Rejected — nothing was executed."}
+            </div>
+          ) : null}
+          {isStreaming && (
+            <div
+              className="border-border bg-muted/40 flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
+              data-testid="ai-generating-status"
+              role="status"
+              aria-live="polite"
+            >
+              <span className="flex items-center gap-2">
+                {/* Audit G5: ui Spinner is the app-wide spinner token. */}
+                <Spinner size="xs" label="Generating response" />
+                {/* Audit C11: elapsed seconds make progress tangible. */}
+                <span className="font-medium">Generating… {elapsedSeconds}s</span>
+              </span>
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => actions.stop()}
+                data-testid="ai-chat-cancel"
+                aria-label="Stop generating"
+              >
+                <Square className="size-3" />
+                Stop
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -2381,10 +2410,7 @@ const ChatSurface = ({
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-2">
           {/* Audit M4/T3: thread-level token total anchors cost awareness. */}
           {threadTokens > 0 && (
-            <span
-              className="text-muted-foreground text-[11px]"
-              data-testid="ai-chat-thread-tokens"
-            >
+            <span className="text-muted-foreground text-[11px]" data-testid="ai-chat-thread-tokens">
               {threadTokens.toLocaleString()} tokens this thread
             </span>
           )}
@@ -2478,36 +2504,37 @@ const ChatSurface = ({
               </span>
             ) : null}
           </div>
-          {error && (() => {
-            // Audit S10: one flat message for every failure mode taught users
-            // to ignore errors — classify and make recovery actionable.
-            const classified = classifyChatError(error);
-            return (
-              <div
-                className="border-destructive/40 bg-destructive/5 text-destructive rounded-md border px-2.5 py-2 text-xs"
-                data-testid="ai-chat-error"
-              >
-                <p className="font-medium">{classified.headline}</p>
-                {classified.hint !== undefined && (
-                  <p className="mt-0.5 opacity-80">{classified.hint}</p>
-                )}
-                {classified.kind === "auth" && (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    className="mt-1.5"
-                    onClick={onOpenProviderSettings}
-                    data-testid="ai-chat-error-open-settings"
-                  >
-                    Open provider settings
-                  </Button>
-                )}
-                {classified.kind !== "auth" && classified.kind !== "unknown" && (
-                  <p className="mt-0.5 opacity-70">{error}</p>
-                )}
-              </div>
-            );
-          })()}
+          {error &&
+            (() => {
+              // Audit S10: one flat message for every failure mode taught users
+              // to ignore errors — classify and make recovery actionable.
+              const classified = classifyChatError(error);
+              return (
+                <div
+                  className="border-destructive/40 bg-destructive/5 text-destructive rounded-md border px-2.5 py-2 text-xs"
+                  data-testid="ai-chat-error"
+                >
+                  <p className="font-medium">{classified.headline}</p>
+                  {classified.hint !== undefined && (
+                    <p className="mt-0.5 opacity-80">{classified.hint}</p>
+                  )}
+                  {classified.kind === "auth" && (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      className="mt-1.5"
+                      onClick={onOpenProviderSettings}
+                      data-testid="ai-chat-error-open-settings"
+                    >
+                      Open provider settings
+                    </Button>
+                  )}
+                  {classified.kind !== "auth" && classified.kind !== "unknown" && (
+                    <p className="mt-0.5 opacity-70">{error}</p>
+                  )}
+                </div>
+              );
+            })()}
           <div className="flex items-center justify-between gap-2">
             <p className="text-muted-foreground text-xs" data-testid="ai-schema-context-hint">
               {schemaHint}
@@ -2561,7 +2588,7 @@ const CopySqlButton = ({ sql }: { sql: string }): ReactNode => {
           () => {},
         );
       }}
-      className="bg-background text-muted-foreground absolute end-1.5 top-1.5 cursor-pointer rounded border px-1.5 py-0.5 text-[11px] font-medium hover:bg-accent"
+      className="bg-background text-muted-foreground hover:bg-accent absolute end-1.5 top-1.5 cursor-pointer rounded border px-1.5 py-0.5 text-[11px] font-medium"
     >
       {copied ? "Copied ✓" : "Copy"}
     </button>
