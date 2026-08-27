@@ -11,7 +11,6 @@ import {
   CircleCheck,
   Code2,
   GripHorizontal,
-  Loader2,
   RotateCcw,
   SearchX,
   TriangleAlert,
@@ -1458,7 +1457,12 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
           role="status"
         >
           {importTask.status === "running" ? (
-            <Loader2 className="text-primary mt-0.5 size-4 shrink-0 animate-spin" />
+            <Spinner
+              size="sm"
+              colorPalette="primary"
+              label="Import running"
+              className="mt-0.5 shrink-0"
+            />
           ) : importTask.status === "success" ? (
             <CircleCheck className="text-success mt-0.5 size-4 shrink-0" />
           ) : (

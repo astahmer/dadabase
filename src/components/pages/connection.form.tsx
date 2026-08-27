@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { LucideCheck, LucideCross, LucideLoaderCircle } from "lucide-react";
+import { LucideCheck, LucideCross } from "lucide-react";
 import { useEffect, useState } from "react";
 import z from "zod";
 
@@ -39,6 +39,7 @@ import { announce } from "../ui/aria-live.tsx";
 import { Button } from "../ui/button.tsx";
 import { Checkbox, CheckboxControl } from "../ui/checkbox.tsx";
 import { Stack } from "../ui/layout.tsx";
+import { Spinner } from "../ui/spinner.tsx";
 import { toaster } from "../ui/toaster.tsx";
 
 const connectionType = z.enum(DatabaseDialect);
@@ -439,7 +440,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
             className="text-muted-foreground flex items-center gap-2 text-xs"
             data-testid="csv-preview-loading"
           >
-            <LucideLoaderCircle className="h-3 w-3 animate-spin" />
+            <Spinner size="xs" colorPalette="muted" label="Detecting tables" />
             Detecting tables…
           </p>
         ) : null}
@@ -973,7 +974,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
           }}
         >
           {testState.status === "loading" ? (
-            <LucideLoaderCircle className="h-4 w-4 animate-spin" />
+            <Spinner size="sm" colorPalette="primary" label="Testing connection" />
           ) : null}
           Test connection
         </Button>

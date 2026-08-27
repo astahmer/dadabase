@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Copy,
   Link as LinkIcon,
-  Loader,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -34,6 +33,7 @@ import {
   SelectTrigger,
   SelectValueText,
 } from "../../../ui/select.tsx";
+import { Spinner } from "../../../ui/spinner.tsx";
 
 export interface QuickReferencesPanelProps {
   schema: string;
@@ -288,9 +288,7 @@ export function QuickReferencesPanel({
                     )
                   </span>
                 )}
-                {isLoadingReferences && (
-                  <Loader className="text-muted-foreground h-3 w-3 animate-spin" />
-                )}
+                {isLoadingReferences && <Spinner size="xs" colorPalette="muted" label="Loading" />}
               </div>
             </button>
 
@@ -299,7 +297,7 @@ export function QuickReferencesPanel({
                 {isLoadingReferences && (
                   <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-12">
                     <div className="text-muted-foreground flex items-center gap-2 px-4 py-3 text-sm">
-                      <Loader className="h-4 w-4 animate-spin" />
+                      <Spinner size="sm" colorPalette="muted" label="Loading" />
                       Loading tables that reference this...
                     </div>
                   </div>

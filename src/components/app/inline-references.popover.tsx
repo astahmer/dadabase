@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, ArrowRight, ChevronRight, Link as LinkIcon, Loader, X } from "lucide-react";
+import { AlertCircle, ArrowRight, ChevronRight, Link as LinkIcon, X } from "lucide-react";
 
 import type { ColumnReference } from "#src/server/introspection/introspection.ts";
 
@@ -9,6 +9,7 @@ import type { ForeignKeyInfo } from "../data-table/cell-context-menu.tsx";
 
 import { ErrorBoundaryCard } from "../shared/error-boundary-card.tsx";
 import { Stack } from "../ui/layout.tsx";
+import { Spinner } from "../ui/spinner.tsx";
 
 interface InlineReferencesPopoverProps {
   schema: string;
@@ -161,7 +162,7 @@ export function InlineReferencesPopover({
               Referenced By
               {!isLoading && <span className="ml-auto">({reverseReferences.length})</span>}
               {isLoading && (
-                <Loader className="text-muted-foreground ml-auto h-3 w-3 animate-spin" />
+                <Spinner className="ml-auto" size="xs" colorPalette="muted" label="Loading" />
               )}
             </div>
 
@@ -193,7 +194,7 @@ export function InlineReferencesPopover({
         {/* Loading State */}
         {isLoading && !reverseReferences.length && (
           <div className="text-muted-foreground flex items-center justify-center gap-2 py-4 text-sm">
-            <Loader className="h-3 w-3 animate-spin" />
+            <Spinner size="xs" colorPalette="muted" label="Loading" />
             <span>Loading relationships...</span>
           </div>
         )}
