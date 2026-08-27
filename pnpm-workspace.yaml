@@ -18,21 +18,24 @@ packageExtensions:
     peerDependencies:
       kysely: "*"
       "@libsql/kysely-libsql": "*"
+  tsconfck:
+    peerDependencies:
+      typescript: "*"
 
 patchedDependencies:
   kysely-pglite@0.6.1: patches/kysely-pglite@0.6.1.patch
 
 catalog:
   "@effect/language-service": 0.87.2
-  "@effect/platform-node": 4.0.0-rc.111
-  "@effect/sql-libsql": 4.0.0-rc.111
-  "@effect/sql-mysql2": 4.0.0-rc.111
-  "@effect/sql-pg": 4.0.0-rc.111
-  "@effect/vitest": 4.0.0-rc.111
-  "@electric-sql/pglite": 0.5.7
-  "@electric-sql/pglite-tools": 0.4.7
+  "@effect/platform-node": 4.0.0-rc.112
+  "@effect/sql-libsql": 4.0.0-rc.112
+  "@effect/sql-mysql2": 4.0.0-rc.112
+  "@effect/sql-pg": 4.0.0-rc.112
+  "@effect/vitest": 4.0.0-rc.112
+  "@electric-sql/pglite": 0.5.8
+  "@electric-sql/pglite-tools": 0.4.8
   drizzle-orm: 0.45.2
-  effect: 4.0.0-rc.111
+  effect: 4.0.0-rc.112
 
 enableGlobalVirtualStore: false
 
@@ -63,16 +66,18 @@ allowBuilds:
   ssh2: true
 
 minimumReleaseAgeExclude:
-  - "@electric-sql/pglite-tools@0.4.7"
-  - "@electric-sql/pglite@0.5.7"
-  - "@tanstack/query-core@5.102.2"
-  - "@tanstack/query-devtools@5.102.2"
-  - "@tanstack/react-query-devtools@5.102.2"
-  - "@tanstack/react-query@5.102.2"
-  - mysql2@3.24.1
+  - "@electric-sql/pglite-tools@0.4.8"
+  - "@electric-sql/pglite@0.5.8"
+  - "@tanstack/query-core@5.102.6"
+  - "@tanstack/query-devtools@5.102.6"
+  - "@tanstack/react-query-devtools@5.102.6"
+  - "@tanstack/react-query@5.102.6"
+  - mysql2@3.24.2
+  - "@tanstack/react-router-ssr-query@1.167.2"
+  - "@tanstack/router-ssr-query-core@1.169.2"
 
 # Single query-core instance required: react-router-ssr-query otherwise resolves
-# its own query-core (5.102.2) which mismatches react-query's copy at hydration
+# its own query-core (5.102.6) which mismatches react-query's copy at hydration
 # ("Cannot read properties of undefined (reading 'mutations')").
 overrides:
-  "@tanstack/query-core": 5.101.4
+  "@tanstack/query-core": 5.102.6
