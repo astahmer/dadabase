@@ -1,5 +1,3 @@
-import type { ColumnDef, TableOptions } from "@tanstack/react-table";
-
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -7,9 +5,12 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-} from "@tanstack/react-table";
+  type ColumnDef,
+  type RowData,
+  type TableOptions,
+} from "#src/lib/tanstack-table.ts";
 
-export interface UseDataTableProps<TData> extends Omit<
+export interface UseDataTableProps<TData extends RowData> extends Omit<
   TableOptions<TData>,
   "getCoreRowModel" | "columns" | "data" | "meta"
 > {
@@ -17,7 +18,7 @@ export interface UseDataTableProps<TData> extends Omit<
   columns: ColumnDef<TData>[];
 }
 
-export function useDataTable<TData>(props: UseDataTableProps<TData>) {
+export function useDataTable<TData extends RowData>(props: UseDataTableProps<TData>) {
   const { columns, data, rowCount, ...tableOptions } = props;
 
   const table = useReactTable({
@@ -29,7 +30,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     columnResizeMode: "onChange",
     renderFallbackValue: "-",
     rowCount,
-    getRowId: (row, index) => (row as { id: string }).id ?? index,
+    getRowId: (row, index) => (row as unknown as { id: string }).id ?? index,
     ...tableOptions,
     data: data as TData[],
     columns,

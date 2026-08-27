@@ -1,10 +1,11 @@
-import type { Column } from "@tanstack/react-table";
 import type { CSSProperties, JSX } from "react";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-interface DraggableColumnHeaderProps<TData> {
+import type { Column, RowData } from "#src/lib/tanstack-table.ts";
+
+interface DraggableColumnHeaderProps<TData extends RowData> {
   column: Column<TData>;
   children: (
     props: Pick<
@@ -15,7 +16,7 @@ interface DraggableColumnHeaderProps<TData> {
   className?: string;
 }
 
-export function DraggableColumnHeader<TData>({
+export function DraggableColumnHeader<TData extends RowData>({
   column,
   children,
 }: DraggableColumnHeaderProps<TData>) {

@@ -1,8 +1,8 @@
-import type { Table as TanstackTable } from "@tanstack/react-table";
-
 import { Pagination } from "@ark-ui/react/pagination";
 import { useNavigate } from "@tanstack/react-router";
 import { Layers, Maximize2, Minimize2, RefreshCw } from "lucide-react";
+
+import type { Table as TanstackTable } from "#src/lib/tanstack-table.ts";
 
 import {
   formatLoadedRelativeLabel,
@@ -35,7 +35,7 @@ const TableSizeCollection = ArkSelect.createListCollection({
 });
 
 interface ConnectionPageStatusBarProps {
-  table: TanstackTable<any>;
+  table: TanstackTable<Record<string, unknown>>;
   hasUuid: boolean;
   isLoading: boolean;
   /** Background refetch — keep table visible, show small indicator */
@@ -150,9 +150,7 @@ export const ConnectionPageStatusBar = (props: ConnectionPageStatusBarProps) => 
                       className="h-5 px-1"
                       aria-label="Next page"
                       title={
-                        offset + limit >= props.totalRowCount
-                          ? "Already on last page"
-                          : "Next page"
+                        offset + limit >= props.totalRowCount ? "Already on last page" : "Next page"
                       }
                     >
                       ›

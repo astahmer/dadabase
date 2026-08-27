@@ -1,4 +1,3 @@
-import type { Header, HeaderGroup, Row, Table as TanstackTable } from "@tanstack/react-table";
 import type { ReactNode, RefObject } from "react";
 
 import {
@@ -12,7 +11,6 @@ import {
 } from "@dnd-kit/core";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
-import { flexRender } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowDownNarrowWide,
@@ -25,6 +23,16 @@ import {
   PinOff,
 } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+
+import type {
+  Header,
+  HeaderGroup,
+  Row,
+  RowData,
+  Table as TanstackTable,
+} from "#src/lib/tanstack-table.ts";
+
+import { flexRender } from "#src/lib/tanstack-table.ts";
 
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
 import type { ColumnHeaderFilterOperator } from "./upsert-column-header-filter.ts";
@@ -65,7 +73,7 @@ const i18n = {
 
 export type DataTableVariant = "line" | "outline";
 
-export interface DataTableProps<TData> {
+export interface DataTableProps<TData extends RowData> {
   className?: string;
   table: TanstackTable<TData>;
   containerRef?: React.RefObject<HTMLDivElement | null>;
@@ -114,7 +122,7 @@ export interface DataTableProps<TData> {
   onSelectionExport?: DataTableCellSelectionOptions<TData>["onSelectionExport"];
 }
 
-export function DataTable<TData>(props: DataTableProps<TData>) {
+export function DataTable<TData extends RowData>(props: DataTableProps<TData>) {
   const {
     table,
     top,
@@ -289,9 +297,9 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
   );
 }
 
-const TableContainer = (
+const TableContainer = <TData extends RowData>(
   props: Pick<
-    DataTableProps<any>,
+    DataTableProps<TData>,
     | "table"
     | "className"
     | "containerRef"
@@ -317,7 +325,7 @@ const TableContainer = (
     | "enableColumnVirtualization"
   > &
     Pick<
-      Required<DataTableProps<any>>,
+      Required<DataTableProps<TData>>,
       | "size"
       | "variant"
       | "interactive"
@@ -361,7 +369,7 @@ const TableContainer = (
   }, [
     columnVirtualizer,
     state.columnSizing,
-    state.columnSizingInfo,
+    state.columnResizing,
     state.columnOrder,
     state.columnPinning,
   ]);
@@ -428,25 +436,25 @@ const TableContainer = (
             const headerById = new Map(headerGroup.headers.map((h) => [h.column.id, h]));
 
             const getPinningSideForHeader = (
-              headerCell: Header<any, any>,
-            ): "left" | "right" | false => {
+              headerCell: Header<TData, any>,
+            ): "start" | "end" | false => {
               const leaves = headerCell.getLeafHeaders();
               const sides = new Set(
                 leaves
-                  .map((h: Header<any, any>) => h.column.getIsPinned())
-                  .filter((side): side is "left" | "right" => side === "left" || side === "right"),
+                  .map((h: Header<TData, any>) => h.column.getIsPinned())
+                  .filter((side): side is "start" | "end" => side === "start" || side === "end"),
               );
               if (sides.size === 1) {
-                return (Array.from(sides)[0] as "left" | "right") ?? false;
+                return (Array.from(sides)[0] as "start" | "end") ?? false;
               }
               return false;
             };
 
             const leftHeaders = headerGroup.headers.filter(
-              (h) => getPinningSideForHeader(h) === "left",
+              (h) => getPinningSideForHeader(h) === "start",
             );
             const rightHeaders = headerGroup.headers.filter(
-              (h) => getPinningSideForHeader(h) === "right",
+              (h) => getPinningSideForHeader(h) === "end",
             );
             const centerHeaders = headerGroup.headers.filter(
               (h) => getPinningSideForHeader(h) === false,
@@ -567,7 +575,7 @@ const TableContainer = (
             return <tr key={headerGroup.id}>{HeaderCellList}</tr>;
           })}
         </thead>
-        {table.getState().columnSizingInfo.isResizingColumn ? (
+        {table.getState().columnResizing.isResizingColumn ? (
           <MemoizedTableBody
             table={table}
             tableContainerRef={tableContainerRef}
@@ -625,17 +633,17 @@ const TableContainer = (
   );
 };
 
-const TableBody = (
+const TableBody = <TData extends RowData>(
   props: {
-    table: TanstackTable<any>;
+    table: TanstackTable<TData>;
     tableContainerRef: RefObject<HTMLDivElement | null>;
     columnVirtualization: ColumnVirtualizationState;
-    cellSelection?: ReturnType<typeof useDataTableCellSelection<any>>;
+    cellSelection?: ReturnType<typeof useDataTableCellSelection<TData>>;
     findFilterRows?: <T extends { id: string; original: Record<string, unknown> }>(
       rows: readonly T[],
     ) => T[];
   } & Pick<
-    DataTableProps<any>,
+    DataTableProps<TData>,
     | "isLoading"
     | "enableRowVirtualization"
     | "onRowClick"
@@ -650,7 +658,7 @@ const TableBody = (
     | "hasError"
   > &
     Pick<
-      Required<DataTableProps<any>>,
+      Required<DataTableProps<TData>>,
       "size" | "variant" | "interactive" | "striped" | "showColumnBorder" | "enableColumnOrdering"
     >,
 ) => {
@@ -662,8 +670,8 @@ const TableBody = (
   const columnVirtualization = props.columnVirtualization;
 
   const leafColumns = table.getVisibleLeafColumns();
-  const leftPinnedLeafColumns = leafColumns.filter((c) => c.getIsPinned() === "left");
-  const rightPinnedLeafColumns = leafColumns.filter((c) => c.getIsPinned() === "right");
+  const leftPinnedLeafColumns = leafColumns.filter((c) => c.getIsPinned() === "start");
+  const rightPinnedLeafColumns = leafColumns.filter((c) => c.getIsPinned() === "end");
   const centerLeafColumns = leafColumns.filter((c) => !c.getIsPinned());
 
   return props.isLoading && !props.hasError ? (
@@ -944,7 +952,7 @@ function CellSelectionStatus(props: {
   );
 }
 
-function CellSelectionDetails<TData>(props: {
+function CellSelectionDetails<TData extends RowData>(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cell: { row: Row<TData>; columnId: string; value: unknown };
@@ -1002,7 +1010,7 @@ function CellSelectionDetails<TData>(props: {
   );
 }
 
-function DataTablePagination<TData>(props: { table: TanstackTable<TData> }) {
+function DataTablePagination<TData extends RowData>(props: { table: TanstackTable<TData> }) {
   const { table } = props;
   const state = table.getState();
   const rowCount = table.getRowCount();
@@ -1039,257 +1047,253 @@ function DataTablePagination<TData>(props: { table: TanstackTable<TData> }) {
   );
 }
 
-const CellHeaderContent = memo(
-  (props: {
-    table: TanstackTable<any>;
-    headerCell: Header<any, any>;
-    onColumnFilterClick?: (columnId: string, columnName: string) => void;
-    getColumnHeaderFilter?: DataTableProps<any>["getColumnHeaderFilter"];
-    onColumnHeaderFilterChange?: DataTableProps<any>["onColumnHeaderFilterChange"];
-    hideColumnPinIconUnlessHovered?: boolean;
-  }) => {
-    const {
-      table,
-      headerCell,
-      onColumnFilterClick,
-      getColumnHeaderFilter,
-      onColumnHeaderFilterChange,
-      hideColumnPinIconUnlessHovered,
-    } = props;
-    const column = headerCell.column;
-    const isSorted = column.getIsSorted();
-    const isUtilityColumn =
-      column.id === "select" ||
-      column.id === "actions" ||
-      column.id === "__select" ||
-      column.id === "__expand" ||
-      column.id === "__actions";
-    const showHeaderFilter = Boolean(onColumnHeaderFilterChange) && !isUtilityColumn;
-    const activeHeaderFilter = getColumnHeaderFilter?.(column.id);
+function CellHeaderContent<TData extends RowData>(props: {
+  table: TanstackTable<TData>;
+  headerCell: Header<TData, any>;
+  onColumnFilterClick?: (columnId: string, columnName: string) => void;
+  getColumnHeaderFilter?: DataTableProps<TData>["getColumnHeaderFilter"];
+  onColumnHeaderFilterChange?: DataTableProps<TData>["onColumnHeaderFilterChange"];
+  hideColumnPinIconUnlessHovered?: boolean;
+}) {
+  const {
+    table,
+    headerCell,
+    onColumnFilterClick,
+    getColumnHeaderFilter,
+    onColumnHeaderFilterChange,
+    hideColumnPinIconUnlessHovered,
+  } = props;
+  const column = headerCell.column;
+  const isSorted = column.getIsSorted();
+  const isUtilityColumn =
+    column.id === "select" ||
+    column.id === "actions" ||
+    column.id === "__select" ||
+    column.id === "__expand" ||
+    column.id === "__actions";
+  const showHeaderFilter = Boolean(onColumnHeaderFilterChange) && !isUtilityColumn;
+  const activeHeaderFilter = getColumnHeaderFilter?.(column.id);
 
-    return (
-      <div className={"flex min-w-0 items-center justify-between gap-0.5"}>
-        <ColumnHeaderContextMenu column={column} table={table} onFilterClick={onColumnFilterClick}>
-          <HStack className="min-w-0 flex-1 truncate" align="center" w="full">
-            {headerCell.isPlaceholder ? null : column.getCanSort() &&
-              column.columnDef.enableSorting ? (
-              <Button
-                onClick={column.getToggleSortingHandler()}
-                variant="ghost"
-                size="sm"
-                data-test-id={`table-sort-${column.id}`}
-                className="h-5 gap-1 px-1"
-              >
-                {flexRender(headerCell.column.columnDef.header, headerCell.getContext())}
-                {isSorted === "desc" ? (
-                  <ArrowDownNarrowWide className="h-3 w-3 shrink-0" />
-                ) : isSorted === "asc" ? (
-                  <ArrowUpNarrowWide className="h-3 w-3 shrink-0" />
-                ) : (
-                  <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
-                )}
-              </Button>
-            ) : (
-              flexRender(headerCell.column.columnDef.header, headerCell.getContext())
-            )}
-          </HStack>
-        </ColumnHeaderContextMenu>
-        {showHeaderFilter ? (
-          <ColumnHeaderFilter
-            columnId={column.id}
-            active={activeHeaderFilter}
-            onApply={(filter) => onColumnHeaderFilterChange?.(column.id, filter)}
-          />
-        ) : null}
-        {column.getCanPin() ? (
-          column.getIsPinned() ? (
+  return (
+    <div className={"flex min-w-0 items-center justify-between gap-0.5"}>
+      <ColumnHeaderContextMenu column={column} table={table} onFilterClick={onColumnFilterClick}>
+        <HStack className="min-w-0 flex-1 truncate" align="center" w="full">
+          {headerCell.isPlaceholder ? null : column.getCanSort() &&
+            column.columnDef.enableSorting ? (
             <Button
-              variant={hideColumnPinIconUnlessHovered ? "outline" : "ghost"}
-              size="xs"
-              withIcon={false}
-              onClick={() => column.pin(false)}
-              aria-label={`Unpin column ${String(column.id)}`}
-              className={
-                hideColumnPinIconUnlessHovered
-                  ? "absolute right-3 opacity-0 transition-opacity group-hover:opacity-100"
-                  : "mr-2"
-              }
+              onClick={column.getToggleSortingHandler()}
+              variant="ghost"
+              size="sm"
+              data-test-id={`table-sort-${column.id}`}
+              className="h-5 gap-1 px-1"
             >
-              <PinOff className="h-3 w-3" />
+              {flexRender(headerCell.column.columnDef.header, headerCell.getContext())}
+              {isSorted === "desc" ? (
+                <ArrowDownNarrowWide className="h-3 w-3 shrink-0" />
+              ) : isSorted === "asc" ? (
+                <ArrowUpNarrowWide className="h-3 w-3 shrink-0" />
+              ) : (
+                <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-50" />
+              )}
             </Button>
           ) : (
-            <Button
-              variant={hideColumnPinIconUnlessHovered ? "outline" : "ghost"}
-              size="xs"
-              withIcon={false}
-              onClick={() => column.pin("left")}
-              aria-label={`Pin column ${String(column.id)} to the left`}
-              className={
-                hideColumnPinIconUnlessHovered
-                  ? "absolute right-3 opacity-0 transition-opacity group-hover:opacity-100"
-                  : "mr-2"
-              }
+            flexRender(headerCell.column.columnDef.header, headerCell.getContext())
+          )}
+        </HStack>
+      </ColumnHeaderContextMenu>
+      {showHeaderFilter ? (
+        <ColumnHeaderFilter
+          columnId={column.id}
+          active={activeHeaderFilter}
+          onApply={(filter) => onColumnHeaderFilterChange?.(column.id, filter)}
+        />
+      ) : null}
+      {column.getCanPin() ? (
+        column.getIsPinned() ? (
+          <Button
+            variant={hideColumnPinIconUnlessHovered ? "outline" : "ghost"}
+            size="xs"
+            withIcon={false}
+            onClick={() => column.pin(false)}
+            aria-label={`Unpin column ${String(column.id)}`}
+            className={
+              hideColumnPinIconUnlessHovered
+                ? "absolute right-3 opacity-0 transition-opacity group-hover:opacity-100"
+                : "mr-2"
+            }
+          >
+            <PinOff className="h-3 w-3" />
+          </Button>
+        ) : (
+          <Button
+            variant={hideColumnPinIconUnlessHovered ? "outline" : "ghost"}
+            size="xs"
+            withIcon={false}
+            onClick={() => column.pin("start")}
+            aria-label={`Pin column ${String(column.id)} to the left`}
+            className={
+              hideColumnPinIconUnlessHovered
+                ? "absolute right-3 opacity-0 transition-opacity group-hover:opacity-100"
+                : "mr-2"
+            }
+          >
+            <Pin className="h-3 w-3" />
+          </Button>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+function HeaderCell<TData extends RowData>(props: {
+  table: TanstackTable<TData>;
+  headerGroup: HeaderGroup<TData>;
+  headerCell: Header<TData, any>;
+  colSpanOverride?: number;
+  sizeOverridePx?: number;
+  enableColumnOrdering?: boolean;
+  size?: DataTableSize;
+  showColumnBorder?: boolean;
+  hideColumnPinIconUnlessHovered?: boolean;
+  onColumnFilterClick?: (columnId: string, columnName: string) => void;
+  getColumnHeaderFilter?: DataTableProps<TData>["getColumnHeaderFilter"];
+  onColumnHeaderFilterChange?: DataTableProps<TData>["onColumnHeaderFilterChange"];
+  resizable?: boolean;
+}) {
+  const { table, headerGroup, headerCell } = props;
+
+  const selectedRowsCount = table.getSelectedRowModel().rows.length;
+  const hasSelectedRows = selectedRowsCount > 0;
+  const hasBulkActions = hasSelectedRows && headerGroup.headers.at(-1) === headerCell;
+  const column = headerCell.column;
+
+  const meta = headerCell.column.columnDef.meta as Record<string, unknown> | undefined;
+  const textAlign = (meta?.textAlign as "left" | "right" | "center" | undefined) || "left";
+  const className = (meta?.className as boolean) ?? false;
+  const isDragDisabled =
+    props.enableColumnOrdering === false ||
+    meta?.enableColumnOrdering === false ||
+    Boolean(column.getIsPinned()) ||
+    headerCell.subHeaders.length;
+
+  if (!isDragDisabled) {
+    return (
+      <DraggableColumnHeader key={headerCell.id} column={column}>
+        {(dragCtx) => {
+          return (
+            <th
+              key={headerCell.id}
+              colSpan={props.colSpanOverride ?? headerCell.colSpan}
+              data-column-id={headerCell.column.id}
+              data-draggable
+              ref={dragCtx.setNodeRef}
+              style={{
+                ...dragCtx.style,
+                width:
+                  headerCell.subHeaders.length === 0
+                    ? `${props.sizeOverridePx ?? headerCell.getSize()}px`
+                    : "auto",
+                zIndex: headerCell.index + (dragCtx.isDragging ? 2 : 1),
+                position: "sticky",
+              }}
+              className={cn(
+                tableHeaderCellStyles({
+                  size: props.size,
+                  showColumnBorder: props.showColumnBorder,
+                  textAlign: hasBulkActions ? "right" : textAlign,
+                }),
+                "bg-background sticky z-1",
+                headerCell.subHeaders.length !== 0 && "left-[50px]",
+                className,
+              )}
             >
-              <Pin className="h-3 w-3" />
-            </Button>
-          )
-        ) : null}
-      </div>
-    );
-  },
-);
-
-const HeaderCell = memo(
-  (props: {
-    table: TanstackTable<any>;
-    headerGroup: HeaderGroup<any>;
-    headerCell: Header<any, any>;
-    colSpanOverride?: number;
-    sizeOverridePx?: number;
-    enableColumnOrdering?: boolean;
-    size?: DataTableSize;
-    showColumnBorder?: boolean;
-    hideColumnPinIconUnlessHovered?: boolean;
-    onColumnFilterClick?: (columnId: string, columnName: string) => void;
-    getColumnHeaderFilter?: DataTableProps<any>["getColumnHeaderFilter"];
-    onColumnHeaderFilterChange?: DataTableProps<any>["onColumnHeaderFilterChange"];
-    resizable?: boolean;
-  }) => {
-    const { table, headerGroup, headerCell } = props;
-
-    const selectedRowsCount = table.getSelectedRowModel().rows.length;
-    const hasSelectedRows = selectedRowsCount > 0;
-    const hasBulkActions = hasSelectedRows && headerGroup.headers.at(-1) === headerCell;
-    const column = headerCell.column;
-
-    const meta = headerCell.column.columnDef.meta as Record<string, unknown> | undefined;
-    const textAlign = (meta?.textAlign as "left" | "right" | "center" | undefined) || "left";
-    const className = (meta?.className as boolean) ?? false;
-    const isDragDisabled =
-      props.enableColumnOrdering === false ||
-      meta?.enableColumnOrdering === false ||
-      Boolean(column.getIsPinned()) ||
-      headerCell.subHeaders.length;
-
-    if (!isDragDisabled) {
-      return (
-        <DraggableColumnHeader key={headerCell.id} column={column}>
-          {(dragCtx) => {
-            return (
-              <th
-                key={headerCell.id}
-                colSpan={props.colSpanOverride ?? headerCell.colSpan}
-                data-column-id={headerCell.column.id}
-                data-draggable
-                ref={dragCtx.setNodeRef}
-                style={{
-                  ...dragCtx.style,
-                  width:
-                    headerCell.subHeaders.length === 0
-                      ? `${props.sizeOverridePx ?? headerCell.getSize()}px`
-                      : "auto",
-                  zIndex: headerCell.index + (dragCtx.isDragging ? 2 : 1),
-                  position: "sticky",
-                }}
+              <div
                 className={cn(
-                  tableHeaderCellStyles({
-                    size: props.size,
-                    showColumnBorder: props.showColumnBorder,
-                    textAlign: hasBulkActions ? "right" : textAlign,
-                  }),
-                  "bg-background sticky z-1",
-                  headerCell.subHeaders.length !== 0 && "left-[50px]",
-                  className,
+                  "flex items-center gap-2 truncate",
+                  props.hideColumnPinIconUnlessHovered && "group",
                 )}
               >
-                <div
-                  className={cn(
-                    "flex items-center gap-2 truncate",
-                    props.hideColumnPinIconUnlessHovered && "group",
-                  )}
-                >
-                  {!dragCtx.isDragDisabled && (
-                    <button
-                      {...dragCtx.attributes}
-                      {...dragCtx.listeners}
-                      type="button"
-                      className="hover:bg-muted shrink-0 cursor-grab rounded p-1 active:cursor-grabbing"
-                      title="Drag to reorder columns"
-                    >
-                      <GripVertical className="text-muted-foreground size-4" />
-                    </button>
-                  )}
-                  <CellHeaderContent
-                    table={table}
-                    headerCell={headerCell}
-                    onColumnFilterClick={props.onColumnFilterClick}
-                    getColumnHeaderFilter={props.getColumnHeaderFilter}
-                    onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
-                    hideColumnPinIconUnlessHovered={props.hideColumnPinIconUnlessHovered}
-                  />
-                </div>
-                {props.resizable && headerCell.column.columnDef.enableResizing !== false && (
-                  <ResizeHandle
-                    onDoubleClick={() => headerCell.column.resetSize()}
-                    onMouseDown={headerCell.getResizeHandler()}
-                    onTouchStart={headerCell.getResizeHandler()}
-                    isResizing={headerCell.column.getIsResizing()}
-                    columnResizeDirection={table.options.columnResizeDirection}
-                  />
+                {!dragCtx.isDragDisabled && (
+                  <button
+                    {...dragCtx.attributes}
+                    {...dragCtx.listeners}
+                    type="button"
+                    className="hover:bg-muted shrink-0 cursor-grab rounded p-1 active:cursor-grabbing"
+                    title="Drag to reorder columns"
+                  >
+                    <GripVertical className="text-muted-foreground size-4" />
+                  </button>
                 )}
-              </th>
-            );
-          }}
-        </DraggableColumnHeader>
-      );
-    }
-
-    const headerSize = headerCell.column.getSize();
-    return (
-      <th
-        key={headerCell.id}
-        colSpan={props.colSpanOverride ?? headerCell.colSpan}
-        data-column-id={headerCell.column.id}
-        data-column-pinned={headerCell.column.getIsPinned()}
-        style={{
-          ...getColumnPinningStyles(column),
-          width:
-            props.sizeOverridePx != null
-              ? `${props.sizeOverridePx}px`
-              : headerCell.isPlaceholder
-                ? `${(headerSize / table.getTotalSize()) * 100}%`
-                : `${headerCell.getSize()}px`,
+                <CellHeaderContent
+                  table={table}
+                  headerCell={headerCell}
+                  onColumnFilterClick={props.onColumnFilterClick}
+                  getColumnHeaderFilter={props.getColumnHeaderFilter}
+                  onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
+                  hideColumnPinIconUnlessHovered={props.hideColumnPinIconUnlessHovered}
+                />
+              </div>
+              {props.resizable && headerCell.column.columnDef.enableResizing !== false && (
+                <ResizeHandle
+                  onDoubleClick={() => headerCell.column.resetSize()}
+                  onMouseDown={headerCell.getResizeHandler()}
+                  onTouchStart={headerCell.getResizeHandler()}
+                  isResizing={headerCell.column.getIsResizing()}
+                  columnResizeDirection={table.options.columnResizeDirection}
+                />
+              )}
+            </th>
+          );
         }}
-        className={cn(
-          tableHeaderCellStyles({
-            size: props.size,
-            showColumnBorder: props.showColumnBorder,
-            textAlign: hasBulkActions ? "right" : textAlign,
-          }),
-          className,
-          "relative",
-          headerCell.subHeaders.length && "py-1.5 pl-10",
-          props.hideColumnPinIconUnlessHovered && "group",
-        )}
-      >
-        <CellHeaderContent
-          table={table}
-          headerCell={headerCell}
-          onColumnFilterClick={props.onColumnFilterClick}
-          getColumnHeaderFilter={props.getColumnHeaderFilter}
-          onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
-          hideColumnPinIconUnlessHovered={props.hideColumnPinIconUnlessHovered}
-        />
-        {props.resizable && headerCell.column.columnDef.enableResizing !== false && (
-          <ResizeHandle
-            onDoubleClick={() => headerCell.column.resetSize()}
-            onMouseDown={headerCell.getResizeHandler()}
-            onTouchStart={headerCell.getResizeHandler()}
-            isResizing={headerCell.column.getIsResizing()}
-            columnResizeDirection={table.options.columnResizeDirection}
-          />
-        )}
-      </th>
+      </DraggableColumnHeader>
     );
-  },
-);
+  }
+
+  const headerSize = headerCell.column.getSize();
+  return (
+    <th
+      key={headerCell.id}
+      colSpan={props.colSpanOverride ?? headerCell.colSpan}
+      data-column-id={headerCell.column.id}
+      data-column-pinned={headerCell.column.getIsPinned()}
+      style={{
+        ...getColumnPinningStyles(column),
+        width:
+          props.sizeOverridePx != null
+            ? `${props.sizeOverridePx}px`
+            : headerCell.isPlaceholder
+              ? `${(headerSize / table.getTotalSize()) * 100}%`
+              : `${headerCell.getSize()}px`,
+      }}
+      className={cn(
+        tableHeaderCellStyles({
+          size: props.size,
+          showColumnBorder: props.showColumnBorder,
+          textAlign: hasBulkActions ? "right" : textAlign,
+        }),
+        className,
+        "relative",
+        headerCell.subHeaders.length && "py-1.5 pl-10",
+        props.hideColumnPinIconUnlessHovered && "group",
+      )}
+    >
+      <CellHeaderContent
+        table={table}
+        headerCell={headerCell}
+        onColumnFilterClick={props.onColumnFilterClick}
+        getColumnHeaderFilter={props.getColumnHeaderFilter}
+        onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
+        hideColumnPinIconUnlessHovered={props.hideColumnPinIconUnlessHovered}
+      />
+      {props.resizable && headerCell.column.columnDef.enableResizing !== false && (
+        <ResizeHandle
+          onDoubleClick={() => headerCell.column.resetSize()}
+          onMouseDown={headerCell.getResizeHandler()}
+          onTouchStart={headerCell.getResizeHandler()}
+          isResizing={headerCell.column.getIsResizing()}
+          columnResizeDirection={table.options.columnResizeDirection}
+        />
+      )}
+    </th>
+  );
+}

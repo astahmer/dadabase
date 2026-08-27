@@ -1,8 +1,9 @@
-import type { Column } from "@tanstack/react-table";
 import type { CSSProperties } from "react";
 
+import type { Column, RowData } from "#src/lib/tanstack-table.ts";
+
 export function getPinningStyles(input: {
-  isPinned: "left" | "right" | false;
+  isPinned: "start" | "end" | false;
   isLastLeftPinnedColumn: boolean;
   isFirstRightPinnedColumn: boolean;
   columnStartLeft: number;
@@ -18,8 +19,8 @@ export function getPinningStyles(input: {
       : isFirstRightPinnedColumn
         ? "4px 0 4px -4px gray inset"
         : undefined,
-    left: isPinned === "left" ? `${input.columnStartLeft}px` : undefined,
-    right: isPinned === "right" ? `${input.columnAfterRight}px` : undefined,
+    left: isPinned === "start" ? `${input.columnStartLeft}px` : undefined,
+    right: isPinned === "end" ? `${input.columnAfterRight}px` : undefined,
     opacity: isPinned ? 0.95 : 1,
     position: isPinned ? "sticky" : ("relative" as const),
     width: input.columnSize,
@@ -27,17 +28,19 @@ export function getPinningStyles(input: {
   };
 }
 
-export function getColumnPinningStyles<TData>(column: Column<TData>): CSSProperties {
+export function getColumnPinningStyles<TData extends RowData>(
+  column: Column<TData>,
+): CSSProperties {
   const isPinned = column.getIsPinned();
-  const isLastLeftPinnedColumn = isPinned === "left" && column.getIsLastColumn("left");
-  const isFirstRightPinnedColumn = isPinned === "right" && column.getIsFirstColumn("right");
+  const isLastLeftPinnedColumn = isPinned === "start" && column.getIsLastColumn("start");
+  const isFirstRightPinnedColumn = isPinned === "end" && column.getIsFirstColumn("end");
 
   return getPinningStyles({
     isPinned,
     isLastLeftPinnedColumn,
     isFirstRightPinnedColumn,
     columnSize: column.getSize(),
-    columnStartLeft: column.getStart("left"),
-    columnAfterRight: column.getAfter("right"),
+    columnStartLeft: column.getStart("start"),
+    columnAfterRight: column.getAfter("end"),
   });
 }

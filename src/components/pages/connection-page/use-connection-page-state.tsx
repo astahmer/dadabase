@@ -1,10 +1,3 @@
-import type {
-  AccessorKeyColumnDef,
-  ColumnDef,
-  ColumnPinningState,
-  Row,
-} from "@tanstack/react-table";
-
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
@@ -12,6 +5,12 @@ import { useCallback, useMemo, useRef, useState } from "react";
 
 import type { DataTableRowSubrow } from "#src/components/data-table/data-table.row.tsx";
 import type { DatabaseDialect } from "#src/db/dialect.ts";
+import type {
+  AccessorKeyColumnDef,
+  ColumnDef,
+  ColumnPinningState,
+  Row,
+} from "#src/lib/tanstack-table.ts";
 
 import { RowActionsMenu } from "#src/components/app/row-actions-menu.tsx";
 import { RowContextMenu } from "#src/components/app/row-context-menu.tsx";
@@ -654,8 +653,8 @@ export const useConnectionPageState = ({
       (col) => col !== "__expand" && col !== "__select",
     );
     return {
-      left: ["__expand", "__select", ...left],
-      right: Array.from(search.columnPinning?.right ?? []),
+      start: ["__expand", "__select", ...left],
+      end: Array.from(search.columnPinning?.right ?? []),
     };
   }, [search.columnPinning]);
 
@@ -760,7 +759,10 @@ export const useConnectionPageState = ({
       navigate({
         search: (prev) => {
           return updateTabState(prev, {
-            columnPinning: newPinning,
+            columnPinning: {
+              left: newPinning.start,
+              right: newPinning.end,
+            },
           });
         },
       });

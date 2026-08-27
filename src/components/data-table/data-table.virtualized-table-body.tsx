@@ -1,7 +1,8 @@
-import type { Row } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
+
+import type { Row, RowData } from "#src/lib/tanstack-table.ts";
 
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
 import type { DataTableSize } from "./data-table.styles.ts";
@@ -9,7 +10,7 @@ import type { CellSelectionCellState } from "./use-data-table-cell-selection.ts"
 
 import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 
-export interface VirtualizedTableBodyProps<TData> {
+export interface VirtualizedTableBodyProps<TData extends RowData> {
   rows: Row<TData>[];
   onRowClick?: (row: Row<TData>) => void;
   onRowDoubleClick?: (row: Row<TData>) => void;
@@ -30,7 +31,7 @@ export interface VirtualizedTableBodyProps<TData> {
   cellSelection?: (rowId: string, columnId: string) => CellSelectionCellState | undefined;
 }
 
-export function VirtualizedTableBody<TData>({
+export function VirtualizedTableBody<TData extends RowData>({
   rows,
   onRowClick,
   onRowDoubleClick,

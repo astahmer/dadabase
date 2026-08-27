@@ -1,5 +1,3 @@
-import type { Table as TanstackTable } from "@tanstack/react-table";
-
 import { useNavigate } from "@tanstack/react-router";
 import {
   Download,
@@ -18,6 +16,7 @@ import {
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useState } from "react";
 
 import type { QueryFilterBuilderReturn } from "#src/components/query-builder/use-query-builder.ts";
+import type { Table as TanstackTable } from "#src/lib/tanstack-table.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import { JoinTablesPanel } from "#src/components/pages/connection-page/join-tables/join-tables.dialog.tsx";
@@ -53,7 +52,7 @@ import { StructureFilterControls } from "./structure-table-filters.tsx";
 interface ConnectionPageFiltersProps {
   columnList: string[];
   isLoading: boolean;
-  table: TanstackTable<any>;
+  table: TanstackTable<Record<string, unknown>>;
   queryBuilder: QueryFilterBuilderReturn;
   url: string;
   schema: string;
@@ -383,44 +382,44 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
           <>
             <div id="connection-page-filters-top-row" className="contents" />
             {onImportData && (
-                  <Menu>
-                    <MenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        data-testid="toolbar-change-menu"
-                        aria-label="Change data"
-                      >
-                        <PenLine className="h-3.5 w-3.5" />
-                        Change
-                      </Button>
-                    </MenuTrigger>
-                    <MenuContent>
-                      <p
-                        className={
-                          isReadOnly
-                            ? "text-destructive px-2 py-1 text-xs font-medium"
-                            : "text-success px-2 py-1 text-xs font-medium"
-                        }
-                      >
-                        {isReadOnly ? "Read-only connection" : "Writes enabled"}
-                      </p>
-                      <MenuSeparator />
-                      {onImportData && (
-                        <MenuItem
-                          value="import-data"
-                          onClick={onImportData}
-                          disabled={isReadOnly}
-                          data-testid="import-data"
-                        >
-                          <Upload className="h-3.5 w-3.5" />
-                          Import data…
-                        </MenuItem>
-                      )}
-                    </MenuContent>
-                  </Menu>
-                )}
+              <Menu>
+                <MenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    data-testid="toolbar-change-menu"
+                    aria-label="Change data"
+                  >
+                    <PenLine className="h-3.5 w-3.5" />
+                    Change
+                  </Button>
+                </MenuTrigger>
+                <MenuContent>
+                  <p
+                    className={
+                      isReadOnly
+                        ? "text-destructive px-2 py-1 text-xs font-medium"
+                        : "text-success px-2 py-1 text-xs font-medium"
+                    }
+                  >
+                    {isReadOnly ? "Read-only connection" : "Writes enabled"}
+                  </p>
+                  <MenuSeparator />
+                  {onImportData && (
+                    <MenuItem
+                      value="import-data"
+                      onClick={onImportData}
+                      disabled={isReadOnly}
+                      data-testid="import-data"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      Import data…
+                    </MenuItem>
+                  )}
+                </MenuContent>
+              </Menu>
+            )}
             {onExportTable && (
               <Menu>
                 <MenuTrigger asChild>

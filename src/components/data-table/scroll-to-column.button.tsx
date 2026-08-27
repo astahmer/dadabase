@@ -1,15 +1,15 @@
-import type { Table as TanstackTable } from "@tanstack/react-table";
-
 import { createListCollection } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import type { Table as TanstackTable } from "#src/lib/tanstack-table.ts";
+
 import { Button } from "../ui/button";
 import { ListboxMenu } from "../ui/listbox-menu.export.ts";
 
 interface ScrollToColumnButtonProps {
-  table: TanstackTable<any>;
+  table: TanstackTable<Record<string, unknown>>;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -68,10 +68,10 @@ export function ScrollToColumnButton(props: ScrollToColumnButtonProps) {
     if (targetIndex === -1) return;
 
     const leftPinnedWidth = allLeafColumnsInOrder
-      .filter((c) => c.getIsPinned() === "left")
+      .filter((c) => c.getIsPinned() === "start")
       .reduce((acc, c) => acc + c.getSize(), 0);
     const rightPinnedWidth = allLeafColumnsInOrder
-      .filter((c) => c.getIsPinned() === "right")
+      .filter((c) => c.getIsPinned() === "end")
       .reduce((acc, c) => acc + c.getSize(), 0);
 
     const targetStart = allLeafColumnsInOrder

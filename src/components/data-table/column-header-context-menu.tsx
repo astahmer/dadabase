@@ -1,5 +1,3 @@
-import type { Column, Table } from "@tanstack/react-table";
-
 import { Portal } from "@ark-ui/react";
 import {
   ArrowDown,
@@ -18,6 +16,8 @@ import {
 } from "lucide-react";
 import { ReactNode } from "react";
 
+import type { Column, RowData, Table } from "#src/lib/tanstack-table.ts";
+
 import {
   Menu,
   MenuContent,
@@ -29,14 +29,14 @@ import {
 } from "../ui/menu";
 import { useColumnHeaderContext } from "./column-header-context";
 
-export interface ColumnHeaderContextMenuProps<TData = unknown> {
+export interface ColumnHeaderContextMenuProps<TData extends RowData = RowData> {
   column: Column<TData>;
   table: Table<TData>;
   children: ReactNode;
   onFilterClick?: (columnId: string, columnName: string) => void;
 }
 
-export function ColumnHeaderContextMenu<TData>({
+export function ColumnHeaderContextMenu<TData extends RowData>({
   column,
   table,
   children,
@@ -149,7 +149,7 @@ export function ColumnHeaderContextMenu<TData>({
                 <ArrowDown className="size-4" />
                 <MenuItemText>Sort descending</MenuItemText>
               </MenuItem>
-              {renderColumnHeaderMenuItems?.({ column })}
+              {renderColumnHeaderMenuItems?.({ column: column as Column<RowData> })}
               {isSorted && (
                 <MenuItem value="clear-sort" onClick={() => column.clearSorting()}>
                   <MenuItemText>Clear sorting</MenuItemText>
@@ -181,17 +181,17 @@ export function ColumnHeaderContextMenu<TData>({
           {canPin && (
             <>
               <MenuItem
-                value="pin-left"
-                onClick={() => column.pin?.("left")}
-                disabled={isPinned === "left"}
+                value="pin-start"
+                onClick={() => column.pin?.("start")}
+                disabled={isPinned === "start"}
               >
                 <Pin className="size-4" />
                 <MenuItemText>Pin to left</MenuItemText>
               </MenuItem>
               <MenuItem
-                value="pin-right"
-                onClick={() => column.pin?.("right")}
-                disabled={isPinned === "right"}
+                value="pin-end"
+                onClick={() => column.pin?.("end")}
+                disabled={isPinned === "end"}
               >
                 <Pin className="size-4" />
                 <MenuItemText>Pin to right</MenuItemText>

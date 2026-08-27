@@ -2,7 +2,6 @@ import { Portal, Splitter } from "@ark-ui/react";
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useMatches, useNavigate, useSearch } from "@tanstack/react-router";
-import { createColumnHelper } from "@tanstack/react-table";
 import {
   ArrowDown,
   ArrowDownUp,
@@ -111,6 +110,7 @@ import {
   SQL_PREVIEW_REVEAL_SIZE,
 } from "#src/lib/sql-preview-panel.ts";
 import { splitSqlStatements } from "#src/lib/sql-statements.ts";
+import { createColumnHelper } from "#src/lib/tanstack-table.ts";
 import { cn, tryFn } from "#src/lib/utils.ts";
 import { queryClient } from "#src/query-client.ts";
 import {

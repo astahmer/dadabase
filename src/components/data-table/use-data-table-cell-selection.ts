@@ -1,7 +1,8 @@
-import type { Row, Table as TanstackTable } from "@tanstack/react-table";
 import type { MouseEvent as ReactMouseEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import type { Row, RowData, Table as TanstackTable } from "#src/lib/tanstack-table.ts";
 
 import { copyToClipboard, exportRows } from "../../lib/data-export/index.ts";
 import { matrixToDelimitedText, parseCellClipboard, stringifyCellValue } from "./cell-selection.ts";
@@ -40,13 +41,13 @@ export type CellSelectionCellState = {
 
 export type CellSelectionExportFormat = "tsv" | "csv" | "json" | "sql";
 
-export interface SelectedDataTableCell<TData> {
+export interface SelectedDataTableCell<TData extends RowData> {
   row: Row<TData>;
   columnId: string;
   value: unknown;
 }
 
-export interface DataTableSelectionSnapshot<TData> {
+export interface DataTableSelectionSnapshot<TData extends RowData> {
   columns: string[];
   matrix: unknown[][];
   rows: Array<{ row: Row<TData>; values: Record<string, unknown> }>;
@@ -54,13 +55,13 @@ export interface DataTableSelectionSnapshot<TData> {
   focusedCell: SelectedDataTableCell<TData> | null;
 }
 
-export interface DataTableSelectionExportInput<TData> {
+export interface DataTableSelectionExportInput<TData extends RowData> {
   format: CellSelectionExportFormat;
   download: boolean;
   selection: DataTableSelectionSnapshot<TData>;
 }
 
-export interface DataTableCellSelectionOptions<TData> {
+export interface DataTableCellSelectionOptions<TData extends RowData> {
   onPasteSelection?: (input: {
     rowId: string;
     columnId: string;
@@ -114,7 +115,7 @@ const isWithinRange = (
   );
 };
 
-export function useDataTableCellSelection<TData>(
+export function useDataTableCellSelection<TData extends RowData>(
   table: TanstackTable<TData>,
   enabled: boolean,
   options: DataTableCellSelectionOptions<TData> = {},

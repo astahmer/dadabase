@@ -1,11 +1,11 @@
 import type { ComponentProps, ReactNode } from "react";
 
 import { horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
-import { flexRender, type Row } from "@tanstack/react-table";
 import { Fragment, memo, useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
 import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
+import { flexRender, type Row, type RowData } from "#src/lib/tanstack-table.ts";
 
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
 import type { CellSelectionCellState } from "./use-data-table-cell-selection.ts";
@@ -22,7 +22,26 @@ export interface DataTableRowSubrow {
   content: ReactNode;
 }
 
-export const DataTableRow = memo(function TableRow({
+export interface DataTableRowProps<TData extends RowData> {
+  index: number;
+  getRow: () => Row<TData>;
+  onRowClick?: (row: Row<TData>) => void;
+  onRowDoubleClick?: (row: Row<TData>) => void;
+  size: DataTableSize;
+  striped: boolean;
+  interactive: boolean;
+  showColumnBorder: boolean;
+  withRowContextMenu?: boolean;
+  enableColumnOrdering: boolean;
+  columnOrder?: string[];
+  columnVirtualization: ColumnVirtualizationState;
+  ExpandedRow?: (props: { row: Row<TData> }) => ReactNode;
+  onExpandRowJson?: (row: Record<string, unknown>) => void;
+  renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
+  cellSelection?: (rowId: string, columnId: string) => CellSelectionCellState | undefined;
+}
+
+const MemoizedDataTableRow = memo(function TableRow<TData extends RowData>({
   index,
   getRow,
   onRowClick,
@@ -39,24 +58,7 @@ export const DataTableRow = memo(function TableRow({
   columnVirtualization,
   renderSubrows,
   cellSelection,
-}: {
-  index: number;
-  getRow: () => Row<any>;
-  onRowClick?: (row: Row<any>) => void;
-  onRowDoubleClick?: (row: Row<any>) => void;
-  size: DataTableSize;
-  striped: boolean;
-  interactive: boolean;
-  showColumnBorder: boolean;
-  withRowContextMenu?: boolean;
-  enableColumnOrdering: boolean;
-  columnOrder?: string[];
-  columnVirtualization: ColumnVirtualizationState;
-  ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
-  onExpandRowJson?: (row: Record<string, unknown>) => void;
-  renderSubrows?: (row: Row<any>) => DataTableRowSubrow[];
-  cellSelection?: (rowId: string, columnId: string) => CellSelectionCellState | undefined;
-}) {
+}: DataTableRowProps<TData>) {
   const row = getRow();
   const visibleCells = row.getVisibleCells();
   const isSelected = row.getIsSelected();
@@ -98,8 +100,8 @@ export const DataTableRow = memo(function TableRow({
       );
     };
 
-    const leftPinnedCells = visibleCells.filter((c) => c.column.getIsPinned() === "left");
-    const rightPinnedCells = visibleCells.filter((c) => c.column.getIsPinned() === "right");
+    const leftPinnedCells = visibleCells.filter((c) => c.column.getIsPinned() === "start");
+    const rightPinnedCells = visibleCells.filter((c) => c.column.getIsPinned() === "end");
     const centerCells = visibleCells.filter((c) => !c.column.getIsPinned());
 
     const centerCellByColumnId = new Map(centerCells.map((c) => [c.column.id, c]));
@@ -248,6 +250,10 @@ export const DataTableRow = memo(function TableRow({
     </Fragment>
   );
 });
+
+export const DataTableRow = MemoizedDataTableRow as <TData extends RowData>(
+  props: DataTableRowProps<TData>,
+) => ReactNode;
 
 type TagName = "BUTTON" | "A";
 

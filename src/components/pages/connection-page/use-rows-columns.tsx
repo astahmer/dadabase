@@ -1,9 +1,8 @@
-import type { ColumnDef } from "@tanstack/react-table";
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 import type { ForeignKeyInfo } from "#src/components/data-table/cell-context-menu.tsx";
+import type { ColumnDef } from "#src/lib/tanstack-table.ts";
 
 import { ColumnHeaderWithInfo } from "#src/components/app/column-header-with-info.tsx";
 import { ForeignKeyIcon } from "#src/components/app/foreign-key-icon.tsx";

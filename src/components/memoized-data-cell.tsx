@@ -1,6 +1,6 @@
-import type { CellContext } from "@tanstack/react-table";
-
 import { memo, useState } from "react";
+
+import type { CellContext } from "#src/lib/tanstack-table.ts";
 
 import { DADABASE_ROW_ID } from "#src/server/introspection/fns/row-identity.ts";
 

@@ -1,5 +1,3 @@
-import type { Table as TanstackTable } from "@tanstack/react-table";
-
 import { useListCollection } from "@ark-ui/react";
 import { Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
@@ -8,9 +6,11 @@ import { Portal } from "@ark-ui/react/portal";
 import { ChevronsUpDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import type { RowData, Table as TanstackTable } from "#src/lib/tanstack-table.ts";
+
 import { Button } from "../ui/button";
 
-export interface ColumnVisibilityControlsProps<TData> {
+export interface ColumnVisibilityControlsProps<TData extends RowData> {
   table: TanstackTable<TData>;
   columnList: string[];
   minimal?: boolean;
@@ -18,7 +18,9 @@ export interface ColumnVisibilityControlsProps<TData> {
   onVisibilityModeChange?: (mode: "client" | "server") => void;
 }
 
-export function ColumnVisibilityControls<TData>(props: ColumnVisibilityControlsProps<TData>) {
+export function ColumnVisibilityControls<TData extends RowData>(
+  props: ColumnVisibilityControlsProps<TData>,
+) {
   const { table, minimal = false, visibilityMode = "client", onVisibilityModeChange } = props;
   const [open, setOpen] = useState(false);
 

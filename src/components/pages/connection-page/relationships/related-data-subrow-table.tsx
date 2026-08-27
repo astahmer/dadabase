@@ -1,10 +1,9 @@
-import type { ColumnDef } from "@tanstack/react-table";
-
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Maximize2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { TableRelationship } from "#src/components/pages/connection-page/relationships/relationships.ts";
+import type { ColumnDef } from "#src/lib/tanstack-table.ts";
 
 import { useRowsColumnsAction } from "#src/components/pages/connection-page/use-rows-columns.actions.ts";
 

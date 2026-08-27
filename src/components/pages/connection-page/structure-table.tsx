@@ -1,8 +1,7 @@
-import type { ColumnDef } from "@tanstack/react-table";
-
 import { MoreHorizontal } from "lucide-react";
 import { useMemo } from "react";
 
+import type { ColumnDef } from "#src/lib/tanstack-table.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
 import type { DataTableSize } from "../../data-table/data-table.styles.ts";
