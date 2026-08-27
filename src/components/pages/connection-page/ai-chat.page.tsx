@@ -212,8 +212,6 @@ const AiChatPageInner = ({
   useEffect(() => {
     setHasApprovedSchemaSharing(hasSchemaSharingConsent(connection.name));
   }, [connection.name]);
-  // Audit C6/R1: below md the thread list becomes an overlay drawer.
-  const narrow = useIsNarrowWidth();
   const [threadListOpen, setThreadListOpen] = useState(false);
 
   /**
@@ -374,18 +372,17 @@ const AiChatPageInner = ({
               : "not configured"}
         </Badge>
         <div className="ml-auto flex items-center gap-2">
-          {narrow && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setThreadListOpen(true)}
-              data-testid="ai-threads-toggle"
-              aria-label="Show chats"
-            >
-              <PanelLeft className="size-4" />
-              Threads
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden"
+            onClick={() => setThreadListOpen(true)}
+            data-testid="ai-threads-toggle"
+            aria-label="Show chats"
+          >
+            <PanelLeft className="size-4" />
+            Threads
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -455,7 +452,6 @@ const AiChatPageInner = ({
           }}
           onOpenSchemaPanel={() => setSettingsOpen(true)}
           threadList={{
-            narrow,
             open: threadListOpen,
             onClose: () => setThreadListOpen(false),
           }}
@@ -989,7 +985,7 @@ const AiChatBody = ({
   /** Audit K6: `/schema` opens the schema settings panel. */
   onOpenSchemaPanel: () => void;
   /** Audit C6/R1: narrow-viewport thread-list drawer state. */
-  threadList: { narrow: boolean; open: boolean; onClose: () => void };
+  threadList: { open: boolean; onClose: () => void };
 }) => {
   // Audit S8: the ?thread= consumer must live INSIDE ChatProvider (it calls
   // useChatActions); see InitialThreadConsumer below.
@@ -1051,7 +1047,6 @@ const AiChatBody = ({
         <InitialThreadConsumer initialConversationId={initialConversationId} />
       )}
       <ThreadListPanel
-        narrow={threadList.narrow}
         overlayOpen={threadList.open}
         onClose={threadList.onClose}
       />
@@ -1283,12 +1278,9 @@ const InitialThreadConsumer = ({ initialConversationId }: { initialConversationI
 
 /** Saved-thread list; ghost entry before the first thread exists (audit C12). */
 const ThreadListPanel = ({
-  narrow,
   overlayOpen,
   onClose,
 }: {
-  /** Below md the list becomes an overlay drawer instead of a column. */
-  narrow: boolean;
   overlayOpen: boolean;
   onClose: () => void;
 }) => {
@@ -1419,49 +1411,45 @@ const ThreadListPanel = ({
     </p>
   );
 
-  // Audit C6/R1: below md the list overlays the thread instead of squeezing
-  // it; it never removes the thread from the DOM.
-  if (narrow) {
-    if (!overlayOpen) return null;
-    return (
-      <>
-        <div
-          className="fixed inset-0 z-30 bg-black/30"
-          onClick={onClose}
-          aria-hidden="true"
-          data-testid="ai-thread-overlay-backdrop"
-        />
-        <aside
-          className="border-border bg-background fixed inset-y-0 left-0 z-40 w-64 overflow-auto border-r p-2 shadow-xl"
-          data-testid="ai-thread-list"
-        >
-          <div className="flex items-center justify-between">
-            {header}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-6"
-              aria-label="Close chats"
-              onClick={onClose}
-              data-testid="ai-thread-list-close"
-            >
-              <X className="size-3.5" />
-            </Button>
-          </div>
-          {content}
-        </aside>
-      </>
-    );
-  }
-
   return (
-    <aside
-      className="border-border w-56 shrink-0 overflow-auto border-r p-2"
-      data-testid="ai-thread-list"
-    >
-      {header}
-      {content}
-    </aside>
+    <>
+      {overlayOpen ? (
+        <div className="md:hidden">
+          <div
+            className="fixed inset-0 z-30 bg-black/30"
+            onClick={onClose}
+            aria-hidden="true"
+            data-testid="ai-thread-overlay-backdrop"
+          />
+          <aside
+            className="border-border bg-background fixed inset-y-0 left-0 z-40 w-64 overflow-auto border-r p-2 shadow-xl"
+            data-testid="ai-thread-list"
+          >
+            <div className="flex items-center justify-between">
+              {header}
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-6"
+                aria-label="Close chats"
+                onClick={onClose}
+                data-testid="ai-thread-list-close"
+              >
+                <X className="size-3.5" />
+              </Button>
+            </div>
+            {content}
+          </aside>
+        </div>
+      ) : null}
+      <aside
+        className="border-border hidden w-56 shrink-0 overflow-auto border-r p-2 md:block"
+        data-testid="ai-thread-list-desktop"
+      >
+        {header}
+        {content}
+      </aside>
+    </>
   );
 };
 
@@ -1484,21 +1472,6 @@ const composerPlaceholder = (dialect: DatabaseDialect): string => {
     default:
       return "e.g. show pending orders from the last 7 days";
   }
-};
-
-/** Audit C6/R1: below md the thread list becomes an overlay drawer. */
-const useIsNarrowWidth = (): boolean => {
-  const [isNarrow, setIsNarrow] = useState(
-    () => globalThis.window?.matchMedia("(max-width: 767px)").matches ?? false,
-  );
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 767px)");
-    const update = () => setIsNarrow(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-  return isNarrow;
 };
 
 const mergeModelOptions = (candidates: Array<string | undefined>): string[] => {

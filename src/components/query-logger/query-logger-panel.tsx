@@ -135,13 +135,15 @@ export const QueryLoggerContent = ({
   return (
     <>
       <div
-        className="bg-muted/50 hover:bg-muted group flex h-12 shrink-0 items-center border-b px-4 py-2 transition-colors"
+        className="bg-muted/50 hover:bg-muted group flex min-h-12 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b px-3 py-2 transition-colors sm:px-4"
         data-testid="query-logger-panel"
       >
-        <div className="flex items-center gap-2 font-medium">
+        <div className="flex min-w-0 items-center gap-2 font-medium">
           <span>Query Logger</span>
           {isExpanded ? (
-            <span className="text-muted-foreground text-xs font-normal">Reviewable history</span>
+            <span className="text-muted-foreground hidden text-xs font-normal sm:inline">
+              Reviewable history
+            </span>
           ) : null}
           {connectionId && (
             <Popover>
@@ -224,7 +226,7 @@ export const QueryLoggerContent = ({
             </button>
           )}
         </div>
-        <HStack className="mr-auto ml-2 gap-1">
+        <HStack className="order-3 mr-auto ml-0 gap-1 sm:order-none sm:ml-2">
           <button
             type="button"
             onClick={() => {
@@ -295,9 +297,9 @@ export const QueryLoggerContent = ({
             <span className="text-xs font-medium">{queryLogger.counts.error}</span>
           </button>
         </HStack>
-        <HStack align="center">
+        <HStack align="center" className="ml-auto w-full flex-wrap gap-1 sm:w-auto sm:flex-nowrap">
           <Select.SelectRoot
-            className="w-full min-w-64"
+            className="min-w-0 flex-1 sm:min-w-64 sm:flex-none"
             collection={logTypeCollection}
             positioning={{ sameWidth: true }}
             multiple
@@ -330,7 +332,7 @@ export const QueryLoggerContent = ({
             </Select.SelectContent>
           </Select.SelectRoot>
           <Select.SelectRoot
-            className="w-full min-w-48"
+            className="min-w-0 flex-1 sm:min-w-48 sm:flex-none"
             collection={logLevelCollection}
             positioning={{ sameWidth: true }}
             multiple
