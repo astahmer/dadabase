@@ -74,7 +74,11 @@ const connectionFormSchema = z
         message: "Connection name is required.",
       });
     }
-    if (!isValidConnectionTarget(data)) {
+    const normalizedData = {
+      ...data,
+      connectionUrl: ensureUrlScheme(data.connectionType, data.connectionUrl),
+    };
+    if (!isValidConnectionTarget(normalizedData)) {
       ctx.addIssue({
         code: "custom",
         message: "Invalid connection configuration for selected type",
@@ -154,8 +158,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
 
       const focusTargetByField: Record<string, string> = {
         connectionName: "Name",
-        connectionUrl:
-          values.connectionType === DatabaseDialect.LibSQL ? "URL" : "URL",
+        connectionUrl: values.connectionType === DatabaseDialect.LibSQL ? "URL" : "URL",
         filePath:
           values.connectionType === DatabaseDialect.Csv
             ? "CSV File or Directory Path"
@@ -164,15 +167,20 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
               : "File Path",
       };
       const focusId =
-        (firstIssue && typeof firstIssue === "string" ? focusTargetByField[firstIssue] : undefined) ??
-        "Name";
+        (firstIssue && typeof firstIssue === "string"
+          ? focusTargetByField[firstIssue]
+          : undefined) ?? "Name";
       document.querySelector<HTMLInputElement>(`#${CSS.escape(focusId)}`)?.focus();
 
       const message = "Enter a name and a valid connection URL or database file path.";
       const dedupeKey = `${message}`;
       setSubmitError((previous) => {
         if (previous !== dedupeKey) {
-          toaster.create({ title: "Check connection details", description: message, type: "error" });
+          toaster.create({
+            title: "Check connection details",
+            description: message,
+            type: "error",
+          });
         }
         return dedupeKey;
       });
@@ -181,7 +189,10 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
   });
 
   async function saveConnection(values: ConnectionFormValues) {
-    const validation = connectionFormSchema.safeParse(values);
+    const validation = connectionFormSchema.safeParse({
+      ...values,
+      connectionUrl: ensureUrlScheme(values.connectionType, values.connectionUrl),
+    });
     if (!validation.success) {
       const message = "Enter a name and a valid connection URL or database file path.";
       setSubmitError(message);
@@ -519,7 +530,11 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
   }
 
   function submitForm() {
-    const validation = connectionFormSchema.safeParse(form.state.values);
+    const values = form.state.values;
+    const validation = connectionFormSchema.safeParse({
+      ...values,
+      connectionUrl: ensureUrlScheme(values.connectionType, values.connectionUrl),
+    });
     if (!validation.success) {
       const message = "Enter a name and a valid connection URL or database file path.";
       setSubmitError(message);
@@ -574,6 +589,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
         })}
       >
         {({ connectionType, connectionUrl, filePath }) => {
+          const normalizedUrl = ensureUrlScheme(connectionType, connectionUrl);
           const label =
             connectionType === DatabaseDialect.SQLite || connectionType === DatabaseDialect.DuckDB
               ? filePath
@@ -587,7 +603,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                   : "Choose a CSV file or a directory of *.csv files"
                 : (() => {
                     try {
-                      const parsed = new URL(connectionUrl);
+                      const parsed = new URL(normalizedUrl);
                       return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
                     } catch {
                       return "Paste a URL or fill in the connection fields";
@@ -604,6 +620,25 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
               <span className="text-muted-foreground mt-1 block">
                 Credentials are never shown here.
               </span>
+              {normalizedUrl !== connectionUrl.trim() && normalizedUrl !== "" ? (
+                <div
+                  className="border-primary/20 bg-primary/5 mt-2 flex items-center justify-between gap-2 rounded border px-2 py-1.5"
+                  data-testid="connection-url-prefix-preview"
+                >
+                  <span className="text-muted-foreground min-w-0 truncate">
+                    Preview: <span className="text-foreground font-mono">{normalizedUrl}</span>
+                  </span>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="xs"
+                    className="h-auto shrink-0 px-0"
+                    onClick={() => form.setFieldValue("connectionUrl", normalizedUrl)}
+                  >
+                    Use URL
+                  </Button>
+                </div>
+              ) : null}
             </div>
           );
         }}
@@ -625,7 +660,11 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                 <form.AppField name="connectionName">
                   {(field) => <field.TextField label="Name" />}
                 </form.AppField>
-                <FilePathField label="File Path" placeholder="/path/to/database.db" dropNoun="SQLite file" />
+                <FilePathField
+                  label="File Path"
+                  placeholder="/path/to/database.db"
+                  dropNoun="SQLite file"
+                />
                 <ReadOnlyField />
               </>
             );
@@ -725,9 +764,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                       className="border-primary/20 bg-primary/5 rounded-md border px-3 py-2 text-xs"
                       data-testid="preset-feedback"
                     >
-                      <p className="text-foreground font-medium">
-                        {preset.label} preset applied
-                      </p>
+                      <p className="text-foreground font-medium">{preset.label} preset applied</p>
                       <p className="text-muted-foreground mt-0.5">
                         Seeds port <span className="font-mono">{defaults.port}</span>, SSL{" "}
                         <span className="font-mono">
@@ -748,17 +785,10 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                 <form.AppField
                   name="connectionUrl"
                   listeners={{
-                    onChange: (props) => {
-                      // H8: explicit, dialect-correct scheme auto-prefixing —
-                      // never applied when the value already carries a scheme.
-                      const type = form.getFieldValue("connectionType");
-                      const prefixed = ensureUrlScheme(type, props.value);
-                      if (prefixed !== props.value) {
-                        form.setFieldValue("connectionUrl", prefixed);
-                      }
-                    },
                     onBlur: (props) => {
-                      updateFieldsFromConnectionUrl(props.value);
+                      updateFieldsFromConnectionUrl(
+                        ensureUrlScheme(form.getFieldValue("connectionType"), props.value),
+                      );
                     },
                   }}
                 >
@@ -770,9 +800,12 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                   Paste a connection URL, or build one from individual fields.
                 </span>
                 <span className="text-muted-foreground block text-xs">
-                  The scheme is added automatically when missing — typing{" "}
-                  <span className="font-mono">host/db</span> becomes{" "}
-                  <span className="font-mono">{getExpectedScheme(form.getFieldValue("connectionType")) ?? "https://"}host/db</span>.
+                  If you omit the scheme, the target preview above shows the dialect-correct URL
+                  before saving — typing <span className="font-mono">host/db</span> becomes{" "}
+                  <span className="font-mono">
+                    {getExpectedScheme(form.getFieldValue("connectionType")) ?? "https://"}host/db
+                  </span>
+                  .
                 </span>
               </Stack>
 
@@ -880,7 +913,7 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
               connectionType,
               filePath,
               libsqlAuthToken: form.getFieldValue("libsqlAuthToken"),
-              connectionUrl: form.getFieldValue("connectionUrl"),
+              connectionUrl: ensureUrlScheme(connectionType, form.getFieldValue("connectionUrl")),
               readOnly: form.getFieldValue("readOnly"),
               sslMode: form.getFieldValue("sslMode"),
               sshHost: form.getFieldValue("sshHost"),
@@ -923,7 +956,11 @@ export function ConnectionForm({ mode = "create", initialValues, onSuccess }: Co
                 setTestState({ status: "error", message, checkedAt: Date.now() });
                 // Audit G6 + G7: failure must be perceivable beyond inline text.
                 announce("Connection test failed.");
-                toaster.create({ title: "Connection test failed", description: message, type: "error" });
+                toaster.create({
+                  title: "Connection test failed",
+                  description: message,
+                  type: "error",
+                });
               }
             } catch {
               setTestState({

@@ -1,3 +1,5 @@
+import type { LucideIcon } from "lucide-react";
+
 import { Clipboard, Portal } from "@ark-ui/react";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -21,7 +23,6 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import type { DatabaseDialect } from "#src/db/dialect.ts";
-import type { LucideIcon } from "lucide-react";
 
 import { useDocumentTitle } from "#src/hooks/use-document-title.ts";
 import { useLocalStorage } from "#src/hooks/use-local-storage.ts";
@@ -37,7 +38,13 @@ import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Badge } from "../ui/badge.tsx";
 import { Button } from "../ui/button.tsx";
 import { DarkModeToggle } from "../ui/dark-mode-toggle.tsx";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog.tsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog.tsx";
 import { Input } from "../ui/input.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/menu.tsx";
@@ -53,6 +60,11 @@ interface EditableConnection {
   dialect: DatabaseDialect;
   created_at: number;
   updated_at: number;
+}
+
+interface ConnectionHealth {
+  status: "success" | "failure";
+  checkedAt: number;
 }
 
 function getEndpointLabel(url: string): string {
@@ -99,12 +111,16 @@ const DIALECT_META: Record<DatabaseDialect, { label: string; Icon: LucideIcon }>
 function ConnectionActions({
   connection,
   onOpen,
+  health,
+  onHealthChange,
 }: {
   connection: EditableConnection;
   onOpen: (connectionName: string) => void;
- }) {
+  health?: ConnectionHealth;
+  onHealthChange: (connectionId: string, health: ConnectionHealth) => void;
+}) {
   const testConnection = useServerFn(tryConnectionServerFn);
-  const [state, setState] = useState<"idle" | "success" | "failure">("idle");
+  const [state, setState] = useState<"idle" | "success" | "failure">(health?.status ?? "idle");
 
   const testConnectionUrl = async () => {
     const result = await testConnection({
@@ -113,6 +129,7 @@ function ConnectionActions({
 
     if (result.success) {
       setState("success");
+      onHealthChange(connection.id, { status: "success", checkedAt: Date.now() });
       toaster.create({
         title: (
           <HStack align="center" className="text-chart-2">
@@ -126,6 +143,7 @@ function ConnectionActions({
     }
 
     setState("failure");
+    onHealthChange(connection.id, { status: "failure", checkedAt: Date.now() });
     toaster.create({
       title: (
         <HStack align="center" className="text-chart-1">
@@ -233,6 +251,7 @@ function ConnectionRowMenu({
  *  load effect whenever the fallback identity changes. */
 const NO_FAVORITES: string[] = [];
 const NEVER_OPENED: Record<string, number> = {};
+const NO_HEALTH: Record<string, ConnectionHealth> = {};
 
 export const HomePage = () => {
   useDocumentTitle("Connections — Dadabase");
@@ -249,6 +268,10 @@ export const HomePage = () => {
     NEVER_OPENED,
   );
   const lastOpenedMap = lastOpened ?? NEVER_OPENED;
+  const [healthByConnectionId, setHealthByConnectionId] = useLocalStorage<
+    Record<string, ConnectionHealth>
+  >("dadabase.connection-health", NO_HEALTH);
+  const connectionHealth = healthByConnectionId ?? NO_HEALTH;
 
   const savedDatabaseList = useSuspenseQuery(listDbConnectionQueryOptions);
   const normalizedSearch = connectionSearch.trim().toLocaleLowerCase();
@@ -284,6 +307,10 @@ export const HomePage = () => {
         ? favoriteNames.filter((name) => name !== connectionName)
         : [...favoriteNames, connectionName],
     );
+  };
+
+  const recordHealth = (connectionId: string, health: ConnectionHealth) => {
+    setHealthByConnectionId({ ...connectionHealth, [connectionId]: health });
   };
 
   const table = useDataTable({
@@ -338,8 +365,41 @@ export const HomePage = () => {
         header: "Access",
         size: 180,
         cell: (ctx) => (
-          <ConnectionActions connection={ctx.row.original} onOpen={recordOpened} />
+          <ConnectionActions
+            connection={ctx.row.original}
+            onOpen={recordOpened}
+            health={connectionHealth[ctx.row.original.id]}
+            onHealthChange={recordHealth}
+          />
         ),
+      },
+      {
+        id: "_health",
+        header: "Health",
+        size: 135,
+        cell: (ctx) => {
+          const health = connectionHealth[ctx.row.original.id];
+          const checkedAt = health ? new Date(health.checkedAt).toLocaleString() : undefined;
+          const isHealthy = health?.status === "success";
+
+          return (
+            <Tooltip
+              content={checkedAt ? `Last tested ${checkedAt}` : "Test this connection to check it"}
+              portalled
+            >
+              <span
+                className="text-muted-foreground inline-flex items-center gap-1.5 text-xs"
+                data-testid={`connection-health-${ctx.row.original.name}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`size-2 rounded-full ${isHealthy ? "bg-chart-2" : health ? "bg-chart-1" : "bg-muted-foreground/40"}`}
+                />
+                {isHealthy ? "Healthy" : health ? "Failed" : "Not tested"}
+              </span>
+            </Tooltip>
+          );
+        },
       },
       {
         accessorKey: "dialect",
@@ -384,7 +444,10 @@ export const HomePage = () => {
           return (
             <div className="flex min-w-0 items-center gap-1">
               {pathParts ? (
-                <Tooltip content={decodeURIComponent(new URL(ctx.row.original.url).pathname)} portalled>
+                <Tooltip
+                  content={decodeURIComponent(new URL(ctx.row.original.url).pathname)}
+                  portalled
+                >
                   <span
                     className="flex min-w-0 flex-col leading-tight"
                     data-testid={`connection-endpoint-${ctx.row.original.name}`}
@@ -456,10 +519,7 @@ export const HomePage = () => {
             </p>
           </div>
           <div className="flex items-end gap-3">
-            <Button
-              data-testid="new-connection-cta"
-              onClick={() => setCreateDialogOpen(true)}
-            >
+            <Button data-testid="new-connection-cta" onClick={() => setCreateDialogOpen(true)}>
               <LucidePlus className="size-4" />
               New connection
             </Button>
@@ -545,10 +605,7 @@ export const HomePage = () => {
       />
 
       {/* Create Connection Dialog (H1: form collapsed behind a CTA, not a permanent pane) */}
-      <Dialog
-        open={createDialogOpen}
-        onOpenChange={(details) => setCreateDialogOpen(details.open)}
-      >
+      <Dialog open={createDialogOpen} onOpenChange={(details) => setCreateDialogOpen(details.open)}>
         <Portal>
           <DialogContent className="max-h-[85vh] w-full max-w-xl overflow-y-auto sm:max-w-xl">
             <DialogHeader>
