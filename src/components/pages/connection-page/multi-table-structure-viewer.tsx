@@ -482,13 +482,60 @@ export const MultiTableStructureViewer = (props: MultiTableStructureViewerProps)
                           </Menu>
                         </div>
                       </div>
-                      <div className="overflow-auto">
+                      <div className="hidden overflow-auto md:block">
                         <StructureTable
                           columnMetadata={tableStructure.columns}
                           isLoading={false}
                           tableSize={tableSize}
                           filters={filters}
                         />
+                      </div>
+                      <div className="space-y-2 md:hidden">
+                        {tableStructure.columns.map((column) => (
+                          <div
+                            key={column.name}
+                            className="border-border/70 bg-muted/20 rounded-md border p-2.5"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate font-mono text-xs font-medium">
+                                  {column.name}
+                                </p>
+                                <p className="text-muted-foreground mt-0.5 font-mono text-[11px]">
+                                  {column.dataType}
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 flex-wrap justify-end gap-1 text-[10px]">
+                                {column.primaryKey ? (
+                                  <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5">
+                                    PK
+                                  </span>
+                                ) : null}
+                                {column.unique ? (
+                                  <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5">
+                                    Unique
+                                  </span>
+                                ) : null}
+                                {column.nullable ? (
+                                  <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5">
+                                    Nullable
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="text-muted-foreground mt-2 grid gap-1 text-[11px]">
+                              {column.foreignKey ? (
+                                <span className="truncate">
+                                  References {column.foreignKey.referencedTable}.
+                                  {column.foreignKey.referencedColumn}
+                                </span>
+                              ) : null}
+                              {column.defaultValue ? (
+                                <span className="truncate">Default: {column.defaultValue}</span>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "#src/components/ui/button.tsx";
 import { Input } from "#src/components/ui/input.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
+import { ErrorBoundaryCard } from "#src/components/shared/error-boundary-card.tsx";
 import {
   buildErDiagramLayout,
   ER_NODE_HEADER_HEIGHT,
@@ -135,8 +136,16 @@ export function ErDiagramView(props: ErDiagramViewProps) {
   }
   if (tablesQuery.isError || fksQuery.isError) {
     return (
-      <div className="text-destructive p-4 text-sm" data-testid="er-diagram-error">
-        Failed to load ER diagram metadata.
+      <div className="flex h-full items-center justify-center p-4" data-testid="er-diagram-error">
+        <ErrorBoundaryCard
+          error={tablesQuery.error ?? fksQuery.error}
+          title="Could not load schema map"
+          onRetry={() => {
+            void tablesQuery.refetch();
+            void fksQuery.refetch();
+          }}
+          className="w-full max-w-md"
+        />
       </div>
     );
   }

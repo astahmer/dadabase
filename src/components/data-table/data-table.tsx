@@ -1008,21 +1008,32 @@ function BulkCellFillDialog(props: {
   onSubmit: (value: string) => void | Promise<void>;
 }) {
   const [value, setValue] = useState("");
+  const [setNull, setSetNull] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const submit = async () => {
     setIsSubmitting(true);
     try {
-      await props.onSubmit(value);
+      await props.onSubmit(setNull ? "" : value);
       props.onOpenChange(false);
       setValue("");
+      setSetNull(false);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={props.open} onOpenChange={({ open }) => props.onOpenChange(open)}>
+    <Dialog
+      open={props.open}
+      onOpenChange={({ open }) => {
+        if (!open) {
+          setValue("");
+          setSetNull(false);
+        }
+        props.onOpenChange(open);
+      }}
+    >
       <DialogContent data-testid="bulk-cell-fill-dialog" className="max-w-md">
         <DialogHeader>
           <DialogTitle>Update selected cells</DialogTitle>
@@ -1039,13 +1050,34 @@ function BulkCellFillDialog(props: {
           }}
           className="space-y-4"
         >
-          <Input
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            placeholder="Value (leave empty for NULL where supported)"
-            aria-label="Bulk update value"
-            disabled={isSubmitting}
-          />
+          {props.columns.length > 1 ? (
+            <p className="text-muted-foreground rounded-md border border-dashed px-3 py-2 text-xs">
+              The same value will be applied to every selected column. Use this only when the
+              selected columns accept the same input.
+            </p>
+          ) : null}
+          <div className="space-y-2">
+            <Input
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              placeholder="Value for selected cells"
+              aria-label="Bulk update value"
+              disabled={isSubmitting || setNull}
+            />
+            <label className="text-muted-foreground flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={setNull}
+                onChange={(event) => setSetNull(event.currentTarget.checked)}
+                disabled={isSubmitting}
+                className="accent-primary size-3.5"
+              />
+              Set NULL instead of a text value
+            </label>
+            <p className="text-muted-foreground text-[11px]">
+              Empty values become NULL only for nullable columns; required columns are skipped.
+            </p>
+          </div>
           <DialogFooter>
             <Button
               type="button"
