@@ -8,7 +8,7 @@ import type {
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight, Pencil } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type { DataTableRowSubrow } from "#src/components/data-table/data-table.row.tsx";
 import type { DatabaseDialect } from "#src/db/dialect.ts";
@@ -406,7 +406,31 @@ export const useConnectionPageState = ({
                   checked={isSelected}
                   disabled={!ctx.row.getCanSelect()}
                   aria-label={`Select row ${displayedNumber}`}
-                  onChange={ctx.row.getToggleSelectedHandler()}
+                  onPointerDown={(event) => {
+                    rowSelectionShiftRef.current = event.shiftKey;
+                  }}
+                  onCheckedChange={(details) => {
+                    const checked = details.checked === true;
+                    const rows = ctx.table.getRowModel().rows;
+                    const anchor = rowSelectionAnchorRef.current;
+                    const shouldSelectRange = rowSelectionShiftRef.current && anchor !== null;
+
+                    if (shouldSelectRange && anchor !== null) {
+                      const start = Math.min(anchor, rowIndex);
+                      const end = Math.max(anchor, rowIndex);
+
+                      for (const row of rows) {
+                        if (row.index >= start && row.index <= end) {
+                          row.toggleSelected(checked);
+                        }
+                      }
+                    } else {
+                      ctx.row.toggleSelected(checked);
+                    }
+
+                    rowSelectionAnchorRef.current = rowIndex;
+                    rowSelectionShiftRef.current = false;
+                  }}
                 >
                   <CheckboxControl />
                 </Checkbox>
@@ -621,6 +645,8 @@ export const useConnectionPageState = ({
 
   // Row selection
   const [rowSelection, setRowSelection] = useState({});
+  const rowSelectionAnchorRef = useRef<number | null>(null);
+  const rowSelectionShiftRef = useRef(false);
 
   // Column pinning state
   const columnPinningState: ColumnPinningState = useMemo(() => {
