@@ -402,6 +402,142 @@ export const getAvailableTables = (input?: { schema?: string }) =>
     return result as Array<{ name: string; schema: string }>;
   });
 
+export type DatabaseObjectKind = "view" | "materialized-view" | "function" | "procedure" | "trigger";
+
+export interface DatabaseObjectMetadata {
+  name: string;
+  schema: string;
+  kind: DatabaseObjectKind;
+  definition: string | null;
+}
+
+/** Lists non-table schema objects for the navigator and read-only definition viewer. */
+export const getDatabaseObjects = (input: { schema?: string }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const connectionId = yield* RemoteConnection;
+    const schema = input.schema || getDialectDefaultSchema(DatabaseDialect.Postgres);
+
+    if (yield* isDuckDbEngineConnection) {
+      const query = sql<DatabaseObjectMetadata>`
+        SELECT table_name AS name, table_schema AS schema,
+               'view' AS kind, view_definition AS definition
+        FROM information_schema.views
+        WHERE table_schema = ${schema}
+        ORDER BY table_name
+      `;
+      const compiled = query.compile();
+      return (yield* query.pipe(
+        withQueryLogging({
+          type: QueryLogType.SchemaIntrospection,
+          sql: compiled[0],
+          params: compiled[1],
+          schema,
+          level: QueryLogLevel.Trace,
+          connectionId,
+        }),
+      )) as DatabaseObjectMetadata[];
+    }
+
+    const logQuery = <T extends object>(query: ReturnType<typeof sql<T>>) => {
+      const compiled = query.compile();
+      return query.pipe(
+        withQueryLogging({
+          type: QueryLogType.SchemaIntrospection,
+          sql: compiled[0],
+          params: compiled[1],
+          schema,
+          level: QueryLogLevel.Trace,
+          connectionId,
+        }),
+      );
+    };
+
+    const result = yield* sql.onDialectOrElse({
+      pg: () =>
+        logQuery(sql<DatabaseObjectMetadata>`
+          SELECT c.relname AS name, n.nspname AS schema,
+                 CASE c.relkind WHEN 'v' THEN 'view' ELSE 'materialized-view' END AS kind,
+                 pg_get_viewdef(c.oid, true) AS definition
+          FROM pg_catalog.pg_class c
+          JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = ${schema} AND c.relkind IN ('v', 'm')
+          UNION ALL
+          SELECT p.proname AS name, n.nspname AS schema,
+                 CASE p.prokind WHEN 'p' THEN 'procedure' ELSE 'function' END AS kind,
+                 pg_get_functiondef(p.oid) AS definition
+          FROM pg_catalog.pg_proc p
+          JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+          WHERE n.nspname = ${schema}
+          UNION ALL
+          SELECT trigger_name AS name, event_object_schema AS schema,
+                 'trigger' AS kind, action_statement AS definition
+          FROM information_schema.triggers
+          WHERE event_object_schema = ${schema}
+          ORDER BY name
+        `),
+      mysql: () =>
+        logQuery(sql<DatabaseObjectMetadata>`
+          SELECT table_name AS name, table_schema AS schema,
+                 'view' AS kind, view_definition AS definition
+          FROM information_schema.views WHERE table_schema = ${schema}
+          UNION ALL
+          SELECT routine_name AS name, routine_schema AS schema,
+                 CASE routine_type WHEN 'PROCEDURE' THEN 'procedure' ELSE 'function' END AS kind,
+                 routine_definition AS definition
+          FROM information_schema.routines WHERE routine_schema = ${schema}
+          UNION ALL
+          SELECT trigger_name AS name, trigger_schema AS schema,
+                 'trigger' AS kind, action_statement AS definition
+          FROM information_schema.triggers WHERE trigger_schema = ${schema}
+          ORDER BY name
+        `),
+      sqlite: () =>
+        logQuery(sql<DatabaseObjectMetadata>`
+          SELECT name, 'main' AS schema,
+                 CASE type WHEN 'view' THEN 'view' ELSE 'trigger' END AS kind,
+                 sql AS definition
+          FROM sqlite_master
+          WHERE type IN ('view', 'trigger') AND name NOT LIKE 'sqlite_%'
+          ORDER BY name
+        `),
+      mssql: () =>
+        logQuery(sql<DatabaseObjectMetadata>`
+          SELECT v.name, s.name AS schema, 'view' AS kind, m.definition
+          FROM sys.views v JOIN sys.schemas s ON s.schema_id = v.schema_id
+          LEFT JOIN sys.sql_modules m ON m.object_id = v.object_id
+          WHERE s.name = ${schema}
+          UNION ALL
+          SELECT o.name, s.name AS schema,
+                 CASE o.type WHEN 'P' THEN 'procedure' ELSE 'function' END AS kind,
+                 m.definition
+          FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
+          LEFT JOIN sys.sql_modules m ON m.object_id = o.object_id
+          WHERE s.name = ${schema} AND o.type IN ('P', 'FN', 'IF', 'TF')
+          UNION ALL
+          SELECT tr.name, s.name AS schema, 'trigger' AS kind, m.definition
+          FROM sys.triggers tr JOIN sys.objects parent ON parent.object_id = tr.parent_id
+          JOIN sys.schemas s ON s.schema_id = parent.schema_id
+          LEFT JOIN sys.sql_modules m ON m.object_id = tr.object_id
+          WHERE s.name = ${schema}
+          ORDER BY name
+        `),
+      clickhouse: () =>
+        logQuery(sql<DatabaseObjectMetadata>`
+          SELECT name, database AS schema,
+                 CASE WHEN engine = 'MaterializedView' THEN 'materialized-view' ELSE 'view' END AS kind,
+                 create_table_query AS definition
+          FROM system.tables
+          WHERE database = ${schema}
+            AND engine IN ('View', 'MaterializedView', 'LiveView', 'WindowView')
+          ORDER BY name
+        `),
+      orElse: () => new SqlError({ cause: "Unsupported dialect" }),
+    });
+
+    return result as DatabaseObjectMetadata[];
+  });
+
 export interface ColumnInfo {
   column_name: string;
   data_type: string;

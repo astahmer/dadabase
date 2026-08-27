@@ -4,8 +4,8 @@ import { createListCollection, Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { DatabaseIcon } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { Code2, DatabaseIcon, Eye, FunctionSquare, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "#src/components/ui/button.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
@@ -15,6 +15,7 @@ import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connect
 import { listAvailableDatabase } from "#src/server/introspection/start-fns/get-available-database-list.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
+import { getDatabaseObjectsQueryOptions } from "#src/server/introspection/start-fns/get-database-objects.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 
 import type { DbConnection } from "../connection.types";
@@ -118,6 +119,12 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
     [tableList, tableFilter, selectedSchema, contains, isNotSqlite],
   );
   const filteredTablesNames = useMemo(() => filteredTables.map((t) => t.name), [filteredTables]);
+
+  const databaseObjectsQuery = useQuery({
+    ...getDatabaseObjectsQueryOptions({ url: activeConnectionUrl, schema: selectedSchema }),
+    enabled: Boolean(activeConnectionUrl && selectedSchema),
+    retry: 1,
+  });
 
   const tableCollection = useMemo(
     () =>
@@ -277,6 +284,27 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
             )}
           </Stack>
         )}
+        {/* Database objects */}
+        <DatabaseObjectNavigator
+          objects={databaseObjectsQuery.data ?? []}
+          isLoading={databaseObjectsQuery.isLoading}
+          schema={selectedSchema}
+          onOpen={(object) => {
+            const newTabState = createTabState(selectedSchema, "", {
+              initialTabMode: "sql",
+              customSql:
+                object.definition ||
+                `-- Definition unavailable for ${object.kind} ${object.schema}.${object.name}`,
+              tabName: `${object.name} · ${object.kind}`,
+            });
+            navigate({
+              search: (prev) => ({
+                ...prev,
+                ...addTabStateAfterCurrent(prev, newTabState),
+              }),
+            }).then(() => scrollToTab(newTabState.tabId));
+          }}
+        />
         {/* Tables List */}
         <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden" data-tables-list>
           <Stack className="h-full flex-1" gap="2">
@@ -467,6 +495,100 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
           </Stack>
         </div>
       </div>
+  );
+};
+
+const objectIcon = (kind: string) => {
+  if (kind === "view" || kind === "materialized-view") return Eye;
+  if (kind === "trigger") return Zap;
+  if (kind === "procedure" || kind === "function") return FunctionSquare;
+  return Code2;
+};
+
+const objectLabel = (kind: string) =>
+  kind === "materialized-view" ? "materialized view" : kind;
+
+const DatabaseObjectNavigator = (props: {
+  objects: Array<{
+    name: string;
+    schema: string;
+    kind: string;
+    definition: string | null;
+  }>;
+  isLoading: boolean;
+  schema: string;
+  onOpen: (object: {
+    name: string;
+    schema: string;
+    kind: string;
+    definition: string | null;
+  }) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const counts = useMemo(() => {
+    const byKind = new Map<string, number>();
+    for (const object of props.objects) {
+      byKind.set(object.kind, (byKind.get(object.kind) ?? 0) + 1);
+    }
+    return Array.from(byKind.entries());
+  }, [props.objects]);
+
+  return (
+    <div className="border-border shrink-0 border-y px-4 py-2" data-testid="database-object-navigator">
+      <button
+        type="button"
+        className="text-foreground hover:text-primary flex w-full items-center justify-between text-left text-xs font-medium tracking-wide uppercase"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="flex items-center gap-2">
+          <Code2 className="size-3.5" />
+          Objects
+          {!props.isLoading && props.objects.length > 0 ? (
+            <span className="text-muted-foreground normal-case">{props.objects.length}</span>
+          ) : null}
+        </span>
+        <span className="text-muted-foreground text-[10px] normal-case">
+          {open
+            ? "Hide"
+            : counts.map(([kind, count]) => `${count} ${objectLabel(kind)}`).join(" · ") || "None"}
+        </span>
+      </button>
+      {open ? (
+        <div
+          className="mt-2 max-h-48 overflow-y-auto"
+          role="list"
+          aria-label={`Objects in ${props.schema}`}
+        >
+          {props.isLoading ? (
+            <div className="text-muted-foreground px-1 py-2 text-xs">Loading objects…</div>
+          ) : props.objects.length === 0 ? (
+            <div className="text-muted-foreground px-1 py-2 text-xs">
+              No views, routines, or triggers
+            </div>
+          ) : (
+            props.objects.map((object) => {
+              const Icon = objectIcon(object.kind);
+              return (
+                <button
+                  key={`${object.kind}:${object.schema}:${object.name}`}
+                  type="button"
+                  className="hover:bg-muted flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs"
+                  onClick={() => props.onOpen(object)}
+                  title={`Open ${object.kind} definition`}
+                >
+                  <Icon className="text-muted-foreground size-3.5 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{object.name}</span>
+                  <span className="text-muted-foreground shrink-0 text-[10px] normal-case">
+                    {objectLabel(object.kind)}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 };
 
