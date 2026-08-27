@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Download, RotateCcw, Search, ZoomIn, ZoomOut } from "lucide-react";
+import { Download, List, RotateCcw, Search, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "#src/components/ui/button.tsx";
@@ -26,6 +26,7 @@ export function ErDiagramView(props: ErDiagramViewProps) {
   const [tableSearch, setTableSearch] = useState("");
   const [zoom, setZoom] = useState(1);
   const [highlightedTable, setHighlightedTable] = useState<string | null>(null);
+  const [showAllColumns, setShowAllColumns] = useState(false);
   const [scroll, setScroll] = useState({ left: 0, top: 0 });
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const didFitRef = useRef(false);
@@ -55,13 +56,16 @@ export function ErDiagramView(props: ErDiagramViewProps) {
       layout: buildErDiagramLayout({
         tables: tables.map((table) => ({
           id: table.table,
-          columnCount: Math.min(table.columns.length, MAX_COLUMNS_PER_NODE),
+          columnCount: Math.min(
+            table.columns.length,
+            showAllColumns ? Number.MAX_SAFE_INTEGER : MAX_COLUMNS_PER_NODE,
+          ),
         })),
         edges: edges.map((edge) => ({ fromId: edge.fromTable, toId: edge.toTable })),
       }),
       tableByName: new Map(tables.map((table) => [table.table, table])),
     };
-  }, [fksQuery.data, tableSearch, tablesQuery.data]);
+  }, [fksQuery.data, showAllColumns, tableSearch, tablesQuery.data]);
 
   const { edges, layout, tableByName } = diagram;
   const width = Math.max(800, ...layout.nodes.map((node) => node.x + node.w + 40));
@@ -73,9 +77,14 @@ export function ErDiagramView(props: ErDiagramViewProps) {
   const matchingTables = useMemo(
     () =>
       layout.nodes
-        .filter((node) => node.id.toLocaleLowerCase().includes(tableSearch.trim().toLocaleLowerCase()))
+        .filter((node) =>
+          node.id.toLocaleLowerCase().includes(tableSearch.trim().toLocaleLowerCase()),
+        )
         .slice(0, 8)
-        .map((node) => ({ id: node.id, columnCount: Math.round((node.h - ER_NODE_HEADER_HEIGHT) / ER_NODE_ROW_HEIGHT) })),
+        .map((node) => ({
+          id: node.id,
+          columnCount: Math.round((node.h - ER_NODE_HEADER_HEIGHT) / ER_NODE_ROW_HEIGHT),
+        })),
     [layout.nodes, tableSearch],
   );
 
@@ -99,6 +108,10 @@ export function ErDiagramView(props: ErDiagramViewProps) {
     setZoom(fitZoom);
     canvasRef.current?.scrollTo({ left: 0, top: 0 });
   }, [fitZoom]);
+
+  useEffect(() => {
+    didFitRef.current = false;
+  }, [showAllColumns]);
 
   const jumpToTable = (table: string) => {
     const node = nodeById.get(table);
@@ -244,6 +257,16 @@ export function ErDiagramView(props: ErDiagramViewProps) {
           </Button>
           <Button
             size="sm"
+            variant={showAllColumns ? "default" : "ghost"}
+            aria-label={showAllColumns ? "Show compact table columns" : "Show all table columns"}
+            title={showAllColumns ? "Show first 8 columns" : "Show all columns"}
+            onClick={() => setShowAllColumns((current) => !current)}
+          >
+            <List className="size-3.5" />
+            {showAllColumns ? "Compact" : "All columns"}
+          </Button>
+          <Button
+            size="sm"
             variant="ghost"
             aria-label="Export schema diagram as SVG"
             title="Export SVG"
@@ -307,13 +330,19 @@ export function ErDiagramView(props: ErDiagramViewProps) {
               const fromY =
                 from.y +
                 ER_NODE_HEADER_HEIGHT +
-                Math.min(Math.max(fromColumnIndex, 0), MAX_COLUMNS_PER_NODE - 1) *
+                Math.min(
+                  Math.max(fromColumnIndex, 0),
+                  (showAllColumns ? Number.MAX_SAFE_INTEGER : MAX_COLUMNS_PER_NODE) - 1,
+                ) *
                   ER_NODE_ROW_HEIGHT +
                 ER_NODE_ROW_HEIGHT / 2;
               const toY =
                 to.y +
                 ER_NODE_HEADER_HEIGHT +
-                Math.min(Math.max(toColumnIndex, 0), MAX_COLUMNS_PER_NODE - 1) *
+                Math.min(
+                  Math.max(toColumnIndex, 0),
+                  (showAllColumns ? Number.MAX_SAFE_INTEGER : MAX_COLUMNS_PER_NODE) - 1,
+                ) *
                   ER_NODE_ROW_HEIGHT +
                 ER_NODE_ROW_HEIGHT / 2;
               const label = `${edge.fromColumns.join(", ")} → ${edge.toColumns.join(", ")}`;
@@ -348,7 +377,9 @@ export function ErDiagramView(props: ErDiagramViewProps) {
             {layout.nodes.map((node) => {
               const table = tableByName.get(node.id);
               if (!table) return null;
-              const visibleColumns = table.columns.slice(0, MAX_COLUMNS_PER_NODE);
+              const visibleColumns = showAllColumns
+                ? table.columns
+                : table.columns.slice(0, MAX_COLUMNS_PER_NODE);
               return (
                 <g
                   key={node.id}
@@ -430,7 +461,7 @@ export function ErDiagramView(props: ErDiagramViewProps) {
                       </g>
                     );
                   })}
-                  {table.columns.length > MAX_COLUMNS_PER_NODE ? (
+                  {!showAllColumns && table.columns.length > MAX_COLUMNS_PER_NODE ? (
                     <text
                       x={node.x + 12}
                       y={node.y + node.h - 8}
@@ -460,13 +491,13 @@ export function ErDiagramView(props: ErDiagramViewProps) {
                   const canvas = canvasRef.current;
                   if (!canvas) return;
                   const rect = event.currentTarget.getBoundingClientRect();
-                    const x = ((event.clientX - rect.left) / rect.width) * width;
-                    const y = ((event.clientY - rect.top) / rect.height) * height;
-                    canvas.scrollTo({
-                      left: x * zoom - canvas.clientWidth / 2,
-                      top: y * zoom - canvas.clientHeight / 2,
-                      behavior: "smooth",
-                    });
+                  const x = ((event.clientX - rect.left) / rect.width) * width;
+                  const y = ((event.clientY - rect.top) / rect.height) * height;
+                  canvas.scrollTo({
+                    left: x * zoom - canvas.clientWidth / 2,
+                    top: y * zoom - canvas.clientHeight / 2,
+                    behavior: "smooth",
+                  });
                 }}
               >
                 {layout.nodes.map((node) => (
