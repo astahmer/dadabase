@@ -57,6 +57,7 @@ AI assistant (BYOK OpenAI — key stays in the browser; requests are proxied onc
 ### Data browsing & editing
 
 - Paginated rows, column sort / nulls order, client-side JS filter
+- Spreadsheet-style cell ranges, copy/paste, fill, and Shift-click row selection
 - Inline cell edit + pending edits bar
 - Row editor sheet (incl. JSON/JSONB Monaco)
 - Paste TSV/CSV rows with confirm dialog
@@ -71,6 +72,7 @@ AI assistant (BYOK OpenAI — key stays in the browser; requests are proxied onc
 - Multi-statement scripts; per-statement Run/Explain zones
 - Explain plan drawer, format, snippets, fullscreen
 - Destructive-query confirm before write SQL
+- Query result table/chart toggle with automatic numeric measure detection
 
 ### Schema tools
 
@@ -78,6 +80,9 @@ AI assistant (BYOK OpenAI — key stays in the browser; requests are proxied onc
 - SQLite table rebuild for unsupported ALTER paths
 - Index / FK mutate sheet
 - Schema explorer + schema diff / migration SQL preview
+- Database object browser for views, materialized views, routines, and triggers
+- ER diagram with searchable tables, minimap, fit-to-view, and compact/all-column modes
+- Database-wide data search across a bounded set of tables and columns
 - Import data sheet
 
 ### AI assistant (BYOK)
@@ -93,6 +98,20 @@ AI assistant (BYOK OpenAI — key stays in the browser; requests are proxied onc
 - Command palette
 - Zen mode, theme, export CSV/TSV/INSERT
 - ER diagram layout helpers
+
+### MCP
+
+Dadabase exposes an approval-gated Model Context Protocol endpoint at
+http://127.0.0.1:3005/api/mcp.
+
+- list_connections lists saved connections with credentials masked
+- describe_schema returns tables and database objects
+- query_database runs read-only SQL by default; writes require approved: true
+  and are still blocked for read-only connections
+
+Set DADABASE_MCP_TOKEN and send it as a Bearer token when the endpoint is
+reachable by anything beyond the local machine. Set
+DADABASE_MCP_ENABLED=false to disable the endpoint.
 
 ## Architecture (short)
 
