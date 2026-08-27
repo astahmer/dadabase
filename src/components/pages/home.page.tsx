@@ -27,6 +27,7 @@ import type { DatabaseDialect } from "#src/db/dialect.ts";
 import { useDocumentTitle } from "#src/hooks/use-document-title.ts";
 import { useLocalStorage } from "#src/hooks/use-local-storage.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
+import { copyToClipboard } from "#src/lib/data-export/index.ts";
 import { redactConnectionUrl } from "#src/lib/redact-connection-url.ts";
 import { deleteDbConnectionMutation } from "#src/server/db-connection/start-fns/delete-db-connection.start.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
@@ -233,6 +234,22 @@ function ConnectionRowMenu({
           <MenuItem value="edit" onClick={() => onEdit(connection)}>
             Edit connection
           </MenuItem>
+          <AlertDialog
+            trigger={<MenuItem value="copy-with-credentials">Copy URL with credentials</MenuItem>}
+            title={`Copy credentials for ${connection.name}?`}
+            description="This copies the full connection URL, including its password, to the clipboard. Anyone with clipboard access can use it."
+            onConfirm={() => {
+              void copyToClipboard(connection.url).then((success) => {
+                toaster.create({
+                  title: success ? "Connection URL copied" : "Could not copy connection URL",
+                  description: success
+                    ? "The full URL is now in your clipboard."
+                    : "Clipboard access was denied.",
+                  type: success ? "success" : "error",
+                });
+              });
+            }}
+          />
           <AlertDialog
             trigger={<MenuItem value="delete">Delete connection</MenuItem>}
             title={`Delete ${connection.name}?`}
@@ -465,10 +482,10 @@ export const HomePage = () => {
                   {getEndpointLabel(ctx.row.original.url)}
                 </span>
               )}
-              <Clipboard.Root value={ctx.row.original.url}>
-                <Tooltip content="Copy connection URL (includes credentials)">
+                <Clipboard.Root value={redactConnectionUrl(ctx.row.original.url)}>
+                <Tooltip content="Copy redacted connection URL">
                   <Clipboard.Trigger asChild>
-                    <Button variant="ghost" size="icon" aria-label="Copy connection URL">
+                    <Button variant="ghost" size="icon" aria-label="Copy redacted connection URL">
                       <Clipboard.Indicator copied={<CheckIcon />}>
                         <ClipboardIcon />
                       </Clipboard.Indicator>
@@ -527,7 +544,7 @@ export const HomePage = () => {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-10">
+        <div className="grid items-start gap-8 lg:gap-10">
           <div className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>

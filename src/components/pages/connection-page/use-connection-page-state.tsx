@@ -35,6 +35,7 @@ import { Button } from "#src/components/ui/button.tsx";
 import { Checkbox, CheckboxControl } from "#src/components/ui/checkbox.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
+import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
 import { getDefaultColumnSize } from "#src/lib/get-default-column-size.ts";
 import { replaceDatabaseInConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
@@ -79,6 +80,7 @@ export const useConnectionPageState = ({
   const navigate = useNavigate({ from: "/connections/$connectionName" });
 
   const activeConnectionUrl = useActiveConnectionUrl(connection);
+  const isReadOnly = isReadOnlyConnection(activeConnectionUrl);
   const search = useActiveTabState((s) => {
     return {
       schema: s.schema,
@@ -365,6 +367,7 @@ export const useConnectionPageState = ({
                 }}
                 connectionUrl={activeConnectionUrl}
                 onEdit={
+                  !isReadOnly &&
                   onEditRow &&
                   canLocateRow(
                     tableMetadata.columnMetadata,
@@ -374,6 +377,7 @@ export const useConnectionPageState = ({
                     : undefined
                 }
                 onDuplicate={
+                  !isReadOnly &&
                   onDuplicateRow
                     ? () => onDuplicateRow(ctx.row.original as Record<string, unknown>)
                     : undefined
@@ -453,7 +457,8 @@ export const useConnectionPageState = ({
         header: () => null,
         cell: (ctx) => {
           const row = ctx.row.original as Record<string, unknown>;
-          const canEdit = Boolean(onEditRow) && canLocateRow(tableMetadata.columnMetadata, row);
+          const canEdit =
+            !isReadOnly && Boolean(onEditRow) && canLocateRow(tableMetadata.columnMetadata, row);
 
           return (
             <div className="flex h-full w-full items-center justify-center gap-0.5">
@@ -477,7 +482,7 @@ export const useConnectionPageState = ({
               <RowActionsMenu
                 row={row}
                 onEdit={canEdit && onEditRow ? () => onEditRow(row) : undefined}
-                onDuplicate={onDuplicateRow ? () => onDuplicateRow(row) : undefined}
+                onDuplicate={!isReadOnly && onDuplicateRow ? () => onDuplicateRow(row) : undefined}
                 onExpandRelationships={() => {
                   navigate({
                     search: (prev) =>

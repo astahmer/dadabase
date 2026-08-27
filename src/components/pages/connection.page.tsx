@@ -2485,6 +2485,7 @@ const BulkActions = (
     table: tab.table,
   }));
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const isReadOnly = isReadOnlyConnection(props.activeConnectionUrl);
 
   const selectedRows = props.rowsDataTable.getSelectedRowModel().rows;
   const selectedRowsCount = selectedRows.length;
@@ -2593,6 +2594,7 @@ const BulkActions = (
     (selectedRowsCount > 0 &&
       selectedRows.every((row) => hasSystemRowIdentity(row.original as Record<string, unknown>)));
   const canEditSelected =
+    !isReadOnly &&
     selectedRowsCount === 1 &&
     Boolean(props.onEditRow) &&
     (hasPrimaryKey(props.columnMetadata) ||
@@ -2840,8 +2842,8 @@ const BulkActions = (
       <BulkActionBar
         selectedCount={selectedRowsCount}
         onEdit={canEditSelected ? handleEdit : undefined}
-        onDelete={canDelete ? handleBulkDelete : undefined}
-        onDuplicate={props.onDuplicateRow ? handleDuplicate : undefined}
+        onDelete={!isReadOnly && canDelete ? handleBulkDelete : undefined}
+        onDuplicate={!isReadOnly && props.onDuplicateRow ? handleDuplicate : undefined}
         onExportJson={handleExportJson}
         onExportCsv={handleExportCsv}
         onExportSql={handleExportSql}

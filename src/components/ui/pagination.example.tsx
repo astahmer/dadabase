@@ -35,9 +35,7 @@ export function PaginationExample() {
                     {page.value}
                   </PaginationItem>
                 ) : (
-                  <li key={index}>
-                    <PaginationEllipsis index={index} />
-                  </li>
+                  <PaginationEllipsis key={index} index={index} />
                 ),
               )
             }

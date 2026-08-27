@@ -17,11 +17,13 @@ interface MyRouterContext {
 const themeBootstrapScript = `(function(){try{var t=localStorage.getItem("theme");var d=t?t==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches;var el=document.documentElement;if(d){el.classList.add("dark");}}catch(e){}})();`;
 
 const RootErrorComponent = ({ error }: { error: unknown }) => {
-  const message = error instanceof Error ? error.message : String(error);
+  const technicalMessage = error instanceof Error ? error.message : String(error);
   return (
     <div className="bg-background text-foreground flex h-full min-h-screen flex-col items-center justify-center gap-4 p-8">
       <h1 className="text-lg font-semibold">Something went wrong</h1>
-      <p className="text-muted-foreground max-w-md text-center text-sm">{message}</p>
+      <p className="text-muted-foreground max-w-md text-center text-sm">
+        Dadabase could not render this page. Reload and try again.
+      </p>
       <button
         type="button"
         onClick={() => window.location.reload()}
@@ -29,6 +31,12 @@ const RootErrorComponent = ({ error }: { error: unknown }) => {
       >
         Reload Dadabase
       </button>
+      {import.meta.env.DEV ? (
+        <details className="text-muted-foreground max-w-xl text-xs">
+          <summary className="cursor-pointer">Technical details</summary>
+          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap">{technicalMessage}</pre>
+        </details>
+      ) : null}
     </div>
   );
 };
@@ -77,7 +85,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
         <HeadContent />
