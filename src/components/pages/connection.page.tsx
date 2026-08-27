@@ -53,6 +53,7 @@ import {
   normalizeHiddenColumnList,
   toHiddenColumnKeys,
 } from "#src/components/pages/connection-page/hidden-column-list.ts";
+import { ResultVisualization } from "#src/components/pages/connection-page/result-visualization.tsx";
 import { PendingCellEditsBar } from "#src/components/pages/connection-page/row-editor/pending-cell-edits-bar.tsx";
 import {
   PendingCellEditsProvider,
@@ -3336,6 +3337,7 @@ const CustomSqlTabContent = (props: { executeCustomSql: UseExecuteCustomSqlOutpu
   const outputColumns = activeSet?.columns ?? executeCustomSql.output?.columns ?? [];
 
   const [jsFilter, setJsFilter] = useState("");
+  const [resultPresentation, setResultPresentation] = useState<"table" | "chart">("table");
 
   const jsFilterResult = useJsEvalFilter(jsFilter, {
     paramName: "r",
@@ -3486,16 +3488,41 @@ const CustomSqlTabContent = (props: { executeCustomSql: UseExecuteCustomSqlOutpu
             <p className="mt-1 text-xs text-red-500">{jsFilterResult.error}</p>
           )}
         </div>
+        <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1">
+          <Button
+            size="sm"
+            variant={resultPresentation === "table" ? "default" : "outline"}
+            className="h-7 text-xs"
+            onClick={() => setResultPresentation("table")}
+          >
+            Table
+          </Button>
+          <Button
+            size="sm"
+            variant={resultPresentation === "chart" ? "default" : "outline"}
+            className="h-7 text-xs"
+            onClick={() => setResultPresentation("chart")}
+          >
+            Visualize
+          </Button>
+        </div>
+        {resultPresentation === "chart" ? (
+          <ResultVisualization rows={filteredRows} columns={outputColumns} />
+        ) : null}
         <ColumnHeaderContextProvider>
-          <DataTable
-            enableRowVirtualization
-            enableColumnOrdering
-            table={table}
-            getTableContainer={setTableContainer}
-            isLoading={false}
-            size={search.tableSize}
-          />
-          <ScrollToColumnButton table={table} containerRef={{ current: tableContainer }} />
+          {resultPresentation === "table" ? (
+            <>
+              <DataTable
+                enableRowVirtualization
+                enableColumnOrdering
+                table={table}
+                getTableContainer={setTableContainer}
+                isLoading={false}
+                size={search.tableSize}
+              />
+              <ScrollToColumnButton table={table} containerRef={{ current: tableContainer }} />
+            </>
+          ) : null}
         </ColumnHeaderContextProvider>
       </div>
     );
