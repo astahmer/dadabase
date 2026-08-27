@@ -58,7 +58,10 @@ export const withQueryLogging =
         // Redact literal values before anything is stored: history must be
         // reviewable without persisting user data (S2).
         sql: redactSqlLiterals(trimSql(options.sql || "")),
-        params: options.params,
+        // Parameters can contain user-entered values even when the SQL text
+        // itself uses placeholders. Preserve the shape for debugging, but
+        // never persist the values.
+        params: redactQueryParams(options.params),
         type: options.type,
         schema: options.schema,
         table: options.table,
@@ -140,3 +143,23 @@ function getErrorMessage(error: unknown): string {
 
   return errorMessage;
 }
+
+const redactQueryParams = (
+  params: Record<string, any> | ReadonlyArray<any>,
+): Record<string, unknown> | ReadonlyArray<unknown> => {
+  if (Array.isArray(params)) return params.map(redactQueryParamValue);
+  const record = params as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.keys(record).map((key) => [key, redactQueryParamValue(record[key])]),
+  );
+};
+
+const redactQueryParamValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(redactQueryParamValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, redactQueryParamValue(nestedValue)]),
+    );
+  }
+  return "[REDACTED]";
+};

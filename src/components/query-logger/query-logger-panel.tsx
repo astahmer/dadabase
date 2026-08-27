@@ -170,6 +170,10 @@ export const QueryLoggerContent = ({
                   When off, SQL you run in the editor and imports are not recorded. Literal values
                   are always redacted before anything is stored.
                 </p>
+                <p className="text-muted-foreground mb-2 text-[11px]">
+                  Dadabase keeps the latest 1,000 entries for this connection. Clear history removes
+                  recorded entries but keeps saved queries.
+                </p>
                 <label className="flex cursor-pointer items-center gap-2 text-sm">
                   <input
                     type="checkbox"

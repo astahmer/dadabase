@@ -37,7 +37,7 @@ catalogs:
 overrides:
   '@tanstack/query-core': 5.102.6
 
-packageExtensionsChecksum: sha256-sGCWb8+j79SU8mVGyp4ifomuSf0GgLniwsRdwTKjk/E=
+packageExtensionsChecksum: sha256-lCkriCVkTicnxav08rcqbHbQMdd961O8ouVC0DKU3y4=
 
 patchedDependencies:
   kysely-pglite@0.6.1: b0869d5cfbeeba3a34caeafd83aa7e49d99bc993d4f060973b501688ff28ffe4
