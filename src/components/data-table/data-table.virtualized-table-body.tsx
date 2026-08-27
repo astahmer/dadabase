@@ -5,6 +5,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
 import type { DataTableSize } from "./data-table.styles.ts";
+import type { CellSelectionCellState } from "./use-data-table-cell-selection.ts";
 
 import { DataTableRow, type DataTableRowSubrow } from "./data-table.row.tsx";
 
@@ -26,6 +27,7 @@ export interface VirtualizedTableBodyProps<TData> {
   columnOrder?: string[];
   columnVirtualization: ColumnVirtualizationState;
   renderSubrows?: (row: Row<TData>) => DataTableRowSubrow[];
+  cellSelection?: (rowId: string, columnId: string) => CellSelectionCellState | undefined;
 }
 
 export function VirtualizedTableBody<TData>({
@@ -46,6 +48,7 @@ export function VirtualizedTableBody<TData>({
   columnOrder = [],
   columnVirtualization,
   renderSubrows,
+  cellSelection,
 }: VirtualizedTableBodyProps<TData>) {
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -90,6 +93,7 @@ export function VirtualizedTableBody<TData>({
             ExpandedRow={ExpandedRow}
             onExpandRowJson={onExpandRowJson}
             renderSubrows={renderSubrows}
+            cellSelection={cellSelection}
           />
         );
       })}

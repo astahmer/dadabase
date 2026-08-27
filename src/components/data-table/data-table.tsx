@@ -18,11 +18,13 @@ import {
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
   ChevronsUpDown,
+  Check,
+  Copy,
   GripVertical,
   Pin,
   PinOff,
 } from "lucide-react";
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
 import type { ColumnHeaderFilterOperator } from "./upsert-column-header-filter.ts";
@@ -48,6 +50,7 @@ import { VirtualizedTableBody } from "./data-table.virtualized-table-body.tsx";
 import { DraggableColumnHeader } from "./draggable-column-header.tsx";
 import { TableFindBar } from "./table-find-bar.tsx";
 import { TableFindProvider } from "./table-find-context.tsx";
+import { useDataTableCellSelection } from "./use-data-table-cell-selection.ts";
 import { useTableFind } from "./use-table-find.ts";
 
 const i18n = {
@@ -99,6 +102,8 @@ export interface DataTableProps<TData> {
   enableColumnVirtualization?: boolean;
   /** Cmd/Ctrl+F local find over loaded rows (highlight / filter). */
   enableFind?: boolean;
+  /** Spreadsheet-style cell selection and clipboard copy for this table. */
+  enableCellSelection?: boolean;
 }
 
 export function DataTable<TData>(props: DataTableProps<TData>) {
@@ -121,6 +126,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
     enableColumnOrdering = false,
     hideColumnPinIconUnlessHovered = true,
     enableFind = false,
+    enableCellSelection = false,
   } = props;
 
   const state = table.getState();
@@ -146,6 +152,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
     enabled: enableFind,
     columnIds: findColumnIds,
   });
+  const cellSelection = useDataTableCellSelection(table, enableCellSelection);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -182,7 +189,7 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
           isLoading={props.isLoading}
           hasError={props.hasError}
           onRowClick={props.onRowClick}
-            onRowDoubleClick={props.onRowDoubleClick}
+          onRowDoubleClick={props.onRowDoubleClick}
           onColumnFilterClick={props.onColumnFilterClick}
           getColumnHeaderFilter={props.getColumnHeaderFilter}
           onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
@@ -203,12 +210,21 @@ export function DataTable<TData>(props: DataTableProps<TData>) {
           striped={striped}
           showColumnBorder={showColumnBorder}
           enableColumnOrdering={enableColumnOrdering}
+          enableCellSelection={enableCellSelection}
+          cellSelection={cellSelection}
           findFilterRows={
             enableFind && find.open && find.filterMode
               ? (tableRows) => find.applyFindToTableRows(tableRows)
               : undefined
           }
         />
+        {cellSelection.enabled && cellSelection.selectedCellCount > 0 ? (
+          <CellSelectionStatus
+            count={cellSelection.selectedCellCount}
+            onClear={cellSelection.clearSelection}
+            onCopy={cellSelection.copySelection}
+          />
+        ) : null}
       </div>
     </TableFindProvider>
   );
@@ -276,8 +292,15 @@ const TableContainer = (
   > &
     Pick<
       Required<DataTableProps<any>>,
-      "size" | "variant" | "interactive" | "striped" | "showColumnBorder" | "enableColumnOrdering"
+      | "size"
+      | "variant"
+      | "interactive"
+      | "striped"
+      | "showColumnBorder"
+      | "enableColumnOrdering"
+      | "enableCellSelection"
     > & {
+      cellSelection?: ReturnType<typeof useDataTableCellSelection<any>>;
       findFilterRows?: <T extends { id: string; original: Record<string, unknown> }>(
         rows: readonly T[],
       ) => T[];
@@ -350,6 +373,9 @@ const TableContainer = (
   return (
     <div
       className={`h-full overflow-x-auto ${props.enableRowVirtualization ? "overflow-y-auto" : ""} ${props.className || ""}`}
+      data-cell-selection-grid={props.enableCellSelection ? true : undefined}
+      tabIndex={props.enableCellSelection ? 0 : undefined}
+      onKeyDown={props.cellSelection?.onGridKeyDown}
       ref={(el) => {
         if (props.containerRef) {
           props.containerRef.current = el;
@@ -538,6 +564,7 @@ const TableContainer = (
             enableColumnOrdering={props.enableColumnOrdering}
             columnVirtualization={columnVirtualization}
             findFilterRows={props.findFilterRows}
+            cellSelection={props.cellSelection}
           />
         ) : (
           <TableBody
@@ -563,6 +590,7 @@ const TableContainer = (
             showColumnBorder={props.showColumnBorder}
             enableColumnOrdering={props.enableColumnOrdering}
             findFilterRows={props.findFilterRows}
+            cellSelection={props.cellSelection}
           />
         )}
       </table>
@@ -575,6 +603,7 @@ const TableBody = (
     table: TanstackTable<any>;
     tableContainerRef: RefObject<HTMLDivElement | null>;
     columnVirtualization: ColumnVirtualizationState;
+    cellSelection?: ReturnType<typeof useDataTableCellSelection<any>>;
     findFilterRows?: <T extends { id: string; original: Record<string, unknown> }>(
       rows: readonly T[],
     ) => T[];
@@ -688,6 +717,7 @@ const TableBody = (
         overscan={props.rowOverscan}
         scrollElement={tableContainerRef.current}
         renderSubrows={props.renderSubrows}
+        cellSelection={props.cellSelection?.getCellState}
       />
     </tbody>
   ) : (
@@ -711,6 +741,7 @@ const TableBody = (
             ExpandedRow={props.ExpandedRow}
             onExpandRowJson={props.onExpandRowJson}
             renderSubrows={props.renderSubrows}
+            cellSelection={props.cellSelection?.getCellState}
           />
         ))
       ) : (
@@ -778,6 +809,50 @@ const estimateSizeByTableSize = (size: DataTableSize) => {
       return 38;
   }
 };
+
+function CellSelectionStatus(props: {
+  count: number;
+  onCopy: () => Promise<boolean>;
+  onClear: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    const didCopy = await props.onCopy();
+    if (!didCopy) return;
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
+  };
+
+  return (
+    <div className="border-border bg-muted/30 text-muted-foreground flex shrink-0 items-center justify-between gap-3 border-t px-2 py-1 text-xs">
+      <span>
+        {props.count} cell{props.count === 1 ? "" : "s"} selected
+      </span>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="xs"
+          className="h-6 gap-1 px-1.5"
+          onClick={() => void copy()}
+          aria-label="Copy selected cells"
+        >
+          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+          {copied ? "Copied" : "Copy"}
+        </Button>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="h-6 px-1.5"
+          onClick={props.onClear}
+          aria-label="Clear cell selection"
+        >
+          Clear
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function DataTablePagination<TData>(props: { table: TanstackTable<TData> }) {
   const { table } = props;

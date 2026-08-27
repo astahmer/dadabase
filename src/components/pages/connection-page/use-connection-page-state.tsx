@@ -281,7 +281,7 @@ export const useConnectionPageState = ({
     () => [
       {
         id: "__expand",
-        meta: { enableColumnOrdering: false },
+        meta: { enableColumnOrdering: false, enableCellSelection: false },
         header: () => null,
         cell: (ctx) => {
           const isExpanded = search.relationshipRowId === ctx.row.id;
@@ -326,7 +326,7 @@ export const useConnectionPageState = ({
       } as ColumnDef<Record<string, unknown>>,
       {
         id: "__select",
-        meta: { enableColumnOrdering: false },
+        meta: { enableColumnOrdering: false, enableCellSelection: false },
         header: (ctx) => {
           const isSomeRowsSelected = ctx.table.getIsSomeRowsSelected();
           const isAllSelected = ctx.table.getIsAllRowsSelected();
@@ -423,7 +423,7 @@ export const useConnectionPageState = ({
       } as ColumnDef<Record<string, unknown>>,
       {
         id: "__actions",
-        meta: { enableColumnOrdering: false },
+        meta: { enableColumnOrdering: false, enableCellSelection: false },
         header: () => null,
         cell: (ctx) => {
           const row = ctx.row.original as Record<string, unknown>;

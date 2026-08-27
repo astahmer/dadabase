@@ -1,4 +1,4 @@
-import type { CSSProperties, PropsWithChildren } from "react";
+import type { CSSProperties, MouseEventHandler, PropsWithChildren } from "react";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -6,6 +6,8 @@ import { memo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
 import { cn } from "#src/lib/utils.ts";
+
+import type { CellSelectionEdges } from "./use-data-table-cell-selection.ts";
 
 import { type DataTableSize, tableCellStyles } from "./data-table.styles.ts";
 
@@ -25,6 +27,12 @@ export const DataTableCell = memo(function TableCell(props: {
   className?: string;
   style?: CSSProperties;
   isFindMatch?: boolean;
+  isCellSelected?: boolean;
+  isCellFocused?: boolean;
+  cellSelectionEdges?: CellSelectionEdges;
+  onCellMouseDown?: MouseEventHandler<HTMLTableCellElement>;
+  onCellMouseEnter?: MouseEventHandler<HTMLTableCellElement>;
+  onCellClick?: MouseEventHandler<HTMLTableCellElement>;
 }) {
   const {
     columnId,
@@ -38,13 +46,28 @@ export const DataTableCell = memo(function TableCell(props: {
     className,
     style,
     isFindMatch,
+    isCellSelected,
+    isCellFocused,
+    cellSelectionEdges,
+    onCellMouseDown,
+    onCellMouseEnter,
+    onCellClick,
   } = props;
 
   const cellClassName = cn(
     tableCellStyles({ size, showColumnBorder, textAlign }),
     isFindMatch && "bg-yellow-200/70 dark:bg-yellow-500/30",
+    isCellSelected && "bg-primary/10 dark:bg-primary/15",
+    isCellFocused && "outline-primary outline-2 outline-offset-[-2px]",
     className,
   );
+  const selectionShadow = isCellSelected
+    ? `inset ${cellSelectionEdges?.left ? "2px" : "1px"} 0 0 var(--primary), inset ${
+        cellSelectionEdges?.right ? "-2px" : "-1px"
+      } 0 0 var(--primary), inset 0 ${cellSelectionEdges?.top ? "2px" : "1px"} 0 var(--primary), inset 0 ${
+        cellSelectionEdges?.bottom ? "-2px" : "-1px"
+      } 0 0 var(--primary)`
+    : undefined;
 
   const sortable = useSortable({
     id: columnId,
@@ -66,8 +89,12 @@ export const DataTableCell = memo(function TableCell(props: {
         className={cellClassName}
         data-testid={`cell-${index}-${columnId}`}
         data-find-match={isFindMatch || undefined}
+        onMouseDown={onCellMouseDown}
+        onMouseEnter={onCellMouseEnter}
+        onClick={onCellClick}
         style={{
           width: `${props.columnSize}px`,
+          boxShadow: selectionShadow,
           ...dragStyle,
         }}
       >
@@ -84,8 +111,12 @@ export const DataTableCell = memo(function TableCell(props: {
       className={cellClassName}
       data-testid={`cell-${index}-${columnId}`}
       data-find-match={isFindMatch || undefined}
+      onMouseDown={onCellMouseDown}
+      onMouseEnter={onCellMouseEnter}
+      onClick={onCellClick}
       style={{
         width: `${props.columnSize}px`,
+        boxShadow: selectionShadow,
         ...style,
       }}
     >

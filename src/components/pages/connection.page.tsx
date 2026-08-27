@@ -2123,6 +2123,7 @@ const RowsTableContent = (
                 enableRowVirtualization
                 enableColumnOrdering
                 enableFind
+                enableCellSelection
                 onRowDoubleClick={
                   props.onEditRow && !isReadOnlyConnection(props.activeConnectionUrl)
                     ? (row) => props.onEditRow?.(row.original as Record<string, unknown>)

@@ -8,6 +8,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { getColumnPinningStyles } from "#src/lib/get-pinning-styles.ts";
 
 import type { ColumnVirtualizationState } from "./data-table.column-virtualization.ts";
+import type { CellSelectionCellState } from "./use-data-table-cell-selection.ts";
 
 import { RowContextMenu } from "../app/row-context-menu.tsx";
 import { DataTableCell } from "./data-table.cell.tsx";
@@ -37,6 +38,7 @@ export const DataTableRow = memo(function TableRow({
   columnOrder = [],
   columnVirtualization,
   renderSubrows,
+  cellSelection,
 }: {
   index: number;
   getRow: () => Row<any>;
@@ -53,6 +55,7 @@ export const DataTableRow = memo(function TableRow({
   ExpandedRow?: (props: { row: Row<any> }) => ReactNode;
   onExpandRowJson?: (row: Record<string, unknown>) => void;
   renderSubrows?: (row: Row<any>) => DataTableRowSubrow[];
+  cellSelection?: (rowId: string, columnId: string) => CellSelectionCellState | undefined;
 }) {
   const row = getRow();
   const visibleCells = row.getVisibleCells();
@@ -66,6 +69,7 @@ export const DataTableRow = memo(function TableRow({
         (cell.column.columnDef.meta as any)?.enableColumnOrdering === false || isPinned;
       const textAlign = (cell.column.columnDef.meta as any)?.textAlign || "left";
       const className = (cell.column.columnDef.meta as any)?.className;
+      const selection = cellSelection?.(row.id, cell.column.id);
 
       return (
         <DataTableCellWithFind
@@ -81,6 +85,12 @@ export const DataTableRow = memo(function TableRow({
           showColumnBorder={showColumnBorder}
           enableColumnOrdering={enableColumnOrdering}
           className={className}
+          isCellSelected={selection?.isSelected}
+          isCellFocused={selection?.isFocused}
+          cellSelectionEdges={selection?.edges}
+          onCellMouseDown={selection?.onMouseDown}
+          onCellMouseEnter={selection?.onMouseEnter}
+          onCellClick={selection?.onClick}
           style={isPinned ? getColumnPinningStyles(cell.column) : undefined}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -155,6 +165,7 @@ export const DataTableRow = memo(function TableRow({
     enableColumnOrdering,
     columnVirtualization,
     row.id,
+    cellSelection,
   ]);
 
   const MainRow = (
