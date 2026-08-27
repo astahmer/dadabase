@@ -12,6 +12,7 @@ import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/
 
 import type { DbConnection } from "../connection.types";
 
+import { ErrorBoundaryCard } from "../../shared/error-boundary-card.tsx";
 import { Button } from "../../ui/button";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
 import { createTabState, updateTabState, useActiveTabState } from "./create-tab-state.ts";
@@ -329,7 +330,14 @@ const TableSearchListbox = (props: {
         />
       </div>
 
-      {tablesListQuery.isLoading ? (
+      {tablesListQuery.isError ? (
+        <ErrorBoundaryCard
+          error={tablesListQuery.error}
+          title="Could not load tables"
+          onRetry={() => tablesListQuery.refetch()}
+          className="mt-3"
+        />
+      ) : tablesListQuery.isLoading ? (
         <div className="text-muted-foreground py-8 text-center text-sm">Loading tables...</div>
       ) : filteredTables.length === 0 ? (
         <div className="border-muted-foreground/30 bg-muted/20 mt-3 rounded-lg border border-dashed p-6 text-center">
