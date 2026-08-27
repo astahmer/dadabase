@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SandboxRouteImport } from './routes/sandbox'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as ConnectionsConnectionNameRouteImport } from './routes/connections/$connectionName'
 import { Route as ConnectionsNewRouteImport } from './routes/connections/new'
 import { Route as SchemaConnectionNameRouteImport } from './routes/schema/$connectionName'
@@ -31,6 +32,11 @@ const SandboxRoute = SandboxRouteImport.update({
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConnectionsConnectionNameRoute =
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sandbox': typeof SandboxRoute
   '/api/chat': typeof ApiChatRouteWithChildren
+  '/api/mcp': typeof ApiMcpRoute
   '/connections/$connectionName': typeof ConnectionsConnectionNameRouteWithChildren
   '/connections/new': typeof ConnectionsNewRoute
   '/schema/$connectionName': typeof SchemaConnectionNameRoute
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sandbox': typeof SandboxRoute
   '/api/chat': typeof ApiChatRouteWithChildren
+  '/api/mcp': typeof ApiMcpRoute
   '/connections/$connectionName': typeof ConnectionsConnectionNameRouteWithChildren
   '/connections/new': typeof ConnectionsNewRoute
   '/schema/$connectionName': typeof SchemaConnectionNameRoute
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/sandbox': typeof SandboxRoute
   '/api/chat': typeof ApiChatRouteWithChildren
+  '/api/mcp': typeof ApiMcpRoute
   '/connections/$connectionName': typeof ConnectionsConnectionNameRouteWithChildren
   '/connections/new': typeof ConnectionsNewRoute
   '/schema/$connectionName': typeof SchemaConnectionNameRoute
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/'
     | '/sandbox'
     | '/api/chat'
+    | '/api/mcp'
     | '/connections/$connectionName'
     | '/connections/new'
     | '/schema/$connectionName'
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/'
     | '/sandbox'
     | '/api/chat'
+    | '/api/mcp'
     | '/connections/$connectionName'
     | '/connections/new'
     | '/schema/$connectionName'
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/'
     | '/sandbox'
     | '/api/chat'
+    | '/api/mcp'
     | '/connections/$connectionName'
     | '/connections/new'
     | '/schema/$connectionName'
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SandboxRoute: typeof SandboxRoute
   ApiChatRoute: typeof ApiChatRouteWithChildren
+  ApiMcpRoute: typeof ApiMcpRoute
   ConnectionsConnectionNameRoute: typeof ConnectionsConnectionNameRouteWithChildren
   ConnectionsNewRoute: typeof ConnectionsNewRoute
   SchemaConnectionNameRoute: typeof SchemaConnectionNameRoute
@@ -156,6 +169,13 @@ declare module '@tanstack/react-router' {
       path: '/api/chat'
       fullPath: '/api/chat'
       preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/connections/$connectionName': {
@@ -225,6 +245,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SandboxRoute: SandboxRoute,
   ApiChatRoute: ApiChatRouteWithChildren,
+  ApiMcpRoute: ApiMcpRoute,
   ConnectionsConnectionNameRoute: ConnectionsConnectionNameRouteWithChildren,
   ConnectionsNewRoute: ConnectionsNewRoute,
   SchemaConnectionNameRoute: SchemaConnectionNameRoute,
