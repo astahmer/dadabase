@@ -58,6 +58,12 @@ import {
   getCurrentChatConversationId,
 } from "#src/lib/ai/chat-conversation-current.ts";
 import {
+  DEFAULT_CHAT_DATA_ACCESS,
+  getStoredChatDataAccess,
+  setStoredChatDataAccess,
+  type ChatDataAccess,
+} from "#src/lib/ai/chat-data-access.ts";
+import {
   applySelectedTables,
   getStoredChatSchemaSelection,
   getLastResolvedAutoTables,
@@ -212,6 +218,18 @@ const AiChatPageInner = ({
   useEffect(() => {
     setHasApprovedSchemaSharing(hasSchemaSharingConsent(connection.name));
   }, [connection.name]);
+  const [chatDataAccess, setChatDataAccess] = useState<ChatDataAccess>(DEFAULT_CHAT_DATA_ACCESS);
+  useEffect(() => {
+    setChatDataAccess(getStoredChatDataAccess(connection.name));
+  }, [connection.name]);
+  const updateChatDataAccess = (patch: Partial<ChatDataAccess>) => {
+    setChatDataAccess((current) => {
+      const next = { ...current, ...patch };
+      setStoredChatDataAccess(connection.name, next);
+      window.dispatchEvent(new Event(BYOK_CHANGED_EVENT));
+      return next;
+    });
+  };
   const [threadListOpen, setThreadListOpen] = useState(false);
 
   /**
@@ -408,6 +426,7 @@ const AiChatPageInner = ({
       {settingsOpen && (
         <SchemaSettingsSection
           schemaContext={schemaContext}
+          schemaLoading={allTablesColumnsQuery.isLoading}
           connectionName={connection.name}
           defaultOpen={false}
         />
@@ -421,6 +440,8 @@ const AiChatPageInner = ({
           initialConversationId={initialConversationId}
           providerReady={byokState === "usable"}
           hasApprovedSchemaSharing={hasApprovedSchemaSharing}
+          chatDataAccess={chatDataAccess}
+          onChatDataAccessChange={updateChatDataAccess}
           onApproveSchemaSharing={() => {
             grantSchemaSharingConsent(connection.name);
             setHasApprovedSchemaSharing(true);
@@ -768,7 +789,16 @@ const ToolsSettingsSection = ({ defaultOpen = false }: { defaultOpen?: boolean }
               >
                 <CheckboxControl />
                 <CheckboxLabel className="cursor-pointer">
-                  <span className="font-medium">{tool.label}</span>
+                  <span className="font-medium">
+                    {tool.label}{" "}
+                    <span className="text-muted-foreground font-normal">
+                      {tool.dataClass === "schema"
+                        ? "· schema only"
+                        : tool.dataClass === "sample-rows"
+                          ? "· shares sample rows"
+                          : "· shares query results"}
+                    </span>
+                  </span>
                   <span className="text-muted-foreground block text-xs">{tool.description}</span>
                 </CheckboxLabel>
               </Checkbox>
@@ -797,10 +827,12 @@ const SCHEMA_MODE_LABELS: Array<{ mode: ChatSchemaMode; label: string; hint: str
 
 const SchemaSettingsSection = ({
   schemaContext,
+  schemaLoading,
   connectionName,
   defaultOpen = false,
 }: {
   schemaContext: AiSchemaContext;
+  schemaLoading: boolean;
   connectionName: string;
   defaultOpen?: boolean;
 }) => {
@@ -843,7 +875,9 @@ const SchemaSettingsSection = ({
           />
           <h2 className="text-sm font-medium">Database schema</h2>
           <span className="text-muted-foreground text-xs">
-            Which tables the assistant can see ({tableNames.length} total).
+            {schemaLoading
+              ? "Reading available tables…"
+              : `Which tables the assistant can see (${tableNames.length} total).`}
           </span>
         </button>
       </div>
@@ -937,6 +971,8 @@ const AiChatBody = ({
   hasApprovedSchemaSharing,
   onApproveSchemaSharing,
   onRevokeSchemaSharing,
+  chatDataAccess,
+  onChatDataAccessChange,
   onApplySql,
   onRunSql,
   onOpenWorkspaceView,
@@ -958,6 +994,8 @@ const AiChatBody = ({
   onApproveSchemaSharing: () => void;
   /** Audit S2: a persisted grant needs an explicit, announced revoke. */
   onRevokeSchemaSharing: () => void;
+  chatDataAccess: ChatDataAccess;
+  onChatDataAccessChange: (patch: Partial<ChatDataAccess>) => void;
   /** Audit S8: meta identifies the thread a seeded editor can link back to. */
   onApplySql: (sql: string, meta?: ChatReturnMeta) => void;
   onRunSql: (sql: string, meta?: ChatReturnMeta) => void;
@@ -1067,11 +1105,98 @@ const AiChatBody = ({
                 <span className="font-medium">Share schema context with the AI provider</span>
                 <span className="text-muted-foreground block text-xs">
                   Dadabase sends this prompt plus schema, table, and column names to draft SQL. It
-                  does not send table rows or query results. You review generated SQL before it
+                  does not send row values under this permission. You review generated SQL before it
                   runs.
                 </span>
               </span>
             </label>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <label className="border-border bg-background flex items-start gap-2 rounded-md border p-2 text-xs">
+                <Checkbox
+                  checked={chatDataAccess.sampleRows}
+                  disabled={!hasApprovedSchemaSharing}
+                  onCheckedChange={(details) =>
+                    onChatDataAccessChange({ sampleRows: details.checked === true })
+                  }
+                  data-testid="ai-sample-rows-consent"
+                >
+                  <CheckboxControl />
+                </Checkbox>
+                <span>
+                  <span className="font-medium">Allow sample rows</span>
+                  <span className="text-muted-foreground block">
+                    Let Preview rows share up to 25 row values with the provider.
+                  </span>
+                </span>
+              </label>
+              <label className="border-border bg-background flex items-start gap-2 rounded-md border p-2 text-xs">
+                <Checkbox
+                  checked={chatDataAccess.queryResults}
+                  disabled={!hasApprovedSchemaSharing}
+                  onCheckedChange={(details) =>
+                    onChatDataAccessChange({ queryResults: details.checked === true })
+                  }
+                  data-testid="ai-query-results-consent"
+                >
+                  <CheckboxControl />
+                </Checkbox>
+                <span>
+                  <span className="font-medium">Allow query results</span>
+                  <span className="text-muted-foreground block">
+                    Let approved SQL results be sent back for summarizing.
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
+        {hasApprovedSchemaSharing && (
+          <div
+            className="border-border bg-muted/30 mx-auto mt-4 w-full max-w-3xl px-4"
+            data-testid="ai-data-access-settings"
+          >
+            <div className="border-border bg-background rounded-md border p-3 text-xs">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="font-medium">Data shared with the AI provider</span>
+                <span className="text-muted-foreground">Schema metadata is enabled.</span>
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <label className="flex items-start gap-2">
+                  <Checkbox
+                    checked={chatDataAccess.sampleRows}
+                    onCheckedChange={(details) =>
+                      onChatDataAccessChange({ sampleRows: details.checked === true })
+                    }
+                    data-testid="ai-sample-rows-consent"
+                  >
+                    <CheckboxControl />
+                  </Checkbox>
+                  <span>
+                    <span className="font-medium">Sample rows</span>
+                    <span className="text-muted-foreground block">
+                      Up to 25 row values for Preview rows.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2">
+                  <Checkbox
+                    checked={chatDataAccess.queryResults}
+                    onCheckedChange={(details) =>
+                      onChatDataAccessChange({ queryResults: details.checked === true })
+                    }
+                    data-testid="ai-query-results-consent"
+                  >
+                    <CheckboxControl />
+                  </Checkbox>
+                  <span>
+                    <span className="font-medium">Query results</span>
+                    <span className="text-muted-foreground block">
+                      Results from approved SQL for summarizing.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
         )}
         <ChatSurface
@@ -1083,6 +1208,7 @@ const AiChatBody = ({
           schemaHint={schemaStatus}
           consentRequired={!hasApprovedSchemaSharing}
           onRevokeSchemaSharing={onRevokeSchemaSharing}
+          chatDataAccess={chatDataAccess}
           providerReady={providerReady}
           dialect={connection.dialect}
           initialAskTable={initialAskTable}
@@ -1683,6 +1809,7 @@ const ChatSurface = ({
   schemaHint,
   consentRequired,
   onRevokeSchemaSharing,
+  chatDataAccess,
   providerReady,
   dialect,
   onAdoptAutoTables,
@@ -1712,6 +1839,7 @@ const ChatSurface = ({
   /** Schema-sharing consent outstanding — Send stays disabled until approved. */
   consentRequired: boolean;
   onRevokeSchemaSharing: () => void;
+  chatDataAccess: ChatDataAccess;
   /** Stored BYOK config satisfies its provider's key requirement. */
   providerReady: boolean;
   dialect: DatabaseDialect;
@@ -2283,6 +2411,22 @@ const ChatSurface = ({
                           ? "tools off"
                           : message.context.tools.join(", ")}
                       </span>
+                      {message.context.dataClasses.length > 0 ? (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span>
+                            {message.context.dataClasses
+                              .map((dataClass) =>
+                                dataClass === "sample-rows"
+                                  ? "sample rows"
+                                  : dataClass === "query-results"
+                                    ? "query results"
+                                    : "schema",
+                              )
+                              .join(" + ")}
+                          </span>
+                        </>
+                      ) : null}
                       {message.usage?.totalTokens != null && message.usage.totalTokens > 0 ? (
                         <>
                           <span aria-hidden="true">·</span>
@@ -2409,7 +2553,10 @@ const ChatSurface = ({
               first successful send (per connection). */}
           {providerReady && !consentRequired && !trustNoteDismissed ? (
             <p className="text-muted-foreground text-[11px]" data-testid="ai-chat-trust-note">
-              Schema and table names are sent to {providerLabel} — never row data.
+              Schema and table names are sent to {providerLabel}.
+              {chatDataAccess.sampleRows || chatDataAccess.queryResults
+                ? ` ${chatDataAccess.sampleRows ? "Sample rows" : ""}${chatDataAccess.sampleRows && chatDataAccess.queryResults ? " and " : ""}${chatDataAccess.queryResults ? "query results" : ""} are allowed for this chat.`
+                : " No row values are shared."}
             </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">

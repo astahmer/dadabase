@@ -21,6 +21,7 @@ export const ChatContextReceiptSchema = z.object({
   mode: z.enum(["all", "selected", "auto"]),
   tables: z.array(z.string()),
   tools: z.array(z.string()),
+  dataClasses: z.array(z.enum(["schema", "sample-rows", "query-results"])).default(["schema"]),
 });
 export type ChatContextReceipt = z.infer<typeof ChatContextReceiptSchema>;
 

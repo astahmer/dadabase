@@ -16,6 +16,11 @@ import { z } from "zod";
 import type { AiSchemaContext } from "#src/lib/ai/ai-types.ts";
 
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import {
+  applyChatDataAccessToTools,
+  dataClassesForChatTurn,
+  normalizeChatDataAccess,
+} from "#src/lib/ai/chat-data-access.ts";
 import { ChatRequestConfigSchema } from "#src/lib/ai/chat-request-config.ts";
 import { AUTO_SCHEMA_HEADER } from "#src/lib/ai/chat-schema-selection.ts";
 import {
@@ -24,12 +29,9 @@ import {
   PreviewRowsInputSchema,
   TableDetailsInputSchema,
 } from "#src/lib/ai/chat-tool-schemas.ts";
-import { buildChatSystemPrompt } from "#src/lib/ai/nl-to-sql-prompt.ts";
-import {
-  applyAutoSelection,
-  buildAutoSelectPrompt,
-} from "#src/lib/ai/schema-auto-select.ts";
 import { normalizeEnabledChatTools } from "#src/lib/ai/chat-tools.ts";
+import { buildChatSystemPrompt } from "#src/lib/ai/nl-to-sql-prompt.ts";
+import { applyAutoSelection, buildAutoSelectPrompt } from "#src/lib/ai/schema-auto-select.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import {
   ChatThreadRepository,
@@ -83,6 +85,14 @@ const bodySchema = z.object({
   threadId: z.string().optional(),
   /** Enabled tools; absent → all. Unknown ids are dropped server-side. */
   enabledTools: z.array(z.string()).optional(),
+  /** Row and result access are separate from schema-sharing consent. */
+  dataAccess: z
+    .object({
+      schema: z.boolean(),
+      sampleRows: z.boolean(),
+      queryResults: z.boolean(),
+    })
+    .optional(),
   /**
    * "auto": one lightweight generateText call first picks the needed tables
    * from the full schema; the main completion then sees only that subset.
@@ -281,7 +291,11 @@ export const Route = createFileRoute("/api/chat")({
           );
         }
 
-        const enabledTools = normalizeEnabledChatTools(body.enabledTools);
+        const dataAccess = normalizeChatDataAccess(body.dataAccess);
+        const enabledTools = applyChatDataAccessToTools(
+          normalizeEnabledChatTools(body.enabledTools),
+          dataAccess,
+        );
 
         // Auto schema mode: one lightweight non-streaming call picks the tables
         // the question needs; the main completion sees only that subset.
@@ -314,6 +328,10 @@ export const Route = createFileRoute("/api/chat")({
           mode: body.schemaMode ?? "all",
           tables: effectiveSchema?.tables.map((table) => table.table) ?? [],
           tools: enabledTools,
+          dataClasses: dataClassesForChatTurn({
+            hasSchema: effectiveSchema !== undefined && dataAccess.schema,
+            enabledTools,
+          }),
         };
 
         const result = streamText({
@@ -381,8 +399,7 @@ export const Route = createFileRoute("/api/chat")({
             ...(enabledTools.includes("table_details")
               ? {
                   table_details: tool({
-                    description:
-                      "Inspect a table's columns/types plus FK and index metadata.",
+                    description: "Inspect a table's columns/types plus FK and index metadata.",
                     inputSchema: TableDetailsInputSchema,
                     execute: async ({ table, schema }) =>
                       tableDetailsToolExecute({

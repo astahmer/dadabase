@@ -7,13 +7,14 @@ import type { KeyValueStorage } from "#src/lib/chat/runtime/types.ts";
 
 import { getStoredByokConfig, getStoredEnabledChatTools } from "#src/lib/ai-byok.ts";
 import { isProviderKeyOptional, resolveChatBaseUrl } from "#src/lib/ai/ai-providers.ts";
+import { recordCurrentChatConversationId } from "#src/lib/ai/chat-conversation-current.ts";
+import { getStoredChatDataAccess } from "#src/lib/ai/chat-data-access.ts";
 import {
   AUTO_SCHEMA_HEADER,
   getStoredChatSchemaSelection,
   recordResolvedAutoTables,
   resolveSchemaRequestParts,
 } from "#src/lib/ai/chat-schema-selection.ts";
-import { recordCurrentChatConversationId } from "#src/lib/ai/chat-conversation-current.ts";
 import { defaultGenericChatSettings } from "#src/lib/chat/chat/settings.ts";
 import { ChatUiMessages } from "#src/lib/chat/chat/ui-messages.ts";
 import { createDadabaseConversationClient } from "#src/lib/chat/dadabase/conversation-client.ts";
@@ -116,6 +117,7 @@ export const useDadabaseChatRuntime = ({
               },
               connectionName,
               enabledTools: getStoredEnabledChatTools(),
+              dataAccess: getStoredChatDataAccess(connectionName),
               ...(schemaContext === undefined ? {} : { schemaContext }),
               ...(schemaMode === undefined ? {} : { schemaMode }),
             };
@@ -145,9 +147,7 @@ export const useDadabaseChatRuntime = ({
         // Audit C2: local presets (Ollama/LM Studio) are usable without a key.
         // The runtime core stays provider-agnostic — it asks this callback.
         apiKeyOptional: (settings) =>
-          isProviderKeyOptional(
-            settings.provider || getStoredByokConfig()?.providerId || "openai",
-          ),
+          isProviderKeyOptional(settings.provider || getStoredByokConfig()?.providerId || "openai"),
         settings: {
           defaults: {
             ...defaultGenericChatSettings,

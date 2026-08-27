@@ -17,16 +17,16 @@ one flat list with all tools enabled by default.
 
 Relevant architecture:
 
-| Concern | Location | Current mechanism |
-| --- | --- | --- |
-| Full AI page | `src/components/pages/connection-page/ai-chat.page.tsx` | Chat provider, thread list, settings, composer, messages, tool cards |
-| AI route | `src/routes/connections/$connectionName.ai.tsx` | Connection-scoped full-page AI route with `thread` and `askTable` search params |
-| Workspace shell | `src/components/pages/connection.page.tsx` | Connection navigation, tabs, main content, query logger, child route outlet |
-| Chat runtime | `src/components/pages/connection-page/use-chat-runtime.tsx` | Shared AI SDK/runtime integration and persistence events |
-| AI API | `src/routes/api/chat.ts` | Schema filtering, tool registration, streaming, approval, database tool execution |
-| Provider storage | `src/lib/ai-byok.ts` | Browser-local provider/model/key configuration |
-| Consent | `src/lib/ai/chat-consent.ts` | Per-connection browser-local consent state |
-| Schema selection | `src/lib/ai/chat-schema-selection.ts` | Per-connection all/selected/auto selection state |
+| Concern          | Location                                                    | Current mechanism                                                                 |
+| ---------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Full AI page     | `src/components/pages/connection-page/ai-chat.page.tsx`     | Chat provider, thread list, settings, composer, messages, tool cards              |
+| AI route         | `src/routes/connections/$connectionName.ai.tsx`             | Connection-scoped full-page AI route with `thread` and `askTable` search params   |
+| Workspace shell  | `src/components/pages/connection.page.tsx`                  | Connection navigation, tabs, main content, query logger, child route outlet       |
+| Chat runtime     | `src/components/pages/connection-page/use-chat-runtime.tsx` | Shared AI SDK/runtime integration and persistence events                          |
+| AI API           | `src/routes/api/chat.ts`                                    | Schema filtering, tool registration, streaming, approval, database tool execution |
+| Provider storage | `src/lib/ai-byok.ts`                                        | Browser-local provider/model/key configuration                                    |
+| Consent          | `src/lib/ai/chat-consent.ts`                                | Per-connection browser-local consent state                                        |
+| Schema selection | `src/lib/ai/chat-schema-selection.ts`                       | Per-connection all/selected/auto selection state                                  |
 
 ## Goal
 
@@ -234,7 +234,7 @@ Provider keys remain browser-local and must never be included in URL state.
 - [ ] Add selected message actions where relevant.
 - [ ] Add context/cost estimates and better streaming/error states.
 - [ ] Add drawer focus management, keyboard affordances, reduced-motion handling,
-  and responsive/zoom QA.
+      and responsive/zoom QA.
 
 ### Phase 5 — Validation
 
@@ -242,7 +242,7 @@ Provider keys remain browser-local and must never be included in URL state.
 - [ ] Run typecheck.
 - [ ] Exercise local e2e fixtures only.
 - [ ] Verify desktop, tablet, mobile, keyboard, zoom, reduced-motion, and light/dark
-  states.
+      states.
 - [ ] Update this plan with completed decisions and remaining follow-ups.
 
 ## Acceptance criteria
@@ -281,4 +281,3 @@ Provider keys remain browser-local and must never be included in URL state.
 - 2026-08-28: Preserve the existing full AI surface and reuse its runtime/thread
   persistence.
 - 2026-08-28: Keep provider secrets browser-local and out of URL state.
-
