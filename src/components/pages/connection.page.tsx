@@ -2270,125 +2270,134 @@ const RowsTableContent = (
             >
               <RowsPendingEditsBar connectionUrl={props.activeConnectionUrl} />
               <CsvSaveBar connectionUrl={props.activeConnectionUrl} dialect={props.dialect} />
-              <DataTable
-                // virtualized={search.limit > 100}
-                enableRowVirtualization
-                enableColumnOrdering
-                enableFind
-                enableCellSelection
-                onPasteSelection={
-                  isReadOnlyConnection(props.activeConnectionUrl) ? undefined : handlePasteSelection
-                }
-                onBulkFillSelection={
-                  isReadOnlyConnection(props.activeConnectionUrl)
-                    ? undefined
-                    : handleBulkFillSelection
-                }
-                onSelectionExport={handleSelectionExport}
-                onRowDoubleClick={
-                  props.onEditRow && !isReadOnlyConnection(props.activeConnectionUrl)
-                    ? (row) => props.onEditRow?.(row.original as Record<string, unknown>)
-                    : undefined
-                }
-                table={props.rowsDataTable}
-                getTableContainer={setTableContainer}
-                isLoading={
-                  (props.rowsQuery.isPending && !props.rowsQuery.data) ||
-                  (props.isColumnMetadataLoading && !props.rowsQuery.data)
-                }
-                size={search.tableSize}
-                getColumnHeaderFilter={(columnId) =>
-                  getColumnHeaderFilter(search.filterConditions, columnId)
-                }
-                onColumnHeaderFilterChange={(columnId, filter) => {
-                  navigate({
-                    search: (prev) =>
-                      updateTabState(prev, (tab) => ({
-                        filtersOpened: true,
-                        filters: {
-                          conditions: upsertColumnHeaderFilter(tab.filters?.conditions ?? [], {
-                            column: columnId,
-                            operator: filter?.operator ?? "contains",
-                            value: filter?.value ?? "",
-                          }),
-                          logicalOperator: tab.filters?.logicalOperator ?? "and",
-                        },
-                      })),
-                  });
-                }}
-                onColumnFilterClick={(columnId) => {
-                  navigate({
-                    search: (prev) =>
-                      updateTabState(prev, (tab) => ({
-                        filtersOpened: true,
-                        filters: {
-                          conditions: [
-                            ...(tab.filters?.conditions ?? []),
-                            {
-                              column: columnId,
-                              operator: "equals",
-                            },
-                          ],
-                          logicalOperator: tab.filters?.logicalOperator ?? "and",
-                        },
-                      })),
-                  });
-                }}
-                onExpandRowJson={(row) => {
-                  const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
-                  const rowId = primaryKeyColumn ? String(row[primaryKeyColumn.name]) : undefined;
-                  navigate({
-                    search: (prev) => ({
-                      ...prev,
-                      rowJsonViewerRowId: rowId,
-                      rowJsonViewerOpen: !!rowId,
-                    }),
-                  });
-                }}
-                emptyState={
-                  <div className="flex min-h-40 flex-col items-center justify-center gap-2 py-8 text-center">
-                    <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full">
-                      <SearchX className="text-muted-foreground h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">No matching rows</p>
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        {search.filterConditions.length > 0 || search.clientFilterApproved
-                          ? "Try changing or clearing your filters."
-                          : "This table has no rows yet."}
-                      </p>
-                    </div>
-                    {(search.filterConditions.length > 0 || search.clientFilterApproved) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          navigate({
-                            search: (prev) =>
-                              updateTabState(prev, {
-                                filters: { conditions: [], logicalOperator: "and" },
-                                clientFilter: undefined,
-                                clientFilterApproved: undefined,
-                              }),
-                          });
-                        }}
-                        className="mt-1 h-8 gap-1.5 text-xs"
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                        Clear filters
-                      </Button>
-                    )}
-                  </div>
-                }
-              />
-              {!props.rowsQuery.isLoading && !props.isColumnMetadataLoading && (
-                <ScrollToColumnButton
+              <div className="hidden min-h-0 flex-1 flex-col md:flex">
+                <DataTable
+                  // virtualized={search.limit > 100}
+                  enableRowVirtualization
+                  enableColumnOrdering
+                  enableFind
+                  enableCellSelection
+                  onPasteSelection={
+                    isReadOnlyConnection(props.activeConnectionUrl) ? undefined : handlePasteSelection
+                  }
+                  onBulkFillSelection={
+                    isReadOnlyConnection(props.activeConnectionUrl)
+                      ? undefined
+                      : handleBulkFillSelection
+                  }
+                  onSelectionExport={handleSelectionExport}
+                  onRowDoubleClick={
+                    props.onEditRow && !isReadOnlyConnection(props.activeConnectionUrl)
+                      ? (row) => props.onEditRow?.(row.original as Record<string, unknown>)
+                      : undefined
+                  }
                   table={props.rowsDataTable}
-                  containerRef={{
-                    current: tableContainer,
+                  getTableContainer={setTableContainer}
+                  hasError={props.rowsQuery.isError}
+                  isLoading={
+                    (props.rowsQuery.isPending && !props.rowsQuery.data) ||
+                    (props.isColumnMetadataLoading && !props.rowsQuery.data)
+                  }
+                  size={search.tableSize}
+                  getColumnHeaderFilter={(columnId) =>
+                    getColumnHeaderFilter(search.filterConditions, columnId)
+                  }
+                  onColumnHeaderFilterChange={(columnId, filter) => {
+                    navigate({
+                      search: (prev) =>
+                        updateTabState(prev, (tab) => ({
+                          filtersOpened: true,
+                          filters: {
+                            conditions: upsertColumnHeaderFilter(tab.filters?.conditions ?? [], {
+                              column: columnId,
+                              operator: filter?.operator ?? "contains",
+                              value: filter?.value ?? "",
+                            }),
+                            logicalOperator: tab.filters?.logicalOperator ?? "and",
+                          },
+                        })),
+                    });
                   }}
+                  onColumnFilterClick={(columnId) => {
+                    navigate({
+                      search: (prev) =>
+                        updateTabState(prev, (tab) => ({
+                          filtersOpened: true,
+                          filters: {
+                            conditions: [
+                              ...(tab.filters?.conditions ?? []),
+                              {
+                                column: columnId,
+                                operator: "equals",
+                              },
+                            ],
+                            logicalOperator: tab.filters?.logicalOperator ?? "and",
+                          },
+                        })),
+                    });
+                  }}
+                  onExpandRowJson={(row) => {
+                    const primaryKeyColumn = props.columnMetadata.find((col) => col.primaryKey);
+                    const rowId = primaryKeyColumn ? String(row[primaryKeyColumn.name]) : undefined;
+                    navigate({
+                      search: (prev) => ({
+                        ...prev,
+                        rowJsonViewerRowId: rowId,
+                        rowJsonViewerOpen: !!rowId,
+                      }),
+                    });
+                  }}
+                  emptyState={
+                    <div className="flex min-h-40 flex-col items-center justify-center gap-2 py-8 text-center">
+                      <div className="bg-muted flex h-10 w-10 items-center justify-center rounded-full">
+                        <SearchX className="text-muted-foreground h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">No matching rows</p>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {search.filterConditions.length > 0 || search.clientFilterApproved
+                            ? "Try changing or clearing your filters."
+                            : "This table has no rows yet."}
+                        </p>
+                      </div>
+                      {(search.filterConditions.length > 0 || search.clientFilterApproved) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigate({
+                              search: (prev) =>
+                                updateTabState(prev, {
+                                  filters: { conditions: [], logicalOperator: "and" },
+                                  clientFilter: undefined,
+                                  clientFilterApproved: undefined,
+                                }),
+                            });
+                          }}
+                          className="mt-1 h-8 gap-1.5 text-xs"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Clear filters
+                        </Button>
+                      )}
+                    </div>
+                  }
                 />
-              )}
+                {!props.rowsQuery.isLoading && !props.isColumnMetadataLoading && (
+                  <ScrollToColumnButton
+                    table={props.rowsDataTable}
+                    containerRef={{
+                      current: tableContainer,
+                    }}
+                  />
+                )}
+              </div>
+              <MobileRowsView
+                table={props.rowsDataTable}
+                columnMetadata={props.columnMetadata}
+                isReadOnly={isReadOnlyConnection(props.activeConnectionUrl)}
+                onEditRow={props.onEditRow}
+              />
             </ColumnHeaderContextProvider>
           </Splitter.Panel>
 
@@ -2470,6 +2479,97 @@ function RowsPendingEditsBar({ connectionUrl }: { connectionUrl: string }) {
       edits={pending.edits}
       onChange={pending.setEdits}
     />
+  );
+}
+
+function formatMobileRowValue(value: unknown): string {
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+}
+
+function MobileRowsView(props: {
+  table: ConnectionPageState["rowsDataTable"];
+  columnMetadata: ConnectionPageState["columnMetadata"];
+  isReadOnly: boolean;
+  onEditRow?: (row: Record<string, unknown>) => void;
+}) {
+  const rows = props.table.getRowModel().rows;
+  const columns = props.table
+    .getVisibleLeafColumns()
+    .filter((column) => !column.id.startsWith("__"));
+  const metadataByName = new Map(props.columnMetadata.map((column) => [column.name, column]));
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto md:hidden" data-testid="mobile-rows-view">
+      <div className="text-muted-foreground flex items-center justify-between gap-3 border-b px-3 py-2 text-xs">
+        <span>
+          {rows.length} loaded row{rows.length === 1 ? "" : "s"} · {columns.length} field
+          {columns.length === 1 ? "" : "s"}
+        </span>
+        <span>Select rows for bulk actions</span>
+      </div>
+      {rows.length === 0 ? (
+        <div className="text-muted-foreground p-6 text-center text-sm">No rows to display.</div>
+      ) : (
+        <div className="space-y-3 p-3">
+          {rows.map((row) => (
+            <article
+              key={row.id}
+              className={cn(
+                "bg-card rounded-lg border p-3 shadow-sm",
+                row.getIsSelected() && "border-primary ring-primary/20 ring-2",
+              )}
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <label className="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={row.getIsSelected()}
+                    onChange={(event) => row.toggleSelected(event.currentTarget.checked)}
+                    className="accent-primary size-4"
+                    aria-label={`Select row ${row.id}`}
+                  />
+                  <span className="truncate">Row {row.index + 1}</span>
+                </label>
+                {props.onEditRow && !props.isReadOnly ? (
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={() => props.onEditRow?.(row.original as Record<string, unknown>)}
+                  >
+                    Edit row
+                  </Button>
+                ) : null}
+              </div>
+              <dl className="divide-border divide-y">
+                {columns.map((column) => {
+                  const fieldName = column.id.split(".").at(-1) ?? column.id;
+                  const metadata = metadataByName.get(fieldName);
+                  const value = row.getValue(column.id);
+                  return (
+                    <div key={column.id} className="grid grid-cols-[minmax(6rem,0.7fr)_minmax(0,1.3fr)] gap-3 py-2 first:pt-0 last:pb-0">
+                      <dt className="text-muted-foreground min-w-0 truncate text-xs" title={column.id}>
+                        {metadata?.name ?? fieldName}
+                      </dt>
+                      <dd className="text-foreground min-w-0 break-words text-right font-mono text-xs">
+                        {formatMobileRowValue(value)}
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

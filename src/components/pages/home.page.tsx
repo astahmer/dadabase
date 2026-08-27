@@ -568,14 +568,74 @@ export const HomePage = () => {
               ) : null}
             </div>
             {visibleConnections.length ? (
-              <div className="bg-card w-full overflow-x-auto rounded-xl border shadow-sm">
-                <div className="min-w-[700px]">
+              <div className="bg-card w-full rounded-xl border shadow-sm">
+                <div className="divide-border divide-y md:hidden">
+                  {visibleConnections.map((connection) => {
+                    const health = connectionHealth[connection.id];
+                    const endpoint = getEndpointLabel(connection.url);
+                    return (
+                      <article key={connection.name} className="space-y-3 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <Link
+                              to="/connections/$connectionName"
+                              params={{ connectionName: connection.name }}
+                              className="text-foreground block truncate font-medium hover:underline"
+                            >
+                              {connection.name}
+                            </Link>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <Badge colorPalette="muted" variant="outline" size="2xs">
+                                {connection.dialect}
+                              </Badge>
+                              {isReadOnlyConnection(connection.url) ? (
+                                <Badge colorPalette="success" variant="subtle" size="2xs">
+                                  Read-only
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </div>
+                          <ConnectionRowMenu
+                            connection={connection}
+                            onEdit={setEditingConnection}
+                            isFavorite={favoriteNames.includes(connection.name)}
+                            onToggleFavorite={toggleFavorite}
+                          />
+                        </div>
+                        <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                          <LucideFileText className="size-3.5 shrink-0" />
+                          <span className="truncate" title={endpoint}>
+                            {endpoint}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted-foreground text-xs">
+                            {health?.status === "success"
+                              ? "Last check passed"
+                              : health?.status === "failure"
+                                ? "Last check failed"
+                                : "Not checked yet"}
+                          </span>
+                          <ConnectionActions
+                            connection={connection}
+                            onOpen={recordOpened}
+                            health={health}
+                            onHealthChange={recordHealth}
+                          />
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
+                  <div className="min-w-[700px]">
                   <DataTable
                     key={normalizedSearch}
                     table={table}
                     size="comfortable"
                     resizable={false}
                   />
+                  </div>
                 </div>
               </div>
             ) : savedDatabaseList.data.length ? (
