@@ -145,7 +145,7 @@ export function DataTable<TData extends RowData>(props: DataTableProps<TData>) {
     enableCellSelection = false,
   } = props;
 
-  const state = table.getState();
+  const state = table.state;
   const { pagination } = state;
   const rows = table.getRowModel().rows;
   const enableColumnVirtualization = table.getVisibleLeafColumns().length >= 8;
@@ -239,18 +239,27 @@ export function DataTable<TData extends RowData>(props: DataTableProps<TData>) {
               : undefined
           }
         />
-        {cellSelection.enabled && cellSelection.selectedCellCount > 0 ? (
-          <CellSelectionStatus
-            count={cellSelection.selectedCellCount}
-            rowCount={cellSelection.selectionSnapshot.rows.length}
-            columnCount={cellSelection.selectionSnapshot.columns.length}
-            onClear={cellSelection.clearSelection}
-            onCopy={cellSelection.copySelection}
-            onExport={cellSelection.exportSelection}
-            onPaste={Boolean(props.onPasteSelection)}
-            onFill={Boolean(props.onBulkFillSelection)}
-            onDetails={() => setDetailsOpen(true)}
-          />
+        {cellSelection.enabled ? (
+          <table.Subscribe
+            source={table.atoms.cellSelection}
+            selector={() => table.getSelectedCellCount()}
+          >
+            {(selectedCellCount) =>
+              selectedCellCount > 0 ? (
+                <CellSelectionStatus
+                  count={selectedCellCount}
+                  rowCount={cellSelection.selectionSnapshot.rows.length}
+                  columnCount={cellSelection.selectionSnapshot.columns.length}
+                  onClear={cellSelection.clearSelection}
+                  onCopy={cellSelection.copySelection}
+                  onExport={cellSelection.exportSelection}
+                  onPaste={Boolean(props.onPasteSelection)}
+                  onFill={Boolean(props.onBulkFillSelection)}
+                  onDetails={() => setDetailsOpen(true)}
+                />
+              ) : null
+            }
+          </table.Subscribe>
         ) : null}
         {cellSelection.enabled && cellSelection.selectionSnapshot.focusedCell ? (
           <CellSelectionDetails
@@ -341,7 +350,7 @@ const TableContainer = <TData extends RowData>(
     },
 ) => {
   const table = props.table;
-  const state = props.table.getState();
+  const state = props.table.state;
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -462,15 +471,15 @@ const TableContainer = <TData extends RowData>(
 
             const centerIndexByColumnId = new Map(centerLeafColumns.map((c, i) => [c.id, i]));
 
-            const getCenterLeafIndicesForHeader = (headerCell: Header<any, any>): number[] => {
+            const getCenterLeafIndicesForHeader = (headerCell: Header<TData, any>): number[] => {
               return headerCell
                 .getLeafHeaders()
-                .map((h: Header<any, any>) => centerIndexByColumnId.get(h.column.id))
+                .map((h: Header<TData, any>) => centerIndexByColumnId.get(h.column.id))
                 .filter((v): v is number => v != null);
             };
 
             const renderHeaderCell = (
-              headerCell: Header<any, any>,
+              headerCell: Header<TData, any>,
               overrides?: { colSpan?: number; sizePx?: number },
             ) => (
               <HeaderCell
@@ -522,7 +531,7 @@ const TableContainer = <TData extends RowData>(
                       : columnVirtualization.virtualCenterColumnIds
                           .map((columnId) => headerById.get(columnId))
                           .filter(Boolean)
-                          .map((h) => renderHeaderCell(h as Header<any, any>));
+                          .map((h) => renderHeaderCell(h as Header<TData, any>));
 
                     return [
                       ...leftHeaders.map((h) => renderHeaderCell(h)),
@@ -575,7 +584,7 @@ const TableContainer = <TData extends RowData>(
             return <tr key={headerGroup.id}>{HeaderCellList}</tr>;
           })}
         </thead>
-        {table.getState().columnResizing.isResizingColumn ? (
+        {table.state.columnResizing.isResizingColumn ? (
           <MemoizedTableBody
             table={table}
             tableContainerRef={tableContainerRef}
@@ -663,7 +672,7 @@ const TableBody = <TData extends RowData>(
     >,
 ) => {
   const { table, tableContainerRef } = props;
-  const state = props.table.getState();
+  const state = props.table.state;
 
   const allRows = table.getRowModel().rows;
   const rows = props.findFilterRows ? (props.findFilterRows(allRows) as typeof allRows) : allRows;
@@ -1012,7 +1021,7 @@ function CellSelectionDetails<TData extends RowData>(props: {
 
 function DataTablePagination<TData extends RowData>(props: { table: TanstackTable<TData> }) {
   const { table } = props;
-  const state = table.getState();
+  const state = table.state;
   const rowCount = table.getRowCount();
   const { pageIndex, pageSize } = state.pagination;
 

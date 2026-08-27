@@ -1,9 +1,5 @@
 import {
-  getCoreRowModel,
-  getExpandedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
+  dadabaseTableFeatures,
   useReactTable,
   type ColumnDef,
   type RowData,
@@ -12,7 +8,7 @@ import {
 
 export interface UseDataTableProps<TData extends RowData> extends Omit<
   TableOptions<TData>,
-  "getCoreRowModel" | "columns" | "data" | "meta"
+  "columns" | "data" | "features"
 > {
   data: readonly TData[];
   columns: ColumnDef<TData>[];
@@ -22,11 +18,7 @@ export function useDataTable<TData extends RowData>(props: UseDataTableProps<TDa
   const { columns, data, rowCount, ...tableOptions } = props;
 
   const table = useReactTable({
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: tableOptions.manualPagination ? undefined : getPaginationRowModel(),
-    getSortedRowModel: tableOptions.manualSorting ? undefined : getSortedRowModel(),
-    getFilteredRowModel: tableOptions.manualFiltering ? undefined : getFilteredRowModel(),
-    getExpandedRowModel: tableOptions.manualExpanding ? undefined : getExpandedRowModel(),
+    features: dadabaseTableFeatures,
     columnResizeMode: "onChange",
     renderFallbackValue: "-",
     rowCount,
