@@ -16,6 +16,7 @@ import {
   type RemoteConnection,
   RemoteConnectionId,
   type RemoteConnectionIdType,
+  RemoteDialect,
 } from "#src/server/db-connection/remote-connection.tag.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
@@ -29,7 +30,7 @@ const withRemoteConnectionLayers =
     connectionUrl: string,
     connectionId: RemoteConnectionIdType,
   ) =>
-  (effect: Effect.Effect<TOutput, E, R | RemoteConnection | QueryLogger>) =>
+    (effect: Effect.Effect<TOutput, E, R | RemoteConnection | QueryLogger | RemoteDialect>) =>
     Effect.gen(function* () {
       const context = yield* AppRuntime.contextEffect;
 
@@ -80,7 +81,7 @@ export const createRemoteIntrospectionHandler =
     effectFn: (
       input: TInput,
       connection: Selectable<AppDatabaseSchema["database_connections"]>,
-    ) => Effect.Effect<TOutput, SqlError, SqlClient.SqlClient | QueryLogger | RemoteConnection>,
+    ) => Effect.Effect<TOutput, SqlError, SqlClient.SqlClient | QueryLogger | RemoteConnection | RemoteDialect>,
   ) =>
   async (ctx: { data: TInput }): Promise<TOutput> => {
     const program = Effect.gen(function* () {

@@ -402,7 +402,12 @@ export const getAvailableTables = (input?: { schema?: string }) =>
     return result as Array<{ name: string; schema: string }>;
   });
 
-export type DatabaseObjectKind = "view" | "materialized-view" | "function" | "procedure" | "trigger";
+export type DatabaseObjectKind =
+  | "view"
+  | "materialized-view"
+  | "function"
+  | "procedure"
+  | "trigger";
 
 export interface DatabaseObjectMetadata {
   name: string;
@@ -536,6 +541,78 @@ export const getDatabaseObjects = (input: { schema?: string }) =>
     });
 
     return result as DatabaseObjectMetadata[];
+  });
+
+export interface DatabaseSearchResult {
+  schema: string;
+  table: string;
+  column: string;
+  value: string;
+}
+
+const quoteSearchIdentifier = (name: string, dialect: string) => {
+  if (dialect === DatabaseDialect.MySQL || dialect === DatabaseDialect.Clickhouse) {
+    return `\`${name.replaceAll("`", "``")}\``;
+  }
+  if (dialect === DatabaseDialect.Mssql) {
+    return `[${name.replaceAll("]", "]]")}]`;
+  }
+  return `"${name.replaceAll('"', '""')}"`;
+};
+
+/** Search text representations across a schema, capped to keep remote scans bounded. */
+export const searchDatabaseData = (input: { schema?: string; term: string }) =>
+  Effect.gen(function* () {
+    const dialect = yield* RemoteDialect;
+    const schema = input.schema || getDialectDefaultSchema(dialect);
+    const term = input.term.trim().slice(0, 120);
+    if (!term) return [] as DatabaseSearchResult[];
+
+    const tables = (yield* getAvailableTables({ schema })).slice(0, 60);
+    const escapedTerm = term.replaceAll("'", "''");
+    const like = `'%${escapedTerm}%'`;
+    const quote = (name: string) => quoteSearchIdentifier(name, dialect);
+    const cast = (identifier: string) =>
+      dialect === DatabaseDialect.Mssql
+        ? `CONVERT(NVARCHAR(MAX), ${identifier})`
+        : dialect === DatabaseDialect.Clickhouse
+          ? `toString(${identifier})`
+          : `CAST(${identifier} AS TEXT)`;
+
+    const searchColumn = (table: string, column: string) =>
+      Effect.gen(function* () {
+        const tableRef =
+          dialect === DatabaseDialect.SQLite || dialect === DatabaseDialect.LibSQL || !schema
+            ? quote(table)
+            : `${quote(schema)}.${quote(table)}`;
+        const columnRef = quote(column);
+        const valueExpr = cast(columnRef);
+        const result = yield* executeCustomSql({
+          sql: `SELECT ${columnRef} AS value FROM ${tableRef} WHERE ${valueExpr} LIKE ${like} LIMIT 5`,
+          skipQueryLog: true,
+        });
+        return result.rows.map((row) => ({
+          schema,
+          table,
+          column,
+          value: String((row as Record<string, unknown>).value ?? ""),
+        }));
+      }).pipe(Effect.catch(() => Effect.succeed([] as DatabaseSearchResult[])));
+
+    const results = yield* Effect.all(
+      tables.map((table) =>
+        Effect.gen(function* () {
+          const columns = (yield* getTableColumns({ schema, table: table.name })).slice(0, 30);
+          return yield* Effect.all(
+            columns.map((column) => searchColumn(table.name, column.name)),
+            { concurrency: 4 },
+          );
+        }),
+      ),
+      { concurrency: 4 },
+    );
+
+    return results.flat(2).slice(0, 100);
   });
 
 export interface ColumnInfo {
@@ -3761,7 +3838,7 @@ export const executeCustomSql = (input: {
 
     const conn = yield* Effect.orDie(sql.reserve).pipe(Effect.scoped);
     const rawExecute = conn.executeRaw(input.sql, []);
-    const rawResult = yield* (input.skipQueryLog
+    const rawResult = yield* input.skipQueryLog
       ? rawExecute
       : rawExecute.pipe(
           withQueryLogging({
@@ -3772,7 +3849,7 @@ export const executeCustomSql = (input: {
             connectionId: connectionId,
             meta: { customQuery: true },
           }),
-        ));
+        );
 
     // oxlint-disable-next-line unicorn/no-useless-fallback-in-spread
     const result = { rows: [], ...((rawResult as any) ?? {}) } as {

@@ -4,7 +4,7 @@ import { createListCollection, Listbox } from "@ark-ui/react/listbox";
 import { useFilter } from "@ark-ui/react/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { Code2, DatabaseIcon, Eye, FunctionSquare, Zap } from "lucide-react";
+import { Code2, DatabaseIcon, Eye, FunctionSquare, Search, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "#src/components/ui/button.tsx";
@@ -32,8 +32,9 @@ import {
   updateTabState,
   useActiveTabState,
 } from "./create-tab-state.ts";
-import { TableContextMenu } from "./table-context-menu.tsx";
+import { GlobalDataSearchSheet } from "./global-data-search-sheet.tsx";
 import { recordRecentTable } from "./recent-tables.ts";
+import { TableContextMenu } from "./table-context-menu.tsx";
 
 interface ConnectionPageSidebarProps {
   connection: DbConnection;
@@ -49,6 +50,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
   const queryClient = useQueryClient();
   const navigate = useNavigate({ from: "/connections/$connectionName" });
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
 
   const connectionUrl = connection.url;
   const defaultDatabaseName = getDbNameFromConnectionUrl(connectionUrl);
@@ -145,12 +147,26 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
   });
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="border-border shrink-0 border-b px-4 py-2">
-        <div className="text-foreground truncate text-sm font-medium" title={connection.name}>
-          {connection.name}
+    <>
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="border-border flex shrink-0 items-center justify-between gap-2 border-b px-4 py-2">
+          <div
+            className="text-foreground min-w-0 truncate text-sm font-medium"
+            title={connection.name}
+          >
+            {connection.name}
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 shrink-0 p-0"
+            aria-label="Search database values"
+            title="Search database values"
+            onClick={() => setGlobalSearchOpen(true)}
+          >
+            <Search className="size-3.5" />
+          </Button>
         </div>
-      </div>
         {/* Database Selector */}
         {isNotSqlite && (
           <Stack className="shrink-0 px-4 pt-4" gap="2">
@@ -495,6 +511,22 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
           </Stack>
         </div>
       </div>
+      <GlobalDataSearchSheet
+        open={globalSearchOpen}
+        onOpenChange={setGlobalSearchOpen}
+        connection={connection}
+        schema={selectedSchema}
+        onOpenTable={(schema, table) => {
+          const newTabState = createTabState(schema, table);
+          navigate({
+            search: (prev) => ({
+              ...prev,
+              ...addTabStateAfterCurrent(prev, newTabState),
+            }),
+          }).then(() => scrollToTab(newTabState.tabId));
+        }}
+      />
+    </>
   );
 };
 
@@ -505,8 +537,7 @@ const objectIcon = (kind: string) => {
   return Code2;
 };
 
-const objectLabel = (kind: string) =>
-  kind === "materialized-view" ? "materialized view" : kind;
+const objectLabel = (kind: string) => (kind === "materialized-view" ? "materialized view" : kind);
 
 const DatabaseObjectNavigator = (props: {
   objects: Array<{
@@ -534,7 +565,10 @@ const DatabaseObjectNavigator = (props: {
   }, [props.objects]);
 
   return (
-    <div className="border-border shrink-0 border-y px-4 py-2" data-testid="database-object-navigator">
+    <div
+      className="border-border shrink-0 border-y px-4 py-2"
+      data-testid="database-object-navigator"
+    >
       <button
         type="button"
         className="text-foreground hover:text-primary flex w-full items-center justify-between text-left text-xs font-medium tracking-wide uppercase"
