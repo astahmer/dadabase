@@ -167,3 +167,7 @@ Legend: ✅ RESOLVED · 🟡 PARTIAL · ⏸ DEFERRED. Change: `feat(chat): conte
 - N2 true browser-zoom pass: ⏸ DEFERRED.
 
 **Net:** all P0/P1 findings across every section are resolved; remainder is P2 polish (M3/C-A/C-B/C-E/L1–L4) explicitly listed above for a future pass.
+
+Follow-up closure (2026-08-27): the provider preset summary is now visible in
+the compact settings panel, and the model picker already groups models by
+provider and labels keyless providers. C-C and C-D are resolved.
