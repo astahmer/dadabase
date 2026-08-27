@@ -9,8 +9,15 @@ import {
 } from "./chat-tools.ts";
 
 describe("chat-tools registry", () => {
-  it("exposes propose_sql and run_sql with labels", () => {
-    expect(CHAT_TOOL_IDS).toEqual(["propose_sql", "run_sql"]);
+  it("exposes the registered tools with labels", () => {
+    expect(CHAT_TOOL_IDS).toEqual([
+      "propose_sql",
+      "run_sql",
+      "open_workspace_view",
+      "preview_rows",
+      "table_details",
+      "explain_sql",
+    ]);
     for (const tool of CHAT_TOOLS) {
       expect(tool.label.length).toBeGreaterThan(0);
       expect(tool.description.length).toBeGreaterThan(0);
@@ -24,7 +31,7 @@ describe("chat-tools registry", () => {
 
 describe("normalizeEnabledChatTools", () => {
   it("returns all tools when nothing is stored", () => {
-    expect(normalizeEnabledChatTools(undefined)).toEqual(["propose_sql", "run_sql"]);
+    expect(normalizeEnabledChatTools(undefined)).toEqual(CHAT_TOOL_IDS);
   });
 
   it("preserves an explicit empty selection (select none)", () => {
