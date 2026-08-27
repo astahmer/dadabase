@@ -144,7 +144,7 @@ function getErrorMessage(error: unknown): string {
   return errorMessage;
 }
 
-const redactQueryParams = (
+export const redactQueryParams = (
   params: Record<string, any> | ReadonlyArray<any>,
 ): Record<string, unknown> | ReadonlyArray<unknown> => {
   if (Array.isArray(params)) return params.map(redactQueryParamValue);
