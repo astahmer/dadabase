@@ -2279,7 +2279,9 @@ const RowsTableContent = (
                   enableFind
                   enableCellSelection
                   onPasteSelection={
-                    isReadOnlyConnection(props.activeConnectionUrl) ? undefined : handlePasteSelection
+                    isReadOnlyConnection(props.activeConnectionUrl)
+                      ? undefined
+                      : handlePasteSelection
                   }
                   onBulkFillSelection={
                     isReadOnlyConnection(props.activeConnectionUrl)
@@ -2557,11 +2559,17 @@ function MobileRowsView(props: {
                   const metadata = metadataByName.get(fieldName);
                   const value = row.getValue(column.id);
                   return (
-                    <div key={column.id} className="grid grid-cols-[minmax(6rem,0.7fr)_minmax(0,1.3fr)] gap-3 py-2 first:pt-0 last:pb-0">
-                      <dt className="text-muted-foreground min-w-0 truncate text-xs" title={column.id}>
+                    <div
+                      key={column.id}
+                      className="grid grid-cols-[minmax(6rem,0.7fr)_minmax(0,1.3fr)] gap-3 py-2 first:pt-0 last:pb-0"
+                    >
+                      <dt
+                        className="text-muted-foreground min-w-0 truncate text-xs"
+                        title={column.id}
+                      >
                         {metadata?.name ?? fieldName}
                       </dt>
-                      <dd className="text-foreground min-w-0 break-words text-right font-mono text-xs">
+                      <dd className="text-foreground min-w-0 text-right font-mono text-xs break-words">
                         {formatMobileRowValue(value)}
                       </dd>
                     </div>

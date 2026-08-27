@@ -1,5 +1,5 @@
-import { useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { MessageCircleQuestion, Plus, Search, Table2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -34,8 +34,7 @@ export const filterTablesByQuery = (
   if (!q) return tables;
   return tables.filter(
     (table) =>
-      table.name.toLowerCase().includes(q) ||
-      (table.schema ?? "").toLowerCase().includes(q),
+      table.name.toLowerCase().includes(q) || (table.schema ?? "").toLowerCase().includes(q),
   );
 };
 
@@ -213,8 +212,7 @@ const TableSearchListbox = (props: {
 
   // The fallback empty state may have no active tab yet, so its schema is "" —
   // fall back to the dialect default so the table query always runs.
-  const effectiveSchema =
-    props.selectedSchema || getDialectDefaultSchema(props.connection.dialect);
+  const effectiveSchema = props.selectedSchema || getDialectDefaultSchema(props.connection.dialect);
 
   // Autofocus once the hydrated UI mounts (component renders null until then).
   // Retry briefly: other surfaces (sidebar, palette restore) can steal focus late.
@@ -342,12 +340,15 @@ const TableSearchListbox = (props: {
       ) : filteredTables.length === 0 ? (
         <div className="border-muted-foreground/30 bg-muted/20 mt-3 rounded-lg border border-dashed p-6 text-center">
           <span className="text-muted-foreground text-sm">
-            {tableList.length === 0
-              ? "No tables available"
-              : `No tables match "${filterText}"`}
+            {tableList.length === 0 ? "No tables available" : `No tables match "${filterText}"`}
           </span>
           {filterText ? (
-            <Button variant="outline" size="sm" className="mt-2 ml-2" onClick={() => setFilterText("")}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 ml-2"
+              onClick={() => setFilterText("")}
+            >
               Clear search
             </Button>
           ) : null}
@@ -393,9 +394,7 @@ const TableSearchListbox = (props: {
                           <Table2 className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
                           <span className="font-medium">{table.name}</span>
                           {showSchemaPrefix ? (
-                            <span className="text-muted-foreground text-xs">
-                              {table.schema}
-                            </span>
+                            <span className="text-muted-foreground text-xs">{table.schema}</span>
                           ) : null}
                         </div>
                       </div>
@@ -421,9 +420,7 @@ const EmptyTabLauncher = (props: {
   selectedSchema: string;
 }) => {
   const { connectionName } = useConnectionNameParam();
-  const [recents, setRecents] = useState<Array<RecentTable>>(() =>
-    getRecentTables(connectionName),
-  );
+  const [recents, setRecents] = useState<Array<RecentTable>>(() => getRecentTables(connectionName));
 
   useEffect(() => {
     setRecents(getRecentTables(connectionName));
@@ -435,8 +432,7 @@ const EmptyTabLauncher = (props: {
   const openSqlTab = () => {
     navigate({
       search: (prev) => {
-        const schema =
-          props.selectedSchema || getDialectDefaultSchema(props.connection.dialect);
+        const schema = props.selectedSchema || getDialectDefaultSchema(props.connection.dialect);
         const newTab = createTabState(schema, "", { initialTabMode: "sql" });
         const currentTab = (prev.tabs ?? []).find((t) => t.tabId === prev.activeTabId);
 

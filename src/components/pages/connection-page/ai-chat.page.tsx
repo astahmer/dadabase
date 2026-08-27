@@ -1046,10 +1046,7 @@ const AiChatBody = ({
       {initialConversationId !== undefined && (
         <InitialThreadConsumer initialConversationId={initialConversationId} />
       )}
-      <ThreadListPanel
-        overlayOpen={threadList.open}
-        onClose={threadList.onClose}
-      />
+      <ThreadListPanel overlayOpen={threadList.open} onClose={threadList.onClose} />
       <main className="flex min-w-0 flex-1 flex-col">
         {/* Audit C1: the full chat surface stays mounted pre-consent — users
             must see what they are unlocking. Only Send is gated. */}

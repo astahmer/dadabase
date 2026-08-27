@@ -482,7 +482,7 @@ export const HomePage = () => {
                   {getEndpointLabel(ctx.row.original.url)}
                 </span>
               )}
-                <Clipboard.Root value={redactConnectionUrl(ctx.row.original.url)}>
+              <Clipboard.Root value={redactConnectionUrl(ctx.row.original.url)}>
                 <Tooltip content="Copy redacted connection URL">
                   <Clipboard.Trigger asChild>
                     <Button variant="ghost" size="icon" aria-label="Copy redacted connection URL">
@@ -629,12 +629,12 @@ export const HomePage = () => {
                 </div>
                 <div className="hidden overflow-x-auto md:block">
                   <div className="min-w-[700px]">
-                  <DataTable
-                    key={normalizedSearch}
-                    table={table}
-                    size="comfortable"
-                    resizable={false}
-                  />
+                    <DataTable
+                      key={normalizedSearch}
+                      table={table}
+                      size="comfortable"
+                      resizable={false}
+                    />
                   </div>
                 </div>
               </div>

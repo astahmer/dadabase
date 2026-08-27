@@ -35,13 +35,13 @@ import { getTableRelationshipsQueryOptions } from "#src/server/introspection/sta
 import type { TableRelationship } from "../relationships/relationships.ts";
 import type { JoinTablesConfig } from "./join-tables.types";
 
+import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
 import { TableName } from "../table-name.tsx";
 import { cascadeRemoveJoins } from "./cascade-remove-joins.ts";
 import { getTransitiveJoinRelationships } from "./get-transitive-join-relationships.ts";
 import { SortableJoinedTableRow } from "./sortable-joined-table-row.tsx";
 import { useJoinTablesState } from "./use-join-tables-state.ts";
 import { useJoinedTables } from "./use-joined-tables.ts";
-import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
 
 interface JoinTablesPanelProps {
   onClose: () => void;

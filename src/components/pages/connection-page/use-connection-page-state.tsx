@@ -377,8 +377,7 @@ export const useConnectionPageState = ({
                     : undefined
                 }
                 onDuplicate={
-                  !isReadOnly &&
-                  onDuplicateRow
+                  !isReadOnly && onDuplicateRow
                     ? () => onDuplicateRow(ctx.row.original as Record<string, unknown>)
                     : undefined
                 }

@@ -1,15 +1,20 @@
 import { createListCollection } from "@ark-ui/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cx } from "class-variance-authority";
-import { ChevronDown, ChevronUp, PauseCircle, PlayCircle, Settings2, Star, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  PauseCircle,
+  PlayCircle,
+  Settings2,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import {
-  isQueryHistoryOptOut,
-  setQueryHistoryOptOut,
-} from "#src/lib/query-history-settings.ts";
 import { useQueryLogger } from "#src/components/query-logger/use-query-logger.ts";
 import { Badge } from "#src/components/ui/badge.tsx";
+import { isQueryHistoryOptOut, setQueryHistoryOptOut } from "#src/lib/query-history-settings.ts";
 import {
   type QueryLogEntryType,
   QueryLogLevel,
@@ -23,8 +28,8 @@ import { AlertDialog } from "../ui/alert-dialog.tsx";
 import { Button, buttonVariants } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { HStack } from "../ui/layout.tsx";
-import * as Select from "../ui/select.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.tsx";
+import * as Select from "../ui/select.tsx";
 import { VirtualizerArea } from "../ui/virtualizer-area.tsx";
 import { QueryLogEntry } from "./query-log-entry.tsx";
 import { QueryLoggerDetailDialog } from "./query-logger-detail-dialog.tsx";
@@ -82,7 +87,6 @@ export const QueryLoggerContent = ({
     ...getQueryFavoritesQueryOptions({ connectionId: connectionId ?? "" }),
     enabled: Boolean(connectionId) && showFavorites,
   });
-
 
   const visibleFavorites = useMemo(() => {
     const favorites = favoritesQuery.data ?? [];

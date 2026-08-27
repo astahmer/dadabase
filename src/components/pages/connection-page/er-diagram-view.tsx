@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Download, List, RotateCcw, Search, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { ErrorBoundaryCard } from "#src/components/shared/error-boundary-card.tsx";
 import { Button } from "#src/components/ui/button.tsx";
 import { Input } from "#src/components/ui/input.tsx";
 import { Spinner } from "#src/components/ui/spinner.tsx";
-import { ErrorBoundaryCard } from "#src/components/shared/error-boundary-card.tsx";
 import {
   buildErDiagramLayout,
   ER_NODE_HEADER_HEIGHT,

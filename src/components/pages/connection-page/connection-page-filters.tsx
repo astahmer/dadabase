@@ -390,7 +390,9 @@ export const ConnectionPageFilters = (props: ConnectionPageFiltersProps) => {
                     disabled={isReadOnly}
                     className="gap-1.5"
                     data-testid="toolbar-change-menu"
-                    aria-label={isReadOnly ? "Change data unavailable on read-only connection" : "Change data"}
+                    aria-label={
+                      isReadOnly ? "Change data unavailable on read-only connection" : "Change data"
+                    }
                     title={isReadOnly ? "Read-only connection: changes are blocked" : undefined}
                   >
                     <PenLine className="h-3.5 w-3.5" />
