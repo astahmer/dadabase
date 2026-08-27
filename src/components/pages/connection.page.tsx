@@ -187,6 +187,7 @@ import {
   type RowEditorSheetState,
 } from "./connection-page/row-editor/row-editor-sheet.tsx";
 import {
+  canLocateRow,
   extractPrimaryKeyValues,
   getPrimaryKeyColumns,
   hasPrimaryKey,
@@ -2538,7 +2539,9 @@ function MobileRowsView(props: {
                   />
                   <span className="truncate">Row {row.index + 1}</span>
                 </label>
-                {props.onEditRow && !props.isReadOnly ? (
+                {props.onEditRow &&
+                !props.isReadOnly &&
+                canLocateRow(props.columnMetadata, row.original as Record<string, unknown>) ? (
                   <Button
                     size="xs"
                     variant="outline"

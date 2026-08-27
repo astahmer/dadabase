@@ -41,6 +41,7 @@ import { getTransitiveJoinRelationships } from "./get-transitive-join-relationsh
 import { SortableJoinedTableRow } from "./sortable-joined-table-row.tsx";
 import { useJoinTablesState } from "./use-join-tables-state.ts";
 import { useJoinedTables } from "./use-joined-tables.ts";
+import { ErrorBoundaryCard } from "../../../shared/error-boundary-card.tsx";
 
 interface JoinTablesPanelProps {
   onClose: () => void;
@@ -230,7 +231,13 @@ export const JoinTablesPanel = (props: JoinTablesPanelProps) => {
       <div className="grid max-h-[min(42rem,calc(100vh-12rem))] min-h-[22rem] lg:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
         <aside className="border-b p-4 lg:border-r lg:border-b-0">
           {/* Joinable table selector */}
-          {isLoadingRelationships ? (
+          {relationshipsQuery.isError ? (
+            <ErrorBoundaryCard
+              error={relationshipsQuery.error}
+              title="Could not load relationships"
+              onRetry={() => relationshipsQuery.refetch()}
+            />
+          ) : isLoadingRelationships ? (
             <div className="flex items-center justify-center py-4">
               <Spinner className="h-5 w-5" />
             </div>
@@ -345,6 +352,11 @@ export const JoinTablesPanel = (props: JoinTablesPanelProps) => {
         </aside>
         <div className="min-w-0 overflow-y-auto p-4">
           <Stack gap="4">
+            <div className="border-border/70 bg-muted/20 text-muted-foreground rounded-md border border-dashed p-3 text-xs leading-5">
+              <span className="text-foreground font-medium">Join behavior:</span> the default left
+              join keeps every row from {table}; an inner join keeps only rows with a match. Joined
+              tables can add columns and filters to the result.
+            </div>
             {joinState.config.joins.length === 0 && (
               <div className="border-border/70 bg-muted/20 text-muted-foreground rounded-md border border-dashed p-4 text-sm">
                 Select a relationship to add it to the join plan. You can refine its type, columns,
