@@ -1,24 +1,35 @@
 import { Portal } from "@ark-ui/react";
 import {
   Check,
+  CircleDot,
   ChevronDown,
   ChevronRight,
   Copy,
+  HelpCircle,
   Maximize2,
   Minimize2,
   MoreHorizontal,
   Play,
+  RotateCcw,
   Square,
   Star,
   Wand2,
   Zap,
   Sparkles,
 } from "lucide-react";
-import { type ReactNode, useEffectEvent, useRef, useState } from "react";
+import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from "react";
 
+import type { SqlEditorViewZoneActionId } from "#src/lib/sql-editor-view-zones.ts";
 import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 
 import { Button } from "#src/components/ui/button.tsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "#src/components/ui/dialog.tsx";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "#src/components/ui/hovercard.tsx";
 import {
   Menu,
@@ -28,6 +39,7 @@ import {
   MenuTrigger,
 } from "#src/components/ui/menu.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
+import { formatSqlExecutionScope, getSqlExecutionScope } from "#src/lib/sql-execution-scope.ts";
 import { cn } from "#src/lib/utils.ts";
 
 import {
@@ -60,12 +72,26 @@ interface SqlQueryPreviewProps {
   /** Custom SQL that user has edited (if different from generated SQL) */
   customSql?: string;
   allowEmptySql?: boolean;
-  /** Callback to run the query */
-  onRun?: (editorValue: string) => void;
+  /** Callback to run the whole editor value or the active statement. */
+  onRun?: (editorValue: string, statementSql?: string) => void;
+  /** Explicitly run the complete editor script, even when the cursor is in one statement. */
+  onRunAll?: (editorValue: string) => void;
+  /** Run the complete script atomically, rolling back if any statement fails. */
+  onRunInTransaction?: (editorValue: string) => void;
+  /** Begin a connection-scoped transaction session. */
+  onBeginTransaction?: () => void;
+  /** Commit the active connection-scoped transaction session. */
+  onCommitTransaction?: () => void;
+  /** Roll back the active connection-scoped transaction session. */
+  onRollbackTransaction?: () => void;
+  /** Current connection-scoped transaction state. */
+  transactionStatus?: "idle" | "active" | "busy";
+  /** Whether this connection supports a persistent transaction session. */
+  transactionSupported?: boolean;
   /** Callback to cancel the running query */
   onCancel?: () => void;
-  /** Callback to explain the query */
-  onExplain?: () => void;
+  /** Callback to explain the whole editor value or the active statement. */
+  onExplain?: (statementSql?: string) => void;
   /** Whether to disable the explain button */
   disableExplain?: boolean;
   /** Callback to format the SQL */
@@ -74,6 +100,8 @@ interface SqlQueryPreviewProps {
   onToggleFullscreen?: () => void;
   /** Expand the SQL panel (collapse rows) without going fullscreen */
   onExpandPanel?: () => void;
+  /** Set a named editor/results split without remounting the editor. */
+  onSetPanelSize?: (sqlPanelPercent: number) => void;
   /** Whether editor is in fullscreen mode */
   isFullscreen?: boolean;
   /** Whether the preview is collapsed */
@@ -96,12 +124,19 @@ interface SqlQueryPreviewProps {
   onSaveFavorite?: (sql: string) => void;
   /** Whether a favorite save is in progress */
   isSavingFavorite?: boolean;
+  /** Shows durable feedback after the current SQL was saved. */
+  favoriteSaved?: boolean;
   /** Callback when a snippet should be inserted into the editor */
   onInsertSnippet?: (sql: string) => void;
+  /** Reset the draft back to the generated/stored SQL. */
+  onReset?: () => void;
+  isDirty?: boolean;
   /** Custom CSS class */
   className?: string;
   /** Warning message to display next to the header */
   warning?: ReactNode;
+  /** Small origin/context receipt for SQL opened from a table workspace. */
+  contextReceipt?: ReactNode;
 }
 
 /**
@@ -118,14 +153,23 @@ export function SqlQueryPreview({
   customSql,
   allowEmptySql = false,
   onRun,
+  onRunAll,
+  onRunInTransaction,
+  onBeginTransaction,
+  onCommitTransaction,
+  onRollbackTransaction,
+  transactionStatus = "idle",
+  transactionSupported = true,
   onCancel,
   onExplain,
   disableExplain = false,
   onFormat,
   onToggleFullscreen,
   onExpandPanel,
+  onSetPanelSize,
   onSaveFavorite,
   isSavingFavorite = false,
+  favoriteSaved = false,
   isFullscreen = false,
   isCollapsed = true,
   onToggleCollapsed,
@@ -135,17 +179,32 @@ export function SqlQueryPreview({
   onSuggestQuery,
   onAskAi,
   onInsertSnippet,
+  onReset,
+  isDirty = false,
   className,
   warning,
+  contextReceipt,
 }: SqlQueryPreviewProps) {
   const [copied, setCopied] = useState(false);
+  const [activeStatementSql, setActiveStatementSql] = useState<string | undefined>(undefined);
+  const [favoriteSaveAcknowledged, setFavoriteSaveAcknowledged] = useState(false);
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
+  const insertTextAtCursorRef = useRef<((text: string) => void) | null>(null);
   // An untouched Monaco never fires onChange; seed from displayed content so
   // Run never submits "" after a deep-link seed (AI chat / URL params).
-  const editorValueRef = useRef<string>(sql || customSql || "");
+  const editorValueRef = useRef<string>(customSql ?? sql ?? "");
+
+  useEffect(() => {
+    const nextValue = customSql ?? sql ?? "";
+    if (nextValue !== editorValueRef.current) {
+      editorValueRef.current = nextValue;
+      setActiveStatementSql(undefined);
+    }
+  }, [customSql, sql]);
 
   const handleCopy = async () => {
     try {
-      const textToCopy = editorValueRef.current || customSql || sql;
+      const textToCopy = editorValueRef.current;
       await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -156,18 +215,83 @@ export function SqlQueryPreview({
 
   const handleEditorChange = useEffectEvent((value: string) => {
     editorValueRef.current = value;
+    setFavoriteSaveAcknowledged(false);
     onEditorChange?.(value);
   });
 
+  const saveFavorite = useEffectEvent(async (statementSql?: string) => {
+    const value = statementSql || editorValueRef.current;
+    if (!value.trim()) return;
+    await onSaveFavorite?.(value);
+    setFavoriteSaveAcknowledged(true);
+  });
+
   const handleInsertSnippet = useEffectEvent((snippetSql: string) => {
-    const current = (editorValueRef.current || customSql || sql || "").trimEnd();
+    if (insertTextAtCursorRef.current) {
+      insertTextAtCursorRef.current(snippetSql);
+      setFavoriteSaveAcknowledged(false);
+      onEditorModeChange?.("editor");
+      if (isCollapsed) onToggleCollapsed?.(false);
+      onInsertSnippet?.(snippetSql);
+      return;
+    }
+    const current = editorValueRef.current.trimEnd();
     const next = current ? `${current}\n${snippetSql}` : snippetSql;
     editorValueRef.current = next;
+    setFavoriteSaveAcknowledged(false);
     onEditorChange?.(next);
     onEditorModeChange?.("editor");
     if (isCollapsed) onToggleCollapsed?.(false);
     onInsertSnippet?.(snippetSql);
   });
+
+  const currentSql = () => editorValueRef.current;
+  const executionScope = getSqlExecutionScope(currentSql(), activeStatementSql);
+  const fullScriptScope = getSqlExecutionScope(currentSql());
+  const layoutPresets = [
+    { id: "editor-focus", label: "Editor focus", size: 70 },
+    { id: "balanced", label: "Balanced", size: 35 },
+    { id: "results-focus", label: "Results focus", size: 20 },
+  ] as const;
+  const runSql = (statementSql?: string) => {
+    onRun?.(currentSql(), statementSql);
+  };
+  const downloadSql = () => {
+    const blob = new Blob([currentSql()], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "query.sql";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+  const resetDraft = () => {
+    if (!isDirty || window.confirm("Discard your unsaved SQL changes?")) onReset?.();
+  };
+  const handleViewZoneAction = useEffectEvent(
+    (action: SqlEditorViewZoneActionId, statementSql?: string) => {
+      switch (action) {
+        case "run":
+          runSql(statementSql);
+          break;
+        case "explain":
+          onExplain?.(statementSql);
+          break;
+        case "format":
+          onFormat?.();
+          break;
+        case "fullscreen":
+          onToggleFullscreen?.();
+          break;
+        case "copy":
+          void handleCopy();
+          break;
+        case "save":
+          void saveFavorite(statementSql);
+          break;
+      }
+    },
+  );
 
   // Only block the whole preview while SQL is still being generated.
   // When a query is running (`isLoading` + existing sql), keep the editor so Cancel stays usable.
@@ -225,7 +349,7 @@ export function SqlQueryPreview({
           </HoverCardTrigger>
           <HoverCardContent className="max-w-md">
             <pre className="text-foreground max-h-64 overflow-x-auto font-mono text-xs whitespace-pre-wrap">
-              {customSql || sql}
+              {customSql ?? sql}
             </pre>
           </HoverCardContent>
         </HoverCard>
@@ -243,9 +367,9 @@ export function SqlQueryPreview({
       data-testid="sql-query-editor"
     >
       {/* Header with toggle and actions */}
-      <div className="border-border bg-muted/20 border-b px-4">
-        <div className="my-1 flex items-center justify-between gap-4">
-          <div className="flex flex-1 items-center gap-4">
+      <div className="border-border bg-muted/20 border-b px-2 sm:px-4">
+        <div className="my-1 flex flex-wrap items-center justify-between gap-2 sm:gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <Tooltip content="Collapse SQL editor">
               <Button
                 size="sm"
@@ -295,12 +419,35 @@ export function SqlQueryPreview({
             </Portal>
 
             {warning}
+            {contextReceipt ? (
+              <span
+                className="text-muted-foreground hidden truncate text-xs md:inline"
+                data-testid="sql-context-receipt"
+              >
+                {contextReceipt}
+              </span>
+            ) : null}
+            <span
+              className="text-muted-foreground hidden truncate text-xs md:inline"
+              title={formatSqlExecutionScope(executionScope)}
+            >
+              {formatSqlExecutionScope(executionScope)}
+            </span>
+            {isDirty ? (
+              <span className="hidden shrink-0 text-xs text-amber-700 sm:inline dark:text-amber-300">
+                Unsaved changes
+              </span>
+            ) : null}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div
+            className="flex max-w-full min-w-0 flex-wrap items-center justify-end gap-1 sm:gap-2"
+            data-testid="sql-editor-actions"
+          >
             <SqlSnippetsMenu
               onInsertSnippet={handleInsertSnippet}
               tables={tables.map((table) => table.name)}
+              columns={columns}
               activeTable={snippetActiveTable}
             />
             {onSuggestQuery && (
@@ -339,6 +486,11 @@ export function SqlQueryPreview({
             {(!isCollapsed || isLoading) && (
               <>
                 {isLoading ? (
+                  <span className="sr-only" role="status" aria-live="polite">
+                    Running {formatSqlExecutionScope(executionScope)}
+                  </span>
+                ) : null}
+                {isLoading ? (
                   <Tooltip content="Cancel query">
                     <Button
                       variant="outline"
@@ -353,20 +505,79 @@ export function SqlQueryPreview({
                     </Button>
                   </Tooltip>
                 ) : (
-                  <Tooltip content="Run query (Ctrl+Enter)">
+                  <Tooltip content={`${formatSqlExecutionScope(executionScope)} (Ctrl+Enter)`}>
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => onRun?.(editorValueRef.current || customSql || sql || "")}
+                      onClick={() => runSql(activeStatementSql)}
                       className="h-8 gap-1.5 px-2"
                       data-testid="sql-run-button"
-                      aria-label="Run query"
+                      aria-label={formatSqlExecutionScope(executionScope)}
                     >
                       <Play className="h-4 w-4" />
                       <span className="hidden sm:inline">Run</span>
                     </Button>
                   </Tooltip>
                 )}
+                {transactionSupported && (onBeginTransaction || transactionStatus !== "idle") ? (
+                  <Menu>
+                    <MenuTrigger asChild>
+                      <Button
+                        variant={transactionStatus === "active" ? "secondary" : "ghost"}
+                        size="sm"
+                        className="h-8 gap-1.5 px-2"
+                        aria-label="Transaction controls"
+                        data-testid="sql-transaction-controls"
+                      >
+                        <CircleDot className="h-4 w-4" />
+                        <span className="hidden lg:inline">
+                          {transactionStatus === "active" ? "Transaction active" : "Transaction"}
+                        </span>
+                      </Button>
+                    </MenuTrigger>
+                    <MenuContent>
+                      {transactionStatus === "idle" ? (
+                        <MenuItem
+                          value="begin-transaction"
+                          disabled={!onBeginTransaction}
+                          onClick={() => onBeginTransaction?.()}
+                        >
+                          <CircleDot className="h-4 w-4" />
+                          <MenuItemText>Begin transaction</MenuItemText>
+                        </MenuItem>
+                      ) : null}
+                      {transactionStatus === "active" ? (
+                        <>
+                          <MenuItem
+                            value="commit-transaction"
+                            onClick={() => onCommitTransaction?.()}
+                          >
+                            <Check className="h-4 w-4" />
+                            <MenuItemText>Commit transaction</MenuItemText>
+                          </MenuItem>
+                          <MenuItem
+                            value="rollback-transaction"
+                            onClick={() => onRollbackTransaction?.()}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            <MenuItemText>Rollback transaction</MenuItemText>
+                          </MenuItem>
+                          <MenuItem value="transaction-help" disabled>
+                            <MenuItemText>
+                              Queries use the same connection until you finish this transaction.
+                            </MenuItemText>
+                          </MenuItem>
+                        </>
+                      ) : null}
+                      {transactionStatus === "busy" ? (
+                        <MenuItem value="transaction-busy" disabled>
+                          <CircleDot className="h-4 w-4" />
+                          <MenuItemText>Updating transaction…</MenuItemText>
+                        </MenuItem>
+                      ) : null}
+                    </MenuContent>
+                  </Menu>
+                ) : null}
                 <Menu>
                   <MenuTrigger asChild>
                     <Button
@@ -380,7 +591,31 @@ export function SqlQueryPreview({
                     </Button>
                   </MenuTrigger>
                   <MenuContent>
-                    <MenuItem value="explain-query" onClick={onExplain} disabled={disableExplain}>
+                    {onRunAll && executionScope.totalStatementCount > 1 ? (
+                      <MenuItem value="run-all-sql" onClick={() => onRunAll(currentSql())}>
+                        <Play className="h-4 w-4" />
+                        <MenuItemText>
+                          Run all {executionScope.totalStatementCount} statements
+                        </MenuItemText>
+                      </MenuItem>
+                    ) : null}
+                    {onRunInTransaction &&
+                    transactionStatus !== "active" &&
+                    executionScope.totalStatementCount > 1 &&
+                    fullScriptScope.hasWrites ? (
+                      <MenuItem
+                        value="run-transaction-sql"
+                        onClick={() => onRunInTransaction(currentSql())}
+                      >
+                        <Play className="h-4 w-4" />
+                        <MenuItemText>Run all atomically (rollback on failure)</MenuItemText>
+                      </MenuItem>
+                    ) : null}
+                    <MenuItem
+                      value="explain-query"
+                      onClick={() => onExplain?.(activeStatementSql)}
+                      disabled={disableExplain}
+                    >
                       <Zap className="h-4 w-4" />
                       <MenuItemText>Explain query</MenuItemText>
                     </MenuItem>
@@ -396,17 +631,39 @@ export function SqlQueryPreview({
                       )}
                       <MenuItemText>{copied ? "Copied SQL" : "Copy SQL"}</MenuItemText>
                     </MenuItem>
+                    <MenuItem value="download-sql" onClick={downloadSql}>
+                      <Copy className="h-4 w-4" />
+                      <MenuItemText>Download .sql</MenuItemText>
+                    </MenuItem>
                     {onSaveFavorite && (
                       <MenuItem
                         value="save-favorite"
                         disabled={isSavingFavorite}
-                        onClick={() => onSaveFavorite(editorValueRef.current || customSql || sql)}
+                        onClick={() => void saveFavorite()}
                         data-testid="sql-save-favorite"
                       >
-                        <Star className="h-4 w-4" />
-                        <MenuItemText>Save to favorites</MenuItemText>
+                        {favoriteSaved || favoriteSaveAcknowledged ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Star className="h-4 w-4" />
+                        )}
+                        <MenuItemText>
+                          {favoriteSaved || favoriteSaveAcknowledged
+                            ? "Saved to favorites"
+                            : "Save to favorites"}
+                        </MenuItemText>
                       </MenuItem>
                     )}
+                    {onReset ? (
+                      <MenuItem value="reset-sql" onClick={resetDraft} disabled={!isDirty}>
+                        <RotateCcw className="h-4 w-4" />
+                        <MenuItemText>Reset draft</MenuItemText>
+                      </MenuItem>
+                    ) : null}
+                    <MenuItem value="keyboard-shortcuts" onClick={() => setShortcutHelpOpen(true)}>
+                      <HelpCircle className="h-4 w-4" />
+                      <MenuItemText>Keyboard shortcuts</MenuItemText>
+                    </MenuItem>
                   </MenuContent>
                 </Menu>
                 {isFullscreen ? (
@@ -437,6 +694,20 @@ export function SqlQueryPreview({
                     </MenuTrigger>
                     <Portal>
                       <MenuContent>
+                        {onSetPanelSize ? (
+                          <>
+                            {layoutPresets.map((preset) => (
+                              <MenuItem
+                                key={preset.id}
+                                value={preset.id}
+                                onClick={() => onSetPanelSize(preset.size)}
+                              >
+                                <MenuItemText>{preset.label}</MenuItemText>
+                              </MenuItem>
+                            ))}
+                            <div className="border-border my-1 border-t" />
+                          </>
+                        ) : null}
                         {SQL_EDITOR_MAXIMIZE_ACTIONS.map((action) => (
                           <MenuItem
                             key={action.id}
@@ -465,18 +736,69 @@ export function SqlQueryPreview({
           </div>
         </div>
       </div>
+      {transactionStatus === "active" ? (
+        <div
+          className="bg-warning/10 border-warning/30 text-foreground flex shrink-0 flex-wrap items-center gap-1.5 border-b px-2 py-1.5 text-xs sm:gap-2 sm:px-4"
+          data-testid="sql-transaction-banner"
+        >
+          <CircleDot className="text-warning size-3.5" />
+          <span className="flex-1">
+            Transaction active · queries use the same connection until you commit or roll back.
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 text-xs"
+            onClick={onCommitTransaction}
+          >
+            Commit
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-6 px-2 text-xs"
+            onClick={onRollbackTransaction}
+          >
+            Rollback
+          </Button>
+        </div>
+      ) : null}
       {!isCollapsed && (
         <div className="border-border min-h-0 flex-1 border-t" data-testid="sql-monaco-panel">
           <SqlMonacoEditor
-            sql={customSql || sql}
+            sql={customSql ?? sql}
             onChange={handleEditorChange}
-            onSubmit={onRun}
+            onSubmit={(value, statementSql) => onRun?.(value, statementSql)}
+            onStatementChange={setActiveStatementSql}
+            onSave={(value, statementSql) => void saveFavorite(statementSql || value)}
+            onViewZoneAction={handleViewZoneAction}
             className="h-full w-full"
             tables={tables}
             columns={columns}
+            insertTextAtCursorRef={insertTextAtCursorRef}
           />
         </div>
       )}
+      <Dialog open={shortcutHelpOpen} onOpenChange={({ open }) => setShortcutHelpOpen(open)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>SQL editor shortcuts</DialogTitle>
+            <DialogDescription>
+              Shortcuts act on the selected text, or the statement under the cursor.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-3 text-sm">
+            <span>Run current scope</span>
+            <kbd className="bg-muted rounded px-2 py-1 font-mono">⌘/Ctrl + Enter</kbd>
+            <span>Save to favorites</span>
+            <kbd className="bg-muted rounded px-2 py-1 font-mono">⌘/Ctrl + S</kbd>
+            <span>Format SQL</span>
+            <kbd className="bg-muted rounded px-2 py-1 font-mono">⌘/Ctrl + Shift + F</kbd>
+            <span>Find in editor</span>
+            <kbd className="bg-muted rounded px-2 py-1 font-mono">⌘/Ctrl + F</kbd>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

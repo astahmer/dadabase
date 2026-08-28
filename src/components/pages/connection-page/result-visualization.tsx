@@ -104,8 +104,9 @@ export const ResultVisualization = (props: { rows: ResultRow[]; columns: string[
         </div>
       </div>
       {points.length === 0 ? (
-        <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
-          No numeric values available for this result.
+        <div className="text-muted-foreground flex flex-1 items-center justify-center text-center text-sm">
+          No chartable numeric values were found in the loaded rows. Switch to Table to inspect the
+          result.
         </div>
       ) : (
         <div className="bg-muted/20 min-h-64 rounded-lg border p-4">

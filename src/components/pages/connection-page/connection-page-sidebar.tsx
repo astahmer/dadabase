@@ -59,6 +59,9 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
     ...listAvailableDatabase({ url: connectionUrl }),
     retry: 1,
   });
+  const isNotSqlite = !(
+    connection.dialect === DatabaseDialect.SQLite || connection.dialect === DatabaseDialect.LibSQL
+  );
   const dbList = databaseListQuery.data || [];
   const selectedDbName = useSearch({
     from: "/connections/$connectionName",
@@ -70,6 +73,8 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
     retry: 1,
   });
   const schemaList = schemaListQuery.data || [];
+  const connectionIntrospectionUnavailable =
+    (isNotSqlite && databaseListQuery.isError) || schemaListQuery.isError;
 
   const globalSchema = useSearch({
     from: "/connections/$connectionName",
@@ -94,7 +99,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
   const tablesListQuery = useQuery({
     ...listAvailableTablesQueryOptions({ url: activeConnectionUrl, schema: selectedSchema }),
-    enabled: !!selectedSchema,
+    enabled: Boolean(selectedSchema) && !connectionIntrospectionUnavailable,
     retry: 1,
   });
   const tableList = tablesListQuery.data || [];
@@ -106,10 +111,6 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
     select: (s) => s.tableFilter,
   });
   const selectedTable = useActiveTabState((s) => s.table);
-
-  const isNotSqlite = !(
-    connection.dialect === DatabaseDialect.SQLite || connection.dialect === DatabaseDialect.LibSQL
-  );
 
   const filteredTables = useMemo(
     () =>
@@ -124,7 +125,7 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
 
   const databaseObjectsQuery = useQuery({
     ...getDatabaseObjectsQueryOptions({ url: activeConnectionUrl, schema: selectedSchema }),
-    enabled: Boolean(activeConnectionUrl && selectedSchema),
+    enabled: Boolean(activeConnectionUrl && selectedSchema) && !connectionIntrospectionUnavailable,
     retry: 1,
   });
 
@@ -352,7 +353,11 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
                 </Button>
               </Tooltip>
             </div>
-            {tablesListQuery.isError ? (
+            {connectionIntrospectionUnavailable ? (
+              <div className="text-muted-foreground p-4 text-sm" data-testid="tables-unavailable">
+                Tables are unavailable until this connection is reachable.
+              </div>
+            ) : tablesListQuery.isError ? (
               <div className="p-4">
                 <ErrorBoundaryCard
                   error={tablesListQuery.error}

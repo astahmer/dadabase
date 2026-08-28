@@ -211,12 +211,16 @@ export const chatSessionMachine = setup({
         ? {
             error: event.error,
             errorMessageId: event.messageId,
-            streamOutcome: "failed" as const,
-            sendPending: false,
-            failedStreamMessageId:
-              context.streamOutcome === undefined && context.streamOrigin === "send"
-                ? context.streamMessageId
-                : context.failedStreamMessageId,
+            ...(context.streamOrigin !== undefined || event.messageId !== undefined
+              ? {
+                  streamOutcome: "failed" as const,
+                  sendPending: false,
+                  failedStreamMessageId:
+                    context.streamOutcome === undefined && context.streamOrigin === "send"
+                      ? context.streamMessageId
+                      : context.failedStreamMessageId,
+                }
+              : {}),
           }
         : {},
     ),

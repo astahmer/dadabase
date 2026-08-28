@@ -78,9 +78,16 @@ export const buildPerStatementViewZoneLayouts = (
 export const createSqlEditorViewZoneDom = (
   actions: readonly SqlEditorViewZoneAction[],
   onAction: (id: SqlEditorViewZoneActionId) => void,
-  doc: Document = document,
+  contextLabelOrDoc?: string | Document,
+  doc?: Document,
 ): HTMLElement => {
-  const root = doc.createElement("div");
+  const contextLabel = typeof contextLabelOrDoc === "string" ? contextLabelOrDoc : undefined;
+  const documentRef =
+    typeof contextLabelOrDoc === "string"
+      ? doc
+      : (contextLabelOrDoc ?? doc ?? (typeof document === "undefined" ? undefined : document));
+  if (!documentRef) throw new Error("A document is required to render SQL editor actions");
+  const root = documentRef.createElement("div");
   root.className = "dadabase-sql-view-zone";
   root.setAttribute("data-testid", "sql-view-zone");
   root.style.display = "flex";
@@ -96,12 +103,15 @@ export const createSqlEditorViewZoneDom = (
   root.style.background = "var(--color-muted, rgba(127,127,127,0.12))";
   root.style.borderBottom = "1px solid var(--color-border, rgba(127,127,127,0.25))";
   root.style.isolation = "isolate";
+  if (contextLabel) root.setAttribute("aria-label", contextLabel);
 
   for (const action of actions) {
-    const button = doc.createElement("button");
+    const button = documentRef.createElement("button");
     button.type = "button";
     button.textContent = action.label;
     button.dataset.action = action.id;
+    button.setAttribute("aria-label", `${action.label}${contextLabel ? ` · ${contextLabel}` : ""}`);
+    button.title = `${action.label}${contextLabel ? ` · ${contextLabel}` : ""}`;
     button.style.border = "1px solid transparent";
     button.style.background = "transparent";
     button.style.cursor = "pointer";

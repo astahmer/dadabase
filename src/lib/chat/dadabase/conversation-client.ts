@@ -11,14 +11,15 @@ import {
 } from "#src/server/chat/chat-thread.start.ts";
 
 import type { ChatMessage } from "../protocol/messages.ts";
-import {
-  ChatContextReceiptSchema,
-  MessageUsageSchema,
-} from "../protocol/messages.ts";
 import type { MemorySummary } from "../protocol/resources.ts";
-import type { ConversationClient, Memory } from "../web/chat-runtime/conversation-client.ts";
+import type {
+  ConversationClient,
+  LoadedChatHistory,
+  Memory,
+} from "../web/chat-runtime/conversation-client.ts";
 
 import { collapseCompactedMessages } from "../chat/message-collapse.ts";
+import { ChatContextReceiptSchema, MessageUsageSchema } from "../protocol/messages.ts";
 import { MessagePartSchema, type MessagePart } from "../protocol/parts.ts";
 
 const toConversation = (thread: ChatThreadSummary) => ({
@@ -44,7 +45,7 @@ const toThread = (thread: ChatThreadSummary) => ({
 
 const decodeMessages = async (
   summaries: ReadonlyArray<ChatMessageSummary>,
-): Promise<ChatMessage[]> => {
+): Promise<{ messages: ChatMessage[]; skippedCount: number }> => {
   const collapsed = collapseCompactedMessages(
     summaries.map((message) => ({
       id: message.id,
@@ -86,7 +87,8 @@ const decodeMessages = async (
       }
     }),
   );
-  return decoded.filter((message): message is ChatMessage => message !== undefined);
+  const messages = decoded.filter((message): message is ChatMessage => message !== undefined);
+  return { messages, skippedCount: decoded.length - messages.length };
 };
 
 /**
@@ -104,13 +106,19 @@ export const createDadabaseConversationClient = ({
   listConversations: async () =>
     (await listChatThreadsServerFn({ data: connectionName })).map(toConversation),
 
-  loadConversation: async ({ conversationId }) => {
+  loadConversation: async ({ conversationId }): Promise<LoadedChatHistory> => {
     const result = await getChatThreadMessagesServerFn({
       data: { connectionName, threadId: conversationId },
     });
+    const decodedMessages = await decodeMessages(result.messages);
     return {
       conversation: toConversation(result.thread),
-      messages: await decodeMessages(result.messages),
+      messages: decodedMessages.messages,
+      ...(decodedMessages.skippedCount > 0
+        ? {
+            warning: `${decodedMessages.skippedCount} saved message${decodedMessages.skippedCount === 1 ? "" : "s"} could not be restored.`,
+          }
+        : {}),
     };
   },
 
@@ -175,6 +183,15 @@ export const createDadabaseConversationClient = ({
     const result = await getChatThreadMessagesServerFn({
       data: { connectionName, threadId: conversationId },
     });
-    return { thread: toThread(result.thread), messages: await decodeMessages(result.messages) };
+    const decodedMessages = await decodeMessages(result.messages);
+    return {
+      thread: toThread(result.thread),
+      messages: decodedMessages.messages,
+      ...(decodedMessages.skippedCount > 0
+        ? {
+            warning: `${decodedMessages.skippedCount} saved message${decodedMessages.skippedCount === 1 ? "" : "s"} could not be restored.`,
+          }
+        : {}),
+    };
   },
 });

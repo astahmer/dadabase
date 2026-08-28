@@ -102,7 +102,7 @@ const decodeSync = <Value>(schema: z.ZodType<Value>, payload: unknown): Value =>
 
 const decodeMessages = async (
   values: ReadonlyArray<ConversationMessageValue>,
-): Promise<ChatMessage[]> => {
+): Promise<{ messages: ChatMessage[]; skippedCount: number }> => {
   const collapsed = collapseCompactedMessages(values);
   const decoded = await Promise.all(
     collapsed.map(async (message): Promise<ChatMessage | undefined> => {
@@ -129,14 +129,19 @@ const decodeMessages = async (
       }
     }),
   );
-  return decoded.filter((message): message is ChatMessage => message !== undefined);
+  const messages = decoded.filter((message): message is ChatMessage => message !== undefined);
+  return { messages, skippedCount: decoded.length - messages.length };
+};
+
+export type LoadedChatHistory = {
+  conversation: Conversation;
+  messages: ChatMessage[];
+  warning?: string;
 };
 
 export interface ConversationClient {
   listConversations(input: { search: string }): Promise<Conversation[]>;
-  loadConversation(input: {
-    conversationId: string;
-  }): Promise<{ conversation: Conversation; messages: ChatMessage[] }>;
+  loadConversation(input: { conversationId: string }): Promise<LoadedChatHistory>;
   reviseConversationMessage(input: {
     conversationId: string;
     messageId: string;
@@ -164,10 +169,11 @@ export interface ConversationClient {
     conversationId: string;
     anchorMessageId: string;
   }): Promise<ConversationThread>;
-  loadThread(input: {
-    conversationId: string;
-    threadId: string;
-  }): Promise<{ thread: ConversationThread; messages: ChatMessage[] }>;
+  loadThread(input: { conversationId: string; threadId: string }): Promise<{
+    thread: ConversationThread;
+    messages: ChatMessage[];
+    warning?: string;
+  }>;
 }
 
 export const createConversationClient = ({
@@ -223,8 +229,16 @@ export const createConversationClient = ({
     const response = await fetch(apiUrl(`/api/conversations/${pathSegment(conversationId)}`));
     const payload = await readResponse({ response });
     const decoded = decodeSync(ConversationDetailSchema, payload);
-    const messages = await decodeMessages(decoded.messages);
-    return { conversation: decoded.conversation, messages };
+    const decodedMessages = await decodeMessages(decoded.messages);
+    return {
+      conversation: decoded.conversation,
+      messages: decodedMessages.messages,
+      ...(decodedMessages.skippedCount > 0
+        ? {
+            warning: `${decodedMessages.skippedCount} saved message${decodedMessages.skippedCount === 1 ? "" : "s"} could not be restored.`,
+          }
+        : {}),
+    };
   };
 
   const updateConversation = async ({
@@ -413,7 +427,16 @@ export const createConversationClient = ({
     );
     const payload = await readResponse({ response });
     const decoded = decodeSync(ThreadDetailSchema, payload);
-    return { thread: decoded.thread, messages: await decodeMessages(decoded.messages) };
+    const decodedMessages = await decodeMessages(decoded.messages);
+    return {
+      thread: decoded.thread,
+      messages: decodedMessages.messages,
+      ...(decodedMessages.skippedCount > 0
+        ? {
+            warning: `${decodedMessages.skippedCount} saved message${decodedMessages.skippedCount === 1 ? "" : "s"} could not be restored.`,
+          }
+        : {}),
+    };
   };
 
   return {

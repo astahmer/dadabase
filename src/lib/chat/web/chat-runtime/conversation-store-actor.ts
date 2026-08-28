@@ -32,6 +32,7 @@ export interface ConversationStoreContext {
   memories: Memory[];
   memorySummary: MemorySummary | undefined;
   requestedConversationId: string | undefined;
+  historyWarning: string | undefined;
   loading: ConversationStoreLoading;
   error: string | undefined;
 }
@@ -82,9 +83,14 @@ export type ConversationStoreActorEvent =
   | { type: "threads-cleared" }
   | { type: "session-event"; event: ChatSessionEvent }
   | { type: "conversations-loaded"; conversations: Conversation[] }
-  | { type: "conversation-loaded"; conversation: Conversation; messages: ChatMessage[] }
+  | {
+      type: "conversation-loaded";
+      conversation: Conversation;
+      messages: ChatMessage[];
+      warning?: string;
+    }
   | { type: "threads-loaded"; threads: ConversationThread[] }
-  | { type: "thread-loaded"; thread: ConversationThread; messages: ChatMessage[] }
+  | { type: "thread-loaded"; thread: ConversationThread; messages: ChatMessage[]; warning?: string }
   | { type: "conversation-updated"; conversation: Conversation }
   | { type: "conversation-deleted"; conversationId: string; resetSession: boolean }
   | { type: "conversation-created"; conversation: Conversation }
@@ -415,6 +421,7 @@ export const conversationStoreActor = setup({
     requestConversation: assign(({ context, event }) => ({
       loading: loading({ context, operation: "conversation", value: true }),
       error: undefined,
+      historyWarning: undefined,
       requestedConversationId:
         event.type === "conversation-load-requested"
           ? event.conversationId
@@ -427,6 +434,7 @@ export const conversationStoreActor = setup({
     requestThread: assign(({ context }) => ({
       loading: loading({ context, operation: "thread", value: true }),
       error: undefined,
+      historyWarning: undefined,
     })),
     requestMemories: assign(({ context }) => ({
       loading: loading({ context, operation: "memories", value: true }),
@@ -446,7 +454,10 @@ export const conversationStoreActor = setup({
     ),
     receiveConversation: assign(({ context, event }) =>
       event.type === "conversation-loaded"
-        ? { loading: loading({ context, operation: "conversation", value: false }) }
+        ? {
+            loading: loading({ context, operation: "conversation", value: false }),
+            historyWarning: event.warning,
+          }
         : {},
     ),
     receiveThreads: assign(({ context, event }) =>
@@ -459,7 +470,10 @@ export const conversationStoreActor = setup({
     ),
     receiveThread: assign(({ context, event }) =>
       event.type === "thread-loaded"
-        ? { loading: loading({ context, operation: "thread", value: false }) }
+        ? {
+            loading: loading({ context, operation: "thread", value: false }),
+            historyWarning: event.warning,
+          }
         : {},
     ),
     receiveConversationUpdate: assign(({ context, event }) =>
@@ -581,6 +595,7 @@ export const conversationStoreActor = setup({
     memories: [],
     memorySummary: undefined,
     requestedConversationId: undefined,
+    historyWarning: undefined,
     loading: initialLoading,
     error: undefined,
   }),

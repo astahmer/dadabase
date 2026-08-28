@@ -3892,6 +3892,97 @@ export const executeCustomSql = (input: {
   });
 
 /**
+ * Execute a script atomically on one reserved connection. This is deliberately
+ * separate from executeCustomSql: the normal custom SQL workflow keeps one
+ * result per statement, while this path guarantees rollback if any statement
+ * fails before commit.
+ */
+export const executeCustomSqlTransaction = (input: {
+  statements: readonly string[];
+  /** Audit S2: honor the user's record-history preference. */
+  skipQueryLog?: boolean;
+}): Effect.Effect<
+  {
+    rows: unknown[];
+    columns: string[];
+    rowCount: number;
+    rowsAffected?: number;
+    timeTaken: number;
+    ranAt: number;
+  },
+  SqlError,
+  RemoteConnection | QueryLogger | SqlClient.SqlClient
+> =>
+  Effect.gen(function* () {
+    const connectionId = yield* RemoteConnection;
+    const sql = yield* SqlClient.SqlClient;
+    const startTime = Date.now();
+    const statements = input.statements.map((statement) => statement.trim()).filter(Boolean);
+
+    if (statements.length === 0) {
+      return yield* Effect.fail(new SqlError({ cause: "No SQL statements provided" }));
+    }
+
+    const conn = yield* Effect.orDie(sql.reserve).pipe(Effect.scoped);
+    yield* conn.executeRaw("BEGIN", []);
+
+    const run = Effect.gen(function* () {
+      let lastResult: Record<string, unknown> = {};
+      for (const statement of statements) {
+        const rawExecute = conn.executeRaw(statement, []);
+        lastResult = (yield* input.skipQueryLog
+          ? rawExecute
+          : rawExecute.pipe(
+              withQueryLogging({
+                type: QueryLogType.TableRows,
+                sql: statement,
+                params: [],
+                level: QueryLogLevel.Info,
+                connectionId,
+                meta: { customQuery: true, transaction: true },
+              }),
+            )) as Record<string, unknown>;
+      }
+      yield* conn.executeRaw("COMMIT", []);
+
+      const result = { rows: [], ...lastResult } as {
+        rows: unknown[];
+        rowCount?: number;
+        rowsAffected?: number;
+        affectedRows?: number;
+      };
+      const endTime = Date.now();
+      if (isSelectQuery(statements.at(-1) ?? "")) {
+        const rows = result.rows ?? [];
+        return {
+          rows,
+          columns: rows.length > 0 ? Object.keys(rows[0] as object) : [],
+          rowCount: rows.length,
+          timeTaken: endTime - startTime,
+          ranAt: startTime,
+        };
+      }
+      return {
+        rows: [],
+        columns: [],
+        rowCount: 0,
+        rowsAffected: result.rowCount ?? result.rowsAffected ?? result.affectedRows ?? 0,
+        timeTaken: endTime - startTime,
+        ranAt: startTime,
+      };
+    });
+
+    return yield* run.pipe(
+      Effect.catch((error) =>
+        Effect.gen(function* () {
+          yield* conn.executeRaw("ROLLBACK", []).pipe(Effect.ignore);
+          return yield* Effect.fail(error);
+        }),
+      ),
+    );
+  });
+
+/**
  * Run SQLite table-rebuild DDL steps on one reserved connection.
  * Always restores `PRAGMA foreign_keys=ON` even if a mid-script statement fails.
  */

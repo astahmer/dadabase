@@ -34,6 +34,7 @@ export const DataTableCell = memo(function TableCell(props: {
   onCellMouseDown?: MouseEventHandler<HTMLTableCellElement>;
   onCellMouseEnter?: MouseEventHandler<HTMLTableCellElement>;
   onCellClick?: MouseEventHandler<HTMLTableCellElement>;
+  onCellDoubleClick?: MouseEventHandler<HTMLTableCellElement>;
 }) {
   const {
     columnId,
@@ -54,6 +55,7 @@ export const DataTableCell = memo(function TableCell(props: {
     onCellMouseDown,
     onCellMouseEnter,
     onCellClick,
+    onCellDoubleClick,
   } = props;
 
   const cellClassName = cn(
@@ -108,6 +110,7 @@ export const DataTableCell = memo(function TableCell(props: {
         onMouseDown={onCellMouseDown}
         onMouseEnter={onCellMouseEnter}
         onClick={onCellClick}
+        onDoubleClick={onCellDoubleClick}
         tabIndex={tabIndex}
         style={{
           width: `${props.columnSize}px`,
@@ -145,6 +148,7 @@ export const DataTableCell = memo(function TableCell(props: {
       onMouseDown={onCellMouseDown}
       onMouseEnter={onCellMouseEnter}
       onClick={onCellClick}
+      onDoubleClick={onCellDoubleClick}
       tabIndex={tabIndex}
       style={{
         width: `${props.columnSize}px`,

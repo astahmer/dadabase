@@ -8,13 +8,20 @@
 const CHAT_CONVERSATION_RESOLVED_EVENT = "dadabase:chat-conversation-resolved";
 
 let currentConversationId: string | undefined;
+const conversationIdsByConnection = new Map<string, string>();
 
-export const recordCurrentChatConversationId = (conversationId: string): void => {
+export const recordCurrentChatConversationId = (
+  conversationId: string,
+  connectionName?: string,
+): void => {
   if (conversationId === "") return;
   currentConversationId = conversationId;
+  if (connectionName !== undefined) conversationIdsByConnection.set(connectionName, conversationId);
   window.dispatchEvent(new Event(CHAT_CONVERSATION_RESOLVED_EVENT));
 };
 
-export const getCurrentChatConversationId = (): string | undefined => currentConversationId;
+export const getCurrentChatConversationId = (connectionName?: string): string | undefined =>
+  (connectionName === undefined ? undefined : conversationIdsByConnection.get(connectionName)) ??
+  currentConversationId;
 
 export const CHAT_CONVERSATION_RESOLVED = CHAT_CONVERSATION_RESOLVED_EVENT;

@@ -19,7 +19,9 @@ export const createTabState = (
       ? table
       : options?.initialTabMode === "ai"
         ? "AI Assistant"
-        : "New Tab");
+        : options?.initialTabMode === "sql"
+          ? "Custom SQL"
+          : "New Tab");
 
   return {
     tabId: `${schema}.${table}:${options?.fkValue ?? ""}:${Math.random().toString(36).substr(2, 4)}`,

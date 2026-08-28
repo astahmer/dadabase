@@ -16,6 +16,7 @@ import { z } from "zod";
 import type { AiSchemaContext } from "#src/lib/ai/ai-types.ts";
 import type { ChatContextAttachment } from "#src/lib/ai/chat-context.ts";
 
+import { getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import {
   dataClassesForChatContext,
@@ -36,6 +37,7 @@ import {
   TableDetailsInputSchema,
 } from "#src/lib/ai/chat-tool-schemas.ts";
 import { normalizeEnabledChatTools } from "#src/lib/ai/chat-tools.ts";
+import { toJsonSafeValue } from "#src/lib/ai/json-safe-value.ts";
 import { buildChatSystemPrompt } from "#src/lib/ai/nl-to-sql-prompt.ts";
 import { applyAutoSelection, buildAutoSelectPrompt } from "#src/lib/ai/schema-auto-select.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
@@ -55,6 +57,25 @@ import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
 const MAX_RESULT_ROWS = 50;
 const MAX_PREVIEW_ROWS = 25;
+const MAX_PREVIEW_RELATIONS = 4;
+
+const DISPLAY_COLUMN_NAMES = [
+  "display_name",
+  "title",
+  "name",
+  "channel_name",
+  "login",
+  "username",
+  "label",
+  "slug",
+] as const;
+
+type ReadableRelation = {
+  sourceColumn: string;
+  label: string;
+  referencedTable: string;
+  labels: Record<string, unknown>;
+};
 
 /** Minimal identifier quoting for the preview/explain helpers. */
 const quoteToolIdent = (name: string): string =>
@@ -82,6 +103,33 @@ const explainPrefix = (dialect: string): string | null => {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
+
+const chooseDisplayColumn = (
+  columns: ReadonlyArray<{ name: string }>,
+  referencedColumn: string,
+): string | undefined => {
+  const byName = new Map(columns.map((column) => [column.name.toLowerCase(), column.name]));
+  for (const candidate of DISPLAY_COLUMN_NAMES) {
+    const column = byName.get(candidate);
+    if (column !== undefined && column !== referencedColumn) return column;
+  }
+  return columns.find((column) => {
+    const name = column.name.toLowerCase();
+    return (
+      column.name !== referencedColumn &&
+      (name.includes("display") ||
+        name.includes("title") ||
+        name.includes("name") ||
+        name.includes("label"))
+    );
+  })?.name;
+};
+
+const sqlLiteral = (value: unknown): string => {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  return `'${String(value).replaceAll("'", "''")}'`;
+};
 
 const bodySchema = z.object({
   messages: z.array(z.record(z.string(), z.unknown())),
@@ -136,14 +184,14 @@ const runSqlToolExecute = async ({
       }
       return record;
     });
-    return {
+    return toJsonSafeValue({
       ok: true as const,
       columns: result.columns,
       rowCount: result.rowCount,
       rowsAffected: result.rowsAffected ?? null,
       truncated: result.rows.length > MAX_RESULT_ROWS,
       rows,
-    };
+    });
   }).pipe(withRemoteConnectionLayersFromUrl(connectionUrl));
 
   return AppRuntime.runPromise(program as never);
@@ -171,7 +219,110 @@ const previewRowsToolExecute = async ({
     dialect === "duckdb" && !schema
       ? `SELECT * FROM main.${quoteToolIdent(table)} LIMIT ${Math.min(limit, MAX_PREVIEW_ROWS)}`
       : `SELECT * FROM ${qualified} LIMIT ${Math.min(limit, MAX_PREVIEW_ROWS)}`;
-  return runSqlToolExecute({ sql, connectionUrl });
+  const base = await runSqlToolExecute({ sql, connectionUrl });
+  const sourceRows = isRecord(base) && Array.isArray(base.rows) ? base.rows.filter(isRecord) : [];
+  const sourceColumns =
+    isRecord(base) && Array.isArray(base.columns)
+      ? base.columns.filter((column): column is string => typeof column === "string")
+      : sourceRows[0]
+        ? Object.keys(sourceRows[0])
+        : [];
+  const readableSourceColumns = sourceColumns.filter((column) =>
+    DISPLAY_COLUMN_NAMES.includes(column.toLowerCase() as (typeof DISPLAY_COLUMN_NAMES)[number]),
+  );
+
+  // Relation labels are an additive presentation payload. The raw `rows`
+  // response remains exactly the sampled SQL result; this bounded lookup only
+  // adds friendly labels to the separate preview shown in the UI.
+  const sourceSchema = schema ?? getDialectDefaultSchema(dialect as never);
+  const relationLabels: Array<ReadableRelation | null> = await AppRuntime.runPromise(
+    Effect.gen(function* () {
+      const foreignKeys = yield* getTableForeignKeys({ schema: sourceSchema, table }).pipe(
+        Effect.catch(() => Effect.succeed([])),
+      );
+      const selected = foreignKeys.slice(0, MAX_PREVIEW_RELATIONS);
+      return yield* Effect.all(
+        selected.map((foreignKey) =>
+          Effect.gen(function* () {
+            if (!sourceColumns.includes(foreignKey.column_name)) return null;
+            const targetColumns = yield* getTableColumns({
+              schema: foreignKey.referenced_table_schema,
+              table: foreignKey.referenced_table_name,
+            }).pipe(Effect.catch(() => Effect.succeed([])));
+            const displayColumn = chooseDisplayColumn(
+              targetColumns,
+              foreignKey.referenced_column_name,
+            );
+            if (displayColumn === undefined) return null;
+            const keys = [
+              ...new Set(
+                sourceRows
+                  .map((row) => row[foreignKey.column_name])
+                  .filter((value) => value !== null && value !== undefined)
+                  .map((value) => String(value)),
+              ),
+            ].slice(0, MAX_PREVIEW_ROWS);
+            if (keys.length === 0) return null;
+            const targetSchema = `${quoteToolIdent(foreignKey.referenced_table_schema)}.`;
+            const targetTable = `${targetSchema}${quoteToolIdent(foreignKey.referenced_table_name)}`;
+            const lookup = yield* executeCustomSql({
+              sql: `SELECT ${quoteToolIdent(foreignKey.referenced_column_name)} AS "__key", ${quoteToolIdent(displayColumn)} AS "__label" FROM ${targetTable} WHERE ${quoteToolIdent(foreignKey.referenced_column_name)} IN (${keys.map(sqlLiteral).join(", ")}) LIMIT ${MAX_PREVIEW_ROWS}`,
+              skipQueryLog: true,
+            }).pipe(Effect.catch(() => Effect.succeed({ rows: [] as unknown[] })));
+            const labels: Record<string, unknown> = {};
+            for (const row of lookup.rows) {
+              if (!isRecord(row)) continue;
+              const key = row.__key;
+              if (key !== null && key !== undefined) labels[String(key)] = row.__label;
+            }
+            return {
+              sourceColumn: foreignKey.column_name,
+              label: displayColumn,
+              referencedTable: foreignKey.referenced_table_name,
+              labels,
+            };
+          }),
+        ),
+        { concurrency: 2 },
+      );
+    }).pipe(
+      Effect.catch(() => Effect.succeed([] as Array<ReadableRelation | null>)),
+      withRemoteConnectionLayersFromUrl(connectionUrl),
+    ),
+  );
+  const relations = relationLabels.filter(
+    (relation): relation is ReadableRelation => relation !== null,
+  );
+  const readableColumns = [
+    ...readableSourceColumns,
+    ...relations.map((relation) => `${String(relation.sourceColumn)}__label`),
+  ].slice(0, 8);
+  const readableRows = sourceRows.slice(0, MAX_PREVIEW_ROWS).map((row) => {
+    const readable: Record<string, unknown> = {};
+    for (const column of readableSourceColumns) readable[column] = row[column];
+    for (const relation of relations) {
+      const sourceColumn = String(relation.sourceColumn);
+      const labels = isRecord(relation.labels) ? relation.labels : {};
+      const key = row[sourceColumn];
+      readable[`${sourceColumn}__label`] =
+        key === null || key === undefined ? null : labels[String(key)] ?? null;
+    }
+    if (Object.keys(readable).length === 0) {
+      for (const column of sourceColumns.slice(0, 4)) readable[column] = row[column];
+    }
+    return readable;
+  });
+
+  return toJsonSafeValue({
+    ...(base as Record<string, unknown>),
+    readableColumns,
+    readableRows,
+    readableRelations: relations.map((relation) => ({
+      sourceColumn: relation.sourceColumn,
+      label: relation.label,
+      referencedTable: relation.referencedTable,
+    })),
+  });
 };
 
 /** table_details: columns + FK + indexes via the existing introspection fns. */

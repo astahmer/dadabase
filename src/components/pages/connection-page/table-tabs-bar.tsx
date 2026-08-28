@@ -267,7 +267,10 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
   const tabIds = tabs.map((tab) => tab.tabId);
 
   return (
-    <div className="bg-muted/50 min-h-0 shrink-0 border-b" data-testid="connection-tabs-bar">
+    <div
+      className="bg-muted/50 relative min-h-0 shrink-0 border-b"
+      data-testid="connection-tabs-bar"
+    >
       <Tabs.Root
         value={activeTabId || ""}
         onValueChange={(details) => {
@@ -293,6 +296,7 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
             </Tooltip>
           )}
           <DndContext
+            id="connection-tabs"
             sensors={sensors}
             collisionDetection={closestCenter}
             modifiers={[restrictToHorizontalAxis]}
@@ -351,24 +355,22 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
               </Button>
             </Tooltip>
           )}
-          {onToggleSidechat && (
-            <Tooltip content={isSidechatOpen ? "Close AI sidechat" : "Open AI sidechat"}>
-              <Button
-                onClick={onToggleSidechat}
-                variant={isSidechatOpen ? "secondary" : "ghost"}
-                size="xs"
-                className="relative top-[3px] shrink-0"
-                aria-label={isSidechatOpen ? "Close AI sidechat" : "Open AI sidechat"}
-                aria-pressed={isSidechatOpen}
-                data-testid="toggle-ai-sidechat"
-                type="button"
-              >
-                <PanelRight className="h-4 w-4" />
-              </Button>
-            </Tooltip>
-          )}
         </div>
       </Tabs.Root>
+      {onToggleSidechat && (
+        <Button
+          variant={isSidechatOpen ? "secondary" : "ghost"}
+          size="xs"
+          className="absolute end-2 top-2"
+          aria-label={isSidechatOpen ? "Close AI sidechat" : "Open AI sidechat"}
+          aria-pressed={isSidechatOpen}
+          data-testid="toggle-ai-sidechat"
+          title={isSidechatOpen ? "Close AI sidechat" : "Open AI sidechat"}
+          type="button"
+        >
+          <PanelRight className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 };

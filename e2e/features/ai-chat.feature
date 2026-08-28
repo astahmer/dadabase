@@ -545,3 +545,4 @@ Feature: AI chat assistant
     Then the preview rows result is visible
     And the table details result is visible
     And the explain SQL result is visible
+    And the successful AI reply does not offer retry

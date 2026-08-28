@@ -15,6 +15,12 @@ const testDir = defineBddConfig({
 export default defineConfig({
   testDir,
   outputDir: path.join(__dirname, "test-results"),
+  snapshotPathTemplate: path.join(
+    __dirname,
+    "snapshots",
+    "{testFileName}",
+    "{arg}{-projectName}{ext}",
+  ),
   globalSetup: "./global-setup.ts",
   fullyParallel: false,
   workers: 1,

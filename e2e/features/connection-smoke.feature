@@ -11,6 +11,8 @@ Feature: Connection bootstrap smoke
 
   Scenario: Unreachable postgres fails with a driver connect error
     Given I open the connection named "e2e-unreachable-pg"
-    Then I should see a connection load error matching "ECONNREFUSED|Failed to connect|connect ECONNREFUSED"
+    Then I should see a connection load error matching "database refused|Failed to load databases|ECONNREFUSED|Failed to connect|connect ECONNREFUSED"
+    And I should see text "Tables are unavailable until this connection is reachable."
+    And I should not see text "Loading tables..."
     And I should not see text "An error has occurred"
     And I should not see text "Invalid server function"

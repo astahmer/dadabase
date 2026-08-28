@@ -9,12 +9,21 @@ export interface SqlSnippet {
  * replaces it with a schema-aware table choice at insert time.
  */
 export const SNIPPET_TABLE_TOKEN = "{{table}}";
+export const SNIPPET_COLUMN_TOKEN = "{{column}}";
+export const SNIPPET_PARAMETER_PATTERN = /\{\{param:([a-zA-Z0-9_-]+)\}\}/g;
 
 /** Replace every table token with `table` (identity when no token present). */
 export const resolveSnippetSql = (sql: string, table: string): string =>
   sql.replaceAll(SNIPPET_TABLE_TOKEN, table || SNIPPET_TABLE_TOKEN);
 
+/** Replace schema tokens while leaving parameters visible until insertion. */
+export const resolveSnippetSchemaSql = (sql: string, table: string, column: string): string =>
+  sql
+    .replaceAll(SNIPPET_TABLE_TOKEN, table || SNIPPET_TABLE_TOKEN)
+    .replaceAll(SNIPPET_COLUMN_TOKEN, column || SNIPPET_COLUMN_TOKEN);
+
 export const snippetReferencesTable = (sql: string): boolean => sql.includes(SNIPPET_TABLE_TOKEN);
+export const snippetReferencesColumn = (sql: string): boolean => sql.includes(SNIPPET_COLUMN_TOKEN);
 
 const STORAGE_KEY = "dadabase.sql-snippets";
 
@@ -33,6 +42,11 @@ export const DEFAULT_SQL_SNIPPETS: readonly SqlSnippet[] = [
     id: "default-count",
     name: "Count rows",
     sql: "SELECT COUNT(*) AS row_count\nFROM {{table}};",
+  },
+  {
+    id: "default-column-sample",
+    name: "Sample one column",
+    sql: "SELECT {{column}}\nFROM {{table}}\nLIMIT 100;",
   },
 ];
 

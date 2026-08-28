@@ -21,6 +21,7 @@ import {
   GripVertical,
   Pin,
   PinOff,
+  Search,
 } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
@@ -51,6 +52,7 @@ import {
   DialogTitle,
 } from "../ui/dialog.tsx";
 import { Input } from "../ui/input.tsx";
+import { Kbd } from "../ui/kbd.tsx";
 import { HStack } from "../ui/layout.tsx";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "../ui/menu.tsx";
 import { ColumnHeaderContextMenu } from "./column-header-context-menu.tsx";
@@ -95,6 +97,7 @@ export interface DataTableProps<TData extends RowData> {
   hasError?: boolean;
   onRowClick?: (row: Row<TData>) => void;
   onRowDoubleClick?: (row: Row<TData>) => void;
+  onCellDoubleClick?: (row: Row<TData>, columnId: string, value: unknown) => void;
   onColumnFilterClick?: (columnId: string, columnName: string) => void;
   /** Active equals/contains filter for a column header (from query filter state). */
   getColumnHeaderFilter?: (
@@ -200,6 +203,21 @@ export function DataTable<TData extends RowData>(props: DataTableProps<TData>) {
       }}
     >
       <div className="relative flex min-h-0 flex-1 flex-col">
+        {enableFind && !find.open ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="bg-background/95 absolute top-2 right-2 z-10 h-7 gap-1.5 px-2 shadow-sm"
+            onClick={find.openFind}
+            title="Find in loaded rows (⌘/Ctrl+F)"
+            data-testid="table-find-open"
+          >
+            <Search className="size-3.5" />
+            <span>Find</span>
+            <Kbd className="hidden sm:inline-flex">⌘F</Kbd>
+          </Button>
+        ) : null}
         {enableFind ? (
           <TableFindBar
             open={find.open}
@@ -221,6 +239,7 @@ export function DataTable<TData extends RowData>(props: DataTableProps<TData>) {
           hasError={props.hasError}
           onRowClick={props.onRowClick}
           onRowDoubleClick={props.onRowDoubleClick}
+          onCellDoubleClick={props.onCellDoubleClick}
           onColumnFilterClick={props.onColumnFilterClick}
           getColumnHeaderFilter={props.getColumnHeaderFilter}
           onColumnHeaderFilterChange={props.onColumnHeaderFilterChange}
@@ -344,6 +363,7 @@ const TableContainer = <TData extends RowData>(
     | "hasError"
     | "onRowClick"
     | "onRowDoubleClick"
+    | "onCellDoubleClick"
     | "onColumnFilterClick"
     | "getColumnHeaderFilter"
     | "onColumnHeaderFilterChange"
@@ -618,6 +638,7 @@ const TableContainer = <TData extends RowData>(
             enableRowVirtualization={props.enableRowVirtualization}
             onRowClick={props.onRowClick}
             onRowDoubleClick={props.onRowDoubleClick}
+            onCellDoubleClick={props.onCellDoubleClick}
             withRowContextMenu={props.withRowContextMenu}
             ExpandedRow={props.ExpandedRow}
             onExpandRowJson={props.onExpandRowJson}
@@ -645,6 +666,7 @@ const TableContainer = <TData extends RowData>(
             columnVirtualization={columnVirtualization}
             onRowClick={props.onRowClick}
             onRowDoubleClick={props.onRowDoubleClick}
+            onCellDoubleClick={props.onCellDoubleClick}
             withRowContextMenu={props.withRowContextMenu}
             ExpandedRow={props.ExpandedRow}
             onExpandRowJson={props.onExpandRowJson}
@@ -683,6 +705,7 @@ const TableBody = <TData extends RowData>(
     | "enableRowVirtualization"
     | "onRowClick"
     | "onRowDoubleClick"
+    | "onCellDoubleClick"
     | "withRowContextMenu"
     | "ExpandedRow"
     | "onExpandRowJson"
@@ -773,6 +796,7 @@ const TableBody = <TData extends RowData>(
         rows={rows}
         onRowClick={props.onRowClick}
         onRowDoubleClick={props.onRowDoubleClick}
+        onCellDoubleClick={props.onCellDoubleClick}
         size={props.size}
         striped={props.striped}
         interactive={props.interactive}
@@ -800,6 +824,7 @@ const TableBody = <TData extends RowData>(
             getRow={() => row}
             onRowClick={props.onRowClick}
             onRowDoubleClick={props.onRowDoubleClick}
+            onCellDoubleClick={props.onCellDoubleClick}
             size={props.size}
             striped={props.striped}
             interactive={props.interactive}

@@ -10,6 +10,7 @@ import type {
   ChatStreamDecoder,
   ChatTransportErrorDecoder,
 } from "../web/chat-runtime/transport-types.ts";
+import type { ChatSession } from "../web/chat-session-machine.ts";
 import type { WebMcpModelContext } from "../web/webmcp.ts";
 
 export interface KeyValueStorage {
@@ -206,6 +207,8 @@ export interface ThreadViewState {
   readonly isStreaming: boolean;
   readonly isSending: boolean;
   readonly isSendGraceActive: boolean;
+  readonly streamOutcome: ChatSession["streamOutcome"];
+  readonly failedStreamMessageId: string | undefined;
 }
 
 export interface ComposerState {
@@ -218,6 +221,7 @@ export interface ConversationListState {
   readonly items: ReadonlyArray<Conversation>;
   readonly search: string;
   readonly loading: boolean;
+  readonly activeLoading: boolean;
   readonly error: string | undefined;
 }
 
@@ -266,6 +270,7 @@ export interface ChatState {
   readonly temporary: boolean;
   readonly queuedFollowUps: ReadonlyArray<QueuedFollowUpState>;
   readonly error: string | undefined;
+  readonly historyWarning: string | undefined;
   readonly errorMessageId: string | undefined;
   readonly ui: {
     readonly conversationSearch: string;

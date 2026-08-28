@@ -14,6 +14,7 @@ export interface VirtualizedTableBodyProps<TData extends RowData> {
   rows: Row<TData>[];
   onRowClick?: (row: Row<TData>) => void;
   onRowDoubleClick?: (row: Row<TData>) => void;
+  onCellDoubleClick?: (row: Row<TData>, columnId: string, value: unknown) => void;
   size: DataTableSize;
   striped: boolean;
   interactive: boolean;
@@ -35,6 +36,7 @@ export function VirtualizedTableBody<TData extends RowData>({
   rows,
   onRowClick,
   onRowDoubleClick,
+  onCellDoubleClick,
   size,
   striped,
   interactive,
@@ -83,6 +85,7 @@ export function VirtualizedTableBody<TData extends RowData>({
             getRow={() => row}
             onRowClick={onRowClick}
             onRowDoubleClick={onRowDoubleClick}
+            onCellDoubleClick={onCellDoubleClick}
             size={size}
             striped={striped}
             interactive={interactive}

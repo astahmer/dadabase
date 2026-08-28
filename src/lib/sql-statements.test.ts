@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { splitSqlStatements } from "./sql-statements.ts";
+import { findSqlStatementAtOffset, splitSqlStatements } from "./sql-statements.ts";
 
 describe("splitSqlStatements", () => {
   it("splits multiple statements on semicolons", () => {
@@ -79,5 +79,12 @@ describe("splitSqlStatements", () => {
   it("trims surrounding whitespace but keeps inner formatting", () => {
     const stmts = splitSqlStatements("  \n  SELECT\n    1  \n  ;");
     expect(stmts[0]?.sql).toBe("SELECT\n    1");
+  });
+
+  it("finds the statement at an editor cursor offset", () => {
+    const statements = splitSqlStatements("SELECT 1;\n\nSELECT 2;");
+    expect(findSqlStatementAtOffset(statements, 2)?.sql).toBe("SELECT 1");
+    expect(findSqlStatementAtOffset(statements, 13)?.sql).toBe("SELECT 2");
+    expect(findSqlStatementAtOffset(statements, 9)).toBeUndefined();
   });
 });

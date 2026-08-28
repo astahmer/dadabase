@@ -27,6 +27,7 @@ export interface DataTableRowProps<TData extends RowData> {
   getRow: () => Row<TData>;
   onRowClick?: (row: Row<TData>) => void;
   onRowDoubleClick?: (row: Row<TData>) => void;
+  onCellDoubleClick?: (row: Row<TData>, columnId: string, value: unknown) => void;
   size: DataTableSize;
   striped: boolean;
   interactive: boolean;
@@ -46,6 +47,7 @@ const MemoizedDataTableRow = memo(function TableRow<TData extends RowData>({
   getRow,
   onRowClick,
   onRowDoubleClick,
+  onCellDoubleClick,
   size,
   striped,
   interactive,
@@ -94,6 +96,11 @@ const MemoizedDataTableRow = memo(function TableRow<TData extends RowData>({
           onCellMouseDown={selection?.onMouseDown}
           onCellMouseEnter={selection?.onMouseEnter}
           onCellClick={selection?.onClick}
+          onCellDoubleClick={
+            onCellDoubleClick
+              ? () => onCellDoubleClick(row, cell.column.id, cell.getValue())
+              : undefined
+          }
           style={isPinned ? getColumnPinningStyles(cell.column) : undefined}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -169,6 +176,7 @@ const MemoizedDataTableRow = memo(function TableRow<TData extends RowData>({
     columnVirtualization,
     row.id,
     cellSelection,
+    onCellDoubleClick,
   ]);
 
   const MainRow = (

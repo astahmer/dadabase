@@ -7,9 +7,15 @@ import {
   ArrowDownUp,
   ArrowLeft,
   ArrowUp,
+  Check,
   CircleCheck,
+  Copy,
   Code2,
+  Download,
   GripHorizontal,
+  History,
+  Pin,
+  PinOff,
   RotateCcw,
   SearchX,
   Sparkles,
@@ -23,6 +29,9 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
 import type { TableStructure } from "#src/lib/schema-diff/index.ts";
@@ -58,7 +67,27 @@ import {
   PendingCellEditsProvider,
   usePendingCellEdits,
 } from "#src/components/pages/connection-page/row-editor/pending-cell-edits-context.tsx";
+import {
+  clearSqlDraft,
+  markSqlDraftSessionCleanExit,
+  readSqlDraft,
+  startSqlDraftSession,
+  writeSqlDraft,
+} from "#src/components/pages/connection-page/sql-draft-storage.ts";
+import {
+  appendSqlExecutionTimeline,
+  clearSqlExecutionTimeline,
+  readSqlExecutionTimeline,
+} from "#src/components/pages/connection-page/sql-execution-timeline.ts";
 import { SqlQueryPreview } from "#src/components/pages/connection-page/sql-query-preview.tsx";
+import {
+  pinSqlResult,
+  readLatestSqlResult,
+  readStoredSqlResults,
+  type StoredSqlResult,
+  unpinSqlResult,
+  writeLatestSqlResult,
+} from "#src/components/pages/connection-page/sql-result-storage.ts";
 import {
   type ConnectionPageState,
   useActiveConnectionUrl,
@@ -69,11 +98,30 @@ import {
   useZenModeActions,
   useZenModeEnabled,
 } from "#src/components/pages/connection-page/use-zen-mode.ts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "#src/components/ui/dialog.tsx";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { useDocumentTitle } from "#src/hooks/use-document-title.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
 import { storeChatContextPromotion, type ChatContextAttachment } from "#src/lib/ai/chat-context.ts";
-import { getCurrentChatConversationId } from "#src/lib/ai/chat-conversation-current.ts";
+import {
+  CHAT_SIDECHAT_SIDE_CHANGED_EVENT,
+  CHAT_SIDECHAT_WIDTH_CHANGED_EVENT,
+  CHAT_SIDECHAT_WIDTH_DEFAULT,
+  CHAT_SIDECHAT_WIDTH_MAX,
+  CHAT_SIDECHAT_WIDTH_MIN,
+  getStoredChatSidechatSide,
+  getStoredChatSidechatWidth,
+  setStoredChatSidechatSide,
+  setStoredChatSidechatWidth,
+  type ChatSidechatSide,
+} from "#src/lib/ai/chat-sidechat-preferences.ts";
 import {
   buildCascadeDeletePreview,
   withDependentRowCounts,
@@ -109,7 +157,6 @@ import { queryHistorySkipFlag } from "#src/lib/query-history-settings.ts";
 import { buildDropColumnSql, buildDropTableSql } from "#src/lib/schema-mutate/index.ts";
 import {
   getSqlPreviewSplitterDefaultSize,
-  isSqlPreviewOpen,
   SQL_PREVIEW_REVEAL_SIZE,
 } from "#src/lib/sql-preview-panel.ts";
 import { splitSqlStatements } from "#src/lib/sql-statements.ts";
@@ -120,6 +167,10 @@ import {
   customSqlExecutionQueryOptions,
   executeAndStoreCustomSqlServerFn,
 } from "#src/server/custom-sql/start-fns/execute-custom-sql.start.ts";
+import {
+  beginCustomSqlTransactionServerFn,
+  manageCustomSqlTransactionServerFn,
+} from "#src/server/custom-sql/start-fns/manage-custom-sql-transaction.start.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import {
   getDestructiveQuerySummary,
@@ -135,6 +186,7 @@ import { listAvailableSchemasQueryOptions } from "#src/server/introspection/star
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { insertRowsServerFn } from "#src/server/introspection/start-fns/insert-rows.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
+import { getQueryFavoritesQueryOptions } from "#src/server/query-logger/start-fns/get-query-favorites.start.ts";
 import { saveQueryFavoriteServerFn } from "#src/server/query-logger/start-fns/save-query-favorite.start.ts";
 
 import type { DbConnection } from "./connection.types";
@@ -149,7 +201,14 @@ import { Badge } from "../ui/badge.tsx";
 import { Button } from "../ui/button.tsx";
 import { Input } from "../ui/input.tsx";
 import { Stack } from "../ui/layout.tsx";
-import { Menu, MenuContent, MenuItem, MenuItemText, MenuTriggerItem } from "../ui/menu.tsx";
+import {
+  Menu,
+  MenuContent,
+  MenuItem,
+  MenuItemText,
+  MenuTrigger,
+  MenuTriggerItem,
+} from "../ui/menu.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.tsx";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet.tsx";
 import { Spinner } from "../ui/spinner.tsx";
@@ -263,7 +322,53 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   >(null);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [sidechatOpen, setSidechatOpen] = useState(false);
+  const [sidechatSide, setSidechatSide] = useState<ChatSidechatSide>(getStoredChatSidechatSide);
+  const [sidechatWidth, setSidechatWidth] = useState(CHAT_SIDECHAT_WIDTH_DEFAULT);
   const [sidechatContext, setSidechatContext] = useState<readonly ChatContextAttachment[]>([]);
+  useEffect(() => {
+    const refresh = () => {
+      setSidechatSide(getStoredChatSidechatSide());
+      setSidechatWidth(getStoredChatSidechatWidth());
+    };
+    refresh();
+    window.addEventListener(CHAT_SIDECHAT_SIDE_CHANGED_EVENT, refresh);
+    window.addEventListener(CHAT_SIDECHAT_WIDTH_CHANGED_EVENT, refresh);
+    return () => {
+      window.removeEventListener(CHAT_SIDECHAT_SIDE_CHANGED_EVENT, refresh);
+      window.removeEventListener(CHAT_SIDECHAT_WIDTH_CHANGED_EVENT, refresh);
+    };
+  }, []);
+  const sidechatResizeRef = useRef<{
+    startX: number;
+    startWidth: number;
+    width: number;
+  } | null>(null);
+  const resizeSidechat = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      sidechatResizeRef.current = { startX: event.clientX, startWidth: sidechatWidth, width: sidechatWidth };
+      const onMove = (moveEvent: PointerEvent) => {
+        const start = sidechatResizeRef.current;
+        if (!start) return;
+        const delta = sidechatSide === "left" ? start.startX - moveEvent.clientX : moveEvent.clientX - start.startX;
+        const next = Math.round(
+          Math.min(CHAT_SIDECHAT_WIDTH_MAX, Math.max(CHAT_SIDECHAT_WIDTH_MIN, start.startWidth + delta)),
+        );
+        start.width = next;
+        setSidechatWidth(next);
+      };
+      const onUp = () => {
+        const width = sidechatResizeRef.current?.width;
+        sidechatResizeRef.current = null;
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        if (width !== undefined) setStoredChatSidechatWidth(width);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp, { once: true });
+    },
+    [sidechatSide, sidechatWidth],
+  );
   const sidechatReturnFocusRef = useRef<HTMLElement | null>(null);
   const openSidechat = useCallback((attachments: readonly ChatContextAttachment[] = []) => {
     const activeElement = document.activeElement;
@@ -296,6 +401,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const sidebarMaxSize = 32;
 
   const search = useActiveTabState((tab) => ({
+    tabId: tab.tabId,
     schema: tab.schema,
     table: tab.table,
     initialTabMode: tab.initialTabMode,
@@ -675,7 +781,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
               <Splitter.Context>
                 {(sidebarSplitterCtx) => (
                   <Splitter.Root
-                    key={`${getZenLayoutRemountKey(layoutZenMode, "query-logger")}:${queryLoggerSize ?? 0}`}
+                    key={getZenLayoutRemountKey(layoutZenMode, "query-logger")}
                     orientation="vertical"
                     defaultSize={[...queryLoggerSplitterDefaultSize]}
                     panels={[
@@ -779,11 +885,18 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         <EmptyTabContent
                           activeConnectionUrl={activeConnectionUrl}
                           connection={connection}
+                          tablesUnavailable={schemaListQuery.isError || tablesListQuery.isError}
                         />
                       )}
                       {sidechatOpen && !aiChatActive ? (
                         <div
-                          className="absolute inset-0 z-20 md:inset-y-0 md:right-0 md:left-auto md:w-[min(30rem,calc(100vw-3.5rem))]"
+                          className={cn(
+                            "absolute inset-0 z-20 md:inset-y-0 md:w-[var(--ai-sidechat-width)]",
+                            sidechatSide === "left"
+                              ? "md:right-auto md:left-0"
+                              : "md:right-0 md:left-auto",
+                          )}
+                          style={{ "--ai-sidechat-width": `${sidechatWidth}px` } as CSSProperties}
                           data-testid="ai-sidechat-overlay"
                         >
                           <button
@@ -801,8 +914,13 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                                 ...sidechatContext,
                               ]}
                               variant="sidechat"
+                              sidechatSide={sidechatSide}
+                              onSidechatSideChange={(side) => {
+                                setSidechatSide(side);
+                                setStoredChatSidechatSide(side);
+                              }}
                               onClose={closeSidechat}
-                              onOpenFullChat={(attachments) => {
+                              onOpenFullChat={(attachments, conversationId) => {
                                 storeChatContextPromotion(
                                   connection.name,
                                   attachments ?? [
@@ -815,7 +933,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                                   to: "/connections/$connectionName/ai",
                                   params: { connectionName: connection.name },
                                   search: (prev) => {
-                                    const conversationId = getCurrentChatConversationId();
                                     return conversationId
                                       ? { ...prev, thread: conversationId }
                                       : prev;
@@ -824,6 +941,47 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                               }}
                             />
                           </div>
+                          <button
+                            type="button"
+                            className={cn(
+                              "group absolute inset-y-0 z-30 hidden w-3 cursor-col-resize items-center justify-center md:flex",
+                              "focus-visible:outline-primary focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
+                              sidechatSide === "left" ? "-right-1.5" : "-left-1.5",
+                            )}
+                            aria-label="Resize AI sidechat"
+                            aria-orientation="vertical"
+                            aria-valuemin={CHAT_SIDECHAT_WIDTH_MIN}
+                            aria-valuemax={CHAT_SIDECHAT_WIDTH_MAX}
+                            aria-valuenow={sidechatWidth}
+                            data-testid="ai-sidechat-resize-handle"
+                            title="Drag to resize AI sidechat"
+                            onPointerDown={resizeSidechat}
+                            onKeyDown={(event) => {
+                              const step = event.shiftKey ? 80 : 24;
+                              const direction =
+                                event.key === "ArrowLeft"
+                                  ? -1
+                                  : event.key === "ArrowRight"
+                                    ? 1
+                                    : 0;
+                              if (event.key === "Home" || event.key === "End") {
+                                event.preventDefault();
+                                const width = event.key === "Home" ? CHAT_SIDECHAT_WIDTH_MIN : CHAT_SIDECHAT_WIDTH_MAX;
+                                setSidechatWidth(width);
+                                setStoredChatSidechatWidth(width);
+                              } else if (direction !== 0) {
+                                event.preventDefault();
+                                const width = Math.min(
+                                  CHAT_SIDECHAT_WIDTH_MAX,
+                                  Math.max(CHAT_SIDECHAT_WIDTH_MIN, sidechatWidth + direction * step),
+                                );
+                                setSidechatWidth(width);
+                                setStoredChatSidechatWidth(width);
+                              }
+                            }}
+                          >
+                            <span className="bg-border group-hover:bg-primary group-focus-visible:bg-primary h-16 w-1 rounded-full" />
+                          </button>
                         </div>
                       ) : null}
                     </Splitter.Panel>
@@ -1083,7 +1241,9 @@ const RowsTabContent = (props: {
 
   const executeCustomSql = useExecuteCustomSql({
     activeConnectionUrl: pageState.activeConnectionUrl,
+    connectionId: connection.id,
   });
+  const [customSqlDraft, setCustomSqlDraft] = useState<string | null>(null);
   const isCustomSqlMode = Boolean(
     isUsingCustomSql ||
     executeCustomSql.mutation.isPending ||
@@ -1341,7 +1501,7 @@ const RowsTabContent = (props: {
           </div>
         ) : (
           <Splitter.Root
-            key={`${search.tabId}-${isSqlPreviewOpen(search.sqlPreviewSize) ? "sql-open" : "sql-closed"}`}
+            key={search.tabId}
             orientation="vertical"
             className="flex h-full flex-1 flex-col overflow-hidden"
             defaultSize={getSqlPreviewSplitterDefaultSize(search.sqlPreviewSize)}
@@ -1394,9 +1554,25 @@ const RowsTabContent = (props: {
                     isCollapsed={Boolean(tryFn(() => ctx.isPanelCollapsed(panels.sqlPreview)))}
                     onExpand={() => ctx.expandPanel(panels.sqlPreview)}
                     onCollapse={() => ctx.collapsePanel(panels.sqlPreview)}
+                    onSetPanelSize={(sqlPanelPercent) => {
+                      ctx.setSizes([sqlPanelPercent, 100 - sqlPanelPercent]);
+                      void navigate({
+                        search: (prev) =>
+                          updateTabState(prev, {
+                            sqlPreviewSize: sqlPanelPercent,
+                          }),
+                      });
+                    }}
                     activeConnectionUrl={pageState.activeConnectionUrl}
                     sqlQueryAsText={pageState.sqlQueryAsText}
                     onRunQuery={executeCustomSql.onRunQuery}
+                    onDraftChange={setCustomSqlDraft}
+                    onRunInTransaction={executeCustomSql.onRunInTransaction}
+                    onBeginTransaction={executeCustomSql.onBeginTransaction}
+                    onCommitTransaction={executeCustomSql.onCommitTransaction}
+                    onRollbackTransaction={executeCustomSql.onRollbackTransaction}
+                    transactionStatus={executeCustomSql.transactionStatus}
+                    transactionSupported={props.connection.dialect !== DatabaseDialect.Clickhouse}
                     onCancelQuery={executeCustomSql.onCancel}
                     isLoading={executeCustomSql.mutation.isPending}
                     onOpenAiSidechat={props.onOpenAiSidechat}
@@ -1426,7 +1602,11 @@ const RowsTabContent = (props: {
 
             <Splitter.Panel id={panels.rowsContent} className="flex flex-col overflow-hidden">
               {isCustomSqlMode ? (
-                <CustomSqlTabContent executeCustomSql={executeCustomSql} />
+                <CustomSqlTabContent
+                  executeCustomSql={executeCustomSql}
+                  connectionId={props.connection.id}
+                  draftSql={customSqlDraft ?? search.customSql ?? ""}
+                />
               ) : pageState.rowsQuery.isPending && !pageState.rowsQuery.data ? (
                 <Stack className="flex flex-1 items-center justify-center">
                   <Spinner />
@@ -1683,7 +1863,15 @@ const RowsTableSqlEditor = (
     isCollapsed?: boolean;
     onExpand: () => void;
     onCollapse: () => void;
-    onRunQuery: (editorValue?: string) => void;
+    onSetPanelSize?: (sqlPanelPercent: number) => void;
+    onRunQuery: (editorValue?: string, statementSql?: string) => void;
+    onDraftChange?: (sql: string | null) => void;
+    onRunInTransaction?: (editorValue: string) => void;
+    onBeginTransaction?: () => void;
+    onCommitTransaction?: () => void;
+    onRollbackTransaction?: () => void;
+    transactionStatus?: "idle" | "active" | "busy";
+    transactionSupported?: boolean;
     onCancelQuery: () => void;
     onOpenAiSidechat?: (attachment: ChatContextAttachment) => void;
     isLoading?: boolean;
@@ -1717,12 +1905,28 @@ const RowsTableSqlEditor = (
   };
 
   const [isEditorFullscreen, setIsEditorFullscreen] = useState(false);
+  const activeTabId = search.tabId;
 
   // Keep draft SQL locally - don't switch to custom SQL mode until user runs
   const [draftSql, setDraftSql] = useState<string | null>(null);
+  const [draftConflict, setDraftConflict] = useState<{
+    sharedDraft: string;
+    recoveredDraft: string;
+  } | null>(null);
+  const [draftRecovered, setDraftRecovered] = useState(false);
+  const [draftWasInterrupted, setDraftWasInterrupted] = useState(false);
+
+  const updateDraftSql = (value: string | null) => {
+    setDraftSql(value);
+    props.onDraftChange?.(value ?? props.sqlQueryAsText);
+    if (activeTabId) {
+      if (value == null || value.trim() === "") clearSqlDraft(props.connection.id, activeTabId);
+      else writeSqlDraft(props.connection.id, activeTabId, value);
+    }
+  };
 
   const revealSqlInEditor = (sql: string) => {
-    setDraftSql(sql);
+    updateDraftSql(sql);
     props.onExpand();
     void navigate({
       search: (prev) =>
@@ -1749,8 +1953,6 @@ const RowsTableSqlEditor = (
    * Auto-run handed off from the AI chat page: consume-once per tab id, so
    * StrictMode double-effects and re-renders never double-execute.
    */
-  const activeTabId = search.tabId;
-
   // Audit S8: when this tab was seeded from the AI chat, offer a way back.
   const [chatReturn, setChatReturn] = useState<StagedChatReturn | null>(null);
   useEffect(() => {
@@ -1798,12 +2000,46 @@ const RowsTableSqlEditor = (
     },
   });
 
-  // Seed draft when AI / URL provides customSql while still on the table editor.
+  const favoriteQuery = useQuery({
+    ...getQueryFavoritesQueryOptions({ connectionId: props.connection.id }),
+  });
+
+  // Initialize the local editor when the user switches tabs. Do not subscribe
+  // to generated SQL or shared-draft changes here: execution changes those
+  // values, and must never overwrite the live editor draft.
+  const initializedDraftKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (search.customSql && draftSql == null) {
-      setDraftSql(search.customSql);
+    if (!activeTabId) return;
+    const draftKey = `${props.connection.id}:${activeTabId}`;
+    if (initializedDraftKeyRef.current === draftKey) return;
+    initializedDraftKeyRef.current = draftKey;
+    const wasInterrupted = startSqlDraftSession(props.connection.id, activeTabId);
+    setDraftWasInterrupted(wasInterrupted);
+    const markCleanExit = () => markSqlDraftSessionCleanExit(props.connection.id, activeTabId);
+    window.addEventListener("beforeunload", markCleanExit);
+    const recoveredDraft = readSqlDraft(props.connection.id, activeTabId);
+    const sharedDraft = search.customSql ?? props.sqlQueryAsText;
+    if (
+      sharedDraft?.trim() &&
+      recoveredDraft?.trim() &&
+      sharedDraft.trim() !== recoveredDraft.trim()
+    ) {
+      setDraftSql(sharedDraft);
+      setDraftConflict({ sharedDraft, recoveredDraft });
+      return () => window.removeEventListener("beforeunload", markCleanExit);
     }
-  }, [search.customSql, draftSql]);
+    const initialDraft = search.customSql ?? recoveredDraft ?? props.sqlQueryAsText;
+    setDraftSql(search.customSql ?? recoveredDraft);
+    props.onDraftChange?.(initialDraft);
+    if (
+      recoveredDraft?.trim() &&
+      !search.customSql?.trim() &&
+      recoveredDraft.trim() !== props.sqlQueryAsText.trim()
+    ) {
+      setDraftRecovered(wasInterrupted);
+    }
+    return () => window.removeEventListener("beforeunload", markCleanExit);
+  }, [activeTabId, props.connection.id]);
 
   // Fetch available tables/columns for intellisense
   const { tables, columns } = useTablesColumnsForIntellisense({
@@ -1813,7 +2049,7 @@ const RowsTableSqlEditor = (
 
   // Explain query functionality - use draft SQL if available
   const sqlForExplain = draftSql ?? props.sqlQueryAsText;
-  const { explainQuery, showExplainPanel, setShowExplainPanel, isExplainDisabled } =
+  const { explainQuery, explain, showExplainPanel, setShowExplainPanel, isExplainDisabled } =
     useExplainQuery({
       connectionUrl: props.activeConnectionUrl,
       sql: sqlForExplain,
@@ -1822,6 +2058,94 @@ const RowsTableSqlEditor = (
 
   return (
     <>
+      <Dialog
+        open={draftConflict !== null}
+        onOpenChange={({ open }) => {
+          if (!open) setDraftConflict(null);
+        }}
+      >
+        <DialogContent
+          className="max-w-lg"
+          data-testid={draftWasInterrupted ? "sql-draft-crash-recovered" : undefined}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {draftWasInterrupted
+                ? "Recovered after an interrupted session"
+                : "Choose the SQL draft to keep"}
+            </DialogTitle>
+            <DialogDescription>
+              {draftWasInterrupted
+                ? "This page recovered a local draft after the previous editor session ended unexpectedly. Choose which draft to keep; nothing will run until you decide."
+                : "This tab has a shared draft and a newer draft recovered from this browser. Nothing will run until you choose one."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 text-sm">
+            <Button
+              variant="outline"
+              className="h-auto justify-start whitespace-normal"
+              onClick={() => {
+                if (!draftConflict) return;
+                updateDraftSql(draftConflict.recoveredDraft);
+                setDraftConflict(null);
+              }}
+            >
+              <span className="flex flex-col items-start gap-1">
+                <span className="font-semibold">Use recovered browser draft</span>
+                <span className="text-muted-foreground line-clamp-2 text-xs">
+                  {draftConflict?.recoveredDraft}
+                </span>
+              </span>
+            </Button>
+            <Button
+              variant="default"
+              className="h-auto justify-start whitespace-normal"
+              onClick={() => {
+                if (!draftConflict) return;
+                updateDraftSql(draftConflict.sharedDraft);
+                setDraftConflict(null);
+              }}
+            >
+              <span className="flex flex-col items-start gap-1">
+                <span className="font-semibold">Use shared draft</span>
+                <span className="text-primary-foreground/80 line-clamp-2 text-xs">
+                  {draftConflict?.sharedDraft}
+                </span>
+              </span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {draftRecovered && draftConflict === null ? (
+        <div
+          className="bg-muted/50 border-border mb-1 flex flex-wrap items-center gap-2 rounded border px-3 py-2 text-xs"
+          data-testid="sql-draft-crash-recovered"
+        >
+          <span className="text-muted-foreground flex-1">
+            Recovered after an interrupted editor session. Keep this draft or discard it before
+            continuing.
+          </span>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7"
+            onClick={() => setDraftRecovered(false)}
+          >
+            Keep draft
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7"
+            onClick={() => {
+              updateDraftSql(null);
+              setDraftRecovered(false);
+            }}
+          >
+            Discard draft
+          </Button>
+        </div>
+      ) : null}
       {chatReturn !== null && (
         <div className="mb-1 flex items-center gap-2 px-1">
           <button
@@ -1850,6 +2174,9 @@ const RowsTableSqlEditor = (
         columns={columns}
         snippetActiveTable={search.table}
         onSuggestQuery={suggestQueryWithAi}
+        contextReceipt={
+          search.schema && search.table ? `Context: ${search.schema}.${search.table}` : undefined
+        }
         onAskAi={
           props.onOpenAiSidechat
             ? () => {
@@ -1893,10 +2220,19 @@ const RowsTableSqlEditor = (
               }),
           })
         }
-        onEditorChange={(value) => setDraftSql(value)}
+        onEditorChange={updateDraftSql}
         onRun={props.onRunQuery}
+        onRunAll={(value) => props.onRunQuery(value)}
+        onRunInTransaction={
+          props.transactionStatus === "active" ? undefined : props.onRunInTransaction
+        }
+        onBeginTransaction={props.onBeginTransaction}
+        onCommitTransaction={props.onCommitTransaction}
+        onRollbackTransaction={props.onRollbackTransaction}
+        transactionStatus={props.transactionStatus}
+        transactionSupported={props.transactionSupported}
         onCancel={props.onCancelQuery}
-        onExplain={explainQuery.refetch}
+        onExplain={explain}
         disableExplain={isExplainDisabled}
         onFormat={() => {
           try {
@@ -1912,7 +2248,7 @@ const RowsTableSqlEditor = (
               },
             });
             // Just update the draft, don't switch to custom SQL mode
-            setDraftSql(formatted);
+            updateDraftSql(formatted);
           } catch (error) {
             const message = error instanceof Error ? error.message : "Failed to format SQL";
             alert(`Error formatting SQL: ${message}`);
@@ -1928,38 +2264,40 @@ const RowsTableSqlEditor = (
               }),
           });
         }}
-        onSaveFavorite={(sql) => saveFavoriteMutation.mutate(sql)}
+        onSetPanelSize={props.onSetPanelSize}
+        onSaveFavorite={async (sql) => {
+          const normalizedSql = sql.replace(/\s+/g, " ").trim().toLocaleLowerCase();
+          const duplicate = favoriteQuery.data?.find(
+            (favorite) =>
+              favorite.sql.replace(/\s+/g, " ").trim().toLocaleLowerCase() === normalizedSql,
+          );
+          if (
+            duplicate &&
+            !window.confirm(
+              `This query is already saved as “${duplicate.label}”. Save another copy anyway?`,
+            )
+          ) {
+            toaster.create({ title: "Favorite already saved" });
+            return;
+          }
+          await saveFavoriteMutation.mutateAsync(sql);
+        }}
         isSavingFavorite={saveFavoriteMutation.isPending}
+        isDirty={Boolean(draftSql && draftSql.trim() !== props.sqlQueryAsText.trim())}
+        onReset={() => {
+          updateDraftSql(null);
+          props.onCollapse();
+          void navigate({
+            search: (prev) =>
+              updateTabState(prev, {
+                customSql: undefined,
+                customSqlId: undefined,
+                sqlEditorMode: "preview",
+              }),
+          });
+        }}
         isFullscreen={isEditorFullscreen}
         className="h-full text-sm"
-        warning={
-          draftSql && (
-            <div className="ml-auto flex items-center justify-between gap-3 px-4">
-              <p className="text-xs font-medium text-amber-900">Run custom query with Ctrl+Enter</p>
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  setDraftSql(null);
-                  props.onCollapse();
-                  navigate({
-                    search: (prev) =>
-                      updateTabState(prev, {
-                        customSql: undefined,
-                        customSqlId: undefined,
-                        sqlEditorMode: "preview",
-                      }),
-                  });
-                }}
-                title="Reset to generated query and restore UI controls"
-                className="shrink-0 gap-1 px-2 text-xs"
-              >
-                <RotateCcw />
-                Reset
-              </Button>
-            </div>
-          )
-        }
       />
       <ExplainOutputDrawer
         showExplainPanel={showExplainPanel}
@@ -2708,6 +3046,7 @@ const BulkActions = (
 ) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const search = useActiveTabState((tab) => ({
+    tabId: tab.tabId,
     schema: tab.schema,
     table: tab.table,
   }));
@@ -3109,8 +3448,13 @@ const BulkActions = (
   );
 };
 
-const EmptyTabContent = (props: { activeConnectionUrl: string; connection: DbConnection }) => {
+const EmptyTabContent = (props: {
+  activeConnectionUrl: string;
+  connection: DbConnection;
+  tablesUnavailable?: boolean;
+}) => {
   const search = useActiveTabState((tab) => ({
+    tabId: tab.tabId,
     schema: tab.schema,
     table: tab.table,
   }));
@@ -3127,6 +3471,7 @@ const EmptyTabContent = (props: { activeConnectionUrl: string; connection: DbCon
       connection={props.connection}
       tables={tables}
       columns={columns}
+      tablesUnavailable={props.tablesUnavailable}
     />
   );
 };
@@ -3136,7 +3481,11 @@ const CustomSqlWorkspace = (props: {
   connection: DbConnection;
   onOpenAiSidechat?: (attachment: ChatContextAttachment) => void;
 }) => {
-  const executeCustomSql = useExecuteCustomSql({ activeConnectionUrl: props.activeConnectionUrl });
+  const executeCustomSql = useExecuteCustomSql({
+    activeConnectionUrl: props.activeConnectionUrl,
+    connectionId: props.connection.id,
+  });
+  const [draftSql, setDraftSql] = useState<string | null>(null);
   const tab = useActiveTabState((activeTab) => ({
     schema: activeTab.schema,
   }));
@@ -3147,13 +3496,13 @@ const CustomSqlWorkspace = (props: {
       className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
       data-testid="custom-sql-workspace"
     >
-      <div className="bg-card flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4">
+      <div className="bg-card flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-3 py-2 sm:px-5 sm:py-3">
         <div>
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground hidden text-xs font-medium tracking-wide uppercase sm:block">
             Connection workspace
           </p>
-          <h2 className="text-foreground mt-1 text-base font-semibold">Custom SQL</h2>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <h2 className="text-foreground text-base font-semibold sm:mt-1">Custom SQL</h2>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs sm:mt-2">
             <Badge colorPalette="muted" variant="outline" size="2xs">
               {props.connection.name}
             </Badge>
@@ -3170,13 +3519,9 @@ const CustomSqlWorkspace = (props: {
             </Badge>
           </div>
         </div>
-        <div className="text-muted-foreground flex shrink-0 flex-col items-end gap-1 text-xs">
-          <kbd className="bg-muted rounded border px-2 py-1 font-mono">Ctrl+Enter</kbd>
-          <span>Run selected SQL</span>
-        </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-64 shrink-0 border-b">
+        <div className="min-h-48 shrink-0 border-b sm:min-h-64">
           <RowsTableSqlEditor
             connection={props.connection}
             isCollapsed={false}
@@ -3185,6 +3530,13 @@ const CustomSqlWorkspace = (props: {
             activeConnectionUrl={props.activeConnectionUrl}
             sqlQueryAsText=""
             onRunQuery={executeCustomSql.onRunQuery}
+            onRunInTransaction={executeCustomSql.onRunInTransaction}
+            onBeginTransaction={executeCustomSql.onBeginTransaction}
+            onCommitTransaction={executeCustomSql.onCommitTransaction}
+            onRollbackTransaction={executeCustomSql.onRollbackTransaction}
+            onDraftChange={setDraftSql}
+            transactionStatus={executeCustomSql.transactionStatus}
+            transactionSupported={props.connection.dialect !== DatabaseDialect.Clickhouse}
             onCancelQuery={executeCustomSql.onCancel}
             isLoading={executeCustomSql.mutation.isPending}
             allowEmptySql
@@ -3194,6 +3546,8 @@ const CustomSqlWorkspace = (props: {
         <CustomSqlTabContent
           executeCustomSql={executeCustomSql}
           onOpenAiSidechat={props.onOpenAiSidechat}
+          connectionId={props.connection.id}
+          draftSql={draftSql ?? ""}
         />
       </div>
       {executeCustomSql.DestructiveDialog}
@@ -3298,10 +3652,42 @@ const AddConnectionDrawer = (props: {
   );
 };
 
-const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
+const persistentTransactionStore = (() => {
+  const ids = new Map<string, string>();
+  const listeners = new Set<() => void>();
+  let version = 0;
+  const emit = () => {
+    version += 1;
+    listeners.forEach((listener) => listener());
+  };
+  return {
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    getSnapshot: () => version,
+    getId: (key: string) => ids.get(key),
+    setId: (key: string, id: string) => {
+      ids.set(key, id);
+      emit();
+    },
+    deleteId: (key: string) => {
+      ids.delete(key);
+      emit();
+    },
+  };
+})();
+
+const extractSqlRequestId = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.match(/request id:\s*([a-f0-9-]+)/i)?.[1];
+};
+
+const useExecuteCustomSql = (props: { activeConnectionUrl: string; connectionId: string }) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
 
   const search = useActiveTabState((tab) => ({
+    tabId: tab.tabId,
     schema: tab.schema,
     table: tab.table,
     customSql: tab.customSql,
@@ -3312,19 +3698,99 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
   }));
   const [showDestructiveConfirm, setShowDestructiveConfirm] = useState(false);
   const [pendingQueryExecution, setPendingQueryExecution] = useState<(() => void) | null>(null);
+  const [pendingQuerySummary, setPendingQuerySummary] = useState<string | null>(null);
+  const [isMultiRunPending, setIsMultiRunPending] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [resultSets, setResultSets] = useState<
-    Array<{
-      sql: string;
-      rows: Record<string, unknown>[];
-      columns: string[];
-      rowCount: number;
-      rowsAffected: number | undefined;
-      timeTaken: number;
-      ranAt: number;
-    }>
-  >([]);
+  type CustomSqlResultSet = {
+    customSqlId?: string;
+    requestId?: string;
+    sql: string;
+    rows: Record<string, unknown>[];
+    columns: string[];
+    rowCount: number;
+    rowsAffected: number | undefined;
+    timeTaken: number;
+    ranAt: number;
+    status: "success" | "error";
+    error?: string;
+    statementIndex: number;
+    totalStatements: number;
+  };
+  const [resultSets, setResultSets] = useState<CustomSqlResultSet[]>([]);
   const [activeResultIndex, setActiveResultIndex] = useState(0);
+  const [latestPersistedResult, setLatestPersistedResult] = useState<StoredSqlResult | null>(null);
+  useEffect(() => {
+    setLatestPersistedResult(readLatestSqlResult(props.connectionId, search.tabId));
+  }, [props.connectionId, search.tabId]);
+  const [executedSql, setExecutedSql] = useState<string | null>(null);
+  const latestEditorSqlRef = useRef<string | undefined>(undefined);
+  const [transactionBusy, setTransactionBusy] = useState<{
+    tabId: string;
+    action: "begin" | "commit" | "rollback";
+  } | null>(null);
+  const transactionActionInFlightRef = useRef(false);
+
+  useSyncExternalStore(
+    persistentTransactionStore.subscribe,
+    persistentTransactionStore.getSnapshot,
+    persistentTransactionStore.getSnapshot,
+  );
+  const transactionKey = `${props.activeConnectionUrl}:${search.tabId}`;
+  const activeTransactionId = persistentTransactionStore.getId(transactionKey);
+
+  const beginTransactionMutation = useMutation({
+    mutationFn: (_input: { tabId: string }) =>
+      beginCustomSqlTransactionServerFn({ data: { url: props.activeConnectionUrl } }),
+    onSuccess: (transaction, variables) => {
+      persistentTransactionStore.setId(
+        `${props.activeConnectionUrl}:${variables.tabId}`,
+        transaction.transactionId,
+      );
+      toaster.create({
+        title: "Transaction started",
+        description: "Queries now share one connection.",
+      });
+    },
+    onError: (error) => {
+      toaster.create({
+        title: "Could not start transaction",
+        description: formatDbError(error),
+        type: "error",
+      });
+    },
+    onSettled: () => {
+      transactionActionInFlightRef.current = false;
+      setTransactionBusy(null);
+    },
+  });
+
+  const manageTransactionMutation = useMutation({
+    mutationFn: (input: { tabId: string; transactionId: string; action: "commit" | "rollback" }) =>
+      manageCustomSqlTransactionServerFn({
+        data: {
+          url: props.activeConnectionUrl,
+          transactionId: input.transactionId,
+          action: input.action,
+        },
+      }),
+    onSuccess: (_result, variables) => {
+      persistentTransactionStore.deleteId(`${props.activeConnectionUrl}:${variables.tabId}`);
+      toaster.create({
+        title: variables.action === "commit" ? "Transaction committed" : "Transaction rolled back",
+      });
+    },
+    onError: (error) => {
+      toaster.create({
+        title: "Could not finish transaction",
+        description: formatDbError(error),
+        type: "error",
+      });
+    },
+    onSettled: () => {
+      transactionActionInFlightRef.current = false;
+      setTransactionBusy(null);
+    },
+  });
 
   const executeCustomSqlMutation = useMutation({
     mutationFn: async (variables: Parameters<typeof executeAndStoreCustomSqlServerFn>[0]) => {
@@ -3350,17 +3816,54 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
       }
     },
     meta: { noInvalidate: true },
-    onSuccess: (data) => {
-      // After successful execution, update the URL to use the new customSqlId
-      // and clear the customSql (since it's now stored in the database)
+    onSuccess: (data, variables) => {
+      const persisted = {
+        id: data.customSqlId,
+        requestId: data.requestId,
+        sql: variables.data.sql,
+        rows: data.rows,
+        columns: data.columns,
+        rowCount: data.rowCount,
+        rowsAffected: data.rowsAffected,
+        timeTaken: data.timeTaken,
+        ranAt: data.ranAt,
+      } satisfies Omit<StoredSqlResult, "pinnedAt">;
+      writeLatestSqlResult(props.connectionId, search.tabId, persisted);
+      setLatestPersistedResult({ ...persisted, pinnedAt: Date.now() });
+      appendSqlExecutionTimeline(props.connectionId, search.tabId, {
+        id: data.customSqlId,
+        requestId: data.requestId,
+        sql: variables.data.sql,
+        status: "success",
+        ranAt: data.ranAt,
+        timeTaken: data.timeTaken,
+        rowCount: data.rowCount,
+        rowsAffected: data.rowsAffected,
+      });
+      // After successful execution, update the URL with the execution id while
+      // keeping the full editor draft as the source of truth for the editor.
       if (!data?.customSqlId) return;
       queryClient.invalidateQueries(customSqlExecutionQueryOptions(search.customSqlId));
       navigate({
         search: (prev) =>
           updateTabState(prev, {
             customSqlId: data.customSqlId,
-            customSql: undefined,
+            // Keep the complete editor draft in tab state. A statement-scoped
+            // run may submit only one statement, but execution must never
+            // replace the user's multi-statement editor contents.
+            customSql: latestEditorSqlRef.current ?? search.customSql,
           }),
+      });
+    },
+    onError: (error, variables) => {
+      if (isQueryAbortError(error)) return;
+      appendSqlExecutionTimeline(props.connectionId, search.tabId, {
+        id: `error-${Date.now()}`,
+        requestId: extractSqlRequestId(error),
+        sql: variables.data.sql,
+        status: "error",
+        ranAt: Date.now(),
+        error: formatDbError(error),
       });
     },
   });
@@ -3378,10 +3881,38 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
 
   const storedData = customSqlExecutionQuery.data;
 
+  const onBeginTransaction = () => {
+    if (activeTransactionId || transactionBusy || transactionActionInFlightRef.current) return;
+    const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl);
+    if (readOnlyError) {
+      toaster.create({ title: "Read-only connection", description: readOnlyError, type: "error" });
+      return;
+    }
+    transactionActionInFlightRef.current = true;
+    setTransactionBusy({ tabId: search.tabId, action: "begin" });
+    beginTransactionMutation.mutate({ tabId: search.tabId });
+  };
+
+  const onFinishTransaction = (action: "commit" | "rollback") => {
+    if (!activeTransactionId || transactionBusy || transactionActionInFlightRef.current) return;
+    transactionActionInFlightRef.current = true;
+    setTransactionBusy({ tabId: search.tabId, action });
+    manageTransactionMutation.mutate({
+      tabId: search.tabId,
+      transactionId: activeTransactionId,
+      action,
+    });
+  };
+
+  const onCommitTransaction = () => onFinishTransaction("commit");
+  const onRollbackTransaction = () => onFinishTransaction("rollback");
+
   // console.log({ storedData, displaySql, search });
 
   // Get execution result (either from mutation or from stored execution)
   const output: {
+    customSqlId?: string;
+    requestId?: string;
     rows: Record<string, unknown>[];
     columns: string[];
     rowCount: number;
@@ -3391,6 +3922,8 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
   } | null =
     hasMutationResult && mutationResult
       ? {
+          customSqlId: mutationResult.customSqlId,
+          requestId: mutationResult.requestId,
           rows: mutationResult.rows,
           columns: mutationResult.columns,
           rowCount: mutationResult.rowCount,
@@ -3400,6 +3933,7 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
         }
       : storedData
         ? {
+            customSqlId: storedData.id,
             // Use stored rows if available
             rows: (storedData.resultRows ?? []) as Record<string, unknown>[],
             columns: (storedData.columns ?? []) as string[],
@@ -3408,23 +3942,195 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
             timeTaken: storedData.timeTaken ?? 0,
             ranAt: storedData.startedAt ?? 0,
           }
-        : null;
+        : latestPersistedResult &&
+            latestPersistedResult.sql.replace(/\s+/g, " ").trim() ===
+              (search.customSql ?? "").replace(/\s+/g, " ").trim()
+          ? {
+              customSqlId: latestPersistedResult.id,
+              requestId: latestPersistedResult.requestId,
+              rows: latestPersistedResult.rows,
+              columns: latestPersistedResult.columns,
+              rowCount: latestPersistedResult.rowCount,
+              rowsAffected: latestPersistedResult.rowsAffected,
+              timeTaken: latestPersistedResult.timeTaken,
+              ranAt: latestPersistedResult.ranAt,
+            }
+          : null;
 
-  const onRunQuery = (editorValue?: string) => {
+  const executeMultipleStatements = async (statements: ReturnType<typeof splitSqlStatements>) => {
+    const transactionId = activeTransactionId;
+    const controller = createQueryAbortController(abortControllerRef.current);
+    abortControllerRef.current = controller;
+    setIsMultiRunPending(true);
+    setResultSets([]);
+    setActiveResultIndex(0);
+    try {
+      const collected: CustomSqlResultSet[] = [];
+      for (const [index, statement] of statements.entries()) {
+        const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
+          isSelect: isSelectQuery(statement.sql),
+        });
+        if (readOnlyError) throw new Error(readOnlyError);
+        try {
+          const result = await executeAndStoreCustomSqlServerFn({
+            data: {
+              url: props.activeConnectionUrl,
+              sql: statement.sql,
+              schemaName: search.schema || undefined,
+              tableName: search.table || undefined,
+              transactionId,
+              ...queryHistorySkipFlag(),
+            },
+          });
+          if (controller.signal.aborted) break;
+          const persisted = {
+            id: result.customSqlId,
+            requestId: result.requestId,
+            sql: statement.sql,
+            rows: (result.rows ?? []) as Record<string, unknown>[],
+            columns: result.columns ?? [],
+            rowCount: result.rowCount ?? 0,
+            rowsAffected: result.rowsAffected,
+            timeTaken: result.timeTaken ?? 0,
+            ranAt: result.ranAt ?? Date.now(),
+          } satisfies Omit<StoredSqlResult, "pinnedAt">;
+          writeLatestSqlResult(props.connectionId, search.tabId, persisted);
+          setLatestPersistedResult({ ...persisted, pinnedAt: Date.now() });
+          collected.push({
+            customSqlId: result.customSqlId,
+            requestId: result.requestId,
+            sql: statement.sql,
+            rows: (result.rows ?? []) as Record<string, unknown>[],
+            columns: result.columns ?? [],
+            rowCount: result.rowCount ?? 0,
+            rowsAffected: result.rowsAffected,
+            timeTaken: result.timeTaken ?? 0,
+            ranAt: result.ranAt ?? Date.now(),
+            status: "success",
+            statementIndex: index,
+            totalStatements: statements.length,
+          });
+          appendSqlExecutionTimeline(props.connectionId, search.tabId, {
+            id: result.customSqlId,
+            requestId: result.requestId,
+            sql: statement.sql,
+            status: "success",
+            ranAt: result.ranAt ?? Date.now(),
+            timeTaken: result.timeTaken ?? 0,
+            rowCount: result.rowCount ?? 0,
+            rowsAffected: result.rowsAffected,
+            statementIndex: index,
+            totalStatements: statements.length,
+          });
+        } catch (error) {
+          if (controller.signal.aborted || isQueryAbortError(error)) throw error;
+          collected.push({
+            sql: statement.sql,
+            rows: [],
+            columns: [],
+            rowCount: 0,
+            rowsAffected: undefined,
+            timeTaken: 0,
+            ranAt: Date.now(),
+            status: "error",
+            error: formatDbError(error),
+            statementIndex: index,
+            totalStatements: statements.length,
+          });
+          appendSqlExecutionTimeline(props.connectionId, search.tabId, {
+            id: `error-${Date.now()}-${index}`,
+            requestId: extractSqlRequestId(error),
+            sql: statement.sql,
+            status: "error",
+            ranAt: Date.now(),
+            error: formatDbError(error),
+            statementIndex: index,
+            totalStatements: statements.length,
+          });
+          break;
+        }
+      }
+      setResultSets(collected);
+    } catch (error) {
+      if (!isQueryAbortError(error)) {
+        toaster.create({
+          title: "Statement failed",
+          description: formatDbError(error),
+          type: "error",
+        });
+      }
+    } finally {
+      setIsMultiRunPending(false);
+      if (abortControllerRef.current === controller) abortControllerRef.current = null;
+    }
+  };
+
+  const onRunInTransaction = (editorValue: string) => {
+    latestEditorSqlRef.current = editorValue;
+    if (activeTransactionId) {
+      onRunQuery(editorValue);
+      return;
+    }
+    const statements = splitSqlStatements(editorValue);
+    if (statements.length <= 1) {
+      onRunQuery(editorValue);
+      return;
+    }
+    const readOnlyError = statements
+      .map((statement) =>
+        guardReadOnlyMutation(props.activeConnectionUrl, {
+          isSelect: isSelectQuery(statement.sql),
+        }),
+      )
+      .find(Boolean);
+    if (readOnlyError) {
+      toaster.create({ title: "Read-only connection", description: readOnlyError, type: "error" });
+      return;
+    }
+
+    const execute = () => {
+      executeCustomSqlMutation.mutate({
+        data: {
+          url: props.activeConnectionUrl,
+          sql: editorValue,
+          schemaName: search.schema || undefined,
+          tableName: search.table || undefined,
+          previousId: search.customSqlId,
+          transactionMode: true,
+        },
+      });
+      setShowDestructiveConfirm(false);
+      setPendingQueryExecution(null);
+    };
+    executeCustomSqlMutation.reset();
+    if (statements.some((statement) => isDestructiveQuery(statement.sql))) {
+      setPendingQuerySummary(`Run ${statements.length} statements atomically`);
+      setPendingQueryExecution(() => execute);
+      setShowDestructiveConfirm(true);
+      return;
+    }
+    execute();
+  };
+
+  const onRunQuery = (editorValue?: string, statementSql?: string) => {
     // An untouched Monaco never fires onChange, so the editor value can be an
     // empty STRING (not just undefined) — fall through to the seeded sources
     // instead of silently no-oping on falsy-but-not-nullish input.
     const editorSql = editorValue != null && editorValue.trim() !== "" ? editorValue : undefined;
+    const selectedSql =
+      statementSql != null && statementSql.trim() !== "" ? statementSql : undefined;
     const sqlToRun =
+      selectedSql ??
       editorSql ??
       search.customSql ??
       storedData?.sql ??
       executeCustomSqlMutation.variables?.data.sql;
-    console.log("onRunQuery", { sqlToRun });
     if (!sqlToRun) return;
+    latestEditorSqlRef.current = editorSql ?? search.customSql ?? storedData?.sql ?? sqlToRun;
 
     const statements = splitSqlStatements(sqlToRun);
     const runSingle = (sql: string) => {
+      setExecutedSql(sql);
       const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
         isSelect: isSelectQuery(sql),
       });
@@ -3448,6 +4154,7 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
               schemaName: search.schema || undefined,
               tableName: search.table || undefined,
               previousId,
+              transactionId: activeTransactionId,
             },
           });
           setShowDestructiveConfirm(false);
@@ -3464,6 +4171,7 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
           schemaName: search.schema || undefined,
           tableName: search.table || undefined,
           previousId,
+          transactionId: activeTransactionId,
         },
       });
     };
@@ -3475,55 +4183,24 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
       return;
     }
 
-    // Multi-statement: execute each sequentially and keep all result sets.
-    void (async () => {
-      const collected: typeof resultSets = [];
-      for (const statement of statements) {
-        const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
-          isSelect: isSelectQuery(statement.sql),
-        });
-        if (readOnlyError) {
-          toaster.create({
-            title: "Read-only connection",
-            description: readOnlyError,
-            type: "error",
-          });
-          return;
-        }
-        try {
-          const result = await executeCustomSqlServerFn({
-            data: { url: props.activeConnectionUrl, sql: statement.sql },
-          });
-          collected.push({
-            sql: statement.sql,
-            rows: (result.rows ?? []) as Record<string, unknown>[],
-            columns: result.columns ?? [],
-            rowCount: result.rowCount ?? 0,
-            rowsAffected: result.rowsAffected,
-            timeTaken: result.timeTaken ?? 0,
-            ranAt: result.ranAt ?? Date.now(),
-          });
-        } catch (error) {
-          toaster.create({
-            title: "Statement failed",
-            description: formatDbError(error),
-            type: "error",
-          });
-          break;
-        }
-      }
-      setResultSets(collected);
-      setActiveResultIndex(0);
-      // Also persist the full script as a custom SQL execution for history.
-      if (collected.length > 0) {
-        runSingle(sqlToRun);
-      }
-    })();
+    const runAll = () => void executeMultipleStatements(statements);
+    executeCustomSqlMutation.reset();
+    if (statements.some((statement) => isDestructiveQuery(statement.sql))) {
+      setPendingQuerySummary(
+        `Run ${statements.length} statements, including destructive operations`,
+      );
+      setPendingQueryExecution(() => runAll);
+      setShowDestructiveConfirm(true);
+      return;
+    }
+    runAll();
   };
 
   const handleReExecuteStored = () => {
     const sql = storedData?.sql;
     if (!sql) return;
+    latestEditorSqlRef.current = sql;
+    setExecutedSql(sql);
 
     const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
       isSelect: isSelectQuery(sql),
@@ -3540,21 +4217,49 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
         sql,
         schemaName: search.schema || undefined,
         tableName: search.table || undefined,
+        transactionId: activeTransactionId,
       },
     });
   };
 
+  const transactionStatus: "idle" | "active" | "busy" =
+    transactionBusy?.tabId === search.tabId ? "busy" : activeTransactionId ? "active" : "idle";
+
+  useEffect(() => {
+    if (!activeTransactionId || typeof window === "undefined") return;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [activeTransactionId]);
+
   return {
     onRunQuery,
+    onRunInTransaction,
+    transactionStatus,
+    onBeginTransaction,
+    onCommitTransaction,
+    onRollbackTransaction,
     onRerunStoredQuery: handleReExecuteStored,
     onCancel: () => {
       abortQueryController(abortControllerRef.current);
       abortControllerRef.current = null;
+      setIsMultiRunPending(false);
       // Reset after abort so a late AbortError does not stick the mutation in error.
       executeCustomSqlMutation.reset();
+      appendSqlExecutionTimeline(props.connectionId, search.tabId, {
+        id: `cancelled-${Date.now()}`,
+        sql: executeCustomSqlMutation.variables?.data.sql ?? "",
+        status: "cancelled",
+        ranAt: Date.now(),
+      });
     },
     output,
+    executedSql,
     resultSets,
+    isMultiRunPending,
     activeResultIndex,
     setActiveResultIndex,
     mutation: executeCustomSqlMutation,
@@ -3568,13 +4273,18 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
         isOpen={showDestructiveConfirm}
         onConfirm={() => {
           pendingQueryExecution?.();
+          setPendingQuerySummary(null);
         }}
         onCancel={() => {
           setShowDestructiveConfirm(false);
           setPendingQueryExecution(null);
+          setPendingQuerySummary(null);
         }}
-        queryType={getDestructiveQuerySummary(search.customSql || storedData?.sql || "")}
-        isLoading={executeCustomSqlMutation.isPending}
+        queryType={
+          pendingQuerySummary ??
+          getDestructiveQuerySummary(search.customSql || storedData?.sql || "")
+        }
+        isLoading={executeCustomSqlMutation.isPending || isMultiRunPending}
       />
     ),
   };
@@ -3584,36 +4294,103 @@ type UseExecuteCustomSqlOutput = ReturnType<typeof useExecuteCustomSql>;
 
 const CustomSqlTabContent = (props: {
   executeCustomSql: UseExecuteCustomSqlOutput;
+  connectionId: string;
   onOpenAiSidechat?: (attachment: ChatContextAttachment) => void;
+  draftSql?: string;
 }) => {
   const { executeCustomSql } = props;
-
-  const multi = executeCustomSql.resultSets.length > 1;
-  const activeSet = multi ? executeCustomSql.resultSets[executeCustomSql.activeResultIndex] : null;
-  const outputRows = activeSet?.rows ?? executeCustomSql.output?.rows ?? [];
-  const outputColumns = activeSet?.columns ?? executeCustomSql.output?.columns ?? [];
+  const tabId = useActiveTabState((tab) => tab.tabId);
 
   const [jsFilter, setJsFilter] = useState("");
   const [resultPresentation, setResultPresentation] = useState<"table" | "chart">("table");
+  const [inspectedCell, setInspectedCell] = useState<{
+    columnId: string;
+    value: unknown;
+  } | null>(null);
+  const [copiedResult, setCopiedResult] = useState<string | null>(null);
+  const [pinnedResultIndexes, setPinnedResultIndexes] = useState<Set<number>>(
+    () => new Set<number>(),
+  );
+  const [storedPinnedResults, setStoredPinnedResults] = useState<StoredSqlResult[]>([]);
+  const [activePinnedResultId, setActivePinnedResultId] = useState<string | null>(null);
+  const [executionTimeline, setExecutionTimeline] = useState<
+    ReturnType<typeof readSqlExecutionTimeline>
+  >([]);
 
-  const jsFilterResult = useJsEvalFilter(jsFilter, {
-    paramName: "r",
-    sampleData: outputRows.length > 0 ? outputRows[0] : undefined,
-  });
+  useEffect(() => {
+    setStoredPinnedResults(readStoredSqlResults(props.connectionId, tabId));
+    setActivePinnedResultId(null);
+    setExecutionTimeline(readSqlExecutionTimeline(props.connectionId, tabId));
+  }, [props.connectionId, tabId]);
+
+  useEffect(() => {
+    setExecutionTimeline(readSqlExecutionTimeline(props.connectionId, tabId));
+  }, [
+    props.connectionId,
+    tabId,
+    executeCustomSql.mutation.data,
+    executeCustomSql.mutation.error,
+    executeCustomSql.resultSets.length,
+  ]);
+
+  const activePinnedResult =
+    storedPinnedResults.find((result) => result.id === activePinnedResultId) ?? null;
+  const activeSet = executeCustomSql.resultSets[executeCustomSql.activeResultIndex] ?? null;
+  const displayedResult = activePinnedResult ?? activeSet ?? executeCustomSql.output;
+  const outputRows = displayedResult?.rows ?? [];
+  const outputColumns = displayedResult?.columns ?? [];
+  const activeResult = displayedResult;
+  const normalizedDraft = props.draftSql?.replace(/\s+/g, " ").trim();
+  const normalizedExecuted = executeCustomSql.executedSql?.replace(/\s+/g, " ").trim();
+  const isDraftStale =
+    !activePinnedResult &&
+    executeCustomSql.resultSets.length <= 1 &&
+    Boolean(normalizedDraft) &&
+    Boolean(normalizedExecuted) &&
+    normalizedDraft !== normalizedExecuted;
+
+  const pinCurrentResult = (result: {
+    id?: string;
+    requestId?: string;
+    sql: string;
+    rows: Record<string, unknown>[];
+    columns: string[];
+    rowCount: number;
+    rowsAffected?: number;
+    timeTaken: number;
+    ranAt: number;
+    statementIndex?: number;
+    totalStatements?: number;
+  }) => {
+    const id = result.id ?? result.requestId;
+    if (!id) return;
+    setStoredPinnedResults(
+      pinSqlResult(props.connectionId, tabId, {
+        ...result,
+        id,
+      }),
+    );
+  };
+
+  useEffect(() => {
+    if (executeCustomSql.resultSets.length === 0) setPinnedResultIndexes(new Set());
+  }, [executeCustomSql.resultSets.length]);
 
   const filteredRows = useMemo(() => {
-    if (!jsFilter.trim() || !jsFilterResult.fn) {
+    const query = jsFilter.trim().toLocaleLowerCase();
+    if (!query) {
       return outputRows;
     }
-    try {
-      return outputRows.filter((row) => {
-        const result = jsFilterResult.fn!(row);
-        return result === true;
-      });
-    } catch {
-      return outputRows;
-    }
-  }, [outputRows, jsFilter, jsFilterResult.fn]);
+    return outputRows.filter((row) =>
+      Object.values(row).some((value) => {
+        const formatted =
+          value !== null && typeof value === "object"
+            ? JSON.stringify(value)
+            : String(value ?? "NULL");
+        return formatted.toLocaleLowerCase().includes(query);
+      }),
+    );
+  }, [outputRows, jsFilter]);
 
   const tableColumns = useMemo(() => {
     const columnHelper = createColumnHelper<Record<string, unknown>>();
@@ -3636,21 +4413,35 @@ const CustomSqlTabContent = (props: {
     columns: tableColumns,
     manualPagination: true, // Disable pagination to show all results
   });
+
+  const copyResult = async (format: "json" | "csv" | "tsv") => {
+    const copied = await copyToClipboard(stringifyRows(filteredRows, outputColumns, { format }));
+    if (!copied) return;
+    setCopiedResult(format);
+    window.setTimeout(() => setCopiedResult(null), 1800);
+  };
   const [tableContainer, setTableContainer] = useState<HTMLDivElement | null>(null);
 
   const search = useActiveTabState((tab) => ({
+    tabId: tab.tabId,
     tableSize: tab.tableSize,
   }));
 
   // Loading state
-  if (executeCustomSql.mutation.isPending || executeCustomSql.storedQuery.isLoading) {
+  if (
+    executeCustomSql.mutation.isPending ||
+    executeCustomSql.isMultiRunPending ||
+    (executeCustomSql.storedQuery.isLoading && storedPinnedResults.length === 0)
+  ) {
     return (
       <Stack className="flex flex-1 items-center justify-center">
         <Spinner />
         <span className="text-muted-foreground">
-          {executeCustomSql.mutation.isPending
-            ? "Executing SQL query..."
-            : "Fetching previous output..."}
+          {executeCustomSql.isMultiRunPending
+            ? "Executing statements sequentially..."
+            : executeCustomSql.mutation.isPending
+              ? "Executing SQL query..."
+              : "Fetching previous output..."}
         </span>
       </Stack>
     );
@@ -3658,13 +4449,17 @@ const CustomSqlTabContent = (props: {
 
   // Error state
   if (executeCustomSql.mutation.isError) {
+    const errorMessage = formatDbError(executeCustomSql.mutation.error);
+    const canRetry = !/(syntax|permission|read-only|no such column|does not exist)/i.test(
+      errorMessage,
+    );
     return (
       <div className="flex flex-1 items-center justify-center p-4">
         <Stack className="w-full max-w-2xl">
           <ErrorBoundaryCard
             error={executeCustomSql.mutation.error}
             title="Error executing custom SQL"
-            onRetry={executeCustomSql.onRunQuery}
+            onRetry={canRetry ? executeCustomSql.onRunQuery : undefined}
           />
         </Stack>
       </div>
@@ -3673,6 +4468,7 @@ const CustomSqlTabContent = (props: {
 
   // Rows affected (non-SELECT query)
   if (
+    executeCustomSql.resultSets.length === 0 &&
     executeCustomSql.hasMutationResult &&
     executeCustomSql.mutation.data?.rowsAffected !== undefined
   ) {
@@ -3685,13 +4481,22 @@ const CustomSqlTabContent = (props: {
               ? `${executeCustomSql.mutation.data.rowsAffected} row affected`
               : `${executeCustomSql.mutation.data.rowsAffected} rows affected`}
           </p>
+          {activeResult ? (
+            <p className="text-muted-foreground mt-2 text-xs">
+              Completed in {activeResult.timeTaken} ms
+            </p>
+          ) : null}
         </div>
       </div>
     );
   }
 
   // Pending custom SQL (not yet executed)
-  if (executeCustomSql.hasPendingCustomSql && !executeCustomSql.hasMutationResult) {
+  if (
+    executeCustomSql.hasPendingCustomSql &&
+    !executeCustomSql.hasMutationResult &&
+    storedPinnedResults.length === 0
+  ) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <div className="text-center">
@@ -3710,41 +4515,319 @@ const CustomSqlTabContent = (props: {
   }
 
   // Results table
-  if (outputRows.length > 0 || executeCustomSql.resultSets.length > 0) {
+  if (
+    outputRows.length > 0 ||
+    executeCustomSql.resultSets.length > 0 ||
+    activePinnedResult ||
+    storedPinnedResults.length > 0
+  ) {
+    const failedStatementIndexes = executeCustomSql.resultSets
+      .filter((set) => set.status === "error")
+      .map((set) => set.statementIndex + 1);
+    const completedStatementIndexes = executeCustomSql.resultSets
+      .filter((set) => set.status === "success")
+      .map((set) => set.statementIndex + 1);
     return (
       <div className="relative flex flex-1 flex-col overflow-auto">
-        {executeCustomSql.resultSets.length > 1 ? (
-          <div className="flex shrink-0 gap-1 border-b px-2 py-1" data-testid="sql-result-sets">
-            {executeCustomSql.resultSets.map((set, i) => (
-              <Button
-                key={i}
-                size="sm"
-                variant={executeCustomSql.activeResultIndex === i ? "default" : "outline"}
-                className="h-7 text-xs"
-                data-testid={`sql-result-set-${i}`}
-                onClick={() => executeCustomSql.setActiveResultIndex(i)}
-              >
-                Result {i + 1}
-                {set.rowsAffected !== undefined
-                  ? ` (${set.rowsAffected} affected)`
-                  : ` (${set.rowCount})`}
-              </Button>
+        {storedPinnedResults.length > 0 ? (
+          <div
+            className="flex shrink-0 flex-wrap items-center gap-1 border-b px-2 py-1"
+            data-testid="sql-pinned-results"
+          >
+            <span className="text-muted-foreground mr-1 text-xs">Pinned:</span>
+            {storedPinnedResults.map((result) => (
+              <div key={result.id} className="flex items-center gap-0.5">
+                <Button
+                  size="sm"
+                  variant={activePinnedResultId === result.id ? "default" : "outline"}
+                  className="h-7 max-w-56 truncate text-xs"
+                  onClick={() => setActivePinnedResultId(result.id)}
+                  title={result.sql}
+                  data-testid={`sql-pinned-result-${result.id}`}
+                >
+                  {result.sql.replace(/\s+/g, " ").slice(0, 28)}
+                  {result.sql.length > 28 ? "…" : ""}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0"
+                  aria-label={`Unpin result ${result.id}`}
+                  onClick={() => {
+                    setStoredPinnedResults(unpinSqlResult(props.connectionId, tabId, result.id));
+                    if (activePinnedResultId === result.id) setActivePinnedResultId(null);
+                  }}
+                >
+                  <PinOff className="size-3.5" />
+                </Button>
+              </div>
             ))}
+            {activePinnedResultId ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={() => setActivePinnedResultId(null)}
+              >
+                Current run
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {executeCustomSql.resultSets.length > 1 ? (
+          <>
+            <div
+              className="flex shrink-0 flex-wrap gap-1 border-b px-2 py-1"
+              data-testid="sql-result-sets"
+            >
+              {executeCustomSql.resultSets.map((set, i) => (
+                <div key={i} className="flex items-center gap-0.5">
+                  <Button
+                    size="sm"
+                    variant={executeCustomSql.activeResultIndex === i ? "default" : "outline"}
+                    className="h-7 max-w-full text-xs"
+                    data-testid={`sql-result-set-${i}`}
+                    onClick={() => executeCustomSql.setActiveResultIndex(i)}
+                    title={set.sql}
+                  >
+                    {`#${i + 1} ${set.sql.replace(/\s+/g, " ").slice(0, 22)}${set.sql.length > 22 ? "…" : ""}`}
+                    {set.status === "error"
+                      ? " (failed)"
+                      : set.rowsAffected !== undefined
+                        ? ` (${set.rowsAffected} affected)`
+                        : ` (${set.rowCount})`}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0"
+                    aria-label={`${pinnedResultIndexes.has(i) || storedPinnedResults.some((result) => result.id === (set.customSqlId ?? set.requestId)) ? "Unpin" : "Pin"} result ${i + 1}`}
+                    aria-pressed={
+                      pinnedResultIndexes.has(i) ||
+                      storedPinnedResults.some(
+                        (result) => result.id === (set.customSqlId ?? set.requestId),
+                      )
+                    }
+                    data-testid={`sql-pin-result-${i}`}
+                    title={
+                      pinnedResultIndexes.has(i) ||
+                      storedPinnedResults.some(
+                        (result) => result.id === (set.customSqlId ?? set.requestId),
+                      )
+                        ? "Unpin result"
+                        : "Pin result across runs"
+                    }
+                    onClick={() => {
+                      const resultId = set.customSqlId ?? set.requestId;
+                      if (
+                        resultId &&
+                        storedPinnedResults.some((result) => result.id === resultId)
+                      ) {
+                        setStoredPinnedResults(unpinSqlResult(props.connectionId, tabId, resultId));
+                      } else {
+                        pinCurrentResult(set);
+                      }
+                      setPinnedResultIndexes((previous) => {
+                        const next = new Set(previous);
+                        if (next.has(i)) next.delete(i);
+                        else next.add(i);
+                        return next;
+                      });
+                    }}
+                  >
+                    {pinnedResultIndexes.has(i) ||
+                    storedPinnedResults.some(
+                      (result) => result.id === (set.customSqlId ?? set.requestId),
+                    ) ? (
+                      <PinOff className="size-3.5" />
+                    ) : (
+                      <Pin className="size-3.5" />
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <p
+              className={cn(
+                "text-muted-foreground shrink-0 border-b px-3 py-1 text-xs",
+                failedStatementIndexes.length > 0 && "text-destructive",
+              )}
+              role={failedStatementIndexes.length > 0 ? "alert" : "status"}
+              aria-live="polite"
+            >
+              {failedStatementIndexes.length > 0
+                ? `Statements completed: ${completedStatementIndexes.join(", ") || "none"}. Failed: ${failedStatementIndexes.join(", ")}. Earlier statements remain applied.`
+                : "Statements ran sequentially. Earlier statements remain applied if a later statement fails."}
+            </p>
+          </>
+        ) : null}
+        {isDraftStale ? (
+          <div
+            className="bg-muted/50 text-muted-foreground flex shrink-0 items-center gap-2 border-b px-3 py-1.5 text-xs"
+            data-testid="sql-result-stale"
+            role="status"
+          >
+            <span className="flex-1">Draft changed since this result was run.</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 px-2 text-xs"
+              onClick={() => executeCustomSql.onRunQuery(props.draftSql || undefined)}
+            >
+              Run draft
+            </Button>
           </div>
         ) : null}
         <div className="flex shrink-0 flex-col gap-1 border-b px-2 py-1">
           <div className="flex items-center gap-2">
             <Input
-              placeholder="r.name.includes('test')"
+              placeholder="Filter loaded rows…"
+              aria-label="Filter loaded result rows"
               value={jsFilter}
               onChange={(e) => setJsFilter(e.target.value)}
               className="h-7 font-mono text-xs"
             />
           </div>
-          {jsFilterResult.error && (
-            <p className="mt-1 text-xs text-red-500">{jsFilterResult.error}</p>
-          )}
+          {jsFilter.trim() ? (
+            <span className="text-muted-foreground text-xs">
+              Showing {filteredRows.length} of {outputRows.length} loaded rows
+            </span>
+          ) : null}
         </div>
+        {activeResult ? (
+          <div
+            className="text-muted-foreground flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-3 py-1 text-xs"
+            data-testid="sql-result-receipt"
+            role="status"
+            aria-live="polite"
+          >
+            <span>
+              {activeResult.rowsAffected !== undefined
+                ? `${activeResult.rowsAffected} rows affected`
+                : `${activeResult.rowCount} rows returned`}
+            </span>
+            <span>{activeResult.timeTaken} ms</span>
+            {activeSet ? <span>Statement {activeSet.statementIndex + 1}</span> : null}
+            {activePinnedResult ? <span className="text-foreground">Pinned result</span> : null}
+            {(activeSet?.requestId ?? executeCustomSql.output?.requestId) ? (
+              <span
+                data-testid="sql-request-id"
+                title={activeSet?.requestId ?? executeCustomSql.output?.requestId}
+              >
+                Request {(activeSet?.requestId ?? executeCustomSql.output?.requestId)?.slice(0, 8)}
+              </span>
+            ) : null}
+            {!activePinnedResult && (activeSet ?? executeCustomSql.output) ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-auto h-6 gap-1 px-2 text-xs"
+                onClick={() => {
+                  const result = activeSet ?? executeCustomSql.output;
+                  if (!result) return;
+                  const id = result.customSqlId ?? result.requestId;
+                  if (!id) return;
+                  const isPinned = storedPinnedResults.some((item) => item.id === id);
+                  setStoredPinnedResults(
+                    isPinned
+                      ? unpinSqlResult(props.connectionId, tabId, id)
+                      : pinSqlResult(props.connectionId, tabId, {
+                          id,
+                          requestId: result.requestId,
+                          sql: activeSet?.sql ?? executeCustomSql.executedSql ?? "",
+                          rows: result.rows,
+                          columns: result.columns,
+                          rowCount: result.rowCount,
+                          rowsAffected: result.rowsAffected,
+                          timeTaken: result.timeTaken,
+                          ranAt: result.ranAt,
+                        }),
+                  );
+                }}
+                data-testid="sql-pin-current-result"
+              >
+                {storedPinnedResults.some(
+                  (item) =>
+                    item.id ===
+                    (activeSet?.customSqlId ??
+                      activeSet?.requestId ??
+                      executeCustomSql.output?.customSqlId ??
+                      executeCustomSql.output?.requestId),
+                ) ? (
+                  <PinOff className="size-3.5" />
+                ) : (
+                  <Pin className="size-3.5" />
+                )}
+                {storedPinnedResults.some(
+                  (item) =>
+                    item.id ===
+                    (activeSet?.customSqlId ??
+                      activeSet?.requestId ??
+                      executeCustomSql.output?.customSqlId ??
+                      executeCustomSql.output?.requestId),
+                )
+                  ? "Unpin"
+                  : "Pin result"}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {executionTimeline.length > 0 ? (
+          <details className="border-b px-3 py-1" data-testid="sql-execution-timeline">
+            <summary className="text-muted-foreground flex cursor-pointer list-none items-center gap-1 text-xs">
+              <History className="size-3.5" />
+              Execution timeline ({executionTimeline.length})
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-auto h-6 px-2 text-xs"
+                onClick={(event) => {
+                  event.preventDefault();
+                  clearSqlExecutionTimeline(props.connectionId, tabId);
+                  setExecutionTimeline([]);
+                }}
+              >
+                Clear
+              </Button>
+            </summary>
+            <div className="mt-2 grid gap-1 pb-1">
+              {executionTimeline.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="bg-muted/30 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 rounded px-2 py-1 text-xs"
+                >
+                  <span
+                    className={cn(
+                      "font-medium",
+                      entry.status === "success"
+                        ? "text-green-700 dark:text-green-300"
+                        : entry.status === "error"
+                          ? "text-destructive"
+                          : "text-muted-foreground",
+                    )}
+                  >
+                    {entry.status}
+                  </span>
+                  <span className="text-muted-foreground truncate">{entry.sql}</span>
+                  {entry.timeTaken !== undefined ? <span>{entry.timeTaken} ms</span> : null}
+                  {entry.requestId ? (
+                    <span className="text-muted-foreground" title={entry.requestId}>
+                      {entry.requestId.slice(0, 8)}
+                    </span>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </details>
+        ) : null}
+        {activeSet?.status === "error" ? (
+          <div
+            className="border-destructive/30 bg-destructive/10 text-destructive shrink-0 border-b px-3 py-2 text-sm"
+            role="alert"
+          >
+            Statement {activeSet.statementIndex + 1} failed: {activeSet.error}
+          </div>
+        ) : null}
         <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1">
           <Button
             size="sm"
@@ -3766,7 +4849,7 @@ const CustomSqlTabContent = (props: {
             <Button
               size="sm"
               variant="outline"
-              className="ml-auto h-7 gap-1 text-xs"
+              className="h-7 gap-1 text-xs sm:ml-auto"
               onClick={() =>
                 props.onOpenAiSidechat?.({
                   kind: "result",
@@ -3781,6 +4864,59 @@ const CustomSqlTabContent = (props: {
               Explain result
             </Button>
           ) : null}
+          <Menu>
+            <MenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 text-xs"
+                aria-label="Export result"
+              >
+                <Download className="size-3" />
+                Export
+              </Button>
+            </MenuTrigger>
+            <MenuContent>
+              {(["json", "csv", "tsv"] as const).map((format) => (
+                <MenuItem
+                  key={format}
+                  value={`copy-${format}`}
+                  onClick={() => void copyResult(format)}
+                >
+                  {copiedResult === format ? (
+                    <Check className="size-4 text-green-600" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
+                  {copiedResult === format
+                    ? `Copied ${format.toUpperCase()}`
+                    : `Copy ${format.toUpperCase()}`}
+                </MenuItem>
+              ))}
+              <MenuItem
+                value="download-json"
+                onClick={() =>
+                  exportRows(filteredRows, outputColumns, {
+                    format: "json",
+                    filename: "query-result.json",
+                  })
+                }
+              >
+                <Download className="size-4" /> Download JSON
+              </MenuItem>
+              <MenuItem
+                value="download-csv"
+                onClick={() =>
+                  exportRows(filteredRows, outputColumns, {
+                    format: "csv",
+                    filename: "query-result.csv",
+                  })
+                }
+              >
+                <Download className="size-4" /> Download CSV
+              </MenuItem>
+            </MenuContent>
+          </Menu>
         </div>
         {resultPresentation === "chart" ? (
           <ResultVisualization rows={filteredRows} columns={outputColumns} />
@@ -3791,6 +4927,8 @@ const CustomSqlTabContent = (props: {
               <DataTable
                 enableRowVirtualization
                 enableColumnOrdering
+                enableFind
+                onCellDoubleClick={(_row, columnId, value) => setInspectedCell({ columnId, value })}
                 table={table}
                 getTableContainer={setTableContainer}
                 isLoading={false}
@@ -3800,6 +4938,39 @@ const CustomSqlTabContent = (props: {
             </>
           ) : null}
         </ColumnHeaderContextProvider>
+        <Dialog
+          open={inspectedCell !== null}
+          onOpenChange={({ open }) => !open && setInspectedCell(null)}
+        >
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Cell value · {inspectedCell?.columnId}</DialogTitle>
+              <DialogDescription>
+                Double-click any result cell to inspect its complete value.
+              </DialogDescription>
+            </DialogHeader>
+            <pre className="bg-muted max-h-[60vh] overflow-auto rounded p-4 font-mono text-sm break-words whitespace-pre-wrap">
+              {inspectedCell
+                ? (JSON.stringify(inspectedCell.value, null, 2) ?? String(inspectedCell.value))
+                : ""}
+            </pre>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void copyToClipboard(
+                    inspectedCell
+                      ? (JSON.stringify(inspectedCell.value, null, 2) ??
+                          String(inspectedCell.value))
+                      : "",
+                  )
+                }
+              >
+                <Copy className="size-4" /> Copy value
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

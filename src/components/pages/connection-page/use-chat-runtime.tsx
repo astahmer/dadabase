@@ -96,7 +96,7 @@ export const useDadabaseChatRuntime = ({
             // (editor back-links) without reaching into runtime internals.
             const conversationId = input.response.headers.get("x-conversation-id");
             if (conversationId !== null && conversationId !== "") {
-              recordCurrentChatConversationId(conversationId);
+              recordCurrentChatConversationId(conversationId, connectionName);
             }
             return Effect.tryPromise(() => ChatUiMessages.decodeStream(input));
           },

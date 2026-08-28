@@ -5,12 +5,14 @@ import {
   ArrowDown,
   ArrowLeft,
   Check,
+  Clipboard,
   ChevronDown,
   CircleAlert,
   CircleCheck,
   FileText,
   KeyRound,
   MessageSquarePlus,
+  MoreHorizontal,
   PencilLine,
   Pin,
   PinOff,
@@ -24,10 +26,11 @@ import {
   EyeOff,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import type { FilterOperatorType } from "#src/components/query-builder/query-filter.ts";
 import type { AiSchemaContext, AiTableContext } from "#src/lib/ai/ai-types.ts";
+import type { ChatSidechatSide } from "#src/lib/ai/chat-sidechat-preferences.ts";
 import type { Conversation } from "#src/lib/chat/protocol/resources.ts";
 
 import { getDialectDefaultSchema, type DatabaseDialect } from "#src/db/dialect.ts";
@@ -66,10 +69,6 @@ import {
   sanitizeChatContextAttachments,
   type ChatContextAttachment,
 } from "#src/lib/ai/chat-context.ts";
-import {
-  CHAT_CONVERSATION_RESOLVED,
-  getCurrentChatConversationId,
-} from "#src/lib/ai/chat-conversation-current.ts";
 import {
   DEFAULT_CHAT_DATA_ACCESS,
   getStoredChatDataAccess,
@@ -110,6 +109,8 @@ import { Button, buttonVariants } from "../../ui/button.tsx";
 import { Checkbox, CheckboxControl, CheckboxLabel } from "../../ui/checkbox.tsx";
 import { Input } from "../../ui/input.tsx";
 import { Label } from "../../ui/label.tsx";
+import { Menu, MenuContent, MenuItem, MenuTrigger } from "../../ui/menu.tsx";
+import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover.tsx";
 import {
   Select,
   SelectContent,
@@ -150,6 +151,8 @@ export const AiChatPage = ({
   onClose,
   onOpenFullChat,
   contextAttachments,
+  sidechatSide,
+  onSidechatSideChange,
 }: {
   connectionName: string;
   /** Audit S8: `?thread=` deep link — select this conversation on mount. */
@@ -164,9 +167,14 @@ export const AiChatPage = ({
   /** Full-page deep work or compact contextual workspace sidechat. */
   variant?: "page" | "sidechat";
   onClose?: () => void;
-  onOpenFullChat?: (attachments?: readonly ChatContextAttachment[]) => void;
+  onOpenFullChat?: (
+    attachments?: readonly ChatContextAttachment[],
+    conversationId?: string,
+  ) => void;
   /** Ephemeral workspace context; row/result values are disclosure-gated. */
   contextAttachments?: readonly ChatContextAttachment[];
+  sidechatSide?: ChatSidechatSide;
+  onSidechatSideChange?: (side: ChatSidechatSide) => void;
 }) => {
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
   useDocumentTitle(`${connectionName} · AI assistant — Dadabase`);
@@ -207,6 +215,8 @@ export const AiChatPage = ({
       variant={variant}
       onClose={onClose}
       onOpenFullChat={onOpenFullChat}
+      sidechatSide={sidechatSide}
+      onSidechatSideChange={onSidechatSideChange}
       contextAttachments={[...(promotedContextAttachments ?? []), ...(contextAttachments ?? [])]}
     />
   );
@@ -222,6 +232,8 @@ const AiChatPageInner = ({
   onClose,
   onOpenFullChat,
   contextAttachments,
+  sidechatSide,
+  onSidechatSideChange,
 }: {
   connection: DbConnection;
   initialConversationId?: string;
@@ -230,7 +242,12 @@ const AiChatPageInner = ({
   embedded?: boolean;
   variant: "page" | "sidechat";
   onClose?: () => void;
-  onOpenFullChat?: (attachments?: readonly ChatContextAttachment[]) => void;
+  onOpenFullChat?: (
+    attachments?: readonly ChatContextAttachment[],
+    conversationId?: string,
+  ) => void;
+  sidechatSide?: ChatSidechatSide;
+  onSidechatSideChange?: (side: ChatSidechatSide) => void;
   contextAttachments?: readonly ChatContextAttachment[];
 }) => {
   const navigate = useNavigate();
@@ -239,9 +256,9 @@ const AiChatPageInner = ({
   // layout survive an AI visit and the back link can restore the exact view.
   // Dialect-aware: SQLite/LibSQL live in "main", Postgres in "public".
   const [schema] = useState(() => getDialectDefaultSchema(connection.dialect));
-  const [settingsOpen, setSettingsOpen] = useState(
-    () => variant === "page" && !hasUsableByokConfig(),
-  );
+  // Keep the conversation visible on first visit. Missing setup is explained
+  // inline with one CTA; the full provider form remains one click away.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Audit S2: consent is a durable per-connection decision, not component
   // state — re-gating every visit trains users to stop reading the banner.
   // Storage read happens in an effect (not a lazy initializer) so server and
@@ -263,6 +280,8 @@ const AiChatPageInner = ({
     });
   };
   const [threadListOpen, setThreadListOpen] = useState(false);
+  const [chatStreaming, setChatStreaming] = useState(false);
+  const [pendingFullChatPromotion, setPendingFullChatPromotion] = useState(false);
 
   /**
    * Reactive BYOK state: localStorage is not a React data source, so the page
@@ -313,6 +332,7 @@ const AiChatPageInner = ({
   const currentContextAttachmentsRef = useRef<readonly ChatContextAttachment[]>(
     effectiveContextAttachments,
   );
+  const currentConversationIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     currentContextAttachmentsRef.current = effectiveContextAttachments;
   }, [effectiveContextAttachments]);
@@ -454,11 +474,22 @@ const AiChatPageInner = ({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose, variant]);
 
+  const promoteToFullChat = useCallback(() => {
+    onOpenFullChat?.(currentContextAttachmentsRef.current, currentConversationIdRef.current);
+  }, [onOpenFullChat]);
+
+  useEffect(() => {
+    if (!pendingFullChatPromotion || chatStreaming) return;
+    setPendingFullChatPromotion(false);
+    promoteToFullChat();
+  }, [chatStreaming, pendingFullChatPromotion, promoteToFullChat]);
+
   return (
     <div
       className={cn(
         "bg-background flex h-full min-h-0 flex-col",
-        variant === "sidechat" && "border-border border-l shadow-2xl",
+        variant === "sidechat" &&
+          cn("border-border shadow-2xl", sidechatSide === "left" ? "border-r" : "border-l"),
       )}
       data-testid="ai-chat-page"
       data-ai-chat-variant={variant}
@@ -544,39 +575,53 @@ const AiChatPageInner = ({
                 <Button
                   size="xs"
                   variant="outline"
-                  onClick={() => onOpenFullChat?.(currentContextAttachmentsRef.current)}
+                  onClick={() => {
+                    if (chatStreaming) {
+                      setPendingFullChatPromotion(true);
+                      announce("Full chat will open when this response finishes.");
+                      return;
+                    }
+                    promoteToFullChat();
+                  }}
+                  disabled={pendingFullChatPromotion}
                   title="Open this conversation in the full chat tab"
                 >
-                  <span className="hidden sm:inline">Open full chat</span>
+                  <span className="hidden sm:inline">
+                    {pendingFullChatPromotion ? "Opening…" : "Open full chat"}
+                  </span>
                   <span className="sm:hidden">Full chat</span>
-                </Button>
-              ) : null}
-              {onClose ? (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={onClose}
-                  aria-label="Close AI sidechat"
-                  data-testid="ai-sidechat-close"
-                  title="Close AI sidechat"
-                >
-                  <X className="size-4" />
                 </Button>
               ) : null}
             </>
           )}
           <Button
             variant="ghost"
-            size="sm"
+            size={variant === "sidechat" ? "icon" : "sm"}
             onClick={() => setSettingsOpen((open) => !open)}
             data-testid="ai-settings-toggle"
             aria-expanded={settingsOpen}
             aria-label={`${settingsOpen ? "Hide" : "Show"} AI settings`}
-            title={`${settingsOpen ? "Hide" : "Show"} AI settings`}
+            title={
+              sidechatSide === undefined
+                ? `${settingsOpen ? "Hide" : "Show"} AI settings`
+                : `${settingsOpen ? "Hide" : "Show"} AI settings and sidechat placement`
+            }
           >
             <Settings2 className="size-4" />
-            <span className="hidden sm:inline">Settings</span>
+            {variant === "page" ? <span>Settings</span> : null}
           </Button>
+          {variant === "sidechat" && onClose ? (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onClose}
+              aria-label="Close AI sidechat"
+              data-testid="ai-sidechat-close"
+              title="Close AI sidechat"
+            >
+              <X className="size-4" />
+            </Button>
+          ) : null}
         </div>
       </header>
 
@@ -613,6 +658,17 @@ const AiChatPageInner = ({
             schemaLoading={allTablesColumnsQuery.isLoading}
             connectionName={connection.name}
             defaultOpen={false}
+          />
+          {variant === "sidechat" && onSidechatSideChange ? (
+            <SidechatPlacementSettings
+              side={sidechatSide ?? "right"}
+              onChange={onSidechatSideChange}
+            />
+          ) : null}
+          <ChatDataAccessSettings
+            approved={hasApprovedSchemaSharing}
+            access={chatDataAccess}
+            onChange={updateChatDataAccess}
           />
         </div>
       )}
@@ -661,6 +717,10 @@ const AiChatPageInner = ({
           onContextAttachmentsChange={(attachments) => {
             currentContextAttachmentsRef.current = attachments;
           }}
+          onConversationIdChange={(conversationId) => {
+            currentConversationIdRef.current = conversationId;
+          }}
+          onStreamingChange={setChatStreaming}
           threadList={{
             open: threadListOpen,
             onClose: () => setThreadListOpen(false),
@@ -671,6 +731,144 @@ const AiChatPageInner = ({
     </div>
   );
 };
+
+const SidechatPlacementSettings = ({
+  side,
+  onChange,
+}: {
+  side: ChatSidechatSide;
+  onChange: (side: ChatSidechatSide) => void;
+}) => (
+  <section className="border-border border-t px-4 py-3" data-testid="ai-sidechat-placement">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <h2 className="text-sm font-medium">Sidechat placement</h2>
+        <p className="text-muted-foreground mt-0.5 text-xs">
+          Choose which side the panel opens on.
+        </p>
+      </div>
+      <div className="flex shrink-0 gap-1" role="group" aria-label="Sidechat placement">
+        {(["left", "right"] as const).map((option) => (
+          <Button
+            key={option}
+            size="xs"
+            variant={side === option ? "secondary" : "outline"}
+            aria-pressed={side === option}
+            onClick={() => onChange(option)}
+          >
+            {option[0].toUpperCase() + option.slice(1)}
+          </Button>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+const ChatDataAccessSettings = ({
+  approved,
+  access,
+  onChange,
+}: {
+  approved: boolean;
+  access: ChatDataAccess;
+  onChange: (patch: Partial<ChatDataAccess>) => void;
+}) => (
+  <section className="border-border border-t px-4 py-3" data-testid="ai-settings-data-access">
+    <div className="flex items-baseline justify-between gap-3">
+      <h2 className="text-sm font-medium">Data sharing</h2>
+      <span className="text-muted-foreground text-xs">
+        {approved ? "Schema metadata enabled" : "Schema approval required"}
+      </span>
+    </div>
+    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+      <label className="flex items-start gap-2 text-xs">
+        <Checkbox
+          checked={access.sampleRows}
+          disabled={!approved}
+          onCheckedChange={(details) => onChange({ sampleRows: details.checked === true })}
+        >
+          <CheckboxControl />
+        </Checkbox>
+        <span>
+          <span className="font-medium">Sample rows</span>
+          <span className="text-muted-foreground block">Up to 25 values for preview rows.</span>
+        </span>
+      </label>
+      <label className="flex items-start gap-2 text-xs">
+        <Checkbox
+          checked={access.queryResults}
+          disabled={!approved}
+          onCheckedChange={(details) => onChange({ queryResults: details.checked === true })}
+        >
+          <CheckboxControl />
+        </Checkbox>
+        <span>
+          <span className="font-medium">Query results</span>
+          <span className="text-muted-foreground block">Approved SQL results for summaries.</span>
+        </span>
+      </label>
+    </div>
+  </section>
+);
+
+const ContextTablePicker = ({
+  open,
+  onOpenChange,
+  schema,
+  tables,
+  selectedKeys,
+  search,
+  onSearchChange,
+  onAdd,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  schema?: string;
+  tables: readonly AiTableContext[];
+  selectedKeys: ReadonlySet<string>;
+  search: string;
+  onSearchChange: (value: string) => void;
+  onAdd: (table: string) => void;
+}) => (
+  <Popover open={open} onOpenChange={(details) => onOpenChange(details.open)}>
+    <PopoverTrigger asChild>
+      <Button size="xs" variant="outline" aria-label="Add tables to chat context">
+        Add tables
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent className="w-72 p-2">
+      <p className="px-2 py-1 text-sm font-medium">Add tables</p>
+      <Input
+        type="search"
+        value={search}
+        onChange={(event) => onSearchChange(event.target.value)}
+        placeholder="Search tables"
+        aria-label="Search tables to add"
+        className="mb-1 h-8 text-xs"
+      />
+      <div className="max-h-56 overflow-y-auto">
+        {tables.length === 0 ? (
+          <p className="text-muted-foreground px-2 py-3 text-xs">No tables found.</p>
+        ) : (
+          tables.map((table) => {
+            const key = chatContextAttachmentKey({ kind: "table", schema, table: table.table });
+            return (
+              <button
+                key={table.table}
+                type="button"
+                className="hover:bg-muted flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs"
+                onClick={() => onAdd(table.table)}
+              >
+                <span className="truncate">{table.table}</span>
+                {selectedKeys.has(key) ? <Check className="text-primary size-3.5" /> : null}
+              </button>
+            );
+          })
+        )}
+      </div>
+    </PopoverContent>
+  </Popover>
+);
 
 /** Provider/key configuration — identical storage contract as the old drawer. */
 const ProviderSettingsSection = ({
@@ -707,7 +905,7 @@ const ProviderSettingsSection = ({
   }, []);
 
   useEffect(() => {
-    if (!hydrated || variant !== "sidechat" || !open || hasConfig) return;
+    if (!hydrated || !open || hasConfig) return;
     const frame = window.requestAnimationFrame(() => {
       const target =
         providerIdDraft === CUSTOM_PROVIDER_ID && baseUrlDraft.trim() === ""
@@ -1285,6 +1483,8 @@ const AiChatBody = ({
   onOpenSchemaPanel,
   contextAttachments,
   onContextAttachmentsChange,
+  onConversationIdChange,
+  onStreamingChange,
   threadList,
   variant,
 }: {
@@ -1329,6 +1529,8 @@ const AiChatBody = ({
   /** Ephemeral table/filter/selection/SQL/result context for this surface. */
   contextAttachments?: readonly ChatContextAttachment[];
   onContextAttachmentsChange: (attachments: readonly ChatContextAttachment[]) => void;
+  onConversationIdChange: (conversationId: string | undefined) => void;
+  onStreamingChange: (streaming: boolean) => void;
   /** Audit C6/R1: narrow-viewport thread-list drawer state. */
   threadList: { open: boolean; onClose: () => void };
   variant: "page" | "sidechat";
@@ -1340,12 +1542,32 @@ const AiChatBody = ({
   const [removedContextKeys, setRemovedContextKeys] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  const [addedContextAttachments, setAddedContextAttachments] = useState<ChatContextAttachment[]>(
+    [],
+  );
+  const [addTablesOpen, setAddTablesOpen] = useState(false);
+  const [tableSearch, setTableSearch] = useState("");
+  const allContextAttachments = useMemo(
+    () =>
+      [...(contextAttachments ?? []), ...addedContextAttachments].reduce<ChatContextAttachment[]>(
+        (items, attachment) => {
+          const key = chatContextAttachmentKey(attachment);
+          const existingIndex = items.findIndex((item) => chatContextAttachmentKey(item) === key);
+          if (existingIndex === -1) return [...items, attachment];
+          const next = [...items];
+          next[existingIndex] = attachment;
+          return next;
+        },
+        [],
+      ),
+    [addedContextAttachments, contextAttachments],
+  );
   const activeContextAttachments = useMemo(
     () =>
-      (contextAttachments ?? []).filter(
+      allContextAttachments.filter(
         (attachment) => !removedContextKeys.has(chatContextAttachmentKey(attachment)),
       ),
-    [contextAttachments, removedContextKeys],
+    [allContextAttachments, removedContextKeys],
   );
   const contextAttachmentsRef = useRef<readonly ChatContextAttachment[]>(activeContextAttachments);
   contextAttachmentsRef.current = activeContextAttachments;
@@ -1380,6 +1602,37 @@ const AiChatBody = ({
       ),
     );
     announce(`${label} removed for this turn.`);
+  };
+  const contextTables = useMemo(() => {
+    const query = tableSearch.trim().toLowerCase();
+    return schemaContext.tables.filter(
+      (table) => query === "" || table.table.toLowerCase().includes(query),
+    );
+  }, [schemaContext.tables, tableSearch]);
+  const addContextTable = (table: string) => {
+    const attachment: ChatContextAttachment = {
+      kind: "table",
+      schema: schemaContext.schema,
+      table,
+    };
+    const key = chatContextAttachmentKey(attachment);
+    setRemovedContextKeys((current) => {
+      if (!current.has(key)) return current;
+      const next = new Set(current);
+      next.delete(key);
+      return next;
+    });
+    if (!activeContextAttachments.some((current) => chatContextAttachmentKey(current) === key)) {
+      setAddedContextAttachments((current) =>
+        current.some((item) => chatContextAttachmentKey(item) === key)
+          ? current
+          : [...current, attachment],
+      );
+      onContextAttachmentsChange([...activeContextAttachments, attachment]);
+    }
+    announce(`${table} added to chat context.`);
+    setAddTablesOpen(false);
+    setTableSearch("");
   };
 
   // Live schema-scope status: mode + how many tables actually go out. Auto's
@@ -1454,12 +1707,30 @@ const AiChatBody = ({
                   {visibleContextAttachments.length === 1 ? "" : "s"}
                 </span>
               </div>
-              <span className="text-muted-foreground text-[11px]">
-                {contextDataClasses.includes("sample-rows") ||
-                contextDataClasses.includes("query-results")
-                  ? "Values allowed by permission"
-                  : "Metadata only"}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-[11px]">
+                  {contextDataClasses.includes("sample-rows") ||
+                  contextDataClasses.includes("query-results")
+                    ? "Values allowed by permission"
+                    : "Metadata only"}
+                </span>
+                <ContextTablePicker
+                  open={addTablesOpen}
+                  onOpenChange={setAddTablesOpen}
+                  schema={schemaContext.schema}
+                  tables={contextTables}
+                  selectedKeys={
+                    new Set(
+                      activeContextAttachments.map((attachment) =>
+                        chatContextAttachmentKey(attachment),
+                      ),
+                    )
+                  }
+                  search={tableSearch}
+                  onSearchChange={setTableSearch}
+                  onAdd={addContextTable}
+                />
+              </div>
             </div>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {visibleContextAttachments.map((attachment, index) => {
@@ -1517,7 +1788,7 @@ const AiChatBody = ({
               })}
             </div>
             <p className="text-muted-foreground mt-1.5 text-[11px]">
-              Attached for this chat · remove a chip to exclude it from the next message.
+              Included in the next message · remove a chip to exclude it for this turn.
             </p>
           </div>
         ) : variant === "sidechat" ? (
@@ -1525,8 +1796,29 @@ const AiChatBody = ({
             className="border-border bg-muted/20 text-muted-foreground mx-3 mt-3 rounded-md border px-3 py-2 text-xs"
             data-testid="ai-context-empty"
           >
-            <span className="text-foreground font-medium">No workspace context attached.</span> Ask
-            about the selected schema, or open a table/selection to attach it.
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <span className="text-foreground font-medium">Context for this chat</span>
+                <span className="ml-2">No tables attached</span>
+              </div>
+              <ContextTablePicker
+                open={addTablesOpen}
+                onOpenChange={setAddTablesOpen}
+                schema={schemaContext.schema}
+                tables={contextTables}
+                selectedKeys={
+                  new Set(
+                    activeContextAttachments.map((attachment) =>
+                      chatContextAttachmentKey(attachment),
+                    ),
+                  )
+                }
+                search={tableSearch}
+                onSearchChange={setTableSearch}
+                onAdd={addContextTable}
+              />
+            </div>
+            <p className="mt-1">Add tables here, or open a table/selection to attach it.</p>
           </div>
         ) : null}
         {variant === "sidechat" && (!providerReady || !hasApprovedSchemaSharing) ? (
@@ -1566,9 +1858,32 @@ const AiChatBody = ({
             )}
           </div>
         ) : null}
+        {variant === "page" && !providerReady ? (
+          <div
+            className="border-primary/20 bg-primary/5 mx-auto mt-4 flex w-full max-w-3xl items-start justify-between gap-3 rounded-md border px-4 py-3"
+            data-testid="ai-page-provider-setup"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Connect an AI provider to start chatting</p>
+              <p className="text-muted-foreground mt-0.5 text-xs leading-5">
+                Your provider settings stay in this browser. The conversation remains visible while
+                you finish setup.
+              </p>
+            </div>
+            <Button
+              size="xs"
+              variant="outline"
+              className="shrink-0"
+              onClick={onOpenProviderSettings}
+              data-testid="ai-page-configure-provider"
+            >
+              Configure provider
+            </Button>
+          </div>
+        ) : null}
         {/* Audit C1: the full chat surface stays mounted pre-consent — users
             must see what they are unlocking. Only Send is gated. */}
-        {!hasApprovedSchemaSharing && (
+        {!hasApprovedSchemaSharing && variant === "page" && (
           <div className="border-border bg-muted/30 mx-auto mt-4 w-full max-w-3xl px-4">
             <label className="border-border bg-background flex items-start gap-2 rounded-md border p-3 text-sm leading-6">
               <Checkbox
@@ -1584,24 +1899,12 @@ const AiChatBody = ({
               <span id="ai-consent-label">
                 <span className="font-medium">Share schema context with the AI provider</span>
                 <span className="text-muted-foreground block text-xs">
-                  {variant === "sidechat"
-                    ? "Schema names and columns only; row values stay off."
-                    : "Dadabase sends this prompt plus schema, table, and column names to draft SQL. It does not send row values under this permission. You review generated SQL before it runs."}
+                  Dadabase sends this prompt plus schema, table, and column names to draft SQL. It
+                  does not send row values under this permission. You review generated SQL before it
+                  runs.
                 </span>
               </span>
             </label>
-            {variant === "sidechat" ? (
-              <details className="text-muted-foreground mt-2 px-1 text-[11px]">
-                <summary className="hover:text-foreground cursor-pointer">
-                  What leaves this browser?
-                </summary>
-                <p className="mt-1 leading-5">
-                  Dadabase sends the prompt plus schema, table, and column names to draft SQL. Row
-                  values require their own permissions below, and generated SQL is reviewed before
-                  it runs.
-                </p>
-              </details>
-            ) : null}
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <label className="border-border bg-background flex items-start gap-2 rounded-md border p-2 text-xs">
                 <Checkbox
@@ -1642,7 +1945,7 @@ const AiChatBody = ({
             </div>
           </div>
         )}
-        {hasApprovedSchemaSharing && (
+        {hasApprovedSchemaSharing && variant === "page" && (
           <div
             className="border-border bg-muted/30 mx-auto mt-4 w-full max-w-3xl px-4"
             data-testid="ai-data-access-settings"
@@ -1703,12 +2006,14 @@ const AiChatBody = ({
           chatDataAccess={chatDataAccess}
           providerReady={providerReady}
           dialect={connection.dialect}
+          initialConversationId={initialConversationId}
           initialAskTable={initialAskTable}
           initialAiIntent={initialAiIntent}
-          tableNames={schemaContext.tables.map((table) => table.table)}
           onAdoptAutoTables={onAdoptAutoTables}
           onOpenSchemaPanel={onOpenSchemaPanel}
           contextAttachments={visibleContextAttachments}
+          onConversationIdChange={onConversationIdChange}
+          onStreamingChange={onStreamingChange}
           variant={variant}
         />
       </main>
@@ -1814,29 +2119,7 @@ const ThreadListItem = ({
         </button>
       )}
       {!renaming && (
-        <div className="ml-auto flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/thread:opacity-100 focus-within:opacity-100">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-6"
-            aria-label={thread.pinned === true ? `Unpin chat ${title}` : `Pin chat ${title}`}
-            title={thread.pinned === true ? "Unpin chat" : "Pin chat"}
-            onClick={onTogglePin}
-            data-testid="ai-thread-pin"
-          >
-            {thread.pinned === true ? <PinOff className="size-3" /> : <Pin className="size-3" />}
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="size-6"
-            aria-label={`Rename chat ${title}`}
-            title="Rename chat"
-            onClick={onRenameStart}
-            data-testid="ai-thread-rename"
-          >
-            <PencilLine className="size-3" />
-          </Button>
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
           {confirmingDelete ? (
             <Button
               size="xs"
@@ -1849,17 +2132,38 @@ const ThreadListItem = ({
               Confirm
             </Button>
           ) : (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="size-6"
-              aria-label={`Delete chat ${title}`}
-              title="Delete chat"
-              onClick={onDeleteRequest}
-              data-testid="ai-thread-delete"
-            >
-              <Trash2 className="size-3" />
-            </Button>
+            <Menu>
+              <MenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-6"
+                  aria-label={`Actions for chat ${title}`}
+                  title="Chat actions"
+                  data-testid="ai-thread-actions"
+                >
+                  <MoreHorizontal className="size-3.5" />
+                </Button>
+              </MenuTrigger>
+              <MenuContent>
+                <MenuItem value="toggle-pin" onClick={onTogglePin}>
+                  {thread.pinned === true ? (
+                    <PinOff className="size-3.5" />
+                  ) : (
+                    <Pin className="size-3.5" />
+                  )}
+                  {thread.pinned === true ? "Unpin chat" : "Pin chat"}
+                </MenuItem>
+                <MenuItem value="rename" onClick={onRenameStart}>
+                  <PencilLine className="size-3.5" />
+                  Rename chat
+                </MenuItem>
+                <MenuItem value="delete" onClick={onDeleteRequest}>
+                  <Trash2 className="text-destructive size-3.5" />
+                  Delete chat
+                </MenuItem>
+              </MenuContent>
+            </Menu>
           )}
         </div>
       )}
@@ -1907,6 +2211,8 @@ const ThreadListPanel = ({
   // identified a conversation. One search request hydrates the list on mount;
   // after sends it refreshes via the runtime's conversation-identified event.
   const conversations = useChatSelector((s) => s.conversations.items);
+  const conversationsLoading = useChatSelector((s) => s.conversations.loading);
+  const conversationsError = useChatSelector((s) => s.conversations.error);
   const activeConversationId = useChatSelector((s) => s.activeThread.conversationId);
   const actions = useChatActions();
 
@@ -1935,9 +2241,27 @@ const ThreadListPanel = ({
 
   const content =
     conversations.length === 0 ? (
-      <p className="text-muted-foreground px-2 py-4 text-xs" data-testid="ai-thread-list-ghost">
-        Chats will appear here once you start chatting.
-      </p>
+      conversationsLoading ? (
+        <p className="text-muted-foreground px-2 py-4 text-xs" data-testid="ai-thread-list-loading">
+          Loading chats…
+        </p>
+      ) : conversationsError !== undefined ? (
+        <div className="px-2 py-4 text-xs" data-testid="ai-thread-list-error">
+          <p className="text-destructive">Couldn’t load chats.</p>
+          <Button
+            size="xs"
+            variant="outline"
+            className="mt-2"
+            onClick={() => actions.setConversationSearch({ search: "" })}
+          >
+            Reload chats
+          </Button>
+        </div>
+      ) : (
+        <p className="text-muted-foreground px-2 py-4 text-xs" data-testid="ai-thread-list-ghost">
+          Chats will appear here once you start chatting.
+        </p>
+      )
     ) : (
       <div>
         {/* Audit K3: search over hydrated threads; the input is scoped to this
@@ -2040,7 +2364,7 @@ const ThreadListPanel = ({
             data-testid="ai-thread-overlay-backdrop"
           />
           <aside
-            className="border-border bg-background fixed inset-y-0 left-0 z-40 w-64 overflow-auto border-r p-2 shadow-xl"
+            className="border-border bg-background fixed inset-y-0 left-0 z-40 w-[min(20rem,85vw)] overflow-auto border-r p-2 shadow-xl"
             data-testid="ai-thread-list"
           >
             <div className="flex items-center justify-between">
@@ -2061,7 +2385,7 @@ const ThreadListPanel = ({
         </div>
       ) : null}
       <aside
-        className="border-border hidden w-56 shrink-0 overflow-auto border-r p-2 md:block"
+        className="border-border hidden w-72 shrink-0 overflow-auto border-r p-2 md:block"
         data-testid="ai-thread-list-desktop"
       >
         {header}
@@ -2309,10 +2633,12 @@ const ChatSurface = ({
   dialect,
   onAdoptAutoTables,
   onOpenSchemaPanel,
+  initialConversationId,
   initialAskTable,
   initialAiIntent,
-  tableNames,
   contextAttachments,
+  onConversationIdChange,
+  onStreamingChange,
   variant,
 }: {
   connectionName: string;
@@ -2345,23 +2671,34 @@ const ChatSurface = ({
   onAdoptAutoTables: (tables: readonly string[]) => void;
   /** Audit K6: `/schema` opens the schema settings panel. */
   onOpenSchemaPanel: () => void;
+  /** Conversation id requested by the full-page route, used for loading feedback. */
+  initialConversationId?: string;
   /** Audit K4: `?askTable=` pre-seeds draft + Selected scope for one table. */
   initialAskTable?: string;
   initialAiIntent?: "chat" | "sql";
-  tableNames: readonly string[];
   contextAttachments: readonly ChatContextAttachment[];
+  onConversationIdChange: (conversationId: string | undefined) => void;
+  onStreamingChange: (streaming: boolean) => void;
   variant: "page" | "sidechat";
 }) => {
   const messages = useChatSelector((s) => s.activeThread.messages);
   const isStreaming = useChatSelector((s) => s.activeThread.isStreaming);
+  const streamOutcome = useChatSelector((s) => s.activeThread.streamOutcome);
+  const failedStreamMessageId = useChatSelector((s) => s.activeThread.failedStreamMessageId);
   const draft = useChatSelector((s) => s.composer.text);
   const activeConversationId = useChatSelector((s) => s.activeThread.conversationId);
   const conversations = useChatSelector((s) => s.conversations.items);
+  const conversationLoading = useChatSelector((s) => s.conversations.activeLoading);
+  const historyWarning = useChatSelector((s) => s.historyWarning);
   const error = useChatSelector((s) => s.error);
   const actions = useChatActions();
   const providerId = useChatSelector((s) => s.settings.provider);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const errorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    onStreamingChange(isStreaming);
+  }, [isStreaming, onStreamingChange]);
 
   // Audit K7: finishing a stream in an unfocused tab gets a title badge so
   // users switching back know the answer landed.
@@ -2499,7 +2836,9 @@ const ChatSurface = ({
 
   const composerFocus = () => composerRef.current?.focus();
   const starterPrompts = useMemo(() => {
-    const table = initialAskTable || tableNames[0];
+    const table =
+      initialAskTable ||
+      contextAttachments.find((attachment) => attachment.kind === "table")?.table;
     const selection = contextAttachments.find((attachment) => attachment.kind === "selection");
     const result = contextAttachments.find((attachment) => attachment.kind === "result");
     if (result?.kind === "result") {
@@ -2523,13 +2862,19 @@ const ChatSurface = ({
         "Suggest an improvement to this SQL.",
       ];
     }
-    if (!table) return [];
+    if (!table) {
+      return [
+        "Show me the available tables.",
+        "Help me explore this database.",
+        "What would be useful to investigate?",
+      ];
+    }
     return [
       `How many rows are in \`${table}\`?`,
       `What columns are in \`${table}\`?`,
       `Show me a useful summary of \`${table}\`.`,
     ];
-  }, [contextAttachments, initialAiIntent, initialAskTable, tableNames]);
+  }, [contextAttachments, initialAiIntent, initialAskTable]);
 
   useEffect(() => {
     const element = composerRef.current;
@@ -2556,15 +2901,10 @@ const ChatSurface = ({
   // response header; listen for it instead of polling internals.
   const activeConversationTitle =
     conversations.find((c) => c.id === activeConversationId)?.title || "New chat";
-  const [resolvedConversationId, setResolvedConversationId] = useState<string | undefined>(
-    getCurrentChatConversationId(),
-  );
+  const conversationIdForMeta = activeConversationId;
   useEffect(() => {
-    const refresh = () => setResolvedConversationId(getCurrentChatConversationId());
-    window.addEventListener(CHAT_CONVERSATION_RESOLVED, refresh);
-    return () => window.removeEventListener(CHAT_CONVERSATION_RESOLVED, refresh);
-  }, []);
-  const conversationIdForMeta = activeConversationId ?? resolvedConversationId;
+    onConversationIdChange(conversationIdForMeta);
+  }, [conversationIdForMeta, onConversationIdChange]);
   const chatMeta: ChatReturnMeta | undefined =
     conversationIdForMeta === undefined || conversationIdForMeta === ""
       ? undefined
@@ -2585,7 +2925,60 @@ const ChatSurface = ({
       return true;
     }
   });
+  const [copiedAction, setCopiedAction] = useState<"markdown" | "text" | undefined>(undefined);
   const providerLabel = getAiProviderPreset(providerId)?.label ?? providerId;
+  const exportableMessages = useMemo(
+    () =>
+      messages.map((message) => ({
+        id: message.id,
+        parentId: null,
+        createdAt: typeof message.createdAt === "string" ? message.createdAt : "",
+        role: message.role,
+        parts: message.parts,
+      })),
+    [messages],
+  );
+  const markdown = useMemo(() => conversationMarkdown(exportableMessages), [exportableMessages]);
+  const plainText = useMemo(
+    () =>
+      messages
+        .map((message) =>
+          message.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n"),
+        )
+        .filter((text) => text.trim() !== "")
+        .join("\n\n"),
+    [messages],
+  );
+  const copyConversation = async (
+    value: string,
+    announcement: string,
+    action: "markdown" | "text",
+  ) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedAction(action);
+      window.setTimeout(() => setCopiedAction(undefined), 1500);
+      announce(announcement);
+    } catch {
+      toaster.create({
+        title: "Copy failed",
+        description: "Your browser could not access the clipboard.",
+        type: "error",
+      });
+    }
+  };
+  const downloadMarkdown = () => {
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${activeConversationTitle.replace(/[^\w.-]+/g, "_").slice(0, 60) || "chat"}.md`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    announce("Chat exported as markdown.");
+  };
   const sendCurrentDraft = () => {
     if (sendDisabled) return;
     // Audit K6: leading slash routes to commands instead of the model.
@@ -2722,31 +3115,53 @@ const ChatSurface = ({
     }
     if (toolName === "preview_rows" && isRecord(result) && Array.isArray(result.rows)) {
       const rows = result.rows.filter(isRecord).slice(0, 25);
-      const columns = rows.length > 0 ? Object.keys(rows[0]).slice(0, 6) : [];
+      const columns = Array.isArray(result.columns)
+        ? result.columns.filter((column): column is string => typeof column === "string").slice(0, 25)
+        : rows.length > 0
+          ? Object.keys(rows[0]).slice(0, 25)
+          : [];
+      const serverReadableRows = Array.isArray(result.readableRows)
+        ? result.readableRows.filter(isRecord).slice(0, 25)
+        : undefined;
+      const serverReadableColumns = Array.isArray(result.readableColumns)
+        ? result.readableColumns.filter((column): column is string => typeof column === "string")
+        : undefined;
+      const readableColumns =
+        serverReadableColumns !== undefined && serverReadableColumns.length > 0
+          ? serverReadableColumns
+          : readablePreviewColumns(columns, rows);
+      const readableRows =
+        serverReadableRows !== undefined && serverReadableRows.length > 0
+          ? serverReadableRows
+          : rows.map((row) =>
+              Object.fromEntries(readableColumns.map((column) => [column, row[column]])),
+            );
+      const relationSummary = Array.isArray(result.readableRelations)
+        ? result.readableRelations.filter(isRecord)
+        : [];
       return (
-        <div className="overflow-auto rounded-md border" data-testid="ai-chat-preview-rows">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-muted/50">
-              <tr>
-                {columns.map((column) => (
-                  <th key={column} className="px-2 py-1 font-medium">
-                    {column}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.slice(0, 8).map((row, i) => (
-                <tr key={i} className="border-t">
-                  {columns.map((column) => (
-                    <td key={column} className="px-2 py-1">
-                      {String(row[column] ?? "")}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-2" data-testid="ai-chat-preview-rows">
+          <div className="bg-background rounded-md border p-2">
+            <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-xs font-medium">Readable preview</p>
+              {relationSummary.length > 0 ? (
+                <p className="text-muted-foreground text-[11px]">
+                  Related labels included from {relationSummary.length} table
+                  {relationSummary.length === 1 ? "" : "s"}.
+                </p>
+              ) : null}
+            </div>
+            <PreviewRowsTable columns={readableColumns} rows={readableRows} readable />
+          </div>
+          <details className="bg-muted/20 rounded-md border" data-testid="ai-chat-raw-preview">
+            <summary className="text-muted-foreground flex cursor-pointer list-none items-center justify-between px-2.5 py-2 text-xs font-medium">
+              <span>Raw rows</span>
+              <span>{rows.length} sampled</span>
+            </summary>
+            <div className="border-t p-2">
+              <PreviewRowsTable columns={columns} rows={rows} />
+            </div>
+          </details>
         </div>
       );
     }
@@ -2870,6 +3285,10 @@ const ChatSurface = ({
               <Badge size="2xs" colorPalette="info">
                 Generating
               </Badge>
+            ) : conversationLoading && initialConversationId !== undefined ? (
+              <Badge size="2xs" colorPalette="muted">
+                Loading chat
+              </Badge>
             ) : null}
             {!isStreaming && pendingApproval !== undefined ? (
               <Badge size="2xs" colorPalette="warning">
@@ -2907,53 +3326,71 @@ const ChatSurface = ({
           className="mx-auto min-h-0 w-full max-w-4xl flex-1 space-y-5 overflow-auto p-4"
           data-testid="ai-chat-thread"
         >
+          {historyWarning !== undefined ? (
+            <div
+              className="border-warning/40 bg-warning/10 text-warning rounded-md border px-3 py-2 text-xs"
+              data-testid="ai-chat-history-warning"
+              role="status"
+            >
+              <p>{historyWarning}</p>
+              <p className="mt-0.5 opacity-80">The available messages are still shown below.</p>
+            </div>
+          ) : null}
           {messages.length === 0 ? (
             <div className="text-muted-foreground flex flex-col items-center gap-4 px-1 py-10 text-center text-sm">
-              <p>
-                Ask a question about this database — the assistant proposes SQL, you review it
-                before it runs.
-              </p>
-              {starterPrompts.length > 0 ? (
-                <div className="flex max-w-full flex-wrap justify-center gap-2">
-                  {starterPrompts.map((prompt) => (
+              {conversationLoading && initialConversationId !== undefined ? (
+                <p data-testid="ai-conversation-loading" role="status" aria-live="polite">
+                  Loading this conversation…
+                </p>
+              ) : (
+                <>
+                  <p>
+                    Ask a question about this database — the assistant proposes SQL, you review it
+                    before it runs.
+                  </p>
+                  {!consentRequired && providerReady && starterPrompts.length > 0 ? (
+                    <div className="flex max-w-full flex-wrap justify-center gap-2">
+                      {starterPrompts.map((prompt) => (
+                        <Button
+                          key={prompt}
+                          size="xs"
+                          variant="outline"
+                          disabled={consentRequired || !providerReady}
+                          onClick={() => {
+                            actions.setDraft({ text: prompt });
+                            composerFocus();
+                          }}
+                          data-testid="ai-starter-prompt"
+                        >
+                          {prompt}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {/* Audit C7: one primary action instead of a 90%-empty viewport. */}
+                  {!consentRequired && providerReady ? (
                     <Button
-                      key={prompt}
-                      size="xs"
+                      size="sm"
                       variant="outline"
-                      disabled={consentRequired || !providerReady}
-                      onClick={() => {
-                        actions.setDraft({ text: prompt });
-                        composerFocus();
-                      }}
-                      data-testid="ai-starter-prompt"
+                      onClick={composerFocus}
+                      data-testid="ai-chat-first-question"
                     >
-                      {prompt}
+                      <Sparkles className="size-3.5" />
+                      Ask your first question
                     </Button>
-                  ))}
-                </div>
-              ) : null}
-              {/* Audit C7: one primary action instead of a 90%-empty viewport. */}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={consentRequired || !providerReady}
-                onClick={composerFocus}
-                data-testid="ai-chat-first-question"
-              >
-                <Sparkles className="size-3.5" />
-                Ask your first question
-              </Button>
+                  ) : null}
+                </>
+              )}
             </div>
           ) : (
             messages.map((message, index) => {
-              // Audit S4: retry-after-error without retyping — the vendored
-              // ThreadMessage ships the affordance; wire it to the runtime's
-              // retry action on the latest turn (assistant after success, user
-              // after a failed stream).
+              // Retry is an error recovery affordance, never a generic action
+              // shown after every completed assistant turn.
               const isLatestTurn = index === messages.length - 1;
-              const isLatestAssistant = message.role === "assistant" && isLatestTurn;
-              const isFailedUserTurn =
-                message.role === "user" && isLatestTurn && error !== undefined && !isStreaming;
+              const canRetryFailedTurn =
+                !isStreaming &&
+                streamOutcome === "failed" &&
+                (failedStreamMessageId === message.id || (message.role === "user" && isLatestTurn));
               return (
                 <div
                   key={message.id}
@@ -2979,7 +3416,7 @@ const ChatSurface = ({
                     }}
                     renderToolResult={renderToolResult}
                     renderToolInput={renderToolInput}
-                    {...((isLatestAssistant && !isStreaming) || isFailedUserTurn
+                    {...(canRetryFailedTurn
                       ? {
                           onRegenerate: (messageId: string) => actions.retry({ messageId }),
                           regenerateText: "Try again",
@@ -3228,37 +3665,51 @@ const ChatSurface = ({
                     New chat
                   </Button>
                 ) : null}
-                {/* Audit K2: the vendored markdown helper finally gets a caller. */}
+                {/* Keep export actions discoverable without competing with Send. */}
                 {messages.length > 0 ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      const markdown = conversationMarkdown(
-                        messages.map((message) => ({
-                          id: message.id,
-                          parentId: null,
-                          createdAt: typeof message.createdAt === "string" ? message.createdAt : "",
-                          role: message.role,
-                          parts: message.parts,
-                        })),
-                      );
-                      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-                      const url = URL.createObjectURL(blob);
-                      const anchor = document.createElement("a");
-                      anchor.href = url;
-                      anchor.download = `${activeConversationTitle.replace(/[^\w.-]+/g, "_").slice(0, 60) || "chat"}.md`;
-                      document.body.append(anchor);
-                      anchor.click();
-                      anchor.remove();
-                      URL.revokeObjectURL(url);
-                      announce("Chat exported as markdown.");
-                    }}
-                    data-testid="ai-chat-export"
-                  >
-                    <FileText className="size-3.5" />
-                    Export .md
-                  </Button>
+                  <Menu>
+                    <MenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label={copiedAction === undefined ? "More chat actions" : "Copied"}
+                        data-testid="ai-chat-actions"
+                      >
+                        {copiedAction === undefined ? (
+                          <MoreHorizontal className="size-3.5" />
+                        ) : (
+                          <Check className="size-3.5" />
+                        )}
+                        <span className="hidden sm:inline">
+                          {copiedAction === undefined ? "More" : "Copied"}
+                        </span>
+                      </Button>
+                    </MenuTrigger>
+                    <MenuContent>
+                      <MenuItem
+                        value="copy-markdown"
+                        onClick={() =>
+                          void copyConversation(markdown, "Chat copied as markdown.", "markdown")
+                        }
+                      >
+                        <Clipboard className="size-3.5" />
+                        Copy as Markdown
+                      </MenuItem>
+                      <MenuItem value="export-markdown" onClick={downloadMarkdown}>
+                        <FileText className="size-3.5" />
+                        Export Markdown
+                      </MenuItem>
+                      <MenuItem
+                        value="copy-text"
+                        onClick={() =>
+                          void copyConversation(plainText, "Chat copied as plain text.", "text")
+                        }
+                      >
+                        <Clipboard className="size-3.5" />
+                        Copy plain text
+                      </MenuItem>
+                    </MenuContent>
+                  </Menu>
                 ) : null}
               </>
             ) : null}
@@ -3359,6 +3810,92 @@ const canSaveConfig = (input: { providerId: string; baseUrl: string; apiKey: str
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
+
+const READABLE_PREVIEW_COLUMNS = [
+  "display_name",
+  "title",
+  "name",
+  "channel_name",
+  "login",
+  "username",
+  "label",
+  "slug",
+] as const;
+
+const readablePreviewColumns = (
+  columns: ReadonlyArray<string>,
+  rows: ReadonlyArray<Record<string, unknown>>,
+): string[] => {
+  const preferred = columns.filter((column) =>
+    READABLE_PREVIEW_COLUMNS.includes(
+      column.toLowerCase() as (typeof READABLE_PREVIEW_COLUMNS)[number],
+    ),
+  );
+  if (preferred.length > 0) return preferred.slice(0, 6);
+  const relationLabels = columns.filter((column) => column.endsWith("__label"));
+  if (relationLabels.length > 0) return relationLabels.slice(0, 6);
+  return columns.length > 0 ? columns.slice(0, 4) : rows[0] ? Object.keys(rows[0]).slice(0, 4) : [];
+};
+
+const previewColumnLabel = (column: string): string => {
+  const relationColumn = column.endsWith("__label") ? column.slice(0, -"__label".length) : column;
+  const words = relationColumn.replaceAll("_", " ").trim();
+  return column.endsWith("__label")
+    ? `${words || "Related"} label`
+    : words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+const previewCellText = (value: unknown): string => {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+};
+
+const PreviewRowsTable = ({
+  columns,
+  rows,
+  readable = false,
+}: {
+  columns: ReadonlyArray<string>;
+  rows: ReadonlyArray<Record<string, unknown>>;
+  readable?: boolean;
+}): ReactNode => (
+  <div className="overflow-x-auto rounded border">
+    <table className="w-full min-w-max text-left text-xs">
+      <thead className="bg-muted/50">
+        <tr>
+          {columns.map((column) => (
+            <th key={column} className="whitespace-nowrap px-2 py-1.5 font-medium">
+              {readable ? previewColumnLabel(column) : column}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.slice(0, 8).map((row, index) => (
+          <tr key={index} className="border-t align-top">
+            {columns.map((column) => (
+              <td key={column} className="max-w-56 px-2 py-1.5 break-words">
+                {previewCellText(row[column])}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+    {rows.length > 8 ? (
+      <p className="text-muted-foreground border-t px-2 py-1.5 text-[11px]">
+        Showing 8 of {rows.length} sampled rows.
+      </p>
+    ) : null}
+  </div>
+);
 
 /** Audit M2: copy affordance for proposal/result SQL — the product's core output. */
 const CopySqlButton = ({ sql }: { sql: string }): ReactNode => {

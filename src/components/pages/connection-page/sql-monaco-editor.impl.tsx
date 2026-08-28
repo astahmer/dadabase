@@ -13,7 +13,7 @@ import {
   buildPerStatementViewZoneLayouts,
   createSqlEditorViewZoneDom,
 } from "#src/lib/sql-editor-view-zones.ts";
-import { splitSqlStatements } from "#src/lib/sql-statements.ts";
+import { findSqlStatementAtOffset, splitSqlStatements } from "#src/lib/sql-statements.ts";
 
 import type { SqlMonacoEditorProps } from "./sql-monaco-editor.tsx";
 
@@ -36,15 +36,37 @@ export function SqlMonacoEditorImpl({
   columns = [],
   hasMultipleSchemas = false, // TODO
   onSubmit,
+  onStatementChange,
+  onSave,
   autoFocus = false,
   placeholder,
   onViewZoneAction,
+  insertTextAtCursorRef,
 }: SqlMonacoEditorProps) {
   const [monacoRef, setMonacoRef] = useState<Monaco | null>(null);
   const [editorRef, setEditorRef] =
     useState<OriginalMonacoEditor.editor.IStandaloneCodeEditor | null>(null);
 
   const monacoTheme = useMonacoTheme();
+
+  useEffect(() => {
+    if (!insertTextAtCursorRef) return;
+    if (!editorRef) {
+      insertTextAtCursorRef.current = null;
+      return;
+    }
+    insertTextAtCursorRef.current = (text: string) => {
+      const selection = editorRef.getSelection();
+      if (!selection) return;
+      editorRef.executeEdits("dadabase-schema-insert", [
+        { range: selection, text, forceMoveMarkers: true },
+      ]);
+      editorRef.focus();
+    };
+    return () => {
+      insertTextAtCursorRef.current = null;
+    };
+  }, [editorRef, insertTextAtCursorRef]);
 
   // Apply theme after custom themes are defined / when preference changes
   useEffect(() => {
@@ -104,12 +126,100 @@ export function SqlMonacoEditorImpl({
   useEffect(() => {
     if (!editorRef || !onSubmit) return;
 
+    const runCurrentStatementAction: OriginalMonacoEditor.editor.IActionDescriptor = {
+      id: "editor.action.runCurrentSqlStatement",
+      label: "Run current SQL statement",
+      contextMenuGroupId: "2_execution",
+      contextMenuOrder: 0,
+      run: (editor) => {
+        const model = editor.getModel();
+        const editorValue = editor.getValue();
+        const selection = editor.getSelection();
+        const selectedSql =
+          model && selection && !selection.isEmpty()
+            ? model.getValueInRange(selection).trim()
+            : undefined;
+        const position = editor.getPosition();
+        const cursorSql =
+          model && position
+            ? findSqlStatementAtOffset(splitSqlStatements(editorValue), model.getOffsetAt(position))
+                ?.sql
+            : undefined;
+        onSubmit(editorValue, selectedSql || cursorSql);
+      },
+    };
+    const actionDisposable = editorRef.addAction(runCurrentStatementAction);
+
     // addCommand returns an ID string, not a disposable
     // The command is bound to the editor and cleaned up when the editor is disposed
     editorRef.addCommand(OriginalMonaco.KeyMod.CtrlCmd | OriginalMonaco.KeyCode.Enter, () => {
-      onSubmit(editorRef.getValue());
+      const model = editorRef.getModel();
+      const editorValue = editorRef.getValue();
+      const selection = editorRef.getSelection();
+      const selectedSql =
+        model && selection && !selection.isEmpty()
+          ? model.getValueInRange(selection).trim()
+          : undefined;
+      const position = editorRef.getPosition();
+      const cursorSql =
+        model && position
+          ? findSqlStatementAtOffset(splitSqlStatements(editorValue), model.getOffsetAt(position))
+              ?.sql
+          : undefined;
+      onSubmit(editorValue, selectedSql || cursorSql);
     });
+    return () => actionDisposable.dispose();
   }, [editorRef, onSubmit]);
+
+  useEffect(() => {
+    if (!editorRef || !onSave) return;
+    editorRef.addCommand(OriginalMonaco.KeyMod.CtrlCmd | OriginalMonaco.KeyCode.KeyS, () => {
+      const model = editorRef.getModel();
+      const editorValue = editorRef.getValue();
+      const selection = editorRef.getSelection();
+      const selectedSql =
+        model && selection && !selection.isEmpty()
+          ? model.getValueInRange(selection).trim()
+          : undefined;
+      const position = editorRef.getPosition();
+      const cursorSql =
+        model && position
+          ? findSqlStatementAtOffset(splitSqlStatements(editorValue), model.getOffsetAt(position))
+              ?.sql
+          : undefined;
+      onSave(editorValue, selectedSql || cursorSql);
+    });
+  }, [editorRef, onSave]);
+
+  useEffect(() => {
+    if (!editorRef || !onStatementChange) return;
+    const updateStatement = () => {
+      const model = editorRef.getModel();
+      const position = editorRef.getPosition();
+      if (!model || !position) {
+        onStatementChange(undefined);
+        return;
+      }
+      const selection = editorRef.getSelection();
+      const selectedSql =
+        selection && !selection.isEmpty() ? model.getValueInRange(selection).trim() : undefined;
+      if (selectedSql) {
+        onStatementChange(selectedSql);
+        return;
+      }
+      onStatementChange(
+        findSqlStatementAtOffset(splitSqlStatements(model.getValue()), model.getOffsetAt(position))
+          ?.sql,
+      );
+    };
+    updateStatement();
+    const disposable = editorRef.onDidChangeCursorSelection(updateStatement);
+    const contentDisposable = editorRef.onDidChangeModelContent(updateStatement);
+    return () => {
+      disposable.dispose();
+      contentDisposable.dispose();
+    };
+  }, [editorRef, onStatementChange]);
 
   // Setup SQL intellisense with context-aware suggestions
   useEffect(() => {
@@ -222,15 +332,19 @@ export function SqlMonacoEditorImpl({
             afterLineNumber: layout.afterLineNumber,
             heightInPx: layout.heightInPx,
             suppressMouseDown: false,
-            domNode: createSqlEditorViewZoneDom(layout.actions, (actionId) => {
-              if (onViewZoneAction) {
-                onViewZoneAction(actionId, layout.sql);
-                return;
-              }
-              if (actionId === "run" && onSubmit) {
-                onSubmit(layout.sql);
-              }
-            }),
+            domNode: createSqlEditorViewZoneDom(
+              layout.actions,
+              (actionId) => {
+                if (onViewZoneAction) {
+                  onViewZoneAction(actionId, layout.sql);
+                  return;
+                }
+                if (actionId === "run" && onSubmit) {
+                  onSubmit(layout.sql);
+                }
+              },
+              `Statement ${layout.statementIndex + 1} of ${statements.length}`,
+            ),
           });
           zoneIds.push(id);
         }

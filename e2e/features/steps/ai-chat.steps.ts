@@ -1,6 +1,5 @@
-import path from "node:path";
-
 import { expect, type Page, type Route } from "@playwright/test";
+import path from "node:path";
 
 import { Given, Then, When } from "./fixtures";
 
@@ -96,9 +95,7 @@ const textChunks = (
     : {
         type: "start",
         messageId: "mock-msg-1",
-        ...(options.withUsage === true
-          ? { messageMetadata: { model: "gpt-4o-mini" } }
-          : {}),
+        ...(options.withUsage === true ? { messageMetadata: { model: "gpt-4o-mini" } } : {}),
       },
   { type: "start-step" },
   { type: "text-start", id: "t1" },
@@ -112,7 +109,10 @@ const textChunks = (
       ? {
           messageMetadata: {
             ...(options.withUsage === true
-              ? { model: "gpt-4o-mini", usage: { promptTokens: 12, completionTokens: 34, totalTokens: 46 } }
+              ? {
+                  model: "gpt-4o-mini",
+                  usage: { promptTokens: 12, completionTokens: 34, totalTokens: 46 },
+                }
               : {}),
             ...(options.withContext === true
               ? {
@@ -192,6 +192,8 @@ const dataToolsChunks = (): Array<Record<string, unknown>> => [
         { id: 1, name: "Ada" },
         { id: 2, name: "Grace" },
       ],
+      readableColumns: ["name"],
+      readableRows: [{ name: "Ada" }, { name: "Grace" }],
     },
   },
   {
@@ -282,14 +284,14 @@ const installMock = async (page: Page): Promise<void> => {
         : state.mode === "data_tools"
           ? dataToolsChunks()
           : state.mode === "approval"
-        ? approvalChunks()
-        : state.mode === "proposal"
-          ? proposalChunks(state.proposalSql ?? "SELECT 42 AS answer")
-          : textChunks(state.textParts, {
-              omitMessageId: state.omitMessageId === true,
-              withUsage: state.withUsage === true,
-              withContext: state.withContext === true,
-            });
+            ? approvalChunks()
+            : state.mode === "proposal"
+              ? proposalChunks(state.proposalSql ?? "SELECT 42 AS answer")
+              : textChunks(state.textParts, {
+                  omitMessageId: state.omitMessageId === true,
+                  withUsage: state.withUsage === true,
+                  withContext: state.withContext === true,
+                });
     // The real route always returns the assigned conversation id; mocks must
     // too, or the runtime stays anonymous (blocking retry/revisions and
     // thread-list identification).
@@ -527,7 +529,7 @@ When(
     }
     // Scoped to the settings panel: the workspace sidebar (visible around the
     // chat page) also contains a "Saved queries" button matching /Save/i.
-    await settingsPanel.getByRole("button", { name: "Save", exact: true }).click();
+    await settingsPanel.getByRole("button", { name: "Save changes", exact: true }).click();
     await expect(settingsPanel).toBeHidden({ timeout: 10_000 });
   },
 );
@@ -685,7 +687,7 @@ Then("the thread shows exactly {int} assistant reply", async ({ page }, expected
 // "Use this SQL" → editor run bridge
 // ---------------------------------------------------------------------------
 
-const RESULTS_MARKER = "input[placeholder=\"r.name.includes('" + "test" + "')\"]";
+const RESULTS_MARKER = '[data-testid="sql-result-receipt"]';
 
 Given(
   "the chat API streams a canned propose_sql reply with sql {string}",
@@ -979,7 +981,7 @@ Then("the composer recovers after stopping", async ({ page }) => {
 });
 
 Then("the threads list is visible", async ({ page }) => {
-  const list = page.getByTestId("ai-thread-list");
+  const list = page.getByTestId("ai-thread-list").or(page.getByTestId("ai-thread-list-desktop"));
   await expect(list).toBeVisible({ timeout: 10_000 });
   const ghost = list.getByTestId("ai-thread-list-ghost");
   const items = list.getByTestId("ai-thread-item");
@@ -1041,43 +1043,40 @@ Then("provider, tools, and schema sections are present but collapsed", async ({ 
 
 // --- Audit S1/S2/N1/C8 follow-ups -------------------------------------------
 
-Given(
-  "a persisted chat thread {string} exists for the connection",
-  async ({}, title: string) => {
-    // The SSE mock intercepts every /api/chat POST, so server-side turn
-    // persistence never runs under test. Seed a real thread row instead:
-    // this exercises the true hydration path (server fn → decode → store).
-    const { DatabaseSync } = await import("node:sqlite");
-    const db = new DatabaseSync(path.join(process.cwd(), "e2e", ".tmp", "app.db"));
-    const connection = db
-      .prepare("SELECT id FROM database_connections WHERE name = 'e2e-sqlite'")
-      .get();
-    if (!connection) throw new Error("e2e-sqlite fixture connection not found");
-    const now = Date.now();
-    const threadId = `e2e-thread-${title.replace(/\s+/g, "-").toLowerCase()}`;
-    db.prepare(
-      "INSERT OR REPLACE INTO chat_threads (id, connection_id, title, status, pinned, created_at, updated_at) VALUES (?, ?, ?, 'regular', 0, ?, ?)",
-    ).run(threadId, connection.id, title, now, now);
-    const insertMessage = db.prepare(
-      "INSERT INTO chat_messages (id, thread_id, role, parts, model, created_at) VALUES (?, ?, ?, ?, NULL, ?)",
-    );
-    insertMessage.run(
-      `${threadId}-user`,
-      threadId,
-      "user",
-      JSON.stringify([{ type: "text", text: "count the users table rows" }]),
-      now,
-    );
-    insertMessage.run(
-      `${threadId}-assistant`,
-      threadId,
-      "assistant",
-      JSON.stringify([{ type: "text", text: "Hello from the mocked assistant stream" }]),
-      now,
-    );
-    db.close();
-  },
-);
+Given("a persisted chat thread {string} exists for the connection", async ({}, title: string) => {
+  // The SSE mock intercepts every /api/chat POST, so server-side turn
+  // persistence never runs under test. Seed a real thread row instead:
+  // this exercises the true hydration path (server fn → decode → store).
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(path.join(process.cwd(), "e2e", ".tmp", "app.db"));
+  const connection = db
+    .prepare("SELECT id FROM database_connections WHERE name = 'e2e-sqlite'")
+    .get();
+  if (!connection) throw new Error("e2e-sqlite fixture connection not found");
+  const now = Date.now();
+  const threadId = `e2e-thread-${title.replace(/\s+/g, "-").toLowerCase()}`;
+  db.prepare(
+    "INSERT OR REPLACE INTO chat_threads (id, connection_id, title, status, pinned, created_at, updated_at) VALUES (?, ?, ?, 'regular', 0, ?, ?)",
+  ).run(threadId, connection.id, title, now, now);
+  const insertMessage = db.prepare(
+    "INSERT INTO chat_messages (id, thread_id, role, parts, model, created_at) VALUES (?, ?, ?, ?, NULL, ?)",
+  );
+  insertMessage.run(
+    `${threadId}-user`,
+    threadId,
+    "user",
+    JSON.stringify([{ type: "text", text: "count the users table rows" }]),
+    now,
+  );
+  insertMessage.run(
+    `${threadId}-assistant`,
+    threadId,
+    "assistant",
+    JSON.stringify([{ type: "text", text: "Hello from the mocked assistant stream" }]),
+    now,
+  );
+  db.close();
+});
 
 When("I reload the chat page", async ({ page }) => {
   await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
@@ -1087,9 +1086,9 @@ When("I reload the chat page", async ({ page }) => {
 Then("the thread list shows a chat titled {string}", async ({ page }, title: string) => {
   // Hydration is async after mount (store request + decode) — poll.
   try {
-    await expect(
-      page.getByTestId("ai-thread-item").filter({ hasText: title }).first(),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("ai-thread-item").filter({ hasText: title }).first()).toBeVisible(
+      { timeout: 20_000 },
+    );
   } catch {
     const consoleTail = stateFor(page).consoleTexts.slice(-6);
     const diag = await page.evaluate(() => ({
@@ -1162,15 +1161,12 @@ Then("the assistant role label precedes its message text", async ({ page }) => {
 // Audit M1/M2/M4/T3: highlighting, copy affordances, message meta
 // ---------------------------------------------------------------------------
 
-Given(
-  "the chat API streams a canned reply carrying model and token usage",
-  async ({ page }) => {
-    const state = stateFor(page);
-    state.mode = "text";
-    state.withUsage = true;
-    await installMock(page);
-  },
-);
+Given("the chat API streams a canned reply carrying model and token usage", async ({ page }) => {
+  const state = stateFor(page);
+  state.mode = "text";
+  state.withUsage = true;
+  await installMock(page);
+});
 
 Given("clipboard permissions are granted", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -1180,13 +1176,16 @@ When("I copy the assistant code block", async ({ page }) => {
   await page.getByTestId("code-copy").first().click({ timeout: 20_000 });
 });
 
-Then("the assistant reply contains a highlighted {string} code block", async ({ page }, language: string) => {
-  const block = page.getByTestId("chat-code-block").first();
-  await expect(block).toBeVisible({ timeout: 20_000 });
-  await expect(block.getByTestId("code-language")).toHaveText(language.toUpperCase());
-  const keywordCount = await block.locator(".hljs-keyword").count();
-  expect(keywordCount).toBeGreaterThan(0);
-});
+Then(
+  "the assistant reply contains a highlighted {string} code block",
+  async ({ page }, language: string) => {
+    const block = page.getByTestId("chat-code-block").first();
+    await expect(block).toBeVisible({ timeout: 20_000 });
+    await expect(block.getByTestId("code-language")).toHaveText(language.toUpperCase());
+    const keywordCount = await block.locator(".hljs-keyword").count();
+    expect(keywordCount).toBeGreaterThan(0);
+  },
+);
 
 Then("the clipboard contains {string}", async ({ page }, expected: string) => {
   const content = await page.evaluate(() => navigator.clipboard.readText());
@@ -1231,7 +1230,6 @@ When("I type {string} more in the chat composer", async ({ page }, text: string)
   // Append without replacing: Shift+Enter newline tests depend on this.
   await page.locator(CHAT_INPUT).pressSequentially(text, { delay: 40 });
 });
-
 
 When("I press Enter in the chat composer", async ({ page }) => {
   await page.locator(CHAT_INPUT).press("Enter");
@@ -1322,21 +1320,26 @@ When("I pin the chat titled {string}", async ({ page }, title: string) => {
 });
 
 Then("the chat titled {string} shows as pinned", async ({ page }, title: string) => {
-  await expect(
-    threadRowByTitle(page, title).getByTestId("ai-thread-pin"),
-  ).toHaveAttribute("aria-label", `Unpin chat ${title}`, { timeout: 10_000 });
+  await expect(threadRowByTitle(page, title).getByTestId("ai-thread-pin")).toHaveAttribute(
+    "aria-label",
+    `Unpin chat ${title}`,
+    { timeout: 10_000 },
+  );
 });
 
-When("I rename the chat titled {string} to {string}", async ({ page }, from: string, to: string) => {
-  // Clicking rename swaps the title button for the inline input, so the row
-  // locator by old title no longer matches — scope the input globally (only
-  // one rename is active at a time).
-  await threadRowByTitle(page, from).getByTestId("ai-thread-rename").click();
-  const input = page.getByTestId("ai-thread-rename-input");
-  await expect(input).toBeVisible({ timeout: 5_000 });
-  await input.fill(to);
-  await input.press("Enter");
-});
+When(
+  "I rename the chat titled {string} to {string}",
+  async ({ page }, from: string, to: string) => {
+    // Clicking rename swaps the title button for the inline input, so the row
+    // locator by old title no longer matches — scope the input globally (only
+    // one rename is active at a time).
+    await threadRowByTitle(page, from).getByTestId("ai-thread-rename").click();
+    const input = page.getByTestId("ai-thread-rename-input");
+    await expect(input).toBeVisible({ timeout: 5_000 });
+    await input.fill(to);
+    await input.press("Enter");
+  },
+);
 
 When("I delete the chat titled {string}", async ({ page }, title: string) => {
   // Two-step destructive flow (audit S3): first click only requests it.
@@ -1344,9 +1347,9 @@ When("I delete the chat titled {string}", async ({ page }, title: string) => {
 });
 
 Then("a delete confirmation is requested for {string}", async ({ page }, title: string) => {
-  await expect(
-    threadRowByTitle(page, title).getByTestId("ai-thread-delete-confirm"),
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(threadRowByTitle(page, title).getByTestId("ai-thread-delete-confirm")).toBeVisible({
+    timeout: 5_000,
+  });
 });
 
 When("I confirm deleting the chat titled {string}", async ({ page }, title: string) => {
@@ -1373,7 +1376,8 @@ Then("only chats matching {string} are listed", async ({ page }, query: string) 
 
 When("I export the chat as markdown", async ({ page }) => {
   const downloadPromise = page.waitForEvent("download", { timeout: 15_000 });
-  await page.getByTestId("ai-chat-export").click();
+  await page.getByTestId("ai-chat-actions").click();
+  await page.getByRole("menuitem", { name: "Export Markdown", exact: true }).click();
   stateFor(page).downloadName = (await downloadPromise).suggestedFilename();
 });
 
@@ -1406,10 +1410,9 @@ Then(
 );
 
 Then("the schema status reports a manually selected subset", async ({ page }) => {
-  await expect(page.getByTestId("ai-schema-context-hint")).toContainText(
-    "manually selected",
-    { timeout: 15_000 },
-  );
+  await expect(page.getByTestId("ai-schema-context-hint")).toContainText("manually selected", {
+    timeout: 15_000,
+  });
 });
 
 When("I open the connection workspace", async ({ page }) => {
@@ -1434,35 +1437,27 @@ When("I open a new AI tab from the tab strip", async ({ page }) => {
 });
 
 When("I switch back to the {string} workspace tab", async ({ page }, name: string) => {
-  await page
-    .locator('[data-table-tab]')
-    .filter({ hasText: name })
-    .first()
-    .click();
-  await expect(page.locator('[data-table-tab]').filter({ hasText: name }).first()).toHaveAttribute(
-    'data-table-tab-active',
+  await page.locator("[data-table-tab]").filter({ hasText: name }).first().click();
+  await expect(page.locator("[data-table-tab]").filter({ hasText: name }).first()).toHaveAttribute(
+    "data-table-tab-active",
     /.*/,
   );
 });
 
 When("I switch to the AI assistant workspace tab", async ({ page }) => {
-  await page
-    .locator('[data-table-tab]')
-    .filter({ hasText: 'AI Assistant' })
-    .first()
-    .click();
-  await expect(page.getByTestId('ai-chat-page')).toBeVisible({ timeout: 15_000 });
+  await page.locator("[data-table-tab]").filter({ hasText: "AI Assistant" }).first().click();
+  await expect(page.getByTestId("ai-chat-page")).toBeVisible({ timeout: 15_000 });
 });
 
 Then("the AI assistant is visible inside the workspace tabs", async ({ page }) => {
-  await expect(page.getByTestId('ai-chat-page')).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByTestId('connection-tabs-bar')).toBeVisible();
+  await expect(page.getByTestId("ai-chat-page")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("connection-tabs-bar")).toBeVisible();
   // Embedded mode keeps the workspace URL — not the flat /ai route.
-  expect(new URL(page.url()).pathname).not.toContain('/ai');
+  expect(new URL(page.url()).pathname).not.toContain("/ai");
 });
 
 Then("the tab strip shows {int} tabs", async ({ page }, count: number) => {
-  await expect(page.locator('[data-table-tab]')).toHaveCount(count);
+  await expect(page.locator("[data-table-tab]")).toHaveCount(count);
 });
 
 When("I click {string}", async ({ page }, label: string) => {
@@ -1501,17 +1496,20 @@ When("I click the open workspace view card button", async ({ page }) => {
   await page.getByTestId("ai-chat-open-view").click();
 });
 
-Then("a browse tab opens on table {string} with a filter on {string}", async ({ page }, table: string, column: string) => {
-  // Embedded mode keeps the workspace URL; the new tab is active and named.
-  expect(new URL(page.url()).pathname).not.toContain("/ai");
-  await expect(page.locator("[data-table-tab]").last()).toContainText(table);
-  const url = new URL(page.url());
-  // Workspace tab state rides URL-encoded (zipson + base64); decode to assert.
-  const tabsParam = url.searchParams.get("tabs") ?? "";
-  const decoded = Buffer.from(tabsParam, "base64").toString("utf8");
-  expect(decoded).toContain(table);
-  expect(decoded).toContain(column);
-});
+Then(
+  "a browse tab opens on table {string} with a filter on {string}",
+  async ({ page }, table: string, column: string) => {
+    // Embedded mode keeps the workspace URL; the new tab is active and named.
+    expect(new URL(page.url()).pathname).not.toContain("/ai");
+    await expect(page.locator("[data-table-tab]").last()).toContainText(table);
+    const url = new URL(page.url());
+    // Workspace tab state rides URL-encoded (zipson + base64); decode to assert.
+    const tabsParam = url.searchParams.get("tabs") ?? "";
+    const decoded = Buffer.from(tabsParam, "base64").toString("utf8");
+    expect(decoded).toContain(table);
+    expect(decoded).toContain(column);
+  },
+);
 
 Then("the workspace view card is visible", async ({ page }) => {
   await expect(page.getByTestId("ai-chat-workspace-view-card")).toBeVisible();
@@ -1525,7 +1523,15 @@ Given("the chat API streams read-only inspection tool results", async ({ page })
 Then("the preview rows result is visible", async ({ page }) => {
   await expect(page.getByTestId("ai-chat-preview-rows")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("ai-chat-preview-rows")).toContainText("Ada");
+  await expect(page.getByTestId("ai-chat-raw-preview")).not.toHaveAttribute("open");
+  await page.getByTestId("ai-chat-raw-preview").locator("summary").click();
+  await expect(page.getByTestId("ai-chat-raw-preview")).toHaveAttribute("open", "");
 });
+
+Then("the successful AI reply does not offer retry", async ({ page }) => {
+  await expect(page.locator(THREAD).getByText("Try again")).toHaveCount(0);
+});
+
 
 Then("the table details result is visible", async ({ page }) => {
   await expect(page.getByTestId("ai-chat-table-details")).toBeVisible({ timeout: 20_000 });

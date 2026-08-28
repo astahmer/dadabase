@@ -375,7 +375,14 @@ export const createChatRuntime = (options: ChatRuntimeOptions): ChatRuntime => {
 
   const currentStore = (): Pick<
     ConversationStoreContext,
-    "conversations" | "threads" | "memories" | "memorySummary" | "loading" | "error"
+    | "conversations"
+    | "threads"
+    | "memories"
+    | "memorySummary"
+    | "requestedConversationId"
+    | "historyWarning"
+    | "loading"
+    | "error"
   > => {
     const snapshot = childSnapshot("conversationStore");
     return (
@@ -384,6 +391,8 @@ export const createChatRuntime = (options: ChatRuntimeOptions): ChatRuntime => {
         threads: [] as ConversationThread[],
         memories: [] as Memory[],
         memorySummary: undefined as MemorySummary | undefined,
+        requestedConversationId: undefined,
+        historyWarning: undefined,
         loading: {
           conversations: false,
           conversation: false,
@@ -451,6 +460,8 @@ export const createChatRuntime = (options: ChatRuntimeOptions): ChatRuntime => {
         isStreaming,
         isSending: session.sendPending,
         isSendGraceActive: isStreaming && session.sendGrace,
+        streamOutcome: session.streamOutcome,
+        failedStreamMessageId: session.failedStreamMessageId,
       },
       composer: {
         text: session.draft,
@@ -461,6 +472,7 @@ export const createChatRuntime = (options: ChatRuntimeOptions): ChatRuntime => {
         items: store.conversations.map(conversationToProtocol),
         search: ui.conversationSearch,
         loading: store.loading.conversations,
+        activeLoading: store.loading.conversation || store.loading.thread,
         error: store.error,
       },
       memories: {
@@ -479,6 +491,7 @@ export const createChatRuntime = (options: ChatRuntimeOptions): ChatRuntime => {
         attachments: followUp.files,
       })),
       error: session.error ?? store.error ?? currentBrowser().error ?? undefined,
+      historyWarning: store.historyWarning,
       errorMessageId: session.errorMessageId,
       ui: {
         conversationSearch: ui.conversationSearch,

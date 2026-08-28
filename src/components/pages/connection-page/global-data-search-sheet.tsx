@@ -10,6 +10,19 @@ import { Button } from "../../ui/button.tsx";
 import { Input } from "../../ui/input.tsx";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../../ui/sheet.tsx";
 
+export const formatDatabaseSearchValue = (value: unknown): string => {
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
 export const GlobalDataSearchSheet = (props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -90,7 +103,7 @@ export const GlobalDataSearchSheet = (props: {
                     {result.table}.{result.column}
                   </span>
                   <span className="text-muted-foreground mt-0.5 block truncate font-mono text-xs">
-                    {result.value}
+                    {formatDatabaseSearchValue(result.value)}
                   </span>
                 </button>
               ))}

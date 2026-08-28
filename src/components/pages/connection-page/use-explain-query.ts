@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { DatabaseDialect } from "#src/db/dialect.ts";
@@ -29,15 +29,13 @@ function isExplainSupported(dialect: DatabaseDialect): boolean {
 export function useExplainQuery({ connectionUrl, sql, dialect }: UseExplainQueryOptions) {
   const [showExplainPanel, setShowExplainPanel] = useState(false);
 
-  const explainQuery = useQuery({
-    enabled: false,
-    queryKey: ["remote", "explain", dialect, sql],
-    queryFn: async () => {
+  const explainQuery = useMutation({
+    mutationFn: async (querySql: string | undefined) => {
       if (!isExplainSupported(dialect)) {
         return "Error: Query explain is not supported for this dialect";
       }
 
-      if (!sql) {
+      if (!querySql) {
         return "Error: No SQL query to explain";
       }
 
@@ -46,7 +44,7 @@ export function useExplainQuery({ connectionUrl, sql, dialect }: UseExplainQuery
         const result = await explainQueryServerFn({
           data: {
             url: connectionUrl,
-            sql,
+            sql: querySql,
           },
         });
 
@@ -60,8 +58,14 @@ export function useExplainQuery({ connectionUrl, sql, dialect }: UseExplainQuery
     },
   });
 
+  const explain = (statementSql?: string) => {
+    setShowExplainPanel(true);
+    explainQuery.mutate(statementSql ?? sql);
+  };
+
   return {
     explainQuery,
+    explain,
     showExplainPanel,
     setShowExplainPanel,
     isExplainDisabled: !isExplainSupported(dialect),

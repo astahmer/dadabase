@@ -18,6 +18,13 @@ export interface SqlStatement {
   endOffset: number;
 }
 
+/** Returns the statement containing an editor cursor offset, if any. */
+export const findSqlStatementAtOffset = (
+  statements: readonly SqlStatement[],
+  offset: number,
+): SqlStatement | undefined =>
+  statements.find((statement) => offset >= statement.startOffset && offset <= statement.endOffset);
+
 function computeLineStarts(script: string): number[] {
   const starts = [0];
   for (let i = 0; i < script.length; i++) {

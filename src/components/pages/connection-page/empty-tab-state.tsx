@@ -28,6 +28,7 @@ interface EmptyTabState {
   connection: DbConnection;
   tables: Array<{ schema: string; name: string }>;
   columns: Array<TableWithColumnsMetadata>;
+  tablesUnavailable?: boolean;
 }
 
 /** Substring filter over schema+name, case-insensitive; exported for tests. */
@@ -128,6 +129,7 @@ export const EmptyTabState = (props: EmptyTabState) => {
           connection={connection}
           activeConnectionUrl={activeConnectionUrl}
           selectedSchema={selectedSchema}
+          tablesUnavailable={props.tablesUnavailable}
         />
       )}
 
@@ -209,6 +211,7 @@ const TableSearchListbox = (props: {
   connection: DbConnection;
   activeConnectionUrl: string;
   selectedSchema: string;
+  tablesUnavailable?: boolean;
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -239,6 +242,7 @@ const TableSearchListbox = (props: {
       url: props.activeConnectionUrl,
       schema: effectiveSchema,
     }),
+    enabled: !props.tablesUnavailable,
     retry: 3,
   });
   const tableList = tablesListQuery.data ?? [];
@@ -333,7 +337,14 @@ const TableSearchListbox = (props: {
         />
       </div>
 
-      {tablesListQuery.isError ? (
+      {props.tablesUnavailable ? (
+        <div
+          className="text-muted-foreground py-8 text-center text-sm"
+          data-testid="empty-tab-tables-unavailable"
+        >
+          Tables are unavailable until this connection is reachable.
+        </div>
+      ) : tablesListQuery.isError ? (
         <ErrorBoundaryCard
           error={tablesListQuery.error}
           title="Could not load tables"

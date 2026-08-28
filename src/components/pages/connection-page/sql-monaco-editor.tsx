@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType, type MutableRefObject } from "react";
 
 import type { TableWithColumnsMetadata } from "#src/server/introspection/introspection.ts";
 
@@ -14,8 +14,12 @@ export interface SqlMonacoEditorProps {
   /** Available columns grouped by table */
   columns?: TableWithColumnsMetadata[];
   hasMultipleSchemas?: boolean;
-  /** Callback when Ctrl+Enter is pressed */
-  onSubmit?: (editorValue: string) => void;
+  /** Callback when Ctrl+Enter is pressed, with the statement at the cursor. */
+  onSubmit?: (editorValue: string, statementSql?: string) => void;
+  /** Called when the cursor/selection moves to a different statement. */
+  onStatementChange?: (statementSql: string | undefined) => void;
+  /** Callback when Cmd/Ctrl+S saves the current statement as a favorite. */
+  onSave?: (editorValue: string, statementSql?: string) => void;
   /** Auto-focus the editor on mount */
   autoFocus?: boolean;
   /** Placeholder text to show when editor is empty */
@@ -29,6 +33,8 @@ export interface SqlMonacoEditorProps {
     id: "run" | "explain" | "format" | "fullscreen" | "copy" | "save",
     statementSql?: string,
   ) => void;
+  /** Lets surrounding menus insert text at the current cursor/selection. */
+  insertTextAtCursorRef?: MutableRefObject<((text: string) => void) | null>;
 }
 
 /**

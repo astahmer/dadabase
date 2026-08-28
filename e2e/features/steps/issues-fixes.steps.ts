@@ -80,10 +80,14 @@ When("I expand the SQL query panel", async ({ page }) => {
   await expect(toggle).toBeVisible({ timeout: 15_000 });
   // Portal may render the toggle in the filters bar; click to expand if collapsed
   const monaco = page.getByTestId("sql-monaco-panel");
-  if (!(await monaco.isVisible().catch(() => false))) {
+  const editor = monaco.locator(".monaco-editor");
+  if (!(await editor.isVisible().catch(() => false))) {
     await toggle.click();
   }
-  await expect(monaco).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId("sql-monaco-editor-loading")).toHaveCount(0, {
+    timeout: 30_000,
+  });
+  await expect(editor).toBeVisible({ timeout: 10_000 });
 });
 
 Then("I should see the unified SQL editor", async ({ page }) => {

@@ -21,6 +21,7 @@ export class PoolCache extends Context.Service<
       url: string,
       dialect: DatabaseDialect,
     ) => Effect.Effect<Layer.Layer<SqlClient.SqlClient, SqlError>, SqlError>;
+    readonly touch: (url: string) => Effect.Effect<void>;
     readonly getMetrics: () => Effect.Effect<{
       poolCount: number;
       urls: string[];
@@ -234,6 +235,13 @@ export const makePoolCacheLive = Layer.effect(
               }),
             ),
           );
+        }),
+
+      touch: (url: string) =>
+        Ref.update(cacheRef, (cache) => {
+          const entry = cache.get(url);
+          if (!entry) return cache;
+          return new Map(cache).set(url, { ...entry, lastUsed: Date.now() });
         }),
 
       getMetrics: () =>

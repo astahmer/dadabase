@@ -199,9 +199,9 @@ export const QueryLoggerContent = ({
           )}
           {connectionId && (
             <Button
-              variant={showFavorites ? "default" : "ghost"}
+              variant={showFavorites ? "secondary" : "ghost"}
               size="sm"
-              className="h-7 gap-1 px-2"
+              className="h-7 gap-1.5 rounded-md px-2 text-xs font-medium"
               data-testid="query-favorites-toggle"
               onClick={(e) => {
                 e.stopPropagation();
@@ -210,9 +210,7 @@ export const QueryLoggerContent = ({
               }}
             >
               <Star className="h-3.5 w-3.5" />
-              <Badge colorPalette="muted" size="2xs">
-                Favorites
-              </Badge>
+              Favorites
             </Button>
           )}
           {isExpanded !== undefined && (onCollapse || onExpand) && (
@@ -430,7 +428,15 @@ export const QueryLoggerContent = ({
                       <Badge colorPalette="warning" size="2xs">
                         Favorite
                       </Badge>
-                      <p className="truncate text-xs font-medium">{fav.label}</p>
+                      <button
+                        type="button"
+                        className="text-foreground min-w-0 truncate text-left text-xs font-semibold underline-offset-2 hover:underline focus-visible:underline"
+                        data-testid="query-favorite-title"
+                        title="Open this favorite in the SQL editor"
+                        onClick={() => onOpenQueryInEditor?.(fav.sql)}
+                      >
+                        {fav.label}
+                      </button>
                     </div>
                     <p className="text-muted-foreground truncate font-mono text-xs">{fav.sql}</p>
                   </div>
