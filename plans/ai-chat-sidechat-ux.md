@@ -218,24 +218,31 @@ Provider keys remain browser-local and must never be included in URL state.
 - [x] Add the active-table contextual entry point.
 - [x] Reuse the existing runtime/thread persistence path.
 - [x] Add full-chat promotion and close/focus-return behavior.
+- [x] Preserve workspace tabs and layout when sidebar, icon-rail, command-palette,
+      or sidechat links open the full AI route.
 
 ### Phase 3 — Onboarding and composer
 
-- [ ] Compact provider setup and collapse after configuration.
-- [ ] Clarify provider scope/storage and add connection test affordance.
+- [x] Compact provider setup and collapse after configuration.
+- [x] Clarify provider scope/storage; a provider connection test remains a future
+      follow-up because endpoints do not share a reliable provider-neutral probe.
 - [x] Add auto-growing composer.
 - [x] Allow drafting during streaming; queued follow-ups remain a follow-up.
-- [ ] Add schema-aware starter prompts and context attachment controls.
+- [x] Add schema-aware starter prompts based on the available table list.
+- [ ] Add general context attachment controls for selections and result values.
 
 ### Phase 4 — Conversation quality and accessibility
 
 - [x] Improve turn rhythm and adaptive response width.
 - [x] Upgrade tool card labels and approval visibility.
-- [ ] Add selected message actions where relevant.
-- [ ] Add context/cost estimates and better streaming/error states.
+- [x] Add selected message actions where relevant (copy, edit, retry, fork,
+      remember, and Markdown export already ship in the thread message footer).
+- [x] Add context/cost estimates and better streaming/error states (per-message
+      token counts, thread totals, context receipts, elapsed streaming status,
+      cancel, retry, and jump-to-latest are present).
 - [x] Add sidechat dialog semantics, focus management, and keyboard affordances.
-- [ ] Add reduced-motion handling,
-      and responsive/zoom QA.
+- [x] Add reduced-motion handling for chat loading and status animations.
+- [ ] Complete the remaining tablet, browser-zoom, and light/dark visual matrix.
 
 ### Phase 5 — Validation
 
@@ -285,3 +292,8 @@ repository lint command still reports existing violations outside this change.
 - 2026-08-28: Preserve the existing full AI surface and reuse its runtime/thread
   persistence.
 - 2026-08-28: Keep provider secrets browser-local and out of URL state.
+- 2026-08-28: Full AI navigation intentionally retains parent workspace search
+  state; tabs and layout are part of the user's working context, not stale query
+  noise to strip.
+- 2026-08-28: Starter prompts use resolved table names and only seed the local
+  composer; they do not silently attach row values.

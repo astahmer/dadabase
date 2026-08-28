@@ -128,7 +128,7 @@ export const ThreadMessage = ({
             className="group bg-muted/40 rounded-xl border"
           >
             <summary className="text-muted-foreground flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium">
-              <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180" />
+              <ChevronDownIcon className="size-4 transition-transform group-open:rotate-180 motion-reduce:transition-none" />
               Context compacted
             </summary>
             <p className="border-t px-4 py-3 text-sm whitespace-pre-wrap">{summaryText}</p>
@@ -187,9 +187,13 @@ export const ThreadMessage = ({
                   role="status"
                 >
                   <span>Thinking</span>
-                  <span className="animate-bounce">·</span>
-                  <span className="animate-bounce [animation-delay:120ms]">·</span>
-                  <span className="animate-bounce [animation-delay:240ms]">·</span>
+                  <span className="animate-bounce motion-reduce:animate-none">·</span>
+                  <span className="animate-bounce [animation-delay:120ms] motion-reduce:animate-none">
+                    ·
+                  </span>
+                  <span className="animate-bounce [animation-delay:240ms] motion-reduce:animate-none">
+                    ·
+                  </span>
                 </span>
               )}
               {canRegenerate && regenerateText !== undefined && (
@@ -326,7 +330,7 @@ export const ThreadMessage = ({
               disabled={isRemembering}
             >
               {isRemembering ? (
-                <LoaderIcon className="size-3.5 animate-spin" />
+                <LoaderIcon className="size-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
                 <BookmarkIcon className={cn("size-3.5", isRemembered && "fill-current")} />
               )}

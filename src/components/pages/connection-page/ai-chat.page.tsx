@@ -208,22 +208,9 @@ const AiChatPageInner = ({
   onOpenFullChat?: () => void;
 }) => {
   const navigate = useNavigate();
-  // Audit T5: workspace tab-state writers can fire while the /ai child route
-  // is active (they `navigate({ search })` without a destination, so the tab
-  // fields land on this route's URL). Strip inherited tab keys so shared
-  // links stay clean. `thread`/`askTable` are ours and are kept.
-  useEffect(() => {
-    // Embedded mode lives in the workspace tab state — inherited keys are ours.
-    if (embedded) return;
-    const params = new URLSearchParams(window.location.search);
-    const stale = [...params.keys()].filter((key) => key !== "thread" && key !== "askTable");
-    if (stale.length === 0) return;
-    // Same mechanism as the K4 seed: plain history API keeps this component
-    // routable both from the flat route and embedded inside a workspace tab.
-    const url = new URL(window.location.href);
-    for (const key of stale) url.searchParams.delete(key);
-    window.history.replaceState({}, "", url);
-  }, [embedded]);
+  // The full-page chat is still rendered inside the connection workspace
+  // shell. Keep inherited workspace search state intact so its tabs and pane
+  // layout survive an AI visit and the back link can restore the exact view.
   // Dialect-aware: SQLite/LibSQL live in "main", Postgres in "public".
   const [schema] = useState(() => getDialectDefaultSchema(connection.dialect));
   const [settingsOpen, setSettingsOpen] = useState(
@@ -401,6 +388,7 @@ const AiChatPageInner = ({
           <Link
             to="/connections/$connectionName"
             params={{ connectionName: connection.name }}
+            search={(prev) => prev}
             className={buttonVariants({ variant: "ghost", size: "sm" })}
             data-testid="ai-chat-back"
           >
@@ -618,7 +606,7 @@ const ProviderSettingsSection = ({
         <KeyRound className="text-muted-foreground size-3.5" />
         <h2 className="text-sm font-medium">Provider</h2>
         <span className="text-muted-foreground ml-auto text-xs">
-          BYOK — config stays in this browser; requests are proxied and never stored server-side.
+          BYOK — browser-global config; requests are proxied and never stored server-side.
         </span>
       </button>
       {open && (
@@ -1292,6 +1280,7 @@ const AiChatBody = ({
           dialect={connection.dialect}
           initialAskTable={initialAskTable}
           initialAiIntent={initialAiIntent}
+          tableNames={schemaContext.tables.map((table) => table.table)}
           onAdoptAutoTables={onAdoptAutoTables}
           onOpenSchemaPanel={onOpenSchemaPanel}
         />
@@ -1895,6 +1884,7 @@ const ChatSurface = ({
   onOpenSchemaPanel,
   initialAskTable,
   initialAiIntent,
+  tableNames,
 }: {
   connectionName: string;
   onApplySql: (sql: string, meta?: ChatReturnMeta) => void;
@@ -1929,6 +1919,7 @@ const ChatSurface = ({
   /** Audit K4: `?askTable=` pre-seeds draft + Selected scope for one table. */
   initialAskTable?: string;
   initialAiIntent?: "chat" | "sql";
+  tableNames: readonly string[];
 }) => {
   const messages = useChatSelector((s) => s.activeThread.messages);
   const isStreaming = useChatSelector((s) => s.activeThread.isStreaming);
@@ -2067,6 +2058,15 @@ const ChatSurface = ({
   };
 
   const composerFocus = () => composerRef.current?.focus();
+  const starterPrompts = useMemo(() => {
+    const table = initialAskTable || tableNames[0];
+    if (!table) return [];
+    return [
+      `How many rows are in \`${table}\`?`,
+      `What columns are in \`${table}\`?`,
+      `Show me a useful summary of \`${table}\`.`,
+    ];
+  }, [initialAskTable, tableNames]);
 
   useEffect(() => {
     const element = composerRef.current;
@@ -2411,6 +2411,25 @@ const ChatSurface = ({
                 Ask a question about this database — the assistant proposes SQL, you review it
                 before it runs.
               </p>
+              {starterPrompts.length > 0 ? (
+                <div className="flex max-w-full flex-wrap justify-center gap-2">
+                  {starterPrompts.map((prompt) => (
+                    <Button
+                      key={prompt}
+                      size="xs"
+                      variant="outline"
+                      disabled={consentRequired || !providerReady}
+                      onClick={() => {
+                        actions.setDraft({ text: prompt });
+                        composerFocus();
+                      }}
+                      data-testid="ai-starter-prompt"
+                    >
+                      {prompt}
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
               {/* Audit C7: one primary action instead of a 90%-empty viewport. */}
               <Button
                 size="sm"

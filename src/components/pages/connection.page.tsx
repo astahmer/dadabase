@@ -313,6 +313,16 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       search: (prev) => ({ ...prev, queryLoggerSize: 48 }),
     });
   };
+  // AI is a child route of the workspace. Preserve the parent search state so
+  // returning from chat does not discard the user's open tabs, active tab, or
+  // layout settings.
+  const openAiAssistant = useCallback(() => {
+    void navigate({
+      to: "/connections/$connectionName/ai",
+      params: { connectionName: connection.name },
+      search: (prev) => prev,
+    });
+  }, [connection.name, navigate]);
   const sidebarPanelMinSize = layoutZenMode || isCompactViewport ? 0 : sidebarMinSize;
   const sidebarPanelMaxSize = isCompactViewport ? 80 : sidebarMaxSize;
   const queryLoggerPanelMinSize = 0;
@@ -417,10 +427,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
           toggleZenMode();
           break;
         case COMMAND_PALETTE_IDS.openAi:
-          void navigate({
-            to: "/connections/$connectionName/ai",
-            params: { connectionName: connection.name },
-          });
+          openAiAssistant();
           break;
         case COMMAND_PALETTE_IDS.openFavorites:
           setQueryLoggerPaletteView("favorites");
@@ -462,7 +469,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
           break;
       }
     },
-    [navigate, search.schema, connection.dialect, toggleZenMode],
+    [navigate, search.schema, connection.dialect, toggleZenMode, openAiAssistant],
   );
 
   const openSqlInNewTab = useCallback(
@@ -507,12 +514,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
               <ConnectionSwitcher
                 connection={connection}
                 onAddConnection={() => setShowAddConnectionDrawer(true)}
-                onOpenAiAssistant={() =>
-                  void navigate({
-                    to: "/connections/$connectionName/ai",
-                    params: { connectionName: connection.name },
-                  })
-                }
+                onOpenAiAssistant={openAiAssistant}
                 onOpenHistory={() => openQueryLogger("history")}
                 onOpenFavorites={() => openQueryLogger("favorites")}
                 onOpenSchemaExplorer={() =>
@@ -594,12 +596,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                       connection={connection}
                       activeConnectionUrl={activeConnectionUrl}
                       onAddConnection={() => setShowAddConnectionDrawer(true)}
-                      onOpenAiAssistant={() =>
-                        void navigate({
-                          to: "/connections/$connectionName/ai",
-                          params: { connectionName: connection.name },
-                        })
-                      }
+                      onOpenAiAssistant={openAiAssistant}
                       onOpenHistory={() => openQueryLogger("history")}
                       onOpenFavorites={() => openQueryLogger("favorites")}
                     />
@@ -760,9 +757,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                                 void navigate({
                                   to: "/connections/$connectionName/ai",
                                   params: { connectionName: connection.name },
-                                  search: getCurrentChatConversationId()
-                                    ? { thread: getCurrentChatConversationId() }
-                                    : {},
+                                  search: (prev) => {
+                                    const conversationId = getCurrentChatConversationId();
+                                    return conversationId
+                                      ? { ...prev, thread: conversationId }
+                                      : prev;
+                                  },
                                 });
                               }}
                             />
