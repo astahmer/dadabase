@@ -2,7 +2,7 @@ import type { AiSchemaContext } from "./ai-types.ts";
 
 /**
  * Which tables ride along as schema context in chat requests.
- * - "all": every table (default; matches the historical behavior).
+ * - "all": every table.
  * - "selected": only the user-checked tables (client-side filter).
  * - "auto": the full table list is sent to /api/chat, which first runs one
  *   lightweight model call to pick the needed subset before the main stream.
@@ -17,7 +17,7 @@ export interface StoredChatSchemaSelection {
   selectedTables?: string[];
 }
 
-const DEFAULT_SELECTION: StoredChatSchemaSelection = { mode: "all" };
+const DEFAULT_SELECTION: StoredChatSchemaSelection = { mode: "auto" };
 
 const storageKey = (connectionName: string): string =>
   `dadabase.chat.schema-selection.${connectionName}`;
@@ -28,11 +28,9 @@ export const SCHEMA_SELECTION_CHANGED_EVENT = "dadabase:schema-selection-changed
 export const normalizeChatSchemaMode = (value: unknown): ChatSchemaMode =>
   typeof value === "string" && (CHAT_SCHEMA_MODES as string[]).includes(value)
     ? (value as ChatSchemaMode)
-    : "all";
+    : "auto";
 
-export const getStoredChatSchemaSelection = (
-  connectionName: string,
-): StoredChatSchemaSelection => {
+export const getStoredChatSchemaSelection = (connectionName: string): StoredChatSchemaSelection => {
   if (typeof window === "undefined") return DEFAULT_SELECTION;
   try {
     const raw = window.localStorage.getItem(storageKey(connectionName));

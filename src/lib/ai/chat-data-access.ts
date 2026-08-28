@@ -12,8 +12,8 @@ export interface ChatDataAccess {
 
 export const DEFAULT_CHAT_DATA_ACCESS: ChatDataAccess = {
   schema: true,
-  sampleRows: false,
-  queryResults: false,
+  sampleRows: true,
+  queryResults: true,
 };
 
 const storageKey = (connectionName: string): string =>
@@ -26,8 +26,8 @@ export const normalizeChatDataAccess = (value: unknown): ChatDataAccess => {
   if (!isRecord(value)) return { ...DEFAULT_CHAT_DATA_ACCESS };
   return {
     schema: value.schema !== false,
-    sampleRows: value.sampleRows === true,
-    queryResults: value.queryResults === true,
+    sampleRows: value.sampleRows !== false,
+    queryResults: value.queryResults !== false,
   };
 };
 
@@ -55,7 +55,7 @@ export const setStoredChatDataAccess = (connectionName: string, access: ChatData
   }
 };
 
-/** Row-returning tools are opt-in even when a user enabled the tool itself. */
+/** Row-returning tools can still be disabled even when the tools are enabled. */
 export const applyChatDataAccessToTools = (
   enabledTools: readonly ChatToolId[],
   access: ChatDataAccess,

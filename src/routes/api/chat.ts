@@ -187,6 +187,7 @@ const runSqlToolExecute = async ({
       return record;
     });
     return toJsonSafeValue({
+      sql,
       ok: true as const,
       columns: result.columns,
       rowCount: result.rowCount,
@@ -529,7 +530,7 @@ export const Route = createFileRoute("/api/chat")({
               ? {
                   propose_sql: tool({
                     description:
-                      "Create a SQL statement that answers the user's question. Always use this tool instead of writing SQL in plain text.",
+                      "Create a SQL statement that answers the user's question. For a reasonably answerable data question, call this immediately instead of asking for clarification first. Always use this tool instead of writing SQL in plain text.",
                     inputSchema: z.object({
                       sql: z.string().min(1),
                       explanation: z.string().min(1),
@@ -542,7 +543,7 @@ export const Route = createFileRoute("/api/chat")({
               ? {
                   run_sql: tool({
                     description:
-                      "Execute a SQL statement against the connected database. Requires explicit user approval before it runs.",
+                      "Execute the drafted read-only SQL to answer a reasonably answerable data question. Requires explicit user approval before it runs.",
                     needsApproval: true,
                     inputSchema: z.object({
                       sql: z.string().min(1),

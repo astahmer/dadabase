@@ -246,6 +246,26 @@ const dataToolsChunks = (): Array<Record<string, unknown>> => [
     toolCallId: "explain-call",
     output: { ok: true, rows: [{ plan: "Seq Scan on users" }] },
   },
+  {
+    type: "tool-input-available",
+    toolCallId: "run-call",
+    toolName: "run_sql",
+    input: { sql: "SELECT * FROM users LIMIT 2" },
+  },
+  {
+    type: "tool-output-available",
+    toolCallId: "run-call",
+    output: {
+      ok: true,
+      sql: "SELECT * FROM users LIMIT 2",
+      columns: ["id", "name"],
+      rowCount: 2,
+      rows: [
+        { id: 1, name: "Ada" },
+        { id: 2, name: "Grace" },
+      ],
+    },
+  },
   { type: "finish-step" },
   { type: "finish", finishReason: "stop" },
 ];
@@ -360,6 +380,12 @@ const approveConsentNow = async (page: Page): Promise<void> => {
 };
 
 const approveConsentIfPresent = async (page: Page): Promise<void> => {
+  const sidechatConsent = page.getByTestId("ai-sidechat-approve-schema");
+  if (await sidechatConsent.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await sidechatConsent.click();
+    await expect(sidechatConsent).toBeHidden({ timeout: 10_000 });
+    return;
+  }
   const consent = page.getByTestId(CONSENT_PARAM);
   if (await consent.isVisible({ timeout: 2_000 }).catch(() => false)) {
     await approveConsentNow(page);
@@ -1556,6 +1582,17 @@ Then("the preview rows result is visible", async ({ page }) => {
   await expect(page.getByTestId("ai-chat-raw-preview")).toContainText("metadata");
 });
 
+Then("the AI sidechat suggestions are expanded", async ({ page }) => {
+  await expect(page.getByTestId("ai-sidechat-suggestions")).toHaveAttribute("open", "");
+});
+
+Then("the successful SQL result asks for a follow-up check-in", async ({ page }) => {
+  await expect(page.getByTestId("ai-chat-result-followup")).toContainText(
+    "Does this result match what you expected?",
+    { timeout: 20_000 },
+  );
+});
+
 Then("the successful AI reply does not offer retry", async ({ page }) => {
   await expect(page.locator(THREAD).getByText("Retry message")).toHaveCount(0);
 });
@@ -1580,6 +1617,23 @@ When("I resize the AI sidechat to its wide keyboard size", async ({ page }) => {
   const handle = page.getByTestId("ai-sidechat-resize-handle");
   await handle.focus();
   await handle.press("End");
+});
+
+When("I drag the AI sidechat resize handle outward", async ({ page }) => {
+  const handle = page.getByTestId("ai-sidechat-resize-handle");
+  const before = Number(await handle.getAttribute("aria-valuenow"));
+  const box = await handle.boundingBox();
+  expect(box).not.toBeNull();
+  // The default side is right: moving the left edge left grows the panel.
+  const x = box!.x + box!.width / 2;
+  const y = box!.y + box!.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 80, y, { steps: 4 });
+  await page.mouse.up();
+  await expect
+    .poll(async () => Number(await handle.getAttribute("aria-valuenow")))
+    .toBeGreaterThan(before);
 });
 
 Then("the AI sidechat matches the {string} visual snapshot", async ({ page }, name: string) => {

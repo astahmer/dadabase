@@ -262,7 +262,7 @@ Feature: AI chat assistant
     When I open the AI chat page
     And I approve sharing schema context
     And I open the AI schema settings
-    Then the schema mode switcher is a labelled radiogroup with "All" checked
+    Then the schema mode switcher is a labelled radiogroup with "Auto" checked
     When I pick schema mode "Auto"
     Then schema mode "Auto" reports checked and "All" does not
 
@@ -546,6 +546,7 @@ Feature: AI chat assistant
     And the readable AI preview matches its visual snapshot
     And the table details result is visible
     And the explain SQL result is visible
+    And the successful SQL result asks for a follow-up check-in
     And the successful AI reply does not offer retry
 
   Scenario: AI sidechat stays readable across desktop and narrow widths
@@ -553,7 +554,10 @@ Feature: AI chat assistant
     When I open the connection workspace
     And I pick table "users" from the new-tab listbox
     And I open the AI sidechat
+    And I approve sharing schema context if needed
+    Then the AI sidechat suggestions are expanded
     Then the AI sidechat matches the "default" visual snapshot
+    When I drag the AI sidechat resize handle outward
     When I resize the AI sidechat to its wide keyboard size
     Then the AI sidechat matches the "wide" visual snapshot
     When I set a narrow mobile viewport

@@ -90,34 +90,46 @@ const makeChatThreadRepository = Effect.gen(function* () {
       threadId: string;
       messages: ReadonlyArray<UpsertChatMessageInput>;
     }) {
-      yield* db.execute(db.deleteFrom("chat_messages").where("thread_id", "=", input.threadId));
-      for (const message of input.messages) {
-        if (message.role === "user" || message.role === "assistant") {
-          yield* db.execute(
-            db.insertInto("chat_messages").values({
-              id: message.id,
-              thread_id: message.threadId,
-              role: message.role,
-              parts: JSON.stringify(message.parts),
-              model: message.model ?? null,
-              usage:
-                message.usage === undefined || message.usage === null
-                  ? null
-                  : JSON.stringify(message.usage),
-              context:
-                message.context === undefined || message.context === null
-                  ? null
-                  : JSON.stringify(message.context),
-              created_at: Date.now(),
-            }),
+      // Two streams can finish close together for the same conversation.
+      // Keep replacement atomic so delete + insert cannot interleave and
+      // violate the chat_messages primary key.
+      const uniqueMessages = [
+        ...new Map(input.messages.map((message) => [message.id, message])).values(),
+      ];
+      yield* db.transaction().execute((trx) =>
+        Effect.gen(function* () {
+          yield* trx.execute(
+            trx.deleteFrom("chat_messages").where("thread_id", "=", input.threadId),
           );
-        }
-      }
-      yield* db.execute(
-        db
-          .updateTable("chat_threads")
-          .set({ updated_at: Date.now() })
-          .where("id", "=", input.threadId),
+          for (const message of uniqueMessages) {
+            if (message.role === "user" || message.role === "assistant") {
+              yield* trx.execute(
+                trx.insertInto("chat_messages").values({
+                  id: message.id,
+                  thread_id: message.threadId,
+                  role: message.role,
+                  parts: JSON.stringify(message.parts),
+                  model: message.model ?? null,
+                  usage:
+                    message.usage === undefined || message.usage === null
+                      ? null
+                      : JSON.stringify(message.usage),
+                  context:
+                    message.context === undefined || message.context === null
+                      ? null
+                      : JSON.stringify(message.context),
+                  created_at: Date.now(),
+                }),
+              );
+            }
+          }
+          yield* trx.execute(
+            trx
+              .updateTable("chat_threads")
+              .set({ updated_at: Date.now() })
+              .where("id", "=", input.threadId),
+          );
+        }),
       );
     }),
   };

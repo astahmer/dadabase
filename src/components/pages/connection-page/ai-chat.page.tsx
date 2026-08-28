@@ -1335,7 +1335,7 @@ const SchemaSettingsSection = ({
   connectionName: string;
   defaultOpen?: boolean;
 }) => {
-  const [selection, setSelection] = useState<StoredChatSchemaSelection>({ mode: "all" });
+  const [selection, setSelection] = useState<StoredChatSchemaSelection>({ mode: "auto" });
   const [hydrated, setHydrated] = useState(false);
   const [open, setOpen] = useState(defaultOpen);
 
@@ -3226,6 +3226,12 @@ const ChatSurface = ({
               </pre>
               <CopySqlButton sql={sql} />
             </div>
+            {toolName === "run_sql" && result.ok !== false ? (
+              <p className="text-muted-foreground text-xs" data-testid="ai-chat-result-followup">
+                Does this result match what you expected? Ask a follow-up if you want to adjust the
+                metric, filters, or time range.
+              </p>
+            ) : null}
             <div className="flex gap-1.5">
               <Button
                 size="xs"
@@ -3338,6 +3344,7 @@ const ChatSurface = ({
                     variant === "sidechat" ? (
                       <details
                         className="group w-full max-w-sm rounded-md border px-3 py-2 text-left"
+                        open
                         data-testid="ai-sidechat-suggestions"
                       >
                         <summary className="text-foreground flex cursor-pointer list-none items-center justify-between text-xs font-medium">

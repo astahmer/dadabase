@@ -362,8 +362,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
         if (!start) return;
         const delta =
           sidechatSide === "left"
-            ? start.startX - moveEvent.clientX
-            : moveEvent.clientX - start.startX;
+            ? moveEvent.clientX - start.startX
+            : start.startX - moveEvent.clientX;
         const next = Math.round(
           Math.min(
             CHAT_SIDECHAT_WIDTH_MAX,

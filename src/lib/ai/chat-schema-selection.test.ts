@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AiSchemaContext } from "./ai-types.ts";
+
 import {
   applySelectedTables,
   getStoredChatSchemaSelection,
@@ -24,12 +25,12 @@ const makeSchema = (names: string[]): AiSchemaContext => ({
 });
 
 describe("normalizeChatSchemaMode", () => {
-  it("passes known modes through and defaults unknown values to all", () => {
+  it("passes known modes through and defaults unknown values to auto", () => {
     expect(normalizeChatSchemaMode("auto")).toBe("auto");
     expect(normalizeChatSchemaMode("selected")).toBe("selected");
-    expect(normalizeChatSchemaMode("nonsense")).toBe("all");
-    expect(normalizeChatSchemaMode(undefined)).toBe("all");
-    expect(normalizeChatSchemaMode(42)).toBe("all");
+    expect(normalizeChatSchemaMode("nonsense")).toBe("auto");
+    expect(normalizeChatSchemaMode(undefined)).toBe("auto");
+    expect(normalizeChatSchemaMode(42)).toBe("auto");
   });
 });
 
@@ -97,12 +98,9 @@ describe("storage round-trip", () => {
     expect(getStoredChatSchemaSelection("conn-b")).toEqual({ mode: "auto" });
   });
 
-  it("corrupt storage falls back to the default (all)", () => {
-    window.localStorage.setItem(
-      "dadabase.chat.schema-selection.broken",
-      "{not json",
-    );
-    expect(getStoredChatSchemaSelection("broken")).toEqual({ mode: "all" });
+  it("corrupt storage falls back to the default (auto)", () => {
+    window.localStorage.setItem("dadabase.chat.schema-selection.broken", "{not json");
+    expect(getStoredChatSchemaSelection("broken")).toEqual({ mode: "auto" });
   });
 
   it("unknown stored modes and non-string table names are normalized away", () => {
@@ -111,7 +109,7 @@ describe("storage round-trip", () => {
       JSON.stringify({ mode: "bogus", selectedTables: ["ok", 7, null] }),
     );
     expect(getStoredChatSchemaSelection("weird")).toEqual({
-      mode: "all",
+      mode: "auto",
       selectedTables: ["ok"],
     });
   });

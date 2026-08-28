@@ -151,10 +151,11 @@ export const buildChatSystemPrompt = (input: {
     "",
     "Workflow:",
     `1. Answer questions in plain language.${hasTool("propose_sql") ? " When the user wants query results or a SQL statement, ALWAYS create it with the `propose_sql` tool (never write SQL as plain text)." : ""}`,
+    "2. Be proactive: when a question is reasonably answerable from the available schema, inspect the relevant tables and make your best-supported attempt immediately. Do not ask a clarification question before trying a sensible query; state any assumption alongside the result instead.",
     ...(hasTool("run_sql")
       ? [
-          "2. Only call `run_sql` when the user explicitly asked you to run/execute the query — it requires user approval and will pause until they approve.",
-          "3. After a successful run_sql, summarize the result rows briefly; do not repeat full row dumps.",
+          "3. For an answerable data question, draft the query and call `run_sql` so the user can approve it; do not stop at a clarification request when a useful first attempt is possible.",
+          "4. After a successful run_sql, summarize the result rows briefly, state the assumption or metric used, and ask whether the result matches what the user expected; do not repeat full row dumps.",
         ]
       : []),
     ...(hasTool("preview_rows")

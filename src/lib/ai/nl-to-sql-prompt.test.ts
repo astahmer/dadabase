@@ -113,6 +113,8 @@ describe("buildChatSystemPrompt tool filtering", () => {
     const prompt = buildChatSystemPrompt({ schema });
     expect(prompt).toContain("propose_sql");
     expect(prompt).toContain("run_sql");
+    expect(prompt).toContain("Do not ask a clarification question before trying");
+    expect(prompt).toContain("matches what the user expected");
   });
 
   it("drops run_sql instructions when run_sql is disabled", () => {
