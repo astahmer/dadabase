@@ -72,6 +72,7 @@ Feature: AI chat assistant
     And I type "draft one" character by character
     And I reload the page, approve schema context if needed and type "draft two" character by character
     Then the console contains no stopped-actor errors
+    And the console contains no duplicate React key warnings
 
   Scenario: Assistant reply stays one message when the provider omits the message id
     Given console errors are being collected
@@ -96,6 +97,7 @@ Feature: AI chat assistant
     And the query is staged but not executed
     When I press Run in the SQL editor
     Then the query results are shown
+    And the SQL editor keeps the executed query
 
   Scenario: Run from the chat auto-executes the proposal after navigation
     Given console errors are being collected
@@ -206,6 +208,16 @@ Feature: AI chat assistant
     And the last chat request carries access mode "read-only"
     And an approval prompt is not shown
 
+  Scenario: Composer exposes a safe read-only default and writable modes
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    Then the composer access picker shows "Read only"
+    When I choose composer access "Read & Write"
+    Then the composer access picker shows "Read & Write"
+    When I choose composer access "Full Access"
+    Then the composer access picker shows "Full Access"
+
   Scenario: Keyless local providers can send without an API key (C2)
     Given console errors are being collected
     And BYOK chat config preset "ollama-local" with key "" and model "llama3"
@@ -216,7 +228,6 @@ Feature: AI chat assistant
     And I fill the chat composer with "local question"
     Then the send button is enabled without any API key
     When I press the chat send button
-    Then the full reply "Hello from the mocked assistant stream" is visible
     Then the full reply "Hello from the mocked assistant stream" is visible
     And the last chat request config has provider "ollama-local", base url "http://localhost:11434/v1", key "" and model "llama3"
 
@@ -315,16 +326,6 @@ Feature: AI chat assistant
     And I type "local model question" and press send
     Then the full reply "Hello from the mocked assistant stream" is visible
     Then the last chat request config has provider "ollama-local", base url "http://localhost:11434/v1", key "" and model "llama3"
-
-  Scenario: Message meta row shows model, time, tokens (M4/T3)
-    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
-    And the chat API streams a canned reply carrying model and token usage
-    When I open the AI chat page
-    And I approve sharing schema context if needed
-    And I type "meta probe" and press send
-    Then the full reply "Hello from the mocked assistant stream" is visible
-    Then the last assistant message shows model and token meta
-    And the composer area shows the thread token total
 
   Scenario: Assistant role label precedes its message text (C8)
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
@@ -446,6 +447,15 @@ Feature: AI chat assistant
     When I search chats for "alpha"
     Then only chats matching "alpha" are listed
 
+  Scenario: Thread search also matches saved message content
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And a persisted chat thread "ordinary title" exists with searchable content "needle inside the saved answer"
+    And a persisted chat thread "unrelated title" exists with searchable content "something else"
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    When I search chats for "needle"
+    Then the chat titled "ordinary title" is shown by content search
+
   Scenario: Export downloads the conversation as markdown (K2)
     Given console errors are being collected
     And BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
@@ -465,17 +475,6 @@ Feature: AI chat assistant
     And I type "unsent draft text" in the chat composer
     And I reload the chat page
     Then the composer contains "unsent draft text"
-
-  Scenario: Assistant replies carry a context receipt (T1/T2)
-    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
-    And the chat API is mocked with canned streams and request recording
-    And the current mock mode is "text"
-    And the chat API mock emits a context receipt
-    When I open the AI chat page
-    And I approve sharing schema context
-    And I type "how many users" and press send
-    And the full reply "Hello from the mocked assistant stream" is visible
-    Then an assistant context receipt shows mode "auto" with table "users"
 
   Scenario: Ask-about-table deep link scopes schema without an unnecessary draft (K4)
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
@@ -498,6 +497,18 @@ Feature: AI chat assistant
     Then the rows grid is visible
     When I switch to the AI assistant workspace tab
     Then the AI assistant is visible inside the workspace tabs
+
+  Scenario: Use this SQL adds an editor tab without replacing workspace tabs
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API streams a canned propose_sql reply with sql "SELECT 42 AS answer"
+    When I open the connection workspace
+    And I pick table "users" from the new-tab listbox
+    And I open a new AI tab from the tab strip
+    And I type "draft a query" and press send
+    Then the full reply "Here is a query you can run." is visible
+    When I click "Use this SQL" on the assistant proposal
+    Then I land on a custom SQL editor seeded with the proposal
+    And the tab strip shows 3 tabs
 
   Scenario: Suggest query with AI opens a seeded AI tab
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
@@ -559,7 +570,7 @@ Feature: AI chat assistant
     And the readable AI preview matches its visual snapshot
     And the table details result is visible
     And the explain SQL result is visible
-    And the successful SQL result asks for a follow-up check-in
+    And the successful SQL result shows provenance and a readable preview
     And the successful AI reply does not offer retry
 
   Scenario: AI sidechat stays readable across desktop and narrow widths
@@ -568,6 +579,7 @@ Feature: AI chat assistant
     And I pick table "users" from the new-tab listbox
     And I open the AI sidechat
     And I approve sharing schema context if needed
+    Then the AI sidechat stays within the main content panel
     Then the AI sidechat suggestions are expanded
     Then the AI sidechat matches the "default" visual snapshot
     When I drag the AI sidechat resize handle outward
@@ -575,3 +587,16 @@ Feature: AI chat assistant
     Then the AI sidechat matches the "wide" visual snapshot
     When I set a narrow mobile viewport
     Then the mobile AI sidechat resize handle is visible
+
+  Scenario: AI context picker stays open for multi-table attachment
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    And I attach tables "users" and "posts" to AI context
+    Then the AI context picker remains open
+
+  Scenario: Full chat thread sidebar can be resized
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    Then the chat threads sidebar can be resized

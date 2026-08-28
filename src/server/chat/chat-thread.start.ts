@@ -1,18 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Effect, Schema } from "effect";
 
+import type { ChatContextReceipt, MessageUsage } from "#src/lib/chat/protocol/messages.ts";
 import type { ChatMessageRow, ChatThreadRow } from "#src/server/chat/chat-thread.repository.ts";
-import type {
-  ChatContextReceipt,
-  MessageUsage,
-} from "#src/lib/chat/protocol/messages.ts";
 
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
 import { toValidator } from "#src/db/effect-compat.ts";
-import {
-  ChatContextReceiptSchema,
-  MessageUsageSchema,
-} from "#src/lib/chat/protocol/messages.ts";
+import { ChatContextReceiptSchema, MessageUsageSchema } from "#src/lib/chat/protocol/messages.ts";
 import { ChatThreadRepository } from "#src/server/chat/chat-thread.repository.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
 
@@ -26,6 +20,8 @@ export interface ChatThreadSummary {
   anchorMessageId: string;
   createdAt: string;
   updatedAt: string;
+  /** Bounded plain-text index used by the full-chat fuzzy search. */
+  searchText?: string;
 }
 
 /** Message row as consumed by the chat ConversationClient adapter. */
@@ -39,6 +35,53 @@ export interface ChatMessageSummary {
   createdAt: string;
 }
 
+/**
+ * Normalize the persisted protocol-part payload for clients. Older chat
+ * writes accidentally JSON-encoded the parts twice; accept those rows while
+ * keeping the current storage format as one JSON array.
+ */
+export const normalizePersistedMessageParts = (rawParts: unknown): string => {
+  if (typeof rawParts !== "string") return JSON.stringify(rawParts ?? []);
+  try {
+    const parsed: unknown = JSON.parse(rawParts);
+    if (typeof parsed === "string") {
+      const nested: unknown = JSON.parse(parsed);
+      if (Array.isArray(nested)) return JSON.stringify(nested);
+    }
+  } catch {
+    // Preserve malformed data so the client can report/skip just this message.
+  }
+  return rawParts;
+};
+
+export const persistedMessageSearchText = (rawParts: unknown): string => {
+  const normalized = normalizePersistedMessageParts(rawParts);
+  try {
+    const parsed: unknown = JSON.parse(normalized);
+    const values: string[] = [];
+    const visit = (value: unknown): void => {
+      if (values.join(" ").length >= 4000) return;
+      if (typeof value === "string") return;
+      if (!value || typeof value !== "object") return;
+      if (Array.isArray(value)) {
+        value.forEach(visit);
+        return;
+      }
+      for (const [key, child] of Object.entries(value)) {
+        if ((key === "text" || key === "sql" || key === "title") && typeof child === "string") {
+          values.push(child);
+        } else {
+          visit(child);
+        }
+      }
+    };
+    visit(parsed);
+    return values.join(" ").slice(0, 4000);
+  } catch {
+    return "";
+  }
+};
+
 const ThreadPatchSchema = Schema.Struct({
   title: Schema.optional(Schema.String),
   status: Schema.optional(Schema.Literals(["regular", "archived"])),
@@ -51,7 +94,7 @@ const ThreadRefSchema = Schema.Struct({
   threadId: Schema.String,
 });
 
-const toSummary = (row: ChatThreadRow): ChatThreadSummary => ({
+const toSummary = (row: ChatThreadRow, searchText?: string): ChatThreadSummary => ({
   id: row.id,
   title: row.title,
   status: row.status === "archived" ? "archived" : "regular",
@@ -61,6 +104,7 @@ const toSummary = (row: ChatThreadRow): ChatThreadSummary => ({
   anchorMessageId: "",
   createdAt: new Date(row.created_at ?? Date.now()).toISOString(),
   updatedAt: new Date(row.updated_at ?? row.created_at ?? Date.now()).toISOString(),
+  ...(searchText === undefined ? {} : { searchText }),
 });
 
 const toMessageSummary = (row: ChatMessageRow): ChatMessageSummary => {
@@ -93,7 +137,7 @@ const toMessageSummary = (row: ChatMessageRow): ChatMessageSummary => {
   return {
     id: row.id,
     role: row.role,
-    parts: typeof row.parts === "string" ? row.parts : JSON.stringify(row.parts ?? []),
+    parts: normalizePersistedMessageParts(row.parts),
     model: row.model,
     usage: parsed.success ? parsed.data : null,
     context: parsedContext.success ? parsedContext.data : null,
@@ -130,7 +174,22 @@ export const listChatThreadsServerFn = createServerFn({ method: "POST" })
         Effect.gen(function* () {
           const repo = yield* ChatThreadRepository;
           const rows = yield* repo.listThreads({ connectionId });
-          return rows.map(toSummary);
+          const searches = yield* Effect.all(
+            rows.map((row) =>
+              repo
+                .listMessages(row.id)
+                .pipe(
+                  Effect.map((messages) =>
+                    messages.map((message) => persistedMessageSearchText(message.parts)).join(" "),
+                  ),
+                ),
+            ),
+            // The app database is SQLite/libSQL. Serialize these small reads
+            // so a thread-list refresh cannot contend with the turn writer
+            // and surface SQLITE_BUSY to an otherwise successful chat send.
+            { concurrency: 1 },
+          );
+          return rows.map((row, index) => toSummary(row, searches[index]));
         }),
       ),
     ),

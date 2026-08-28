@@ -85,6 +85,7 @@ describe("ChatThreadRepository", () => {
       const firstReplacement = yield* repository.listMessages("thread-1");
       expect(firstReplacement).toHaveLength(1);
       expect(firstReplacement[0]?.role).toBe("assistant");
+      expect(JSON.parse(firstReplacement[0]?.parts ?? "null")).toEqual(["answer"]);
 
       yield* repository.replaceMessages({
         threadId: "thread-1",
@@ -93,6 +94,39 @@ describe("ChatThreadRepository", () => {
 
       const secondReplacement = yield* repository.listMessages("thread-1");
       expect(secondReplacement.map((message) => message.id)).toEqual(["message-2"]);
+    }).pipe(Effect.provide(TestLayer)),
+  );
+
+  it.effect("keeps colliding client IDs isolated between threads", () =>
+    Effect.gen(function* () {
+      const repository = yield* ChatThreadRepository;
+      const now = Date.now();
+      for (const id of ["thread-a", "thread-b"]) {
+        yield* repository.createThread({
+          id,
+          connection_id: "connection-1",
+          title: id,
+          status: "regular",
+          pinned: false,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+
+      yield* repository.replaceMessages({
+        threadId: "thread-a",
+        messages: [{ id: "same-client-id", threadId: "thread-a", role: "user", parts: ["a"] }],
+      });
+      yield* repository.replaceMessages({
+        threadId: "thread-b",
+        messages: [{ id: "same-client-id", threadId: "thread-b", role: "user", parts: ["b"] }],
+      });
+
+      const first = yield* repository.listMessages("thread-a");
+      const second = yield* repository.listMessages("thread-b");
+      expect(first[0]?.id).toBe("same-client-id");
+      expect(second[0]?.id).toBe("thread-b:same-client-id");
+      expect(JSON.parse(second[0]?.parts ?? "null")).toEqual(["b"]);
     }).pipe(Effect.provide(TestLayer)),
   );
 });

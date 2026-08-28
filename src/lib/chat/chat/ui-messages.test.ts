@@ -103,6 +103,17 @@ describe("ChatUiMessages.toProtocolParts — ui part mapping", () => {
     });
     expect(parts[0]).toMatchObject({ toolName: "run_sql" });
   });
+
+  it("keeps visible text when an unsupported SDK part is persisted", () => {
+    const parts = ChatUiMessages.toPersistedProtocolParts({
+      parts: [
+        { type: "text", text: "The answer is still useful." } as UiPart,
+        { type: "source-url", url: "https://example.com" } as UiPart,
+      ],
+    });
+
+    expect(parts).toEqual([{ type: "text", text: "The answer is still useful." }]);
+  });
 });
 
 describe("ChatUiMessages — approval round-trip", () => {

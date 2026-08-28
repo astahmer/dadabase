@@ -29,6 +29,7 @@ const toConversation = (thread: ChatThreadSummary) => ({
   pinned: thread.pinned,
   createdAt: thread.createdAt,
   updatedAt: thread.updatedAt,
+  ...(thread.searchText === undefined ? {} : { searchText: thread.searchText }),
 });
 
 const toThread = (thread: ChatThreadSummary) => ({

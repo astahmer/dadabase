@@ -159,7 +159,7 @@ export const buildChatSystemPrompt = (input: {
       ? [
           "3. For an answerable data question, draft the query and call `run_sql` immediately. SELECT/WITH queries run directly; non-read-only SQL pauses for user approval.",
           `4. The current access level is ${accessMode}. Never attempt a write that the access level does not allow.`,
-          "5. After a successful run_sql, summarize the result rows briefly, state the assumption or metric used, and ask whether the result matches what the user expected; do not repeat full row dumps.",
+          "5. After a successful run_sql, summarize the result rows briefly, state the source and assumption or metric used, and offer a useful follow-up; do not repeat full row dumps.",
         ]
       : []),
     ...(hasTool("preview_rows")

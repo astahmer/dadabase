@@ -40,10 +40,6 @@ interface ChatTestState {
   downloadName?: string;
   /** Emit a start chunk without messageId (providers without response ids). */
   omitMessageId?: boolean;
-  /** Emit model + token usage metadata (audit M4/T3). */
-  withUsage?: boolean;
-  /** Emit a context receipt on the finish chunk (audit T1/T2). */
-  withContext?: boolean;
   /** SQL used by the "proposal" mock mode. */
   proposalSql?: string;
   /** Table/filter payload for the "workspace_view" mock mode (audit: tools). */
@@ -84,8 +80,6 @@ const textChunks = (
   parts: readonly string[],
   options: {
     omitMessageId?: boolean;
-    withUsage?: boolean;
-    withContext?: boolean;
   } = {},
 ): Array<Record<string, unknown>> => [
   // Providers that return no response message id emit a start chunk without
@@ -95,7 +89,6 @@ const textChunks = (
     : {
         type: "start",
         messageId: "mock-msg-1",
-        ...(options.withUsage === true ? { messageMetadata: { model: "gpt-4o-mini" } } : {}),
       },
   { type: "start-step" },
   { type: "text-start", id: "t1" },
@@ -105,27 +98,6 @@ const textChunks = (
   {
     type: "finish",
     finishReason: "stop",
-    ...(options.withUsage === true || options.withContext === true
-      ? {
-          messageMetadata: {
-            ...(options.withUsage === true
-              ? {
-                  model: "gpt-4o-mini",
-                  usage: { promptTokens: 12, completionTokens: 34, totalTokens: 46 },
-                }
-              : {}),
-            ...(options.withContext === true
-              ? {
-                  context: {
-                    mode: "auto",
-                    tables: ["users"],
-                    tools: ["propose_sql"],
-                  },
-                }
-              : {}),
-          },
-        }
-      : {}),
   },
 ];
 
@@ -332,8 +304,6 @@ const installMock = async (page: Page): Promise<void> => {
               ? proposalChunks(state.proposalSql ?? "SELECT 42 AS answer")
               : textChunks(state.textParts, {
                   omitMessageId: state.omitMessageId === true,
-                  withUsage: state.withUsage === true,
-                  withContext: state.withContext === true,
                 });
     // The real route always returns the assigned conversation id; mocks must
     // too, or the runtime stays anonymous (blocking retry/revisions and
@@ -373,6 +343,16 @@ const approveConsentIfPresent = async (page: Page): Promise<void> => {
 };
 
 const typeAndSend = async (page: Page, text: string): Promise<void> => {
+  // Multi-select menus intentionally stay open while selecting several items.
+  // Close any open menu before targeting the composer so the menu never masks
+  // or intercepts the input in a keyboard-driven scenario.
+  await page.keyboard.press("Escape");
+  // Settings deliberately take over the chat surface while open. Close them
+  // after settings-focused steps before filling the composer.
+  const settings = page.getByTestId("ai-settings-panel");
+  if (await settings.isVisible().catch(() => false)) {
+    await page.getByRole("button", { name: "Done" }).click();
+  }
   const input = page.locator(CHAT_INPUT);
   await expect(input).toBeEnabled({ timeout: 15_000 });
   await input.fill(text);
@@ -626,9 +606,7 @@ When("I open the AI settings panel", async ({ page }) => {
       await page.getByTestId("ai-settings-toggle").click({ timeout: 2_000 });
     }
     await expect(page.getByTestId("ai-tools-settings")).toBeVisible({ timeout: 1_000 });
-    if ((await page.getByTestId("ai-tools-settings").getAttribute("data-open")) !== "true") {
-      await page.getByTestId("ai-section-toggle-tools").click({ timeout: 2_000 });
-    }
+    await page.getByTestId("ai-tools-multiselect").click({ timeout: 2_000 });
     await expect(page.getByTestId("ai-tools-select-all")).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
 });
@@ -636,10 +614,31 @@ When("I open the AI settings panel", async ({ page }) => {
 When("I toggle tool {string}", async ({ page }, label: string) => {
   // Click the checkbox root itself: clicking the wrapping label can double-
   // fire (label forward + native input) and net out to no change.
-  await page.getByTestId(`ai-tool-checkbox-${toolIdForLabel(label)}`).click();
+  if (
+    !(await page
+      .getByTestId("ai-settings-panel")
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await page.getByTestId("ai-settings-toggle").click();
+  }
+  const menu = page.getByTestId("ai-tools-multiselect");
+  // Re-open from a known-closed state. Persisting a checkbox dispatches a
+  // settings event and can close/rebuild Ark's menu between two clicks.
+  await page.keyboard.press("Escape");
+  await menu.click();
+  const checkbox = page.getByTestId(`ai-tool-checkbox-${toolIdForLabel(label)}`);
+  await expect(checkbox).toBeVisible();
+  await checkbox.click();
+  await expect(checkbox)
+    .toBeHidden({ timeout: 2_000 })
+    .catch(() => undefined);
 });
 
 Then("all tools are checked by default", async ({ page }) => {
+  if (!(await page.getByTestId(`ai-tool-checkbox-${ALL_CHAT_TOOL_IDS[0]}`).isVisible())) {
+    await page.getByTestId("ai-tools-multiselect").click();
+  }
   for (const id of ALL_CHAT_TOOL_IDS) {
     // ark-ui renders the checked state on the control inside the checkbox root.
     await expect(page.getByTestId(`ai-tool-checkbox-${id}`)).toHaveAttribute(
@@ -670,6 +669,22 @@ Then("the last chat request carries enabled tools {string}", async ({ page }, cs
 });
 
 When('I press "Select all" in the tools settings', async ({ page }) => {
+  if (
+    !(await page
+      .getByTestId("ai-settings-panel")
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await page.getByTestId("ai-settings-toggle").click();
+  }
+  if (
+    !(await page
+      .getByTestId("ai-tools-select-all")
+      .isVisible()
+      .catch(() => false))
+  ) {
+    await page.getByTestId("ai-tools-multiselect").click();
+  }
   await page.getByTestId("ai-tools-select-all").click();
 });
 
@@ -695,6 +710,13 @@ Then("the console contains no stopped-actor errors", async ({ page }) => {
   const texts = stateFor(page).consoleTexts;
   const offenders = texts.filter((text) => /stopped actor/i.test(text));
   expect(offenders, `unexpected stopped-actor console noise:\n${offenders.join("\n")}`).toEqual([]);
+});
+
+Then("the console contains no duplicate React key warnings", async ({ page }) => {
+  const offenders = stateFor(page).consoleTexts.filter((text) =>
+    /Encountered two children with the same key/i.test(text),
+  );
+  expect(offenders, `unexpected duplicate-key warnings:\n${offenders.join("\n")}`).toEqual([]);
 });
 
 Then("the connection workspace shell stays visible", async ({ page }) => {
@@ -783,6 +805,12 @@ Then("the query runs automatically after navigation", async ({ page }) => {
 
 Then("the query results are shown", async ({ page }) => {
   await expect(page.locator(RESULTS_MARKER)).toBeVisible({ timeout: 30_000 });
+});
+
+Then("the SQL editor keeps the executed query", async ({ page }) => {
+  await expect(page.locator(".monaco-editor .view-lines")).toContainText("SELECT 42 AS answer", {
+    timeout: 30_000,
+  });
 });
 
 // --- Schema table selection (manual + auto mode) ---
@@ -876,6 +904,22 @@ Then("the last chat request carries access mode {string}", async ({ page }, mode
   await expect
     .poll(() => stateFor(page).requests.at(-1)?.accessMode ?? "(absent)", { timeout: 20_000 })
     .toBe(mode);
+});
+
+Then("the composer access picker shows {string}", async ({ page }, label: string) => {
+  const values: Record<string, string> = {
+    "Read only": "read-only",
+    "Read & Write": "read-write",
+    "Full Access": "full",
+  };
+  const value = values[label];
+  if (value === undefined) throw new Error(`Unknown composer access label: ${label}`);
+  await expect(page.getByTestId("ai-composer-access-mode")).toHaveValue(value);
+});
+
+When("I choose composer access {string}", async ({ page }, label: string) => {
+  const trigger = page.getByTestId("ai-composer-access-mode");
+  await trigger.selectOption({ label });
 });
 
 Then("the schema hint shows the whole-database default", async ({ page }) => {
@@ -1056,12 +1100,16 @@ Then("provider, tools, and schema sections are present but collapsed", async ({ 
 
 // --- Audit S1/S2/N1/C8 follow-ups -------------------------------------------
 
-Given("a persisted chat thread {string} exists for the connection", async ({}, title: string) => {
+const seedPersistedChatThread = async (title: string, messageText: string): Promise<void> => {
   // The SSE mock intercepts every /api/chat POST, so server-side turn
   // persistence never runs under test. Seed a real thread row instead:
   // this exercises the true hydration path (server fn → decode → store).
   const { DatabaseSync } = await import("node:sqlite");
   const db = new DatabaseSync(path.join(process.cwd(), "e2e", ".tmp", "app.db"));
+  // The Vite server keeps the same SQLite file open while its route loaders
+  // hydrate the app. Give the fixture writer a bounded wait instead of
+  // failing immediately on a transient reader lock.
+  db.exec("PRAGMA busy_timeout = 5000");
   const connection = db
     .prepare("SELECT id FROM database_connections WHERE name = 'e2e-sqlite'")
     .get();
@@ -1078,7 +1126,7 @@ Given("a persisted chat thread {string} exists for the connection", async ({}, t
     `${threadId}-user`,
     threadId,
     "user",
-    JSON.stringify([{ type: "text", text: "count the users table rows" }]),
+    JSON.stringify([{ type: "text", text: messageText }]),
     now,
   );
   insertMessage.run(
@@ -1089,7 +1137,18 @@ Given("a persisted chat thread {string} exists for the connection", async ({}, t
     now,
   );
   db.close();
+};
+
+Given("a persisted chat thread {string} exists for the connection", async ({}, title: string) => {
+  await seedPersistedChatThread(title, "count the users table rows");
 });
+
+Given(
+  "a persisted chat thread {string} exists with searchable content {string}",
+  async ({}, title: string, content: string) => {
+    await seedPersistedChatThread(title, content);
+  },
+);
 
 When("I reload the chat page", async ({ page }) => {
   await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
@@ -1171,15 +1230,8 @@ Then("the assistant role label precedes its message text", async ({ page }) => {
 });
 
 // ---------------------------------------------------------------------------
-// Audit M1/M2/M4/T3: highlighting, copy affordances, message meta
+// Audit M1/M2: highlighting and copy affordances
 // ---------------------------------------------------------------------------
-
-Given("the chat API streams a canned reply carrying model and token usage", async ({ page }) => {
-  const state = stateFor(page);
-  state.mode = "text";
-  state.withUsage = true;
-  await installMock(page);
-});
 
 Given("clipboard permissions are granted", async ({ page }) => {
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -1203,20 +1255,6 @@ Then(
 Then("the clipboard contains {string}", async ({ page }, expected: string) => {
   const content = await page.evaluate(() => navigator.clipboard.readText());
   expect(content.trim()).toBe(expected.trim());
-});
-
-Then("the last assistant message shows model and token meta", async ({ page }) => {
-  const footer = page
-    .locator('[data-testid="ai-chat-message"][data-role="assistant"]')
-    .last()
-    .locator('[data-slot="message-footer"]')
-    .first();
-  await expect(footer.getByText("gpt-4o-mini")).toBeVisible({ timeout: 20_000 });
-  await expect(footer.getByText("46 tokens")).toBeVisible();
-});
-
-Then("the composer area shows the thread token total", async ({ page }) => {
-  await expect(page.getByTestId("ai-chat-thread-tokens")).toContainText("46 tokens this thread");
 });
 
 When("I copy the proposed SQL", async ({ page }) => {
@@ -1329,15 +1367,15 @@ Then("the AI chat page is open again", async ({ page }) => {
 const threadRowByTitle = (page: Page, title: string) => threadRow(page, title).first();
 
 When("I pin the chat titled {string}", async ({ page }, title: string) => {
-  await threadRowByTitle(page, title).getByTestId("ai-thread-pin").click();
+  const row = threadRowByTitle(page, title);
+  await row.getByTestId("ai-thread-actions").click();
+  await page.getByRole("menuitem", { name: "Pin chat", exact: true }).click();
 });
 
 Then("the chat titled {string} shows as pinned", async ({ page }, title: string) => {
-  await expect(threadRowByTitle(page, title).getByTestId("ai-thread-pin")).toHaveAttribute(
-    "aria-label",
-    `Unpin chat ${title}`,
-    { timeout: 10_000 },
-  );
+  await expect(threadRowByTitle(page, title).getByTestId("ai-thread-pinned")).toBeVisible({
+    timeout: 10_000,
+  });
 });
 
 When(
@@ -1346,7 +1384,9 @@ When(
     // Clicking rename swaps the title button for the inline input, so the row
     // locator by old title no longer matches — scope the input globally (only
     // one rename is active at a time).
-    await threadRowByTitle(page, from).getByTestId("ai-thread-rename").click();
+    const row = threadRowByTitle(page, from);
+    await row.getByTestId("ai-thread-actions").click();
+    await page.getByRole("menuitem", { name: "Rename chat", exact: true }).click();
     const input = page.getByTestId("ai-thread-rename-input");
     await expect(input).toBeVisible({ timeout: 5_000 });
     await input.fill(to);
@@ -1356,7 +1396,9 @@ When(
 
 When("I delete the chat titled {string}", async ({ page }, title: string) => {
   // Two-step destructive flow (audit S3): first click only requests it.
-  await threadRowByTitle(page, title).getByTestId("ai-thread-delete").click();
+  const row = threadRowByTitle(page, title);
+  await row.getByTestId("ai-thread-actions").click();
+  await page.getByRole("menuitem", { name: "Delete chat", exact: true }).click();
 });
 
 Then("a delete confirmation is requested for {string}", async ({ page }, title: string) => {
@@ -1387,6 +1429,12 @@ Then("only chats matching {string} are listed", async ({ page }, query: string) 
   }
 });
 
+Then("the chat titled {string} is shown by content search", async ({ page }, title: string) => {
+  await expect(page.getByTestId("ai-thread-item").filter({ hasText: title })).toBeVisible({
+    timeout: 10_000,
+  });
+});
+
 When("I export the chat as markdown", async ({ page }) => {
   const downloadPromise = page.waitForEvent("download", { timeout: 15_000 });
   await page.getByTestId("ai-chat-actions").click();
@@ -1400,10 +1448,6 @@ Then("a markdown download named after the chat is offered", async ({ page }) => 
   expect(isMarkdown, `expected .md download, got ${name}`).toBe(true);
 });
 
-Given("the chat API mock emits a context receipt", async ({ page }) => {
-  stateFor(page).withContext = true;
-});
-
 When("I open the AI chat page with askTable {string}", async ({ page }, table: string) => {
   await page.goto(`/connections/e2e-sqlite/ai?askTable=${table}`, {
     waitUntil: "domcontentloaded",
@@ -1411,16 +1455,6 @@ When("I open the AI chat page with askTable {string}", async ({ page }, table: s
   });
   await expect(page.getByTestId("ai-chat-page")).toBeVisible({ timeout: 30_000 });
 });
-
-Then(
-  "an assistant context receipt shows mode {string} with table {string}",
-  async ({ page }, mode: string, table: string) => {
-    const receipt = page.getByTestId("ai-chat-context-receipt");
-    await expect(receipt).toBeVisible({ timeout: 15_000 });
-    await expect(receipt).toContainText(mode);
-    await expect(receipt).toContainText(table);
-  },
-);
 
 Then("the schema status reports a manually selected subset", async ({ page }) => {
   await expect
@@ -1534,27 +1568,29 @@ Given("the chat API streams read-only inspection tool results", async ({ page })
 });
 
 Then("the preview rows result is visible", async ({ page }) => {
-  await expect(page.getByTestId("ai-chat-preview-rows")).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByTestId("ai-chat-preview-rows")).toContainText("Ada");
+  const previewRows = page.getByTestId("ai-chat-preview-rows");
+  await expect(previewRows.first()).toBeVisible({ timeout: 20_000 });
+  await expect(previewRows.first()).toContainText("Ada");
   await expect(page.getByTestId("ai-chat-relation-status")).toContainText("1 ID unresolved");
-  await expect(page.getByTestId("ai-chat-raw-preview")).not.toHaveAttribute("open");
-  await page.getByTestId("ai-chat-raw-preview").locator("summary").click();
-  await expect(page.getByTestId("ai-chat-raw-preview")).toHaveAttribute("open", "");
-  await page.getByTestId("ai-chat-preview-columns").click();
+  await expect(page.getByTestId("ai-chat-raw-preview").first()).not.toHaveAttribute("open");
+  await page.getByTestId("ai-chat-raw-preview").first().locator("summary").click();
+  await expect(page.getByTestId("ai-chat-raw-preview").first()).toHaveAttribute("open", "");
+  await page.getByTestId("ai-chat-preview-columns").first().click();
   await expect(page.getByRole("menuitemcheckbox", { name: "metadata" })).toBeVisible();
   await page.getByRole("menuitemcheckbox", { name: "metadata" }).click();
-  await expect(page.getByTestId("ai-chat-raw-preview")).toContainText("metadata");
+  await expect(page.getByTestId("ai-chat-raw-preview").first()).toContainText("metadata");
 });
 
 Then("the AI sidechat suggestions are expanded", async ({ page }) => {
   await expect(page.getByTestId("ai-sidechat-suggestions")).toHaveAttribute("open", "");
 });
 
-Then("the successful SQL result asks for a follow-up check-in", async ({ page }) => {
-  await expect(page.getByTestId("ai-chat-result-followup")).toContainText(
-    "Does this result match what you expected?",
-    { timeout: 20_000 },
-  );
+Then("the successful SQL result shows provenance and a readable preview", async ({ page }) => {
+  await expect(page.getByTestId("ai-chat-run-provenance")).toContainText("live query result", {
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId("ai-chat-run-query")).not.toHaveAttribute("open");
+  expect(await page.getByTestId("ai-chat-preview-rows").count()).toBeGreaterThanOrEqual(2);
 });
 
 Then("the successful AI reply does not offer retry", async ({ page }) => {
@@ -1617,6 +1653,49 @@ When("I set a narrow mobile viewport", async ({ page }) => {
 
 Then("the mobile AI sidechat resize handle is visible", async ({ page }) => {
   await expect(page.getByTestId("ai-sidechat-mobile-resize-handle")).toBeVisible();
+});
+
+Then("the AI sidechat stays within the main content panel", async ({ page }) => {
+  const overlay = await page.getByTestId("ai-sidechat-overlay").boundingBox();
+  const sidebar = await page.getByTestId("connection-sidebar").boundingBox();
+  expect(overlay).not.toBeNull();
+  expect(sidebar).not.toBeNull();
+  expect(overlay!.x).toBeGreaterThanOrEqual(sidebar!.x + sidebar!.width - 1);
+  expect(overlay!.x + overlay!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
+});
+
+Then("the AI context picker remains open", async ({ page }) => {
+  await expect(page.getByTestId("ai-context-table-picker")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Attach tables to chat context/ })).toContainText(
+    "2",
+  );
+});
+
+When(
+  "I attach tables {string} and {string} to AI context",
+  async ({ page }, first: string, second: string) => {
+    await page.getByRole("button", { name: /Attach tables to chat context/ }).click();
+    const picker = page.getByTestId("ai-context-table-picker");
+    await expect(picker).toBeVisible();
+    await picker.getByRole("button", { name: first, exact: true }).click();
+    // The picker stays open so a second table can be attached without reopening it.
+    await expect(picker).toBeVisible();
+    await picker.getByRole("button", { name: second, exact: true }).click();
+    await expect(page.getByRole("button", { name: /Attach tables to chat context/ })).toContainText(
+      "2",
+    );
+  },
+);
+
+Then("the chat threads sidebar can be resized", async ({ page }) => {
+  const handle = page.getByTestId("ai-thread-list-resize-handle");
+  await expect(handle).toBeVisible();
+  const before = Number(await handle.getAttribute("aria-valuenow"));
+  await handle.focus();
+  for (let index = 0; index < 20; index += 1) await handle.press("ArrowRight");
+  await expect
+    .poll(async () => Number(await handle.getAttribute("aria-valuenow")))
+    .toBeGreaterThan(before);
 });
 
 Then("the table details result is visible", async ({ page }) => {

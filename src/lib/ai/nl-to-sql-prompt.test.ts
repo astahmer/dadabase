@@ -114,7 +114,7 @@ describe("buildChatSystemPrompt tool filtering", () => {
     expect(prompt).toContain("propose_sql");
     expect(prompt).toContain("run_sql");
     expect(prompt).toContain("Do not ask a clarification question before trying");
-    expect(prompt).toContain("matches what the user expected");
+    expect(prompt).toContain("state the source and assumption or metric used");
   });
 
   it("drops run_sql instructions when run_sql is disabled", () => {

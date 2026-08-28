@@ -17,6 +17,7 @@ const ConversationSchema = z.object({
   pinned: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  searchText: z.string().optional(),
 });
 
 const ConversationListSchema = z.object({ conversations: z.array(ConversationSchema) });

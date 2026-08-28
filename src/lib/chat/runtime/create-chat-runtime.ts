@@ -85,6 +85,7 @@ const conversationToProtocol = (conversation: Conversation) => ({
   pinned: conversation.pinned,
   createdAt: conversation.createdAt,
   updatedAt: conversation.updatedAt,
+  ...(conversation.searchText === undefined ? {} : { searchText: conversation.searchText }),
 });
 
 const threadToProtocol = (thread: ConversationThread) => ({

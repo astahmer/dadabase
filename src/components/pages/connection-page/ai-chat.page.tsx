@@ -25,7 +25,16 @@ import {
   EyeOff,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import { createPortal } from "react-dom";
 
 import type { FilterOperatorType } from "#src/components/query-builder/query-filter.ts";
 import type { AiSchemaContext, AiTableContext } from "#src/lib/ai/ai-types.ts";
@@ -68,7 +77,6 @@ import {
 import {
   consumeChatContextPromotion,
   chatContextAttachmentKey,
-  dataClassesForChatContext,
   sanitizeChatContextAttachments,
   type ChatContextAttachment,
 } from "#src/lib/ai/chat-context.ts";
@@ -108,7 +116,7 @@ import type { DbConnection } from "../connection.types.ts";
 import { announce } from "../../ui/aria-live.tsx";
 import { Badge } from "../../ui/badge.tsx";
 import { Button, buttonVariants } from "../../ui/button.tsx";
-import { Checkbox, CheckboxControl, CheckboxLabel } from "../../ui/checkbox.tsx";
+import { Checkbox, CheckboxControl } from "../../ui/checkbox.tsx";
 import { Input } from "../../ui/input.tsx";
 import { Label } from "../../ui/label.tsx";
 import { Menu, MenuCheckboxItem, MenuContent, MenuItem, MenuTrigger } from "../../ui/menu.tsx";
@@ -358,8 +366,8 @@ const AiChatPageInner = ({
       to: "/connections/$connectionName",
       params: { connectionName: connection.name },
       search: (prev) => {
-        // Embedded (workspace tab): add/activate the editor tab WITHOUT
-        // discarding sibling tabs — the whole point of AI-as-a-tab.
+        // Use SQL always adds/activates a sibling editor tab. The AI tab and
+        // its conversation remain available in the workspace tab strip.
         if (!embedded || !prev.tabs?.length) {
           return { schema, activeTabId: newTab.tabId, tabs: [newTab] };
         }
@@ -372,7 +380,7 @@ const AiChatPageInner = ({
   };
 
   const applySqlToEditor = (sql: string, meta?: ChatReturnMeta) => {
-    void navigateToEditor(sql, undefined, meta);
+    void navigateToEditor(sql, createEditorTab(sql), meta);
   };
 
   /**
@@ -384,7 +392,7 @@ const AiChatPageInner = ({
     const newTab = createEditorTab(sql);
     stageCustomSqlRun(newTab.tabId, { sql });
     if (meta !== undefined) stageChatReturn(newTab.tabId, meta);
-    void navigateToEditor(sql, newTab);
+    void navigateToEditor(sql, newTab, meta);
   };
 
   /** open_workspace_view card click: browse tab pre-set with the model's state. */
@@ -597,6 +605,11 @@ const AiChatPageInner = ({
               ) : null}
             </>
           )}
+          <span
+            id="ai-context-header-action"
+            className="flex shrink-0 items-center"
+            data-testid="ai-context-header-action"
+          />
           {variant === "sidechat" && onSidechatSideChange ? (
             <div
               className="border-border flex shrink-0 items-center rounded-md border p-0.5"
@@ -641,9 +654,9 @@ const AiChatPageInner = ({
               size="icon"
               variant="ghost"
               onClick={onClose}
-              aria-label="Close AI sidechat"
+              aria-label="Minimize AI sidechat"
               data-testid="ai-sidechat-close"
-              title="Close AI sidechat"
+              title="Minimize AI sidechat"
             >
               <X className="size-4" />
             </Button>
@@ -653,10 +666,7 @@ const AiChatPageInner = ({
 
       {settingsOpen && (
         <div
-          className={cn(
-            "bg-muted/10 border-border min-h-0 overflow-y-auto border-b",
-            variant === "sidechat" ? "max-h-[min(48dvh,30rem)]" : "max-h-[min(55dvh,38rem)]",
-          )}
+          className="bg-muted/10 border-border border-l-primary/20 min-h-0 flex-1 overflow-y-auto border-b border-l-2"
           data-testid="ai-settings-panel"
         >
           <div className="bg-background/95 border-border sticky top-0 z-10 flex items-center justify-between border-b px-4 py-2 backdrop-blur">
@@ -694,13 +704,14 @@ const AiChatPageInner = ({
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1">
+      <div className={cn("min-h-0 flex-1", settingsOpen ? "hidden" : "flex")}>
         <AiChatBody
           connection={connection}
           schemaContext={schemaContext}
           initialConversationId={initialConversationId}
           providerReady={byokState === "usable"}
           accessMode={chatAccessMode}
+          onAccessModeChange={updateChatAccessMode}
           chatDataAccess={chatDataAccess}
           onApplySql={applySqlToEditor}
           onRunSql={applySqlAndRun}
@@ -708,18 +719,6 @@ const AiChatPageInner = ({
           onOpenProviderSettings={() => setSettingsOpen(true)}
           initialAskTable={initialAskTable}
           initialAiIntent={initialAiIntent}
-          onAdoptAutoTables={(tables) => {
-            // Audit T2: clicking auto-picked table chips adopts them as the
-            // manual selection — "Auto guessed wrong" becomes one click away.
-            setStoredChatSchemaSelection(connection.name, {
-              mode: "selected",
-              selectedTables: [...tables],
-            });
-            window.dispatchEvent(new Event(SCHEMA_SELECTION_CHANGED_EVENT));
-            announce(
-              `Schema selection set to ${tables.length} table${tables.length === 1 ? "" : "s"}.`,
-            );
-          }}
           onOpenSchemaPanel={() => setSettingsOpen(true)}
           contextAttachments={effectiveContextAttachments}
           onContextAttachmentsChange={(attachments) => {
@@ -838,6 +837,7 @@ const ContextTablePicker = ({
   open,
   onOpenChange,
   schema,
+  count,
   tables,
   selectedKeys,
   search,
@@ -847,6 +847,7 @@ const ContextTablePicker = ({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   schema?: string;
+  count: number;
   tables: readonly AiTableContext[];
   selectedKeys: ReadonlySet<string>;
   search: string;
@@ -855,12 +856,17 @@ const ContextTablePicker = ({
 }) => (
   <Popover open={open} onOpenChange={(details) => onOpenChange(details.open)}>
     <PopoverTrigger asChild>
-      <Button size="xs" variant="outline" aria-label="Add tables to chat context">
-        Add tables
+      <Button size="xs" variant="outline" aria-label="Attach tables to chat context">
+        <span className="hidden sm:inline">Attach tables to context</span>
+        <span className="sm:hidden">Attach tables</span>
+        {count > 0 ? ` · ${count}` : ""}
       </Button>
     </PopoverTrigger>
-    <PopoverContent className="w-72 p-2">
-      <p className="px-2 py-1 text-sm font-medium">Add tables</p>
+    <PopoverContent className="w-72 p-2" data-testid="ai-context-table-picker">
+      <p className="px-2 py-1 text-sm font-medium">Attach tables to context</p>
+      <p className="text-muted-foreground px-2 pb-1 text-[11px]">
+        Select multiple tables. Click an attached table again to remove it.
+      </p>
       <Input
         type="search"
         value={search}
@@ -1224,10 +1230,9 @@ const ProviderSettingsSection = ({
  * Tool selection — which tools the assistant may use. Auto-saves on change;
  * the runtime picks the new set up on the next request via BYOK_CHANGED_EVENT.
  */
-const ToolsSettingsSection = ({ defaultOpen = false }: { defaultOpen?: boolean }) => {
+const ToolsSettingsSection = ({ defaultOpen: _defaultOpen = false }: { defaultOpen?: boolean }) => {
   const [enabled, setEnabled] = useState(DEFAULT_ENABLED_CHAT_TOOLS);
   const [hydrated, setHydrated] = useState(false);
-  const [open, setOpen] = useState(defaultOpen);
 
   useEffect(() => {
     setEnabled(getStoredEnabledChatTools());
@@ -1252,77 +1257,55 @@ const ToolsSettingsSection = ({ defaultOpen = false }: { defaultOpen?: boolean }
   if (!hydrated) return null;
 
   return (
-    <section
-      className="border-border border-b px-4 py-2"
-      data-testid="ai-tools-settings"
-      data-open={open}
-    >
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          className="flex flex-1 items-center gap-2 py-1 text-left"
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-          data-testid="ai-section-toggle-tools"
-        >
-          <ChevronDown
-            className={`text-muted-foreground size-3.5 transition-transform ${open ? "" : "-rotate-90"}`}
-          />
+    <section className="border-border border-b px-4 py-3" data-testid="ai-tools-settings">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="text-sm font-medium">Tools</h2>
-          <span className="text-muted-foreground text-xs">
-            What the assistant is allowed to do.
-          </span>
-        </button>
-        {open && (
-          <span className="flex gap-1.5">
-            <Button
-              size="xs"
-              variant="ghost"
+          <p className="text-muted-foreground mt-0.5 text-xs">Choose what the assistant can do.</p>
+        </div>
+        <Menu>
+          <MenuTrigger asChild>
+            <Button size="xs" variant="outline" data-testid="ai-tools-multiselect">
+              {enabled.length === CHAT_TOOLS.length
+                ? "All tools"
+                : `${enabled.length} of ${CHAT_TOOLS.length} enabled`}
+              <ChevronDown className="size-3.5" />
+            </Button>
+          </MenuTrigger>
+          <MenuContent className="w-80">
+            <MenuItem
+              value="select-all-tools"
               onClick={() => persist(CHAT_TOOLS.map((tool) => tool.id))}
               data-testid="ai-tools-select-all"
             >
-              Select all
-            </Button>
-            <Button
-              size="xs"
-              variant="ghost"
+              Select all tools
+            </MenuItem>
+            <MenuItem
+              value="select-no-tools"
               onClick={() => persist([])}
               data-testid="ai-tools-select-none"
             >
-              Select none
-            </Button>
-          </span>
-        )}
-      </div>
-      {open && (
-        <ul className="mt-1 space-y-1.5 pb-2">
-          {CHAT_TOOLS.map((tool) => (
-            <li key={tool.id}>
-              <Checkbox
+              Select no tools
+            </MenuItem>
+            {CHAT_TOOLS.map((tool) => (
+              <MenuCheckboxItem
+                key={tool.id}
+                value={`tool-${tool.id}`}
                 checked={enabled.includes(tool.id)}
-                onCheckedChange={(details) => toggleTool(tool.id, details.checked === true)}
+                onCheckedChange={(checked) => toggleTool(tool.id, checked === true)}
                 data-testid={`ai-tool-checkbox-${tool.id}`}
-                className="flex items-start gap-2 text-sm"
               >
-                <CheckboxControl />
-                <CheckboxLabel className="cursor-pointer">
-                  <span className="font-medium">
-                    {tool.label}{" "}
-                    <span className="text-muted-foreground font-normal">
-                      {tool.dataClass === "schema"
-                        ? "· schema only"
-                        : tool.dataClass === "sample-rows"
-                          ? "· shares sample rows"
-                          : "· shares query results"}
-                    </span>
+                <span>
+                  <span className="block font-medium">{tool.label}</span>
+                  <span className="text-muted-foreground block text-[11px] leading-4">
+                    {tool.description}
                   </span>
-                  <span className="text-muted-foreground block text-xs">{tool.description}</span>
-                </CheckboxLabel>
-              </Checkbox>
-            </li>
-          ))}
-        </ul>
-      )}
+                </span>
+              </MenuCheckboxItem>
+            ))}
+          </MenuContent>
+        </Menu>
+      </div>
     </section>
   );
 };
@@ -1485,6 +1468,7 @@ const AiChatBody = ({
   schemaContext,
   providerReady,
   accessMode,
+  onAccessModeChange,
   chatDataAccess,
   onApplySql,
   onRunSql,
@@ -1493,7 +1477,6 @@ const AiChatBody = ({
   initialConversationId,
   initialAskTable,
   initialAiIntent,
-  onAdoptAutoTables,
   onOpenSchemaPanel,
   contextAttachments,
   onContextAttachmentsChange,
@@ -1507,6 +1490,7 @@ const AiChatBody = ({
   /** Reactive: stored BYOK config satisfies its provider's key requirement. */
   providerReady: boolean;
   accessMode: ChatAccessMode;
+  onAccessModeChange: (mode: ChatAccessMode) => void;
   chatDataAccess: ChatDataAccess;
   /** Audit S8: meta identifies the thread a seeded editor can link back to. */
   onApplySql: (sql: string, meta?: ChatReturnMeta) => void;
@@ -1530,8 +1514,6 @@ const AiChatBody = ({
   /** Audit K4: `?askTable=` pre-seeds draft + Selected scope for one table. */
   initialAskTable?: string;
   initialAiIntent?: "chat" | "sql";
-  /** Audit T2: adopt auto-picked tables as a manual selection. */
-  onAdoptAutoTables: (tables: readonly string[]) => void;
   /** Audit K6: `/schema` opens the schema settings panel. */
   onOpenSchemaPanel: () => void;
   /** Ephemeral table/filter/selection/SQL/result context for this surface. */
@@ -1555,6 +1537,10 @@ const AiChatBody = ({
   );
   const [addTablesOpen, setAddTablesOpen] = useState(false);
   const [tableSearch, setTableSearch] = useState("");
+  const [contextPortalTarget, setContextPortalTarget] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setContextPortalTarget(document.getElementById("ai-context-header-action"));
+  }, [variant]);
   const allContextAttachments = useMemo(
     () =>
       [...(contextAttachments ?? []), ...addedContextAttachments].reduce<ChatContextAttachment[]>(
@@ -1583,63 +1569,101 @@ const AiChatBody = ({
     () => sanitizeChatContextAttachments(activeContextAttachments, chatDataAccess),
     [activeContextAttachments, chatDataAccess],
   );
-  const contextDataClasses = useMemo(
-    () => dataClassesForChatContext(visibleContextAttachments),
-    [visibleContextAttachments],
+  const removeContextAttachment = useCallback(
+    (attachment: ChatContextAttachment) => {
+      const label =
+        attachment.kind === "table"
+          ? `table ${attachment.table}`
+          : attachment.kind === "filters"
+            ? `filters for ${attachment.table}`
+            : attachment.kind === "selection"
+              ? `selection from ${attachment.table}`
+              : attachment.kind === "sql"
+                ? "SQL draft"
+                : "query result";
+      setRemovedContextKeys((current) => {
+        const next = new Set(current);
+        next.add(chatContextAttachmentKey(attachment));
+        return next;
+      });
+      onContextAttachmentsChange(
+        activeContextAttachments.filter(
+          (currentAttachment) =>
+            chatContextAttachmentKey(currentAttachment) !== chatContextAttachmentKey(attachment),
+        ),
+      );
+      announce(`${label} removed for this turn.`);
+    },
+    [activeContextAttachments, onContextAttachmentsChange],
   );
-  const removeContextAttachment = (attachment: ChatContextAttachment) => {
-    const label =
-      attachment.kind === "table"
-        ? `table ${attachment.table}`
-        : attachment.kind === "filters"
-          ? `filters for ${attachment.table}`
-          : attachment.kind === "selection"
-            ? `selection from ${attachment.table}`
-            : attachment.kind === "sql"
-              ? "SQL draft"
-              : "query result";
-    setRemovedContextKeys((current) => {
-      const next = new Set(current);
-      next.add(chatContextAttachmentKey(attachment));
-      return next;
-    });
-    onContextAttachmentsChange(
-      activeContextAttachments.filter(
-        (currentAttachment) =>
-          chatContextAttachmentKey(currentAttachment) !== chatContextAttachmentKey(attachment),
-      ),
-    );
-    announce(`${label} removed for this turn.`);
-  };
   const contextTables = useMemo(
     () => fuzzyFilter(schemaContext.tables, tableSearch, (table) => table.table),
     [schemaContext.tables, tableSearch],
   );
-  const addContextTable = (table: string) => {
-    const attachment: ChatContextAttachment = {
-      kind: "table",
-      schema: schemaContext.schema,
-      table,
-    };
-    const key = chatContextAttachmentKey(attachment);
-    setRemovedContextKeys((current) => {
-      if (!current.has(key)) return current;
-      const next = new Set(current);
-      next.delete(key);
-      return next;
-    });
-    if (!activeContextAttachments.some((current) => chatContextAttachmentKey(current) === key)) {
-      setAddedContextAttachments((current) =>
-        current.some((item) => chatContextAttachmentKey(item) === key)
-          ? current
-          : [...current, attachment],
-      );
-      onContextAttachmentsChange([...activeContextAttachments, attachment]);
-    }
-    announce(`${table} added to chat context.`);
-    setAddTablesOpen(false);
-    setTableSearch("");
-  };
+  const addContextTable = useCallback(
+    (table: string) => {
+      const attachment: ChatContextAttachment = {
+        kind: "table",
+        schema: schemaContext.schema,
+        table,
+      };
+      const key = chatContextAttachmentKey(attachment);
+      if (activeContextAttachments.some((current) => chatContextAttachmentKey(current) === key)) {
+        removeContextAttachment(attachment);
+        return;
+      }
+      setRemovedContextKeys((current) => {
+        if (!current.has(key)) return current;
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+      if (!activeContextAttachments.some((current) => chatContextAttachmentKey(current) === key)) {
+        setAddedContextAttachments((current) =>
+          current.some((item) => chatContextAttachmentKey(item) === key)
+            ? current
+            : [...current, attachment],
+        );
+        onContextAttachmentsChange([...activeContextAttachments, attachment]);
+      }
+      announce(`${table} added to chat context.`);
+    },
+    [
+      activeContextAttachments,
+      onContextAttachmentsChange,
+      removeContextAttachment,
+      schemaContext.schema,
+    ],
+  );
+
+  const contextPicker = useMemo(
+    () => (
+      <ContextTablePicker
+        open={addTablesOpen}
+        onOpenChange={setAddTablesOpen}
+        schema={schemaContext.schema}
+        count={visibleContextAttachments.length}
+        tables={contextTables}
+        selectedKeys={
+          new Set(
+            activeContextAttachments.map((attachment) => chatContextAttachmentKey(attachment)),
+          )
+        }
+        search={tableSearch}
+        onSearchChange={setTableSearch}
+        onAdd={addContextTable}
+      />
+    ),
+    [
+      activeContextAttachments,
+      addContextTable,
+      addTablesOpen,
+      contextTables,
+      visibleContextAttachments.length,
+      schemaContext.schema,
+      tableSearch,
+    ],
+  );
 
   const runtime = useDadabaseChatRuntime({
     connectionName: connection.name,
@@ -1655,134 +1679,8 @@ const AiChatBody = ({
       {variant === "page" ? (
         <ThreadListPanel overlayOpen={threadList.open} onClose={threadList.onClose} />
       ) : null}
+      {contextPortalTarget !== null ? createPortal(contextPicker, contextPortalTarget) : null}
       <main className="flex min-w-0 flex-1 flex-col">
-        {visibleContextAttachments.length > 0 ? (
-          <div
-            className="border-border bg-muted/20 mx-3 mt-3 rounded-md border px-3 py-2 text-xs"
-            data-testid="ai-context-attachments"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="font-medium">Context for this chat</span>
-                <span className="text-muted-foreground">
-                  {visibleContextAttachments.length} attachment
-                  {visibleContextAttachments.length === 1 ? "" : "s"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-[11px]">
-                  {contextDataClasses.includes("sample-rows") ||
-                  contextDataClasses.includes("query-results")
-                    ? "Preview data enabled"
-                    : "Metadata only"}
-                </span>
-                <ContextTablePicker
-                  open={addTablesOpen}
-                  onOpenChange={setAddTablesOpen}
-                  schema={schemaContext.schema}
-                  tables={contextTables}
-                  selectedKeys={
-                    new Set(
-                      activeContextAttachments.map((attachment) =>
-                        chatContextAttachmentKey(attachment),
-                      ),
-                    )
-                  }
-                  search={tableSearch}
-                  onSearchChange={setTableSearch}
-                  onAdd={addContextTable}
-                />
-              </div>
-            </div>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {visibleContextAttachments.map((attachment, index) => {
-                const dataClass =
-                  attachment.kind === "selection" && attachment.rows?.length
-                    ? "values"
-                    : attachment.kind === "result" && attachment.rows?.length
-                      ? "values"
-                      : "metadata only";
-                const label =
-                  attachment.kind === "table"
-                    ? `table: ${attachment.table} · schema`
-                    : attachment.kind === "filters"
-                      ? `filters: ${attachment.table} · ${attachment.filters.length}`
-                      : attachment.kind === "selection"
-                        ? `selection: ${attachment.table} · ${attachment.rows?.length ?? attachment.rowIds?.length ?? 0} rows · ${dataClass}`
-                        : attachment.kind === "sql"
-                          ? `SQL draft · ${attachment.sql.length.toLocaleString()} chars`
-                          : `result · ${attachment.rowCount.toLocaleString()} rows · ${dataClass}`;
-                return (
-                  <div
-                    key={`${attachment.kind}-${index}`}
-                    className="bg-muted inline-flex max-w-full items-start gap-1 rounded px-1.5 py-0.5 text-left"
-                  >
-                    {attachment.kind === "sql" || attachment.kind === "result" ? (
-                      <details className="min-w-0">
-                        <summary className="hover:text-foreground cursor-pointer truncate">
-                          {label}
-                        </summary>
-                        {attachment.kind === "sql" ? (
-                          <pre className="bg-background border-border mt-1 max-h-32 max-w-[min(28rem,70vw)] overflow-auto rounded border p-2 font-mono text-[11px] whitespace-pre-wrap">
-                            {attachment.sql}
-                          </pre>
-                        ) : (
-                          <p className="text-muted-foreground mt-1 max-w-[18rem] text-[11px]">
-                            Columns: {attachment.columns.join(", ") || "none"}. Values are{" "}
-                            {attachment.rows?.length ? "attached." : "not attached."}
-                          </p>
-                        )}
-                      </details>
-                    ) : (
-                      <span className="truncate">{label}</span>
-                    )}
-                    <button
-                      type="button"
-                      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring shrink-0 rounded focus-visible:ring-2 focus-visible:outline-none"
-                      title="Remove from this turn"
-                      aria-label={`Remove ${label} from this turn`}
-                      onClick={() => removeContextAttachment(attachment)}
-                    >
-                      <X className="size-3" aria-hidden="true" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-muted-foreground mt-1.5 text-[11px]">
-              Included in the next message · remove a chip to exclude it for this turn.
-            </p>
-          </div>
-        ) : variant === "sidechat" ? (
-          <div
-            className="border-border bg-muted/20 text-muted-foreground mx-3 mt-3 rounded-md border px-3 py-2 text-xs"
-            data-testid="ai-context-empty"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <span className="text-foreground font-medium">Context for this chat</span>
-                <span className="ml-2">No tables attached</span>
-              </div>
-              <ContextTablePicker
-                open={addTablesOpen}
-                onOpenChange={setAddTablesOpen}
-                schema={schemaContext.schema}
-                tables={contextTables}
-                selectedKeys={
-                  new Set(
-                    activeContextAttachments.map((attachment) =>
-                      chatContextAttachmentKey(attachment),
-                    ),
-                  )
-                }
-                search={tableSearch}
-                onSearchChange={setTableSearch}
-                onAdd={addContextTable}
-              />
-            </div>
-            <p className="mt-1">Add tables here, or open a table/selection to attach it.</p>
-          </div>
-        ) : null}
         {variant === "sidechat" && !providerReady ? (
           <div
             className="border-primary/20 bg-primary/5 mx-3 mt-3 flex items-start justify-between gap-3 rounded-md border px-3 py-2.5"
@@ -1835,12 +1733,12 @@ const AiChatBody = ({
           onOpenWorkspaceView={onOpenWorkspaceView}
           onOpenProviderSettings={onOpenProviderSettings}
           accessMode={accessMode}
+          onAccessModeChange={onAccessModeChange}
           providerReady={providerReady}
           dialect={connection.dialect}
           initialConversationId={initialConversationId}
           initialAskTable={initialAskTable}
           initialAiIntent={initialAiIntent}
-          onAdoptAutoTables={onAdoptAutoTables}
           onOpenSchemaPanel={onOpenSchemaPanel}
           contextAttachments={visibleContextAttachments}
           onConversationIdChange={onConversationIdChange}
@@ -1858,6 +1756,10 @@ const AiChatBody = ({
  */
 const THREAD_GROUP_LABELS = ["Pinned", "Today", "Yesterday", "Earlier"] as const;
 type ThreadGroupLabel = (typeof THREAD_GROUP_LABELS)[number];
+const AI_THREAD_LIST_WIDTH_KEY = "dadabase.ai.thread-list-width";
+const AI_THREAD_LIST_WIDTH_DEFAULT = 288;
+const AI_THREAD_LIST_WIDTH_MIN = 220;
+const AI_THREAD_LIST_WIDTH_MAX = 520;
 
 const groupThreadsByRecency = (
   threads: ReadonlyArray<Conversation>,
@@ -1945,7 +1847,13 @@ const ThreadListItem = ({
           onClick={onSelect}
           data-testid="ai-thread-item"
         >
-          {thread.pinned === true ? <Pin className="mr-1 inline size-3 shrink-0" /> : null}
+          {thread.pinned === true ? (
+            <Pin
+              className="mr-1 inline size-3 shrink-0"
+              aria-label={`Pinned chat ${title}`}
+              data-testid="ai-thread-pinned"
+            />
+          ) : null}
           <span className="truncate">{title}</span>
         </button>
       )}
@@ -2049,13 +1957,58 @@ const ThreadListPanel = ({
 
   // Audit K3: search + date grouping over the hydrated thread list.
   const [search, setSearch] = useState("");
-  const visibleConversations = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (query === "") return conversations;
-    return conversations.filter((thread) =>
-      (thread.title || "New chat").toLowerCase().includes(query),
-    );
-  }, [conversations, search]);
+  const [threadListWidth, setThreadListWidth] = useState(AI_THREAD_LIST_WIDTH_DEFAULT);
+  useEffect(() => {
+    const stored = Number(window.localStorage.getItem(AI_THREAD_LIST_WIDTH_KEY));
+    if (Number.isFinite(stored)) {
+      // Do not let late hydration overwrite a keyboard/pointer resize that
+      // happened during the first paint.
+      setThreadListWidth((current) =>
+        current === AI_THREAD_LIST_WIDTH_DEFAULT
+          ? Math.min(AI_THREAD_LIST_WIDTH_MAX, Math.max(AI_THREAD_LIST_WIDTH_MIN, stored))
+          : current,
+      );
+    }
+  }, []);
+  const threadResizeRef = useRef<{ startX: number; startWidth: number; width: number } | null>(
+    null,
+  );
+  const resizeThreadList = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    threadResizeRef.current = {
+      startX: event.clientX,
+      startWidth: threadListWidth,
+      width: threadListWidth,
+    };
+    const onMove = (moveEvent: PointerEvent) => {
+      const start = threadResizeRef.current;
+      if (!start) return;
+      const width = Math.min(
+        AI_THREAD_LIST_WIDTH_MAX,
+        Math.max(AI_THREAD_LIST_WIDTH_MIN, start.startWidth + moveEvent.clientX - start.startX),
+      );
+      start.width = width;
+      setThreadListWidth(width);
+    };
+    const onUp = () => {
+      const width = threadResizeRef.current?.width;
+      threadResizeRef.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (width !== undefined) window.localStorage.setItem(AI_THREAD_LIST_WIDTH_KEY, String(width));
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+  };
+  const visibleConversations = useMemo(
+    () =>
+      fuzzyFilter(
+        conversations,
+        search,
+        (thread) => `${thread.title || "New chat"} ${thread.searchText || ""}`,
+      ),
+    [conversations, search],
+  );
 
   /** Audit S3: one inline flow at a time (rename target / delete confirm). */
   const [renamingId, setRenamingId] = useState<string | undefined>(undefined);
@@ -2216,11 +2169,50 @@ const ThreadListPanel = ({
         </div>
       ) : null}
       <aside
-        className="border-border hidden w-72 shrink-0 overflow-auto border-r p-2 md:block"
+        className="border-border relative hidden shrink-0 overflow-auto border-r p-2 md:block"
+        style={{ width: threadListWidth }}
         data-testid="ai-thread-list-desktop"
       >
         {header}
         {content}
+        <button
+          type="button"
+          className="group absolute inset-y-0 right-[-5px] z-10 hidden w-2 cursor-col-resize items-center justify-center md:flex"
+          aria-label="Resize chat threads"
+          aria-orientation="vertical"
+          aria-valuemin={AI_THREAD_LIST_WIDTH_MIN}
+          aria-valuemax={AI_THREAD_LIST_WIDTH_MAX}
+          aria-valuenow={threadListWidth}
+          data-testid="ai-thread-list-resize-handle"
+          title="Drag to resize chat threads"
+          onPointerDown={resizeThreadList}
+          onKeyDown={(event) => {
+            if (event.key === "Home" || event.key === "End") {
+              event.preventDefault();
+              const width =
+                event.key === "Home" ? AI_THREAD_LIST_WIDTH_MIN : AI_THREAD_LIST_WIDTH_MAX;
+              setThreadListWidth(width);
+              window.localStorage.setItem(AI_THREAD_LIST_WIDTH_KEY, String(width));
+              return;
+            }
+            const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+            if (direction === 0) return;
+            event.preventDefault();
+            setThreadListWidth((current) => {
+              const width = Math.min(
+                AI_THREAD_LIST_WIDTH_MAX,
+                Math.max(
+                  AI_THREAD_LIST_WIDTH_MIN,
+                  current + direction * (event.shiftKey ? 64 : 16),
+                ),
+              );
+              window.localStorage.setItem(AI_THREAD_LIST_WIDTH_KEY, String(width));
+              return width;
+            });
+          }}
+        >
+          <span className="bg-border group-hover:bg-primary group-focus-visible:bg-primary h-16 w-1 rounded-full" />
+        </button>
       </aside>
     </>
   );
@@ -2258,6 +2250,33 @@ const mergeModelOptions = (candidates: Array<string | undefined>): string[] => {
     }
   }
   return models;
+};
+
+const ComposerAccessPicker = ({
+  accessMode,
+  onChange,
+}: {
+  accessMode: ChatAccessMode;
+  onChange: (mode: ChatAccessMode) => void;
+}): ReactNode => {
+  return (
+    <select
+      value={accessMode}
+      onChange={(event) => {
+        const mode = event.target.value;
+        if (mode === "read-only" || mode === "read-write" || mode === "full") onChange(mode);
+      }}
+      className="border-input bg-background text-foreground h-7 max-w-full rounded-md border px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]/30"
+      aria-label="AI access level"
+      data-testid="ai-composer-access-mode"
+    >
+      {CHAT_ACCESS_MODES.map((mode) => (
+        <option key={mode} value={mode}>
+          {chatAccessModeLabel(mode)}
+        </option>
+      ))}
+    </select>
+  );
 };
 
 /**
@@ -2459,7 +2478,7 @@ const ChatSurface = ({
   accessMode,
   providerReady,
   dialect,
-  onAdoptAutoTables,
+  onAccessModeChange,
   onOpenSchemaPanel,
   initialConversationId,
   initialAskTable,
@@ -2488,11 +2507,10 @@ const ChatSurface = ({
   onOpenProviderSettings: () => void;
   /** Controls which non-read-only SQL may be approved and executed. */
   accessMode: ChatAccessMode;
+  onAccessModeChange: (mode: ChatAccessMode) => void;
   /** Stored BYOK config satisfies its provider's key requirement. */
   providerReady: boolean;
   dialect: DatabaseDialect;
-  /** Audit T2: clicking an auto chip adopts those tables as a manual selection. */
-  onAdoptAutoTables: (tables: readonly string[]) => void;
   /** Audit K6: `/schema` opens the schema settings panel. */
   onOpenSchemaPanel: () => void;
   /** Conversation id requested by the full-page route, used for loading feedback. */
@@ -2808,11 +2826,6 @@ const ChatSurface = ({
     }
     actions.sendMessage({ text: draft });
   };
-  // Audit M4/T3: thread total across per-message usage.
-  const threadTokens = messages.reduce(
-    (total, message) => total + (message.usage?.totalTokens ?? 0),
-    0,
-  );
   useEffect(() => {
     if (!isStreaming && !findPendingApproval(lastAssistant)) setLastDecision(undefined);
   }, [isStreaming, lastAssistant]);
@@ -2820,11 +2833,7 @@ const ChatSurface = ({
   // Audit C4: the proposed SQL must be readable while the model streams —
   // purpose line + SQL, expanded by default instead of a collapsed details.
   const renderToolInput = ({ toolName, input }: { toolName: string; input: unknown }) => {
-    if (
-      (toolName === "propose_sql" || toolName === "run_sql") &&
-      isRecord(input) &&
-      typeof input.sql === "string"
-    ) {
+    if (toolName === "propose_sql" && isRecord(input) && typeof input.sql === "string") {
       // The model names the purpose via `explanation`; canned/mocked streams
       // have used `reason` — treat them the same.
       const purpose =
@@ -3018,20 +3027,78 @@ const ChatSurface = ({
             );
           }
         }
+        const resultRows = Array.isArray(result.rows)
+          ? result.rows.filter(isRecord).slice(0, 50)
+          : [];
+        const resultColumns = Array.isArray(result.columns)
+          ? result.columns.filter((column): column is string => typeof column === "string")
+          : resultRows[0]
+            ? Object.keys(resultRows[0])
+            : [];
+        const serverReadableColumns = Array.isArray(result.readableColumns)
+          ? result.readableColumns.filter((column): column is string => typeof column === "string")
+          : undefined;
+        const readableColumns =
+          serverReadableColumns !== undefined && serverReadableColumns.length > 0
+            ? serverReadableColumns
+            : readablePreviewColumns(resultColumns, resultRows);
+        const serverReadableRows = Array.isArray(result.readableRows)
+          ? result.readableRows.filter(isRecord).slice(0, 50)
+          : undefined;
+        const readableRows =
+          serverReadableRows !== undefined && serverReadableRows.length > 0
+            ? serverReadableRows
+            : resultRows.map((row) =>
+                Object.fromEntries(readableColumns.map((column) => [column, row[column]])),
+              );
+        const relationSummary = Array.isArray(result.readableRelations)
+          ? result.readableRelations.filter(isRecord)
+          : [];
         return (
           <div className="space-y-1.5">
             {outcome}
-            <div className="relative">
-              <pre className="bg-muted/50 overflow-auto rounded-md p-2 pe-16 font-mono text-xs">
-                {sql}
-              </pre>
-              <CopySqlButton sql={sql} />
-            </div>
+            {toolName === "run_sql" ? (
+              <details className="bg-muted/20 rounded-md border" data-testid="ai-chat-run-query">
+                <summary className="text-muted-foreground flex cursor-pointer list-none items-center justify-between px-2.5 py-2 text-xs font-medium">
+                  <span>Query</span>
+                  <span>{sql.length.toLocaleString()} characters</span>
+                </summary>
+                <div className="border-t p-2">
+                  <div className="relative">
+                    <pre className="bg-muted/50 overflow-auto rounded-md p-2 pe-16 font-mono text-xs">
+                      {sql}
+                    </pre>
+                    <CopySqlButton sql={sql} />
+                  </div>
+                </div>
+              </details>
+            ) : (
+              <div className="relative">
+                <pre className="bg-muted/50 overflow-auto rounded-md p-2 pe-16 font-mono text-xs">
+                  {sql}
+                </pre>
+                <CopySqlButton sql={sql} />
+              </div>
+            )}
             {toolName === "run_sql" && result.ok !== false ? (
-              <p className="text-muted-foreground text-xs" data-testid="ai-chat-result-followup">
-                Does this result match what you expected? Ask a follow-up if you want to adjust the
-                metric, filters, or time range.
-              </p>
+              <>
+                {resultRows.length > 0 && resultColumns.length > 0 ? (
+                  <PreviewRowsCard
+                    columns={resultColumns}
+                    rows={resultRows}
+                    readableColumns={readableColumns}
+                    readableRows={readableRows}
+                    relationSummary={relationSummary}
+                  />
+                ) : (
+                  <p className="text-muted-foreground text-xs" data-testid="ai-chat-run-no-rows">
+                    Query completed without returned rows.
+                  </p>
+                )}
+                <p className="text-muted-foreground text-xs" data-testid="ai-chat-run-provenance">
+                  Source: live query result from this workspace.
+                </p>
+              </>
             ) : null}
             <div className="flex gap-1.5">
               <Button
@@ -3223,19 +3290,11 @@ const ChatSurface = ({
                   <ThreadMessage
                     message={message}
                     isStreaming={isStreaming && message.role === "assistant"}
-                    metadata={{
-                      ...(typeof message.model === "string" && message.model !== ""
-                        ? { modelLabel: message.model }
-                        : {}),
-                      ...(message.usage?.totalTokens !== null &&
-                      typeof message.usage?.totalTokens === "number" &&
-                      message.usage.totalTokens > 0
-                        ? { totalTokens: message.usage.totalTokens }
-                        : {}),
-                      ...(typeof message.createdAt === "string"
+                    metadata={
+                      typeof message.createdAt === "string"
                         ? { createdAt: message.createdAt }
-                        : {}),
-                    }}
+                        : undefined
+                    }
                     renderToolResult={renderToolResult}
                     renderToolInput={renderToolInput}
                     {...(canRetryFailedTurn
@@ -3245,75 +3304,6 @@ const ChatSurface = ({
                         }
                       : {})}
                   />
-                  {/* Audit T1/T2: per-turn context receipt — the model, schema
-                    mode, table subset, tools, and tokens actually sent. In auto
-                    mode the picked tables are clickable to adopt as manual
-                    selection ("Auto worked" vs "Auto guessed wrong"). */}
-                  {message.role === "assistant" && message.context !== undefined ? (
-                    <div
-                      className="text-muted-foreground mt-1 flex flex-wrap items-center gap-1.5 px-3 text-[11px]"
-                      data-testid="ai-chat-context-receipt"
-                    >
-                      <span>{message.context.mode}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>
-                        {message.context.tables.length === 0
-                          ? "no tables"
-                          : `${message.context.tables.length} table${message.context.tables.length === 1 ? "" : "s"}`}
-                      </span>
-                      {message.context.mode !== "all" ? (
-                        <span className="flex flex-wrap gap-1">
-                          {message.context.tables.map((table) => {
-                            const adoptable =
-                              message.context !== undefined && message.context.mode === "auto";
-                            return adoptable ? (
-                              <button
-                                key={table}
-                                type="button"
-                                className="bg-muted hover:text-foreground rounded px-1 py-px font-mono transition-colors"
-                                title={`Adopt \`${table}\` as your schema selection`}
-                                onClick={() => onAdoptAutoTables([table])}
-                              >
-                                {table}
-                              </button>
-                            ) : (
-                              <span key={table} className="bg-muted rounded px-1 py-px font-mono">
-                                {table}
-                              </span>
-                            );
-                          })}
-                        </span>
-                      ) : null}
-                      <span aria-hidden="true">·</span>
-                      <span>
-                        {message.context.tools.length === 0
-                          ? "tools off"
-                          : message.context.tools.join(", ")}
-                      </span>
-                      {message.context.dataClasses.length > 0 ? (
-                        <>
-                          <span aria-hidden="true">·</span>
-                          <span>
-                            {message.context.dataClasses
-                              .map((dataClass) =>
-                                dataClass === "sample-rows"
-                                  ? "sample rows"
-                                  : dataClass === "query-results"
-                                    ? "query results"
-                                    : "schema",
-                              )
-                              .join(" + ")}
-                          </span>
-                        </>
-                      ) : null}
-                      {message.usage?.totalTokens != null && message.usage.totalTokens > 0 ? (
-                        <>
-                          <span aria-hidden="true">·</span>
-                          <span>{message.usage.totalTokens.toLocaleString()} ctx</span>
-                        </>
-                      ) : null}
-                    </div>
-                  ) : null}
                 </div>
               );
             })
@@ -3420,13 +3410,10 @@ const ChatSurface = ({
 
       <div className="border-border bg-background/95 relative z-20 border-t p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur md:pb-3">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
-          {/* Audit M4/T3: thread-level token total anchors cost awareness. */}
-          {threadTokens > 0 && (
-            <span className="text-muted-foreground text-[11px]" data-testid="ai-chat-thread-tokens">
-              {threadTokens.toLocaleString()} tokens this thread
-            </span>
-          )}
           <div className="border-border bg-background flex items-end gap-2 rounded-xl border px-3 py-2 shadow-sm">
+            <div className="shrink-0 self-end pb-1">
+              <ComposerAccessPicker accessMode={accessMode} onChange={onAccessModeChange} />
+            </div>
             <div className="min-w-0 flex-1">
               <Textarea
                 ref={composerRef}
@@ -3435,6 +3422,7 @@ const ChatSurface = ({
                 placeholder={composerPlaceholder(dialect)}
                 value={draft}
                 onChange={(e) => actions.setDraft({ text: e.target.value })}
+                onFocus={() => toaster.dismiss()}
                 onKeyDown={(e) => {
                   if (e.key !== "Enter" || e.shiftKey) return;
                   if (e.nativeEvent.isComposing || e.keyCode === 229) return;
@@ -3457,74 +3445,73 @@ const ChatSurface = ({
               <ArrowDown className="size-4 -rotate-90" />
             </Button>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <ComposerModelPicker />
-            {messages.length > 0 || variant === "sidechat" ? (
-              <>
-                {messages.length > 0 && variant === "page" ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => actions.startNewConversation()}
-                    data-testid="ai-chat-new-chat"
-                  >
-                    New chat
-                  </Button>
-                ) : null}
-                {/* Keep export actions discoverable without competing with Send. */}
-                {messages.length > 0 ? (
-                  <Menu>
-                    <MenuTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={copiedAction === undefined ? "More chat actions" : "Copied"}
-                        data-testid="ai-chat-actions"
-                      >
-                        {copiedAction === undefined ? (
-                          <MoreHorizontal className="size-3.5" />
-                        ) : (
-                          <Check className="size-3.5" />
-                        )}
-                        <span className="hidden sm:inline">
-                          {copiedAction === undefined ? "More" : "Copied"}
-                        </span>
-                      </Button>
-                    </MenuTrigger>
-                    <MenuContent>
-                      <MenuItem
-                        value="copy-markdown"
-                        onClick={() =>
-                          void copyConversation(markdown, "Chat copied as markdown.", "markdown")
-                        }
-                      >
-                        <Clipboard className="size-3.5" />
-                        Copy as Markdown
-                      </MenuItem>
-                      <MenuItem value="export-markdown" onClick={downloadMarkdown}>
-                        <FileText className="size-3.5" />
-                        Export Markdown
-                      </MenuItem>
-                      <MenuItem
-                        value="copy-text"
-                        onClick={() =>
-                          void copyConversation(plainText, "Chat copied as plain text.", "text")
-                        }
-                      >
-                        <Clipboard className="size-3.5" />
-                        Copy plain text
-                      </MenuItem>
-                    </MenuContent>
-                  </Menu>
-                ) : null}
-              </>
-            ) : null}
-            {!providerReady ? (
-              <span className="text-muted-foreground text-xs" data-testid="ai-chat-send-reason">
-                Configure an OpenAI-compatible provider above to enable chat.
-              </span>
-            ) : null}
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <ComposerModelPicker />
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {messages.length > 0 && variant === "page" ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => actions.startNewConversation()}
+                  data-testid="ai-chat-new-chat"
+                >
+                  New chat
+                </Button>
+              ) : null}
+              {/* Keep export actions next to the composer utilities. */}
+              {messages.length > 0 ? (
+                <Menu>
+                  <MenuTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-7"
+                      aria-label={copiedAction === undefined ? "Chat actions" : "Copied"}
+                      title={copiedAction === undefined ? "Chat actions" : "Copied"}
+                      data-testid="ai-chat-actions"
+                    >
+                      {copiedAction === undefined ? (
+                        <MoreHorizontal className="size-3.5" />
+                      ) : (
+                        <Check className="size-3.5" />
+                      )}
+                    </Button>
+                  </MenuTrigger>
+                  <MenuContent>
+                    <MenuItem
+                      value="copy-markdown"
+                      onClick={() =>
+                        void copyConversation(markdown, "Chat copied as markdown.", "markdown")
+                      }
+                    >
+                      <Clipboard className="size-3.5" />
+                      Copy as Markdown
+                    </MenuItem>
+                    <MenuItem value="export-markdown" onClick={downloadMarkdown}>
+                      <FileText className="size-3.5" />
+                      Export Markdown
+                    </MenuItem>
+                    <MenuItem
+                      value="copy-text"
+                      onClick={() =>
+                        void copyConversation(plainText, "Chat copied as plain text.", "text")
+                      }
+                    >
+                      <Clipboard className="size-3.5" />
+                      Copy plain text
+                    </MenuItem>
+                  </MenuContent>
+                </Menu>
+              ) : null}
+            </div>
           </div>
+          {!providerReady ? (
+            <span className="text-muted-foreground text-xs" data-testid="ai-chat-send-reason">
+              Configure an OpenAI-compatible provider above to enable chat.
+            </span>
+          ) : null}
           {error &&
             (() => {
               // Audit S10: one flat message for every failure mode taught users
@@ -3605,9 +3592,9 @@ const readablePreviewColumns = (
 
 const previewColumnLabel = (column: string): string => {
   const relationColumn = column.endsWith("__label") ? column.slice(0, -"__label".length) : column;
-  const words = relationColumn.replaceAll("_", " ").trim();
+  const words = relationColumn.replace(/_id$/, "").replaceAll("_", " ").trim();
   return column.endsWith("__label")
-    ? `${words || "Related"} label`
+    ? `${words || "Related"} name`
     : words.charAt(0).toUpperCase() + words.slice(1);
 };
 
@@ -3672,13 +3659,17 @@ const PreviewRowsCard = ({
     const target =
       typeof relation.referencedTable === "string" ? relation.referencedTable : "related table";
     const label = typeof relation.label === "string" ? relation.label : "display value";
-    return { relation, text: `${source} → ${target}.${label}` };
+    return {
+      relation,
+      text: `${source} → ${target}.${label}`,
+      inferred: relation.inferred === true,
+    };
   });
 
   return (
     <div className="space-y-2" data-testid="ai-chat-preview-rows">
-      <div className="bg-background rounded-md border p-2">
-        <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
+      <div className="border-border border-b pb-2">
+        <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2 px-0.5">
           <p className="text-xs font-medium">Readable preview</p>
           {relationLabels.length > 0 ? (
             <p className="text-muted-foreground text-[11px]">
@@ -3689,16 +3680,19 @@ const PreviewRowsCard = ({
         <PreviewRowsTable columns={readableColumns} rows={readableRows} readable />
         {relationLabels.length > 0 ? (
           <div
-            className="border-border bg-muted/20 mt-2 space-y-1 rounded border px-2 py-1.5 text-[11px]"
+            className="text-muted-foreground mt-2 space-y-1 px-0.5 text-[11px]"
             data-testid="ai-chat-relation-status"
           >
-            <p className="font-medium">Related labels</p>
-            {relationLabels.map(({ relation, text }) => (
+            <p className="text-foreground font-medium">Related labels</p>
+            {relationLabels.map(({ relation, text, inferred }) => (
               <p
                 key={text}
                 className="text-muted-foreground flex flex-wrap justify-between gap-x-2"
               >
-                <span>{text}</span>
+                <span>
+                  {text}
+                  {inferred ? " (inferred)" : ""}
+                </span>
                 <span className={relation.unresolvedCount ? "text-warning" : "text-success"}>
                   {previewRelationStatus(relation)}
                 </span>
@@ -3712,12 +3706,12 @@ const PreviewRowsCard = ({
           </div>
         ) : null}
       </div>
-      <details className="bg-muted/20 rounded-md border" data-testid="ai-chat-raw-preview">
-        <summary className="text-muted-foreground flex cursor-pointer list-none items-center justify-between px-2.5 py-2 text-xs font-medium">
+      <details className="border-border border-b pb-2" data-testid="ai-chat-raw-preview">
+        <summary className="text-muted-foreground flex cursor-pointer list-none items-center justify-between px-0.5 py-2 text-xs font-medium">
           <span>Raw rows</span>
           <span>{rows.length} sampled</span>
         </summary>
-        <div className="border-t p-2">
+        <div className="pt-1">
           {columns.length > 8 ? (
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className="text-muted-foreground text-[11px]">

@@ -461,23 +461,6 @@ export const useConnectionPageState = ({
 
           return (
             <div className="flex h-full w-full items-center justify-center gap-0.5">
-              {canEdit && onEditRow ? (
-                <Tooltip content="Edit row">
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    className="h-6 w-6 p-0"
-                    aria-label={`Edit row ${ctx.row.index + 1}`}
-                    data-testid="row-edit-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditRow(row);
-                    }}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                </Tooltip>
-              ) : null}
               <RowActionsMenu
                 row={row}
                 onEdit={canEdit && onEditRow ? () => onEditRow(row) : undefined}

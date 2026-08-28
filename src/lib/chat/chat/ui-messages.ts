@@ -257,6 +257,34 @@ export const ChatUiMessages = {
   },
 
   /**
+   * Persist UI parts without letting one newer/unsupported AI SDK part make
+   * the whole conversation impossible to restore. Known parts use the exact
+   * protocol mapping; unsupported parts are dropped, but their visible text
+   * is retained so a saved thread can never become an empty state solely
+   * because the SDK added a new part type.
+   */
+  toPersistedProtocolParts({
+    parts,
+    createId = defaultCreateId,
+  }: {
+    parts: ReadonlyArray<UiMessagePart>;
+    createId?: () => string;
+  }): Array<MessagePart> {
+    const out: Array<MessagePart> = [];
+    for (const part of parts) {
+      if (isStepStartUIPart(part)) continue;
+      try {
+        out.push(toProtocolPart({ part, createId }));
+      } catch {
+        if (part.type === "text" && part.text.trim() !== "") {
+          out.push({ type: "text", text: part.text });
+        }
+      }
+    }
+    return out;
+  },
+
+  /**
    * Map a protocol message into a wire UIMessage for the transport encoder.
    * Tool invocations become dynamic tools; pending-approval extension parts are
    * reconstructed as `approval-requested` dynamic-tool parts so the server

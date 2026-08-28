@@ -18,6 +18,7 @@ const conversationFields = {
   pinned: z.boolean(),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
+  searchText: z.optional(z.string()),
 };
 
 export const ConversationSchema = z.object(conversationFields);

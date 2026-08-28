@@ -114,7 +114,6 @@ import {
   CHAT_SIDECHAT_SIDE_CHANGED_EVENT,
   CHAT_SIDECHAT_WIDTH_CHANGED_EVENT,
   CHAT_SIDECHAT_WIDTH_DEFAULT,
-  CHAT_SIDECHAT_WIDTH_MAX,
   CHAT_SIDECHAT_WIDTH_MIN,
   getStoredChatSidechatSide,
   getStoredChatSidechatWidth,
@@ -325,6 +324,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   >(null);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [sidechatOpen, setSidechatOpen] = useState(false);
+  const [sidechatInitialized, setSidechatInitialized] = useState(false);
   const [sidechatSide, setSidechatSide] = useState<ChatSidechatSide>(getStoredChatSidechatSide);
   const [sidechatWidth, setSidechatWidth] = useState(CHAT_SIDECHAT_WIDTH_DEFAULT);
   const [sidechatMobileHeight, setSidechatMobileHeight] = useState(
@@ -350,6 +350,29 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     startWidth: number;
     width: number;
   } | null>(null);
+  const getSidechatMaxWidth = useCallback(() => {
+    const availableWidth =
+      sidechatOverlayRef.current?.parentElement?.getBoundingClientRect().width ??
+      (typeof window === "undefined" ? CHAT_SIDECHAT_WIDTH_DEFAULT : window.innerWidth);
+    // Do not force the desktop minimum when the main workspace is narrower
+    // than it. That would let the overlay spill underneath the database rail.
+    return Math.max(1, Math.floor(availableWidth - 24));
+  }, []);
+  const clampSidechatWidth = useCallback(() => {
+    const maxWidth = getSidechatMaxWidth();
+    const minWidth = Math.min(CHAT_SIDECHAT_WIDTH_MIN, maxWidth);
+    setSidechatWidth((current) => {
+      const next = Math.min(maxWidth, Math.max(minWidth, current));
+      if (next !== current) setStoredChatSidechatWidth(next);
+      return next;
+    });
+  }, [getSidechatMaxWidth]);
+  useEffect(() => {
+    if (!sidechatInitialized) return;
+    clampSidechatWidth();
+    window.addEventListener("resize", clampSidechatWidth);
+    return () => window.removeEventListener("resize", clampSidechatWidth);
+  }, [clampSidechatWidth, sidechatInitialized]);
   const resizeSidechat = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>) => {
       event.preventDefault();
@@ -366,13 +389,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
           sidechatSide === "left"
             ? moveEvent.clientX - start.startX
             : start.startX - moveEvent.clientX;
-        const maxWidth = Math.min(
-          CHAT_SIDECHAT_WIDTH_MAX,
-          Math.max(CHAT_SIDECHAT_WIDTH_MIN, window.innerWidth - 24),
-        );
-        const next = Math.round(
-          Math.min(maxWidth, Math.max(CHAT_SIDECHAT_WIDTH_MIN, start.startWidth + delta)),
-        );
+        const maxWidth = getSidechatMaxWidth();
+        const minWidth = Math.min(CHAT_SIDECHAT_WIDTH_MIN, maxWidth);
+        const next = Math.round(Math.min(maxWidth, Math.max(minWidth, start.startWidth + delta)));
         start.width = next;
         sidechatOverlayRef.current?.style.setProperty("--ai-sidechat-width", `${next}px`);
       };
@@ -389,7 +408,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp, { once: true });
     },
-    [sidechatSide, sidechatWidth],
+    [getSidechatMaxWidth, sidechatSide, sidechatWidth],
   );
   const sidechatMobileResizeRef = useRef<{
     startY: number;
@@ -434,12 +453,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const openSidechat = useCallback((attachments: readonly ChatContextAttachment[] = []) => {
     const activeElement = document.activeElement;
     sidechatReturnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
-    setSidechatContext(attachments);
+    setSidechatInitialized(true);
+    if (attachments.length > 0) setSidechatContext(attachments);
     setSidechatOpen(true);
   }, []);
   const closeSidechat = () => {
     setSidechatOpen(false);
-    setSidechatContext([]);
     window.requestAnimationFrame(() => {
       const returnTarget = sidechatReturnFocusRef.current;
       if (returnTarget?.isConnected) {
@@ -451,8 +470,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     });
   };
   const toggleSidechat = () => {
-    if (sidechatOpen) setSidechatContext([]);
-    setSidechatOpen((open) => !open);
+    if (sidechatOpen) {
+      closeSidechat();
+    } else {
+      openSidechat();
+    }
   };
   const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
   const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
@@ -949,15 +971,22 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                           tablesUnavailable={schemaListQuery.isError || tablesListQuery.isError}
                         />
                       )}
-                      {sidechatOpen && !aiChatActive ? (
+                      {sidechatInitialized ? (
                         <div
                           className={cn(
-                            "absolute inset-0 z-20 md:inset-y-0 md:w-[var(--ai-sidechat-width)]",
+                            "absolute inset-0 z-20 max-w-[calc(100%-1.5rem)] md:inset-y-0 md:w-[var(--ai-sidechat-width)]",
                             sidechatSide === "left"
                               ? "md:right-auto md:left-0"
                               : "md:right-0 md:left-auto",
                           )}
-                          style={{ "--ai-sidechat-width": `${sidechatWidth}px` } as CSSProperties}
+                          hidden={!sidechatOpen || aiChatActive}
+                          style={
+                            {
+                              "--ai-sidechat-width": `${sidechatWidth}px`,
+                              width: "min(var(--ai-sidechat-width), calc(100% - 24px))",
+                              maxWidth: "calc(100% - 24px)",
+                            } as CSSProperties
+                          }
                           ref={sidechatOverlayRef}
                           data-testid="ai-sidechat-overlay"
                         >
@@ -1068,8 +1097,16 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                             )}
                             aria-label="Resize AI sidechat"
                             aria-orientation="vertical"
-                            aria-valuemin={CHAT_SIDECHAT_WIDTH_MIN}
-                            aria-valuemax={CHAT_SIDECHAT_WIDTH_MAX}
+                            aria-valuemin={Math.min(
+                              CHAT_SIDECHAT_WIDTH_MIN,
+                              typeof window === "undefined"
+                                ? CHAT_SIDECHAT_WIDTH_MIN
+                                : getSidechatMaxWidth(),
+                            )}
+                            aria-valuemax={Math.max(
+                              1,
+                              typeof window === "undefined" ? 0 : getSidechatMaxWidth(),
+                            )}
                             aria-valuenow={sidechatWidth}
                             data-testid="ai-sidechat-resize-handle"
                             title="Drag to resize AI sidechat"
@@ -1090,20 +1127,18 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                                       : 0;
                               if (event.key === "Home" || event.key === "End") {
                                 event.preventDefault();
-                                const width =
-                                  event.key === "Home"
-                                    ? CHAT_SIDECHAT_WIDTH_MIN
-                                    : CHAT_SIDECHAT_WIDTH_MAX;
+                                const maxWidth = getSidechatMaxWidth();
+                                const minWidth = Math.min(CHAT_SIDECHAT_WIDTH_MIN, maxWidth);
+                                const width = event.key === "Home" ? minWidth : maxWidth;
                                 setSidechatWidth(width);
                                 setStoredChatSidechatWidth(width);
                               } else if (direction !== 0) {
                                 event.preventDefault();
+                                const maxWidth = getSidechatMaxWidth();
+                                const minWidth = Math.min(CHAT_SIDECHAT_WIDTH_MIN, maxWidth);
                                 const width = Math.min(
-                                  CHAT_SIDECHAT_WIDTH_MAX,
-                                  Math.max(
-                                    CHAT_SIDECHAT_WIDTH_MIN,
-                                    sidechatWidth + direction * step,
-                                  ),
+                                  maxWidth,
+                                  Math.max(minWidth, sidechatWidth + direction * step),
                                 );
                                 setSidechatWidth(width);
                                 setStoredChatSidechatWidth(width);

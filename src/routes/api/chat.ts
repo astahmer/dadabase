@@ -41,6 +41,7 @@ import { normalizeEnabledChatTools } from "#src/lib/ai/chat-tools.ts";
 import { toJsonSafeValue } from "#src/lib/ai/json-safe-value.ts";
 import { buildChatSystemPrompt } from "#src/lib/ai/nl-to-sql-prompt.ts";
 import { applyAutoSelection, buildAutoSelectPrompt } from "#src/lib/ai/schema-auto-select.ts";
+import { ChatUiMessages } from "#src/lib/chat/chat/ui-messages.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import {
   ChatThreadRepository,
@@ -80,6 +81,7 @@ type ReadableRelation = {
   referencedTable: string;
   resolvedCount: number;
   unresolvedCount: number;
+  inferred?: boolean;
   labels: Record<string, unknown>;
 };
 
@@ -177,11 +179,13 @@ const runSqlToolExecute = async ({
   connectionUrl,
   accessMode = "read-only",
   enforceAccess = true,
+  schemaContext,
 }: {
   sql: string;
   connectionUrl: string;
   accessMode?: ChatAccessMode;
   enforceAccess?: boolean;
+  schemaContext?: AiSchemaContext;
 }) => {
   const program = Effect.gen(function* () {
     if (enforceAccess && isReadOnlyConnection(connectionUrl) && !isSelectQuery(sql)) {
@@ -204,6 +208,10 @@ const runSqlToolExecute = async ({
       }
       return record;
     });
+    const readable =
+      schemaContext === undefined
+        ? undefined
+        : yield* enrichReadableResult({ columns: result.columns, rows, schemaContext });
     return toJsonSafeValue({
       sql,
       ok: true as const,
@@ -212,11 +220,156 @@ const runSqlToolExecute = async ({
       rowsAffected: result.rowsAffected ?? null,
       truncated: result.rows.length > MAX_RESULT_ROWS,
       rows,
+      ...(readable ?? {}),
     });
   }).pipe(withRemoteConnectionLayersFromUrl(connectionUrl));
 
   return AppRuntime.runPromise(program as never);
 };
+
+const enrichReadableResult = ({
+  columns,
+  rows,
+  schemaContext,
+}: {
+  columns: ReadonlyArray<string>;
+  rows: ReadonlyArray<Record<string, unknown>>;
+  schemaContext: AiSchemaContext;
+}) =>
+  Effect.gen(function* () {
+    const candidates = schemaContext.tables.flatMap((table) =>
+      table.columns.flatMap((column) =>
+        columns.includes(column.name) && column.name.toLowerCase().endsWith("_id")
+          ? [{ table, column }]
+          : [],
+      ),
+    );
+    const bySource = new Map<string, (typeof candidates)[number]>();
+    const ambiguous = new Set<string>();
+    for (const candidate of candidates) {
+      const source = candidate.column.name;
+      if (bySource.has(source)) ambiguous.add(source);
+      else bySource.set(source, candidate);
+    }
+    const relations: ReadableRelation[] = [];
+    for (const sourceColumn of bySource.keys()) {
+      if (ambiguous.has(sourceColumn)) continue;
+      const candidate = bySource.get(sourceColumn);
+      const explicitForeignKey = candidate?.column.foreignKey ?? undefined;
+      const explicitTarget =
+        explicitForeignKey === undefined
+          ? undefined
+          : schemaContext.tables.find(
+              (table) =>
+                table.schema === explicitForeignKey.referencedSchema &&
+                table.table === explicitForeignKey.referencedTable,
+            );
+      const sourceBase = sourceColumn.slice(0, -"_id".length).toLowerCase();
+      const activeTable = schemaContext.activeTable?.toLowerCase();
+      const activePrefix = activeTable?.split("_").slice(0, -1).join("_");
+      const inferredTargets = schemaContext.tables
+        .filter((table) => table.schema === schemaContext.schema)
+        .map((table) => {
+          const tableName = table.table.toLowerCase();
+          const score =
+            tableName === sourceBase
+              ? 100
+              : activePrefix !== undefined && tableName === `${activePrefix}_${sourceBase}`
+                ? 90
+                : tableName.endsWith(`_${sourceBase}`)
+                  ? 70
+                  : 0;
+          return { table, score };
+        })
+        .filter(({ score }) => score > 0)
+        .toSorted((a, b) => b.score - a.score);
+      const bestInferred = inferredTargets[0];
+      const secondInferred = inferredTargets[1];
+      const inferredTarget =
+        explicitTarget === undefined &&
+        bestInferred !== undefined &&
+        bestInferred.score > (secondInferred?.score ?? 0)
+          ? bestInferred.table
+          : undefined;
+      const target = explicitTarget ?? inferredTarget;
+      if (target === undefined) continue;
+      const foreignKey =
+        explicitForeignKey ??
+        ({
+          referencedSchema: target.schema,
+          referencedTable: target.table,
+          referencedColumn: "id",
+        } as const);
+      const displayColumn = chooseDisplayColumn(target.columns, foreignKey.referencedColumn);
+      if (displayColumn === undefined) continue;
+      const keys = [
+        ...new Set(
+          rows
+            .map((row) => row[sourceColumn])
+            .filter((value) => value !== null && value !== undefined)
+            .map((value) => String(value)),
+        ),
+      ].slice(0, MAX_PREVIEW_ROWS);
+      if (keys.length === 0) continue;
+      const targetTable = `${quoteToolIdent(target.schema)}.${quoteToolIdent(target.table)}`;
+      const lookup = yield* executeCustomSql({
+        sql: `SELECT ${quoteToolIdent(foreignKey.referencedColumn)} AS "key_value", ${quoteToolIdent(displayColumn)} AS "label_value" FROM ${targetTable} WHERE ${quoteToolIdent(foreignKey.referencedColumn)} IN (${keys.map(sqlLiteral).join(", ")}) LIMIT ${MAX_PREVIEW_ROWS}`,
+        skipQueryLog: true,
+      }).pipe(Effect.catch(() => Effect.succeed({ rows: [] as unknown[] })));
+      const labels: Record<string, unknown> = {};
+      for (const row of lookup.rows) {
+        if (!isRecord(row)) continue;
+        const key = row.key_value;
+        if (key !== null && key !== undefined) labels[String(key)] = row.label_value;
+      }
+      relations.push({
+        sourceColumn,
+        label: displayColumn,
+        referencedTable: target.table,
+        resolvedCount: keys.filter((key) => Object.hasOwn(labels, key)).length,
+        unresolvedCount: keys.filter((key) => !Object.hasOwn(labels, key)).length,
+        ...(explicitForeignKey === undefined ? { inferred: true } : {}),
+        labels,
+      });
+    }
+    const relationSources = new Set(relations.map((relation) => relation.sourceColumn));
+    const preferredColumns = columns.filter(
+      (column) =>
+        !relationSources.has(column) &&
+        DISPLAY_COLUMN_NAMES.includes(
+          column.toLowerCase() as (typeof DISPLAY_COLUMN_NAMES)[number],
+        ),
+    );
+    const readableColumns = [
+      ...preferredColumns,
+      ...relations.map((relation) => `${relation.sourceColumn}__label`),
+    ];
+    const fallbackColumns = columns.filter((column) => !relationSources.has(column));
+    const selectedColumns = (readableColumns.length > 0 ? readableColumns : fallbackColumns).slice(
+      0,
+      8,
+    );
+    const readableRows = rows.map((row) => {
+      const readable: Record<string, unknown> = {};
+      for (const column of selectedColumns) {
+        if (!column.endsWith("__label")) readable[column] = row[column];
+      }
+      for (const relation of relations) {
+        const labelColumn = `${relation.sourceColumn}__label`;
+        if (selectedColumns.includes(labelColumn)) {
+          const key = row[relation.sourceColumn];
+          readable[labelColumn] =
+            key === null || key === undefined ? null : (relation.labels[String(key)] ?? null);
+        }
+      }
+      return readable;
+    });
+    return {
+      readableColumns: selectedColumns,
+      readableRows,
+      readableRelations: relations.map(({ labels: _labels, ...relation }) => relation),
+    };
+  });
 
 /** preview_rows: capped SELECT * over the quoted table. */
 const previewRowsToolExecute = async ({
@@ -316,12 +469,10 @@ const previewRowsToolExecute = async ({
   const relations = relationLabels.filter(
     (relation): relation is ReadableRelation => relation !== null,
   );
+  const relationSources = new Set(relations.map((relation) => String(relation.sourceColumn)));
   const readableColumns = [
-    ...readableSourceColumns,
-    ...relations.flatMap((relation) => [
-      String(relation.sourceColumn),
-      `${String(relation.sourceColumn)}__label`,
-    ]),
+    ...readableSourceColumns.filter((column) => !relationSources.has(column)),
+    ...relations.map((relation) => `${String(relation.sourceColumn)}__label`),
   ].slice(0, 8);
   const readableRows = sourceRows.slice(0, MAX_PREVIEW_ROWS).map((row) => {
     const readable: Record<string, unknown> = {};
@@ -330,9 +481,10 @@ const previewRowsToolExecute = async ({
       const sourceColumn = String(relation.sourceColumn);
       const labels = isRecord(relation.labels) ? relation.labels : {};
       const key = row[sourceColumn];
-      readable[sourceColumn] = key;
-      readable[`${sourceColumn}__label`] =
-        key === null || key === undefined ? null : (labels[String(key)] ?? null);
+      if (readableColumns.includes(`${sourceColumn}__label`)) {
+        readable[`${sourceColumn}__label`] =
+          key === null || key === undefined ? null : (labels[String(key)] ?? null);
+      }
     }
     if (Object.keys(readable).length === 0) {
       for (const column of sourceColumns.slice(0, 4)) readable[column] = row[column];
@@ -569,7 +721,12 @@ export const Route = createFileRoute("/api/chat")({
                       sql: z.string().min(1),
                     }),
                     execute: async ({ sql }) =>
-                      runSqlToolExecute({ sql, connectionUrl: connection.url, accessMode }),
+                      runSqlToolExecute({
+                        sql,
+                        connectionUrl: connection.url,
+                        accessMode,
+                        schemaContext: effectiveSchema,
+                      }),
                   }),
                 }
               : {}),
@@ -688,7 +845,16 @@ export const Route = createFileRoute("/api/chat")({
             uiMessages.map(async (message) => ({
               id: message.id || createId(),
               role: message.role,
-              parts: JSON.stringify(message.parts),
+              // The database stores protocol parts, not the raw AI SDK UI
+              // parts. Keeping this boundary canonical is what makes history
+              // reloadable after the SDK changes its stream representation.
+              // The repository owns JSON serialization. Pass protocol parts
+              // as structured data here so hydration does not receive a
+              // double-encoded JSON string.
+              parts: ChatUiMessages.toPersistedProtocolParts({
+                parts: message.parts,
+                createId,
+              }),
               ...(rawMetaById.has(message.id)
                 ? (rawMetaById.get(message.id) as {
                     model?: string;
@@ -707,7 +873,12 @@ export const Route = createFileRoute("/api/chat")({
           const assistantMessage = {
             id: finalMessage.id || createId(),
             role: finalMessage.role,
-            parts: JSON.stringify(finalMessage.parts),
+            // The repository serializes structured protocol parts exactly
+            // once; double encoding makes restored messages look empty.
+            parts: ChatUiMessages.toPersistedProtocolParts({
+              parts: finalMessage.parts,
+              createId,
+            }),
             model: body.config.model,
             ...(assistantUsage !== undefined ? { usage: assistantUsage } : {}),
             // Audit T1/T2: persist what was sent so hydration can show it.

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  CHAT_SIDECHAT_WIDTH_MAX,
   CHAT_SIDECHAT_WIDTH_MIN,
   getStoredChatSidechatWidth,
   setStoredChatSidechatWidth,
@@ -10,7 +9,7 @@ import {
 describe("chat sidechat width preference", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("clamps persisted widths to the usable range", () => {
+  it("keeps large persisted widths available for wide workspaces", () => {
     const values = new Map<string, string>();
     vi.stubGlobal("window", {
       localStorage: {
@@ -19,8 +18,8 @@ describe("chat sidechat width preference", () => {
       },
       dispatchEvent: () => true,
     });
-    setStoredChatSidechatWidth(CHAT_SIDECHAT_WIDTH_MAX + 200);
-    expect(getStoredChatSidechatWidth()).toBe(CHAT_SIDECHAT_WIDTH_MAX);
+    setStoredChatSidechatWidth(2400);
+    expect(getStoredChatSidechatWidth()).toBe(2400);
 
     setStoredChatSidechatWidth(CHAT_SIDECHAT_WIDTH_MIN - 200);
     expect(getStoredChatSidechatWidth()).toBe(CHAT_SIDECHAT_WIDTH_MIN);

@@ -20,7 +20,7 @@ export function ToasterProvider() {
       {(toast) => {
         const closable = toast.closable ?? true;
         return (
-          <Toast key={toast.id} className="pointer-events-auto min-w-max">
+          <Toast key={toast.id} className="pointer-events-none min-w-max">
             <div className="grid gap-1">
               {toast.title && <ToastTitle>{toast.title}</ToastTitle>}
               {toast.description && <ToastDescription>{toast.description}</ToastDescription>}

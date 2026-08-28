@@ -101,11 +101,33 @@ const makeChatThreadRepository = Effect.gen(function* () {
           yield* trx.execute(
             trx.deleteFrom("chat_messages").where("thread_id", "=", input.threadId),
           );
+          const existingIds =
+            uniqueMessages.length === 0
+              ? []
+              : yield* trx.execute(
+                  trx
+                    .selectFrom("chat_messages")
+                    .select(["id", "thread_id"])
+                    .where(
+                      "id",
+                      "in",
+                      uniqueMessages.map((message) => message.id),
+                    ),
+                );
+          const occupiedByAnotherThread = new Set(
+            existingIds.filter((row) => row.thread_id !== input.threadId).map((row) => row.id),
+          );
           for (const message of uniqueMessages) {
             if (message.role === "user" || message.role === "assistant") {
+              // Client message IDs are normally globally unique, but an old
+              // client or two browser tabs can reuse one. Keep both turns by
+              // making only the colliding persisted key thread-scoped.
+              const persistedId = occupiedByAnotherThread.has(message.id)
+                ? `${input.threadId}:${message.id}`
+                : message.id;
               yield* trx.execute(
                 trx.insertInto("chat_messages").values({
-                  id: message.id,
+                  id: persistedId,
                   thread_id: message.threadId,
                   role: message.role,
                   parts: JSON.stringify(message.parts),

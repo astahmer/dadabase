@@ -61,7 +61,7 @@ Priority meanings: P0 blocks or risks the primary task, P1 materially harms comp
 | P1       | Context comprehension          | The table context banner and attachment chips communicate related information in two separate places. Users may not know whether removing a chip removes the active table, only row values, or just this turn. | Consolidate into one context strip with grouped metadata and explicit copy such as **Attached for this chat** / **Remove for this turn**. Show a count and data class for selection/result attachments.                         | A user can answer “what will be sent?” and “what will be removed?” from the sidechat without opening settings.                                          |
 | P1       | Active workspace context       | Sidechat context follows the active workspace tab, while the table navigator can still appear selected when an AI tab is active. This can make the sidechat look unscoped or scoped to the wrong table.        | Make the source explicit in the sidechat header and synchronize navigator selection with the active workspace tab, or show **AI tab context** when no table is active.                                                          | Changing tabs updates the context label predictably; an AI tab never silently inherits a stale table label.                                             |
 | P1       | Settings dominance             | Provider, tools, and schema accordions can consume most or all of the sidechat viewport, pushing the conversation and composer below the fold.                                                                 | Present settings as a scrollable drawer/popover or a dedicated settings mode inside the sidechat. Keep the conversation header and composer anchored.                                                                           | Opening settings never makes the composer permanently unreachable; the user can return to the conversation with one obvious action.                     |
-| P1       | Access policy                  | Read-only questions should not be blocked by a generic schema-sharing approval step, while write queries still need a deliberate boundary.                                                         | Default to read-only access, run SELECT/WITH questions directly, and require confirmation only for writes according to the selected Read only / Read & Write / Full Access policy.                                  | A read-only question reaches its result without an approval banner; writes show a scoped confirmation with the SQL and access level.      |
+| P1       | Access policy                  | Read-only questions should not be blocked by a generic schema-sharing approval step, while write queries still need a deliberate boundary.                                                                     | Default to read-only access, run SELECT/WITH questions directly, and require confirmation only for writes according to the selected Read only / Read & Write / Full Access policy.                                              | A read-only question reaches its result without an approval banner; writes show a scoped confirmation with the SQL and access level.                    |
 | P1       | Responsive behavior            | Desktop rail, tablet rail, and mobile bottom sheet are currently treated as roughly two modes. Keyboard resize, safe-area insets, and a 640–1024px tablet viewport need deliberate treatment.                  | Define breakpoints for desktop rail, tablet overlay, and mobile sheet. Use dynamic viewport sizing, safe-area padding, and keep the composer above the virtual keyboard.                                                        | Test at 320/390/768/1024px, landscape mobile, browser zoom 125%/200%, and with a software keyboard. No clipped close/action buttons or hidden composer. |
 | P1       | Async/error status             | Provider status, streaming, cancellation, SQL approval, and failures are not all visible in the compact header. A user may not know whether a send is pending, blocked, or failed.                             | Add a small status line or header state for configuring, ready, streaming, cancelled, failed, and awaiting approval. Keep **Stop generating** reachable while streaming.                                                        | Every non-idle state has a visible label, a keyboard-accessible recovery action, and an announcement for assistive technology.                          |
 | P1       | Thread continuity              | Sidechat intentionally hides the thread list, but it does not clearly show which conversation is active or offer a quick **New chat** action. Promoting to full chat also needs a clear continuity statement.  | Add a compact current-thread label/menu with **New chat** and **Open full chat**. Explain that promotion preserves the current conversation and attachments.                                                                    | Users can start a fresh conversation without accidentally mixing it with the current one; promotion never loses messages or context.                    |
@@ -147,10 +147,59 @@ remaining follow-up identified during the final pass:
 ### Verification evidence
 
 - `pnpm typecheck` passes.
-- Focused chat/context/protocol tests pass: 33 tests across 4 files.
+- Focused chat/context/protocol tests pass: 33 tests across 5 files.
 - Local browser smoke confirms: sidechat opens, the empty context card can add
   a table, the settings placement controls move the panel left/right and
   persist after reload, full-chat promotion retains context, and a fresh load
   produces no browser error/warning logs. While streaming, full-chat promotion
   is deferred until the active response settles so the same runtime session is
   retained.
+
+## Final persistence and result-presentation pass — 2026-08-29
+
+Status: implemented locally and covered by focused tests and deterministic E2E
+scenarios.
+
+### Completed
+
+- Persist chat messages as protocol-compatible parts at the API boundary. Raw
+  provider/UI message parts are no longer written directly to the database,
+  and an unsupported optional part cannot make an otherwise readable message
+  disappear during restoration. This closes the empty-thread failure mode
+  behind previously saved conversations.
+- Keep sidechat state mounted while minimized. Closing the panel now hides it
+  and restores focus without clearing the active runtime, context, draft, or
+  conversation. Opening full chat continues the same conversation instead of
+  creating a fresh session.
+- Always add a new sibling SQL editor tab when **Use this SQL** is clicked;
+  the active AI/table tab and its state remain available in the workspace.
+- Remove duplicate SQL from successful `run_sql` cards. The query is now
+  collapsed by default, while returned rows are shown through the readable
+  preview-table component and labeled as a live workspace query result.
+- Remove low-value model/token/context receipt metadata from the normal chat
+  surface. Detailed setup and sharing controls remain available from the
+  settings surface.
+- Keep **Attach tables to context** in the sidechat header and avoid rendering
+  a large empty context card when automatic schema selection is active. The
+  picker stays open after each selection so multi-table attachment is quick.
+- Remove obsolete E2E expectations for hidden token totals and context
+  receipts; retain coverage for readable results, collapsed query details,
+  provenance, tab replacement, full-chat promotion, and sidechat visual states.
+- Add a regression assertion that running a query leaves the SQL editor content
+  intact after results render.
+
+### Remaining review items
+
+These are polish or product extensions, not blockers for the requested UX:
+
+| Priority | Area              | Improvement                                                                                                                          |
+| -------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| P2       | Provenance        | Add structured source tables, filters, execution time, and request ID when the backend exposes stable lineage fields.                |
+| P2       | Result previews   | Apply the same readable-column and FK-enrichment treatment to arbitrary SQL result sets, not only preview-row tool output.           |
+| P2       | Responsive QA     | Validate 320px widths, landscape mobile, browser zoom, virtual keyboards, keyboard-only navigation, and VoiceOver with real devices. |
+| P3       | Settings polish   | Give provider configuration a more compact form layout and make the settings mode visually distinct from conversation content.       |
+| P3       | Full-chat density | Keep long tool cards collapsed by default and add a single “show technical details” affordance for advanced users.                   |
+
+The remaining items are intentionally separate from message persistence: they
+need either richer backend lineage contracts or device-level visual/accessibility
+verification.
