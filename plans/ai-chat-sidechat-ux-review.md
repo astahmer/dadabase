@@ -1,0 +1,68 @@
+# AI sidechat UI/UX review
+
+Status: **review complete**  
+Date: 2026-08-28
+
+## Scope
+
+This is a user-facing review of the AI sidechat, based on:
+
+- The supplied sidechat screenshot.
+- The current local Dadabase fixture at desktop width.
+- The current sidechat/full-chat interaction and accessibility markup.
+- The existing contextual attachment, consent, provider, tool, schema, SQL, and bulk-selection flows.
+
+No production connections or provider credentials were used.
+
+## What is already working well
+
+- The left AI rail action now performs the same operation as **New AI assistant tab**: it appends an embedded AI tab and preserves the rest of the workspace URL state.
+- The sidechat is contextual: it can receive the active table, filters, selected rows, SQL, and query results.
+- Context is removable before sending, and row/result values are gated by explicit data-sharing permissions.
+- The sidechat has a clear **Open full chat** escape hatch and a close action.
+- The provider, tools, schema, consent, and chat areas are separate concerns rather than one undifferentiated panel.
+- Keyboard support exists for Escape, focus trapping, and the composer send shortcuts.
+- The assistant proposes SQL for review instead of silently mutating database data.
+
+## Findings
+
+Priority meanings: P0 blocks or risks the primary task, P1 materially harms comprehension or completion, P2 is polish or a lower-frequency workflow improvement.
+
+| Priority | Area | Finding / user impact | Recommended change | Acceptance criteria |
+| --- | --- | --- | --- | --- |
+| P1 | First-run state | When the provider is not configured, the composer and starter prompts are disabled, but the actionable setup path is visually separated above the conversation. The panel can feel broken rather than guided. | Add a compact first-run state in the sidechat with one primary **Configure provider** CTA, a short explanation of BYOK/local storage, and focus the first invalid/missing field when opened. Keep **Open full chat** secondary. | A new user can tell why chat is disabled and reach the exact required field in one click; disabled controls have an adjacent reason. |
+| P1 | Provider form at narrow widths | The screenshot shows the provider form using a wide multi-column layout inside a narrow rail. Labels and inputs compete for space and can clip or become difficult to scan. | Use a sidechat-specific stacked form below a comfortable width; reserve the multi-column layout for full chat. Add show/hide API key, inline validation, and a non-destructive **Test connection** action. | At 320px, 390px, 640px, and 1024px widths, every label, input, helper, and action is readable without horizontal scrolling. |
+| P1 | Context comprehension | The table context banner and attachment chips communicate related information in two separate places. Users may not know whether removing a chip removes the active table, only row values, or just this turn. | Consolidate into one context strip with grouped metadata and explicit copy such as **Attached for this chat** / **Remove for this turn**. Show a count and data class for selection/result attachments. | A user can answer “what will be sent?” and “what will be removed?” from the sidechat without opening settings. |
+| P1 | Active workspace context | Sidechat context follows the active workspace tab, while the table navigator can still appear selected when an AI tab is active. This can make the sidechat look unscoped or scoped to the wrong table. | Make the source explicit in the sidechat header and synchronize navigator selection with the active workspace tab, or show **AI tab context** when no table is active. | Changing tabs updates the context label predictably; an AI tab never silently inherits a stale table label. |
+| P1 | Settings dominance | Provider, tools, and schema accordions can consume most or all of the sidechat viewport, pushing the conversation and composer below the fold. | Present settings as a scrollable drawer/popover or a dedicated settings mode inside the sidechat. Keep the conversation header and composer anchored. | Opening settings never makes the composer permanently unreachable; the user can return to the conversation with one obvious action. |
+| P1 | Consent model | Schema sharing, sample rows, and query results are separate permissions, but the sidechat’s disabled state does not make the dependency chain obvious. | Add a compact permission summary near the composer, distinguish metadata from row values, and make the next required permission the primary CTA. Preserve the existing explicit consent model. | The user can see which class is required for the current action and what is not shared; enabling a permission produces an accessible confirmation. |
+| P1 | Responsive behavior | Desktop rail, tablet rail, and mobile bottom sheet are currently treated as roughly two modes. Keyboard resize, safe-area insets, and a 640–1024px tablet viewport need deliberate treatment. | Define breakpoints for desktop rail, tablet overlay, and mobile sheet. Use dynamic viewport sizing, safe-area padding, and keep the composer above the virtual keyboard. | Test at 320/390/768/1024px, landscape mobile, browser zoom 125%/200%, and with a software keyboard. No clipped close/action buttons or hidden composer. |
+| P1 | Async/error status | Provider status, streaming, cancellation, SQL approval, and failures are not all visible in the compact header. A user may not know whether a send is pending, blocked, or failed. | Add a small status line or header state for configuring, ready, streaming, cancelled, failed, and awaiting approval. Keep **Stop generating** reachable while streaming. | Every non-idle state has a visible label, a keyboard-accessible recovery action, and an announcement for assistive technology. |
+| P1 | Thread continuity | Sidechat intentionally hides the thread list, but it does not clearly show which conversation is active or offer a quick **New chat** action. Promoting to full chat also needs a clear continuity statement. | Add a compact current-thread label/menu with **New chat** and **Open full chat**. Explain that promotion preserves the current conversation and attachments. | Users can start a fresh conversation without accidentally mixing it with the current one; promotion never loses messages or context. |
+| P1 | Focus and modal behavior | Focus trapping and Escape handling exist, but the entire lifecycle needs verification across provider controls, nested popovers, mobile overlay dismissal, and promotion to full chat. | Restore focus to the invoking control on close, move focus to the first actionable control on open, and ensure nested menus do not break the trap. | Keyboard-only users can open, configure, chat, dismiss, and reopen the sidechat without focus loss. |
+| P2 | Action language | **Ask AI**, **Suggest query**, and **Explain with AI** are all useful but express similar intents with different verbs. | Standardize on a small action vocabulary: **Ask AI about selection**, **Draft SQL**, and **Explain result**. Keep the object in the label. | The action label tells users what context will be attached before they click. |
+| P2 | Bulk selection handoff | The bulk action bar now exposes **Ask AI**, but the sidechat handoff should confirm the selected row count and whether values are attached or metadata-only. | Show a selection summary chip and offer **Attach values** only when the sample-row permission is enabled. | Sending a selected-row question never leaves the user guessing which rows or values are included. |
+| P2 | SQL/result handoff | SQL and result attachments are powerful but their compact labels are easy to miss, especially when the sidechat is opened from a dense editor. | Add a one-line preview with query/result count, an expand affordance, and a clear “values not attached” state. | A user can distinguish SQL text, columns-only results, and row values before sending. |
+| P2 | Empty state | The current empty state is explanatory but generic. It does not adapt enough to the entry point (table, selection, SQL, result). | Use contextual starters: table exploration, selected-row investigation, SQL explanation, and result summary. Keep them disabled only when the blocking permission is clearly stated. | The first suggested prompt matches the action that opened the sidechat. |
+| P2 | Header hierarchy | Connection name, Ask AI, provider badge, Open full chat, close, and Provider compete in the narrow header. The screenshot demonstrates the crowding risk. | Keep one title, one status badge, and two primary controls; move provider/settings into an overflow or labeled settings button. Add a tooltip to icon-only close. | The header remains legible at narrow widths and preserves a stable close target. |
+| P2 | Data-sharing reassurance | The current copy is accurate but repeated and verbose in the sidechat. The most important distinction—metadata versus row values—can be missed. | Replace repeated paragraphs with a concise summary plus an expandable explanation. Keep the full explanation available for auditing. | The compact state communicates what leaves the browser in one scan, with details available on demand. |
+| P2 | Accessibility semantics | Dialog semantics and labels are present, but status announcements, error focus, heading structure, and duplicate accessible names should be checked in the rendered sidechat/full-chat combination. | Run a screen-reader pass and add live-region announcements for provider save, consent, streaming, errors, and context removal. Avoid duplicate labels when full chat and sidechat are mounted together. | VoiceOver/NVDA can identify the active surface, controls, status, and current context without reading duplicate content. |
+| P2 | Visual density and contrast | Dense borders, muted helper text, chips, and disabled controls make the panel visually quiet. The screenshot shows long muted copy competing with the actual task. | Reserve muted text for secondary explanation, increase contrast for actionable status, and use consistent spacing tokens for cards/sections. | Primary action, blocked action, current context, and secondary explanation are visually distinct in light and dark themes. |
+| P2 | State persistence | The provider is browser-global, while chat context is ephemeral. That distinction is not always explicit, and users may assume context removal persists or affects future chats. | Label persistence boundaries: **Saved in this browser**, **Attached to this chat**, and **Removed for this turn**. | Users can predict what survives reload, tab changes, full-chat promotion, and sidechat close. |
+| P2 | Keyboard shortcuts | The composer explains Enter/Shift+Enter/⌘Ctrl+Enter, but the rest of the sidechat has no discoverable shortcut for opening, closing, or focusing chat. | Add a lightweight shortcut hint in the tooltip/command palette and keep all shortcuts remappable or non-essential. | Shortcuts accelerate expert use without being required for any primary task. |
+
+## Recommended implementation order
+
+1. Fix the first-run/provider setup path and make narrow provider settings usable.
+2. Consolidate and clarify context attachments, including selection/result data classes.
+3. Make active-tab context and thread continuity explicit.
+4. Rework settings as a sidechat mode/drawer so the composer remains reachable.
+5. Harden responsive, keyboard, focus, async-status, and screen-reader behavior.
+6. Normalize action copy and finish visual-density/persistence polish.
+
+## Explicit non-goals
+
+- Do not remove explicit data-sharing consent or silently broaden what is sent to a provider.
+- Do not make the sidechat a second independent thread list unless thread continuity is clearly defined.
+- Do not replace the embedded AI tab; the sidechat should remain a fast contextual surface with full chat as the deep-work mode.
+- Do not couple provider credentials to server-side persistence; the current browser-local BYOK boundary is a useful trust property.

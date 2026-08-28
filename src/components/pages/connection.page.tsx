@@ -166,6 +166,7 @@ import { ConnectionRowJsonViewerDrawer } from "./connection-page/connection-row-
 import { ConnectionSwitcher } from "./connection-page/connection-switcher.tsx";
 import {
   addTabStateAfterCurrent,
+  aiTabSearchUpdate,
   createTabState,
   scrollToTab,
   updateTabState,
@@ -347,16 +348,13 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       search: (prev) => ({ ...prev, queryLoggerSize: 48 }),
     });
   };
-  // AI is a child route of the workspace. Preserve the parent search state so
-  // returning from chat does not discard the user's open tabs, active tab, or
-  // layout settings.
+  // Keep the sidebar action identical to the tab-bar action: AI is an embedded
+  // workspace tab, so existing tabs and layout state stay in the URL.
   const openAiAssistant = useCallback(() => {
     void navigate({
-      to: "/connections/$connectionName/ai",
-      params: { connectionName: connection.name },
-      search: (prev) => prev,
+      search: (prev) => aiTabSearchUpdate(prev),
     });
-  }, [connection.name, navigate]);
+  }, [navigate]);
   const sidebarPanelMinSize = layoutZenMode || isCompactViewport ? 0 : sidebarMinSize;
   const sidebarPanelMaxSize = isCompactViewport ? 80 : sidebarMaxSize;
   const queryLoggerPanelMinSize = 0;
