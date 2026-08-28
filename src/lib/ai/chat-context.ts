@@ -50,9 +50,57 @@ export type ChatContextAttachmentReceipt =
 
 export const MAX_CONTEXT_ROWS = 50;
 export const MAX_CONTEXT_SQL_LENGTH = 20_000;
+export const CHAT_CONTEXT_PROMOTION_STORAGE_KEY = "dadabase.ai.chat-context-promotion";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+type ChatContextPromotion = {
+  connectionName: string;
+  attachments: readonly ChatContextAttachment[];
+};
+
+let inMemoryChatContextPromotion: ChatContextPromotion | undefined;
+
+/** Carry ephemeral sidechat context across the explicit full-chat promotion. */
+export const storeChatContextPromotion = (
+  connectionName: string,
+  attachments: readonly ChatContextAttachment[],
+): void => {
+  inMemoryChatContextPromotion = { connectionName, attachments };
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(
+      CHAT_CONTEXT_PROMOTION_STORAGE_KEY,
+      JSON.stringify({ connectionName, attachments } satisfies ChatContextPromotion),
+    );
+  } catch {
+    // Session storage is best-effort; the full chat remains usable without it.
+  }
+};
+
+export const consumeChatContextPromotion = (
+  connectionName: string,
+): readonly ChatContextAttachment[] => {
+  if (inMemoryChatContextPromotion?.connectionName === connectionName) {
+    const attachments = inMemoryChatContextPromotion.attachments;
+    inMemoryChatContextPromotion = undefined;
+    return attachments;
+  }
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.sessionStorage.getItem(CHAT_CONTEXT_PROMOTION_STORAGE_KEY);
+    if (raw === null) return [];
+    window.sessionStorage.removeItem(CHAT_CONTEXT_PROMOTION_STORAGE_KEY);
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed) || parsed.connectionName !== connectionName) return [];
+    return Array.isArray(parsed.attachments)
+      ? (parsed.attachments as readonly ChatContextAttachment[])
+      : [];
+  } catch {
+    return [];
+  }
+};
 
 const nonEmptyString = (value: unknown): string | undefined =>
   typeof value === "string" && value.trim() !== "" ? value : undefined;
@@ -212,5 +260,17 @@ export const serializeChatContextAttachments = (
   attachments: readonly ChatContextAttachment[],
 ): string => JSON.stringify(attachments);
 
-export const chatContextAttachmentKey = (attachment: ChatContextAttachment): string =>
-  JSON.stringify(attachment);
+export const chatContextAttachmentKey = (attachment: ChatContextAttachment): string => {
+  switch (attachment.kind) {
+    case "table":
+      return `table:${attachment.schema ?? ""}:${attachment.table}`;
+    case "filters":
+      return `filters:${attachment.schema ?? ""}:${attachment.table}:${JSON.stringify(attachment.filters)}`;
+    case "selection":
+      return `selection:${attachment.schema ?? ""}:${attachment.table}:${JSON.stringify(attachment.columns)}:${JSON.stringify(attachment.rowIds ?? [])}:${JSON.stringify(attachment.rows ?? [])}`;
+    case "sql":
+      return `sql:${attachment.source}:${attachment.sql}`;
+    case "result":
+      return `result:${attachment.rowCount}:${JSON.stringify(attachment.columns)}:${JSON.stringify(attachment.rows ?? [])}`;
+  }
+};

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  chatContextAttachmentKey,
   dataClassesForChatContext,
   sanitizeChatContextAttachments,
   serializeChatContextAttachments,
@@ -48,5 +49,13 @@ describe("chat context attachments", () => {
     });
     expect(dataClassesForChatContext(attachments)).toEqual(["query-results"]);
     expect(serializeChatContextAttachments(attachments)).toContain('"count":3');
+  });
+
+  it("uses the same removal key before and after sanitization", () => {
+    const raw = { kind: "table" as const, schema: "main", table: "users" };
+    const sanitized = sanitizeChatContextAttachments([raw], DEFAULT_CHAT_DATA_ACCESS)[0];
+
+    expect(sanitized).toBeDefined();
+    expect(chatContextAttachmentKey(raw)).toBe(chatContextAttachmentKey(sanitized!));
   });
 });

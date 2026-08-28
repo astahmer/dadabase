@@ -25,7 +25,6 @@ import {
   useState,
 } from "react";
 
-import type { ChatContextAttachment } from "#src/lib/ai/chat-context.ts";
 import type { TableStructure } from "#src/lib/schema-diff/index.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
@@ -73,6 +72,7 @@ import {
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { useDocumentTitle } from "#src/hooks/use-document-title.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
+import { storeChatContextPromotion, type ChatContextAttachment } from "#src/lib/ai/chat-context.ts";
 import { getCurrentChatConversationId } from "#src/lib/ai/chat-conversation-current.ts";
 import {
   buildCascadeDeletePreview,
@@ -802,7 +802,14 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                               ]}
                               variant="sidechat"
                               onClose={closeSidechat}
-                              onOpenFullChat={() => {
+                              onOpenFullChat={(attachments) => {
+                                storeChatContextPromotion(
+                                  connection.name,
+                                  attachments ?? [
+                                    ...workspaceContextAttachments,
+                                    ...sidechatContext,
+                                  ],
+                                );
                                 closeSidechat();
                                 void navigate({
                                   to: "/connections/$connectionName/ai",
@@ -3771,7 +3778,7 @@ const CustomSqlTabContent = (props: {
               data-testid="ask-ai-result"
             >
               <Sparkles className="size-3" />
-              Explain result with AI
+              Explain result
             </Button>
           ) : null}
         </div>

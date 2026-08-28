@@ -15,7 +15,12 @@ import type { DbConnection } from "../connection.types";
 import { ErrorBoundaryCard } from "../../shared/error-boundary-card.tsx";
 import { Button } from "../../ui/button";
 import { VirtualizerArea } from "../../ui/virtualizer-area.tsx";
-import { createTabState, updateTabState, useActiveTabState } from "./create-tab-state.ts";
+import {
+  aiTabSearchUpdate,
+  createTabState,
+  updateTabState,
+  useActiveTabState,
+} from "./create-tab-state.ts";
 import { getRecentTables, recordRecentTable, type RecentTable } from "./recent-tables.ts";
 
 interface EmptyTabState {
@@ -481,14 +486,12 @@ const EmptyTabLauncher = (props: {
           <Button
             variant="outline"
             className="h-auto items-start justify-start gap-3 p-4 text-left"
-            onClick={() =>
-              navigate({ to: "/connections/$connectionName/ai", params: { connectionName } })
-            }
+            onClick={() => navigate({ search: (prev) => aiTabSearchUpdate(prev) })}
             data-testid="launcher-ask-ai"
           >
             <MessageCircleQuestion className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              <span className="block font-medium">Ask AI</span>
+              <span className="block font-medium">New AI chat</span>
               <span className="text-muted-foreground block text-xs">
                 Query your data in plain language
               </span>

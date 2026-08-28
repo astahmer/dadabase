@@ -60,6 +60,7 @@ import {
   revokeSchemaSharingConsent,
 } from "#src/lib/ai/chat-consent.ts";
 import {
+  consumeChatContextPromotion,
   chatContextAttachmentKey,
   dataClassesForChatContext,
   sanitizeChatContextAttachments,
@@ -163,7 +164,7 @@ export const AiChatPage = ({
   /** Full-page deep work or compact contextual workspace sidechat. */
   variant?: "page" | "sidechat";
   onClose?: () => void;
-  onOpenFullChat?: () => void;
+  onOpenFullChat?: (attachments?: readonly ChatContextAttachment[]) => void;
   /** Ephemeral workspace context; row/result values are disclosure-gated. */
   contextAttachments?: readonly ChatContextAttachment[];
 }) => {
@@ -172,6 +173,13 @@ export const AiChatPage = ({
   const connection: DbConnection | undefined = connectionList.data.find(
     (c) => c.name === connectionName,
   );
+  const [promotedContextAttachments, setPromotedContextAttachments] = useState<
+    readonly ChatContextAttachment[]
+  >([]);
+  useEffect(() => {
+    if (variant !== "page") return;
+    setPromotedContextAttachments(consumeChatContextPromotion(connectionName));
+  }, [connectionName, variant]);
 
   if (!connection) {
     return (
@@ -199,7 +207,7 @@ export const AiChatPage = ({
       variant={variant}
       onClose={onClose}
       onOpenFullChat={onOpenFullChat}
-      contextAttachments={contextAttachments}
+      contextAttachments={[...(promotedContextAttachments ?? []), ...(contextAttachments ?? [])]}
     />
   );
 };
@@ -222,7 +230,7 @@ const AiChatPageInner = ({
   embedded?: boolean;
   variant: "page" | "sidechat";
   onClose?: () => void;
-  onOpenFullChat?: () => void;
+  onOpenFullChat?: (attachments?: readonly ChatContextAttachment[]) => void;
   contextAttachments?: readonly ChatContextAttachment[];
 }) => {
   const navigate = useNavigate();
@@ -296,8 +304,18 @@ const AiChatPageInner = ({
     ) {
       current.unshift({ kind: "table", schema, table: initialAskTable });
     }
-    return current;
+    return [
+      ...new Map(
+        current.map((attachment) => [chatContextAttachmentKey(attachment), attachment]),
+      ).values(),
+    ];
   }, [contextAttachments, initialAskTable, schema]);
+  const currentContextAttachmentsRef = useRef<readonly ChatContextAttachment[]>(
+    effectiveContextAttachments,
+  );
+  useEffect(() => {
+    currentContextAttachmentsRef.current = effectiveContextAttachments;
+  }, [effectiveContextAttachments]);
 
   /** Fresh SQL-editor tab pre-seeded with generated SQL. */
   const createEditorTab = (sql: string) => {
@@ -445,14 +463,25 @@ const AiChatPageInner = ({
       data-testid="ai-chat-page"
       data-ai-chat-variant={variant}
       {...(variant === "sidechat"
-        ? { role: "dialog" as const, "aria-modal": true, "aria-label": "AI sidechat" }
+        ? {
+            role: "dialog" as const,
+            "aria-modal": true,
+            "aria-labelledby": "ai-sidechat-title",
+            "aria-describedby": "ai-sidechat-description",
+          }
         : {})}
     >
+      {variant === "sidechat" ? (
+        <span id="ai-sidechat-description" className="sr-only">
+          Ask questions about the current workspace context. Review the sharing permissions before
+          sending data to the configured AI provider.
+        </span>
+      ) : null}
       <header className="border-border flex min-h-12 items-center gap-2 border-b px-3 py-2 sm:gap-3 sm:px-4">
         {variant === "sidechat" ? (
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2" aria-hidden="true">
             <Sparkles className="text-primary size-4 shrink-0" />
-            <span className="truncate text-sm font-semibold">Ask AI</span>
+            <span className="sr-only">AI sidechat</span>
           </div>
         ) : (
           <Link
@@ -466,7 +495,10 @@ const AiChatPageInner = ({
             {connection.name}
           </Link>
         )}
-        <h1 className="min-w-0 truncate text-sm font-semibold">
+        <h1
+          id={variant === "sidechat" ? "ai-sidechat-title" : undefined}
+          className="min-w-0 truncate text-sm font-semibold"
+        >
           {variant === "sidechat" ? connection.name : "AI assistant"}
         </h1>
         <Badge
@@ -475,12 +507,23 @@ const AiChatPageInner = ({
             byokState === "loading" ? "muted" : byokState === "usable" ? "success" : "warning"
           }
           size="xs"
+          title={
+            byokState === "usable"
+              ? "Provider is configured in this browser."
+              : "Provider setup is required before sending a message."
+          }
         >
-          {byokState === "loading"
-            ? "provider"
-            : byokState === "usable"
-              ? "provider configured"
-              : "not configured"}
+          {variant === "sidechat"
+            ? byokState === "loading"
+              ? "Checking provider"
+              : byokState === "usable"
+                ? "Ready"
+                : "Needs setup"
+            : byokState === "loading"
+              ? "Checking provider"
+              : byokState === "usable"
+                ? "Provider configured"
+                : "Not configured"}
         </Badge>
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           {variant === "page" ? (
@@ -501,7 +544,7 @@ const AiChatPageInner = ({
                 <Button
                   size="xs"
                   variant="outline"
-                  onClick={onOpenFullChat}
+                  onClick={() => onOpenFullChat?.(currentContextAttachmentsRef.current)}
                   title="Open this conversation in the full chat tab"
                 >
                   <span className="hidden sm:inline">Open full chat</span>
@@ -615,6 +658,9 @@ const AiChatPageInner = ({
           }}
           onOpenSchemaPanel={() => setSettingsOpen(true)}
           contextAttachments={effectiveContextAttachments}
+          onContextAttachmentsChange={(attachments) => {
+            currentContextAttachmentsRef.current = attachments;
+          }}
           threadList={{
             open: threadListOpen,
             onClose: () => setThreadListOpen(false),
@@ -659,6 +705,18 @@ const ProviderSettingsSection = ({
     setKeyDraft(stored?.apiKey ?? "");
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || variant !== "sidechat" || !open || hasConfig) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target =
+        providerIdDraft === CUSTOM_PROVIDER_ID && baseUrlDraft.trim() === ""
+          ? document.getElementById("ai-base-url")
+          : document.getElementById("ai-api-key");
+      target?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [baseUrlDraft, hasConfig, hydrated, open, providerIdDraft, variant]);
 
   const saveConfig = () => {
     setStoredByokConfig({
@@ -1226,6 +1284,7 @@ const AiChatBody = ({
   onAdoptAutoTables,
   onOpenSchemaPanel,
   contextAttachments,
+  onContextAttachmentsChange,
   threadList,
   variant,
 }: {
@@ -1269,6 +1328,7 @@ const AiChatBody = ({
   onOpenSchemaPanel: () => void;
   /** Ephemeral table/filter/selection/SQL/result context for this surface. */
   contextAttachments?: readonly ChatContextAttachment[];
+  onContextAttachmentsChange: (attachments: readonly ChatContextAttachment[]) => void;
   /** Audit C6/R1: narrow-viewport thread-list drawer state. */
   threadList: { open: boolean; onClose: () => void };
   variant: "page" | "sidechat";
@@ -1313,6 +1373,12 @@ const AiChatBody = ({
       next.add(chatContextAttachmentKey(attachment));
       return next;
     });
+    onContextAttachmentsChange(
+      activeContextAttachments.filter(
+        (currentAttachment) =>
+          chatContextAttachmentKey(currentAttachment) !== chatContextAttachmentKey(attachment),
+      ),
+    );
     announce(`${label} removed for this turn.`);
   };
 
@@ -1414,23 +1480,53 @@ const AiChatBody = ({
                           ? `SQL draft · ${attachment.sql.length.toLocaleString()} chars`
                           : `result · ${attachment.rowCount.toLocaleString()} rows · ${dataClass}`;
                 return (
-                  <button
+                  <div
                     key={`${attachment.kind}-${index}`}
-                    type="button"
-                    className="bg-muted hover:bg-muted/70 focus-visible:ring-ring inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
-                    title="Remove from this turn"
-                    aria-label={`Remove ${label} from this turn`}
-                    onClick={() => removeContextAttachment(attachment)}
+                    className="bg-muted inline-flex max-w-full items-start gap-1 rounded px-1.5 py-0.5 text-left"
                   >
-                    <span className="truncate">{label}</span>
-                    <X className="size-3 shrink-0" aria-hidden="true" />
-                  </button>
+                    {attachment.kind === "sql" || attachment.kind === "result" ? (
+                      <details className="min-w-0">
+                        <summary className="hover:text-foreground cursor-pointer truncate">
+                          {label}
+                        </summary>
+                        {attachment.kind === "sql" ? (
+                          <pre className="bg-background border-border mt-1 max-h-32 max-w-[min(28rem,70vw)] overflow-auto rounded border p-2 font-mono text-[11px] whitespace-pre-wrap">
+                            {attachment.sql}
+                          </pre>
+                        ) : (
+                          <p className="text-muted-foreground mt-1 max-w-[18rem] text-[11px]">
+                            Columns: {attachment.columns.join(", ") || "none"}. Values are{" "}
+                            {attachment.rows?.length ? "attached." : "not attached."}
+                          </p>
+                        )}
+                      </details>
+                    ) : (
+                      <span className="truncate">{label}</span>
+                    )}
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring shrink-0 rounded focus-visible:ring-2 focus-visible:outline-none"
+                      title="Remove from this turn"
+                      aria-label={`Remove ${label} from this turn`}
+                      onClick={() => removeContextAttachment(attachment)}
+                    >
+                      <X className="size-3" aria-hidden="true" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
             <p className="text-muted-foreground mt-1.5 text-[11px]">
               Attached for this chat · remove a chip to exclude it from the next message.
             </p>
+          </div>
+        ) : variant === "sidechat" ? (
+          <div
+            className="border-border bg-muted/20 text-muted-foreground mx-3 mt-3 rounded-md border px-3 py-2 text-xs"
+            data-testid="ai-context-empty"
+          >
+            <span className="text-foreground font-medium">No workspace context attached.</span> Ask
+            about the selected schema, or open a table/selection to attach it.
           </div>
         ) : null}
         {variant === "sidechat" && (!providerReady || !hasApprovedSchemaSharing) ? (
@@ -1488,12 +1584,24 @@ const AiChatBody = ({
               <span id="ai-consent-label">
                 <span className="font-medium">Share schema context with the AI provider</span>
                 <span className="text-muted-foreground block text-xs">
-                  Dadabase sends this prompt plus schema, table, and column names to draft SQL. It
-                  does not send row values under this permission. You review generated SQL before it
-                  runs.
+                  {variant === "sidechat"
+                    ? "Schema names and columns only; row values stay off."
+                    : "Dadabase sends this prompt plus schema, table, and column names to draft SQL. It does not send row values under this permission. You review generated SQL before it runs."}
                 </span>
               </span>
             </label>
+            {variant === "sidechat" ? (
+              <details className="text-muted-foreground mt-2 px-1 text-[11px]">
+                <summary className="hover:text-foreground cursor-pointer">
+                  What leaves this browser?
+                </summary>
+                <p className="mt-1 leading-5">
+                  Dadabase sends the prompt plus schema, table, and column names to draft SQL. Row
+                  values require their own permissions below, and generated SQL is reviewed before
+                  it runs.
+                </p>
+              </details>
+            ) : null}
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <label className="border-border bg-background flex items-start gap-2 rounded-md border p-2 text-xs">
                 <Checkbox
@@ -2365,6 +2473,10 @@ const ChatSurface = ({
   // Audit C14: after Approve/Reject the bar vanishes (the call is no longer
   // pending) — keep the decision visible until the resumed stream finishes.
   const [lastDecision, setLastDecision] = useState<"approved" | "rejected" | undefined>(undefined);
+  const [generationStopped, setGenerationStopped] = useState(false);
+  useEffect(() => {
+    if (isStreaming) setGenerationStopped(false);
+  }, [isStreaming]);
 
   // Audit S7: track distance from the thread bottom; offer a manual jump when
   // the user scrolled away while new content streams in.
@@ -2751,7 +2863,9 @@ const ChatSurface = ({
           <div className="flex min-w-0 items-center gap-2 text-xs">
             <MessageSquarePlus className="text-primary size-3.5 shrink-0" />
             <span className="text-muted-foreground shrink-0">Current chat</span>
-            <span className="truncate font-medium">{activeConversationTitle}</span>
+            <span className="truncate font-medium">
+              {activeConversationTitle === "New chat" ? "Untitled chat" : activeConversationTitle}
+            </span>
             {isStreaming ? (
               <Badge size="2xs" colorPalette="info">
                 Generating
@@ -3021,7 +3135,11 @@ const ChatSurface = ({
               <Button
                 size="xs"
                 variant="ghost"
-                onClick={() => actions.stop()}
+                onClick={() => {
+                  setGenerationStopped(true);
+                  actions.stop();
+                  announce("Generation stopped.");
+                }}
                 data-testid="ai-chat-cancel"
                 aria-label="Stop generating"
               >
@@ -3030,6 +3148,14 @@ const ChatSurface = ({
               </Button>
             </div>
           )}
+          {!isStreaming && generationStopped ? (
+            <div
+              className="border-border bg-muted/40 text-muted-foreground rounded-md border px-3 py-2 text-xs"
+              role="status"
+            >
+              Generation stopped. You can edit the draft and send again.
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -3092,7 +3218,7 @@ const ChatSurface = ({
             </Button>
             {messages.length > 0 || variant === "sidechat" ? (
               <>
-                {messages.length > 0 ? (
+                {messages.length > 0 && variant === "page" ? (
                   <Button
                     size="sm"
                     variant="ghost"
