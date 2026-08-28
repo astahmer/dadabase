@@ -6,16 +6,22 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
+  CircleAlert,
+  CircleCheck,
   FileText,
   KeyRound,
+  MessageSquarePlus,
   PencilLine,
   Pin,
   PinOff,
   PanelLeft,
   Settings2,
+  ShieldCheck,
   Sparkles,
   Square,
   Trash2,
+  Eye,
+  EyeOff,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -55,6 +61,7 @@ import {
 } from "#src/lib/ai/chat-consent.ts";
 import {
   chatContextAttachmentKey,
+  dataClassesForChatContext,
   sanitizeChatContextAttachments,
   type ChatContextAttachment,
 } from "#src/lib/ai/chat-context.ts";
@@ -441,7 +448,7 @@ const AiChatPageInner = ({
         ? { role: "dialog" as const, "aria-modal": true, "aria-label": "AI sidechat" }
         : {})}
     >
-      <header className="border-border flex items-center gap-3 border-b px-4 py-2.5">
+      <header className="border-border flex min-h-12 items-center gap-2 border-b px-3 py-2 sm:gap-3 sm:px-4">
         {variant === "sidechat" ? (
           <div className="flex min-w-0 items-center gap-2">
             <Sparkles className="text-primary size-4 shrink-0" />
@@ -459,7 +466,7 @@ const AiChatPageInner = ({
             {connection.name}
           </Link>
         )}
-        <h1 className="flex items-center gap-2 text-sm font-semibold">
+        <h1 className="min-w-0 truncate text-sm font-semibold">
           {variant === "sidechat" ? connection.name : "AI assistant"}
         </h1>
         <Badge
@@ -475,7 +482,7 @@ const AiChatPageInner = ({
               ? "provider configured"
               : "not configured"}
         </Badge>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           {variant === "page" ? (
             <Button
               variant="ghost"
@@ -491,8 +498,14 @@ const AiChatPageInner = ({
           ) : (
             <>
               {onOpenFullChat ? (
-                <Button size="xs" variant="outline" onClick={onOpenFullChat}>
-                  Open full chat
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={onOpenFullChat}
+                  title="Open this conversation in the full chat tab"
+                >
+                  <span className="hidden sm:inline">Open full chat</span>
+                  <span className="sm:hidden">Full chat</span>
                 </Button>
               ) : null}
               {onClose ? (
@@ -502,6 +515,7 @@ const AiChatPageInner = ({
                   onClick={onClose}
                   aria-label="Close AI sidechat"
                   data-testid="ai-sidechat-close"
+                  title="Close AI sidechat"
                 >
                   <X className="size-4" />
                 </Button>
@@ -513,30 +527,51 @@ const AiChatPageInner = ({
             size="sm"
             onClick={() => setSettingsOpen((open) => !open)}
             data-testid="ai-settings-toggle"
+            aria-expanded={settingsOpen}
+            aria-label={`${settingsOpen ? "Hide" : "Show"} AI settings`}
+            title={`${settingsOpen ? "Hide" : "Show"} AI settings`}
           >
             <Settings2 className="size-4" />
-            Provider
+            <span className="hidden sm:inline">Settings</span>
           </Button>
         </div>
       </header>
 
       {settingsOpen && (
-        <ProviderSettingsSection
-          // Keyed on byokState: defaultOpen must be evaluated AFTER the BYOK
-          // probe resolves, not during the initial "loading" pass.
-          key={`provider-${byokState}`}
-          onDone={() => setSettingsOpen(false)}
-          defaultOpen={byokState !== "usable"}
-        />
-      )}
-      {settingsOpen && <ToolsSettingsSection defaultOpen={false} />}
-      {settingsOpen && (
-        <SchemaSettingsSection
-          schemaContext={schemaContext}
-          schemaLoading={allTablesColumnsQuery.isLoading}
-          connectionName={connection.name}
-          defaultOpen={false}
-        />
+        <div
+          className={cn(
+            "border-border min-h-0 overflow-y-auto border-b",
+            variant === "sidechat" ? "max-h-[min(48dvh,30rem)]" : "max-h-[min(55dvh,38rem)]",
+          )}
+          data-testid="ai-settings-panel"
+        >
+          <div className="bg-background/95 border-border sticky top-0 z-10 flex items-center justify-between border-b px-4 py-2 backdrop-blur">
+            <div>
+              <p className="text-sm font-medium">AI settings</p>
+              <p className="text-muted-foreground text-[11px]">
+                Provider, permissions, tools, and schema scope
+              </p>
+            </div>
+            <Button size="xs" variant="outline" onClick={() => setSettingsOpen(false)}>
+              Done
+            </Button>
+          </div>
+          <ProviderSettingsSection
+            // Keyed on byokState: defaultOpen must be evaluated AFTER the BYOK
+            // probe resolves, not during the initial "loading" pass.
+            key={`provider-${byokState}`}
+            onDone={() => setSettingsOpen(false)}
+            defaultOpen={byokState !== "usable"}
+            variant={variant}
+          />
+          <ToolsSettingsSection defaultOpen={false} />
+          <SchemaSettingsSection
+            schemaContext={schemaContext}
+            schemaLoading={allTablesColumnsQuery.isLoading}
+            connectionName={connection.name}
+            defaultOpen={false}
+          />
+        </div>
       )}
 
       <div className="flex min-h-0 flex-1">
@@ -595,9 +630,11 @@ const AiChatPageInner = ({
 const ProviderSettingsSection = ({
   onDone,
   defaultOpen = true,
+  variant = "page",
 }: {
   onDone?: () => void;
   defaultOpen?: boolean;
+  variant?: "page" | "sidechat";
 }) => {
   const [providerIdDraft, setProviderIdDraft] = useState("openai");
   const [baseUrlDraft, setBaseUrlDraft] = useState("");
@@ -607,6 +644,9 @@ const ProviderSettingsSection = ({
   const [hydrated, setHydrated] = useState(false);
   // Audit C16: saves used to be silent — flash an explicit confirmation.
   const [saveFlash, setSaveFlash] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [testState, setTestState] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [testError, setTestError] = useState<string | undefined>(undefined);
   // Audit C7: configured sections start collapsed so the thread leads.
   const [open, setOpen] = useState(defaultOpen);
 
@@ -648,6 +688,38 @@ const ProviderSettingsSection = ({
 
   const selectedPreset = AI_PROVIDER_PRESETS.find((p) => p.id === providerIdDraft);
   const keyOptional = isProviderKeyOptional(providerIdDraft);
+  const resolvedBaseUrl = baseUrlDraft.trim() || selectedPreset?.defaultBaseUrl || "";
+  const baseUrlError =
+    providerIdDraft === CUSTOM_PROVIDER_ID && baseUrlDraft.trim() === ""
+      ? "A base URL is required for a custom provider."
+      : undefined;
+  const apiKeyError =
+    !keyOptional && keyDraft.trim() === "" ? "An API key is required." : undefined;
+
+  const testConnection = async () => {
+    if (!canSaveConfig({ providerId: providerIdDraft, baseUrl: baseUrlDraft, apiKey: keyDraft })) {
+      setTestState("error");
+      setTestError(baseUrlError ?? apiKeyError ?? "Complete the provider fields first.");
+      announce("Complete the provider fields before testing the connection.");
+      return;
+    }
+    setTestState("testing");
+    setTestError(undefined);
+    try {
+      const modelsUrl = new URL("models", `${resolvedBaseUrl.replace(/\/+$/, "")}/`).toString();
+      const response = await fetch(modelsUrl, {
+        headers: keyDraft.trim() ? { Authorization: `Bearer ${keyDraft.trim()}` } : undefined,
+      });
+      if (!response.ok) throw new Error(`Provider returned HTTP ${response.status}.`);
+      setTestState("success");
+      announce("Provider connection verified.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Connection could not be verified.";
+      setTestState("error");
+      setTestError(message);
+      announce("Provider connection could not be verified.");
+    }
+  };
 
   if (!hydrated) return null;
 
@@ -669,13 +741,21 @@ const ProviderSettingsSection = ({
         />
         <KeyRound className="text-muted-foreground size-3.5" />
         <h2 className="text-sm font-medium">Provider</h2>
-        <span className="text-muted-foreground ml-auto text-xs">
-          BYOK — browser-global config; requests are proxied and never stored server-side.
+        <span className="text-muted-foreground ml-auto text-right text-[11px]">
+          <span className="sm:hidden">Browser-only BYOK</span>
+          <span className="hidden sm:inline">
+            BYOK · saved in this browser · requests are proxied, never stored server-side
+          </span>
         </span>
       </button>
       {open && (
         <div className="mt-2 space-y-2">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[200px_1fr_1fr_auto] sm:items-end">
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-2",
+              variant === "page" && "lg:grid-cols-[200px_1fr_1fr_auto] lg:items-end",
+            )}
+          >
             <div>
               <Label className="text-muted-foreground text-xs">OpenAI-compatible provider</Label>
               <Select
@@ -726,7 +806,14 @@ const ProviderSettingsSection = ({
                 }
                 value={baseUrlDraft}
                 onChange={(e) => setBaseUrlDraft(e.target.value)}
+                aria-invalid={baseUrlError !== undefined}
+                aria-describedby={baseUrlError ? "ai-base-url-error" : undefined}
               />
+              {baseUrlError ? (
+                <p id="ai-base-url-error" className="text-destructive mt-1 text-[11px]">
+                  {baseUrlError}
+                </p>
+              ) : null}
             </div>
             <div>
               <Label htmlFor="ai-model" className="text-muted-foreground text-xs">
@@ -745,13 +832,32 @@ const ProviderSettingsSection = ({
                 <Label htmlFor="ai-api-key" className="text-muted-foreground text-xs">
                   API key — localStorage only
                 </Label>
-                <Input
-                  id="ai-api-key"
-                  type="password"
-                  placeholder="sk-…"
-                  value={keyDraft}
-                  onChange={(e) => setKeyDraft(e.target.value)}
-                />
+                <div className="relative">
+                  <Input
+                    id="ai-api-key"
+                    type={showApiKey ? "text" : "password"}
+                    placeholder="sk-…"
+                    value={keyDraft}
+                    onChange={(e) => setKeyDraft(e.target.value)}
+                    className="pe-9"
+                    aria-invalid={apiKeyError !== undefined}
+                    aria-describedby={apiKeyError ? "ai-api-key-error" : undefined}
+                  />
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-9 items-center justify-center"
+                    onClick={() => setShowApiKey((visible) => !visible)}
+                    aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                    title={showApiKey ? "Hide API key" : "Show API key"}
+                  >
+                    {showApiKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                {apiKeyError ? (
+                  <p id="ai-api-key-error" className="text-destructive mt-1 text-[11px]">
+                    {apiKeyError}
+                  </p>
+                ) : null}
               </div>
             ) : (
               <p className="text-muted-foreground self-end pb-2 text-xs">
@@ -766,13 +872,13 @@ const ProviderSettingsSection = ({
             >
               <span className="text-foreground font-medium">{selectedPreset.label}:</span>{" "}
               <span className="text-muted-foreground">
-                Save will use{" "}
+                Save uses{" "}
                 <span className="font-mono">
                   {baseUrlDraft.trim() || selectedPreset.defaultBaseUrl || "the entered base URL"}
                 </span>
                 {keyOptional
                   ? " and does not require an API key."
-                  : " with the API key kept in this browser."}
+                  : " with the API key kept in this browser only."}
               </span>
             </div>
           ) : null}
@@ -788,7 +894,7 @@ const ProviderSettingsSection = ({
                 })
               }
             >
-              Save
+              Save changes
             </Button>
             {saveFlash && (
               <span className="text-success text-xs font-medium" data-testid="ai-provider-saved">
@@ -805,7 +911,35 @@ const ProviderSettingsSection = ({
               <Trash2 className="size-3.5" />
               Clear
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void testConnection()}
+              disabled={
+                testState === "testing" ||
+                !canSaveConfig({
+                  providerId: providerIdDraft,
+                  baseUrl: baseUrlDraft,
+                  apiKey: keyDraft,
+                })
+              }
+              data-testid="ai-provider-test"
+            >
+              {testState === "testing" ? <Spinner size="xs" label="Testing connection" /> : null}
+              Test connection
+            </Button>
           </div>
+          {testState === "success" ? (
+            <p className="text-success flex items-center gap-1 text-xs" role="status">
+              <CircleCheck className="size-3.5" /> Provider connection verified.
+            </p>
+          ) : null}
+          {testState === "error" ? (
+            <p className="text-destructive flex items-start gap-1 text-xs" role="alert">
+              <CircleAlert className="mt-0.5 size-3.5 shrink-0" />
+              <span>{testError ?? "Connection could not be verified."}</span>
+            </p>
+          ) : null}
         </div>
       )}
     </section>
@@ -1159,6 +1293,28 @@ const AiChatBody = ({
     () => sanitizeChatContextAttachments(activeContextAttachments, chatDataAccess),
     [activeContextAttachments, chatDataAccess],
   );
+  const contextDataClasses = useMemo(
+    () => dataClassesForChatContext(visibleContextAttachments),
+    [visibleContextAttachments],
+  );
+  const removeContextAttachment = (attachment: ChatContextAttachment) => {
+    const label =
+      attachment.kind === "table"
+        ? `table ${attachment.table}`
+        : attachment.kind === "filters"
+          ? `filters for ${attachment.table}`
+          : attachment.kind === "selection"
+            ? `selection from ${attachment.table}`
+            : attachment.kind === "sql"
+              ? "SQL draft"
+              : "query result";
+    setRemovedContextKeys((current) => {
+      const next = new Set(current);
+      next.add(chatContextAttachmentKey(attachment));
+      return next;
+    });
+    announce(`${label} removed for this turn.`);
+  };
 
   // Live schema-scope status: mode + how many tables actually go out. Auto's
   // exact count arrives with the first response header, so it re-reads on
@@ -1219,58 +1375,99 @@ const AiChatBody = ({
         <ThreadListPanel overlayOpen={threadList.open} onClose={threadList.onClose} />
       ) : null}
       <main className="flex min-w-0 flex-1 flex-col">
-        {variant === "sidechat" &&
-        initialAskTable &&
-        visibleContextAttachments.some(
-          (attachment) => attachment.kind === "table" && attachment.table === initialAskTable,
-        ) ? (
-          <div
-            className="border-border bg-muted/30 mx-3 mt-3 rounded-md border px-3 py-2 text-xs"
-            data-testid="ai-sidechat-context"
-          >
-            <span className="text-muted-foreground">Context</span>{" "}
-            <span className="font-mono">{initialAskTable}</span>
-            <span className="text-muted-foreground"> · schema metadata attached</span>
-          </div>
-        ) : null}
         {visibleContextAttachments.length > 0 ? (
           <div
-            className="border-border bg-muted/20 mx-3 mt-2 flex flex-wrap items-center gap-1.5 rounded-md border px-3 py-2 text-xs"
+            className="border-border bg-muted/20 mx-3 mt-3 rounded-md border px-3 py-2 text-xs"
             data-testid="ai-context-attachments"
           >
-            <span className="text-muted-foreground font-medium">Attached context</span>
-            {visibleContextAttachments.map((attachment, index) => {
-              const attachmentKey = chatContextAttachmentKey(attachment);
-              const label =
-                attachment.kind === "table"
-                  ? `table: ${attachment.table}`
-                  : attachment.kind === "filters"
-                    ? `filters: ${attachment.table} (${attachment.filters.length})`
-                    : attachment.kind === "selection"
-                      ? `selection: ${attachment.table} (${attachment.rows?.length ?? attachment.rowIds?.length ?? 0} rows${attachment.rows?.length ? ", values" : ", metadata only"})`
-                      : attachment.kind === "sql"
-                        ? `SQL: ${attachment.sql.length.toLocaleString()} chars`
-                        : `result: ${attachment.rowCount.toLocaleString()} rows${attachment.rows?.length ? ", values" : ", columns only"}`;
-              return (
-                <button
-                  key={`${attachment.kind}-${index}`}
-                  type="button"
-                  className="bg-muted hover:bg-muted/70 inline-flex items-center gap-1 rounded px-1.5 py-0.5"
-                  title="Remove this context attachment"
-                  aria-label={`Remove ${label}`}
-                  onClick={() =>
-                    setRemovedContextKeys((current) => {
-                      const next = new Set(current);
-                      next.add(attachmentKey);
-                      return next;
-                    })
-                  }
-                >
-                  {label}
-                  <X className="size-3" aria-hidden="true" />
-                </button>
-              );
-            })}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="font-medium">Context for this chat</span>
+                <span className="text-muted-foreground">
+                  {visibleContextAttachments.length} attachment
+                  {visibleContextAttachments.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <span className="text-muted-foreground text-[11px]">
+                {contextDataClasses.includes("sample-rows") ||
+                contextDataClasses.includes("query-results")
+                  ? "Values allowed by permission"
+                  : "Metadata only"}
+              </span>
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {visibleContextAttachments.map((attachment, index) => {
+                const dataClass =
+                  attachment.kind === "selection" && attachment.rows?.length
+                    ? "values"
+                    : attachment.kind === "result" && attachment.rows?.length
+                      ? "values"
+                      : "metadata only";
+                const label =
+                  attachment.kind === "table"
+                    ? `table: ${attachment.table} · schema`
+                    : attachment.kind === "filters"
+                      ? `filters: ${attachment.table} · ${attachment.filters.length}`
+                      : attachment.kind === "selection"
+                        ? `selection: ${attachment.table} · ${attachment.rows?.length ?? attachment.rowIds?.length ?? 0} rows · ${dataClass}`
+                        : attachment.kind === "sql"
+                          ? `SQL draft · ${attachment.sql.length.toLocaleString()} chars`
+                          : `result · ${attachment.rowCount.toLocaleString()} rows · ${dataClass}`;
+                return (
+                  <button
+                    key={`${attachment.kind}-${index}`}
+                    type="button"
+                    className="bg-muted hover:bg-muted/70 focus-visible:ring-ring inline-flex max-w-full items-center gap-1 rounded px-1.5 py-0.5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                    title="Remove from this turn"
+                    aria-label={`Remove ${label} from this turn`}
+                    onClick={() => removeContextAttachment(attachment)}
+                  >
+                    <span className="truncate">{label}</span>
+                    <X className="size-3 shrink-0" aria-hidden="true" />
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-muted-foreground mt-1.5 text-[11px]">
+              Attached for this chat · remove a chip to exclude it from the next message.
+            </p>
+          </div>
+        ) : null}
+        {variant === "sidechat" && (!providerReady || !hasApprovedSchemaSharing) ? (
+          <div
+            className="border-primary/20 bg-primary/5 mx-3 mt-3 flex items-start justify-between gap-3 rounded-md border px-3 py-2.5"
+            data-testid="ai-sidechat-first-run"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                {!providerReady ? "Connect an AI provider" : "Approve schema sharing"}
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-xs leading-5">
+                {!providerReady
+                  ? "Add a provider in this browser to start asking questions."
+                  : "Share schema names and columns so the assistant can draft SQL. Row values stay off unless you allow them."}
+              </p>
+            </div>
+            {!providerReady ? (
+              <Button
+                size="xs"
+                variant="outline"
+                className="shrink-0"
+                onClick={onOpenProviderSettings}
+                data-testid="ai-sidechat-configure-provider"
+              >
+                Configure provider
+              </Button>
+            ) : (
+              <Button
+                size="xs"
+                className="shrink-0"
+                onClick={onApproveSchemaSharing}
+                data-testid="ai-sidechat-approve-schema"
+              >
+                Approve schema
+              </Button>
+            )}
           </div>
         ) : null}
         {/* Audit C1: the full chat surface stays mounted pre-consent — users
@@ -1403,6 +1600,8 @@ const AiChatBody = ({
           tableNames={schemaContext.tables.map((table) => table.table)}
           onAdoptAutoTables={onAdoptAutoTables}
           onOpenSchemaPanel={onOpenSchemaPanel}
+          contextAttachments={visibleContextAttachments}
+          variant={variant}
         />
       </main>
     </ChatProvider>
@@ -2005,6 +2204,8 @@ const ChatSurface = ({
   initialAskTable,
   initialAiIntent,
   tableNames,
+  contextAttachments,
+  variant,
 }: {
   connectionName: string;
   onApplySql: (sql: string, meta?: ChatReturnMeta) => void;
@@ -2040,6 +2241,8 @@ const ChatSurface = ({
   initialAskTable?: string;
   initialAiIntent?: "chat" | "sql";
   tableNames: readonly string[];
+  contextAttachments: readonly ChatContextAttachment[];
+  variant: "page" | "sidechat";
 }) => {
   const messages = useChatSelector((s) => s.activeThread.messages);
   const isStreaming = useChatSelector((s) => s.activeThread.isStreaming);
@@ -2050,6 +2253,7 @@ const ChatSurface = ({
   const actions = useChatActions();
   const providerId = useChatSelector((s) => s.settings.provider);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
 
   // Audit K7: finishing a stream in an unfocused tab gets a title badge so
   // users switching back know the answer landed.
@@ -2141,6 +2345,7 @@ const ChatSurface = ({
     lastAnnouncedError.current = error;
     toaster.create({ title: "Chat error", description: error, type: "error" });
     announce("Chat error.");
+    window.requestAnimationFrame(() => errorRef.current?.focus());
   }, [error]);
 
   // Audit C11: elapsed time gives the stream a sense of progress; the Cancel
@@ -2183,13 +2388,36 @@ const ChatSurface = ({
   const composerFocus = () => composerRef.current?.focus();
   const starterPrompts = useMemo(() => {
     const table = initialAskTable || tableNames[0];
+    const selection = contextAttachments.find((attachment) => attachment.kind === "selection");
+    const result = contextAttachments.find((attachment) => attachment.kind === "result");
+    if (result?.kind === "result") {
+      return [
+        "Summarize this query result.",
+        "What stands out in this result?",
+        "Suggest a useful next question.",
+      ];
+    }
+    if (selection?.kind === "selection") {
+      return [
+        `Explain these ${selection.rows?.length ?? selection.rowIds?.length ?? 0} selected rows.`,
+        "What patterns or anomalies are in this selection?",
+        "Suggest a follow-up query for this selection.",
+      ];
+    }
+    if (initialAiIntent === "sql") {
+      return [
+        "Explain this SQL.",
+        "Find possible issues in this SQL.",
+        "Suggest an improvement to this SQL.",
+      ];
+    }
     if (!table) return [];
     return [
       `How many rows are in \`${table}\`?`,
       `What columns are in \`${table}\`?`,
       `Show me a useful summary of \`${table}\`.`,
     ];
-  }, [initialAskTable, tableNames]);
+  }, [contextAttachments, initialAiIntent, initialAskTable, tableNames]);
 
   useEffect(() => {
     const element = composerRef.current;
@@ -2232,6 +2460,11 @@ const ChatSurface = ({
 
   // Audit K1: single gate shared by the button and the Enter handler.
   const sendDisabled = consentRequired || !providerReady || draft.trim() === "" || isStreaming;
+  const hasValueAttachments = contextAttachments.some(
+    (attachment) =>
+      (attachment.kind === "selection" && attachment.rows?.length) ||
+      (attachment.kind === "result" && attachment.rows?.length),
+  );
   // Audit T4: the transparency line retires itself after the first send.
   const [trustNoteDismissed, setTrustNoteDismissed] = useState(() => {
     try {
@@ -2509,6 +2742,38 @@ const ChatSurface = ({
   return (
     <>
       <div className="relative flex min-h-0 flex-1 flex-col">
+        <div
+          className="border-border bg-background/95 sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-3 py-2 backdrop-blur"
+          data-testid="ai-chat-state"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex min-w-0 items-center gap-2 text-xs">
+            <MessageSquarePlus className="text-primary size-3.5 shrink-0" />
+            <span className="text-muted-foreground shrink-0">Current chat</span>
+            <span className="truncate font-medium">{activeConversationTitle}</span>
+            {isStreaming ? (
+              <Badge size="2xs" colorPalette="info">
+                Generating
+              </Badge>
+            ) : null}
+            {!isStreaming && pendingApproval !== undefined ? (
+              <Badge size="2xs" colorPalette="warning">
+                Awaiting approval
+              </Badge>
+            ) : null}
+          </div>
+          <Button
+            size="xs"
+            variant="ghost"
+            onClick={() => actions.startNewConversation()}
+            data-testid="ai-chat-new-chat-header"
+            title="Start a new chat"
+          >
+            <MessageSquarePlus className="size-3.5" />
+            <span className="hidden sm:inline">New chat</span>
+          </Button>
+        </div>
         {/* Audit S7: manual jump-to-latest when the user scrolled up during a
             stream; the auto-stick behaviour alone hides new content. */}
         {showJumpToLatest && (
@@ -2761,14 +3026,14 @@ const ChatSurface = ({
                 aria-label="Stop generating"
               >
                 <Square className="size-3" />
-                Stop
+                Stop generating
               </Button>
             </div>
           )}
         </div>
       </div>
 
-      <div className="border-border border-t p-3">
+      <div className="border-border border-t p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
           {/* Audit M4/T3: thread-level token total anchors cost awareness. */}
           {threadTokens > 0 && (
@@ -2825,46 +3090,50 @@ const ChatSurface = ({
             >
               Send
             </Button>
-            {messages.length > 0 ? (
+            {messages.length > 0 || variant === "sidechat" ? (
               <>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => actions.startNewConversation()}
-                  data-testid="ai-chat-new-chat"
-                >
-                  New chat
-                </Button>
+                {messages.length > 0 ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => actions.startNewConversation()}
+                    data-testid="ai-chat-new-chat"
+                  >
+                    New chat
+                  </Button>
+                ) : null}
                 {/* Audit K2: the vendored markdown helper finally gets a caller. */}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    const markdown = conversationMarkdown(
-                      messages.map((message) => ({
-                        id: message.id,
-                        parentId: null,
-                        createdAt: typeof message.createdAt === "string" ? message.createdAt : "",
-                        role: message.role,
-                        parts: message.parts,
-                      })),
-                    );
-                    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-                    const url = URL.createObjectURL(blob);
-                    const anchor = document.createElement("a");
-                    anchor.href = url;
-                    anchor.download = `${activeConversationTitle.replace(/[^\w.-]+/g, "_").slice(0, 60) || "chat"}.md`;
-                    document.body.append(anchor);
-                    anchor.click();
-                    anchor.remove();
-                    URL.revokeObjectURL(url);
-                    announce("Chat exported as markdown.");
-                  }}
-                  data-testid="ai-chat-export"
-                >
-                  <FileText className="size-3.5" />
-                  Export .md
-                </Button>
+                {messages.length > 0 ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      const markdown = conversationMarkdown(
+                        messages.map((message) => ({
+                          id: message.id,
+                          parentId: null,
+                          createdAt: typeof message.createdAt === "string" ? message.createdAt : "",
+                          role: message.role,
+                          parts: message.parts,
+                        })),
+                      );
+                      const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+                      const url = URL.createObjectURL(blob);
+                      const anchor = document.createElement("a");
+                      anchor.href = url;
+                      anchor.download = `${activeConversationTitle.replace(/[^\w.-]+/g, "_").slice(0, 60) || "chat"}.md`;
+                      document.body.append(anchor);
+                      anchor.click();
+                      anchor.remove();
+                      URL.revokeObjectURL(url);
+                      announce("Chat exported as markdown.");
+                    }}
+                    data-testid="ai-chat-export"
+                  >
+                    <FileText className="size-3.5" />
+                    Export .md
+                  </Button>
+                ) : null}
               </>
             ) : null}
             {consentRequired ? (
@@ -2877,6 +3146,25 @@ const ChatSurface = ({
               </span>
             ) : null}
           </div>
+          <div
+            className="border-border bg-muted/20 text-muted-foreground flex flex-wrap items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-[11px]"
+            data-testid="ai-permission-summary"
+          >
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="text-primary size-3.5" />
+              {consentRequired
+                ? "Nothing is shared until schema access is approved."
+                : `Shared: schema metadata${hasValueAttachments ? " plus permitted values" : " only"}.`}
+            </span>
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={onOpenProviderSettings}
+              data-testid="ai-review-sharing"
+            >
+              Review sharing
+            </Button>
+          </div>
           {error &&
             (() => {
               // Audit S10: one flat message for every failure mode taught users
@@ -2886,6 +3174,9 @@ const ChatSurface = ({
                 <div
                   className="border-destructive/40 bg-destructive/5 text-destructive rounded-md border px-2.5 py-2 text-xs"
                   data-testid="ai-chat-error"
+                  role="alert"
+                  tabIndex={-1}
+                  ref={errorRef}
                 >
                   <p className="font-medium">{classified.headline}</p>
                   {classified.hint !== undefined && (

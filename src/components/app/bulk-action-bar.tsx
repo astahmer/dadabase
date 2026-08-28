@@ -169,7 +169,7 @@ export function BulkActionBar({
                 data-testid="bulk-ask-ai-button"
               >
                 <Sparkles className="mr-1 h-4 w-4" />
-                Ask AI
+                Ask AI about selection
               </Button>
             )}
             {onEdit && (

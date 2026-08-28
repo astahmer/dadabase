@@ -264,7 +264,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [sidechatOpen, setSidechatOpen] = useState(false);
   const [sidechatContext, setSidechatContext] = useState<readonly ChatContextAttachment[]>([]);
+  const sidechatReturnFocusRef = useRef<HTMLElement | null>(null);
   const openSidechat = useCallback((attachments: readonly ChatContextAttachment[] = []) => {
+    const activeElement = document.activeElement;
+    sidechatReturnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
     setSidechatContext(attachments);
     setSidechatOpen(true);
   }, []);
@@ -272,7 +275,13 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     setSidechatOpen(false);
     setSidechatContext([]);
     window.requestAnimationFrame(() => {
-      document.querySelector<HTMLButtonElement>('[data-testid="toggle-ai-sidechat"]')?.focus();
+      const returnTarget = sidechatReturnFocusRef.current;
+      if (returnTarget?.isConnected) {
+        returnTarget.focus();
+      } else {
+        document.querySelector<HTMLButtonElement>('[data-testid="toggle-ai-sidechat"]')?.focus();
+      }
+      sidechatReturnFocusRef.current = null;
     });
   };
   const toggleSidechat = () => {
@@ -773,14 +782,17 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         />
                       )}
                       {sidechatOpen && !aiChatActive ? (
-                        <div className="absolute inset-0 z-20 sm:inset-y-0 sm:right-0 sm:left-auto sm:w-[26rem]">
+                        <div
+                          className="absolute inset-0 z-20 md:inset-y-0 md:right-0 md:left-auto md:w-[min(30rem,calc(100vw-3.5rem))]"
+                          data-testid="ai-sidechat-overlay"
+                        >
                           <button
                             type="button"
-                            className="absolute inset-0 bg-black/30 sm:hidden"
+                            className="absolute inset-0 bg-black/30 md:hidden"
                             aria-label="Close AI sidechat"
                             onClick={closeSidechat}
                           />
-                          <div className="absolute inset-x-0 bottom-0 h-[min(85%,44rem)] sm:static sm:h-full">
+                          <div className="absolute inset-x-0 bottom-0 h-[min(88dvh,44rem)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] md:static md:h-full md:max-h-none md:pb-0">
                             <AiChatPage
                               connectionName={connection.name}
                               initialAskTable={search.table}

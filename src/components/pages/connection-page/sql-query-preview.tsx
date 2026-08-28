@@ -304,18 +304,18 @@ export function SqlQueryPreview({
               activeTable={snippetActiveTable}
             />
             {onSuggestQuery && (
-              <Tooltip content="Suggest query with AI">
+              <Tooltip content="Draft SQL with AI">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={onSuggestQuery}
                   data-testid="suggest-query-ai"
-                  aria-label="Suggest query with AI"
+                  aria-label="Draft SQL with AI"
                   type="button"
                   className="h-8 gap-1.5 px-2"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  Suggest query
+                  Draft SQL
                 </Button>
               </Tooltip>
             )}
@@ -331,7 +331,7 @@ export function SqlQueryPreview({
                   className="h-8 gap-1.5 px-2"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  Explain with AI
+                  Explain SQL
                 </Button>
               </Tooltip>
             )}
