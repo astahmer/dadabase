@@ -109,7 +109,7 @@ import { Button, buttonVariants } from "../../ui/button.tsx";
 import { Checkbox, CheckboxControl, CheckboxLabel } from "../../ui/checkbox.tsx";
 import { Input } from "../../ui/input.tsx";
 import { Label } from "../../ui/label.tsx";
-import { Menu, MenuContent, MenuItem, MenuTrigger } from "../../ui/menu.tsx";
+import { Menu, MenuCheckboxItem, MenuContent, MenuItem, MenuTrigger } from "../../ui/menu.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover.tsx";
 import {
   Select,
@@ -3116,7 +3116,9 @@ const ChatSurface = ({
     if (toolName === "preview_rows" && isRecord(result) && Array.isArray(result.rows)) {
       const rows = result.rows.filter(isRecord).slice(0, 25);
       const columns = Array.isArray(result.columns)
-        ? result.columns.filter((column): column is string => typeof column === "string").slice(0, 25)
+        ? result.columns
+            .filter((column): column is string => typeof column === "string")
+            .slice(0, 25)
         : rows.length > 0
           ? Object.keys(rows[0]).slice(0, 25)
           : [];
@@ -3140,29 +3142,13 @@ const ChatSurface = ({
         ? result.readableRelations.filter(isRecord)
         : [];
       return (
-        <div className="space-y-2" data-testid="ai-chat-preview-rows">
-          <div className="bg-background rounded-md border p-2">
-            <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
-              <p className="text-xs font-medium">Readable preview</p>
-              {relationSummary.length > 0 ? (
-                <p className="text-muted-foreground text-[11px]">
-                  Related labels included from {relationSummary.length} table
-                  {relationSummary.length === 1 ? "" : "s"}.
-                </p>
-              ) : null}
-            </div>
-            <PreviewRowsTable columns={readableColumns} rows={readableRows} readable />
-          </div>
-          <details className="bg-muted/20 rounded-md border" data-testid="ai-chat-raw-preview">
-            <summary className="text-muted-foreground flex cursor-pointer list-none items-center justify-between px-2.5 py-2 text-xs font-medium">
-              <span>Raw rows</span>
-              <span>{rows.length} sampled</span>
-            </summary>
-            <div className="border-t p-2">
-              <PreviewRowsTable columns={columns} rows={rows} />
-            </div>
-          </details>
-        </div>
+        <PreviewRowsCard
+          columns={columns}
+          rows={rows}
+          readableColumns={readableColumns}
+          readableRows={readableRows}
+          relationSummary={relationSummary}
+        />
       );
     }
     if (toolName === "table_details" && isRecord(result) && Array.isArray(result.columns)) {
@@ -3349,23 +3335,52 @@ const ChatSurface = ({
                     before it runs.
                   </p>
                   {!consentRequired && providerReady && starterPrompts.length > 0 ? (
-                    <div className="flex max-w-full flex-wrap justify-center gap-2">
-                      {starterPrompts.map((prompt) => (
-                        <Button
-                          key={prompt}
-                          size="xs"
-                          variant="outline"
-                          disabled={consentRequired || !providerReady}
-                          onClick={() => {
-                            actions.setDraft({ text: prompt });
-                            composerFocus();
-                          }}
-                          data-testid="ai-starter-prompt"
-                        >
-                          {prompt}
-                        </Button>
-                      ))}
-                    </div>
+                    variant === "sidechat" ? (
+                      <details
+                        className="group w-full max-w-sm rounded-md border px-3 py-2 text-left"
+                        data-testid="ai-sidechat-suggestions"
+                      >
+                        <summary className="text-foreground flex cursor-pointer list-none items-center justify-between text-xs font-medium">
+                          Suggestions
+                          <ChevronDown className="text-muted-foreground size-3.5 transition-transform group-open:rotate-180" />
+                        </summary>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {starterPrompts.map((prompt) => (
+                            <Button
+                              key={prompt}
+                              size="xs"
+                              variant="outline"
+                              disabled={consentRequired || !providerReady}
+                              onClick={() => {
+                                actions.setDraft({ text: prompt });
+                                composerFocus();
+                              }}
+                              data-testid="ai-starter-prompt"
+                            >
+                              {prompt}
+                            </Button>
+                          ))}
+                        </div>
+                      </details>
+                    ) : (
+                      <div className="flex max-w-full flex-wrap justify-center gap-2">
+                        {starterPrompts.map((prompt) => (
+                          <Button
+                            key={prompt}
+                            size="xs"
+                            variant="outline"
+                            disabled={consentRequired || !providerReady}
+                            onClick={() => {
+                              actions.setDraft({ text: prompt });
+                              composerFocus();
+                            }}
+                            data-testid="ai-starter-prompt"
+                          >
+                            {prompt}
+                          </Button>
+                        ))}
+                      </div>
+                    )
                   ) : null}
                   {/* Audit C7: one primary action instead of a 90%-empty viewport. */}
                   {!consentRequired && providerReady ? (
@@ -3419,7 +3434,7 @@ const ChatSurface = ({
                     {...(canRetryFailedTurn
                       ? {
                           onRegenerate: (messageId: string) => actions.retry({ messageId }),
-                          regenerateText: "Try again",
+                          regenerateText: "Retry message",
                         }
                       : {})}
                   />
@@ -3857,6 +3872,149 @@ const previewCellText = (value: unknown): string => {
   return String(value);
 };
 
+const previewRelationStatus = (relation: Record<string, unknown>): string => {
+  const resolved = typeof relation.resolvedCount === "number" ? relation.resolvedCount : 0;
+  const unresolved = typeof relation.unresolvedCount === "number" ? relation.unresolvedCount : 0;
+  if (unresolved === 0) return `${resolved} label${resolved === 1 ? "" : "s"} resolved`;
+  return `${resolved} resolved · ${unresolved} ID${unresolved === 1 ? "" : "s"} unresolved`;
+};
+
+const PreviewRowsCard = ({
+  columns,
+  rows,
+  readableColumns,
+  readableRows,
+  relationSummary,
+}: {
+  columns: ReadonlyArray<string>;
+  rows: ReadonlyArray<Record<string, unknown>>;
+  readableColumns: ReadonlyArray<string>;
+  readableRows: ReadonlyArray<Record<string, unknown>>;
+  relationSummary: ReadonlyArray<Record<string, unknown>>;
+}): ReactNode => {
+  const columnKey = columns.join("\u0000");
+  const [visibleColumns, setVisibleColumns] = useState<ReadonlyArray<string>>(() =>
+    columns.length > 8 ? columns.slice(0, 8) : columns,
+  );
+
+  useEffect(() => {
+    const availableColumns = columnKey === "" ? [] : columnKey.split("\u0000");
+    setVisibleColumns((current) => {
+      const next = current.filter((column) => availableColumns.includes(column));
+      return next.length > 0
+        ? next
+        : availableColumns.slice(0, Math.min(availableColumns.length, 8));
+    });
+  }, [columnKey]);
+
+  const toggleColumn = (column: string, checked: boolean) => {
+    setVisibleColumns((current) => {
+      if (checked) return current.includes(column) ? current : [...current, column];
+      if (current.length === 1) return current;
+      return current.filter((currentColumn) => currentColumn !== column);
+    });
+  };
+
+  const relationLabels = relationSummary.map((relation) => {
+    const source =
+      typeof relation.sourceColumn === "string" ? relation.sourceColumn : "foreign key";
+    const target =
+      typeof relation.referencedTable === "string" ? relation.referencedTable : "related table";
+    const label = typeof relation.label === "string" ? relation.label : "display value";
+    return { relation, text: `${source} → ${target}.${label}` };
+  });
+
+  return (
+    <div className="space-y-2" data-testid="ai-chat-preview-rows">
+      <div className="bg-background rounded-md border p-2">
+        <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-xs font-medium">Readable preview</p>
+          {relationLabels.length > 0 ? (
+            <p className="text-muted-foreground text-[11px]">
+              {relationLabels.length} related field{relationLabels.length === 1 ? "" : "s"} enriched
+            </p>
+          ) : null}
+        </div>
+        <PreviewRowsTable columns={readableColumns} rows={readableRows} readable />
+        {relationLabels.length > 0 ? (
+          <div
+            className="border-border bg-muted/20 mt-2 space-y-1 rounded border px-2 py-1.5 text-[11px]"
+            data-testid="ai-chat-relation-status"
+          >
+            <p className="font-medium">Related labels</p>
+            {relationLabels.map(({ relation, text }) => (
+              <p
+                key={text}
+                className="text-muted-foreground flex flex-wrap justify-between gap-x-2"
+              >
+                <span>{text}</span>
+                <span className={relation.unresolvedCount ? "text-warning" : "text-success"}>
+                  {previewRelationStatus(relation)}
+                </span>
+              </p>
+            ))}
+            {relationLabels.some(({ relation }) => relation.unresolvedCount) ? (
+              <p className="text-muted-foreground pt-0.5">
+                Unresolved IDs stay available in Raw rows below.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      <details className="bg-muted/20 rounded-md border" data-testid="ai-chat-raw-preview">
+        <summary className="text-muted-foreground flex cursor-pointer list-none items-center justify-between px-2.5 py-2 text-xs font-medium">
+          <span>Raw rows</span>
+          <span>{rows.length} sampled</span>
+        </summary>
+        <div className="border-t p-2">
+          {columns.length > 8 ? (
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-muted-foreground text-[11px]">
+                Showing {visibleColumns.length} of {columns.length} columns
+              </span>
+              <Menu>
+                <MenuTrigger asChild>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    aria-label="Choose preview columns"
+                    data-testid="ai-chat-preview-columns"
+                  >
+                    Columns
+                  </Button>
+                </MenuTrigger>
+                <MenuContent className="max-h-72">
+                  <MenuItem
+                    value="show-first-columns"
+                    onClick={() => setVisibleColumns(columns.slice(0, Math.min(columns.length, 8)))}
+                  >
+                    Reset to first 8
+                  </MenuItem>
+                  <MenuItem value="show-all-columns" onClick={() => setVisibleColumns(columns)}>
+                    Show all {columns.length} columns
+                  </MenuItem>
+                  {columns.map((column) => (
+                    <MenuCheckboxItem
+                      key={column}
+                      value={`column-${column}`}
+                      checked={visibleColumns.includes(column)}
+                      disabled={visibleColumns.length === 1 && visibleColumns.includes(column)}
+                      onCheckedChange={(checked) => toggleColumn(column, checked)}
+                    >
+                      {column}
+                    </MenuCheckboxItem>
+                  ))}
+                </MenuContent>
+              </Menu>
+            </div>
+          ) : null}
+          <PreviewRowsTable columns={visibleColumns} rows={rows} />
+        </div>
+      </details>
+    </div>
+  );
+};
+
 const PreviewRowsTable = ({
   columns,
   rows,
@@ -3871,7 +4029,7 @@ const PreviewRowsTable = ({
       <thead className="bg-muted/50">
         <tr>
           {columns.map((column) => (
-            <th key={column} className="whitespace-nowrap px-2 py-1.5 font-medium">
+            <th key={column} className="px-2 py-1.5 font-medium whitespace-nowrap">
               {readable ? previewColumnLabel(column) : column}
             </th>
           ))}

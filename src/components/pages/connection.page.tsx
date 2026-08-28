@@ -311,6 +311,9 @@ const panels = {
   queryLogger: "query-logger",
 };
 
+const CHAT_SIDECHAT_MOBILE_HEIGHT_DEFAULT = 620;
+const CHAT_SIDECHAT_MOBILE_HEIGHT_MIN = 360;
+
 const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
   const activeConnectionUrl = useActiveConnectionUrl(connection);
@@ -324,6 +327,9 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const [sidechatOpen, setSidechatOpen] = useState(false);
   const [sidechatSide, setSidechatSide] = useState<ChatSidechatSide>(getStoredChatSidechatSide);
   const [sidechatWidth, setSidechatWidth] = useState(CHAT_SIDECHAT_WIDTH_DEFAULT);
+  const [sidechatMobileHeight, setSidechatMobileHeight] = useState(
+    CHAT_SIDECHAT_MOBILE_HEIGHT_DEFAULT,
+  );
   const [sidechatContext, setSidechatContext] = useState<readonly ChatContextAttachment[]>([]);
   useEffect(() => {
     const refresh = () => {
@@ -346,13 +352,23 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const resizeSidechat = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>) => {
       event.preventDefault();
-      sidechatResizeRef.current = { startX: event.clientX, startWidth: sidechatWidth, width: sidechatWidth };
+      sidechatResizeRef.current = {
+        startX: event.clientX,
+        startWidth: sidechatWidth,
+        width: sidechatWidth,
+      };
       const onMove = (moveEvent: PointerEvent) => {
         const start = sidechatResizeRef.current;
         if (!start) return;
-        const delta = sidechatSide === "left" ? start.startX - moveEvent.clientX : moveEvent.clientX - start.startX;
+        const delta =
+          sidechatSide === "left"
+            ? start.startX - moveEvent.clientX
+            : moveEvent.clientX - start.startX;
         const next = Math.round(
-          Math.min(CHAT_SIDECHAT_WIDTH_MAX, Math.max(CHAT_SIDECHAT_WIDTH_MIN, start.startWidth + delta)),
+          Math.min(
+            CHAT_SIDECHAT_WIDTH_MAX,
+            Math.max(CHAT_SIDECHAT_WIDTH_MIN, start.startWidth + delta),
+          ),
         );
         start.width = next;
         setSidechatWidth(next);
@@ -368,6 +384,45 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
       window.addEventListener("pointerup", onUp, { once: true });
     },
     [sidechatSide, sidechatWidth],
+  );
+  const sidechatMobileResizeRef = useRef<{
+    startY: number;
+    startHeight: number;
+    height: number;
+  } | null>(null);
+  const resizeSidechatMobile = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      sidechatMobileResizeRef.current = {
+        startY: event.clientY,
+        startHeight: sidechatMobileHeight,
+        height: sidechatMobileHeight,
+      };
+      const onMove = (moveEvent: PointerEvent) => {
+        const start = sidechatMobileResizeRef.current;
+        if (!start) return;
+        const maxHeight = Math.max(CHAT_SIDECHAT_MOBILE_HEIGHT_MIN, window.innerHeight - 16);
+        const next = Math.round(
+          Math.min(
+            maxHeight,
+            Math.max(
+              CHAT_SIDECHAT_MOBILE_HEIGHT_MIN,
+              start.startHeight + start.startY - moveEvent.clientY,
+            ),
+          ),
+        );
+        start.height = next;
+        setSidechatMobileHeight(next);
+      };
+      const onUp = () => {
+        sidechatMobileResizeRef.current = null;
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp, { once: true });
+    },
+    [sidechatMobileHeight],
   );
   const sidechatReturnFocusRef = useRef<HTMLElement | null>(null);
   const openSidechat = useCallback((attachments: readonly ChatContextAttachment[] = []) => {
@@ -905,7 +960,63 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                             aria-label="Close AI sidechat"
                             onClick={closeSidechat}
                           />
-                          <div className="absolute inset-x-0 bottom-0 h-[min(88dvh,44rem)] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] md:static md:h-full md:max-h-none md:pb-0">
+                          <div
+                            className="absolute inset-x-0 bottom-0 h-[min(var(--ai-sidechat-mobile-height),calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] md:static md:h-full md:max-h-none md:pb-0"
+                            style={
+                              {
+                                "--ai-sidechat-mobile-height": `${sidechatMobileHeight}px`,
+                              } as CSSProperties
+                            }
+                          >
+                            <button
+                              type="button"
+                              className="group bg-background/95 ring-border/80 absolute inset-x-0 -top-3 z-30 mx-auto flex h-7 w-20 touch-none items-center justify-center rounded-full shadow-sm ring-1 md:hidden"
+                              aria-label="Resize AI sidechat height"
+                              aria-orientation="horizontal"
+                              aria-valuemin={CHAT_SIDECHAT_MOBILE_HEIGHT_MIN}
+                              aria-valuemax={Math.max(
+                                CHAT_SIDECHAT_MOBILE_HEIGHT_MIN,
+                                typeof window === "undefined"
+                                  ? CHAT_SIDECHAT_MOBILE_HEIGHT_DEFAULT
+                                  : window.innerHeight - 16,
+                              )}
+                              aria-valuenow={sidechatMobileHeight}
+                              data-testid="ai-sidechat-mobile-resize-handle"
+                              title="Drag to resize AI sidechat"
+                              onPointerDown={resizeSidechatMobile}
+                              onKeyDown={(event) => {
+                                const direction =
+                                  event.key === "ArrowUp" ? 1 : event.key === "ArrowDown" ? -1 : 0;
+                                if (event.key === "Home" || event.key === "End") {
+                                  event.preventDefault();
+                                  setSidechatMobileHeight(
+                                    event.key === "Home"
+                                      ? CHAT_SIDECHAT_MOBILE_HEIGHT_MIN
+                                      : Math.max(
+                                          CHAT_SIDECHAT_MOBILE_HEIGHT_MIN,
+                                          window.innerHeight - 16,
+                                        ),
+                                  );
+                                } else if (direction !== 0) {
+                                  event.preventDefault();
+                                  const maxHeight = Math.max(
+                                    CHAT_SIDECHAT_MOBILE_HEIGHT_MIN,
+                                    window.innerHeight - 16,
+                                  );
+                                  setSidechatMobileHeight((height) =>
+                                    Math.min(
+                                      maxHeight,
+                                      Math.max(
+                                        CHAT_SIDECHAT_MOBILE_HEIGHT_MIN,
+                                        height + direction * (event.shiftKey ? 80 : 24),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }}
+                            >
+                              <GripHorizontal className="text-muted-foreground group-hover:text-foreground size-4" />
+                            </button>
                             <AiChatPage
                               connectionName={connection.name}
                               initialAskTable={search.table}
@@ -959,21 +1070,23 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                             onKeyDown={(event) => {
                               const step = event.shiftKey ? 80 : 24;
                               const direction =
-                                event.key === "ArrowLeft"
-                                  ? -1
-                                  : event.key === "ArrowRight"
-                                    ? 1
-                                    : 0;
+                                event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
                               if (event.key === "Home" || event.key === "End") {
                                 event.preventDefault();
-                                const width = event.key === "Home" ? CHAT_SIDECHAT_WIDTH_MIN : CHAT_SIDECHAT_WIDTH_MAX;
+                                const width =
+                                  event.key === "Home"
+                                    ? CHAT_SIDECHAT_WIDTH_MIN
+                                    : CHAT_SIDECHAT_WIDTH_MAX;
                                 setSidechatWidth(width);
                                 setStoredChatSidechatWidth(width);
                               } else if (direction !== 0) {
                                 event.preventDefault();
                                 const width = Math.min(
                                   CHAT_SIDECHAT_WIDTH_MAX,
-                                  Math.max(CHAT_SIDECHAT_WIDTH_MIN, sidechatWidth + direction * step),
+                                  Math.max(
+                                    CHAT_SIDECHAT_WIDTH_MIN,
+                                    sidechatWidth + direction * step,
+                                  ),
                                 );
                                 setSidechatWidth(width);
                                 setStoredChatSidechatWidth(width);

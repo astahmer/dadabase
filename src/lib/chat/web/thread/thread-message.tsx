@@ -239,8 +239,13 @@ export const ThreadMessage = ({
           </form>
         )}
         {isUser && error !== undefined && (
-          <div className="border-destructive/30 bg-destructive/10 text-destructive ms-auto flex max-w-[85%] items-center gap-2 rounded-md border px-3 py-2 text-sm">
-            <span>{error.message}</span>
+          <div
+            className="border-destructive/30 bg-destructive/10 text-destructive ms-auto flex max-w-[85%] flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm"
+            data-testid="ai-chat-message-error"
+            role="alert"
+          >
+            <span className="font-medium">Chat couldn’t complete.</span>
+            <span className="min-w-0 flex-1">{error.message}</span>
             {onRetry !== undefined && (
               <button
                 type="button"
@@ -248,7 +253,7 @@ export const ThreadMessage = ({
                 disabled={retryDisabled}
                 onClick={() => onRetry(message.id)}
               >
-                {retryDisabled ? "Retrying…" : "Retry this request"}
+                {retryDisabled ? "Retrying…" : "Retry message"}
               </button>
             )}
           </div>

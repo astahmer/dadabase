@@ -187,13 +187,36 @@ const dataToolsChunks = (): Array<Record<string, unknown>> => [
     toolCallId: "preview-call",
     output: {
       ok: true,
-      columns: ["id", "name"],
-      rows: [
-        { id: 1, name: "Ada" },
-        { id: 2, name: "Grace" },
+      columns: [
+        "id",
+        "name",
+        "channel_id",
+        "created_at",
+        "status",
+        "email",
+        "country",
+        "slug",
+        "notes",
+        "metadata",
       ],
-      readableColumns: ["name"],
-      readableRows: [{ name: "Ada" }, { name: "Grace" }],
+      rows: [
+        { id: 1, name: "Ada", channel_id: "channel-1", email: "ada@example.com" },
+        { id: 2, name: "Grace", channel_id: "missing-channel", email: "grace@example.com" },
+      ],
+      readableColumns: ["name", "channel_id", "channel_id__label"],
+      readableRows: [
+        { name: "Ada", channel_id: "channel-1", channel_id__label: "Ada Channel" },
+        { name: "Grace", channel_id: "missing-channel", channel_id__label: null },
+      ],
+      readableRelations: [
+        {
+          sourceColumn: "channel_id",
+          label: "display_name",
+          referencedTable: "channels",
+          resolvedCount: 1,
+          unresolvedCount: 1,
+        },
+      ],
     },
   },
   {
@@ -1259,7 +1282,7 @@ Then("the composer contains {string}", async ({ page }, text: string) => {
 
 Then("the latest assistant reply offers retry", async ({ page }) => {
   // After a failed stream the retry affordance sits on the latest user turn.
-  await expect(page.locator(THREAD).getByText("Try again").first()).toBeVisible({
+  await expect(page.locator(THREAD).getByText("Retry message").first()).toBeVisible({
     timeout: 10_000,
   });
 });
@@ -1269,7 +1292,7 @@ When("I note the number of chat requests", async ({ page }) => {
 });
 
 When("I retry the latest assistant reply", async ({ page }) => {
-  await page.locator(THREAD).getByText("Try again").first().click({ timeout: 15_000 });
+  await page.locator(THREAD).getByText("Retry message").first().click({ timeout: 15_000 });
 });
 
 Then("at least one more chat request has been sent", async ({ page }) => {
@@ -1523,15 +1546,60 @@ Given("the chat API streams read-only inspection tool results", async ({ page })
 Then("the preview rows result is visible", async ({ page }) => {
   await expect(page.getByTestId("ai-chat-preview-rows")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId("ai-chat-preview-rows")).toContainText("Ada");
+  await expect(page.getByTestId("ai-chat-relation-status")).toContainText("1 ID unresolved");
   await expect(page.getByTestId("ai-chat-raw-preview")).not.toHaveAttribute("open");
   await page.getByTestId("ai-chat-raw-preview").locator("summary").click();
   await expect(page.getByTestId("ai-chat-raw-preview")).toHaveAttribute("open", "");
+  await page.getByTestId("ai-chat-preview-columns").click();
+  await expect(page.getByRole("menuitemcheckbox", { name: "metadata" })).toBeVisible();
+  await page.getByRole("menuitemcheckbox", { name: "metadata" }).click();
+  await expect(page.getByTestId("ai-chat-raw-preview")).toContainText("metadata");
 });
 
 Then("the successful AI reply does not offer retry", async ({ page }) => {
-  await expect(page.locator(THREAD).getByText("Try again")).toHaveCount(0);
+  await expect(page.locator(THREAD).getByText("Retry message")).toHaveCount(0);
 });
 
+Then("the readable AI preview matches its visual snapshot", async ({ page }) => {
+  await expect(page.getByTestId("ai-chat-preview-rows")).toHaveScreenshot(
+    "ai-chat-readable-preview.png",
+    {
+      animations: "disabled",
+      caret: "hide",
+      maxDiffPixelRatio: 0.03,
+    },
+  );
+});
+
+When("I open the AI sidechat", async ({ page }) => {
+  await page.getByTestId("toggle-ai-sidechat").click();
+  await expect(page.getByTestId("ai-sidechat-overlay")).toBeVisible({ timeout: 15_000 });
+});
+
+When("I resize the AI sidechat to its wide keyboard size", async ({ page }) => {
+  const handle = page.getByTestId("ai-sidechat-resize-handle");
+  await handle.focus();
+  await handle.press("End");
+});
+
+Then("the AI sidechat matches the {string} visual snapshot", async ({ page }, name: string) => {
+  await expect(page.getByTestId("ai-sidechat-overlay")).toHaveScreenshot(
+    `ai-sidechat-${name}.png`,
+    {
+      animations: "disabled",
+      caret: "hide",
+      maxDiffPixelRatio: 0.03,
+    },
+  );
+});
+
+When("I set a narrow mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+});
+
+Then("the mobile AI sidechat resize handle is visible", async ({ page }) => {
+  await expect(page.getByTestId("ai-sidechat-mobile-resize-handle")).toBeVisible();
+});
 
 Then("the table details result is visible", async ({ page }) => {
   await expect(page.getByTestId("ai-chat-table-details")).toBeVisible({ timeout: 20_000 });

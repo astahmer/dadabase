@@ -115,8 +115,13 @@ export const ComposerError: FC<ComposerErrorProps> = ({
 }) => {
   if (error === null || errorMessageId !== undefined) return null;
   return (
-    <div className="bg-destructive/10 text-destructive mx-2 mb-2 flex items-center gap-2 rounded-md px-3 py-2 text-sm">
-      <span>{error.message}</span>
+    <div
+      className="border-destructive/30 bg-destructive/10 text-destructive mx-2 mb-2 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm"
+      data-testid="ai-chat-composer-error"
+      role="alert"
+    >
+      <span className="font-medium">Chat couldn’t complete.</span>
+      <span className="min-w-0 flex-1">{error.message}</span>
       {orphanMessageId !== undefined ? (
         <button
           type="button"
@@ -124,7 +129,7 @@ export const ComposerError: FC<ComposerErrorProps> = ({
           disabled={isRetrying || isStreaming}
           onClick={() => void retryOrphan()}
         >
-          {isRetrying ? "Retrying…" : "Retry previous request"}
+          {isRetrying ? "Retrying…" : "Retry message"}
         </button>
       ) : (
         hasUserMessages && (
@@ -134,7 +139,7 @@ export const ComposerError: FC<ComposerErrorProps> = ({
             disabled={isRetrying || isStreaming}
             onClick={() => void reviseLastTurn()}
           >
-            {isRetrying ? "Retrying…" : "Retry last turn"}
+            {isRetrying ? "Retrying…" : "Retry message"}
           </button>
         )
       )}

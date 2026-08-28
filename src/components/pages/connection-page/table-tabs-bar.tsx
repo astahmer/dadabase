@@ -359,6 +359,7 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
       </Tabs.Root>
       {onToggleSidechat && (
         <Button
+          onClick={onToggleSidechat}
           variant={isSidechatOpen ? "secondary" : "ghost"}
           size="xs"
           className="absolute end-2 top-2"

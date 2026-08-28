@@ -543,6 +543,18 @@ Feature: AI chat assistant
     And I approve sharing schema context if needed
     And I type "inspect users" and press send
     Then the preview rows result is visible
+    And the readable AI preview matches its visual snapshot
     And the table details result is visible
     And the explain SQL result is visible
     And the successful AI reply does not offer retry
+
+  Scenario: AI sidechat stays readable across desktop and narrow widths
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    When I open the connection workspace
+    And I pick table "users" from the new-tab listbox
+    And I open the AI sidechat
+    Then the AI sidechat matches the "default" visual snapshot
+    When I resize the AI sidechat to its wide keyboard size
+    Then the AI sidechat matches the "wide" visual snapshot
+    When I set a narrow mobile viewport
+    Then the mobile AI sidechat resize handle is visible

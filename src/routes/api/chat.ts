@@ -16,8 +16,8 @@ import { z } from "zod";
 import type { AiSchemaContext } from "#src/lib/ai/ai-types.ts";
 import type { ChatContextAttachment } from "#src/lib/ai/chat-context.ts";
 
-import { getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import { getDialectDefaultSchema, type DatabaseDialect } from "#src/db/dialect.ts";
 import {
   dataClassesForChatContext,
   sanitizeChatContextAttachments,
@@ -74,6 +74,8 @@ type ReadableRelation = {
   sourceColumn: string;
   label: string;
   referencedTable: string;
+  resolvedCount: number;
+  unresolvedCount: number;
   labels: Record<string, unknown>;
 };
 
@@ -234,7 +236,7 @@ const previewRowsToolExecute = async ({
   // Relation labels are an additive presentation payload. The raw `rows`
   // response remains exactly the sampled SQL result; this bounded lookup only
   // adds friendly labels to the separate preview shown in the UI.
-  const sourceSchema = schema ?? getDialectDefaultSchema(dialect as never);
+  const sourceSchema = schema ?? getDialectDefaultSchema(dialect as DatabaseDialect);
   const relationLabels: Array<ReadableRelation | null> = await AppRuntime.runPromise(
     Effect.gen(function* () {
       const foreignKeys = yield* getTableForeignKeys({ schema: sourceSchema, table }).pipe(
@@ -266,19 +268,21 @@ const previewRowsToolExecute = async ({
             const targetSchema = `${quoteToolIdent(foreignKey.referenced_table_schema)}.`;
             const targetTable = `${targetSchema}${quoteToolIdent(foreignKey.referenced_table_name)}`;
             const lookup = yield* executeCustomSql({
-              sql: `SELECT ${quoteToolIdent(foreignKey.referenced_column_name)} AS "__key", ${quoteToolIdent(displayColumn)} AS "__label" FROM ${targetTable} WHERE ${quoteToolIdent(foreignKey.referenced_column_name)} IN (${keys.map(sqlLiteral).join(", ")}) LIMIT ${MAX_PREVIEW_ROWS}`,
+              sql: `SELECT ${quoteToolIdent(foreignKey.referenced_column_name)} AS "key_value", ${quoteToolIdent(displayColumn)} AS "label_value" FROM ${targetTable} WHERE ${quoteToolIdent(foreignKey.referenced_column_name)} IN (${keys.map(sqlLiteral).join(", ")}) LIMIT ${MAX_PREVIEW_ROWS}`,
               skipQueryLog: true,
             }).pipe(Effect.catch(() => Effect.succeed({ rows: [] as unknown[] })));
             const labels: Record<string, unknown> = {};
             for (const row of lookup.rows) {
               if (!isRecord(row)) continue;
-              const key = row.__key;
-              if (key !== null && key !== undefined) labels[String(key)] = row.__label;
+              const key = row.key_value;
+              if (key !== null && key !== undefined) labels[String(key)] = row.label_value;
             }
             return {
               sourceColumn: foreignKey.column_name,
               label: displayColumn,
               referencedTable: foreignKey.referenced_table_name,
+              resolvedCount: keys.filter((key) => Object.hasOwn(labels, key)).length,
+              unresolvedCount: keys.filter((key) => !Object.hasOwn(labels, key)).length,
               labels,
             };
           }),
@@ -295,7 +299,10 @@ const previewRowsToolExecute = async ({
   );
   const readableColumns = [
     ...readableSourceColumns,
-    ...relations.map((relation) => `${String(relation.sourceColumn)}__label`),
+    ...relations.flatMap((relation) => [
+      String(relation.sourceColumn),
+      `${String(relation.sourceColumn)}__label`,
+    ]),
   ].slice(0, 8);
   const readableRows = sourceRows.slice(0, MAX_PREVIEW_ROWS).map((row) => {
     const readable: Record<string, unknown> = {};
@@ -304,8 +311,9 @@ const previewRowsToolExecute = async ({
       const sourceColumn = String(relation.sourceColumn);
       const labels = isRecord(relation.labels) ? relation.labels : {};
       const key = row[sourceColumn];
+      readable[sourceColumn] = key;
       readable[`${sourceColumn}__label`] =
-        key === null || key === undefined ? null : labels[String(key)] ?? null;
+        key === null || key === undefined ? null : (labels[String(key)] ?? null);
     }
     if (Object.keys(readable).length === 0) {
       for (const column of sourceColumns.slice(0, 4)) readable[column] = row[column];
@@ -321,6 +329,8 @@ const previewRowsToolExecute = async ({
       sourceColumn: relation.sourceColumn,
       label: relation.label,
       referencedTable: relation.referencedTable,
+      resolvedCount: relation.resolvedCount,
+      unresolvedCount: relation.unresolvedCount,
     })),
   });
 };
