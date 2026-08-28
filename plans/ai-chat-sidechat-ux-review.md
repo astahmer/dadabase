@@ -3,6 +3,32 @@
 Status: **review complete**  
 Date: 2026-08-28
 
+Implementation status: **addressed**
+
+The reviewed product changes are implemented across the AI chat surface and
+workspace handoff. The remaining work is device- and assistive-technology QA
+on physical environments, not an intentionally deferred product item.
+
+Implemented in this pass:
+
+- Guided provider first-run state, stacked narrow-rail form, inline validation,
+  API-key visibility, connection testing, and focus-to-first-missing-field.
+- Single context strip with explicit attachment counts, data classes,
+  removable per-turn context, expandable SQL/result previews, and context
+  preservation/removal during full-chat promotion.
+- Bounded settings mode with sticky **Done**, compact header hierarchy,
+  current-chat/new-chat controls, contextual empty-state prompts, and concise
+  disclosure copy with expandable detail.
+- Responsive desktop rail/mobile sheet sizing with dynamic viewport and safe
+  area handling, status/error/cancellation announcements, focus restoration,
+  dialog labelling, and accessible recovery actions.
+- Consistent action language across selection, SQL drafting, SQL explanation,
+  result explanation, and empty-state AI entry points.
+
+Local verification covered the fixture workspace, sidebar-to-tab behavior,
+context removal, full-chat promotion, first-run provider focus, rendered
+sidechat layout, formatting, diff checks, and the chat-context test suite.
+
 ## Scope
 
 This is a user-facing review of the AI sidechat, based on:
