@@ -84,6 +84,8 @@ interface SqlQueryPreviewProps {
   snippetActiveTable?: string;
   /** Audit: open an AI tab seeded to propose a query for this context. */
   onSuggestQuery?: () => void;
+  /** Open contextual AI with the current SQL draft/editor value. */
+  onAskAi?: () => void;
   /** Callback to toggle collapsed state */
   onToggleCollapsed?: (collapsed: boolean) => void;
   /** Available tables for intellisense suggestions */
@@ -131,6 +133,7 @@ export function SqlQueryPreview({
   columns = [],
   snippetActiveTable,
   onSuggestQuery,
+  onAskAi,
   onInsertSnippet,
   className,
   warning,
@@ -313,6 +316,22 @@ export function SqlQueryPreview({
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   Suggest query
+                </Button>
+              </Tooltip>
+            )}
+            {onAskAi && (customSql?.trim() || sql.trim()) && (
+              <Tooltip content="Explain this SQL with AI">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onAskAi}
+                  data-testid="ask-ai-sql"
+                  aria-label="Explain this SQL with AI"
+                  type="button"
+                  className="h-8 gap-1.5 px-2"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Explain with AI
                 </Button>
               </Tooltip>
             )}

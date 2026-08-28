@@ -2,11 +2,13 @@ import { Effect } from "effect";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 
 import type { AiSchemaContext } from "#src/lib/ai/ai-types.ts";
+import type { ChatContextAttachment } from "#src/lib/ai/chat-context.ts";
 import type { ChatRuntime } from "#src/lib/chat/runtime/types.ts";
 import type { KeyValueStorage } from "#src/lib/chat/runtime/types.ts";
 
 import { getStoredByokConfig, getStoredEnabledChatTools } from "#src/lib/ai-byok.ts";
 import { isProviderKeyOptional, resolveChatBaseUrl } from "#src/lib/ai/ai-providers.ts";
+import { sanitizeChatContextAttachments } from "#src/lib/ai/chat-context.ts";
 import { recordCurrentChatConversationId } from "#src/lib/ai/chat-conversation-current.ts";
 import { getStoredChatDataAccess } from "#src/lib/ai/chat-data-access.ts";
 import {
@@ -24,6 +26,8 @@ export interface UseChatRuntimeInput {
   connectionName: string;
   /** Latest schema context, sent with every chat request body. */
   schemaContextRef: RefObject<AiSchemaContext | undefined>;
+  /** Ephemeral UI context; row/result values are gated before every request. */
+  contextAttachmentsRef?: RefObject<readonly ChatContextAttachment[]>;
   /** Default model for new settings; existing persisted settings win. */
   defaultModel?: string;
 }
@@ -58,6 +62,7 @@ export const chatComposerDraftStorageKey = (connectionName: string): string =>
 export const useDadabaseChatRuntime = ({
   connectionName,
   schemaContextRef,
+  contextAttachmentsRef,
   defaultModel = "gpt-4o-mini",
 }: UseChatRuntimeInput): ChatRuntime => {
   const runtime = useMemo(
@@ -108,6 +113,11 @@ export const useDadabaseChatRuntime = ({
               schemaContextRef.current,
               getStoredChatSchemaSelection(connectionName),
             );
+            const dataAccess = getStoredChatDataAccess(connectionName);
+            const contextAttachments = sanitizeChatContextAttachments(
+              contextAttachmentsRef?.current,
+              dataAccess,
+            );
             return {
               config: {
                 providerId,
@@ -117,7 +127,8 @@ export const useDadabaseChatRuntime = ({
               },
               connectionName,
               enabledTools: getStoredEnabledChatTools(),
-              dataAccess: getStoredChatDataAccess(connectionName),
+              dataAccess,
+              ...(contextAttachments.length > 0 ? { contextAttachments } : {}),
               ...(schemaContext === undefined ? {} : { schemaContext }),
               ...(schemaMode === undefined ? {} : { schemaMode }),
             };
@@ -162,7 +173,7 @@ export const useDadabaseChatRuntime = ({
       }),
     // schemaContextRef is a stable ref object; its .current updates are read
     // lazily at request time so the runtime never needs re-creation.
-    [connectionName, defaultModel, schemaContextRef],
+    [connectionName, defaultModel, schemaContextRef, contextAttachmentsRef],
   );
 
   // Single lifecycle owner is ChatProvider (src/lib/chat/react-hooks.ts): it

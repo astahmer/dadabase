@@ -1,4 +1,13 @@
-import { Copy, CopyPlus, FileJson, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
+import {
+  Copy,
+  CopyPlus,
+  FileJson,
+  MoreHorizontal,
+  Pencil,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import * as ActionBar from "../ui/action-bar";
 import { Button } from "../ui/button";
@@ -19,6 +28,7 @@ interface BulkActionBarProps {
   onViewJson?: () => void;
   onLogRows?: () => void;
   onExpandRelationships?: () => void;
+  onAskAi?: () => void;
   isLoading?: boolean;
 }
 
@@ -36,6 +46,7 @@ export function BulkActionBar({
   onViewJson,
   onLogRows,
   onExpandRelationships,
+  onAskAi,
   isLoading = false,
 }: BulkActionBarProps) {
   if (selectedCount === 0) return null;
@@ -148,6 +159,19 @@ export function BulkActionBar({
           <ActionBar.ActionBarSeparator />
 
           <HStack>
+            {onAskAi && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAskAi}
+                disabled={isLoading}
+                className="border-background/20"
+                data-testid="bulk-ask-ai-button"
+              >
+                <Sparkles className="mr-1 h-4 w-4" />
+                Ask AI
+              </Button>
+            )}
             {onEdit && (
               <Button
                 variant="outline"

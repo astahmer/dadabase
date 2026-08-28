@@ -54,6 +54,11 @@ import {
   revokeSchemaSharingConsent,
 } from "#src/lib/ai/chat-consent.ts";
 import {
+  chatContextAttachmentKey,
+  sanitizeChatContextAttachments,
+  type ChatContextAttachment,
+} from "#src/lib/ai/chat-context.ts";
+import {
   CHAT_CONVERSATION_RESOLVED,
   getCurrentChatConversationId,
 } from "#src/lib/ai/chat-conversation-current.ts";
@@ -136,6 +141,7 @@ export const AiChatPage = ({
   variant = "page",
   onClose,
   onOpenFullChat,
+  contextAttachments,
 }: {
   connectionName: string;
   /** Audit S8: `?thread=` deep link — select this conversation on mount. */
@@ -151,6 +157,8 @@ export const AiChatPage = ({
   variant?: "page" | "sidechat";
   onClose?: () => void;
   onOpenFullChat?: () => void;
+  /** Ephemeral workspace context; row/result values are disclosure-gated. */
+  contextAttachments?: readonly ChatContextAttachment[];
 }) => {
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
   useDocumentTitle(`${connectionName} · AI assistant — Dadabase`);
@@ -184,6 +192,7 @@ export const AiChatPage = ({
       variant={variant}
       onClose={onClose}
       onOpenFullChat={onOpenFullChat}
+      contextAttachments={contextAttachments}
     />
   );
 };
@@ -197,6 +206,7 @@ const AiChatPageInner = ({
   variant,
   onClose,
   onOpenFullChat,
+  contextAttachments,
 }: {
   connection: DbConnection;
   initialConversationId?: string;
@@ -206,6 +216,7 @@ const AiChatPageInner = ({
   variant: "page" | "sidechat";
   onClose?: () => void;
   onOpenFullChat?: () => void;
+  contextAttachments?: readonly ChatContextAttachment[];
 }) => {
   const navigate = useNavigate();
   // The full-page chat is still rendered inside the connection workspace
@@ -267,6 +278,19 @@ const AiChatPageInner = ({
     }));
     return { schema, dialect: connection.dialect, tables };
   }, [allTablesColumnsQuery.data, connection.dialect, schema]);
+
+  const effectiveContextAttachments = useMemo<readonly ChatContextAttachment[]>(() => {
+    const current = [...(contextAttachments ?? [])];
+    if (
+      initialAskTable &&
+      !current.some(
+        (attachment) => attachment.kind === "table" && attachment.table === initialAskTable,
+      )
+    ) {
+      current.unshift({ kind: "table", schema, table: initialAskTable });
+    }
+    return current;
+  }, [contextAttachments, initialAskTable, schema]);
 
   /** Fresh SQL-editor tab pre-seeded with generated SQL. */
   const createEditorTab = (sql: string) => {
@@ -365,6 +389,45 @@ const AiChatPageInner = ({
       },
     });
   };
+
+  useEffect(() => {
+    if (variant !== "sidechat") return;
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>('[data-testid="ai-sidechat-close"]')?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [variant]);
+
+  useEffect(() => {
+    if (variant !== "sidechat") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose?.();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const root = document.querySelector<HTMLElement>('[data-ai-chat-variant="sidechat"]');
+      if (!root) return;
+      const focusable = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose, variant]);
 
   return (
     <div
@@ -516,6 +579,7 @@ const AiChatPageInner = ({
             );
           }}
           onOpenSchemaPanel={() => setSettingsOpen(true)}
+          contextAttachments={effectiveContextAttachments}
           threadList={{
             open: threadListOpen,
             onClose: () => setThreadListOpen(false),
@@ -1027,6 +1091,7 @@ const AiChatBody = ({
   initialAiIntent,
   onAdoptAutoTables,
   onOpenSchemaPanel,
+  contextAttachments,
   threadList,
   variant,
 }: {
@@ -1068,6 +1133,8 @@ const AiChatBody = ({
   onAdoptAutoTables: (tables: readonly string[]) => void;
   /** Audit K6: `/schema` opens the schema settings panel. */
   onOpenSchemaPanel: () => void;
+  /** Ephemeral table/filter/selection/SQL/result context for this surface. */
+  contextAttachments?: readonly ChatContextAttachment[];
   /** Audit C6/R1: narrow-viewport thread-list drawer state. */
   threadList: { open: boolean; onClose: () => void };
   variant: "page" | "sidechat";
@@ -1076,6 +1143,22 @@ const AiChatBody = ({
   // useChatActions); see InitialThreadConsumer below.
   const schemaContextRef = useRef<AiSchemaContext | undefined>(schemaContext);
   schemaContextRef.current = schemaContext;
+  const [removedContextKeys, setRemovedContextKeys] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const activeContextAttachments = useMemo(
+    () =>
+      (contextAttachments ?? []).filter(
+        (attachment) => !removedContextKeys.has(chatContextAttachmentKey(attachment)),
+      ),
+    [contextAttachments, removedContextKeys],
+  );
+  const contextAttachmentsRef = useRef<readonly ChatContextAttachment[]>(activeContextAttachments);
+  contextAttachmentsRef.current = activeContextAttachments;
+  const visibleContextAttachments = useMemo(
+    () => sanitizeChatContextAttachments(activeContextAttachments, chatDataAccess),
+    [activeContextAttachments, chatDataAccess],
+  );
 
   // Live schema-scope status: mode + how many tables actually go out. Auto's
   // exact count arrives with the first response header, so it re-reads on
@@ -1124,15 +1207,8 @@ const AiChatBody = ({
   const runtime = useDadabaseChatRuntime({
     connectionName: connection.name,
     schemaContextRef,
+    contextAttachmentsRef,
   });
-
-  useEffect(() => {
-    if (variant !== "sidechat") return;
-    const frame = window.requestAnimationFrame(() => {
-      document.querySelector<HTMLButtonElement>('[data-testid="ai-sidechat-close"]')?.focus();
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [variant]);
 
   return (
     <ChatProvider runtime={runtime}>
@@ -1143,7 +1219,11 @@ const AiChatBody = ({
         <ThreadListPanel overlayOpen={threadList.open} onClose={threadList.onClose} />
       ) : null}
       <main className="flex min-w-0 flex-1 flex-col">
-        {variant === "sidechat" && initialAskTable ? (
+        {variant === "sidechat" &&
+        initialAskTable &&
+        visibleContextAttachments.some(
+          (attachment) => attachment.kind === "table" && attachment.table === initialAskTable,
+        ) ? (
           <div
             className="border-border bg-muted/30 mx-3 mt-3 rounded-md border px-3 py-2 text-xs"
             data-testid="ai-sidechat-context"
@@ -1151,6 +1231,46 @@ const AiChatBody = ({
             <span className="text-muted-foreground">Context</span>{" "}
             <span className="font-mono">{initialAskTable}</span>
             <span className="text-muted-foreground"> · schema metadata attached</span>
+          </div>
+        ) : null}
+        {visibleContextAttachments.length > 0 ? (
+          <div
+            className="border-border bg-muted/20 mx-3 mt-2 flex flex-wrap items-center gap-1.5 rounded-md border px-3 py-2 text-xs"
+            data-testid="ai-context-attachments"
+          >
+            <span className="text-muted-foreground font-medium">Attached context</span>
+            {visibleContextAttachments.map((attachment, index) => {
+              const attachmentKey = chatContextAttachmentKey(attachment);
+              const label =
+                attachment.kind === "table"
+                  ? `table: ${attachment.table}`
+                  : attachment.kind === "filters"
+                    ? `filters: ${attachment.table} (${attachment.filters.length})`
+                    : attachment.kind === "selection"
+                      ? `selection: ${attachment.table} (${attachment.rows?.length ?? attachment.rowIds?.length ?? 0} rows${attachment.rows?.length ? ", values" : ", metadata only"})`
+                      : attachment.kind === "sql"
+                        ? `SQL: ${attachment.sql.length.toLocaleString()} chars`
+                        : `result: ${attachment.rowCount.toLocaleString()} rows${attachment.rows?.length ? ", values" : ", columns only"}`;
+              return (
+                <button
+                  key={`${attachment.kind}-${index}`}
+                  type="button"
+                  className="bg-muted hover:bg-muted/70 inline-flex items-center gap-1 rounded px-1.5 py-0.5"
+                  title="Remove this context attachment"
+                  aria-label={`Remove ${label}`}
+                  onClick={() =>
+                    setRemovedContextKeys((current) => {
+                      const next = new Set(current);
+                      next.add(attachmentKey);
+                      return next;
+                    })
+                  }
+                >
+                  {label}
+                  <X className="size-3" aria-hidden="true" />
+                </button>
+              );
+            })}
           </div>
         ) : null}
         {/* Audit C1: the full chat surface stays mounted pre-consent — users
@@ -2053,7 +2173,10 @@ const ChatSurface = ({
   const scrollToLatest = () => {
     const el = viewportRef.current;
     if (el === null) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    el.scrollTo({
+      top: el.scrollHeight,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
     setShowJumpToLatest(false);
   };
 

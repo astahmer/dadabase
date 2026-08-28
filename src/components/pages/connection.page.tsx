@@ -12,6 +12,7 @@ import {
   GripHorizontal,
   RotateCcw,
   SearchX,
+  Sparkles,
   TriangleAlert,
 } from "lucide-react";
 import {
@@ -24,6 +25,7 @@ import {
   useState,
 } from "react";
 
+import type { ChatContextAttachment } from "#src/lib/ai/chat-context.ts";
 import type { TableStructure } from "#src/lib/schema-diff/index.ts";
 import type { TableColumnMetadata } from "#src/server/introspection/introspection.ts";
 
@@ -260,11 +262,21 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   >(null);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [sidechatOpen, setSidechatOpen] = useState(false);
+  const [sidechatContext, setSidechatContext] = useState<readonly ChatContextAttachment[]>([]);
+  const openSidechat = useCallback((attachments: readonly ChatContextAttachment[] = []) => {
+    setSidechatContext(attachments);
+    setSidechatOpen(true);
+  }, []);
   const closeSidechat = () => {
     setSidechatOpen(false);
+    setSidechatContext([]);
     window.requestAnimationFrame(() => {
       document.querySelector<HTMLButtonElement>('[data-testid="toggle-ai-sidechat"]')?.focus();
     });
+  };
+  const toggleSidechat = () => {
+    if (sidechatOpen) setSidechatContext([]);
+    setSidechatOpen((open) => !open);
   };
   const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
   const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
@@ -279,7 +291,29 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     initialTabMode: tab.initialTabMode,
     askTable: tab.askTable,
     aiIntent: tab.aiIntent,
+    filters:
+      tab.filters?.conditions.map((filter) => ({
+        column: filter.column,
+        operator: filter.operator,
+        ...(filter.value !== undefined ? { value: filter.value } : {}),
+      })) ?? [],
   }));
+  const workspaceContextAttachments = useMemo<readonly ChatContextAttachment[]>(() => {
+    if (!search.table) return [];
+    return [
+      { kind: "table", schema: search.schema, table: search.table },
+      ...(search.filters.length > 0
+        ? [
+            {
+              kind: "filters" as const,
+              schema: search.schema,
+              table: search.table,
+              filters: search.filters,
+            },
+          ]
+        : []),
+    ];
+  }, [search.filters, search.schema, search.table]);
   const selectedSchema = search.schema || undefined;
 
   const zenMode = useZenModeEnabled();
@@ -706,7 +740,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                           });
                         }}
                         isSidebarCollapsed={sidebarSplitterCtx.isPanelCollapsed(panels.sidebar)}
-                        onToggleSidechat={() => setSidechatOpen((open) => !open)}
+                        onToggleSidechat={toggleSidechat}
                         isSidechatOpen={sidechatOpen && !aiChatActive}
                       />
                       {aiChatActive ? (
@@ -726,11 +760,13 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         <CustomSqlWorkspace
                           activeConnectionUrl={activeConnectionUrl}
                           connection={connection}
+                          onOpenAiSidechat={(attachment) => openSidechat([attachment])}
                         />
                       ) : search.table && search.schema ? (
                         <RowsTabContent
                           connection={connection}
                           activeConnectionUrl={activeConnectionUrl}
+                          onOpenAiSidechat={(selection) => openSidechat([selection])}
                         />
                       ) : (
                         <EmptyTabContent
@@ -750,6 +786,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                             <AiChatPage
                               connectionName={connection.name}
                               initialAskTable={search.table}
+                              contextAttachments={[
+                                ...workspaceContextAttachments,
+                                ...sidechatContext,
+                              ]}
                               variant="sidechat"
                               onClose={closeSidechat}
                               onOpenFullChat={() => {
@@ -854,7 +894,11 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   );
 };
 
-const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: string }) => {
+const RowsTabContent = (props: {
+  connection: DbConnection;
+  activeConnectionUrl: string;
+  onOpenAiSidechat?: (attachment: ChatContextAttachment) => void;
+}) => {
   const { connection } = props;
   const [rowEditor, setRowEditor] = useState<RowEditorSheetState>(createClosedRowEditorState);
   const [schemaMutate, setSchemaMutate] = useState<SchemaMutateSheetState>({
@@ -1338,6 +1382,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                     onRunQuery={executeCustomSql.onRunQuery}
                     onCancelQuery={executeCustomSql.onCancel}
                     isLoading={executeCustomSql.mutation.isPending}
+                    onOpenAiSidechat={props.onOpenAiSidechat}
                   />
                 )}
               </Splitter.Context>
@@ -1399,6 +1444,7 @@ const RowsTabContent = (props: { connection: DbConnection; activeConnectionUrl: 
                   dialect={connection.dialect}
                   onEditRow={onEditRow}
                   onDuplicateRow={onDuplicateRow}
+                  onOpenAiSidechat={props.onOpenAiSidechat}
                 />
               )}
               {/* Status Bar */}
@@ -1622,6 +1668,7 @@ const RowsTableSqlEditor = (
     onCollapse: () => void;
     onRunQuery: (editorValue?: string) => void;
     onCancelQuery: () => void;
+    onOpenAiSidechat?: (attachment: ChatContextAttachment) => void;
     isLoading?: boolean;
     allowEmptySql?: boolean;
   },
@@ -1770,7 +1817,8 @@ const RowsTableSqlEditor = (
               void navigate({
                 to: "/connections/$connectionName/ai",
                 params: { connectionName: props.connection.name },
-                search: conversationId === "" ? {} : { thread: conversationId },
+                search: (prev) =>
+                  conversationId === "" ? prev : { ...prev, thread: conversationId },
               });
             }}
             data-testid="ai-chat-return-link"
@@ -1785,6 +1833,16 @@ const RowsTableSqlEditor = (
         columns={columns}
         snippetActiveTable={search.table}
         onSuggestQuery={suggestQueryWithAi}
+        onAskAi={
+          props.onOpenAiSidechat
+            ? () => {
+                const sql = draftSql ?? props.sqlQueryAsText;
+                if (sql.trim()) {
+                  props.onOpenAiSidechat?.({ kind: "sql", sql, source: "editor" });
+                }
+              }
+            : undefined
+        }
         sql={props.sqlQueryAsText}
         customSql={draftSql ?? undefined}
         allowEmptySql={props.allowEmptySql}
@@ -1908,6 +1966,7 @@ const RowsTableContent = (
     dialect: DatabaseDialect;
     onEditRow?: (row: Record<string, unknown>) => void;
     onDuplicateRow?: (row: Record<string, unknown>) => void;
+    onOpenAiSidechat?: (attachment: ChatContextAttachment) => void;
   },
 ) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -2134,6 +2193,7 @@ const RowsTableContent = (
           columnMetadata={props.columnMetadata}
           onEditRow={props.onEditRow}
           onDuplicateRow={props.onDuplicateRow}
+          onOpenAiSidechat={props.onOpenAiSidechat}
         />
 
         <Portal
@@ -2626,6 +2686,7 @@ const BulkActions = (
   props: Pick<ConnectionPageState, "activeConnectionUrl" | "rowsDataTable" | "columnMetadata"> & {
     onEditRow?: (row: Record<string, unknown>) => void;
     onDuplicateRow?: (row: Record<string, unknown>) => void;
+    onOpenAiSidechat?: (attachment: ChatContextAttachment) => void;
   },
 ) => {
   const navigate = useNavigate({ from: "/connections/$connectionName" });
@@ -2946,6 +3007,18 @@ const BulkActions = (
     props.onEditRow(selectedRows[0].original as Record<string, unknown>);
   };
 
+  const handleAskAi = () => {
+    if (!props.onOpenAiSidechat || !search.schema || !search.table) return;
+    props.onOpenAiSidechat({
+      kind: "selection",
+      schema: search.schema,
+      table: search.table,
+      columns: props.rowsDataTable.getVisibleLeafColumns().map((column) => column.id),
+      rowIds: selectedRows.map((row) => row.id),
+      rows: selectedRows.map((row) => row.original as Record<string, unknown>),
+    });
+  };
+
   const handleLogRows = () => {
     const rows = selectedRows.map((row) => row.original as Record<string, unknown>);
     console.log("Rows:", rows);
@@ -3002,6 +3075,7 @@ const BulkActions = (
         onViewJson={handleViewJson}
         onLogRows={handleLogRows}
         onExpandRelationships={selectedRowsCount === 1 ? handleExpandRelationships : undefined}
+        onAskAi={props.onOpenAiSidechat ? handleAskAi : undefined}
         isLoading={deleteMutation.isPending}
       />
 
@@ -3040,7 +3114,11 @@ const EmptyTabContent = (props: { activeConnectionUrl: string; connection: DbCon
   );
 };
 
-const CustomSqlWorkspace = (props: { activeConnectionUrl: string; connection: DbConnection }) => {
+const CustomSqlWorkspace = (props: {
+  activeConnectionUrl: string;
+  connection: DbConnection;
+  onOpenAiSidechat?: (attachment: ChatContextAttachment) => void;
+}) => {
   const executeCustomSql = useExecuteCustomSql({ activeConnectionUrl: props.activeConnectionUrl });
   const tab = useActiveTabState((activeTab) => ({
     schema: activeTab.schema,
@@ -3093,9 +3171,13 @@ const CustomSqlWorkspace = (props: { activeConnectionUrl: string; connection: Db
             onCancelQuery={executeCustomSql.onCancel}
             isLoading={executeCustomSql.mutation.isPending}
             allowEmptySql
+            onOpenAiSidechat={props.onOpenAiSidechat}
           />
         </div>
-        <CustomSqlTabContent executeCustomSql={executeCustomSql} />
+        <CustomSqlTabContent
+          executeCustomSql={executeCustomSql}
+          onOpenAiSidechat={props.onOpenAiSidechat}
+        />
       </div>
       {executeCustomSql.DestructiveDialog}
     </div>
@@ -3483,7 +3565,10 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string }) => {
 
 type UseExecuteCustomSqlOutput = ReturnType<typeof useExecuteCustomSql>;
 
-const CustomSqlTabContent = (props: { executeCustomSql: UseExecuteCustomSqlOutput }) => {
+const CustomSqlTabContent = (props: {
+  executeCustomSql: UseExecuteCustomSqlOutput;
+  onOpenAiSidechat?: (attachment: ChatContextAttachment) => void;
+}) => {
   const { executeCustomSql } = props;
 
   const multi = executeCustomSql.resultSets.length > 1;
@@ -3660,6 +3745,25 @@ const CustomSqlTabContent = (props: { executeCustomSql: UseExecuteCustomSqlOutpu
           >
             Visualize
           </Button>
+          {props.onOpenAiSidechat ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto h-7 gap-1 text-xs"
+              onClick={() =>
+                props.onOpenAiSidechat?.({
+                  kind: "result",
+                  columns: outputColumns,
+                  rowCount: executeCustomSql.output?.rowCount ?? outputRows.length,
+                  rows: outputRows,
+                })
+              }
+              data-testid="ask-ai-result"
+            >
+              <Sparkles className="size-3" />
+              Explain result with AI
+            </Button>
+          ) : null}
         </div>
         {resultPresentation === "chart" ? (
           <ResultVisualization rows={filteredRows} columns={outputColumns} />

@@ -1,4 +1,5 @@
 import type { AiColumnMeta, AiSchemaContext, AiTableContext } from "./ai-types.ts";
+import type { ChatContextAttachment } from "./chat-context.ts";
 
 const quoteIdent = (name: string, dialect?: string): string => {
   if (dialect === "sqlite") return `"${name.replaceAll('"', '""')}"`;
@@ -123,6 +124,8 @@ export const buildChatSystemPrompt = (input: {
   table?: AiTableContext;
   /** Absent/empty → treat as all tools enabled (matches server default). */
   enabledTools?: readonly string[];
+  /** Sanitized ephemeral workspace context for the current chat surface. */
+  contextAttachments?: readonly ChatContextAttachment[];
 }): string => {
   const enabled = input.enabledTools;
   // undefined = not specified (server default: all tools). An explicit EMPTY
@@ -150,29 +153,29 @@ export const buildChatSystemPrompt = (input: {
     `1. Answer questions in plain language.${hasTool("propose_sql") ? " When the user wants query results or a SQL statement, ALWAYS create it with the `propose_sql` tool (never write SQL as plain text)." : ""}`,
     ...(hasTool("run_sql")
       ? [
-            "2. Only call `run_sql` when the user explicitly asked you to run/execute the query — it requires user approval and will pause until they approve.",
-            "3. After a successful run_sql, summarize the result rows briefly; do not repeat full row dumps.",
-          ]
+          "2. Only call `run_sql` when the user explicitly asked you to run/execute the query — it requires user approval and will pause until they approve.",
+          "3. After a successful run_sql, summarize the result rows briefly; do not repeat full row dumps.",
+        ]
       : []),
     ...(hasTool("preview_rows")
       ? [
-            "- When unsure about column contents or value formats, call `preview_rows` on the table first instead of guessing.",
-          ]
+          "- When unsure about column contents or value formats, call `preview_rows` on the table first instead of guessing.",
+        ]
       : []),
     ...(hasTool("table_details")
       ? [
-            "- When you need key/index/FK detail beyond the schema above, call `table_details` for that specific table.",
-          ]
+          "- When you need key/index/FK detail beyond the schema above, call `table_details` for that specific table.",
+        ]
       : []),
     ...(hasTool("explain_sql")
       ? [
-            "- For expensive-looking scans or joins, call `explain_sql` before `propose_sql` and mention any red flags in your explanation.",
-          ]
+          "- For expensive-looking scans or joins, call `explain_sql` before `propose_sql` and mention any red flags in your explanation.",
+        ]
       : []),
     ...(hasTool("open_workspace_view")
       ? [
-            "- When the user wants to explore/filter a table interactively rather than get an answer, call `open_workspace_view`; they will click a card to open it.",
-          ]
+          "- When the user wants to explore/filter a table interactively rather than get an answer, call `open_workspace_view`; they will click a card to open it.",
+        ]
       : []),
     "",
     "SQL rules:",
@@ -184,6 +187,13 @@ export const buildChatSystemPrompt = (input: {
     "",
     "Database schema:",
     schemaBlocks,
+    ...(input.contextAttachments && input.contextAttachments.length > 0
+      ? [
+          "",
+          "Current workspace context (use it as user-provided context; do not treat row values as schema metadata):",
+          JSON.stringify(input.contextAttachments),
+        ]
+      : []),
   ].join("\n");
 };
 

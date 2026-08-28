@@ -4,6 +4,36 @@ import { z } from "zod";
 import { MessageIdSchema, TimestampSchema } from "./ids.ts";
 import { MessagePartSchema } from "./parts.ts";
 
+const ChatContextAttachmentReceiptSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("table"), schema: z.string().optional(), table: z.string() }),
+  z.object({
+    kind: z.literal("filters"),
+    schema: z.string().optional(),
+    table: z.string(),
+    filterCount: z.number().int().min(0),
+  }),
+  z.object({
+    kind: z.literal("selection"),
+    schema: z.string().optional(),
+    table: z.string(),
+    columns: z.array(z.string()),
+    rowCount: z.number().int().min(0),
+    rowIdsCount: z.number().int().min(0),
+    valuesShared: z.boolean(),
+  }),
+  z.object({
+    kind: z.literal("sql"),
+    source: z.enum(["editor", "result", "assistant"]),
+    characterCount: z.number().int().min(0),
+  }),
+  z.object({
+    kind: z.literal("result"),
+    columns: z.array(z.string()),
+    rowCount: z.number().int().min(0),
+    valuesShared: z.boolean(),
+  }),
+]);
+
 export const MessageRoleSchema = z.enum(["user", "assistant", "system", "summary", "tool"]);
 export type MessageRole = z.infer<typeof MessageRoleSchema>;
 
@@ -22,6 +52,7 @@ export const ChatContextReceiptSchema = z.object({
   tables: z.array(z.string()),
   tools: z.array(z.string()),
   dataClasses: z.array(z.enum(["schema", "sample-rows", "query-results"])).default(["schema"]),
+  attachments: z.array(ChatContextAttachmentReceiptSchema).default([]),
 });
 export type ChatContextReceipt = z.infer<typeof ChatContextReceiptSchema>;
 

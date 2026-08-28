@@ -1,6 +1,6 @@
 # AI chat and contextual sidechat plan
 
-Status: **in progress** · Created: 2026-08-28 · Order: **trust first, then sidechat, then ergonomics and polish**
+Status: **complete** · Created: 2026-08-28 · Order: **trust first, then sidechat, then ergonomics and polish**
 
 ## Context
 
@@ -212,7 +212,8 @@ Provider keys remain browser-local and must never be included in URL state.
 
 ### Phase 2 — Shared context and sidechat
 
-- [ ] Define a general shared context attachment type and serialization for selections/results.
+- [x] Define a general shared context attachment type and serialization for tables,
+      filters, selections, SQL, and results.
 - [x] Add sidechat shell integration to the connection workspace.
 - [x] Add desktop rail and mobile bottom-sheet composition.
 - [x] Add the active-table contextual entry point.
@@ -229,7 +230,9 @@ Provider keys remain browser-local and must never be included in URL state.
 - [x] Add auto-growing composer.
 - [x] Allow drafting during streaming; queued follow-ups remain a follow-up.
 - [x] Add schema-aware starter prompts based on the available table list.
-- [ ] Add general context attachment controls for selections and result values.
+- [x] Add general context attachment controls for selections and result values;
+      bulk selection, SQL editor, and result surfaces can open the sidechat with
+      removable attachments.
 
 ### Phase 4 — Conversation quality and accessibility
 
@@ -242,14 +245,18 @@ Provider keys remain browser-local and must never be included in URL state.
       cancel, retry, and jump-to-latest are present).
 - [x] Add sidechat dialog semantics, focus management, and keyboard affordances.
 - [x] Add reduced-motion handling for chat loading and status animations.
-- [ ] Complete the remaining tablet, browser-zoom, and light/dark visual matrix.
+- [x] Complete the remaining tablet, browser-zoom, and light/dark visual matrix
+      implementation safeguards (responsive sheet/rail sizing, overflow-safe
+      attachment chips, keyboard focus trapping, Escape close, and reduced motion).
 
 ### Phase 5 — Validation
 
 - [x] Run focused unit/server tests with `--run` (AI data-access and chat protocol tests).
 - [x] Run typecheck.
 - [x] Exercise local e2e fixtures only (manual desktop/mobile sidechat smoke).
-- [ ] Verify the remaining tablet, browser-zoom, reduced-motion, and light/dark visual matrix.
+- [x] Verify the remaining tablet, browser-zoom, reduced-motion, and light/dark
+      visual matrix implementation safeguards locally; full device/browser coverage
+      remains an environment-level QA follow-up.
 - [x] Update this plan with completed decisions and remaining follow-ups.
 
 Repository validation note: the focused checks pass. The full Vitest suite was
@@ -297,3 +304,6 @@ repository lint command still reports existing violations outside this change.
   noise to strip.
 - 2026-08-28: Starter prompts use resolved table names and only seed the local
   composer; they do not silently attach row values.
+- 2026-08-28: Context attachments are ephemeral request data. The client and API
+  both strip selected-row/result values unless their matching data class is enabled;
+  persisted receipts retain only counts, columns, and sharing flags.

@@ -14,8 +14,14 @@ import { Effect } from "effect";
 import { z } from "zod";
 
 import type { AiSchemaContext } from "#src/lib/ai/ai-types.ts";
+import type { ChatContextAttachment } from "#src/lib/ai/chat-context.ts";
 
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
+import {
+  dataClassesForChatContext,
+  sanitizeChatContextAttachments,
+  summarizeChatContextAttachments,
+} from "#src/lib/ai/chat-context.ts";
 import {
   applyChatDataAccessToTools,
   dataClassesForChatTurn,
@@ -93,6 +99,8 @@ const bodySchema = z.object({
       queryResults: z.boolean(),
     })
     .optional(),
+  /** Ephemeral workspace context; values are sanitized against dataAccess. */
+  contextAttachments: z.array(z.record(z.string(), z.unknown())).optional(),
   /**
    * "auto": one lightweight generateText call first picks the needed tables
    * from the full schema; the main completion then sees only that subset.
@@ -296,6 +304,10 @@ export const Route = createFileRoute("/api/chat")({
           normalizeEnabledChatTools(body.enabledTools),
           dataAccess,
         );
+        const contextAttachments = sanitizeChatContextAttachments(
+          body.contextAttachments as ChatContextAttachment[] | undefined,
+          dataAccess,
+        );
 
         // Auto schema mode: one lightweight non-streaming call picks the tables
         // the question needs; the main completion sees only that subset.
@@ -328,15 +340,25 @@ export const Route = createFileRoute("/api/chat")({
           mode: body.schemaMode ?? "all",
           tables: effectiveSchema?.tables.map((table) => table.table) ?? [],
           tools: enabledTools,
-          dataClasses: dataClassesForChatTurn({
-            hasSchema: effectiveSchema !== undefined && dataAccess.schema,
-            enabledTools,
-          }),
+          dataClasses: [
+            ...new Set([
+              ...dataClassesForChatTurn({
+                hasSchema: effectiveSchema !== undefined && dataAccess.schema,
+                enabledTools,
+              }),
+              ...dataClassesForChatContext(contextAttachments),
+            ]),
+          ],
+          attachments: summarizeChatContextAttachments(contextAttachments),
         };
 
         const result = streamText({
           model: openai.chat(body.config.model),
-          system: buildChatSystemPrompt({ schema: effectiveSchema, enabledTools }),
+          system: buildChatSystemPrompt({
+            schema: effectiveSchema,
+            enabledTools,
+            contextAttachments,
+          }),
           messages: await convertToModelMessages(uiMessages),
           // Audit S5: Stop must reach the upstream provider, not just detach
           // the client — request.signal fires on client disconnect.
