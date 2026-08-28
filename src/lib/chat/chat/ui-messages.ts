@@ -15,7 +15,6 @@ import {
   type ChatContextReceipt,
   type ChatMessage,
 } from "../protocol/messages.ts";
-
 import { MessagePartSchema, type MessagePart } from "../protocol/parts.ts";
 
 export const APPROVAL_EXTENSION_NAMESPACE = "dadabase.chat";
@@ -25,6 +24,7 @@ const ApprovalDataSchema = z.object({
   approvalId: z.string().min(1),
   toolCallId: z.string().min(1),
   toolName: z.string().min(1),
+  input: z.json().optional(),
 });
 type ApprovalData = z.infer<typeof ApprovalDataSchema>;
 
@@ -160,6 +160,7 @@ const toProtocolPart = ({
       approvalId: part.approval?.id ?? "",
       toolCallId: part.toolCallId,
       toolName: toolNameOf(part),
+      input,
     });
     if (!decoded.success) {
       throw new ChatUiMessagesError({
@@ -221,6 +222,7 @@ const toProtocolPart = ({
       approvalId: part.approval?.id ?? "",
       toolCallId: part.toolCallId,
       toolName: toolNameOf(part),
+      input,
     });
     if (decoded.success) {
       return decodeProtocolPart({
@@ -347,7 +349,7 @@ export const ChatUiMessages = {
             toolName: decoded.data.toolName,
             toolCallId: decoded.data.toolCallId,
             state: "approval-requested",
-            input: {},
+            input: decoded.data.input ?? {},
             approval: { id: decoded.data.approvalId },
           });
         }
@@ -438,7 +440,11 @@ export const ChatUiMessages = {
     // readUIMessageStream drops it, so capture it from the raw chunk stream.
     let streamMeta: {
       model?: string;
-      usage?: { promptTokens: number | null; completionTokens: number | null; totalTokens: number | null };
+      usage?: {
+        promptTokens: number | null;
+        completionTokens: number | null;
+        totalTokens: number | null;
+      };
       context?: ChatContextReceipt;
     } = {};
     const timeout = new AbortController();
@@ -457,8 +463,8 @@ export const ChatUiMessages = {
               }
               // Chunk variants disagree on the field (looseObject union), so
               // read it defensively off the parsed value.
-              const rawChunkMeta: unknown =
-                (result.value as { messageMetadata?: unknown }).messageMetadata;
+              const rawChunkMeta: unknown = (result.value as { messageMetadata?: unknown })
+                .messageMetadata;
               const meta = isRecord(rawChunkMeta) ? rawChunkMeta : undefined;
               if (meta !== undefined) {
                 if (typeof meta.model === "string" && meta.model !== "") {

@@ -260,6 +260,12 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   >(null);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [sidechatOpen, setSidechatOpen] = useState(false);
+  const closeSidechat = () => {
+    setSidechatOpen(false);
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>('[data-testid="toggle-ai-sidechat"]')?.focus();
+    });
+  };
   const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
   const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
   // Splitter percentages must be deterministic during SSR. Calculating from the
@@ -736,23 +742,31 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                         />
                       )}
                       {sidechatOpen && !aiChatActive ? (
-                        <div className="absolute inset-y-0 right-0 z-20 w-full max-w-[26rem]">
-                          <AiChatPage
-                            connectionName={connection.name}
-                            initialAskTable={search.table}
-                            variant="sidechat"
-                            onClose={() => setSidechatOpen(false)}
-                            onOpenFullChat={() => {
-                              setSidechatOpen(false);
-                              void navigate({
-                                to: "/connections/$connectionName/ai",
-                                params: { connectionName: connection.name },
-                                search: getCurrentChatConversationId()
-                                  ? { thread: getCurrentChatConversationId() }
-                                  : {},
-                              });
-                            }}
+                        <div className="absolute inset-0 z-20 sm:inset-y-0 sm:right-0 sm:left-auto sm:w-[26rem]">
+                          <button
+                            type="button"
+                            className="absolute inset-0 bg-black/30 sm:hidden"
+                            aria-label="Close AI sidechat"
+                            onClick={closeSidechat}
                           />
+                          <div className="absolute inset-x-0 bottom-0 h-[min(85%,44rem)] sm:static sm:h-full">
+                            <AiChatPage
+                              connectionName={connection.name}
+                              initialAskTable={search.table}
+                              variant="sidechat"
+                              onClose={closeSidechat}
+                              onOpenFullChat={() => {
+                                closeSidechat();
+                                void navigate({
+                                  to: "/connections/$connectionName/ai",
+                                  params: { connectionName: connection.name },
+                                  search: getCurrentChatConversationId()
+                                    ? { thread: getCurrentChatConversationId() }
+                                    : {},
+                                });
+                              }}
+                            />
+                          </div>
                         </div>
                       ) : null}
                     </Splitter.Panel>

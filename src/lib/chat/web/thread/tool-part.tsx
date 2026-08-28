@@ -36,6 +36,15 @@ const ToolWarningOutput = Schema.Struct({
   value: Schema.String,
 });
 
+const TOOL_LABELS: Record<string, string> = {
+  explain_sql: "Explain query plan",
+  open_workspace_view: "Open workspace view",
+  preview_rows: "Preview sample rows",
+  propose_sql: "Draft SQL",
+  run_sql: "Run SQL",
+  table_details: "Inspect table details",
+};
+
 export const ToolPart = ({
   part,
   isStreaming,
@@ -121,7 +130,7 @@ export const ToolPart = ({
             ⚒
           </span>
         )}
-        <span>{toolName.replaceAll("_", " ")}</span>
+        <span>{TOOL_LABELS[toolName] ?? toolName.replaceAll("_", " ")}</span>
         <span className="ms-auto font-normal opacity-70">
           {isRunning ? "Running" : isFailed ? "Failed" : warningOutput ? "Warning" : "Completed"}
         </span>

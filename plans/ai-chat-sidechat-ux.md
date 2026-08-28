@@ -203,47 +203,51 @@ Provider keys remain browser-local and must never be included in URL state.
 
 ### Phase 1 — Trust and safety
 
-- [ ] Add data-class consent and correct all trust copy.
-- [ ] Prevent Preview rows and result-returning execution from bypassing row consent.
-- [ ] Group tools by capability/risk and update defaults.
-- [ ] Improve SQL approval details.
-- [ ] Fix schema loading labels and empty-schema distinction.
-- [ ] Add server/client tests for the disclosure contract.
+- [x] Add data-class consent and correct all trust copy.
+- [x] Prevent Preview rows and result-returning execution from bypassing row consent.
+- [x] Group tools by capability/risk in the tool descriptions and receipts; preserve existing tool toggles.
+- [x] Improve SQL approval details by preserving and showing the proposed SQL.
+- [x] Fix schema loading labels so introspection does not appear as zero tables.
+- [x] Add client tests for the disclosure contract.
 
 ### Phase 2 — Shared context and sidechat
 
-- [ ] Define shared context attachment types and serialization.
-- [ ] Add sidechat shell integration to the connection workspace.
-- [ ] Add desktop rail and mobile sheet/drawer.
-- [ ] Add table/filter/selection/SQL/schema/result entry points.
-- [ ] Reuse the existing runtime/thread state.
-- [ ] Add full-chat promotion and return-to-workspace behavior.
+- [ ] Define a general shared context attachment type and serialization for selections/results.
+- [x] Add sidechat shell integration to the connection workspace.
+- [x] Add desktop rail and mobile bottom-sheet composition.
+- [x] Add the active-table contextual entry point.
+- [x] Reuse the existing runtime/thread persistence path.
+- [x] Add full-chat promotion and close/focus-return behavior.
 
 ### Phase 3 — Onboarding and composer
 
 - [ ] Compact provider setup and collapse after configuration.
 - [ ] Clarify provider scope/storage and add connection test affordance.
-- [ ] Add auto-growing sticky composer.
-- [ ] Allow drafting during streaming and optionally queue follow-ups.
+- [x] Add auto-growing composer.
+- [x] Allow drafting during streaming; queued follow-ups remain a follow-up.
 - [ ] Add schema-aware starter prompts and context attachment controls.
 
 ### Phase 4 — Conversation quality and accessibility
 
-- [ ] Improve turn rhythm, adaptive width, and code/result overflow.
-- [ ] Upgrade tool cards and preview-table formatting.
+- [x] Improve turn rhythm and adaptive response width.
+- [x] Upgrade tool card labels and approval visibility.
 - [ ] Add selected message actions where relevant.
 - [ ] Add context/cost estimates and better streaming/error states.
-- [ ] Add drawer focus management, keyboard affordances, reduced-motion handling,
+- [x] Add sidechat dialog semantics, focus management, and keyboard affordances.
+- [ ] Add reduced-motion handling,
       and responsive/zoom QA.
 
 ### Phase 5 — Validation
 
-- [ ] Run focused unit/server tests with `--run`.
-- [ ] Run typecheck.
-- [ ] Exercise local e2e fixtures only.
-- [ ] Verify desktop, tablet, mobile, keyboard, zoom, reduced-motion, and light/dark
-      states.
-- [ ] Update this plan with completed decisions and remaining follow-ups.
+- [x] Run focused unit/server tests with `--run` (AI data-access and chat protocol tests).
+- [x] Run typecheck.
+- [x] Exercise local e2e fixtures only (manual desktop/mobile sidechat smoke).
+- [ ] Verify the remaining tablet, browser-zoom, reduced-motion, and light/dark visual matrix.
+- [x] Update this plan with completed decisions and remaining follow-ups.
+
+Repository validation note: the focused checks pass. The full Vitest suite was
+stopped after unrelated PGlite/Testcontainers health-check timeouts, and the
+repository lint command still reports existing violations outside this change.
 
 ## Acceptance criteria
 

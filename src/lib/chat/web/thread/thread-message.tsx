@@ -156,7 +156,6 @@ export const ThreadMessage = ({
     <Message
       id={`message-${message.id}`}
       align={isUser ? "end" : "start"}
-      aria-live={isStreaming ? "polite" : undefined}
       className="scroll-mt-28 py-1"
     >
       <MessageContent className={cn(!isUser && "gap-3")}>

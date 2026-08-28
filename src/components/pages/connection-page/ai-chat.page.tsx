@@ -387,6 +387,9 @@ const AiChatPageInner = ({
       )}
       data-testid="ai-chat-page"
       data-ai-chat-variant={variant}
+      {...(variant === "sidechat"
+        ? { role: "dialog" as const, "aria-modal": true, "aria-label": "AI sidechat" }
+        : {})}
     >
       <header className="border-border flex items-center gap-3 border-b px-4 py-2.5">
         {variant === "sidechat" ? (
@@ -447,6 +450,7 @@ const AiChatPageInner = ({
                   variant="ghost"
                   onClick={onClose}
                   aria-label="Close AI sidechat"
+                  data-testid="ai-sidechat-close"
                 >
                   <X className="size-4" />
                 </Button>
@@ -1134,6 +1138,14 @@ const AiChatBody = ({
     schemaContextRef,
   });
 
+  useEffect(() => {
+    if (variant !== "sidechat") return;
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>('[data-testid="ai-sidechat-close"]')?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [variant]);
+
   return (
     <ChatProvider runtime={runtime}>
       {initialConversationId !== undefined && (
@@ -1143,6 +1155,16 @@ const AiChatBody = ({
         <ThreadListPanel overlayOpen={threadList.open} onClose={threadList.onClose} />
       ) : null}
       <main className="flex min-w-0 flex-1 flex-col">
+        {variant === "sidechat" && initialAskTable ? (
+          <div
+            className="border-border bg-muted/30 mx-3 mt-3 rounded-md border px-3 py-2 text-xs"
+            data-testid="ai-sidechat-context"
+          >
+            <span className="text-muted-foreground">Context</span>{" "}
+            <span className="font-mono">{initialAskTable}</span>
+            <span className="text-muted-foreground"> · schema metadata attached</span>
+          </div>
+        ) : null}
         {/* Audit C1: the full chat surface stays mounted pre-consent — users
             must see what they are unlocking. Only Send is gated. */}
         {!hasApprovedSchemaSharing && (
@@ -1916,6 +1938,7 @@ const ChatSurface = ({
   const error = useChatSelector((s) => s.error);
   const actions = useChatActions();
   const providerId = useChatSelector((s) => s.settings.provider);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Audit K7: finishing a stream in an unfocused tab gets a title badge so
   // users switching back know the answer landed.
@@ -2043,11 +2066,25 @@ const ChatSurface = ({
     setShowJumpToLatest(false);
   };
 
-  const composerFocus = () =>
-    document.querySelector<HTMLTextAreaElement>('[data-testid="ai-chat-input"]')?.focus();
+  const composerFocus = () => composerRef.current?.focus();
+
+  useEffect(() => {
+    const element = composerRef.current;
+    if (element === null) return;
+    element.style.height = "auto";
+    element.style.height = `${Math.min(element.scrollHeight, 192)}px`;
+  }, [draft]);
 
   const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
   const pendingApproval = isStreaming ? undefined : findPendingApproval(lastAssistant);
+  const pendingApprovalSql =
+    pendingApproval?.input &&
+    typeof pendingApproval.input === "object" &&
+    pendingApproval.input !== null &&
+    "sql" in pendingApproval.input &&
+    typeof pendingApproval.input.sql === "string"
+      ? pendingApproval.input.sql
+      : undefined;
 
   // Audit S8: identify the originating thread so seeded editor tabs can link
   // back to this conversation.
@@ -2365,7 +2402,7 @@ const ChatSurface = ({
         <div
           ref={viewportRef}
           onScroll={onViewportScroll}
-          className="mx-auto min-h-0 w-full max-w-3xl flex-1 space-y-3 overflow-auto p-4"
+          className="mx-auto min-h-0 w-full max-w-4xl flex-1 space-y-5 overflow-auto p-4"
           data-testid="ai-chat-thread"
         >
           {messages.length === 0 ? (
@@ -2397,7 +2434,12 @@ const ChatSurface = ({
               const isFailedUserTurn =
                 message.role === "user" && isLatestTurn && error !== undefined && !isStreaming;
               return (
-                <div key={message.id} data-testid="ai-chat-message" data-role={message.role}>
+                <div
+                  key={message.id}
+                  className={cn("rounded-lg", message.role === "user" && "bg-muted/25 px-3 py-2")}
+                  data-testid="ai-chat-message"
+                  data-role={message.role}
+                >
                   <ThreadMessage
                     message={message}
                     isStreaming={isStreaming && message.role === "assistant"}
@@ -2502,9 +2544,16 @@ const ChatSurface = ({
               data-testid="ai-chat-approval"
               role="alert"
             >
-              <span className="font-medium">
-                Allow running the proposed SQL via `{pendingApproval.toolName}`?
-              </span>
+              <div className="min-w-0">
+                <span className="font-medium">
+                  Review before running via `{pendingApproval.toolName}`
+                </span>
+                {pendingApprovalSql ? (
+                  <pre className="border-border bg-background mt-1 max-h-24 overflow-auto rounded border p-2 font-mono text-[11px] whitespace-pre-wrap">
+                    {pendingApprovalSql}
+                  </pre>
+                ) : null}
+              </div>
               <span className="flex shrink-0 gap-1.5">
                 <Button
                   size="xs"
@@ -2578,7 +2627,7 @@ const ChatSurface = ({
       </div>
 
       <div className="border-border border-t p-3">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
           {/* Audit M4/T3: thread-level token total anchors cost awareness. */}
           {threadTokens > 0 && (
             <span className="text-muted-foreground text-[11px]" data-testid="ai-chat-thread-tokens">
@@ -2586,25 +2635,33 @@ const ChatSurface = ({
             </span>
           )}
           <Textarea
-            rows={3}
+            ref={composerRef}
+            rows={1}
+            className="max-h-48 min-h-10 resize-none overflow-y-auto"
             placeholder={composerPlaceholder(dialect)}
             value={draft}
             onChange={(e) => actions.setDraft({ text: e.target.value })}
             onKeyDown={(e) => {
               // Audit K1: Enter sends, Shift+Enter inserts a newline. IME-safe:
               // composition-confirming Enter never sends.
-              if (e.key !== "Enter" || e.shiftKey) return;
+              if (e.key !== "Enter" || e.shiftKey) {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  sendCurrentDraft();
+                }
+                return;
+              }
               if (e.nativeEvent.isComposing || e.keyCode === 229) return;
               e.preventDefault();
               sendCurrentDraft();
             }}
             data-testid="ai-chat-input"
-            disabled={isStreaming}
+            disabled={consentRequired || !providerReady}
             aria-label="Chat message"
           />
           {/* Audit K6: make the keyboard model discoverable. */}
           <p className="text-muted-foreground text-[11px]" data-testid="ai-chat-kbd-hint">
-            Enter to send · Shift+Enter for a new line
+            Enter to send · Shift+Enter for a new line · ⌘/Ctrl+Enter also sends
           </p>
           {/* Audit T4: moment-of-send trust microcopy — retires after the
               first successful send (per connection). */}
