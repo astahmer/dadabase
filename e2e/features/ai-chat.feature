@@ -194,6 +194,18 @@ Feature: AI chat assistant
     And I fill the chat composer with "count users"
     Then the send button becomes enabled
 
+  Scenario: Read-only access sends a question without a schema approval step
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API is mocked with canned streams and request recording
+    And the current mock mode is "text"
+    When I open the AI chat page
+    And I approve sharing schema context
+    And I fill the chat composer with "count users"
+    And I press the chat send button
+    Then the full reply "Hello from the mocked assistant stream" is visible
+    And the last chat request carries access mode "read-only"
+    And an approval prompt is not shown
+
   Scenario: Keyless local providers can send without an API key (C2)
     Given console errors are being collected
     And BYOK chat config preset "ollama-local" with key "" and model "llama3"
@@ -465,12 +477,13 @@ Feature: AI chat assistant
     And the full reply "Hello from the mocked assistant stream" is visible
     Then an assistant context receipt shows mode "auto" with table "users"
 
-  Scenario: Ask-about-table deep link scopes schema and seeds a draft (K4)
+  Scenario: Ask-about-table deep link scopes schema without an unnecessary draft (K4)
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
     When I open the AI chat page with askTable "posts"
     And I approve sharing schema context if needed
-    Then the composer contains "Explore the `posts` table:"
-    And the schema status reports a manually selected subset
+    Then the composer is empty after sending
+    When I open the AI schema settings
+    Then the schema mode switcher is a labelled radiogroup with "Selected" checked
 
   Scenario: Opening an AI tab preserves existing workspace tabs
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"

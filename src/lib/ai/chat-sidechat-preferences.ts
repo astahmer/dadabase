@@ -6,7 +6,9 @@ export const CHAT_SIDECHAT_WIDTH_STORAGE_KEY = "dadabase.ai.sidechat-width";
 export const CHAT_SIDECHAT_WIDTH_CHANGED_EVENT = "dadabase:ai-sidechat-width-changed";
 export const CHAT_SIDECHAT_WIDTH_DEFAULT = 480;
 export const CHAT_SIDECHAT_WIDTH_MIN = 320;
-export const CHAT_SIDECHAT_WIDTH_MAX = 720;
+// Keep a generous persistence bound; the active viewport still constrains the
+// drag so the panel can never make the workspace inaccessible.
+export const CHAT_SIDECHAT_WIDTH_MAX = 1440;
 
 const isSide = (value: string | null): value is ChatSidechatSide =>
   value === "left" || value === "right";

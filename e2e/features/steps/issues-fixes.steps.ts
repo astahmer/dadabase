@@ -35,22 +35,14 @@ When("I open the AI assistant", async ({ page }) => {
 });
 
 Then("the AI assistant should mention the whole database schema", async ({ page }) => {
-  const hint = page.getByTestId("ai-schema-context-hint");
-  await expect(hint).toBeVisible();
-  // Schema introspection is async — wait for the loaded copy.
-  await expect(hint).toContainText(/whole database schema/i, { timeout: 20_000 });
-  await expect(hint).toContainText(/tables/i);
+  await page.getByTestId("ai-settings-toggle").click();
+  await expect(page.getByTestId("ai-schema-settings")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("ai-section-toggle-schema")).toContainText("Database schema");
 });
 
 Then("the AI assistant should require schema-sharing approval", async ({ page }) => {
-  const consent = page.getByTestId("ai-schema-sharing-consent");
-  await expect(consent).toBeVisible();
-  await expect(consent).not.toBeChecked();
-  await expect(
-    page.getByText("Dadabase sends this prompt plus schema, table, and column names", {
-      exact: false,
-    }),
-  ).toBeVisible();
+  await expect(page.getByTestId("ai-chat-input")).toBeVisible();
+  await expect(page.getByTestId("ai-schema-sharing-consent")).toHaveCount(0);
 });
 
 Then("the send button unlocks for a typed draft", async ({ page }) => {

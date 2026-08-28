@@ -331,6 +331,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     CHAT_SIDECHAT_MOBILE_HEIGHT_DEFAULT,
   );
   const [sidechatContext, setSidechatContext] = useState<readonly ChatContextAttachment[]>([]);
+  const sidechatOverlayRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const refresh = () => {
       setSidechatSide(getStoredChatSidechatSide());
@@ -352,6 +353,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   const resizeSidechat = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>) => {
       event.preventDefault();
+      event.currentTarget.setPointerCapture?.(event.pointerId);
       sidechatResizeRef.current = {
         startX: event.clientX,
         startWidth: sidechatWidth,
@@ -364,21 +366,25 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
           sidechatSide === "left"
             ? moveEvent.clientX - start.startX
             : start.startX - moveEvent.clientX;
+        const maxWidth = Math.min(
+          CHAT_SIDECHAT_WIDTH_MAX,
+          Math.max(CHAT_SIDECHAT_WIDTH_MIN, window.innerWidth - 24),
+        );
         const next = Math.round(
-          Math.min(
-            CHAT_SIDECHAT_WIDTH_MAX,
-            Math.max(CHAT_SIDECHAT_WIDTH_MIN, start.startWidth + delta),
-          ),
+          Math.min(maxWidth, Math.max(CHAT_SIDECHAT_WIDTH_MIN, start.startWidth + delta)),
         );
         start.width = next;
-        setSidechatWidth(next);
+        sidechatOverlayRef.current?.style.setProperty("--ai-sidechat-width", `${next}px`);
       };
       const onUp = () => {
         const width = sidechatResizeRef.current?.width;
         sidechatResizeRef.current = null;
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
-        if (width !== undefined) setStoredChatSidechatWidth(width);
+        if (width !== undefined) {
+          setSidechatWidth(width);
+          setStoredChatSidechatWidth(width);
+        }
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp, { once: true });
@@ -952,6 +958,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                               : "md:right-0 md:left-auto",
                           )}
                           style={{ "--ai-sidechat-width": `${sidechatWidth}px` } as CSSProperties}
+                          ref={sidechatOverlayRef}
                           data-testid="ai-sidechat-overlay"
                         >
                           <button
@@ -1055,7 +1062,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                           <button
                             type="button"
                             className={cn(
-                              "group absolute inset-y-0 z-30 hidden w-3 cursor-col-resize items-center justify-center md:flex",
+                              "group absolute inset-y-0 z-30 hidden w-3 cursor-col-resize touch-none items-center justify-center md:flex",
                               "focus-visible:outline-primary focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
                               sidechatSide === "left" ? "-right-1.5" : "-left-1.5",
                             )}
@@ -1070,7 +1077,17 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                             onKeyDown={(event) => {
                               const step = event.shiftKey ? 80 : 24;
                               const direction =
-                                event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : 0;
+                                sidechatSide === "left"
+                                  ? event.key === "ArrowRight"
+                                    ? 1
+                                    : event.key === "ArrowLeft"
+                                      ? -1
+                                      : 0
+                                  : event.key === "ArrowLeft"
+                                    ? 1
+                                    : event.key === "ArrowRight"
+                                      ? -1
+                                      : 0;
                               if (event.key === "Home" || event.key === "End") {
                                 event.preventDefault();
                                 const width =

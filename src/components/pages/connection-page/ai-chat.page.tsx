@@ -18,7 +18,6 @@ import {
   PinOff,
   PanelLeft,
   Settings2,
-  ShieldCheck,
   Sparkles,
   Square,
   Trash2,
@@ -53,15 +52,19 @@ import {
   isProviderKeyOptional,
 } from "#src/lib/ai/ai-providers.ts";
 import {
+  CHAT_ACCESS_MODES,
+  DEFAULT_CHAT_ACCESS_MODE,
+  chatAccessModeDescription,
+  chatAccessModeLabel,
+  getStoredChatAccessMode,
+  setStoredChatAccessMode,
+  type ChatAccessMode,
+} from "#src/lib/ai/chat-access-mode.ts";
+import {
   parseComposerCommand,
   runComposerCommand,
   UNKNOWN_COMMAND_HINT,
 } from "#src/lib/ai/chat-composer-commands.ts";
-import {
-  grantSchemaSharingConsent,
-  hasSchemaSharingConsent,
-  revokeSchemaSharingConsent,
-} from "#src/lib/ai/chat-consent.ts";
 import {
   consumeChatContextPromotion,
   chatContextAttachmentKey,
@@ -78,8 +81,6 @@ import {
 import {
   applySelectedTables,
   getStoredChatSchemaSelection,
-  getLastResolvedAutoTables,
-  SCHEMA_RESOLVED_EVENT,
   SCHEMA_SELECTION_CHANGED_EVENT,
   setStoredChatSchemaSelection,
   type ChatSchemaMode,
@@ -96,6 +97,7 @@ import {
 import { conversationMarkdown } from "#src/lib/chat/web/conversation/conversation-markdown.ts";
 import { ThreadMessage } from "#src/lib/chat/web/thread/thread-message.tsx";
 import { stageChatReturn, stageCustomSqlRun } from "#src/lib/custom-sql-run-handoff.ts";
+import { fuzzyFilter } from "#src/lib/fuzzy-search.ts";
 import { SQL_PREVIEW_REVEAL_SIZE } from "#src/lib/sql-preview-panel.ts";
 import { cn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
@@ -259,13 +261,9 @@ const AiChatPageInner = ({
   // Keep the conversation visible on first visit. Missing setup is explained
   // inline with one CTA; the full provider form remains one click away.
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // Audit S2: consent is a durable per-connection decision, not component
-  // state — re-gating every visit trains users to stop reading the banner.
-  // Storage read happens in an effect (not a lazy initializer) so server and
-  // client first renders agree; the banner may flash for one frame.
-  const [hasApprovedSchemaSharing, setHasApprovedSchemaSharing] = useState(false);
+  const [chatAccessMode, setChatAccessMode] = useState<ChatAccessMode>(DEFAULT_CHAT_ACCESS_MODE);
   useEffect(() => {
-    setHasApprovedSchemaSharing(hasSchemaSharingConsent(connection.name));
+    setChatAccessMode(getStoredChatAccessMode(connection.name));
   }, [connection.name]);
   const [chatDataAccess, setChatDataAccess] = useState<ChatDataAccess>(DEFAULT_CHAT_DATA_ACCESS);
   useEffect(() => {
@@ -278,6 +276,11 @@ const AiChatPageInner = ({
       window.dispatchEvent(new Event(BYOK_CHANGED_EVENT));
       return next;
     });
+  };
+  const updateChatAccessMode = (mode: ChatAccessMode) => {
+    setChatAccessMode(mode);
+    setStoredChatAccessMode(connection.name, mode);
+    window.dispatchEvent(new Event(BYOK_CHANGED_EVENT));
   };
   const [threadListOpen, setThreadListOpen] = useState(false);
   const [chatStreaming, setChatStreaming] = useState(false);
@@ -504,8 +507,8 @@ const AiChatPageInner = ({
     >
       {variant === "sidechat" ? (
         <span id="ai-sidechat-description" className="sr-only">
-          Ask questions about the current workspace context. Review the sharing permissions before
-          sending data to the configured AI provider.
+          Ask questions about the current workspace context. Read-only queries run immediately;
+          write queries require confirmation.
         </span>
       ) : null}
       <header className="border-border flex min-h-12 items-center gap-2 border-b px-3 py-2 sm:gap-3 sm:px-4">
@@ -530,7 +533,7 @@ const AiChatPageInner = ({
           id={variant === "sidechat" ? "ai-sidechat-title" : undefined}
           className="min-w-0 truncate text-sm font-semibold"
         >
-          {variant === "sidechat" ? connection.name : "AI assistant"}
+          {variant === "sidechat" ? "AI" : "AI assistant"}
         </h1>
         <Badge
           variant="outline"
@@ -594,6 +597,29 @@ const AiChatPageInner = ({
               ) : null}
             </>
           )}
+          {variant === "sidechat" && onSidechatSideChange ? (
+            <div
+              className="border-border flex shrink-0 items-center rounded-md border p-0.5"
+              role="group"
+              aria-label="Sidechat placement"
+              data-testid="ai-sidechat-placement"
+            >
+              {(["left", "right"] as const).map((option) => (
+                <Button
+                  key={option}
+                  size="xs"
+                  variant={sidechatSide === option ? "secondary" : "ghost"}
+                  className="h-7 px-2 text-[11px]"
+                  aria-pressed={sidechatSide === option}
+                  aria-label={`Open sidechat on the ${option}`}
+                  onClick={() => onSidechatSideChange(option)}
+                >
+                  <span className="sm:hidden">{option === "left" ? "L" : "R"}</span>
+                  <span className="hidden sm:inline">{option === "left" ? "Left" : "Right"}</span>
+                </Button>
+              ))}
+            </div>
+          ) : null}
           <Button
             variant="ghost"
             size={variant === "sidechat" ? "icon" : "sm"}
@@ -628,7 +654,7 @@ const AiChatPageInner = ({
       {settingsOpen && (
         <div
           className={cn(
-            "border-border min-h-0 overflow-y-auto border-b",
+            "bg-muted/10 border-border min-h-0 overflow-y-auto border-b",
             variant === "sidechat" ? "max-h-[min(48dvh,30rem)]" : "max-h-[min(55dvh,38rem)]",
           )}
           data-testid="ai-settings-panel"
@@ -659,14 +685,9 @@ const AiChatPageInner = ({
             connectionName={connection.name}
             defaultOpen={false}
           />
-          {variant === "sidechat" && onSidechatSideChange ? (
-            <SidechatPlacementSettings
-              side={sidechatSide ?? "right"}
-              onChange={onSidechatSideChange}
-            />
-          ) : null}
           <ChatDataAccessSettings
-            approved={hasApprovedSchemaSharing}
+            accessMode={chatAccessMode}
+            onAccessModeChange={updateChatAccessMode}
             access={chatDataAccess}
             onChange={updateChatDataAccess}
           />
@@ -677,23 +698,10 @@ const AiChatPageInner = ({
         <AiChatBody
           connection={connection}
           schemaContext={schemaContext}
-          schemaLoading={allTablesColumnsQuery.isLoading}
           initialConversationId={initialConversationId}
           providerReady={byokState === "usable"}
-          hasApprovedSchemaSharing={hasApprovedSchemaSharing}
+          accessMode={chatAccessMode}
           chatDataAccess={chatDataAccess}
-          onChatDataAccessChange={updateChatDataAccess}
-          onApproveSchemaSharing={() => {
-            grantSchemaSharingConsent(connection.name);
-            setHasApprovedSchemaSharing(true);
-            announce("Schema sharing approved.");
-          }}
-          onRevokeSchemaSharing={() => {
-            revokeSchemaSharingConsent(connection.name);
-            setHasApprovedSchemaSharing(false);
-            // Audit G6: trust decisions must reach assistive tech.
-            announce("Schema-sharing consent revoked.");
-          }}
           onApplySql={applySqlToEditor}
           onRunSql={applySqlAndRun}
           onOpenWorkspaceView={openWorkspaceViewTab}
@@ -732,59 +740,73 @@ const AiChatPageInner = ({
   );
 };
 
-const SidechatPlacementSettings = ({
-  side,
-  onChange,
-}: {
-  side: ChatSidechatSide;
-  onChange: (side: ChatSidechatSide) => void;
-}) => (
-  <section className="border-border border-t px-4 py-3" data-testid="ai-sidechat-placement">
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <h2 className="text-sm font-medium">Sidechat placement</h2>
-        <p className="text-muted-foreground mt-0.5 text-xs">
-          Choose which side the panel opens on.
-        </p>
-      </div>
-      <div className="flex shrink-0 gap-1" role="group" aria-label="Sidechat placement">
-        {(["left", "right"] as const).map((option) => (
-          <Button
-            key={option}
-            size="xs"
-            variant={side === option ? "secondary" : "outline"}
-            aria-pressed={side === option}
-            onClick={() => onChange(option)}
-          >
-            {option[0].toUpperCase() + option.slice(1)}
-          </Button>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
 const ChatDataAccessSettings = ({
-  approved,
+  accessMode,
+  onAccessModeChange,
   access,
   onChange,
 }: {
-  approved: boolean;
+  accessMode: ChatAccessMode;
+  onAccessModeChange: (mode: ChatAccessMode) => void;
   access: ChatDataAccess;
   onChange: (patch: Partial<ChatDataAccess>) => void;
 }) => (
   <section className="border-border border-t px-4 py-3" data-testid="ai-settings-data-access">
-    <div className="flex items-baseline justify-between gap-3">
-      <h2 className="text-sm font-medium">Data sharing</h2>
-      <span className="text-muted-foreground text-xs">
-        {approved ? "Schema metadata enabled" : "Schema approval required"}
-      </span>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 className="text-sm font-medium">Access level</h2>
+        <p className="text-muted-foreground mt-0.5 text-xs">
+          Reads run immediately. Writes always ask before they run.
+        </p>
+      </div>
+      <Select
+        collection={createListCollection({
+          items: CHAT_ACCESS_MODES.map((mode) => ({
+            label: chatAccessModeLabel(mode),
+            value: mode,
+          })),
+        })}
+        value={[accessMode]}
+        onValueChange={(details) => {
+          const mode = details.value[0];
+          if (mode === "read-only" || mode === "read-write" || mode === "full") {
+            onAccessModeChange(mode);
+          }
+        }}
+        positioning={{ sameWidth: true }}
+      >
+        <SelectTrigger
+          className="h-8"
+          aria-label="AI access level"
+          data-testid="ai-access-mode-select"
+        >
+          <SelectValueText />
+        </SelectTrigger>
+        <SelectContent>
+          {CHAT_ACCESS_MODES.map((mode) => (
+            <SelectItem key={mode} item={{ label: chatAccessModeLabel(mode), value: mode }}>
+              <span>
+                <span className="block">{chatAccessModeLabel(mode)}</span>
+                <span className="text-muted-foreground block text-[11px]">
+                  {chatAccessModeDescription(mode)}
+                </span>
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+    <p className="text-muted-foreground mt-2 text-xs">{chatAccessModeDescription(accessMode)}</p>
+    <div className="mt-3 border-t pt-3">
+      <p className="text-sm font-medium">Data returned to the assistant</p>
+      <p className="text-muted-foreground mt-0.5 text-xs">
+        Enabled by default; turn off only when needed.
+      </p>
     </div>
     <div className="mt-2 grid gap-2 sm:grid-cols-2">
       <label className="flex items-start gap-2 text-xs">
         <Checkbox
           checked={access.sampleRows}
-          disabled={!approved}
           onCheckedChange={(details) => onChange({ sampleRows: details.checked === true })}
         >
           <CheckboxControl />
@@ -797,14 +819,15 @@ const ChatDataAccessSettings = ({
       <label className="flex items-start gap-2 text-xs">
         <Checkbox
           checked={access.queryResults}
-          disabled={!approved}
           onCheckedChange={(details) => onChange({ queryResults: details.checked === true })}
         >
           <CheckboxControl />
         </Checkbox>
         <span>
           <span className="font-medium">Query results</span>
-          <span className="text-muted-foreground block">Approved SQL results for summaries.</span>
+          <span className="text-muted-foreground block">
+            Results from queries run in this chat.
+          </span>
         </span>
       </label>
     </div>
@@ -1005,14 +1028,9 @@ const ProviderSettingsSection = ({
         </span>
       </button>
       {open && (
-        <div className="mt-2 space-y-2">
-          <div
-            className={cn(
-              "grid grid-cols-1 gap-2",
-              variant === "page" && "lg:grid-cols-[200px_1fr_1fr_auto] lg:items-end",
-            )}
-          >
-            <div>
+        <div className="bg-background mt-3 space-y-3 rounded-lg border p-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
               <Label className="text-muted-foreground text-xs">OpenAI-compatible provider</Label>
               <Select
                 collection={providerCollection}
@@ -1084,7 +1102,7 @@ const ProviderSettingsSection = ({
               />
             </div>
             {!keyOptional ? (
-              <div>
+              <div className="sm:col-span-2">
                 <Label htmlFor="ai-api-key" className="text-muted-foreground text-xs">
                   API key — localStorage only
                 </Label>
@@ -1461,17 +1479,13 @@ const SchemaSettingsSection = ({
   );
 };
 
-/** Consent gate + thread sidebar + chat surface. */
+/** Thread sidebar + chat surface. */
 const AiChatBody = ({
   connection,
   schemaContext,
-  schemaLoading,
   providerReady,
-  hasApprovedSchemaSharing,
-  onApproveSchemaSharing,
-  onRevokeSchemaSharing,
+  accessMode,
   chatDataAccess,
-  onChatDataAccessChange,
   onApplySql,
   onRunSql,
   onOpenWorkspaceView,
@@ -1490,16 +1504,10 @@ const AiChatBody = ({
 }: {
   connection: DbConnection;
   schemaContext: AiSchemaContext;
-  /** Introspection in flight — the status line must not report counts yet. */
-  schemaLoading: boolean;
   /** Reactive: stored BYOK config satisfies its provider's key requirement. */
   providerReady: boolean;
-  hasApprovedSchemaSharing: boolean;
-  onApproveSchemaSharing: () => void;
-  /** Audit S2: a persisted grant needs an explicit, announced revoke. */
-  onRevokeSchemaSharing: () => void;
+  accessMode: ChatAccessMode;
   chatDataAccess: ChatDataAccess;
-  onChatDataAccessChange: (patch: Partial<ChatDataAccess>) => void;
   /** Audit S8: meta identifies the thread a seeded editor can link back to. */
   onApplySql: (sql: string, meta?: ChatReturnMeta) => void;
   onRunSql: (sql: string, meta?: ChatReturnMeta) => void;
@@ -1603,12 +1611,10 @@ const AiChatBody = ({
     );
     announce(`${label} removed for this turn.`);
   };
-  const contextTables = useMemo(() => {
-    const query = tableSearch.trim().toLowerCase();
-    return schemaContext.tables.filter(
-      (table) => query === "" || table.table.toLowerCase().includes(query),
-    );
-  }, [schemaContext.tables, tableSearch]);
+  const contextTables = useMemo(
+    () => fuzzyFilter(schemaContext.tables, tableSearch, (table) => table.table),
+    [schemaContext.tables, tableSearch],
+  );
   const addContextTable = (table: string) => {
     const attachment: ChatContextAttachment = {
       kind: "table",
@@ -1634,50 +1640,6 @@ const AiChatBody = ({
     setAddTablesOpen(false);
     setTableSearch("");
   };
-
-  // Live schema-scope status: mode + how many tables actually go out. Auto's
-  // exact count arrives with the first response header, so it re-reads on
-  // both the selection-changed and schema-resolved events.
-  const [schemaStatus, setSchemaStatus] = useState("");
-  useEffect(() => {
-    const refresh = () => {
-      const selection = getStoredChatSchemaSelection(connection.name);
-      const current = schemaContextRef.current;
-      if (current === undefined) {
-        setSchemaStatus("");
-        return;
-      }
-      const total = current.tables.length;
-      // Never report counts before introspection resolves (audit C3: the
-      // status line used to say "0 tables" while the sidebar showed six).
-      if (total === 0) {
-        setSchemaStatus(schemaLoading ? "Reading database schema…" : "");
-        return;
-      }
-      if (selection.mode === "selected") {
-        const sent = applySelectedTables(current, selection.selectedTables).tables.length;
-        setSchemaStatus(`Using ${sent} of ${total} tables (manually selected).`);
-        return;
-      }
-      if (selection.mode === "auto") {
-        const resolved = getLastResolvedAutoTables();
-        setSchemaStatus(
-          resolved === null
-            ? `Auto schema: tables picked per question (${total} available).`
-            : `Auto schema: using ${resolved.length} of ${total} tables.`,
-        );
-        return;
-      }
-      setSchemaStatus(`Using whole database schema (${total} tables in ${current.schema}).`);
-    };
-    refresh();
-    window.addEventListener(SCHEMA_SELECTION_CHANGED_EVENT, refresh);
-    window.addEventListener(SCHEMA_RESOLVED_EVENT, refresh);
-    return () => {
-      window.removeEventListener(SCHEMA_SELECTION_CHANGED_EVENT, refresh);
-      window.removeEventListener(SCHEMA_RESOLVED_EVENT, refresh);
-    };
-  }, [connection.name, schemaContext, schemaLoading]);
 
   const runtime = useDadabaseChatRuntime({
     connectionName: connection.name,
@@ -1711,7 +1673,7 @@ const AiChatBody = ({
                 <span className="text-muted-foreground text-[11px]">
                   {contextDataClasses.includes("sample-rows") ||
                   contextDataClasses.includes("query-results")
-                    ? "Values allowed by permission"
+                    ? "Preview data enabled"
                     : "Metadata only"}
                 </span>
                 <ContextTablePicker
@@ -1821,41 +1783,26 @@ const AiChatBody = ({
             <p className="mt-1">Add tables here, or open a table/selection to attach it.</p>
           </div>
         ) : null}
-        {variant === "sidechat" && (!providerReady || !hasApprovedSchemaSharing) ? (
+        {variant === "sidechat" && !providerReady ? (
           <div
             className="border-primary/20 bg-primary/5 mx-3 mt-3 flex items-start justify-between gap-3 rounded-md border px-3 py-2.5"
             data-testid="ai-sidechat-first-run"
           >
             <div className="min-w-0">
-              <p className="text-sm font-medium">
-                {!providerReady ? "Connect an AI provider" : "Approve schema sharing"}
-              </p>
+              <p className="text-sm font-medium">Connect an AI provider</p>
               <p className="text-muted-foreground mt-0.5 text-xs leading-5">
-                {!providerReady
-                  ? "Add a provider in this browser to start asking questions."
-                  : "Share schema names and columns so the assistant can draft SQL. Row values stay off unless you allow them."}
+                Add a provider in this browser to start asking questions.
               </p>
             </div>
-            {!providerReady ? (
-              <Button
-                size="xs"
-                variant="outline"
-                className="shrink-0"
-                onClick={onOpenProviderSettings}
-                data-testid="ai-sidechat-configure-provider"
-              >
-                Configure provider
-              </Button>
-            ) : (
-              <Button
-                size="xs"
-                className="shrink-0"
-                onClick={onApproveSchemaSharing}
-                data-testid="ai-sidechat-approve-schema"
-              >
-                Approve schema
-              </Button>
-            )}
+            <Button
+              size="xs"
+              variant="outline"
+              className="shrink-0"
+              onClick={onOpenProviderSettings}
+              data-testid="ai-sidechat-configure-provider"
+            >
+              Configure provider
+            </Button>
           </div>
         ) : null}
         {variant === "page" && !providerReady ? (
@@ -1881,129 +1828,13 @@ const AiChatBody = ({
             </Button>
           </div>
         ) : null}
-        {/* Audit C1: the full chat surface stays mounted pre-consent — users
-            must see what they are unlocking. Only Send is gated. */}
-        {!hasApprovedSchemaSharing && variant === "page" && (
-          <div className="border-border bg-muted/30 mx-auto mt-4 w-full max-w-3xl px-4">
-            <label className="border-border bg-background flex items-start gap-2 rounded-md border p-3 text-sm leading-6">
-              <Checkbox
-                checked={false}
-                aria-labelledby="ai-consent-label"
-                onCheckedChange={(details) => {
-                  if (details.checked === true) onApproveSchemaSharing();
-                }}
-                data-testid="ai-schema-sharing-consent"
-              >
-                <CheckboxControl />
-              </Checkbox>
-              <span id="ai-consent-label">
-                <span className="font-medium">Share schema context with the AI provider</span>
-                <span className="text-muted-foreground block text-xs">
-                  Dadabase sends this prompt plus schema, table, and column names to draft SQL. It
-                  does not send row values under this permission. You review generated SQL before it
-                  runs.
-                </span>
-              </span>
-            </label>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <label className="border-border bg-background flex items-start gap-2 rounded-md border p-2 text-xs">
-                <Checkbox
-                  checked={chatDataAccess.sampleRows}
-                  disabled={!hasApprovedSchemaSharing}
-                  onCheckedChange={(details) =>
-                    onChatDataAccessChange({ sampleRows: details.checked === true })
-                  }
-                  data-testid="ai-sample-rows-consent"
-                >
-                  <CheckboxControl />
-                </Checkbox>
-                <span>
-                  <span className="font-medium">Allow sample rows</span>
-                  <span className="text-muted-foreground block">
-                    Let Preview rows share up to 25 row values with the provider.
-                  </span>
-                </span>
-              </label>
-              <label className="border-border bg-background flex items-start gap-2 rounded-md border p-2 text-xs">
-                <Checkbox
-                  checked={chatDataAccess.queryResults}
-                  disabled={!hasApprovedSchemaSharing}
-                  onCheckedChange={(details) =>
-                    onChatDataAccessChange({ queryResults: details.checked === true })
-                  }
-                  data-testid="ai-query-results-consent"
-                >
-                  <CheckboxControl />
-                </Checkbox>
-                <span>
-                  <span className="font-medium">Allow query results</span>
-                  <span className="text-muted-foreground block">
-                    Let approved SQL results be sent back for summarizing.
-                  </span>
-                </span>
-              </label>
-            </div>
-          </div>
-        )}
-        {hasApprovedSchemaSharing && variant === "page" && (
-          <div
-            className="border-border bg-muted/30 mx-auto mt-4 w-full max-w-3xl px-4"
-            data-testid="ai-data-access-settings"
-          >
-            <div className="border-border bg-background rounded-md border p-3 text-xs">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-medium">Data shared with the AI provider</span>
-                <span className="text-muted-foreground">Schema metadata is enabled.</span>
-              </div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <label className="flex items-start gap-2">
-                  <Checkbox
-                    checked={chatDataAccess.sampleRows}
-                    onCheckedChange={(details) =>
-                      onChatDataAccessChange({ sampleRows: details.checked === true })
-                    }
-                    data-testid="ai-sample-rows-consent"
-                  >
-                    <CheckboxControl />
-                  </Checkbox>
-                  <span>
-                    <span className="font-medium">Sample rows</span>
-                    <span className="text-muted-foreground block">
-                      Up to 25 row values for Preview rows.
-                    </span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-2">
-                  <Checkbox
-                    checked={chatDataAccess.queryResults}
-                    onCheckedChange={(details) =>
-                      onChatDataAccessChange({ queryResults: details.checked === true })
-                    }
-                    data-testid="ai-query-results-consent"
-                  >
-                    <CheckboxControl />
-                  </Checkbox>
-                  <span>
-                    <span className="font-medium">Query results</span>
-                    <span className="text-muted-foreground block">
-                      Results from approved SQL for summarizing.
-                    </span>
-                  </span>
-                </label>
-              </div>
-            </div>
-          </div>
-        )}
         <ChatSurface
           connectionName={connection.name}
           onApplySql={onApplySql}
           onRunSql={onRunSql}
           onOpenWorkspaceView={onOpenWorkspaceView}
           onOpenProviderSettings={onOpenProviderSettings}
-          schemaHint={schemaStatus}
-          consentRequired={!hasApprovedSchemaSharing}
-          onRevokeSchemaSharing={onRevokeSchemaSharing}
-          chatDataAccess={chatDataAccess}
+          accessMode={accessMode}
           providerReady={providerReady}
           dialect={connection.dialect}
           initialConversationId={initialConversationId}
@@ -2625,10 +2456,7 @@ const ChatSurface = ({
   onRunSql,
   onOpenWorkspaceView,
   onOpenProviderSettings,
-  schemaHint,
-  consentRequired,
-  onRevokeSchemaSharing,
-  chatDataAccess,
+  accessMode,
   providerReady,
   dialect,
   onAdoptAutoTables,
@@ -2658,12 +2486,8 @@ const ChatSurface = ({
   }) => void;
   /** Audit S10: auth-class errors deep-link back into provider settings. */
   onOpenProviderSettings: () => void;
-  /** Post-consent transparency line about the schema context in use. */
-  schemaHint: string;
-  /** Schema-sharing consent outstanding — Send stays disabled until approved. */
-  consentRequired: boolean;
-  onRevokeSchemaSharing: () => void;
-  chatDataAccess: ChatDataAccess;
+  /** Controls which non-read-only SQL may be approved and executed. */
+  accessMode: ChatAccessMode;
   /** Stored BYOK config satisfies its provider's key requirement. */
   providerReady: boolean;
   dialect: DatabaseDialect;
@@ -2692,7 +2516,6 @@ const ChatSurface = ({
   const historyWarning = useChatSelector((s) => s.historyWarning);
   const error = useChatSelector((s) => s.error);
   const actions = useChatActions();
-  const providerId = useChatSelector((s) => s.settings.provider);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const errorRef = useRef<HTMLDivElement | null>(null);
 
@@ -2730,7 +2553,7 @@ const ChatSurface = ({
   useEffect(() => {
     // SQL suggestions from a custom SQL tab have no table to scope, but still
     // need a useful draft seed. Ordinary new AI tabs intentionally stay blank.
-    if ((initialAskTable === undefined || initialAskTable === "") && initialAiIntent !== "sql") {
+    if (initialAskTable === undefined && initialAiIntent !== "sql") {
       return;
     }
     const seedKey = initialAskTable || "__current_schema__";
@@ -2743,12 +2566,17 @@ const ChatSurface = ({
       });
       window.dispatchEvent(new Event(SCHEMA_SELECTION_CHANGED_EVENT));
     }
-    const seededText =
-      initialAiIntent === "sql"
-        ? initialAskTable
-          ? `Write a SQL query for \`${initialAskTable}\`:`
-          : "Write a SQL query for the current schema:"
-        : `Explore the \`${initialAskTable}\` table:`;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("askTable")) {
+      url.searchParams.delete("askTable");
+      window.history.replaceState({}, "", url);
+    }
+    if (initialAiIntent !== "sql") {
+      return;
+    }
+    const seededText = initialAskTable
+      ? `Write a SQL query for \`${initialAskTable}\`:`
+      : "Write a SQL query for the current schema:";
     let attempts = 0;
     const seed = (): void => {
       attempts += 1;
@@ -2757,11 +2585,6 @@ const ChatSurface = ({
       if (attempts < 20) window.setTimeout(seed, 250);
     };
     window.setTimeout(seed, 0);
-    const url = new URL(window.location.href);
-    if (url.searchParams.has("askTable")) {
-      url.searchParams.delete("askTable");
-      window.history.replaceState({}, "", url);
-    }
     // Run once per param value; the draft belongs to the runtime afterwards.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialAskTable, initialAiIntent]);
@@ -2911,22 +2734,8 @@ const ChatSurface = ({
       : { conversationId: conversationIdForMeta, title: activeConversationTitle };
 
   // Audit K1: single gate shared by the button and the Enter handler.
-  const sendDisabled = consentRequired || !providerReady || draft.trim() === "" || isStreaming;
-  const hasValueAttachments = contextAttachments.some(
-    (attachment) =>
-      (attachment.kind === "selection" && attachment.rows?.length) ||
-      (attachment.kind === "result" && attachment.rows?.length),
-  );
-  // Audit T4: the transparency line retires itself after the first send.
-  const [trustNoteDismissed, setTrustNoteDismissed] = useState(() => {
-    try {
-      return globalThis.localStorage.getItem(`dadabase.chat.trust-note.${connectionName}`) === "1";
-    } catch {
-      return true;
-    }
-  });
+  const sendDisabled = !providerReady || draft.trim() === "" || isStreaming;
   const [copiedAction, setCopiedAction] = useState<"markdown" | "text" | undefined>(undefined);
-  const providerLabel = getAiProviderPreset(providerId)?.label ?? providerId;
   const exportableMessages = useMemo(
     () =>
       messages.map((message) => ({
@@ -2996,14 +2805,6 @@ const ChatSurface = ({
       });
       actions.setDraft({ text: "" });
       return;
-    }
-    if (!trustNoteDismissed) {
-      setTrustNoteDismissed(true);
-      try {
-        globalThis.localStorage.setItem(`dadabase.chat.trust-note.${connectionName}`, "1");
-      } catch {
-        // Private mode: the note simply stays visible; never blocks sending.
-      }
     }
     actions.sendMessage({ text: draft });
   };
@@ -3264,12 +3065,11 @@ const ChatSurface = ({
         <div
           className="border-border bg-background/95 sticky top-0 z-10 flex items-center justify-between gap-2 border-b px-3 py-2 backdrop-blur"
           data-testid="ai-chat-state"
+          data-access-mode={accessMode}
           role="status"
           aria-live="polite"
         >
           <div className="flex min-w-0 items-center gap-2 text-xs">
-            <MessageSquarePlus className="text-primary size-3.5 shrink-0" />
-            <span className="text-muted-foreground shrink-0">Current chat</span>
             <span className="truncate font-medium">
               {activeConversationTitle === "New chat" ? "Untitled chat" : activeConversationTitle}
             </span>
@@ -3337,10 +3137,10 @@ const ChatSurface = ({
               ) : (
                 <>
                   <p>
-                    Ask a question about this database — the assistant proposes SQL, you review it
-                    before it runs.
+                    Ask a question about this database. Read-only queries run immediately; writes
+                    pause for your confirmation.
                   </p>
-                  {!consentRequired && providerReady && starterPrompts.length > 0 ? (
+                  {providerReady && starterPrompts.length > 0 ? (
                     variant === "sidechat" ? (
                       <details
                         className="group w-full max-w-sm rounded-md border px-3 py-2 text-left"
@@ -3357,7 +3157,7 @@ const ChatSurface = ({
                               key={prompt}
                               size="xs"
                               variant="outline"
-                              disabled={consentRequired || !providerReady}
+                              disabled={!providerReady}
                               onClick={() => {
                                 actions.setDraft({ text: prompt });
                                 composerFocus();
@@ -3376,7 +3176,7 @@ const ChatSurface = ({
                             key={prompt}
                             size="xs"
                             variant="outline"
-                            disabled={consentRequired || !providerReady}
+                            disabled={!providerReady}
                             onClick={() => {
                               actions.setDraft({ text: prompt });
                               composerFocus();
@@ -3390,7 +3190,7 @@ const ChatSurface = ({
                     )
                   ) : null}
                   {/* Audit C7: one primary action instead of a 90%-empty viewport. */}
-                  {!consentRequired && providerReady ? (
+                  {providerReady ? (
                     <Button
                       size="sm"
                       variant="outline"
@@ -3526,7 +3326,7 @@ const ChatSurface = ({
             >
               <div className="min-w-0">
                 <span className="font-medium">
-                  Review before running via `{pendingApproval.toolName}`
+                  Confirm this write before running via `{pendingApproval.toolName}`
                 </span>
                 {pendingApprovalSql ? (
                   <pre className="border-border bg-background mt-1 max-h-24 overflow-auto rounded border p-2 font-mono text-[11px] whitespace-pre-wrap">
@@ -3618,7 +3418,7 @@ const ChatSurface = ({
         </div>
       </div>
 
-      <div className="border-border border-t p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-3">
+      <div className="border-border bg-background/95 relative z-20 border-t p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur md:pb-3">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
           {/* Audit M4/T3: thread-level token total anchors cost awareness. */}
           {threadTokens > 0 && (
@@ -3626,55 +3426,39 @@ const ChatSurface = ({
               {threadTokens.toLocaleString()} tokens this thread
             </span>
           )}
-          <Textarea
-            ref={composerRef}
-            rows={1}
-            className="max-h-48 min-h-10 resize-none overflow-y-auto"
-            placeholder={composerPlaceholder(dialect)}
-            value={draft}
-            onChange={(e) => actions.setDraft({ text: e.target.value })}
-            onKeyDown={(e) => {
-              // Audit K1: Enter sends, Shift+Enter inserts a newline. IME-safe:
-              // composition-confirming Enter never sends.
-              if (e.key !== "Enter" || e.shiftKey) {
-                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+          <div className="border-border bg-background flex items-end gap-2 rounded-xl border px-3 py-2 shadow-sm">
+            <div className="min-w-0 flex-1">
+              <Textarea
+                ref={composerRef}
+                rows={1}
+                className="max-h-48 min-h-10 w-full resize-none overflow-y-auto border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                placeholder={composerPlaceholder(dialect)}
+                value={draft}
+                onChange={(e) => actions.setDraft({ text: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" || e.shiftKey) return;
+                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                   e.preventDefault();
                   sendCurrentDraft();
-                }
-                return;
-              }
-              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-              e.preventDefault();
-              sendCurrentDraft();
-            }}
-            data-testid="ai-chat-input"
-            disabled={consentRequired || !providerReady}
-            aria-label="Chat message"
-          />
-          {/* Audit K6: make the keyboard model discoverable. */}
-          <p className="text-muted-foreground text-[11px]" data-testid="ai-chat-kbd-hint">
-            Enter to send · Shift+Enter for a new line · ⌘/Ctrl+Enter also sends
-          </p>
-          {/* Audit T4: moment-of-send trust microcopy — retires after the
-              first successful send (per connection). */}
-          {providerReady && !consentRequired && !trustNoteDismissed ? (
-            <p className="text-muted-foreground text-[11px]" data-testid="ai-chat-trust-note">
-              Schema and table names are sent to {providerLabel}.
-              {chatDataAccess.sampleRows || chatDataAccess.queryResults
-                ? ` ${chatDataAccess.sampleRows ? "Sample rows" : ""}${chatDataAccess.sampleRows && chatDataAccess.queryResults ? " and " : ""}${chatDataAccess.queryResults ? "query results" : ""} are allowed for this chat.`
-                : " No row values are shared."}
-            </p>
-          ) : null}
-          <div className="flex flex-wrap items-center gap-2">
-            <ComposerModelPicker />
+                }}
+                data-testid="ai-chat-input"
+                disabled={!providerReady}
+                aria-label="Chat message"
+              />
+            </div>
             <Button
-              size="sm"
+              size="icon"
               disabled={sendDisabled}
               onClick={sendCurrentDraft}
               data-testid="ai-chat-send"
+              aria-label="Send message"
+              title="Send message"
             >
-              Send
+              <ArrowDown className="size-4 -rotate-90" />
             </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <ComposerModelPicker />
             {messages.length > 0 || variant === "sidechat" ? (
               <>
                 {messages.length > 0 && variant === "page" ? (
@@ -3735,34 +3519,11 @@ const ChatSurface = ({
                 ) : null}
               </>
             ) : null}
-            {consentRequired ? (
-              <span className="text-muted-foreground text-xs" data-testid="ai-chat-send-reason">
-                Approve schema sharing above to enable chat.
-              </span>
-            ) : !providerReady ? (
+            {!providerReady ? (
               <span className="text-muted-foreground text-xs" data-testid="ai-chat-send-reason">
                 Configure an OpenAI-compatible provider above to enable chat.
               </span>
             ) : null}
-          </div>
-          <div
-            className="border-border bg-muted/20 text-muted-foreground flex flex-wrap items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-[11px]"
-            data-testid="ai-permission-summary"
-          >
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="text-primary size-3.5" />
-              {consentRequired
-                ? "Nothing is shared until schema access is approved."
-                : `Shared: schema metadata${hasValueAttachments ? " plus permitted values" : " only"}.`}
-            </span>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={onOpenProviderSettings}
-              data-testid="ai-review-sharing"
-            >
-              Review sharing
-            </Button>
           </div>
           {error &&
             (() => {
@@ -3798,23 +3559,6 @@ const ChatSurface = ({
                 </div>
               );
             })()}
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-muted-foreground text-xs" data-testid="ai-schema-context-hint">
-              {schemaHint}
-            </p>
-            {/* Audit S2: a persisted grant stays revocable right where the
-                trust statement lives. */}
-            {!consentRequired && (
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground shrink-0 text-xs underline underline-offset-2"
-                onClick={onRevokeSchemaSharing}
-                data-testid="ai-consent-revoke"
-              >
-                Revoke schema sharing
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </>

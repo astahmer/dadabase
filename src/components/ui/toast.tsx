@@ -15,7 +15,7 @@ import { toastVariants } from "./toast.styles";
 
 const Toaster = ({ ...props }: React.ComponentPropsWithoutRef<typeof ToasterPrimitive>) => (
   <ToasterPrimitive
-    className="max-h-screen w-[calc(100%-var(--gap)*4)] flex-col-reverse p-4 sm:flex-col md:max-w-[420px]"
+    className="pointer-events-none max-h-screen w-[calc(100%-var(--gap)*4)] flex-col-reverse p-4 sm:flex-col md:max-w-[420px]"
     {...props}
   />
 );

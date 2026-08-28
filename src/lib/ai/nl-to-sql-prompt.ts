@@ -1,4 +1,5 @@
 import type { AiColumnMeta, AiSchemaContext, AiTableContext } from "./ai-types.ts";
+import type { ChatAccessMode } from "./chat-access-mode.ts";
 import type { ChatContextAttachment } from "./chat-context.ts";
 
 const quoteIdent = (name: string, dialect?: string): string => {
@@ -126,11 +127,13 @@ export const buildChatSystemPrompt = (input: {
   enabledTools?: readonly string[];
   /** Sanitized ephemeral workspace context for the current chat surface. */
   contextAttachments?: readonly ChatContextAttachment[];
+  accessMode?: ChatAccessMode;
 }): string => {
   const enabled = input.enabledTools;
   // undefined = not specified (server default: all tools). An explicit EMPTY
   // array means "select none" — every tool line must be dropped.
   const hasTool = (id: string): boolean => enabled === undefined || enabled.includes(id);
+  const accessMode = input.accessMode ?? "read-only";
   const dialect =
     input.schema?.dialect ?? input.table?.dialect ?? input.schema?.tables[0]?.dialect ?? "postgres";
   const schemaName = input.schema?.schema ?? input.table?.schema ?? "public";
@@ -154,8 +157,9 @@ export const buildChatSystemPrompt = (input: {
     "2. Be proactive: when a question is reasonably answerable from the available schema, inspect the relevant tables and make your best-supported attempt immediately. Do not ask a clarification question before trying a sensible query; state any assumption alongside the result instead.",
     ...(hasTool("run_sql")
       ? [
-          "3. For an answerable data question, draft the query and call `run_sql` so the user can approve it; do not stop at a clarification request when a useful first attempt is possible.",
-          "4. After a successful run_sql, summarize the result rows briefly, state the assumption or metric used, and ask whether the result matches what the user expected; do not repeat full row dumps.",
+          "3. For an answerable data question, draft the query and call `run_sql` immediately. SELECT/WITH queries run directly; non-read-only SQL pauses for user approval.",
+          `4. The current access level is ${accessMode}. Never attempt a write that the access level does not allow.`,
+          "5. After a successful run_sql, summarize the result rows briefly, state the assumption or metric used, and ask whether the result matches what the user expected; do not repeat full row dumps.",
         ]
       : []),
     ...(hasTool("preview_rows")

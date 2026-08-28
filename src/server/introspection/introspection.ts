@@ -550,6 +550,23 @@ export interface DatabaseSearchResult {
   value: string;
 }
 
+const formatDatabaseSearchValue = (value: unknown): string => {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return value.toString();
+  }
+  if (typeof value === "symbol") return value.description ?? "";
+  if (typeof value === "function") return value.name || "[function]";
+  try {
+    return JSON.stringify(value, (_key, nestedValue) =>
+      typeof nestedValue === "bigint" ? String(nestedValue) : nestedValue,
+    );
+  } catch {
+    return "[unserializable value]";
+  }
+};
+
 const quoteSearchIdentifier = (name: string, dialect: string) => {
   if (dialect === DatabaseDialect.MySQL || dialect === DatabaseDialect.Clickhouse) {
     return `\`${name.replaceAll("`", "``")}\``;
@@ -591,12 +608,15 @@ export const searchDatabaseData = (input: { schema?: string; term: string }) =>
           sql: `SELECT ${columnRef} AS value FROM ${tableRef} WHERE ${valueExpr} LIKE ${like} LIMIT 5`,
           skipQueryLog: true,
         });
-        return result.rows.map((row) => ({
-          schema,
-          table,
-          column,
-          value: String((row as Record<string, unknown>).value ?? ""),
-        }));
+        return result.rows.map((row) => {
+          const value = (row as Record<string, unknown>).value;
+          return {
+            schema,
+            table,
+            column,
+            value: formatDatabaseSearchValue(value),
+          };
+        });
       }).pipe(Effect.catch(() => Effect.succeed([] as DatabaseSearchResult[])));
 
     const results = yield* Effect.all(

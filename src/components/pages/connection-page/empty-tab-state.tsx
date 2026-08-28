@@ -7,6 +7,7 @@ import type { TableWithColumnsMetadata } from "#src/server/introspection/introsp
 
 import { getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
+import { fuzzyFilter } from "#src/lib/fuzzy-search.ts";
 import { listAvailableTablesQueryOptions } from "#src/server/introspection/start-fns/get-available-tables.start.ts";
 import { queryTableDataQueryOptions } from "#src/server/introspection/start-fns/query-table-data.start.ts";
 
@@ -31,18 +32,11 @@ interface EmptyTabState {
   tablesUnavailable?: boolean;
 }
 
-/** Substring filter over schema+name, case-insensitive; exported for tests. */
+/** Fuzzy filter over schema+name, exported for navigation tests. */
 export const filterTablesByQuery = (
   tables: Array<{ schema?: string | null; name: string }>,
   query: string,
-) => {
-  const q = query.trim().toLowerCase();
-  if (!q) return tables;
-  return tables.filter(
-    (table) =>
-      table.name.toLowerCase().includes(q) || (table.schema ?? "").toLowerCase().includes(q),
-  );
-};
+) => fuzzyFilter(tables, query, (table) => `${table.name} ${table.schema ?? ""}`);
 
 export const EmptyTabState = (props: EmptyTabState) => {
   const { activeConnectionUrl, connection } = props;

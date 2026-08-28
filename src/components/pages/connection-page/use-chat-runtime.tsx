@@ -8,6 +8,7 @@ import type { KeyValueStorage } from "#src/lib/chat/runtime/types.ts";
 
 import { getStoredByokConfig, getStoredEnabledChatTools } from "#src/lib/ai-byok.ts";
 import { isProviderKeyOptional, resolveChatBaseUrl } from "#src/lib/ai/ai-providers.ts";
+import { getStoredChatAccessMode } from "#src/lib/ai/chat-access-mode.ts";
 import { sanitizeChatContextAttachments } from "#src/lib/ai/chat-context.ts";
 import { recordCurrentChatConversationId } from "#src/lib/ai/chat-conversation-current.ts";
 import { getStoredChatDataAccess } from "#src/lib/ai/chat-data-access.ts";
@@ -114,6 +115,7 @@ export const useDadabaseChatRuntime = ({
               getStoredChatSchemaSelection(connectionName),
             );
             const dataAccess = getStoredChatDataAccess(connectionName);
+            const accessMode = getStoredChatAccessMode(connectionName);
             const contextAttachments = sanitizeChatContextAttachments(
               contextAttachmentsRef?.current,
               dataAccess,
@@ -128,6 +130,7 @@ export const useDadabaseChatRuntime = ({
               connectionName,
               enabledTools: getStoredEnabledChatTools(),
               dataAccess,
+              accessMode,
               ...(contextAttachments.length > 0 ? { contextAttachments } : {}),
               ...(schemaContext === undefined ? {} : { schemaContext }),
               ...(schemaMode === undefined ? {} : { schemaMode }),

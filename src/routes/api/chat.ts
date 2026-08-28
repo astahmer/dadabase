@@ -14,6 +14,7 @@ import { Effect } from "effect";
 import { z } from "zod";
 
 import type { AiSchemaContext } from "#src/lib/ai/ai-types.ts";
+import type { ChatAccessMode } from "#src/lib/ai/chat-access-mode.ts";
 import type { ChatContextAttachment } from "#src/lib/ai/chat-context.ts";
 
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
@@ -46,7 +47,10 @@ import {
   type UpsertChatMessageInput,
 } from "#src/server/chat/chat-thread.repository.ts";
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
-import { isSelectQuery } from "#src/server/introspection/detect-destructive-sql.ts";
+import {
+  isDestructiveQuery,
+  isSelectQuery,
+} from "#src/server/introspection/detect-destructive-sql.ts";
 import {
   executeCustomSql,
   getTableColumns,
@@ -141,7 +145,7 @@ const bodySchema = z.object({
   threadId: z.string().optional(),
   /** Enabled tools; absent → all. Unknown ids are dropped server-side. */
   enabledTools: z.array(z.string()).optional(),
-  /** Row and result access are separate from schema-sharing consent. */
+  /** Row and result sharing can be narrowed independently of SQL access. */
   dataAccess: z
     .object({
       schema: z.boolean(),
@@ -157,6 +161,7 @@ const bodySchema = z.object({
    * Absent → use schemaContext as sent ("all"/client-filtered "selected").
    */
   schemaMode: z.enum(["auto"]).optional(),
+  accessMode: z.enum(["read-only", "read-write", "full"]).optional(),
 });
 
 const resolveConnection = (connectionName: string) =>
@@ -170,13 +175,26 @@ const resolveConnection = (connectionName: string) =>
 const runSqlToolExecute = async ({
   sql,
   connectionUrl,
+  accessMode = "read-only",
+  enforceAccess = true,
 }: {
   sql: string;
   connectionUrl: string;
+  accessMode?: ChatAccessMode;
+  enforceAccess?: boolean;
 }) => {
   const program = Effect.gen(function* () {
-    if (isReadOnlyConnection(connectionUrl) && !isSelectQuery(sql)) {
+    if (enforceAccess && isReadOnlyConnection(connectionUrl) && !isSelectQuery(sql)) {
       return { ok: false as const, error: "This connection is read-only. Only SELECT queries." };
+    }
+    if (enforceAccess && !isSelectQuery(sql) && accessMode === "read-only") {
+      return { ok: false as const, error: "Read-only AI access only allows SELECT queries." };
+    }
+    if (enforceAccess && isDestructiveQuery(sql) && accessMode !== "full") {
+      return {
+        ok: false as const,
+        error: "Full Access is required for DELETE and destructive SQL.",
+      };
     }
     const result = yield* executeCustomSql({ sql });
     const rows = result.rows.slice(0, MAX_RESULT_ROWS).map((row) => {
@@ -381,7 +399,7 @@ const explainSqlToolExecute = async ({
   if (!isSelectQuery(sql)) {
     return { ok: false as const, error: "Only SELECT/WITH statements can be explained." };
   }
-  return runSqlToolExecute({ sql: `${prefix}${sql}`, connectionUrl });
+  return runSqlToolExecute({ sql: `${prefix}${sql}`, connectionUrl, enforceAccess: false });
 };
 
 export const Route = createFileRoute("/api/chat")({
@@ -462,6 +480,7 @@ export const Route = createFileRoute("/api/chat")({
         }
 
         const dataAccess = normalizeChatDataAccess(body.dataAccess);
+        const accessMode = body.accessMode ?? "read-only";
         const enabledTools = applyChatDataAccessToTools(
           normalizeEnabledChatTools(body.enabledTools),
           dataAccess,
@@ -520,6 +539,7 @@ export const Route = createFileRoute("/api/chat")({
             schema: effectiveSchema,
             enabledTools,
             contextAttachments,
+            accessMode,
           }),
           messages: await convertToModelMessages(uiMessages),
           // Audit S5: Stop must reach the upstream provider, not just detach
@@ -543,13 +563,13 @@ export const Route = createFileRoute("/api/chat")({
               ? {
                   run_sql: tool({
                     description:
-                      "Execute the drafted read-only SQL to answer a reasonably answerable data question. Requires explicit user approval before it runs.",
-                    needsApproval: true,
+                      "Execute SQL to answer a reasonably answerable data question. SELECT/WITH runs directly; writes require explicit user approval.",
+                    needsApproval: ({ sql }) => !isSelectQuery(sql),
                     inputSchema: z.object({
                       sql: z.string().min(1),
                     }),
                     execute: async ({ sql }) =>
-                      runSqlToolExecute({ sql, connectionUrl: connection.url }),
+                      runSqlToolExecute({ sql, connectionUrl: connection.url, accessMode }),
                   }),
                 }
               : {}),

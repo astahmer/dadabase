@@ -1,7 +1,6 @@
 import type { Virtualizer } from "@tanstack/react-virtual";
 
 import { createListCollection, Listbox } from "@ark-ui/react/listbox";
-import { useFilter } from "@ark-ui/react/locale";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Code2, DatabaseIcon, Eye, FunctionSquare, Search, Zap } from "lucide-react";
@@ -11,6 +10,7 @@ import { Button } from "#src/components/ui/button.tsx";
 import { Tooltip } from "#src/components/ui/tooltip.tsx";
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { getStoredPageLimit } from "#src/lib/default-page-limit.ts";
+import { fuzzyFilter } from "#src/lib/fuzzy-search.ts";
 import { getDbNameFromConnectionUrl } from "#src/lib/replace-database-in-connection-url.ts";
 import { listAvailableDatabase } from "#src/server/introspection/start-fns/get-available-database-list.start.ts";
 import { listAvailableSchemasQueryOptions } from "#src/server/introspection/start-fns/get-available-schemas.start.ts";
@@ -104,23 +104,18 @@ export const ConnectionPageSidebar = (props: ConnectionPageSidebarProps) => {
   });
   const tableList = tablesListQuery.data || [];
 
-  const { contains } = useFilter({ sensitivity: "base" });
-
   const tableFilter = useSearch({
     from: "/connections/$connectionName",
     select: (s) => s.tableFilter,
   });
   const selectedTable = useActiveTabState((s) => s.table);
 
-  const filteredTables = useMemo(
-    () =>
-      tableList.filter(
-        (table) =>
-          (tableFilter ? contains(table.name, tableFilter) : true) &&
-          (isNotSqlite ? selectedSchema === table.schema : true),
-      ),
-    [tableList, tableFilter, selectedSchema, contains, isNotSqlite],
-  );
+  const filteredTables = useMemo(() => {
+    const scoped = tableList.filter((table) =>
+      isNotSqlite ? selectedSchema === table.schema : true,
+    );
+    return fuzzyFilter(scoped, tableFilter ?? "", (table) => `${table.name} ${table.schema}`);
+  }, [tableList, tableFilter, selectedSchema, isNotSqlite]);
   const filteredTablesNames = useMemo(() => filteredTables.map((t) => t.name), [filteredTables]);
 
   const databaseObjectsQuery = useQuery({
@@ -561,13 +556,22 @@ const DatabaseObjectNavigator = (props: {
   }) => void;
 }) => {
   const [open, setOpen] = useState(false);
+  const uniqueObjects = useMemo(() => {
+    const seen = new Set<string>();
+    return props.objects.filter((object) => {
+      const key = `${object.kind}:${object.schema}:${object.name}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [props.objects]);
   const counts = useMemo(() => {
     const byKind = new Map<string, number>();
-    for (const object of props.objects) {
+    for (const object of uniqueObjects) {
       byKind.set(object.kind, (byKind.get(object.kind) ?? 0) + 1);
     }
     return Array.from(byKind.entries());
-  }, [props.objects]);
+  }, [uniqueObjects]);
 
   return (
     <div
@@ -583,11 +587,13 @@ const DatabaseObjectNavigator = (props: {
         <span className="flex items-center gap-2">
           <Code2 className="size-3.5" />
           Objects
-          {!props.isLoading && props.objects.length > 0 ? (
-            <span className="text-muted-foreground normal-case">{props.objects.length}</span>
+          {!props.isLoading && uniqueObjects.length > 0 ? (
+            <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] normal-case">
+              {uniqueObjects.length}
+            </span>
           ) : null}
         </span>
-        <span className="text-muted-foreground text-[10px] normal-case">
+        <span className="text-muted-foreground max-w-[55%] truncate text-[10px] normal-case">
           {open
             ? "Hide"
             : counts.map(([kind, count]) => `${count} ${objectLabel(kind)}`).join(" · ") || "None"}
@@ -601,12 +607,12 @@ const DatabaseObjectNavigator = (props: {
         >
           {props.isLoading ? (
             <div className="text-muted-foreground px-1 py-2 text-xs">Loading objects…</div>
-          ) : props.objects.length === 0 ? (
+          ) : uniqueObjects.length === 0 ? (
             <div className="text-muted-foreground px-1 py-2 text-xs">
               No views, routines, or triggers
             </div>
           ) : (
-            props.objects.map((object) => {
+            uniqueObjects.map((object) => {
               const Icon = objectIcon(object.kind);
               return (
                 <button
