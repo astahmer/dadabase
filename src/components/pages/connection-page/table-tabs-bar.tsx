@@ -23,6 +23,7 @@ import {
   CopyPlus,
   Edit2,
   PanelLeft,
+  PanelRight,
   Plus,
   Sparkles,
   X,
@@ -59,6 +60,8 @@ interface TableTabsBarProps {
   onRenameTab?: (tabId: string, newName: string) => void;
   onToggleSidebar?: () => void;
   isSidebarCollapsed?: boolean;
+  onToggleSidechat?: () => void;
+  isSidechatOpen?: boolean;
   onTabsReorder?: (activeTabId: string, overTabId: string) => void;
 }
 
@@ -233,7 +236,7 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
     onTabChange,
     onTabClose,
     onAddTab,
-  onAddAiTab,
+    onAddAiTab,
     onTabHover,
     onDuplicateTab,
     onCloseTabsOnLeft,
@@ -244,6 +247,8 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
     onRenameTab,
     onToggleSidebar,
     isSidebarCollapsed,
+    onToggleSidechat,
+    isSidechatOpen,
     onTabsReorder,
   } = props;
 
@@ -343,6 +348,22 @@ export const TableTabsBar = (props: TableTabsBarProps) => {
                 type="button"
               >
                 <Sparkles className="text-primary h-4 w-4" />
+              </Button>
+            </Tooltip>
+          )}
+          {onToggleSidechat && (
+            <Tooltip content={isSidechatOpen ? "Close AI sidechat" : "Open AI sidechat"}>
+              <Button
+                onClick={onToggleSidechat}
+                variant={isSidechatOpen ? "secondary" : "ghost"}
+                size="xs"
+                className="relative top-[3px] shrink-0"
+                aria-label={isSidechatOpen ? "Close AI sidechat" : "Open AI sidechat"}
+                aria-pressed={isSidechatOpen}
+                data-testid="toggle-ai-sidechat"
+                type="button"
+              >
+                <PanelRight className="h-4 w-4" />
               </Button>
             </Tooltip>
           )}

@@ -85,6 +85,7 @@ import { conversationMarkdown } from "#src/lib/chat/web/conversation/conversatio
 import { ThreadMessage } from "#src/lib/chat/web/thread/thread-message.tsx";
 import { stageChatReturn, stageCustomSqlRun } from "#src/lib/custom-sql-run-handoff.ts";
 import { SQL_PREVIEW_REVEAL_SIZE } from "#src/lib/sql-preview-panel.ts";
+import { cn } from "#src/lib/utils.ts";
 import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fns/list-db-connection.start.ts";
 import { getAllTablesColumnsQueryOptions } from "#src/server/introspection/start-fns/get-all-tables-columns.start.ts";
 
@@ -132,6 +133,9 @@ export const AiChatPage = ({
   initialAskTable,
   initialAiIntent,
   embedded,
+  variant = "page",
+  onClose,
+  onOpenFullChat,
 }: {
   connectionName: string;
   /** Audit S8: `?thread=` deep link — select this conversation on mount. */
@@ -143,6 +147,10 @@ export const AiChatPage = ({
   /** Rendered inside a workspace tab: keep tab-state URLs intact, skip
    * flat-route URL cleanup, and never discard sibling tabs on "Use this SQL". */
   embedded?: boolean;
+  /** Full-page deep work or compact contextual workspace sidechat. */
+  variant?: "page" | "sidechat";
+  onClose?: () => void;
+  onOpenFullChat?: () => void;
 }) => {
   const connectionList = useSuspenseQuery(listDbConnectionQueryOptions);
   useDocumentTitle(`${connectionName} · AI assistant — Dadabase`);
@@ -173,6 +181,9 @@ export const AiChatPage = ({
       initialAskTable={initialAskTable}
       initialAiIntent={initialAiIntent}
       embedded={embedded}
+      variant={variant}
+      onClose={onClose}
+      onOpenFullChat={onOpenFullChat}
     />
   );
 };
@@ -183,12 +194,18 @@ const AiChatPageInner = ({
   initialAskTable,
   initialAiIntent,
   embedded,
+  variant,
+  onClose,
+  onOpenFullChat,
 }: {
   connection: DbConnection;
   initialConversationId?: string;
   initialAskTable?: string;
   initialAiIntent?: "chat" | "sql";
   embedded?: boolean;
+  variant: "page" | "sidechat";
+  onClose?: () => void;
+  onOpenFullChat?: () => void;
 }) => {
   const navigate = useNavigate();
   // Audit T5: workspace tab-state writers can fire while the /ai child route
@@ -209,7 +226,9 @@ const AiChatPageInner = ({
   }, [embedded]);
   // Dialect-aware: SQLite/LibSQL live in "main", Postgres in "public".
   const [schema] = useState(() => getDialectDefaultSchema(connection.dialect));
-  const [settingsOpen, setSettingsOpen] = useState(() => !hasUsableByokConfig());
+  const [settingsOpen, setSettingsOpen] = useState(
+    () => variant === "page" && !hasUsableByokConfig(),
+  );
   // Audit S2: consent is a durable per-connection decision, not component
   // state — re-gating every visit trains users to stop reading the banner.
   // Storage read happens in an effect (not a lazy initializer) so server and
@@ -361,20 +380,33 @@ const AiChatPageInner = ({
   };
 
   return (
-    <div className="bg-background flex h-full min-h-0 flex-col" data-testid="ai-chat-page">
+    <div
+      className={cn(
+        "bg-background flex h-full min-h-0 flex-col",
+        variant === "sidechat" && "border-border border-l shadow-2xl",
+      )}
+      data-testid="ai-chat-page"
+      data-ai-chat-variant={variant}
+    >
       <header className="border-border flex items-center gap-3 border-b px-4 py-2.5">
-        <Link
-          to="/connections/$connectionName"
-          params={{ connectionName: connection.name }}
-          className={buttonVariants({ variant: "ghost", size: "sm" })}
-          data-testid="ai-chat-back"
-        >
-          <ArrowLeft className="size-4" />
-          {connection.name}
-        </Link>
+        {variant === "sidechat" ? (
+          <div className="flex min-w-0 items-center gap-2">
+            <Sparkles className="text-primary size-4 shrink-0" />
+            <span className="truncate text-sm font-semibold">Ask AI</span>
+          </div>
+        ) : (
+          <Link
+            to="/connections/$connectionName"
+            params={{ connectionName: connection.name }}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+            data-testid="ai-chat-back"
+          >
+            <ArrowLeft className="size-4" />
+            {connection.name}
+          </Link>
+        )}
         <h1 className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles className="size-4" />
-          AI assistant
+          {variant === "sidechat" ? connection.name : "AI assistant"}
         </h1>
         <Badge
           variant="outline"
@@ -390,17 +422,37 @@ const AiChatPageInner = ({
               : "not configured"}
         </Badge>
         <div className="ml-auto flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="md:hidden"
-            onClick={() => setThreadListOpen(true)}
-            data-testid="ai-threads-toggle"
-            aria-label="Show chats"
-          >
-            <PanelLeft className="size-4" />
-            Threads
-          </Button>
+          {variant === "page" ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden"
+              onClick={() => setThreadListOpen(true)}
+              data-testid="ai-threads-toggle"
+              aria-label="Show chats"
+            >
+              <PanelLeft className="size-4" />
+              Threads
+            </Button>
+          ) : (
+            <>
+              {onOpenFullChat ? (
+                <Button size="xs" variant="outline" onClick={onOpenFullChat}>
+                  Open full chat
+                </Button>
+              ) : null}
+              {onClose ? (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={onClose}
+                  aria-label="Close AI sidechat"
+                >
+                  <X className="size-4" />
+                </Button>
+              ) : null}
+            </>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -476,6 +528,7 @@ const AiChatPageInner = ({
             open: threadListOpen,
             onClose: () => setThreadListOpen(false),
           }}
+          variant={variant}
         />
       </div>
     </div>
@@ -983,6 +1036,7 @@ const AiChatBody = ({
   onAdoptAutoTables,
   onOpenSchemaPanel,
   threadList,
+  variant,
 }: {
   connection: DbConnection;
   schemaContext: AiSchemaContext;
@@ -1024,6 +1078,7 @@ const AiChatBody = ({
   onOpenSchemaPanel: () => void;
   /** Audit C6/R1: narrow-viewport thread-list drawer state. */
   threadList: { open: boolean; onClose: () => void };
+  variant: "page" | "sidechat";
 }) => {
   // Audit S8: the ?thread= consumer must live INSIDE ChatProvider (it calls
   // useChatActions); see InitialThreadConsumer below.
@@ -1084,7 +1139,9 @@ const AiChatBody = ({
       {initialConversationId !== undefined && (
         <InitialThreadConsumer initialConversationId={initialConversationId} />
       )}
-      <ThreadListPanel overlayOpen={threadList.open} onClose={threadList.onClose} />
+      {variant === "page" ? (
+        <ThreadListPanel overlayOpen={threadList.open} onClose={threadList.onClose} />
+      ) : null}
       <main className="flex min-w-0 flex-1 flex-col">
         {/* Audit C1: the full chat surface stays mounted pre-consent — users
             must see what they are unlocking. Only Send is gated. */}

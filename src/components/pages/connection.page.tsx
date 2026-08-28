@@ -71,6 +71,7 @@ import {
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { useDocumentTitle } from "#src/hooks/use-document-title.ts";
 import { useJsEvalFilter } from "#src/hooks/use-js-eval-filter.ts";
+import { getCurrentChatConversationId } from "#src/lib/ai/chat-conversation-current.ts";
 import {
   buildCascadeDeletePreview,
   withDependentRowCounts,
@@ -258,6 +259,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     "favorites" | "history" | null
   >(null);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [sidechatOpen, setSidechatOpen] = useState(false);
   const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
   const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
   // Splitter percentages must be deterministic during SSR. Calculating from the
@@ -673,7 +675,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                     {/* Rows Content Panel */}
                     <Splitter.Panel
                       id={panels.rowsContent}
-                      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+                      className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden"
                     >
                       {/* Tabs */}
                       <ConnectionPageTabs
@@ -701,6 +703,8 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                           });
                         }}
                         isSidebarCollapsed={sidebarSplitterCtx.isPanelCollapsed(panels.sidebar)}
+                        onToggleSidechat={() => setSidechatOpen((open) => !open)}
+                        isSidechatOpen={sidechatOpen && !aiChatActive}
                       />
                       {aiChatActive ? (
                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -731,6 +735,26 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                           connection={connection}
                         />
                       )}
+                      {sidechatOpen && !aiChatActive ? (
+                        <div className="absolute inset-y-0 right-0 z-20 w-full max-w-[26rem]">
+                          <AiChatPage
+                            connectionName={connection.name}
+                            initialAskTable={search.table}
+                            variant="sidechat"
+                            onClose={() => setSidechatOpen(false)}
+                            onOpenFullChat={() => {
+                              setSidechatOpen(false);
+                              void navigate({
+                                to: "/connections/$connectionName/ai",
+                                params: { connectionName: connection.name },
+                                search: getCurrentChatConversationId()
+                                  ? { thread: getCurrentChatConversationId() }
+                                  : {},
+                              });
+                            }}
+                          />
+                        </div>
+                      ) : null}
                     </Splitter.Panel>
 
                     {/* Resize Handle for Query Logger */}

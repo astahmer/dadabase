@@ -34,6 +34,8 @@ interface ConnectionPageTabsProps {
   dialect: DatabaseDialect;
   onToggleSidebar?: () => void;
   isSidebarCollapsed?: boolean;
+  onToggleSidechat?: () => void;
+  isSidechatOpen?: boolean;
 }
 
 export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
@@ -279,6 +281,8 @@ export const ConnectionPageTabs = (props: ConnectionPageTabsProps) => {
       hasMultipleSchemas={schemaWithTables.length > 1}
       onToggleSidebar={props.onToggleSidebar}
       isSidebarCollapsed={props.isSidebarCollapsed}
+      onToggleSidechat={props.onToggleSidechat}
+      isSidechatOpen={props.isSidechatOpen}
       onTabsReorder={handleTabsReorder}
       onTabHover={(tab) => {
         if (tab.schema && tab.table) {
