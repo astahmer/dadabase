@@ -478,6 +478,10 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
   };
   const sidebarSize = useActiveTabState((_tab, search) => search.sidebarSize);
   const queryLoggerSize = useActiveTabState((_tab, search) => search.queryLoggerSize);
+  const activeAiThreadId = useSearch({
+    from: "/connections/$connectionName",
+    select: (currentSearch) => currentSearch.thread,
+  });
   // Splitter percentages must be deterministic during SSR. Calculating from the
   // browser viewport caused server/client min-size mismatches and hydration warnings.
   const sidebarMinSize = 20;
@@ -948,6 +952,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                       ) : search.initialTabMode === "ai" ? (
                         <AiChatPage
                           connectionName={connection.name}
+                          initialConversationId={activeAiThreadId}
                           initialAskTable={search.askTable}
                           initialAiIntent={search.aiIntent}
                           embedded
@@ -1055,6 +1060,7 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                             </button>
                             <AiChatPage
                               connectionName={connection.name}
+                              initialConversationId={activeAiThreadId}
                               initialAskTable={search.table}
                               contextAttachments={[
                                 ...workspaceContextAttachments,

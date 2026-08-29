@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { defineCatalog } from "@json-render/core";
 import { createRenderer } from "@json-render/react";
 import { schema } from "@json-render/react/schema";
@@ -9,6 +11,17 @@ const datumSchema = z.object({
   label: z.string(),
   value: z.number(),
 });
+const statsPropsSchema = z.object({
+  title: z.string(),
+  data: z.array(datumSchema),
+});
+
+const resultTableColumnSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+});
+const resultTableValueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+const resultTableRowSchema = z.record(z.string(), resultTableValueSchema);
 
 /**
  * Tiny catalog for AI chart/stat generative UI (vercel-labs/json-render).
@@ -22,6 +35,26 @@ export const aiStatsCatalog = defineCatalog(schema, {
         data: z.array(datumSchema),
       }),
       description: "Bar chart or metric grid for query result summaries",
+      slots: [],
+    },
+    MetricGrid: {
+      props: statsPropsSchema,
+      description: "A compact grid of labeled numeric metrics",
+      slots: [],
+    },
+    BarChart: {
+      props: statsPropsSchema,
+      description: "A horizontal bar chart for labeled numeric values",
+      slots: [],
+    },
+    ResultTable: {
+      props: z.object({
+        title: z.string().optional(),
+        columns: z.array(resultTableColumnSchema),
+        rows: z.array(resultTableRowSchema),
+        emptyLabel: z.string().optional(),
+      }),
+      description: "A compact, readable table for safe query result previews",
       slots: [],
     },
   },
@@ -43,6 +76,65 @@ export type AiStatsJsonRenderSpec = {
     }
   >;
 };
+
+export type AiResultTableData = {
+  title?: string;
+  columns: ReadonlyArray<{ key: string; label: string }>;
+  rows: ReadonlyArray<Record<string, unknown>>;
+  emptyLabel?: string;
+};
+
+export type AiResultTableJsonRenderSpec = {
+  root: string;
+  elements: Record<
+    string,
+    {
+      type: "ResultTable";
+      props: {
+        title?: string;
+        columns: Array<{ key: string; label: string }>;
+        rows: Array<Record<string, string | number | boolean | null>>;
+        emptyLabel?: string;
+      };
+      children: string[];
+    }
+  >;
+};
+
+const renderableCellValue = (value: unknown): string | number | boolean | null => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
+/** Convert trusted, app-owned result data into a constrained table spec. */
+export const aiResultTableToJsonRenderSpec = (
+  data: AiResultTableData,
+): AiResultTableJsonRenderSpec => ({
+  root: "root",
+  elements: {
+    root: {
+      type: "ResultTable",
+      props: {
+        ...(data.title === undefined ? {} : { title: data.title }),
+        columns: data.columns.map((column) => ({ key: column.key, label: column.label })),
+        rows: data.rows.map((row) =>
+          Object.fromEntries(
+            data.columns.map((column) => [column.key, renderableCellValue(row[column.key])]),
+          ),
+        ),
+        ...(data.emptyLabel === undefined ? {} : { emptyLabel: data.emptyLabel }),
+      },
+      children: [],
+    },
+  },
+});
 
 /** Convert our AI stats DTO into a json-render Spec. */
 export const aiStatsToJsonRenderSpec = (data: AiStatsPanelData): AiStatsJsonRenderSpec => ({
@@ -120,7 +212,73 @@ const StatsPanelView = ({
   );
 };
 
+const ResultTableView = ({
+  props,
+}: {
+  props: {
+    title?: string;
+    columns: Array<{ key: string; label: string }>;
+    rows: Array<Record<string, string | number | boolean | null>>;
+    emptyLabel?: string;
+  };
+}): ReactNode => (
+  <div className="space-y-1.5">
+    {props.title !== undefined ? <h4 className="text-sm font-medium">{props.title}</h4> : null}
+    {props.rows.length === 0 ? (
+      <p className="text-muted-foreground text-xs">{props.emptyLabel ?? "No rows returned."}</p>
+    ) : (
+      <div className="overflow-x-auto rounded border">
+        <table className="w-full min-w-max text-left text-xs">
+          <thead className="bg-muted/50">
+            <tr>
+              {props.columns.map((column) => (
+                <th key={column.key} className="px-2 py-1.5 font-medium whitespace-nowrap">
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(() => {
+              const occurrences = new Map<string, number>();
+              return props.rows.slice(0, 8).map((row) => {
+                const fingerprint = Object.entries(row)
+                  .map(([key, value]) => `${key}:${String(value)}`)
+                  .join("|");
+                const occurrence = occurrences.get(fingerprint) ?? 0;
+                occurrences.set(fingerprint, occurrence + 1);
+                return (
+                  <tr key={`${fingerprint}-${occurrence}`} className="border-t align-top">
+                    {props.columns.map((column) => (
+                      <td key={column.key} className="max-w-56 px-2 py-1.5 break-words">
+                        {row[column.key] === null ? "—" : String(row[column.key])}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              });
+            })()}
+          </tbody>
+        </table>
+        {props.rows.length > 8 ? (
+          <p className="text-muted-foreground border-t px-2 py-1.5 text-[11px]">
+            Showing 8 of {props.rows.length} sampled rows.
+          </p>
+        ) : null}
+      </div>
+    )}
+  </div>
+);
+
 /** json-render Renderer for AI stats/charts. */
 export const AiStatsJsonRenderer = createRenderer(aiStatsCatalog, {
   StatsPanel: ({ element }) => <StatsPanelView props={element.props} />,
+  MetricGrid: ({ element }) => <StatsPanelView props={{ ...element.props, variant: "stat" }} />,
+  BarChart: ({ element }) => <StatsPanelView props={{ ...element.props, variant: "bar" }} />,
+  ResultTable: ({ element }) => <ResultTableView props={element.props} />,
 });
+
+/** json-render Renderer for safe, app-owned query result previews. */
+export const AiResultTableJsonRenderer = ({ spec }: { spec: AiResultTableJsonRenderSpec }) => (
+  <AiStatsJsonRenderer spec={spec} />
+);

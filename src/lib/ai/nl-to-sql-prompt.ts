@@ -179,7 +179,8 @@ export const buildChatSystemPrompt = (input: {
       : []),
     ...(hasTool("open_workspace_view")
       ? [
-          "- When the user wants to explore/filter a table interactively rather than get an answer, call `open_workspace_view`; they will click a card to open it.",
+          "- When the user wants to explore/filter a table interactively rather than get an answer, call `open_workspace_view`; it creates a suggested view card that the user can click to open.",
+          "- Treat `open_workspace_view` as a suggestion only: never say that a view was opened or is ready until the user clicks its action; say that they can open it.",
         ]
       : []),
     "",

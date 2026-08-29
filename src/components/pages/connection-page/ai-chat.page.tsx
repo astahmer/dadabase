@@ -94,6 +94,10 @@ import {
   type StoredChatSchemaSelection,
 } from "#src/lib/ai/chat-schema-selection.ts";
 import { CHAT_TOOLS, DEFAULT_ENABLED_CHAT_TOOLS } from "#src/lib/ai/chat-tools.ts";
+import {
+  AiResultTableJsonRenderer,
+  aiResultTableToJsonRenderSpec,
+} from "#src/lib/ai/json-render-catalog.tsx";
 import { findPendingApproval } from "#src/lib/chat/chat/ui-messages.ts";
 import {
   ChatProvider,
@@ -342,7 +346,9 @@ const AiChatPageInner = ({
   const currentContextAttachmentsRef = useRef<readonly ChatContextAttachment[]>(
     effectiveContextAttachments,
   );
-  const currentConversationIdRef = useRef<string | undefined>(undefined);
+  const currentConversationIdRef = useRef<string | undefined>(initialConversationId);
+  const initialThreadPendingRef = useRef(initialConversationId !== undefined);
+  const conversationUrlSyncStartedRef = useRef(false);
   useEffect(() => {
     currentContextAttachmentsRef.current = effectiveContextAttachments;
   }, [effectiveContextAttachments]);
@@ -393,6 +399,31 @@ const AiChatPageInner = ({
     if (meta !== undefined) stageChatReturn(newTab.tabId, meta);
     void navigateToEditor(sql, newTab, meta);
   };
+
+  const handleConversationIdChange = useCallback(
+    (conversationId: string | undefined) => {
+      currentConversationIdRef.current = conversationId;
+
+      // The chat actor briefly reports no active thread while hydrating a
+      // deep-linked conversation. Keep the URL intact during that handoff.
+      if (conversationId === undefined && initialThreadPendingRef.current) return;
+      initialThreadPendingRef.current = false;
+
+      // Do not rewrite the URL from the initial empty actor state when this is
+      // a brand-new chat. Once the actor has emitted a real id, subsequent
+      // selections/new-chat actions own the URL.
+      if (!conversationUrlSyncStartedRef.current && conversationId === undefined) {
+        conversationUrlSyncStartedRef.current = true;
+        return;
+      }
+      conversationUrlSyncStartedRef.current = true;
+      const url = new URL(window.location.href);
+      if (conversationId === undefined) url.searchParams.delete("thread");
+      else url.searchParams.set("thread", conversationId);
+      window.history.replaceState(window.history.state, "", url);
+    },
+    [initialConversationId, navigate],
+  );
 
   /** open_workspace_view card click: browse tab pre-set with the model's state. */
   const openWorkspaceViewTab = (view: {
@@ -698,9 +729,7 @@ const AiChatPageInner = ({
           onContextAttachmentsChange={(attachments) => {
             currentContextAttachmentsRef.current = attachments;
           }}
-          onConversationIdChange={(conversationId) => {
-            currentConversationIdRef.current = conversationId;
-          }}
+          onConversationIdChange={handleConversationIdChange}
           onStreamingChange={setChatStreaming}
           threadList={{
             open: threadListOpen,
@@ -1886,7 +1915,8 @@ const ThreadListItem = ({
 
 /**
  * Audit S8: consume the `?thread=` deep link exactly once — select that
- * conversation, then strip the param so refreshes don't re-select forever.
+ * conversation while leaving the param in place so refresh/copy-paste keeps
+ * the same session selected.
  * Must be a child of ChatProvider (useChatActions) — hence its own component.
  * Deferred one tick like the thread-list hydration effect: xstate v5 drops
  * events sent to an actor before start() runs.
@@ -1900,11 +1930,6 @@ const InitialThreadConsumer = ({ initialConversationId }: { initialConversationI
     consumed.current = initialConversationId;
     const timer = window.setTimeout(() => {
       actions.selectConversation({ conversationId: initialConversationId });
-      const url = new URL(window.location.href);
-      if (url.searchParams.has("thread")) {
-        url.searchParams.delete("thread");
-        window.history.replaceState({}, "", url);
-      }
     }, 0);
     return () => window.clearTimeout(timer);
   }, [initialConversationId, actions]);
@@ -2878,13 +2903,13 @@ const ChatSurface = ({
             className="bg-muted/40 border-border space-y-2 rounded-md border p-2.5"
             data-testid="ai-chat-workspace-view-card"
           >
-            <p className="text-xs font-medium">Workspace view ready</p>
+            <p className="text-xs font-medium">Suggested filtered view</p>
             <p className="text-muted-foreground text-xs">
               Browse tab on {viewTable}
               {viewFilters.length > 0
                 ? ` with ${viewFilters.length} filter${viewFilters.length === 1 ? "" : "s"}`
                 : ""}
-              .
+              . Opens a new browse tab when you click the action.
             </p>
             <Button
               size="xs"
@@ -3581,18 +3606,6 @@ const previewColumnLabel = (column: string): string => {
     : words.charAt(0).toUpperCase() + words.slice(1);
 };
 
-const previewCellText = (value: unknown): string => {
-  if (value === null || value === undefined) return "—";
-  if (typeof value === "object") {
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return String(value);
-    }
-  }
-  return String(value);
-};
-
 const previewRelationStatus = (relation: Record<string, unknown>): string => {
   const resolved = typeof relation.resolvedCount === "number" ? relation.resolvedCount : 0;
   const unresolved = typeof relation.unresolvedCount === "number" ? relation.unresolvedCount : 0;
@@ -3752,35 +3765,15 @@ const PreviewRowsTable = ({
   rows: ReadonlyArray<Record<string, unknown>>;
   readable?: boolean;
 }): ReactNode => (
-  <div className="overflow-x-auto rounded border">
-    <table className="w-full min-w-max text-left text-xs">
-      <thead className="bg-muted/50">
-        <tr>
-          {columns.map((column) => (
-            <th key={column} className="px-2 py-1.5 font-medium whitespace-nowrap">
-              {readable ? previewColumnLabel(column) : column}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.slice(0, 8).map((row, index) => (
-          <tr key={index} className="border-t align-top">
-            {columns.map((column) => (
-              <td key={column} className="max-w-56 px-2 py-1.5 break-words">
-                {previewCellText(row[column])}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-    {rows.length > 8 ? (
-      <p className="text-muted-foreground border-t px-2 py-1.5 text-[11px]">
-        Showing 8 of {rows.length} sampled rows.
-      </p>
-    ) : null}
-  </div>
+  <AiResultTableJsonRenderer
+    spec={aiResultTableToJsonRenderSpec({
+      columns: columns.map((column) => ({
+        key: column,
+        label: readable ? previewColumnLabel(column) : column,
+      })),
+      rows,
+    })}
+  />
 );
 
 /** Audit M2: copy affordance for proposal/result SQL — the product's core output. */

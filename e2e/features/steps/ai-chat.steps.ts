@@ -1282,6 +1282,19 @@ When("I open the thread titled {string}", async ({ page }, title: string) => {
     .click({ timeout: 20_000 });
 });
 
+Then("the restored messages keep user before assistant order", async ({ page }) => {
+  const messages = page.locator('[data-testid="ai-chat-thread"] [data-message-role]');
+  await expect(messages).toHaveCount(2, { timeout: 15_000 });
+  await expect(messages.nth(0)).toHaveAttribute("data-message-role", "user");
+  await expect(messages.nth(1)).toHaveAttribute("data-message-role", "assistant");
+});
+
+Then("the active chat thread is present in the URL", async ({ page }) => {
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("thread"), { timeout: 10_000 })
+    .toBeTruthy();
+});
+
 Then("the schema-sharing consent banner is not shown", async ({ page }) => {
   await expect(page.getByTestId(CONSENT_PARAM)).toHaveCount(0, { timeout: 10_000 });
 });

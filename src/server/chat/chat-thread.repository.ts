@@ -81,8 +81,10 @@ const makeChatThreadRepository = Effect.gen(function* () {
           .selectFrom("chat_messages")
           .selectAll()
           .where("thread_id", "=", threadId)
-          .orderBy("created_at", "asc")
-          .orderBy("id", "asc"),
+          // Do not use the opaque message ID as a tie-breaker. Older rows
+          // can share a timestamp, and IDs are not chronological (an
+          // assistant ID can sort before the user message it answers).
+          .orderBy("created_at", "asc"),
       );
     }),
 
@@ -117,7 +119,8 @@ const makeChatThreadRepository = Effect.gen(function* () {
           const occupiedByAnotherThread = new Set(
             existingIds.filter((row) => row.thread_id !== input.threadId).map((row) => row.id),
           );
-          for (const message of uniqueMessages) {
+          const replacementStartedAt = Date.now();
+          for (const [index, message] of uniqueMessages.entries()) {
             if (message.role === "user" || message.role === "assistant") {
               // Client message IDs are normally globally unique, but an old
               // client or two browser tabs can reuse one. Keep both turns by
@@ -140,7 +143,11 @@ const makeChatThreadRepository = Effect.gen(function* () {
                     message.context === undefined || message.context === null
                       ? null
                       : JSON.stringify(message.context),
-                  created_at: Date.now(),
+                  // The client protocol can give every restored message the
+                  // same timestamp. A stable monotonic sequence preserves
+                  // user-before-assistant order across reloads and avoids
+                  // letting random message IDs decide the transcript order.
+                  created_at: replacementStartedAt + index,
                 }),
               );
             }

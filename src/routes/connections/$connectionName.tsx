@@ -91,6 +91,7 @@ const TabStateSchema = Schema.Struct({
 const searchSchema = Schema.Struct({
   dbName: Schema.String.pipe(Schema.optional),
   schema: Schema.String.pipe(Schema.optional), // Global schema selection (fallback when no tabs)
+  thread: Schema.String.pipe(Schema.optional), // Active AI conversation deep-link
   activeTabId: Schema.String.pipe(Schema.optional), // Explicit active tab ID
   tabs: Schema.Array(TabStateSchema).pipe(
     Schema.withDecodingDefault(

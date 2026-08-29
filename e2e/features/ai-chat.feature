@@ -306,6 +306,11 @@ Feature: AI chat assistant
     When I open the thread titled "hydration probe"
     Then my message "count the users table rows" is visible in the thread
     And the full reply "Hello from the mocked assistant stream" is visible
+    And the restored messages keep user before assistant order
+    And the active chat thread is present in the URL
+    When I reload the chat page
+    Then my message "count the users table rows" is visible in the thread
+    And the full reply "Hello from the mocked assistant stream" is visible
 
   Scenario: Schema-sharing consent persists across reloads (S2)
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"

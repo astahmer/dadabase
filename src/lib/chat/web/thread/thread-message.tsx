@@ -119,7 +119,12 @@ export const ThreadMessage = ({
       "",
     );
     return (
-      <Message id={`message-${message.id}`} align="start" className="scroll-mt-28 py-1">
+      <Message
+        id={`message-${message.id}`}
+        align="start"
+        className="scroll-mt-28 py-1"
+        data-message-role={message.role}
+      >
         <div className="w-full space-y-4">
           <div className="bg-border h-px" aria-hidden="true" />
           <details
@@ -157,6 +162,7 @@ export const ThreadMessage = ({
       id={`message-${message.id}`}
       align={isUser ? "end" : "start"}
       className="scroll-mt-28 py-1"
+      data-message-role={message.role}
     >
       <MessageContent className={cn(!isUser && "gap-3")}>
         {editingDraft === undefined ? (

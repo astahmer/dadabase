@@ -129,4 +129,41 @@ describe("ChatThreadRepository", () => {
       expect(JSON.parse(second[0]?.parts ?? "null")).toEqual(["b"]);
     }).pipe(Effect.provide(TestLayer)),
   );
+
+  it.effect("preserves user-before-assistant order when messages share a timestamp", () =>
+    Effect.gen(function* () {
+      const repository = yield* ChatThreadRepository;
+      const now = Date.now();
+
+      yield* repository.createThread({
+        id: "ordered-thread",
+        connection_id: "connection-1",
+        title: "Ordered thread",
+        status: "regular",
+        pinned: false,
+        created_at: now,
+        updated_at: now,
+      });
+
+      // Deliberately make the assistant ID sort before the user ID. The
+      // persisted transcript order must come from the canonical message
+      // sequence, never from an opaque client ID.
+      yield* repository.replaceMessages({
+        threadId: "ordered-thread",
+        messages: [
+          { id: "z-user", threadId: "ordered-thread", role: "user", parts: ["question"] },
+          {
+            id: "a-assistant",
+            threadId: "ordered-thread",
+            role: "assistant",
+            parts: ["answer"],
+          },
+        ],
+      });
+
+      const messages = yield* repository.listMessages("ordered-thread");
+      expect(messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+      expect(messages.map((message) => message.id)).toEqual(["z-user", "a-assistant"]);
+    }).pipe(Effect.provide(TestLayer)),
+  );
 });
