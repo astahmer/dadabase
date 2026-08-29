@@ -64,6 +64,19 @@ const MAX_RESULT_ROWS = 50;
 const MAX_PREVIEW_ROWS = 25;
 const MAX_PREVIEW_RELATIONS = 4;
 
+const chatPersistenceQueues = new Map<string, Promise<void>>();
+
+const persistChatTurn = async (threadId: string, persist: () => Promise<void>): Promise<void> => {
+  const previous = chatPersistenceQueues.get(threadId) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(persist);
+  chatPersistenceQueues.set(threadId, current);
+  try {
+    await current;
+  } finally {
+    if (chatPersistenceQueues.get(threadId) === current) chatPersistenceQueues.delete(threadId);
+  }
+};
+
 const DISPLAY_COLUMN_NAMES = [
   "display_name",
   "title",
@@ -903,7 +916,7 @@ export const Route = createFileRoute("/api/chat")({
           await AppRuntime.runPromise(program as never);
         })();
         // Detached: persistence failures must not break the client stream.
-        void persistTurn.catch((error) => {
+        void persistChatTurn(threadId, () => persistTurn).catch((error) => {
           console.error("[chat] failed to persist turn", error);
         });
 

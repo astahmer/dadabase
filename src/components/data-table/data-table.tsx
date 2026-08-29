@@ -409,6 +409,7 @@ const TableContainer = <TData extends RowData>(
     table.getCenterVisibleLeafColumns?.() ?? leafColumns.filter((c) => !c.getIsPinned());
 
   const columnVirtualizer = useVirtualizer({
+    useFlushSync: false,
     enabled: props.enableColumnVirtualization,
     horizontal: true,
     count: centerLeafColumns.length,

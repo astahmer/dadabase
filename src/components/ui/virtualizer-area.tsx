@@ -52,6 +52,7 @@ export const VirtualizerArea = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
+    useFlushSync: false,
     count,
     getScrollElement: () => scrollContainerRef.current,
     estimateSize: () => 41, // Default: py-2.5 + border = ~41px

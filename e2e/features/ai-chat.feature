@@ -21,6 +21,20 @@ Feature: AI chat assistant
     And the generating indicator shows while the reply is pending
     And the full reply "Hello from the mocked assistant stream" is visible
 
+  Scenario: Follow-up messages continue the active conversation
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API is mocked with canned streams and request recording
+    And the current mock mode is "text"
+    When I open the AI chat page
+    And I approve sharing schema context
+    And I type "first question" and press send
+    Then the full reply "Hello from the mocked assistant stream" is visible
+    And the active chat thread is present in the URL
+    When I type "follow-up question" and press send
+    Then my message "follow-up question" is visible in the thread
+    And the thread shows exactly 2 user messages
+    And the follow-up request continues the same chat conversation
+
   Scenario: propose_sql approval round-trip posts the user decision
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
     And the chat API is mocked with canned streams and request recording
@@ -595,10 +609,21 @@ Feature: AI chat assistant
 
   Scenario: AI sidechat stays readable across desktop and narrow widths
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API is mocked with canned streams and request recording
+    And the current mock mode is "text"
     When I open the connection workspace
     And I pick table "users" from the new-tab listbox
     And I open the AI sidechat
     And I approve sharing schema context if needed
+    Then the AI sidechat open state is present in the URL
+    When I reload the workspace page
+    Then the AI sidechat is still open
+    When I type "sidechat question" and press send
+    Then the full reply "Hello from the mocked assistant stream" is visible
+    And the active chat thread is present in the URL
+    When I reload the workspace page
+    Then the AI sidechat is still open
+    And the active chat thread is present in the URL
     Then the AI sidechat stays within the main content panel
     Then the AI sidechat suggestions are expanded
     Then the AI sidechat matches the "default" visual snapshot
@@ -614,6 +639,16 @@ Feature: AI chat assistant
     And I approve sharing schema context if needed
     And I attach tables "users" and "posts" to AI context
     Then the AI context picker remains open
+
+  Scenario: Auto context can replace explicit table attachments
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    When I open the AI chat page
+    And I approve sharing schema context if needed
+    And I attach tables "users" and "posts" to AI context
+    When I enable automatic AI table context
+    Then the AI context picker shows no attached tables
+    And I open the AI schema settings
+    And the AI schema mode is "auto"
 
   Scenario: Full chat thread sidebar can be resized
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"

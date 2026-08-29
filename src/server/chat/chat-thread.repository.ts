@@ -6,6 +6,9 @@ import type { AppDatabaseSchema } from "#src/db/app.db.schema.ts";
 
 import { AppDatabase } from "#src/db/app.db.ts";
 
+const isUniqueViolation = (error: unknown): boolean =>
+  /(?:unique constraint|duplicate key|already exists)/i.test(String(error));
+
 export type ChatThreadRow = Selectable<AppDatabaseSchema["chat_threads"]>;
 export type ChatMessageRow = Selectable<AppDatabaseSchema["chat_messages"]>;
 
@@ -128,10 +131,10 @@ const makeChatThreadRepository = Effect.gen(function* () {
               const persistedId = occupiedByAnotherThread.has(message.id)
                 ? `${input.threadId}:${message.id}`
                 : message.id;
-              yield* trx.execute(
+              const values = (id: string) =>
                 trx.insertInto("chat_messages").values({
-                  id: persistedId,
-                  thread_id: message.threadId,
+                  id,
+                  thread_id: input.threadId,
                   role: message.role,
                   parts: JSON.stringify(message.parts),
                   model: message.model ?? null,
@@ -148,6 +151,17 @@ const makeChatThreadRepository = Effect.gen(function* () {
                   // user-before-assistant order across reloads and avoids
                   // letting random message IDs decide the transcript order.
                   created_at: replacementStartedAt + index,
+                });
+              yield* trx.execute(values(persistedId)).pipe(
+                Effect.catch((error) => {
+                  // The preflight collision check cannot close a race with a
+                  // second request or another browser tab. Preserve the turn
+                  // with a durable thread-scoped id instead of dropping the
+                  // entire transcript after a PRIMARY KEY collision.
+                  if (!isUniqueViolation(error)) return Effect.fail(error);
+                  return trx.execute(
+                    values(`${input.threadId}:${message.id}:${crypto.randomUUID()}`),
+                  );
                 }),
               );
             }

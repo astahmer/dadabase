@@ -323,7 +323,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     "favorites" | "history" | null
   >(null);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
-  const [sidechatOpen, setSidechatOpen] = useState(false);
   const [sidechatInitialized, setSidechatInitialized] = useState(false);
   const [sidechatSide, setSidechatSide] = useState<ChatSidechatSide>(getStoredChatSidechatSide);
   const [sidechatWidth, setSidechatWidth] = useState(CHAT_SIDECHAT_WIDTH_DEFAULT);
@@ -450,15 +449,24 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     [sidechatMobileHeight],
   );
   const sidechatReturnFocusRef = useRef<HTMLElement | null>(null);
-  const openSidechat = useCallback((attachments: readonly ChatContextAttachment[] = []) => {
-    const activeElement = document.activeElement;
-    sidechatReturnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
-    setSidechatInitialized(true);
-    if (attachments.length > 0) setSidechatContext(attachments);
-    setSidechatOpen(true);
-  }, []);
+  const openSidechat = useCallback(
+    (attachments: readonly ChatContextAttachment[] = []) => {
+      const activeElement = document.activeElement;
+      sidechatReturnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
+      setSidechatInitialized(true);
+      if (attachments.length > 0) setSidechatContext(attachments);
+      void navigate({ search: (prev) => ({ ...prev, aiSidechat: true }) });
+    },
+    [navigate],
+  );
   const closeSidechat = () => {
-    setSidechatOpen(false);
+    void navigate({
+      search: (prev) => {
+        const next = { ...prev };
+        delete next.aiSidechat;
+        return next;
+      },
+    });
     window.requestAnimationFrame(() => {
       const returnTarget = sidechatReturnFocusRef.current;
       if (returnTarget?.isConnected) {
@@ -482,6 +490,13 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
     from: "/connections/$connectionName",
     select: (currentSearch) => currentSearch.thread,
   });
+  const sidechatOpen = useSearch({
+    from: "/connections/$connectionName",
+    select: (currentSearch) => currentSearch.aiSidechat === true,
+  });
+  useEffect(() => {
+    if (sidechatOpen) setSidechatInitialized(true);
+  }, [sidechatOpen]);
   // Splitter percentages must be deterministic during SSR. Calculating from the
   // browser viewport caused server/client min-size mismatches and hydration warnings.
   const sidebarMinSize = 20;
@@ -955,7 +970,6 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                           initialConversationId={activeAiThreadId}
                           initialAskTable={search.askTable}
                           initialAiIntent={search.aiIntent}
-                          embedded
                         />
                       ) : search.initialTabMode === "sql" ? (
                         <CustomSqlWorkspace
@@ -1081,14 +1095,14 @@ const ConnectionPageInner = ({ connection }: { connection: DbConnection }) => {
                                     ...sidechatContext,
                                   ],
                                 );
-                                closeSidechat();
                                 void navigate({
                                   to: "/connections/$connectionName/ai",
                                   params: { connectionName: connection.name },
                                   search: (prev) => {
-                                    return conversationId
-                                      ? { ...prev, thread: conversationId }
-                                      : prev;
+                                    const next = { ...prev };
+                                    delete next.aiSidechat;
+                                    if (conversationId) next.thread = conversationId;
+                                    return next;
                                   },
                                 });
                               }}

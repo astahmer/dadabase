@@ -159,7 +159,6 @@ export const AiChatPage = ({
   initialConversationId,
   initialAskTable,
   initialAiIntent,
-  embedded,
   variant = "page",
   onClose,
   onOpenFullChat,
@@ -174,9 +173,6 @@ export const AiChatPage = ({
   initialAskTable?: string;
   /** "sql" seeds a propose-a-query draft instead of explore phrasing. */
   initialAiIntent?: "chat" | "sql";
-  /** Rendered inside a workspace tab: keep tab-state URLs intact, skip
-   * flat-route URL cleanup, and never discard sibling tabs on "Use this SQL". */
-  embedded?: boolean;
   /** Full-page deep work or compact contextual workspace sidechat. */
   variant?: "page" | "sidechat";
   onClose?: () => void;
@@ -224,7 +220,6 @@ export const AiChatPage = ({
       initialConversationId={initialConversationId}
       initialAskTable={initialAskTable}
       initialAiIntent={initialAiIntent}
-      embedded={embedded}
       variant={variant}
       onClose={onClose}
       onOpenFullChat={onOpenFullChat}
@@ -240,7 +235,6 @@ const AiChatPageInner = ({
   initialConversationId,
   initialAskTable,
   initialAiIntent,
-  embedded,
   variant,
   onClose,
   onOpenFullChat,
@@ -252,7 +246,6 @@ const AiChatPageInner = ({
   initialConversationId?: string;
   initialAskTable?: string;
   initialAiIntent?: "chat" | "sql";
-  embedded?: boolean;
   variant: "page" | "sidechat";
   onClose?: () => void;
   onOpenFullChat?: (
@@ -263,7 +256,13 @@ const AiChatPageInner = ({
   onSidechatSideChange?: (side: ChatSidechatSide) => void;
   contextAttachments?: readonly ChatContextAttachment[];
 }) => {
-  const navigate = useNavigate();
+  // Keep search updates on whichever route owns this surface. The full chat
+  // lives at `/ai`, while an embedded AI tab lives on the parent workspace;
+  // anchoring this shared component to the parent would navigate full chat
+  // back to the empty workspace as soon as a conversation id is assigned.
+  const parentNavigate = useNavigate({ from: "/connections/$connectionName" });
+  const aiPageNavigate = useNavigate({ from: "/connections/$connectionName/ai" });
+  const navigate = variant === "page" ? aiPageNavigate : parentNavigate;
   // The full-page chat is still rendered inside the connection workspace
   // shell. Keep inherited workspace search state intact so its tabs and pane
   // layout survive an AI visit and the back link can restore the exact view.
@@ -349,6 +348,7 @@ const AiChatPageInner = ({
   const currentConversationIdRef = useRef<string | undefined>(initialConversationId);
   const initialThreadPendingRef = useRef(initialConversationId !== undefined);
   const conversationUrlSyncStartedRef = useRef(false);
+  const conversationUrlSyncRequestRef = useRef(0);
   useEffect(() => {
     currentContextAttachmentsRef.current = effectiveContextAttachments;
   }, [effectiveContextAttachments]);
@@ -372,9 +372,10 @@ const AiChatPageInner = ({
       params: { connectionName: connection.name },
       search: (prev) => {
         // Use SQL always adds/activates a sibling editor tab. The AI tab and
-        // its conversation remain available in the workspace tab strip.
-        if (!embedded || !prev.tabs?.length) {
-          return { schema, activeTabId: newTab.tabId, tabs: [newTab] };
+        // its conversation remain available in the workspace tab strip,
+        // including when this chat is rendered by the full `/ai` route.
+        if (!prev.tabs?.length) {
+          return { ...prev, schema, activeTabId: newTab.tabId, tabs: [newTab] };
         }
         const tabs = prev.tabs.some((t) => t.tabId === newTab.tabId)
           ? prev.tabs.map((t) => (t.tabId === newTab.tabId ? { ...t, ...newTab } : t))
@@ -411,16 +412,28 @@ const AiChatPageInner = ({
 
       // Do not rewrite the URL from the initial empty actor state when this is
       // a brand-new chat. Once the actor has emitted a real id, subsequent
-      // selections/new-chat actions own the URL.
+      // selections/new-chat actions own the typed route search state.
       if (!conversationUrlSyncStartedRef.current && conversationId === undefined) {
         conversationUrlSyncStartedRef.current = true;
         return;
       }
       conversationUrlSyncStartedRef.current = true;
-      const url = new URL(window.location.href);
-      if (conversationId === undefined) url.searchParams.delete("thread");
-      else url.searchParams.set("thread", conversationId);
-      window.history.replaceState(window.history.state, "", url);
+      const requestId = ++conversationUrlSyncRequestRef.current;
+      // Navigation performs a synchronous router commit. Deferring it out of
+      // the conversation-id effect avoids React's flushSync-in-lifecycle
+      // warning and prevents the URL write from competing with the actor's
+      // render commit.
+      queueMicrotask(() => {
+        if (requestId !== conversationUrlSyncRequestRef.current) return;
+        void navigate({
+          search: (prev) => {
+            const next = { ...prev };
+            if (conversationId === undefined) delete next.thread;
+            else next.thread = conversationId;
+            return next;
+          },
+        });
+      });
     },
     [initialConversationId, navigate],
   );
@@ -465,8 +478,8 @@ const AiChatPageInner = ({
       to: "/connections/$connectionName",
       params: { connectionName: connection.name },
       search: (prev) => {
-        if (!embedded || !prev.tabs?.length) {
-          return { schema: viewSchema, activeTabId: newTab.tabId, tabs: [newTab] };
+        if (!prev.tabs?.length) {
+          return { ...prev, schema: viewSchema, activeTabId: newTab.tabId, tabs: [newTab] };
         }
         const tabs = prev.tabs.some((t) => t.tabId === newTab.tabId)
           ? prev.tabs.map((t) => (t.tabId === newTab.tabId ? { ...t, ...newTab } : t))
@@ -846,6 +859,7 @@ const ContextTablePicker = ({
   search,
   onSearchChange,
   onAdd,
+  onUseAuto,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -856,6 +870,7 @@ const ContextTablePicker = ({
   search: string;
   onSearchChange: (value: string) => void;
   onAdd: (table: string) => void;
+  onUseAuto: () => void;
 }) => (
   <Popover open={open} onOpenChange={(details) => onOpenChange(details.open)}>
     <PopoverTrigger asChild>
@@ -866,9 +881,21 @@ const ContextTablePicker = ({
       </Button>
     </PopoverTrigger>
     <PopoverContent className="w-72 p-2" data-testid="ai-context-table-picker">
-      <p className="px-2 py-1 text-sm font-medium">Attach tables to context</p>
+      <div className="flex items-center gap-2 px-2 py-1">
+        <p className="text-sm font-medium">Attach tables to context</p>
+        <Button
+          size="xs"
+          variant="ghost"
+          className="ml-auto h-6 px-1.5 text-[11px]"
+          onClick={onUseAuto}
+          data-testid="ai-context-use-auto"
+          title="Let the assistant choose relevant tables automatically"
+        >
+          Auto
+        </Button>
+      </div>
       <p className="text-muted-foreground px-2 pb-1 text-[11px]">
-        Select multiple tables. Click an attached table again to remove it.
+        Pick specific tables, or use Auto to choose relevant tables per question.
       </p>
       <Input
         type="search"
@@ -1639,6 +1666,17 @@ const AiChatBody = ({
     ],
   );
 
+  const useAutomaticContext = useCallback(() => {
+    setRemovedContextKeys(
+      new Set(allContextAttachments.map((attachment) => chatContextAttachmentKey(attachment))),
+    );
+    setAddedContextAttachments([]);
+    setStoredChatSchemaSelection(connection.name, { mode: "auto" });
+    window.dispatchEvent(new Event(SCHEMA_SELECTION_CHANGED_EVENT));
+    onContextAttachmentsChange([]);
+    announce("Automatic table context enabled.");
+  }, [allContextAttachments, connection.name, onContextAttachmentsChange]);
+
   const contextPicker = useMemo(
     () => (
       <ContextTablePicker
@@ -1655,6 +1693,7 @@ const AiChatBody = ({
         search={tableSearch}
         onSearchChange={setTableSearch}
         onAdd={addContextTable}
+        onUseAuto={useAutomaticContext}
       />
     ),
     [
@@ -1665,6 +1704,7 @@ const AiChatBody = ({
       visibleContextAttachments.length,
       schemaContext.schema,
       tableSearch,
+      useAutomaticContext,
     ],
   );
 
@@ -1923,16 +1963,18 @@ const ThreadListItem = ({
  */
 const InitialThreadConsumer = ({ initialConversationId }: { initialConversationId?: string }) => {
   const actions = useChatActions();
+  const activeConversationId = useChatSelector((state) => state.activeThread.conversationId);
   const consumed = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (initialConversationId === undefined || initialConversationId === "") return;
     if (consumed.current === initialConversationId) return;
     consumed.current = initialConversationId;
+    if (activeConversationId === initialConversationId) return;
     const timer = window.setTimeout(() => {
       actions.selectConversation({ conversationId: initialConversationId });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [initialConversationId, actions]);
+  }, [activeConversationId, initialConversationId, actions]);
   return null;
 };
 
@@ -2750,8 +2792,15 @@ const ChatSurface = ({
       ? undefined
       : { conversationId: conversationIdForMeta, title: activeConversationTitle };
 
+  // Keep a deep-linked or newly selected conversation from racing its async
+  // load. Sending during that gap uses the temporary empty session and creates
+  // a second conversation instead of continuing the one the user selected.
+  const conversationHydrating =
+    conversationLoading ||
+    (initialConversationId !== undefined && activeConversationId !== initialConversationId);
   // Audit K1: single gate shared by the button and the Enter handler.
-  const sendDisabled = !providerReady || draft.trim() === "" || isStreaming;
+  const sendDisabled =
+    !providerReady || draft.trim() === "" || isStreaming || conversationHydrating;
   const [copiedAction, setCopiedAction] = useState<"markdown" | "text" | undefined>(undefined);
   const exportableMessages = useMemo(
     () =>

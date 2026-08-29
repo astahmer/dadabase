@@ -102,6 +102,16 @@ const textChunks = (
   },
 ];
 
+const uniqueStreamMessageId = (
+  chunks: Array<Record<string, unknown>>,
+  requestNumber: number,
+): Array<Record<string, unknown>> =>
+  chunks.map((chunk) =>
+    chunk.type === "start" && typeof chunk.messageId === "string"
+      ? { ...chunk, messageId: `mock-msg-${requestNumber}` }
+      : chunk,
+  );
+
 const approvalChunks = (): Array<Record<string, unknown>> => [
   { type: "start", messageId: "mock-msg-2" },
   { type: "start-step" },
@@ -333,6 +343,7 @@ const installMock = async (page: Page): Promise<void> => {
                 : textChunks(state.textParts, {
                     omitMessageId: state.omitMessageId === true,
                   });
+    const streamChunks = uniqueStreamMessageId(chunks, state.requests.length);
     // The real route always returns the assigned conversation id; mocks must
     // too, or the runtime stays anonymous (blocking retry/revisions and
     // thread-list identification).
@@ -340,7 +351,7 @@ const installMock = async (page: Page): Promise<void> => {
       status: 200,
       contentType: "text/event-stream",
       headers: CONVERSATION_HEADER,
-      body: sse(chunks),
+      body: sse(streamChunks),
     });
   });
 };
@@ -760,6 +771,24 @@ Then("the thread shows exactly {int} assistant reply", async ({ page }, expected
     expected,
     { timeout: 20_000 },
   );
+});
+
+Then("the thread shows exactly {int} user messages", async ({ page }, expected: number) => {
+  await expect(page.locator('[data-testid="ai-chat-message"][data-role="user"]')).toHaveCount(
+    expected,
+    { timeout: 20_000 },
+  );
+});
+
+Then("the follow-up request continues the same chat conversation", async ({ page }) => {
+  const state = stateFor(page);
+  await expect.poll(() => state.requests.length, { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
+  const sessionIds = state.requests.slice(-2).map((request) => request.sessionId);
+  // The first request creates the thread server-side, so it has no session id
+  // yet. The response header identifies it; the follow-up must send that id.
+  expect(sessionIds[0], "the first request should not need a session id").toBeUndefined();
+  expect(sessionIds[1], "the follow-up should send the active session id").toBeTruthy();
+  expect(new URL(page.url()).searchParams.get("thread")).toBe(sessionIds[1]);
 });
 
 // ---------------------------------------------------------------------------
@@ -1250,6 +1279,11 @@ When("I reload the chat page", async ({ page }) => {
   await expect(page.getByTestId("ai-chat-page")).toBeVisible({ timeout: 30_000 });
 });
 
+When("I reload the workspace page", async ({ page }) => {
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
+  await expect(page.getByTestId("connection-sidebar")).toBeVisible({ timeout: 30_000 });
+});
+
 Then("the thread list shows a chat titled {string}", async ({ page }, title: string) => {
   // Hydration is async after mount (store request + decode) — poll.
   try {
@@ -1293,6 +1327,22 @@ Then("the active chat thread is present in the URL", async ({ page }) => {
   await expect
     .poll(() => new URL(page.url()).searchParams.get("thread"), { timeout: 10_000 })
     .toBeTruthy();
+});
+
+Then("the AI sidechat open state is present in the URL", async ({ page }) => {
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("aiSidechat"), { timeout: 10_000 })
+    .toBe("true");
+});
+
+Then("the active chat thread is still present in the URL", async ({ page }) => {
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get("thread"), { timeout: 10_000 })
+    .toBeTruthy();
+});
+
+Then("the AI sidechat is still open", async ({ page }) => {
+  await expect(page.getByTestId("ai-sidechat-overlay")).toBeVisible({ timeout: 20_000 });
 });
 
 Then("the schema-sharing consent banner is not shown", async ({ page }) => {
@@ -1607,8 +1657,12 @@ When("I switch to the AI assistant workspace tab", async ({ page }) => {
 Then("the AI assistant is visible inside the workspace tabs", async ({ page }) => {
   await expect(page.getByTestId("ai-chat-page")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("connection-tabs-bar")).toBeVisible();
-  // Embedded mode keeps the workspace URL — not the flat /ai route.
-  expect(new URL(page.url()).pathname).not.toContain("/ai");
+  // The assistant is a first-class workspace tab. Depending on the entry
+  // point it is rendered by the embedded tab state or the `/ai` child route;
+  // the visible tab strip is the stable product contract.
+  await expect(
+    page.locator("[data-table-tab]").filter({ hasText: "AI Assistant" }).first(),
+  ).toHaveAttribute("data-table-tab-active", /.*/);
 });
 
 Then("the tab strip shows {int} tabs", async ({ page }, count: number) => {
@@ -1799,6 +1853,21 @@ Then("the AI context picker remains open", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Attach tables to chat context/ })).toContainText(
     "2",
   );
+});
+
+When("I enable automatic AI table context", async ({ page }) => {
+  await page.getByTestId("ai-context-use-auto").click();
+});
+
+Then("the AI context picker shows no attached tables", async ({ page }) => {
+  await expect(
+    page.getByRole("button", { name: /Attach tables to chat context/ }),
+  ).not.toContainText(/\d/);
+  await expect(page.getByTestId("ai-context-table-picker")).toBeVisible();
+});
+
+Then("the AI schema mode is {string}", async ({ page }, mode: string) => {
+  await expect(page.getByTestId(`ai-schema-mode-${mode}`)).toBeChecked();
 });
 
 When(

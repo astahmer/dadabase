@@ -54,6 +54,7 @@ export function VirtualizedTableBody<TData extends RowData>({
   cellSelection,
 }: VirtualizedTableBodyProps<TData>) {
   const virtualizer = useVirtualizer({
+    useFlushSync: false,
     count: rows.length,
     getScrollElement: () => scrollElement,
     estimateSize: () => estimateItemSize,
