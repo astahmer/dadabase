@@ -20,7 +20,7 @@ Feature: Connection page UX issues from issues.md
     Given I open the "users" table
     And I store a fake OpenAI API key in localStorage
     When I open the AI assistant
-    Then I should see text "provider configured"
+    Then I should not see text "Provider configured"
     And the AI assistant should require schema-sharing approval
     When I approve sharing schema context
     Then the send button unlocks for a typed draft

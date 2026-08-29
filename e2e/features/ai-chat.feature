@@ -573,6 +573,21 @@ Feature: AI chat assistant
     And the successful SQL result shows provenance and a readable preview
     And the successful AI reply does not offer retry
 
+  Scenario: Failed SQL tools keep their error visible
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And the chat API streams a failed SQL tool result
+    When I open the AI chat page
+    And I type "inspect missing table" and press send
+    Then the failed SQL tool shows its error
+
+  Scenario: Restored tool outcomes match their original states
+    Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
+    And a persisted chat thread "restored tool outcomes" exists with successful and failed SQL tools
+    When I open the AI chat page
+    And I open the thread titled "restored tool outcomes"
+    Then the successful SQL tool is marked completed
+    And the failed SQL tool shows its error
+
   Scenario: AI sidechat stays readable across desktop and narrow widths
     Given BYOK chat config preset "openai" with key "sk-e2e-key" and model "gpt-4o-mini"
     When I open the connection workspace

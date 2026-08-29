@@ -26,7 +26,8 @@ type MockMode =
   | "proposal"
   | "stalled"
   | "workspace_view"
-  | "data_tools";
+  | "data_tools"
+  | "tool_error";
 
 interface ChatTestState {
   mode: MockMode;
@@ -242,6 +243,31 @@ const dataToolsChunks = (): Array<Record<string, unknown>> => [
   { type: "finish", finishReason: "stop" },
 ];
 
+const toolErrorChunks = (): Array<Record<string, unknown>> => [
+  { type: "start", messageId: "mock-msg-tool-error" },
+  { type: "start-step" },
+  { type: "text-start", id: "t-tool-error" },
+  {
+    type: "text-delta",
+    id: "t-tool-error",
+    delta: "I tried the query, but the database returned an error.",
+  },
+  { type: "text-end", id: "t-tool-error" },
+  {
+    type: "tool-input-available",
+    toolCallId: "failed-run-call",
+    toolName: "run_sql",
+    input: { sql: "SELECT * FROM missing_table" },
+  },
+  {
+    type: "tool-output-available",
+    toolCallId: "failed-run-call",
+    output: { ok: false, error: 'relation "missing_table" does not exist' },
+  },
+  { type: "finish-step" },
+  { type: "finish", finishReason: "stop" },
+];
+
 /** Completed propose_sql (output already available): enables Use-this-SQL/Run buttons. */
 const proposalChunks = (sql: string): Array<Record<string, unknown>> => [
   { type: "start", messageId: "mock-msg-3" },
@@ -298,13 +324,15 @@ const installMock = async (page: Page): Promise<void> => {
         ? workspaceViewChunks(state.workspaceView ?? { table: "users" })
         : state.mode === "data_tools"
           ? dataToolsChunks()
-          : state.mode === "approval"
-            ? approvalChunks()
-            : state.mode === "proposal"
-              ? proposalChunks(state.proposalSql ?? "SELECT 42 AS answer")
-              : textChunks(state.textParts, {
-                  omitMessageId: state.omitMessageId === true,
-                });
+          : state.mode === "tool_error"
+            ? toolErrorChunks()
+            : state.mode === "approval"
+              ? approvalChunks()
+              : state.mode === "proposal"
+                ? proposalChunks(state.proposalSql ?? "SELECT 42 AS answer")
+                : textChunks(state.textParts, {
+                    omitMessageId: state.omitMessageId === true,
+                  });
     // The real route always returns the assigned conversation id; mocks must
     // too, or the runtime stays anonymous (blocking retry/revisions and
     // thread-list identification).
@@ -1139,6 +1167,66 @@ const seedPersistedChatThread = async (title: string, messageText: string): Prom
   db.close();
 };
 
+const seedPersistedToolThread = async (title: string): Promise<void> => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(path.join(process.cwd(), "e2e", ".tmp", "app.db"));
+  db.exec("PRAGMA busy_timeout = 5000");
+  const connection = db
+    .prepare("SELECT id FROM database_connections WHERE name = 'e2e-sqlite'")
+    .get();
+  if (!connection) throw new Error("e2e-sqlite fixture connection not found");
+  const now = Date.now();
+  const threadId = `e2e-tool-thread-${title.replace(/\\s+/g, "-").toLowerCase()}`;
+  db.prepare(
+    "INSERT OR REPLACE INTO chat_threads (id, connection_id, title, status, pinned, created_at, updated_at) VALUES (?, ?, ?, 'regular', 0, ?, ?)",
+  ).run(threadId, connection.id, title, now, now);
+  db.prepare("DELETE FROM chat_messages WHERE thread_id = ?").run(threadId);
+  const insertMessage = db.prepare(
+    "INSERT INTO chat_messages (id, thread_id, role, parts, model, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+  );
+  insertMessage.run(
+    `${threadId}-user`,
+    threadId,
+    "user",
+    JSON.stringify([{ type: "text", text: "show me the restored tool history" }]),
+    null,
+    now,
+  );
+  insertMessage.run(
+    `${threadId}-assistant`,
+    threadId,
+    "assistant",
+    JSON.stringify([
+      { type: "text", text: "The restored history contains one success and one failure." },
+      {
+        type: "tool-invocation",
+        toolName: "run_sql",
+        toolCallId: "persisted-success",
+        state: "output-available",
+        input: { sql: "SELECT 1 AS answer" },
+        output: {
+          ok: true,
+          sql: "SELECT 1 AS answer",
+          columns: ["answer"],
+          rowCount: 1,
+          rows: [{ answer: 1 }],
+        },
+      },
+      {
+        type: "tool-invocation",
+        toolName: "run_sql",
+        toolCallId: "persisted-failure",
+        state: "output-error",
+        input: { sql: "SELECT * FROM missing_table" },
+        errorText: 'relation "missing_table" does not exist',
+      },
+    ]),
+    "gpt-4o-mini",
+    now,
+  );
+  db.close();
+};
+
 Given("a persisted chat thread {string} exists for the connection", async ({}, title: string) => {
   await seedPersistedChatThread(title, "count the users table rows");
 });
@@ -1147,6 +1235,13 @@ Given(
   "a persisted chat thread {string} exists with searchable content {string}",
   async ({}, title: string, content: string) => {
     await seedPersistedChatThread(title, content);
+  },
+);
+
+Given(
+  "a persisted chat thread {string} exists with successful and failed SQL tools",
+  async ({}, title: string) => {
+    await seedPersistedToolThread(title);
   },
 );
 
@@ -1567,6 +1662,11 @@ Given("the chat API streams read-only inspection tool results", async ({ page })
   await installMock(page);
 });
 
+Given("the chat API streams a failed SQL tool result", async ({ page }) => {
+  stateFor(page).mode = "tool_error";
+  await installMock(page);
+});
+
 Then("the preview rows result is visible", async ({ page }) => {
   const previewRows = page.getByTestId("ai-chat-preview-rows");
   await expect(previewRows.first()).toBeVisible({ timeout: 20_000 });
@@ -1595,6 +1695,23 @@ Then("the successful SQL result shows provenance and a readable preview", async 
 
 Then("the successful AI reply does not offer retry", async ({ page }) => {
   await expect(page.locator(THREAD).getByText("Retry message")).toHaveCount(0);
+});
+
+Then("the failed SQL tool shows its error", async ({ page }) => {
+  const failedTool = page.getByTestId("ai-chat-tool-error").last();
+  await expect(failedTool).toBeVisible({ timeout: 20_000 });
+  await expect(failedTool).toContainText('relation "missing_table" does not exist');
+  await expect(
+    page.getByTestId("ai-chat-message").filter({ hasText: "Run SQL" }).last(),
+  ).toContainText("Failed");
+});
+
+Then("the successful SQL tool is marked completed", async ({ page }) => {
+  const tool = page
+    .locator("details")
+    .filter({ hasText: "Run SQL" })
+    .filter({ hasText: "Completed" });
+  await expect(tool.first()).toBeVisible({ timeout: 20_000 });
 });
 
 Then("the readable AI preview matches its visual snapshot", async ({ page }) => {

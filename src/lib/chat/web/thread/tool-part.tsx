@@ -5,7 +5,11 @@ import * as Schema from "effect/Schema";
 import { useState, type ReactNode } from "react";
 
 import { useToolRenderer } from "../contributions.tsx";
-import { ToolResultContent } from "./tool-result-content.tsx";
+import {
+  getToolErrorMessage,
+  isToolErrorResult,
+  ToolResultContent,
+} from "./tool-result-content.tsx";
 
 export type MessagePartValue = {
   type: string;
@@ -87,7 +91,10 @@ export const ToolPart = ({
   const outcome = toolPart.value.outcome;
   const errorOutput = Option.isSome(Schema.decodeUnknownOption(ToolErrorOutput)(output));
   const warningOutput = Option.isSome(Schema.decodeUnknownOption(ToolWarningOutput)(output));
-  const isFailed = state === "output-error" || outcome === "error" || errorOutput;
+  const isFailed =
+    state === "output-error" || outcome === "error" || errorOutput || isToolErrorResult(output);
+  const failureMessage =
+    errorText ?? getToolErrorMessage(output) ?? "Tool invocation failed without an error message.";
   const result =
     output !== undefined
       ? output
@@ -149,7 +156,14 @@ export const ToolPart = ({
           ))}
         {hasOutput &&
           (renderToolResult !== undefined ? (
-            renderToolResult({ toolName, result })
+            (renderToolResult({ toolName, result }) ??
+            (isFailed ? (
+              <p className="text-destructive mt-2 text-sm" data-testid="ai-chat-tool-error">
+                {failureMessage}
+              </p>
+            ) : (
+              <ToolResultContent toolName={toolName} result={result} className="mt-2" />
+            )))
           ) : (
             <ToolResultContent toolName={toolName} result={result} className="mt-2" />
           ))}

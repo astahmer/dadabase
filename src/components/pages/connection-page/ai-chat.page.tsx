@@ -3,7 +3,6 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDown,
-  ArrowLeft,
   Check,
   Clipboard,
   ChevronDown,
@@ -525,48 +524,23 @@ const AiChatPageInner = ({
             <Sparkles className="text-primary size-4 shrink-0" />
             <span className="sr-only">AI sidechat</span>
           </div>
-        ) : (
-          <Link
-            to="/connections/$connectionName"
-            params={{ connectionName: connection.name }}
-            search={(prev) => prev}
-            className={buttonVariants({ variant: "ghost", size: "sm" })}
-            data-testid="ai-chat-back"
-          >
-            <ArrowLeft className="size-4" />
-            {connection.name}
-          </Link>
-        )}
+        ) : null}
         <h1
           id={variant === "sidechat" ? "ai-sidechat-title" : undefined}
           className="min-w-0 truncate text-sm font-semibold"
         >
           {variant === "sidechat" ? "AI" : "AI assistant"}
         </h1>
-        <Badge
-          variant="outline"
-          colorPalette={
-            byokState === "loading" ? "muted" : byokState === "usable" ? "success" : "warning"
-          }
-          size="xs"
-          title={
-            byokState === "usable"
-              ? "Provider is configured in this browser."
-              : "Provider setup is required before sending a message."
-          }
-        >
-          {variant === "sidechat"
-            ? byokState === "loading"
-              ? "Checking provider"
-              : byokState === "usable"
-                ? "Ready"
-                : "Needs setup"
-            : byokState === "loading"
-              ? "Checking provider"
-              : byokState === "usable"
-                ? "Provider configured"
-                : "Not configured"}
-        </Badge>
+        {byokState === "missing" ? (
+          <Badge
+            variant="outline"
+            colorPalette="warning"
+            size="xs"
+            title="Provider setup is required before sending a message."
+          >
+            {variant === "sidechat" ? "Needs setup" : "Not configured"}
+          </Badge>
+        ) : null}
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           {variant === "page" ? (
             <Button
@@ -2914,10 +2888,12 @@ const ChatSurface = ({
             </p>
             <Button
               size="xs"
+              variant="link"
+              className="justify-start px-0"
               onClick={() => onOpenWorkspaceView(view as never)}
               data-testid="ai-chat-open-view"
             >
-              Open workspace view
+              Open filtered view
             </Button>
           </div>
         );
@@ -3003,6 +2979,13 @@ const ChatSurface = ({
     }
     if ((toolName === "propose_sql" || toolName === "run_sql") && isRecord(result)) {
       const sql = typeof result.sql === "string" ? result.sql : undefined;
+      if (sql === undefined && (result.ok === false || typeof result.error === "string")) {
+        return (
+          <p className="text-destructive text-sm" data-testid="ai-chat-tool-error">
+            {typeof result.error === "string" ? result.error : "Tool invocation failed."}
+          </p>
+        );
+      }
       if (sql !== undefined) {
         // Audit C14: surface what actually happened right where the decision
         // was made — ran? rows? error?

@@ -40,6 +40,28 @@ const JsonResult = Schema.fromJsonString(Schema.Unknown);
 const parseResult = (result: unknown): unknown =>
   Option.getOrElse(Schema.decodeUnknownOption(JsonResult)(result), () => result);
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+/** Extract a useful message from the error shapes used by AI SDK and tools. */
+export const getToolErrorMessage = (value: unknown): string | undefined => {
+  if (typeof value === "string" && value.trim() !== "") return value;
+  if (!isRecord(value)) return undefined;
+  if (value.type === "error-text" && typeof value.value === "string") return value.value;
+  for (const key of ["error", "message", "reason"]) {
+    const candidate = value[key];
+    if (typeof candidate === "string" && candidate.trim() !== "") return candidate;
+  }
+  return undefined;
+};
+
+export const isToolErrorResult = (value: unknown): boolean =>
+  isRecord(value) &&
+  (value.type === "error-text" ||
+    value.ok === false ||
+    value.isError === true ||
+    typeof value.error === "string");
+
 const getCitations = (value: unknown): ReadonlyArray<Citation> | undefined => {
   const container = Schema.decodeUnknownOption(CitationContainer)(value);
   if (Option.isNone(container)) return undefined;
@@ -108,10 +130,10 @@ const ToolResultContentImpl: FC<ToolResultContentProps> = ({
   const parsed = parseResult(result);
   const errorText = Schema.decodeUnknownOption(ErrorText)(parsed);
   const warningText = Schema.decodeUnknownOption(WarningText)(parsed);
-  if (Option.isSome(errorText)) {
+  if (Option.isSome(errorText) || isToolErrorResult(parsed)) {
     return (
-      <p className={cn("text-destructive text-sm", className)}>
-        {String(errorText.value.value ?? "Tool failed")}
+      <p className={cn("text-destructive text-sm", className)} data-testid="ai-chat-tool-error">
+        {getToolErrorMessage(parsed) ?? "Tool invocation failed."}
       </p>
     );
   }
