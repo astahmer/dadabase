@@ -1,9 +1,15 @@
 import { NodeFileSystem } from "@effect/platform-node";
-import { ConfigProvider, Layer, ManagedRuntime, References } from "effect";
+import { ConfigProvider, Effect, Layer, ManagedRuntime, References } from "effect";
 import path from "node:path";
 
-const __dirname = new URL(".", import.meta.url).pathname;
-const envFilePath = path.resolve(path.join(__dirname, "../.env"));
+const envFilePath = path.resolve(process.env.DADABASE_ENV_FILE ?? path.join(process.cwd(), ".env"));
+
+const OptionalDotEnvProvider = ConfigProvider.fromDotEnv({ path: envFilePath }).pipe(
+	Effect.catchIf(
+		(error) => error.reason._tag === "NotFound",
+		() => Effect.succeed(ConfigProvider.fromUnknown({})),
+	),
+);
 
 /**
  * Effect 4: `@effect/platform` is gone. `ConfigProvider.fromDotEnv` lives in
@@ -11,7 +17,7 @@ const envFilePath = path.resolve(path.join(__dirname, "../.env"));
  * ambient env provider (same "add" semantics as v3 `layerDotEnvAdd`).
  */
 export const DotEnvProvider = ConfigProvider.layerAdd(
-  ConfigProvider.fromDotEnv({ path: envFilePath }),
+	OptionalDotEnvProvider,
 ).pipe(Layer.provideMerge(NodeFileSystem.layer));
 
 /**
