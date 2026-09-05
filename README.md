@@ -9,6 +9,9 @@ pnpm install
 pnpm dev          # http://127.0.0.1:3005
 ```
 
+For a production-shaped local run, use `pnpm build && pnpm start`; it serves on
+`http://127.0.0.1:3006` and includes the MCP endpoint in the same server.
+
 Optional app DB (stores saved connections / query history):
 
 ```env
@@ -102,7 +105,13 @@ AI assistant (BYOK OpenAI — key stays in the browser; requests are proxied onc
 ### MCP
 
 Dadabase exposes an approval-gated Model Context Protocol endpoint at
-http://127.0.0.1:3005/api/mcp.
+`http://127.0.0.1:3005/api/mcp` in development or
+`http://127.0.0.1:3006/api/mcp` after `pnpm start`.
+
+The endpoint uses Streamable HTTP, so an MCP client must initialize a session
+with a POST request before calling `tools/list` or a tool. A browser GET to the
+endpoint returns `400 MCP session not initialized.` by design; it is not a
+server health check.
 
 - list_connections lists saved connections with credentials masked
 - describe_schema returns tables and database objects
