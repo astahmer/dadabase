@@ -5,10 +5,10 @@ import path from "node:path";
 const envFilePath = path.resolve(process.env.DADABASE_ENV_FILE ?? path.join(process.cwd(), ".env"));
 
 const OptionalDotEnvProvider = ConfigProvider.fromDotEnv({ path: envFilePath }).pipe(
-	Effect.catchIf(
-		(error) => error.reason._tag === "NotFound",
-		() => Effect.succeed(ConfigProvider.fromUnknown({})),
-	),
+  Effect.catchIf(
+    (error) => error.reason._tag === "NotFound",
+    () => Effect.succeed(ConfigProvider.fromUnknown({})),
+  ),
 );
 
 /**
@@ -16,9 +16,9 @@ const OptionalDotEnvProvider = ConfigProvider.fromDotEnv({ path: envFilePath }).
  * core but requires the FileSystem service; `layerAdd` merges it beneath the
  * ambient env provider (same "add" semantics as v3 `layerDotEnvAdd`).
  */
-export const DotEnvProvider = ConfigProvider.layerAdd(
-	OptionalDotEnvProvider,
-).pipe(Layer.provideMerge(NodeFileSystem.layer));
+export const DotEnvProvider = ConfigProvider.layerAdd(OptionalDotEnvProvider).pipe(
+  Layer.provideMerge(NodeFileSystem.layer),
+);
 
 /**
  * Effect 4: `Logger.pretty` / `Logger.minimumLogLevel` were removed — the
