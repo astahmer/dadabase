@@ -43,6 +43,7 @@ import { buildChatSystemPrompt } from "#src/lib/ai/nl-to-sql-prompt.ts";
 import { applyAutoSelection, buildAutoSelectPrompt } from "#src/lib/ai/schema-auto-select.ts";
 import { ChatUiMessages } from "#src/lib/chat/chat/ui-messages.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
+import { resolveChatThreadId } from "#src/server/chat/chat-thread-id.ts";
 import {
   ChatThreadRepository,
   type UpsertChatMessageInput,
@@ -157,6 +158,8 @@ const bodySchema = z.object({
   config: ChatRequestConfigSchema,
   connectionName: z.string().min(1),
   schemaContext: z.custom<AiSchemaContext>((value) => value !== null).optional(),
+  /** Runtime conversation id; Dadabase stores conversations as flat threads. */
+  sessionId: z.string().optional(),
   threadId: z.string().optional(),
   /** Enabled tools; absent → all. Unknown ids are dropped server-side. */
   enabledTools: z.array(z.string()).optional(),
@@ -612,9 +615,15 @@ export const Route = createFileRoute("/api/chat")({
         // carry its id back to the client runtime.
         const threadProgram = Effect.gen(function* () {
           const repo = yield* ChatThreadRepository;
-          if (body.threadId) {
-            const existing = yield* repo.findThread(body.threadId);
-            if (existing) return existing.id;
+          // The shared chat runtime calls this value `sessionId` because it
+          // supports conversations with multiple threads. Dadabase has a
+          // deliberately flat model, so either runtime id identifies the same
+          // persisted row. The old route only checked `threadId`, which made
+          // every follow-up message create a new chat.
+          const requestedThreadId = resolveChatThreadId(body);
+          if (requestedThreadId) {
+            const existing = yield* repo.findThread(requestedThreadId);
+            if (existing?.connection_id === connection.id) return existing.id;
           }
           const id = crypto.randomUUID();
           const title =
