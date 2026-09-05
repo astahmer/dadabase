@@ -2907,7 +2907,7 @@ const ChatSurface = ({
     }
     if (toolName === "open_workspace_view" && isRecord(input) && typeof input.table === "string") {
       return (
-        <div className="bg-muted/40 border-border space-y-1.5 rounded-md border p-2.5">
+        <div className="border-border/70 space-y-1.5 border-b pb-2">
           <p className="text-xs font-medium">Workspace view — {input.table}</p>
           <ul className="text-muted-foreground space-y-0.5 text-xs">
             {Array.isArray(input.filters)
@@ -2949,7 +2949,7 @@ const ChatSurface = ({
           : [];
         return (
           <div
-            className="bg-muted/40 border-border space-y-2 rounded-md border p-2.5"
+            className="border-border/70 space-y-2 border-b pb-2"
             data-testid="ai-chat-workspace-view-card"
           >
             <p className="text-xs font-medium">Suggested filtered view</p>
@@ -3115,7 +3115,7 @@ const ChatSurface = ({
           <div className="space-y-1.5">
             {outcome}
             {toolName === "run_sql" ? (
-              <details className="bg-muted/20 rounded-md border" data-testid="ai-chat-run-query">
+              <details className="border-border/70 border-b" data-testid="ai-chat-run-query">
                 <summary className="text-muted-foreground flex cursor-pointer list-none items-center justify-between px-2.5 py-2 text-xs font-medium">
                   <span>Query</span>
                   <span>{sql.length.toLocaleString()} characters</span>

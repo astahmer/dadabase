@@ -4,7 +4,6 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { useState, type ReactNode } from "react";
 
-import { useToolRenderer } from "../contributions.tsx";
 import {
   getToolErrorMessage,
   isToolErrorResult,
@@ -39,6 +38,54 @@ const ToolWarningOutput = Schema.Struct({
   type: Schema.Literal("warning-text"),
   value: Schema.String,
 });
+
+const parseToolValue = (value: unknown): unknown => {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+export const shouldExpandToolByDefault = ({
+  toolName,
+  input,
+  output,
+  state,
+  outcome,
+  errorText,
+}: {
+  toolName: string;
+  input?: unknown;
+  output?: unknown;
+  state?: string;
+  outcome?: string;
+  errorText?: string;
+}): boolean => {
+  const parsedOutput = parseToolValue(output);
+  const failed =
+    state === "output-error" ||
+    outcome === "error" ||
+    errorText !== undefined ||
+    isToolErrorResult(parsedOutput);
+  const warning = isRecord(parsedOutput) && parsedOutput.type === "warning-text";
+  if (failed || warning || state === "input-available" || state === "input-streaming") return true;
+  if (toolName === "propose_sql" && isRecord(input) && typeof input.sql === "string") return true;
+  if (!isRecord(parsedOutput)) return false;
+
+  // The assistant summarizes inspection calls (schema, previews and query
+  // plans); keep those implementation details available on demand. Expand a
+  // completed call only when it contributes primary user-facing output.
+  if (toolName === "open_workspace_view") return isRecord(parsedOutput.view);
+  if (toolName === "run_sql") {
+    return Array.isArray(parsedOutput.rows) && parsedOutput.rows.length > 0;
+  }
+  return false;
+};
 
 const TOOL_LABELS: Record<string, string> = {
   explain_sql: "Explain query plan",
@@ -79,7 +126,6 @@ export const ToolPart = ({
       : type.startsWith("tool-")
         ? type.slice(5)
         : "tool";
-  const registeredRenderer = useToolRenderer(toolName);
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
 
   if (Option.isNone(toolPart) || !isTool) return null;
@@ -108,21 +154,21 @@ export const ToolPart = ({
   // A custom input renderer means the app considers this input primary
   // content (e.g. proposed SQL) — default the group open so it is readable
   // without interaction (audit C4).
-  const customInputPrimary = renderToolInput !== undefined && shouldRenderInput;
-  const opensByDefault =
-    isRunning ||
-    isFailed ||
-    warningOutput ||
-    registeredRenderer !== undefined ||
-    toolName === "render_component" ||
-    customInputPrimary;
+  const opensByDefault = shouldExpandToolByDefault({
+    toolName,
+    input,
+    output,
+    state,
+    outcome,
+    errorText,
+  });
   // User override wins over the computed default; without it every parent
   // re-render would snap a manually-collapsed group back open.
   const open = userOpen ?? opensByDefault;
 
   return (
     <details
-      className="group/tool bg-muted/15 rounded-lg border"
+      className="group/tool border-border/70 rounded-md border"
       open={open}
       onToggle={(event) => setUserOpen(event.currentTarget.open)}
     >
@@ -142,7 +188,7 @@ export const ToolPart = ({
           {isRunning ? "Running" : isFailed ? "Failed" : warningOutput ? "Warning" : "Completed"}
         </span>
       </summary>
-      <div className="border-t px-3 py-2">
+      <div className="border-border/70 space-y-2 border-t px-3 py-2">
         {shouldRenderInput &&
           (renderToolInput !== undefined ? (
             renderToolInput({ toolName, input })
