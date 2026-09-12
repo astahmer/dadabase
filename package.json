@@ -8,7 +8,8 @@
   "scripts": {
     "----db----": "----------",
     "----docker----": "----------",
-    "build": "vite build",
+    "build": "vite build && pnpm build:mcp",
+    "build:mcp": "vite build --config vite.mcp.config.ts",
     "check": "pnpm oxlint --type-aware --type-check",
     "check:fix": "pnpm oxlint --fix --type-aware --type-check",
     "db": "pnpm drizzle-kit",
@@ -22,6 +23,7 @@
     "fmt:check": "oxfmt --check",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
+    "mcp": "node dist/mcp/stdio.js",
     "migrate": "pnpm drizzle-kit migrate",
     "migrate:gen": "pnpm drizzle-kit generate",
     "push": "pnpm drizzle-kit push",

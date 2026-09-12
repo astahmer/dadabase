@@ -108,19 +108,27 @@ Dadabase exposes an approval-gated Model Context Protocol endpoint at
 `http://127.0.0.1:3005/api/mcp` in development or
 `http://127.0.0.1:3006/api/mcp` after `pnpm start`.
 
+`pnpm build` also creates a production stdio server at `dist/mcp/stdio.js`.
+Register it in BB as a local command with `node` as the command, arguments
+`["dist/mcp/stdio.js"]`, and this project as its working directory. BB starts
+and stops that built process when the server is connected or disabled. The
+stdio server reads the project `.env` in its working directory.
+
 The endpoint uses Streamable HTTP, so an MCP client must initialize a session
 with a POST request before calling `tools/list` or a tool. A browser GET to the
 endpoint returns `400 MCP session not initialized.` by design; it is not a
 server health check.
 
 - list_connections lists saved connections with credentials masked
+- add_connection and edit_connection manage saved connections; both require
+  `approved: true` after the user asks for the change
 - describe_schema returns tables and database objects
 - query_database runs read-only SQL by default; writes require approved: true
   and are still blocked for read-only connections
 
 Set DADABASE_MCP_TOKEN and send it as a Bearer token when the endpoint is
 reachable by anything beyond the local machine. Set
-DADABASE_MCP_ENABLED=false to disable the endpoint.
+DADABASE_MCP_ENABLED=false to disable both transports.
 
 ## Architecture (short)
 

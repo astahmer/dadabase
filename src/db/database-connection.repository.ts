@@ -3,6 +3,7 @@ import type { Insertable } from "kysely";
 import { Context, Effect, Layer } from "effect";
 
 import type { AppDatabaseSchema } from "./app.db.schema.ts";
+import type { DatabaseDialect } from "./dialect.ts";
 
 import { AppDatabase } from "./app.db.ts";
 
@@ -51,13 +52,19 @@ const makeDatabaseConnectionRepository = Effect.gen(function* () {
         }),
       );
     }),
-    update: Effect.fn(function* (input: { id: string; name: string; url: string }) {
+    update: Effect.fn(function* (input: {
+      id: string;
+      name: string;
+      url: string;
+      dialect?: DatabaseDialect;
+    }) {
       return yield* db.execute(
         db
           .updateTable("database_connections")
           .set({
             name: input.name,
             url: input.url,
+            ...(input.dialect ? { dialect: input.dialect } : {}),
             updated_at: new Date().getTime(),
           })
           .where("id", "=", input.id),
