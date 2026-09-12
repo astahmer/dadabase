@@ -51,7 +51,7 @@ import {
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
 import {
   isDestructiveQuery,
-  isSelectQuery,
+  isReadOnlyQuery,
 } from "#src/server/introspection/detect-destructive-sql.ts";
 import {
   executeCustomSql,
@@ -204,10 +204,10 @@ const runSqlToolExecute = async ({
   schemaContext?: AiSchemaContext;
 }) => {
   const program = Effect.gen(function* () {
-    if (enforceAccess && isReadOnlyConnection(connectionUrl) && !isSelectQuery(sql)) {
+    if (enforceAccess && isReadOnlyConnection(connectionUrl) && !isReadOnlyQuery(sql)) {
       return { ok: false as const, error: "This connection is read-only. Only SELECT queries." };
     }
-    if (enforceAccess && !isSelectQuery(sql) && accessMode === "read-only") {
+    if (enforceAccess && !isReadOnlyQuery(sql) && accessMode === "read-only") {
       return { ok: false as const, error: "Read-only AI access only allows SELECT queries." };
     }
     if (enforceAccess && isDestructiveQuery(sql) && accessMode !== "full") {
@@ -564,7 +564,7 @@ const explainSqlToolExecute = async ({
       error: `EXPLAIN is not supported for ${dialect} in dadabase; propose without it.`,
     };
   }
-  if (!isSelectQuery(sql)) {
+  if (!isReadOnlyQuery(sql)) {
     return { ok: false as const, error: "Only SELECT/WITH statements can be explained." };
   }
   return runSqlToolExecute({ sql: `${prefix}${sql}`, connectionUrl, enforceAccess: false });
@@ -738,7 +738,7 @@ export const Route = createFileRoute("/api/chat")({
                   run_sql: tool({
                     description:
                       "Execute SQL to answer a reasonably answerable data question. SELECT/WITH runs directly; writes require explicit user approval.",
-                    needsApproval: ({ sql }) => !isSelectQuery(sql),
+                    needsApproval: ({ sql }) => !isReadOnlyQuery(sql),
                     inputSchema: z.object({
                       sql: z.string().min(1),
                     }),

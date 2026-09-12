@@ -14,7 +14,7 @@ import {
   updateCustomSqlExecutionError,
   updateCustomSqlExecutionSuccess,
 } from "#src/server/custom-sql/fns/update-custom-sql-execution.ts";
-import { isSelectQuery } from "#src/server/introspection/detect-destructive-sql.ts";
+import { isReadOnlyQuery } from "#src/server/introspection/detect-destructive-sql.ts";
 import {
   executeCustomSql,
   executeCustomSqlTransaction,
@@ -59,7 +59,7 @@ export const executeAndStoreCustomSqlServerFn = createServerFn({
     const statements = splitSqlStatements(ctx.data.sql);
     const readOnlyError = guardReadOnlyMutation(ctx.data.url, {
       isSelect:
-        statements.length > 0 && statements.every((statement) => isSelectQuery(statement.sql)),
+        statements.length > 0 && statements.every((statement) => isReadOnlyQuery(statement.sql)),
     });
     if (readOnlyError) throw new Error(`${readOnlyError} (Request ID: ${requestId})`);
 

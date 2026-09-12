@@ -7,7 +7,7 @@ import { DatabaseConnectionRepository } from "#src/db/database-connection.reposi
 import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
-import { isSelectQuery } from "#src/server/introspection/detect-destructive-sql.ts";
+import { isReadOnlyQuery } from "#src/server/introspection/detect-destructive-sql.ts";
 import {
   executeCustomSql,
   getAllTablesColumns,
@@ -213,7 +213,7 @@ export const createDadabaseMcpServer = () => {
     },
     async ({ connectionName, sql, approved }) => {
       const connection = await findConnection(connectionName);
-      const readOnly = isSelectQuery(sql);
+      const readOnly = isReadOnlyQuery(sql);
       if (!readOnly && !approved) {
         return jsonResult({
           ok: false,

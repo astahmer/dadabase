@@ -1,6 +1,6 @@
 import {
   isDestructiveQuery,
-  isSelectQuery,
+  isReadOnlyQuery,
 } from "#src/server/introspection/detect-destructive-sql.ts";
 
 import { splitSqlStatements, type SqlStatement } from "./sql-statements.ts";
@@ -20,7 +20,7 @@ export interface SqlExecutionScope {
 
 const isWriteStatement = (sql: string) => {
   const normalized = sql.trim().toLowerCase();
-  return !isSelectQuery(sql) && !/^(explain|pragma|show|describe)\b/.test(normalized);
+  return !isReadOnlyQuery(sql) && !/^(explain|pragma|show|describe)\b/.test(normalized);
 };
 
 const statementLineCount = (statement: SqlStatement | undefined) => {

@@ -174,7 +174,7 @@ import { listDbConnectionQueryOptions } from "#src/server/db-connection/start-fn
 import {
   getDestructiveQuerySummary,
   isDestructiveQuery,
-  isSelectQuery,
+  isReadOnlyQuery,
 } from "#src/server/introspection/detect-destructive-sql.ts";
 import { bulkDeleteRowsServerFn } from "#src/server/introspection/start-fns/bulk-delete-rows.start.ts";
 import { countCascadeDependentsServerFn } from "#src/server/introspection/start-fns/count-cascade-dependents.start.ts";
@@ -4153,7 +4153,7 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string; connectionId:
       const collected: CustomSqlResultSet[] = [];
       for (const [index, statement] of statements.entries()) {
         const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
-          isSelect: isSelectQuery(statement.sql),
+          isSelect: isReadOnlyQuery(statement.sql),
         });
         if (readOnlyError) throw new Error(readOnlyError);
         try {
@@ -4264,7 +4264,7 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string; connectionId:
     const readOnlyError = statements
       .map((statement) =>
         guardReadOnlyMutation(props.activeConnectionUrl, {
-          isSelect: isSelectQuery(statement.sql),
+          isSelect: isReadOnlyQuery(statement.sql),
         }),
       )
       .find(Boolean);
@@ -4317,7 +4317,7 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string; connectionId:
     const runSingle = (sql: string) => {
       setExecutedSql(sql);
       const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
-        isSelect: isSelectQuery(sql),
+        isSelect: isReadOnlyQuery(sql),
       });
       if (readOnlyError) {
         toaster.create({
@@ -4388,7 +4388,7 @@ const useExecuteCustomSql = (props: { activeConnectionUrl: string; connectionId:
     setExecutedSql(sql);
 
     const readOnlyError = guardReadOnlyMutation(props.activeConnectionUrl, {
-      isSelect: isSelectQuery(sql),
+      isSelect: isReadOnlyQuery(sql),
     });
     if (readOnlyError) {
       toaster.create({ title: "Read-only connection", description: readOnlyError, type: "error" });

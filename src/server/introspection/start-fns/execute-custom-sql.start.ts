@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { SqlError, toValidator } from "#src/db/effect-compat.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { createRemoteIntrospectionHandler } from "#src/server/create-remote-server-fn.ts";
-import { isSelectQuery } from "#src/server/introspection/detect-destructive-sql.ts";
+import { isReadOnlyQuery } from "#src/server/introspection/detect-destructive-sql.ts";
 import { executeCustomSql } from "#src/server/introspection/introspection.ts";
 
 export const ExecuteCustomSqlInputSchema = Schema.Struct({
@@ -23,7 +23,7 @@ export const executeCustomSqlServerFn = createServerFn({ method: "POST" })
       return await createRemoteIntrospectionHandler(
         (input: { url: string; sql: string; skipQueryLog?: boolean }) =>
           Effect.gen(function* () {
-            if (isReadOnlyConnection(input.url) && !isSelectQuery(input.sql)) {
+            if (isReadOnlyConnection(input.url) && !isReadOnlyQuery(input.sql)) {
               return yield* Effect.fail(
                 new SqlError({ cause: "This connection is read-only. Mutations are disabled." }),
               );
