@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { z } from "zod";
 
 import { DatabaseConnectionRepository } from "#src/db/database-connection.repository.ts";
-import { getDialectDefaultSchema } from "#src/db/dialect.ts";
+import { DatabaseDialect, getDialectDefaultSchema } from "#src/db/dialect.ts";
 import { isReadOnlyConnection } from "#src/lib/connection-security.ts";
 import { withRemoteConnectionLayersFromUrl } from "#src/server/create-remote-server-fn.ts";
 import { isSelectQuery } from "#src/server/introspection/detect-destructive-sql.ts";
@@ -14,6 +14,7 @@ import {
   getDatabaseObjects,
 } from "#src/server/introspection/introspection.ts";
 import { AppRuntime } from "#src/server/services/app.runtime.ts";
+import { NanoId } from "#src/server/services/nano-id.ts";
 
 const MAX_RESULT_ROWS = 100;
 const MAX_SQL_LENGTH = 100_000;
@@ -26,6 +27,10 @@ const safeConnectionUrl = (rawUrl: string) => {
   try {
     const url = new URL(rawUrl);
     if (url.password) url.password = "*****";
+    for (const key of url.searchParams.keys()) {
+      if (/auth|key|password|secret|token/i.test(key)) url.searchParams.set(key, "*****");
+    }
+    url.hash = "";
     return url.toString();
   } catch {
     return "[invalid connection URL]";
@@ -82,11 +87,92 @@ export const createDadabaseMcpServer = () => {
       );
       return jsonResult(
         connections.map((connection) => ({
+          id: connection.id,
           name: connection.name,
           dialect: connection.dialect,
           endpoint: safeConnectionUrl(connection.url),
         })),
       );
+    },
+  );
+
+  server.registerTool(
+    "add_connection",
+    {
+      title: "Add a Dadabase connection",
+      description:
+        "Save a database connection. This changes Dadabase configuration; call with approved=true only after the user asks to add it. Results redact passwords.",
+      inputSchema: {
+        name: z.string().trim().min(1).max(120),
+        url: z.string().trim().min(1).max(4096),
+        dialect: z.enum(DatabaseDialect),
+        approved: z.boolean(),
+      },
+    },
+    async ({ name, url, dialect, approved }) => {
+      if (!approved) {
+        return jsonResult({
+          ok: false,
+          needsApproval: true,
+          message:
+            "Connection was not saved. Call again with approved=true after user confirmation.",
+        });
+      }
+      const result = await AppRuntime.runPromise(
+        Effect.gen(function* () {
+          const repository = yield* DatabaseConnectionRepository;
+          const nanoId = yield* NanoId;
+          const id = yield* nanoId.generate("db_conn");
+          const now = Date.now();
+          yield* repository.insert({
+            id,
+            name,
+            url,
+            dialect,
+            created_at: now,
+            updated_at: now,
+          });
+          return { id, name, dialect, endpoint: safeConnectionUrl(url) };
+        }),
+      );
+      return jsonResult({ ok: true, connection: result });
+    },
+  );
+
+  server.registerTool(
+    "edit_connection",
+    {
+      title: "Edit a Dadabase connection",
+      description:
+        "Change a saved connection's name, URL, or dialect. This changes Dadabase configuration; call with approved=true only after the user asks to edit it. Results redact passwords.",
+      inputSchema: {
+        id: z.string().min(1),
+        name: z.string().trim().min(1).max(120),
+        url: z.string().trim().min(1).max(4096),
+        dialect: z.enum(DatabaseDialect),
+        approved: z.boolean(),
+      },
+    },
+    async ({ id, name, url, dialect, approved }) => {
+      if (!approved) {
+        return jsonResult({
+          ok: false,
+          needsApproval: true,
+          message:
+            "Connection was not changed. Call again with approved=true after user confirmation.",
+        });
+      }
+      const result = await AppRuntime.runPromise(
+        Effect.gen(function* () {
+          const repository = yield* DatabaseConnectionRepository;
+          const connections = yield* repository.findAll();
+          if (!connections.some((connection) => connection.id === id)) return null;
+          yield* repository.update({ id, name, url, dialect });
+          return { id, name, dialect, endpoint: safeConnectionUrl(url) };
+        }),
+      );
+      if (!result) return jsonResult({ ok: false, error: "Connection not found." });
+      return jsonResult({ ok: true, connection: result });
     },
   );
 
